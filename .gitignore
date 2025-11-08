@@ -2,9 +2,12 @@
 __pycache__/
 .DS_Store
 
-!frontend/*
+!frontend/sta
 
 db.sqlite3
 static/
 
 Lukas.zip
+
+.vscode/
+.python-version
