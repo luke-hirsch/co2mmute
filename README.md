@@ -1,4 +1,4 @@
-# CO$_2$MMUTE
+# CO2MMUTE
 
 A game to simulate different means of transportation and their impact to transportation infrastructure and CO2 Emissions based on the master thesis of Sebastian Werblinski.
 
@@ -30,7 +30,7 @@ A game to simulate different means of transportation and their impact to transpo
 1. Spieler wählen Transportmittel für Agenten aus
    1. Vorschau wird bereitgestellt (auf Basis letzter Runde)
    2. finale Auswahl wird berstätigt
-2. Nachdem alle Spieler ihre Auswahl abgeschickt haben, berechnet Server die Wegzeiten und CO$_2$ Emissionen 
+2. Nachdem alle Spieler ihre Auswahl abgeschickt haben, berechnet Server die Wegzeiten und CO2 Emissionen 
    1. Abbruchbedingungen werden gecheckt 
    2. Asuwertung pro Runde wird den Spielern zur Verfügung gestellt
 3. Aus einer Liste an möglicher Kartenupdates wird ein Update zur Abstimmung freigegeben.
