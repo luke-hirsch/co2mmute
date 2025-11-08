@@ -1,0 +1,128 @@
+{% extends "base.html" %} {% load static %} {% block title %}MobilityGame –
+Mobilität verstehen{% endblock %} {% block content %}
+<section class="bg-brand-50">
+  <div
+    class="mx-auto flex max-w-6xl flex-col gap-12 px-4 py-20 md:flex-row md:items-center md:py-28"
+  >
+    <div class="flex-1 space-y-6">
+      <p
+        class="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-brand-700 shadow-sm ring-1 ring-brand-100"
+      >
+        <span class="h-2 w-2 rounded-full bg-brand-500"></span>
+        Ein Lernspiel über Mobilität und Verantwortung
+      </p>
+
+      <h1
+        class="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl"
+      >
+        <span class="text-brand-700">Wähle deinen Weg.</span><br />
+        Erlebe, wie Mobilität die Stadt verändert.
+      </h1>
+
+      <p class="max-w-xl text-sm leading-relaxed text-slate-700 sm:text-base">
+        <span class="font-semibold text-slate-900">MobilityGame</span> macht die
+        Folgen unseres Verkehrsverhaltens sichtbar – CO₂, Stau, Energieverbrauch
+        und Lebensqualität. Kinder und Jugendliche lernen spielerisch, wie
+        bewusste Entscheidungen Städte lebenswerter machen.
+      </p>
+
+      <div class="flex flex-wrap items-center gap-3" id="cta">
+        <a
+          href="{% url 'session_create' %}"
+          class="inline-flex items-center justify-center rounded-full bg-brand-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-brand-600"
+        >
+          Demo spielen
+        </a>
+        <a
+          href="#"
+          class="inline-flex items-center justify-center rounded-full border border-brand-200 px-6 py-2.5 text-sm font-semibold text-brand-700 hover:bg-brand-50"
+        >
+          Für Lehrkräfte
+        </a>
+      </div>
+
+      <div class="flex flex-wrap gap-4 text-xs text-slate-500">
+        <div class="flex items-center gap-2">
+          <span class="h-2 w-2 rounded-full bg-brand-500"></span>
+          <span>Ab 8 Jahren</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="h-2 w-2 rounded-full bg-brand-500"></span>
+          <span>CO₂, Stau & Verkehrsfluss verständlich erklärt</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="h-2 w-2 rounded-full bg-brand-500"></span>
+          <span>Einsetzbar im Unterricht & zu Hause</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex-1">
+      <div class="relative">
+        <div
+          class="absolute -inset-4 rounded-3xl bg-brand-200/40 blur-2xl"
+        ></div>
+
+        <div
+          class="relative overflow-hidden rounded-3xl border border-brand-100 bg-white shadow-xl"
+        >
+          <img
+            src="{% static 'img/hero.jpeg' %}"
+            alt="Kinder spielen MobilityGame und lernen über Verkehrsmittel"
+            class="h-full w-full object-cover"
+          />
+
+          <div
+            class="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-slate-900/10 to-transparent"
+          ></div>
+
+          <div
+            class="absolute bottom-4 left-4 right-4 flex items-end justify-between text-xs text-brand-50"
+          >
+            <div class="space-y-1">
+              <div
+                class="inline-flex items-center gap-2 rounded-full bg-slate-900/60 px-3 py-1"
+              >
+                <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                <span class="font-semibold uppercase tracking-[0.2em]"
+                  >Szenario</span
+                >
+              </div>
+              <p class="max-w-xs text-[11px] leading-snug text-slate-100">
+                Wähle Fahrrad und Bus – die Stadt atmet auf. Wähle Autos – CO₂
+                und Stau nehmen zu.
+              </p>
+            </div>
+
+            <div class="rounded-2xl bg-slate-900/70 px-3 py-2 text-right">
+              <div
+                class="text-[10px] uppercase tracking-[0.16em] text-slate-400"
+              >
+                Stadtbilanz
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-semibold text-emerald-300"
+                  >CO₂ niedrig</span
+                >
+                <span
+                  class="h-1.5 w-16 overflow-hidden rounded-full bg-slate-700"
+                >
+                  <span class="block h-full w-1/3 bg-emerald-400"></span>
+                </span>
+              </div>
+              <div class="mt-1 flex items-center gap-2">
+                <span class="text-[11px] text-slate-200">Verkehrsfluss</span>
+                <span
+                  class="h-1.5 w-10 overflow-hidden rounded-full bg-slate-700"
+                >
+                  <span class="block h-full w-3/4 bg-emerald-400"></span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

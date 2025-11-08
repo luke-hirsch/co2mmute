@@ -1,0 +1,10 @@
+.env
+__pycache__/
+.DS_Store
+
+!frontend/*
+
+db.sqlite3
+static/
+
+Lukas.zip

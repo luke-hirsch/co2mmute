@@ -1,0 +1,186 @@
+{% extends "base.html" %} {% load static %} {% block title %}Anmeldung –
+MobilityGame{% endblock %} {% block content %}
+<section class="flex min-h-[80vh] items-center justify-center bg-brand-50 px-4">
+  <div class="mx-auto w-full max-w-md">
+    <div class="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+      <div class="mb-8 text-center">
+        <div class="mb-4 flex justify-center">
+          <div
+            class="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500"
+          >
+            <svg
+              viewBox="0 0 48 48"
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-7 w-7 text-brand-50"
+            >
+              <path
+                d="M24 36 V18 M24 18 L14 12 M24 18 L34 12"
+                stroke="currentColor"
+                stroke-width="3"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <circle cx="13" cy="11" r="2" fill="currentColor" />
+              <circle cx="35" cy="11" r="2" fill="currentColor" />
+              <circle cx="24" cy="38" r="2" fill="currentColor" />
+            </svg>
+          </div>
+        </div>
+        <h1 class="text-2xl font-bold text-slate-900">Anmeldung</h1>
+        <p class="mt-2 text-sm text-slate-600">
+          Melden Sie sich an, um eine neue Spielsitzung zu starten.
+        </p>
+      </div>
+
+      {% if form.errors %}
+      <div
+        class="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+      >
+        Anmeldung fehlgeschlagen. Bitte Eingaben prüfen.
+      </div>
+      {% endif %}
+
+      <form method="post" class="space-y-6" novalidate>
+        {% csrf_token %}
+
+        <div>
+          <label
+            for="id_username"
+            class="mb-2 block text-sm font-medium text-slate-700"
+          >
+            Benutzername
+          </label>
+          <input
+            type="text"
+            name="username"
+            id="id_username"
+            required
+            autofocus
+            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+            placeholder="z. B. gruppe-7a"
+          />
+        </div>
+
+        <div>
+          <div class="mb-2 flex items-center justify-between">
+            <label
+              for="id_password"
+              class="block text-sm font-medium text-slate-700"
+            >
+              Passwort
+            </label>
+            <button
+              type="button"
+              id="password-toggle"
+              class="text-xs font-medium text-slate-500 hover:text-slate-700"
+            >
+              Anzeigen
+            </button>
+          </div>
+          <div class="relative">
+            <input
+              type="password"
+              name="password"
+              id="id_password"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 pr-20 text-slate-900 placeholder-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              placeholder="Leer lassen für Gast-Zugang"
+            />
+          </div>
+          <p class="mt-2 text-xs leading-relaxed text-slate-500">
+            <span class="block">
+              • Kein Passwort: Es wird ein
+              <span class="font-medium">Gast-Zugang</span> für diese Sitzung
+              erstellt.
+            </span>
+            <span class="block">
+              • Passwort vorhanden: Anmeldung mit bestehendem Konto.
+            </span>
+          </p>
+        </div>
+
+        <div class="space-y-3 rounded-xl bg-slate-50 px-3 py-3">
+          <label class="flex items-start gap-3">
+            <input
+              type="checkbox"
+              name="create_permanent"
+              id="id_create_permanent"
+              value="1"
+              class="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+            />
+            <span class="text-sm text-slate-700">
+              Dauerhaften Zugang anlegen
+              <span class="block text-xs text-slate-500">
+                Erstmalige Nutzung mit Passwort: Mit E-Mail-Adresse wird ein
+                dauerhaftes Konto erstellt.
+              </span>
+            </span>
+          </label>
+
+          <div>
+            <label
+              for="id_email"
+              class="mb-1 block text-xs font-medium text-slate-700"
+            >
+              E-Mail-Adresse (für dauerhaftes Konto)
+            </label>
+            <input
+              type="email"
+              name="email"
+              id="id_email"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:bg-slate-100 disabled:text-slate-400"
+              placeholder="lehrkraft@example.de"
+              disabled
+            />
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          class="w-full rounded-full bg-brand-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-300 focus:ring-offset-2"
+        >
+          Weiter zur Spielsitzung
+        </button>
+      </form>
+
+      <div class="mt-6 text-center text-xs text-slate-500">
+        Hinweise: Gast-Zugänge sind temporär und nur für einzelne Sitzungen
+        gedacht.
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const passwordInput = document.getElementById("id_password");
+    const toggleButton = document.getElementById("password-toggle");
+    const createPermanentCheckbox = document.getElementById(
+      "id_create_permanent"
+    );
+    const emailInput = document.getElementById("id_email");
+
+    if (toggleButton && passwordInput) {
+      toggleButton.addEventListener("click", function () {
+        const isPassword = passwordInput.type === "password";
+        passwordInput.type = isPassword ? "text" : "password";
+        toggleButton.textContent = isPassword ? "Verbergen" : "Anzeigen";
+      });
+    }
+
+    if (createPermanentCheckbox && emailInput) {
+      const updateEmailState = () => {
+        if (createPermanentCheckbox.checked) {
+          emailInput.disabled = false;
+          emailInput.required = true;
+        } else {
+          emailInput.disabled = true;
+          emailInput.required = false;
+        }
+      };
+
+      createPermanentCheckbox.addEventListener("change", updateEmailState);
+      updateEmailState();
+    }
+  });
+</script>
+{% endblock %}
