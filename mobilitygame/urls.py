@@ -42,5 +42,9 @@ urlpatterns = [
     ),
     # main views
     path("", IndexView.as_view(), name="index"),
+    path(
+        "lobby/",
+        include("lobby.urls"),
+    ),
     path("game/", include("game.urls")),
 ]

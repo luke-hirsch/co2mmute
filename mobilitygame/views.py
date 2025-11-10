@@ -1,8 +1,6 @@
 from django.contrib.auth import login, password_validation
-from django.contrib.auth.decorators import login_not_required
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
-from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.generic import TemplateView
 from django.core.exceptions import ValidationError
@@ -10,12 +8,10 @@ from django.core.exceptions import ValidationError
 from .forms import SignUpForm, UsernameOrEmailAuthenticationForm
 
 
-@method_decorator(login_not_required, name="dispatch")
 class IndexView(TemplateView):
     template_name = "index.html"
 
 
-@method_decorator(login_not_required, name="dispatch")
 class AuthView(View):
     template_name = "login.html"
     success_url = reverse_lazy("index")
@@ -30,7 +26,9 @@ class AuthView(View):
             return redirect(request.GET.get("next") or self.success_url)
         return super().dispatch(request, *args, **kwargs)
 
-    def get_context_data(self, request, login_form=None, signup_form=None, mode="login"):
+    def get_context_data(
+        self, request, login_form=None, signup_form=None, mode="login"
+    ):
         return {
             "login_form": login_form or self.login_form_class(request),
             "signup_form": signup_form or self.signup_form_class(),
@@ -52,7 +50,7 @@ class AuthView(View):
             signup_form = self.signup_form_class(request.POST)
             login_form = self.login_form_class(request)
             if signup_form.is_valid():
-                password = signup_form.cleaned_data.get("password1")
+                password = str(signup_form.cleaned_data.get("password1"))
                 user_candidate = signup_form.instance
                 try:
                     password_validation.validate_password(password, user_candidate)
