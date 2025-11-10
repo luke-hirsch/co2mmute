@@ -1,9 +1,8 @@
 {% load static %}
-<!DOCTYPE html>
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
-    <title>{% block title %}CO2mmute{% endblock %}</title>
+    <title>{% block title %}MobilityGame{% endblock %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -66,23 +65,11 @@
               <div
                 class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500"
               >
-                CO2
+                mobility
               </div>
-              <div class="text-lg font-bold text-slate-900">mmute</div>
+              <div class="text-lg font-bold text-slate-900">game</div>
             </div>
           </a>
-
-          <nav class="flex items-center gap-6 text-sm text-slate-700">
-            <span class="hidden md:inline">Für Schulen</span>
-            <span class="hidden md:inline">Für Familien</span>
-            <span class="hidden md:inline">Über das Spiel</span>
-            <a
-              href="{% url 'session_create' %}"
-              class="rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600"
-            >
-              Jetzt starten
-            </a>
-          </nav>
         </div>
       </header>
 
@@ -92,7 +79,7 @@
         <div
           class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 text-xs text-slate-500"
         >
-          <span>&copy; {{ year|default:2025 }} CO2mmute.</span>
+          <span>&copy; {{ year|default:2025 }} MobilityGame.</span>
           <span>Verstehen. Entscheiden. Bewegen.</span>
         </div>
       </footer>

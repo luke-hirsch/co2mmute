@@ -1,13 +1,28 @@
-.env
+# Python
 __pycache__/
-.DS_Store
+*.py[cod]
+*.egg-info/
+*.log
 
-!frontend/sta
-
-db.sqlite3
-static/
-
-Lukas.zip
-
-.vscode/
+# Environments
+.env
+.venv/
 .python-version
+
+# Django
+db.sqlite3
+/media/
+static/
+!frontend/static/
+
+# Node / Frontend
+node_modules/
+dist/
+build/
+*.lock
+*.zip
+
+# OS / Editor
+.DS_Store
+.vscode/
+.idea/

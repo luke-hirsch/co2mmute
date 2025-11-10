@@ -1,11 +1,83 @@
-from django.views.generic.edit import CreateView
+from django.contrib.auth.mixins import UserPassesTestMixin
+from django.urls import reverse_lazy
+from django.views.generic import DetailView, ListView
+from django.views.generic.edit import CreateView, DeleteView, UpdateView
+
+from .forms import SessionForm
 from .models import Session
 
-# Create your views here.
+
+class SessionListView(ListView):
+    model = Session
+    template_name = "game/session_list.html"
+    context_object_name = "sessions"
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        if not user.is_authenticated:
+            return qs.none()
+        if user.is_staff or user.is_superuser:
+            return qs
+        return qs.filter(created_by=user)
+
+
+class SessionDetailView(UserPassesTestMixin, DetailView):
+    model = Session
+    template_name = "game/session_detail.html"
+    context_object_name = "session"
+
+    def test_func(self):
+        session = self.get_object()
+        if not isinstance(session, Session):
+            raise ValueError("Invalid session object")
+        user = self.request.user
+        return user.is_authenticated and (
+            user == session.created_by or user.is_staff or user.is_superuser
+        )
 
 
 class SessionCreateView(CreateView):
     model = Session
-    fields = ["max_rounds", "wins_to_win"]
+    form_class = SessionForm
     template_name = "game/session_form.html"
-    success_url = "/sessions/"
+
+    def form_valid(self, form):
+        form.instance.created_by = self.request.user
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse_lazy("session_detail", kwargs={"pk": self.object.pk})  # type: ignore
+
+
+class SessionUpdateView(UserPassesTestMixin, UpdateView):
+    model = Session
+    form_class = SessionForm
+    template_name = "game/session_form.html"
+
+    def test_func(self):
+        session = self.get_object()
+        if not isinstance(session, Session):
+            raise ValueError("Invalid session object")
+        user = self.request.user
+        return user.is_authenticated and (
+            user == session.created_by or user.is_staff or user.is_superuser
+        )
+
+    def get_success_url(self):
+        return reverse_lazy("session_detail", kwargs={"pk": self.object.pk})  # type: ignore
+
+
+class SessionDeleteView(UserPassesTestMixin, DeleteView):
+    model = Session
+    template_name = "game/session_confirm_delete.html"
+    success_url = reverse_lazy("session_list")
+
+    def test_func(self):
+        session = self.get_object()
+        if not isinstance(session, Session):
+            return False
+        user = self.request.user
+        return user.is_authenticated and (
+            user == session.created_by or user.is_staff or user.is_superuser
+        )
