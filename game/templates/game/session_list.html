@@ -1,7 +1,0 @@
-{% extends "base_game.html" %} {% block content %}
-<ul class="mx-auto text-center">
-  {% for session in sessions %}
-  <li>{{session}} created by {{session.created_by}}</li>
-  {% endfor %}
-</ul>
-{% endblock content %}
