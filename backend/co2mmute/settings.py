@@ -10,7 +10,71 @@ DEBUG = os.environ.get("DJANGO_DEBUG", "True") == "True"
 
 ALLOWED_HOSTS = [os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost").split(",")]
 
+LOG_LEVEL = os.environ.get("DJANGO_LOG_LEVEL", "DEBUG" if DEBUG else "INFO").upper()
+LOG_DIR = BASE_DIR / "logs"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "simple": {
+            "format": "{levelname} {message}",
+            "style": "{",
+        },
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
+    },
+    "filters": {
+        "only_special": {
+            "()": "logging.Filter",
+            "name": "special",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "level": "DEBUG",
+            "formatter": "simple",
+        },
+        "special_info_file": {
+            "class": "logging.FileHandler",
+            "level": "INFO",
+            "formatter": "verbose",
+            "filters": ["only_special"],
+            "filename": str(LOG_DIR / "special-info.log"),
+        },
+        "warnings_file": {
+            "class": "logging.FileHandler",
+            "level": "WARNING",
+            "formatter": "verbose",
+            "filename": str(LOG_DIR / "warnings-errors.log"),
+        },
+        "mail_admins": {
+            "class": "django.utils.log.AdminEmailHandler",
+            "level": "ERROR",
+            "include_html": True,
+        },
+    },
+    "loggers": {
+        "": {
+            "handlers": ["console", "warnings_file", "mail_admins"],
+            "level": LOG_LEVEL,
+        },
+        "special": {
+            "handlers": ["special_info_file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "django": {
+            "handlers": ["console"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+    },
+}
 # Application definition
 
 INSTALLED_APPS = [
