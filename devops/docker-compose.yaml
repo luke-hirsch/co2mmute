@@ -1,0 +1,105 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-co2mmute}
+      POSTGRES_USER: ${POSTGRES_USER:-co2mmute}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-co2mmute}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    image: co2mmute-backend
+    environment: &backend-env
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,backend,nginx}
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-http://localhost,http://127.0.0.1,http://localhost:8080,http://127.0.0.1:8080,http://nginx}
+      DJANGO_STATIC_ROOT: /app/staticfiles
+      DJANGO_DB_WAIT_TIMEOUT: ${DJANGO_DB_WAIT_TIMEOUT:-60}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-insecure-local-key}
+      POSTGRES_DB: ${POSTGRES_DB:-co2mmute}
+      POSTGRES_USER: ${POSTGRES_USER:-co2mmute}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-co2mmute}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - backend-static:/app/staticfiles
+      - backend-logs:/app/logs
+
+  celery-worker:
+    image: co2mmute-backend
+    environment: *backend-env
+    command: ["celery", "-A", "co2mmute", "worker", "-l", "${CELERY_WORKER_LOG_LEVEL:-info}"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  celery-beat:
+    image: co2mmute-backend
+    environment: *backend-env
+    command: ["celery", "-A", "co2mmute", "beat", "-l", "${CELERY_BEAT_LOG_LEVEL:-info}"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: ..
+      dockerfile: devops/nginx/Dockerfile
+      args:
+        VITE_API_BASE_URL: ${FRONTEND_API_BASE_URL:-/api}
+    image: co2mmute-nginx
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_started
+    volumes:
+      - backend-static:/var/www/backend-static:ro
+
+volumes:
+  backend-static:
+  backend-logs:
+  redis-data:
+  postgres-data:
