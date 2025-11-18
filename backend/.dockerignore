@@ -7,5 +7,5 @@ env/
 .env.*
 db.sqlite3
 logs/
-data/
+
 *.sqlite3
