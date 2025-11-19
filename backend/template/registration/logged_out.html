@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Signed out &ndash; CO2MMUTE{% endblock %}
+
+{% block content %}
+<section class="mx-auto w-full max-w-xl px-6 py-20 text-center">
+  <div class="rounded-3xl border border-subtle bg-surface p-12 shadow-xl">
+    <span class="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-100 text-2xl text-primary-700 shadow-lg">
+      ✅
+    </span>
+    <h1 class="mt-6 text-3xl font-semibold text-primary-700">You&apos;re signed out</h1>
+    <p class="mt-4 text-sm text-muted">
+      Thanks for exploring CO2MMUTE. Your session has been closed securely.
+    </p>
+    <div class="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center">
+      <a class="btn-primary w-full sm:w-auto" href="{% url 'login' %}">Sign in again</a>
+      <a class="btn-secondary w-full sm:w-auto" href="{% url 'index' %}">Return home</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,222 @@
+:root {
+  --color-primary-50: #E3F2FD;
+  --color-primary-100: #BBDEFB;
+  --color-primary-200: #90CAF9;
+  --color-primary-300: #64B5F6;
+  --color-primary-400: #42A5F5;
+  --color-primary-500: #1E88E5;
+  --color-primary-600: #1565C0;
+  --color-primary-700: #0D47A1;
+  --color-primary-800: #092F6B;
+  --color-primary-900: #041C3D;
+
+  --color-accent: #FFB300;
+
+  --color-bg-body: #F3F4F6;
+  --color-bg-surface: #FFFFFF;
+  --color-bg-elevated: #F9FAFB;
+  --color-border-subtle: #E5E7EB;
+  --color-border-strong: #D1D5DB;
+  --color-text-main: #111827;
+  --color-text-muted: #6B7280;
+  --color-text-soft: #9CA3AF;
+
+  --color-bg-body-dark: #0B1120;
+  --color-bg-surface-dark: #111827;
+  --color-bg-elevated-dark: #1F2933;
+  --color-border-subtle-dark: #1F2937;
+  --color-border-strong-dark: #374151;
+  --color-text-main-dark: #F9FAFB;
+  --color-text-muted-dark: #9CA3AF;
+  --color-text-soft-dark: #6B7280;
+}
+
+body {
+  background-color: var(--color-bg-body);
+  color: var(--color-text-main);
+}
+
+label {
+  display: block;
+  font-weight: 600;
+  color: var(--color-text-main);
+  margin-bottom: 0.35rem;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="number"],
+input[type="url"],
+input[type="search"],
+textarea,
+select {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-border-subtle);
+  background-color: var(--color-bg-surface);
+  padding: 0.6rem 0.9rem;
+  font-size: 0.95rem;
+  color: var(--color-text-main);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--color-primary-400);
+  box-shadow: 0 0 0 4px rgba(30, 136, 229, 0.15);
+  outline: none;
+}
+
+.form-help {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin-top: 0.35rem;
+}
+
+.form-error {
+  margin-top: 0.5rem;
+  border-radius: 0.75rem;
+  background-color: #FEE2E2;
+  color: #B91C1C;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.bg-primary-50 { background-color: var(--color-primary-50); }
+.bg-primary-100 { background-color: var(--color-primary-100); }
+.bg-primary-200 { background-color: var(--color-primary-200); }
+.bg-primary-300 { background-color: var(--color-primary-300); }
+.bg-primary-400 { background-color: var(--color-primary-400); }
+.bg-primary-500 { background-color: var(--color-primary-500); }
+.bg-primary-600 { background-color: var(--color-primary-600); }
+.bg-primary-700 { background-color: var(--color-primary-700); }
+.bg-primary-800 { background-color: var(--color-primary-800); }
+.bg-primary-900 { background-color: var(--color-primary-900); }
+
+.text-primary-50 { color: var(--color-primary-50); }
+.text-primary-100 { color: var(--color-primary-100); }
+.text-primary-200 { color: var(--color-primary-200); }
+.text-primary-300 { color: var(--color-primary-300); }
+.text-primary-400 { color: var(--color-primary-400); }
+.text-primary-500 { color: var(--color-primary-500); }
+.text-primary-600 { color: var(--color-primary-600); }
+.text-primary-700 { color: var(--color-primary-700); }
+.text-primary-800 { color: var(--color-primary-800); }
+.text-primary-900 { color: var(--color-primary-900); }
+
+.border-primary-50 { border-color: var(--color-primary-50); }
+.border-primary-100 { border-color: var(--color-primary-100); }
+.border-primary-200 { border-color: var(--color-primary-200); }
+.border-primary-300 { border-color: var(--color-primary-300); }
+.border-primary-400 { border-color: var(--color-primary-400); }
+.border-primary-500 { border-color: var(--color-primary-500); }
+.border-primary-600 { border-color: var(--color-primary-600); }
+.border-primary-700 { border-color: var(--color-primary-700); }
+.border-primary-800 { border-color: var(--color-primary-800); }
+.border-primary-900 { border-color: var(--color-primary-900); }
+
+.bg-accent { background-color: var(--color-accent); }
+.text-accent { color: var(--color-accent); }
+.border-accent { border-color: var(--color-accent); }
+
+.bg-body { background-color: var(--color-bg-body); }
+.bg-surface { background-color: var(--color-bg-surface); }
+.bg-elevated { background-color: var(--color-bg-elevated); }
+.border-subtle { border-color: var(--color-border-subtle); }
+.border-strong { border-color: var(--color-border-strong); }
+.text-main { color: var(--color-text-main); }
+.text-muted { color: var(--color-text-muted); }
+.text-soft { color: var(--color-text-soft); }
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: var(--color-bg-body-dark);
+    color: var(--color-text-main-dark);
+  }
+
+  .dark\\:bg-surface {
+    background-color: var(--color-bg-surface-dark);
+  }
+
+  .dark\\:text-muted {
+    color: var(--color-text-muted-dark);
+  }
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  background-color: var(--color-primary-600);
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #ffffff;
+  box-shadow: 0 10px 15px -3px rgba(15, 52, 110, 0.3),
+    0 4px 6px -4px rgba(15, 52, 110, 0.4);
+  transition: background-color 150ms ease, box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-primary-500);
+  box-shadow: 0 20px 25px -5px rgba(15, 52, 110, 0.35),
+    0 10px 10px -5px rgba(15, 52, 110, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-primary:focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 2px;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-primary-200);
+  background-color: #ffffff;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-primary-600);
+  transition: background-color 150ms ease, color 150ms ease,
+    border-color 150ms ease;
+}
+
+.btn-secondary:hover {
+  background-color: var(--color-primary-50);
+  color: var(--color-primary-700);
+  border-color: var(--color-primary-300);
+}
+
+.btn-secondary:focus-visible {
+  outline: 2px solid var(--color-primary-200);
+  outline-offset: 2px;
+}
+
+.glass-surface {
+  background-color: rgba(255, 255, 255, 0.85);
+}
+
+.gradient-primary {
+  background-image: linear-gradient(
+    90deg,
+    var(--color-primary-300),
+    var(--color-primary-500),
+    var(--color-primary-700)
+  );
+}
+
+.gradient-primary-accent {
+  background-image: linear-gradient(
+    90deg,
+    var(--color-primary-300),
+    var(--color-accent),
+    var(--color-primary-700)
+  );
+}

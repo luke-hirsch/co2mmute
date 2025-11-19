@@ -5,6 +5,7 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent
 TEMPLATE_DIR = BASE_DIR / "template"
 FRONTEND_DIST_DIR = BASE_DIR.parent / "frontend" / "dist"
+STATIC_DIR = BASE_DIR / "static"
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "django-insecure-placeholder-key")
 
@@ -203,7 +204,7 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = Path(os.environ.get("DJANGO_STATIC_ROOT", BASE_DIR / "staticfiles"))
 STATICFILES_DIRS = [
-    path for path in [FRONTEND_DIST_DIR] if path.exists()
+    path for path in [FRONTEND_DIST_DIR, STATIC_DIR] if path.exists()
 ]
 
 # Default primary key field type
