@@ -1,11 +1,10 @@
 from django.contrib import admin
-from django.urls import path, include
-from .views import IndexView, SpaView, SignUpView, DsgvoView, ImpressumView
+from django.urls import path, include, re_path
+from .views import IndexView, SignUpView, DsgvoView, ImpressumView, SpaView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", IndexView.as_view(), name="index"),
-    path("app/", SpaView.as_view(), name="app"),
     path("accounts/", include("django.contrib.auth.urls")),
     path("accounts/signup", SignUpView.as_view(), name="signup"),
     path("legal/dsgvo", DsgvoView.as_view(), name="dsgvo"),
@@ -14,4 +13,5 @@ urlpatterns = [
     path("api/game_data/", include("game_data.urls")),
     path("api/maps/", include("maps.urls")),
     path("api/lobby/", include("maps.urls")),
+    re_path(r"^app/(?:.*)", SpaView.as_view(), name="app"),
 ]

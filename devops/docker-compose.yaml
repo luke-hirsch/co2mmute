@@ -39,7 +39,7 @@ services:
       DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,backend,nginx}
       DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-http://localhost,http://127.0.0.1,http://localhost:8080,http://127.0.0.1:8080,http://nginx}
-      DJANGO_STATIC_ROOT: /app/staticfiles
+      DJANGO_STATIC_ROOT: /var/www/backend-static
       DJANGO_DB_WAIT_TIMEOUT: ${DJANGO_DB_WAIT_TIMEOUT:-60}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-insecure-local-key}
       POSTGRES_DB: ${POSTGRES_DB:-co2mmute}
@@ -58,7 +58,7 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - backend-static:/app/staticfiles
+      - backend-static:/var/www/backend-static
       - backend-logs:/app/logs
 
   # celery-worker:

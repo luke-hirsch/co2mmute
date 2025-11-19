@@ -3,6 +3,8 @@ import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+TEMPLATE_DIR = BASE_DIR / "template"
+FRONTEND_DIST_DIR = BASE_DIR.parent / "frontend" / "dist"
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "django-insecure-placeholder-key")
 
@@ -125,7 +127,7 @@ ROOT_URLCONF = "co2mmute.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [TEMPLATE_DIR],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -182,6 +184,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
+    {"NAME": "co2mmute.utils.CustomPasswordValidator"},
 ]
 
 
@@ -199,6 +202,9 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = Path(os.environ.get("DJANGO_STATIC_ROOT", BASE_DIR / "staticfiles"))
+STATICFILES_DIRS = [
+    path for path in [FRONTEND_DIST_DIR] if path.exists()
+]
 
 # Default primary key field type
 

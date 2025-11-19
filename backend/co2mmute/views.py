@@ -6,7 +6,7 @@ class IndexView(TemplateView):
 
 
 class SpaView(TemplateView):
-    template_name = ""
+    template_name = "app.html"
 
 
 class SignUpView(TemplateView):
