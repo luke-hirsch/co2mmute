@@ -15,6 +15,7 @@ FROM nginx:1.27-alpine
 WORKDIR /usr/share/nginx/html
 
 COPY devops/nginx/nginx.conf /etc/nginx/conf.d/default.conf
+COPY devops/nginx/certs /etc/nginx/certs
 COPY --from=frontend-build /app/dist .
 
 RUN mkdir -p /var/www/backend-static
