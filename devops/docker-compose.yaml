@@ -30,8 +30,8 @@ services:
 
   backend:
     build:
-      context: ../backend
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: backend/Dockerfile
     image: co2mmute-backend
     environment: &backend-env
       DJANGO_DEBUG: ${DJANGO_DEBUG:-False}

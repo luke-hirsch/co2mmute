@@ -1,0 +1,17 @@
+.git
+.github
+node_modules
+devops/volumes
+backend/node_modules
+frontend/node_modules/*
+!frontend/node_modules/tailwindcss/**
+!frontend/node_modules/@tailwindcss/**
+!frontend/node_modules/@jridgewell/**
+!frontend/node_modules/enhanced-resolve/**
+!frontend/node_modules/jiti/**
+!frontend/node_modules/lightningcss/**
+!frontend/node_modules/magic-string/**
+!frontend/node_modules/source-map-js/**
+frontend/dist
+frontend/build
+**/.DS_Store

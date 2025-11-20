@@ -35,6 +35,7 @@ dist-ssr
 *.local
 
 devops/volumes/
+backend/node_modules/
 
 # Editor directories and files
 .vscode/*

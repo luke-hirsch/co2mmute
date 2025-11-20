@@ -13,14 +13,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # Install pip dependencies
 RUN pip install --upgrade pip
-COPY requirements.txt .
+COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Create non-root user
 RUN addgroup --system app && adduser --system --ingroup app app
 
 # Copy project code after dependencies for better caching
-COPY --chown=app:app . /app
+COPY --chown=app:app backend /app
+COPY --from=tailwind-build /builder/backend/static/css/tailwind.css /app/static/css/tailwind.css
 
 RUN mkdir -p /app/staticfiles /app/logs && chown -R app:app /app/staticfiles /app/logs
 
