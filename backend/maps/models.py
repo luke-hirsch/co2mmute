@@ -1,4 +1,4 @@
-from xml.dom import ValidationErr
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -44,7 +44,7 @@ class BusLine(PTLine):
 
     def save(self, *args, **kwargs):
         if self.capacity > self.game_map.max_bus_capacity:
-            raise ValidationErr(f"Bus line capacity {self.capacity} exceeds maximum bus capacity {self.game_map.max_bus_capacity} for map {self.game_map}.")
+            raise ValidationError(f"Bus line capacity {self.capacity} exceeds maximum bus capacity {self.game_map.max_bus_capacity} for map {self.game_map}.")
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -54,7 +54,7 @@ class TrainLine(PTLine):
 
     def save(self, *args, **kwargs):
         if self.capacity > self.game_map.max_train_capacity:
-            raise ValidationErr(f"Train line capacity {self.capacity} exceeds maximum train capacity {self.game_map.max_train_capacity} for map {self.game_map}.")
+            raise ValidationError(f"Train line capacity {self.capacity} exceeds maximum train capacity {self.game_map.max_train_capacity} for map {self.game_map}.")
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -63,6 +63,7 @@ class TrainLine(PTLine):
 class Node(models.Model):
 
     game_map = models.ForeignKey(GameMap, on_delete=models.CASCADE, related_name='related_map')
+    node_id = models.PositiveIntegerField()
     x_coord = models.FloatField()
     y_coord = models.FloatField()
     nodetype_choices = [
@@ -72,14 +73,23 @@ class Node(models.Model):
         ('I', 'Intersection'),
         ('BS', 'Bus Stop'),
     ]
-    node_name = models.CharField(max_length=100, null=True, blank=True)
+    nodetype = models.CharField(max_length=2, choices=nodetype_choices)
+    node_name = models.CharField(max_length=100, null=True, blank=True) # optional for map visualization
 
     # methods for node
     def clean(self):
         if self.x_coord < 0 or self.x_coord > self.game_map.x_dim:
-            raise ValidationErr(f"x_coord {self.x_coord} is out of bounds for map dimension {self.game_map.x_dim}")
+            raise ValidationError(f"x_coord {self.x_coord} is out of bounds for map dimension {self.game_map.x_dim}")
         if self.y_coord < 0 or self.y_coord > self.game_map.y_dim:
-            raise ValidationErr(f"y_coord {self.y_coord} is out of bounds for map dimension {self.game_map.y_dim}")   
+            raise ValidationError(f"y_coord {self.y_coord} is out of bounds for map dimension {self.game_map.y_dim}")   
+
+        # Ensure node_id is unique per game_map
+        if self.game_map is not None and self.node_id is not None:
+            qs = Node.objects.filter(game_map=self.game_map, node_id=self.node_id)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            if qs.exists():
+                raise ValidationError(f"node_id {self.node_id} already exists for map {self.game_map}.")
 
     def save(self, *args, **kwargs):
         self.full_clean()  # call clean and validate the model fields
@@ -88,10 +98,15 @@ class Node(models.Model):
     def __str__(self):
         return f"Node {self.id} belonging to {self.game_map}. Node is of type {self.nodetype} located at ({self.x_coord}, {self.y_coord})."
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['game_map', 'node_id'], name='unique_nodeid_per_map')
+        ]
 
 class Edge(models.Model):
 
     game_map = models.ForeignKey(GameMap, on_delete=models.CASCADE, related_name='related_map')
+    edge_id = models.PositiveIntegerField(verbose_name="Edge id for referencing")
     node1 = models.ForeignKey(Node, on_delete=models.CASCADE, related_name='from_node')
     node2 = models.ForeignKey(Node, on_delete=models.CASCADE, related_name='to_node')
     edgetype_choices = [
@@ -100,18 +115,28 @@ class Edge(models.Model):
         ('T', 'Train Track'),
         ('PW', 'Pedestrian Walkway'),
     ]
+    edgetype = models.CharField(max_length=2, choices=edgetype_choices)
     distance = models.FloatField(help_text="Distance of the edge in km", editable=False) 
-    edge_name = models.CharField(max_length=100, null=True, blank=True) # for map visualization
+    edge_name = models.CharField(max_length=100, null=True, blank=True) # optional for map visualization
 
 
     def clean(self):
         if self.node1.game_map != self.game_map or self.node2.game_map != self.game_map:
-            raise ValidationErr("Start and end nodes must belong to the same game map as the edge.")
+            raise ValidationError("Start and end nodes must belong to the same game map as the edge.")
+        
+        # Ensure edge id is unique per game_map
+        if self.game_map is not None and self.edge_id is not None:
+            qs = Node.objects.filter(game_map=self.game_map, edge_id=self.edge_id)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            if qs.exists():
+                raise ValidationError(f"edge_id {self.edge_id} already exists for map {self.game_map}.")
+
 
     def save(self, *args, **kwargs):
         # prevent creating plain edge without subtype
         if self.__class__ == Edge:
-            raise ValidationErr("Cannot create an Edge instance directly. Please use a specific Edge subtype.")
+            raise ValidationError("Cannot create an Edge instance directly. Please use a specific Edge subtype.")
 
         self.full_clean()  # call clean and validate the model fields
 
@@ -124,6 +149,11 @@ class Edge(models.Model):
 
     def __str__(self):
         return f"Edge belonging to {self.game_map}. Edge is of type {self.edgetype_choices} running from {self.node1} to {self.to_node}"
+    
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['game_map', 'edge_id'], name='unique_edgeid_per_map')
+        ]
     
 
 class StreetEdge(Edge):
