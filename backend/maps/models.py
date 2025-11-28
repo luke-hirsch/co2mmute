@@ -136,8 +136,7 @@ class StreetEdge(Edge):
         return f"Street Edge from {self.node1} to {self.node2} with speed limit {self.speed_limit} km/h"
     
 class BikePathEdge(Edge):
-    bike_lane_type = models.CharField(max_length=100, help_text="Type of bike lane")
-
+    
     def __str__(self):
         return f"Bike Path Edge from {self.node1} to {self.node2} of type {self.bike_lane_type}"
     
