@@ -4,6 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "build:css": "tailwindcss -i static/css/custom.css -o static/css/tailwind.css --minify",
+    "watch:css": "tailwindcss -i static/css/custom.css -o static/css/tailwind.css --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

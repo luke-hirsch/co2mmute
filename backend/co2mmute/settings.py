@@ -203,9 +203,7 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = Path(os.environ.get("DJANGO_STATIC_ROOT", BASE_DIR / "staticfiles"))
-STATICFILES_DIRS = [
-    path for path in [FRONTEND_DIST_DIR, STATIC_DIR] if path.exists()
-]
+STATICFILES_DIRS = [path for path in [FRONTEND_DIST_DIR, STATIC_DIR] if path.exists()]
 
 # Default primary key field type
 

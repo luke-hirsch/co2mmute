@@ -40,6 +40,9 @@ fi
 echo "Applying database migrations..."
 python manage.py migrate --noinput
 
+echo "Building Tailwind CSS assets..."
+npm run build:css --silent
+
 echo "Collecting static assets..."
 STATIC_ROOT="${DJANGO_STATIC_ROOT:-/app/staticfiles}"
 mkdir -p "$STATIC_ROOT"
