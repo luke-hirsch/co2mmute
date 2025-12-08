@@ -1,11 +1,70 @@
 {% extends "base.html" %} {% load static %} {% block main %}
 <section class="mx-auto max-w-4xl px-4 py-8">
-  <h1 class="text-3xl text-main dark:text-darktext font-semibold">Index</h1>
-  <p class="mt-4 text-muted dark:text-darkmutedtext">
-    Lorem ipsum dolor sit, amet consectetur adipisicing elit. Repellendus
-    placeat soluta neque omnis officiis corporis odio earum officia excepturi
-    non. Doloribus eius soluta repellat labore dolor consequatur, modi
-    cupiditate reprehenderit.
-  </p>
+  <div class="mx-auto max-w-7xl py-24 sm:px-6 sm:py-32 lg:px-8">
+    <div
+      class="relative isolate overflow-hidden bg-elevated px-6 pt-16 shadow-2xl sm:rounded-3xl sm:px-16 md:pt-24 lg:flex lg:gap-x-20 lg:px-24 lg:pt-0 dark:bg-darkelevated dark:shadow-none"
+    >
+      <svg
+        viewBox="0 0 1024 1024"
+        aria-hidden="true"
+        class="absolute top-1/2 left-1/2 -z-10 size-256 -translate-y-1/2 mask-[radial-gradient(closest-side,white,transparent)] sm:left-full sm:-ml-80 lg:left-1/2 lg:ml-0 lg:-translate-x-1/2 lg:translate-y-0"
+      >
+        <circle
+          r="512"
+          cx="512"
+          cy="512"
+          fill="url(#759c1415-0410-454c-8f7c-9a820de03641)"
+          fill-opacity="0.7"
+        />
+        <defs>
+          <radialGradient id="759c1415-0410-454c-8f7c-9a820de03641">
+            <stop stop-color="#1e88e5" />
+            <stop offset="1" stop-color="#ffb300" />
+          </radialGradient>
+        </defs>
+      </svg>
+      <div
+        class="mx-auto max-w-md text-center lg:mx-0 lg:flex-auto lg:py-32 lg:text-left"
+      >
+        <h2
+          class="text-3xl font-semibold tracking-tight text-balance text-main sm:text-4xl dark:text-darktext"
+        >
+          Coordinate commute strategies for your city.
+        </h2>
+        <p
+          class="mt-6 text-lg/8 text-pretty text-muted dark:text-darkmutedtext"
+        >
+          CO<sub>2</sub>mmute turns urban mobility planning into a cooperative
+          game. Guide agents across Berlin, negotiate CO2 limits with your team,
+          and explore the scenarios from Sebastian Werblinski&rsquo;s master
+          thesis.
+        </p>
+        <div
+          class="mt-10 flex items-center justify-center gap-x-6 lg:justify-start"
+        >
+          <a
+            href="{% url 'signup' %}"
+            class="rounded-md bg-primary-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-primary-500 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-primary-600 dark:hover:bg-primary-500"
+          >
+            Host a playtest
+          </a>
+          <a
+            href="{% url 'login' %}"
+            class="text-sm/6 font-semibold text-main transition hover:text-primary-600 dark:text-darktext dark:hover:text-primary-300"
+          >
+            Join a session
+            <span aria-hidden="true">→</span>
+          </a>
+        </div>
+      </div>
+      <div class="relative mt-16 h-80 lg:mt-8">
+        <img
+          src="{% static 'img/app.png' %}"
+          alt="CO2MMUTE session dashboard mockup"
+          class="absolute top-0 left-0 w-228 max-w-none rounded-md bg-surface ring-1 ring-border-subtle dark:bg-darksurface dark:ring-darksubtle"
+        />
+      </div>
+    </div>
+  </div>
 </section>
 {% endblock %}
