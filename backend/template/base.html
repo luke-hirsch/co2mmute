@@ -1,9 +1,6 @@
 {% load static %}
 <!DOCTYPE html>
-<html
-  class="bg-body dark:bg-body-dark text-main dark:text-main-dark"
-  lang="{% block html_lang %}en{% endblock %}"
->
+<html class="" lang="{% block html_lang %}en{% endblock %}">
   <head>
     <meta charset="utf-8" />
     <meta
@@ -15,59 +12,104 @@
     <link rel="stylesheet" href="{% static 'css/style.css' %}" />
     <script src="{% static 'js/head_script.js' %}"></script>
   </head>
-  <body class="">
+  <body class="bg-body dark:bg-darkbody text-main dark:darktext">
     <head class="">
       {% block hero %}{% endblock %}
-      <!-- Include this script tag or install `@tailwindplus/elements` via npm: -->
-      <!-- <script src="https://cdn.jsdelivr.net/npm/@tailwindplus/elements@1" type="module"></script> -->
       <nav
-        class="relative bg-body shadow-sm dark:bg-body-dark dark:shadow-none dark:after:pointer-events-none dark:after:absolute dark:after:inset-x-0 dark:after:bottom-0 dark:after:h-px dark:after:bg-elevated-dark"
+        class="relative bg-body shadow-sm dark:bg-darkbody dark:shadow-none dark:after:pointer-events-none dark:after:absolute dark:after:inset-x-0 dark:after:bottom-0 dark:after:h-px dark:after:bg-darkelevated"
       >
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div class="flex h-16 justify-between">
-            <div class="flex">
-              <div class="mr-2 -ml-2 flex items-center md:hidden">
-                <!-- Mobile menu button -->
-                <button
-                  type="button"
-                  command="--toggle"
-                  commandfor="mobile-menu"
-                  class="relative inline-flex items-center justify-center rounded-md p-2 text-main hover:bg-body-dark hover:text-muted focus:ring-2 focus:ring-primary-600 focus:outline-hidden focus:ring-inset dark:hover:bg-elevated-dark dark:hover:text-main-dark dark:focus:ring-white"
+          <div class="flex h-16 items-center justify-between md:hidden">
+            <div class="mr-2 -ml-2 flex items-center">
+              <!-- Mobile menu button -->
+              <button
+                type="button"
+                command="--toggle"
+                commandfor="mobile-menu"
+                class="relative inline-flex items-center justify-center rounded-md p-2 text-main hover:bg-darkbody hover:text-muted focus:ring-2 focus:ring-primary-600 focus:outline-hidden focus:ring-inset dark:hover:bg-darkelevated dark:hover:text-main-dark dark:focus:ring-white"
+              >
+                <span class="absolute -inset-0.5"></span>
+                <span class="sr-only">Open main menu</span>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  data-slot="icon"
+                  aria-hidden="true"
+                  class="size-6 in-aria-expanded:hidden"
                 >
-                  <span class="absolute -inset-0.5"></span>
-                  <span class="sr-only">Open main menu</span>
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    data-slot="icon"
-                    aria-hidden="true"
-                    class="size-6 in-aria-expanded:hidden"
-                  >
-                    <path
-                      d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
-                  </svg>
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    data-slot="icon"
-                    aria-hidden="true"
-                    class="size-6 not-in-aria-expanded:hidden"
-                  >
-                    <path
-                      d="M6 18 18 6M6 6l12 12"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
-                  </svg>
+                  <path
+                    d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  data-slot="icon"
+                  aria-hidden="true"
+                  class="size-6 not-in-aria-expanded:hidden"
+                >
+                  <path
+                    d="M6 18 18 6M6 6l12 12"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
+            <div class="flex shrink-0 items-center">
+              <img
+                src="{% static 'img/logo.svg' %}"
+                alt="Logo"
+                class="h-8 w-auto dark:hidden"
+              />
+              <img
+                src="{% static 'img/logo.svg' %}"
+                alt="Logo"
+                class="h-8 w-auto not-dark:hidden"
+              />
+            </div>
+            <div class="flex items-center justify-end">
+              <!-- Mobile profile dropdown -->
+              <el-dropdown class="relative ml-3">
+                <button
+                  class="relative flex rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:focus-visible:outline-indigo-500"
+                >
+                  <span class="absolute -inset-1.5"></span>
+                  <span class="sr-only">Login</span>
                 </button>
-              </div>
+
+                <el-menu
+                  anchor="bottom end"
+                  popover
+                  class="w-48 origin-top-right rounded-md bg-white py-1 shadow-lg outline outline-black/5 transition transition-discrete [--anchor-gap:--spacing(2)] data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-200 data-enter:ease-out data-leave:duration-75 data-leave:ease-in dark:bg-gray-800 dark:shadow-none dark:-outline-offset-1 dark:outline-white/10"
+                >
+                  <a
+                    href="#"
+                    class="block px-4 py-2 text-sm text-gray-700 focus:bg-gray-100 focus:outline-hidden dark:text-gray-300 dark:focus:bg-white/5"
+                    >Your profile</a
+                  >
+                  <a
+                    href="#"
+                    class="block px-4 py-2 text-sm text-gray-700 focus:bg-gray-100 focus:outline-hidden dark:text-gray-300 dark:focus:bg-white/5"
+                    >Settings</a
+                  >
+                  <a
+                    href="#"
+                    class="block px-4 py-2 text-sm text-gray-700 focus:bg-gray-100 focus:outline-hidden dark:text-gray-300 dark:focus:bg-white/5"
+                    >Sign out</a
+                  >
+                </el-menu>
+              </el-dropdown>
+            </div>
+          </div>
+          <div class="hidden h-16 w-full items-center justify-between md:flex">
+            <div class="flex items-center">
               <div class="flex shrink-0 items-center">
                 <img
                   src="{% static 'img/logo.svg' %}"
@@ -80,7 +122,7 @@
                   class="h-8 w-auto not-dark:hidden"
                 />
               </div>
-              <div class="hidden md:ml-6 md:flex md:space-x-8">
+              <div class="ml-6 flex space-x-8">
                 <a
                   href="#"
                   class="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-300 dark:hover:border-white/20 dark:hover:text-white"
@@ -94,7 +136,7 @@
               </div>
             </div>
             <div class="flex items-center">
-              <div class="hidden md:ml-4 md:flex md:shrink-0 md:items-center">
+              <div class="ml-4 flex shrink-0 items-center">
                 <button
                   type="button"
                   class="relative rounded-full p-1 text-gray-400 hover:text-gray-500 focus:outline-2 focus:outline-offset-2 focus:outline-indigo-600 dark:hover:text-white dark:focus:outline-indigo-500"

@@ -26,14 +26,14 @@
   --color-text-muted: #6b7280;
   --color-text-soft: #9ca3af;
   /* neutral dark */
-  --color-bg-body-dark: #0b1120;
-  --color-bg-surface-dark: #111827;
-  --color-bg-elevated-dark: #1f2933;
-  --color-border-subtle-dark: #1f2937;
-  --color-border-strong-dark: #374151;
-  --color-text-main-dark: #f9fafb;
-  --color-text-muted-dark: #9ca3af;
-  --color-text-soft-dark: #6b7280;
+  --color-darkbody: #0b1120;
+  --color-darksurface: #111827;
+  --color-darkelevated: #1f2933;
+  --color-darksubtle: #1f2937;
+  --color-darkstrong: #374151;
+  --color-darktext: #f9fafb;
+  --color-darkmutedtext: #9ca3af;
+  --color-darksofttext: #6b7280;
 
   /*  Success */
   --color-success-100: #d1fae5;

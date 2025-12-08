@@ -9,7 +9,7 @@ function getStoredColorMode(storageKey = COLOR_MODE_STORAGE_KEY) {
   } catch (error) {
     console.warn("Unable to access localStorage for color mode:", error);
   }
-  return "system";
+  return null;
 }
 
 function getSystemColorScheme() {
@@ -34,9 +34,7 @@ function storeSystemColorScheme(storageKey = COLOR_MODE_STORAGE_KEY) {
     storedMode === "light" || storedMode === "dark" ? storedMode : systemScheme;
 
   // if nothing set yet, explicitly store "system" so we know the intent
-  if (storedMode === "system") {
-    // already marked as system-following, do nothing
-  } else if (storedMode !== "light" && storedMode !== "dark") {
+  if (storedMode === null) {
     try {
       window.localStorage.setItem(storageKey, "system");
     } catch (error) {
@@ -71,13 +69,13 @@ function storeSystemColorScheme(storageKey = COLOR_MODE_STORAGE_KEY) {
 
 function setColorScheme(colorMode = "light") {
   const root = document.documentElement;
-  console.log(root);
   if (colorMode === "dark") {
     root.classList.add("dark");
   } else {
     root.classList.remove("dark");
   }
-  console.log("i did a thing");
+  console.log("Applied color scheme:", colorMode);
+  console.log("Current classes on root:", root);
 }
 
 // toggle color mode
