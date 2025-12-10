@@ -26,6 +26,8 @@ CSRF_TRUSTED_ORIGINS = [
     if origin.strip()
 ]
 
+BASE_URL = os.environ.get("DJANGO_BASE_URL", "https://localhost")
+
 LOG_LEVEL = os.environ.get("DJANGO_LOG_LEVEL", "INFO" if DEBUG else "INFO").upper()
 LOG_DIR = BASE_DIR / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
