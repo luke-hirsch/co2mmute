@@ -1,4 +1,4 @@
-import viteLogo from "../../assets/vite.svg";
+import logo from "../assets/logo.svg";
 
 interface HeaderProps {
   title: string;
@@ -15,12 +15,14 @@ export default function Header({
 }: HeaderProps) {
   return (
     <div
-      className={`${margin} ${padding} text-center items-center flex flex-col`}
+      className={`${margin} ${padding} flex flex-col items-center text-center text-main dark:text-darktext`}
     >
-      <a href="https://vite.dev" target="_blank">
-        <img src={viteLogo} className="logo" alt="Vite logo" />
+      <a href="#" target="_blank" className="transition-opacity duration-200 hover:opacity-80">
+        <img src={logo} className="logo h-16 w-auto" alt="Vite logo" />
       </a>
-      <h2 className="md:text-2xl text-xl mt-7 font-light">{title}</h2>
+      <h2 className="mt-7 text-xl font-light text-muted transition-colors duration-300 md:text-2xl dark:text-darkmutedtext">
+        {title}
+      </h2>
     </div>
   );
 }

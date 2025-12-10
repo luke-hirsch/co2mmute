@@ -29,9 +29,9 @@ export default function TextInput({
   onChange,
   onKeyDown,
 }: TextInputProps) {
-  const border = error
-    ? " border-2 border-error-500"
-    : " border border-zinc-500";
+  const baseBorder = "border border-subtle dark:border-darksubtle";
+  const errorStyles =
+    "border border-danger-500 bg-danger-100 text-danger-700 dark:border-danger-500 dark:bg-darkelevated dark:text-danger-500";
 
   if (disabled)
     return (
@@ -42,13 +42,13 @@ export default function TextInput({
           name={name}
           type={type}
           value={value}
-          className={`${margin} ${padding} placeholder:text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 text-zinc-700 rounded w-full ${additionalClasses} border border-zinc-500`}
+          className={`${margin} ${padding} rounded w-full bg-subtle text-muted ${additionalClasses} ${baseBorder} dark:bg-darkelevated dark:text-darkmutedtext`}
           disabled
         />
         {label && (
           <label
             htmlFor={name}
-            className="text-zinc-500 dark:text-zinc-400 text-sm "
+            className="text-sm"
           >
             {label}
           </label>
@@ -65,12 +65,14 @@ export default function TextInput({
         name={name}
         type={type}
         value={value}
-        className={`${margin} ${padding} focus:outline-none dark:focus:bg-white dark:focus:text-black focus:border-resi-500 transition ease-in-out duration-500 focus:ring-0 placeholder:text-zinc-700 text-zinc-700 rounded w-full dark:bg-zinc-900 dark:text-zinc-300 ${additionalClasses} ${border}`}
+        className={`${margin} ${padding} rounded w-full bg-surface text-main placeholder:text-muted transition ease-in-out duration-300 focus:outline-none focus:border-primary-500 focus:ring-0 ${additionalClasses} ${
+          error ? errorStyles : baseBorder
+        } dark:bg-darkelevated dark:text-darktext dark:placeholder:text-darkmutedtext`}
       />
       {label && (
         <label
           htmlFor={name}
-          className="text-zinc-500 dark:text-zinc-400 text-sm "
+          className="text-sm"
         >
           {label}
         </label>

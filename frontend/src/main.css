@@ -1,0 +1,20 @@
+@config "../tailwind.config.ts";
+@import "tailwindcss";
+
+@source "../index.html";
+@source "../src/**/*.ts";
+@source "../src/**/*.tsx";
+@source "../src/**/*.js";
+@source "../src/**/*.jsx";
+
+@layer base {
+  body {
+    background-color: theme("colors.body");
+    color: theme("colors.main");
+  }
+
+  .dark body {
+    background-color: theme("colors.darkbody");
+    color: theme("colors.darktext");
+  }
+}

@@ -19,7 +19,7 @@ const Sidebar = () => {
   };
 
   return (
-    <div className="flex flex-col justify-between max-h-screen overflow-y-auto rounded m-2 bg-black dark:bg-white p-4 text-black dark:text-black">
+    <div className="flex flex-col justify-between max-h-screen overflow-y-auto rounded border border-subtle bg-surface p-4 text-main shadow-sm transition-colors duration-300 dark:border-darksubtle dark:bg-darksurface dark:text-darktext">
       <TextInput
         additionalClasses="relative"
         margin="my-2"
@@ -28,23 +28,25 @@ const Sidebar = () => {
         onChange={search}
       />
       {results.show && (
-        <div className="border rounded border-zinc-500 p-3 text-start relative">
+        <div className="border border-subtle bg-elevated dark:border-darksubtle dark:bg-darkelevated rounded p-3 text-start relative transition-colors duration-300">
           <button
             onClick={() => {
               setResults({ ...results, show: false });
             }}
-            className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+            className="absolute top-2 right-2 text-muted transition-colors duration-200 hover:text-primary-600 dark:text-darkmutedtext dark:hover:text-darktext"
           >
             &times;
           </button>
           {results.results.length > 0 && (
             <div>
-              <h6 className="text-zinc-500 text-sm">Teilnehmer</h6>
+              <h6 className="text-sm text-muted dark:text-darkmutedtext">
+                Teilnehmer
+              </h6>
               <ul>
                 {results.results.map((id: number) => (
                   <li>
                     <a
-                      className="block p-2 rounded bg-white hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                      className="block p-2 rounded text-main transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:text-darktext dark:hover:bg-darkelevated dark:hover:text-darktext"
                       href={`#`}
                       key={id}
                     >
@@ -57,12 +59,12 @@ const Sidebar = () => {
           )}
         </div>
       )}
-      <nav className="mt-5 text-white dark:text-black">
+      <nav className="mt-5 text-main dark:text-darktext">
         <ul className="space-y-2 ">
           <li>
             <a
               href="/neue-anmeldungen"
-              className="block p-2 rounded bg-transparent hover:text-black hover:bg-zinc-200 dark:hover:bg-zinc-700"
+              className="block rounded p-2 transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:hover:bg-darkelevated dark:hover:text-darktext"
             >
               Anmeldungen
             </a>
@@ -70,7 +72,7 @@ const Sidebar = () => {
           <li>
             <a
               href="/teilnehmer"
-              className="block p-2 rounded bg-transparent hover:text-black hover:bg-zinc-200 dark:hover:bg-zinc-700"
+              className="block rounded p-2 transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:hover:bg-darkelevated dark:hover:text-darktext"
             >
               Teilnehmer*innen
             </a>
@@ -78,7 +80,7 @@ const Sidebar = () => {
           <li>
             <a
               href="/wahlvorbereitung"
-              className="block p-2 rounded bg-transparent hover:text-black hover:bg-zinc-200 dark:hover:bg-zinc-700"
+              className="block rounded p-2 transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:hover:bg-darkelevated dark:hover:text-darktext"
             >
               Wähler
             </a>
@@ -86,7 +88,7 @@ const Sidebar = () => {
           <li>
             <a
               href="/authentifizierung"
-              className="block p-2 rounded bg-transparent hover:text-black hover:bg-zinc-200 dark:hover:bg-zinc-700"
+              className="block rounded p-2 transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:hover:bg-darkelevated dark:hover:text-darktext"
             >
               Authentifizierung
             </a>
@@ -94,7 +96,7 @@ const Sidebar = () => {
           <li>
             <a
               href="/wahlregister"
-              className="block p-2 rounded bg-transparent hover:text-black hover:bg-zinc-200 dark:hover:bg-zinc-700"
+              className="block rounded p-2 transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:hover:bg-darkelevated dark:hover:text-darktext"
             >
               Wahlregister
             </a>
@@ -102,20 +104,22 @@ const Sidebar = () => {
           <li>
             <a
               href="/anwesenheit"
-              className="block p-2 rounded bg-transparent hover:text-black hover:bg-zinc-200 dark:hover:bg-zinc-700"
+              className="block rounded p-2 transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:hover:bg-darkelevated dark:hover:text-darktext"
             >
               Anwesenheit
             </a>
           </li>
         </ul>
-        <div className="border-b mb-2 border-zinc-500">
-          <h3 className="mt-5 p-2 text-zinc-500">Verwaltung</h3>
+        <div className="mb-2 border-b border-subtle dark:border-darksubtle">
+          <h3 className="mt-5 p-2 text-muted dark:text-darkmutedtext">
+            Verwaltung
+          </h3>
         </div>
         <ul className="space-y-2">
           <li>
             <a
               href="/staff"
-              className="block p-2 rounded bg-transparent hover:text-black hover:bg-zinc-200 dark:hover:bg-zinc-700"
+              className="block rounded p-2 transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:hover:bg-darkelevated dark:hover:text-darktext"
             >
               Staff
             </a>
@@ -123,7 +127,7 @@ const Sidebar = () => {
           <li>
             <a
               href="/event"
-              className="block p-2 rounded bg-transparent hover:text-black hover:bg-zinc-200 dark:hover:bg-zinc-700"
+              className="block rounded p-2 transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:hover:bg-darkelevated dark:hover:text-darktext"
             >
               Veranstaltungen
             </a>
@@ -131,7 +135,7 @@ const Sidebar = () => {
           <li>
             <a
               href="/mail"
-              className="block p-2 rounded bg-transparent hover:text-black hover:bg-zinc-200 dark:hover:bg-zinc-700"
+              className="block rounded p-2 transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:hover:bg-darkelevated dark:hover:text-darktext"
             >
               Mail
             </a>
@@ -139,7 +143,7 @@ const Sidebar = () => {
           <li>
             <a
               href="/org"
-              className="block p-2 rounded bg-transparent hover:text-black hover:bg-zinc-200 dark:hover:bg-zinc-700"
+              className="block rounded p-2 transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:hover:bg-darkelevated dark:hover:text-darktext"
             >
               Organsiationen
             </a>
@@ -147,7 +151,7 @@ const Sidebar = () => {
           <li>
             <a
               href="/person"
-              className="block p-2 rounded bg-transparent hover:text-black hover:bg-zinc-200 dark:hover:bg-zinc-700"
+              className="block rounded p-2 transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:hover:bg-darkelevated dark:hover:text-darktext"
             >
               Personen
             </a>
@@ -159,7 +163,7 @@ const Sidebar = () => {
       <div className="mt-auto">
         <button
           onClick={() => {}}
-          className="w-full p-2 text-left rounded bg-white text-black dark:bg-black dark:text-white hover:bg-zinc-900 dark:hover:bg-zinc-200"
+          className="w-full rounded bg-primary-600 p-2 text-left font-semibold text-white transition-colors duration-200 hover:bg-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 dark:bg-primary-600 dark:hover:bg-primary-500"
         >
           Logout
         </button>
