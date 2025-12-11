@@ -2,16 +2,16 @@
 from django.db import models
 import logging
 import math
+from django.core.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
 
 
 class GameMap(models.Model):
     name = models.CharField(max_length=100)
-    x_dim = models.PositiveIntegerField()
-    y_dim = models.PositiveIntegerField()
-    scale = models.DecimalField(max_digits=5, decimal_places=2)
-    street_limit = models.PositiveIntegerField()
+    x_dim = models.PositiveSmallIntegerField()
+    y_dim = models.PositiveSmallIntegerField()
+    scale = models.FloatField()  # add default value ASAP
 
     created = models.DateTimeField(auto_now_add=True)
     author = models.ForeignKey(
@@ -37,12 +37,21 @@ class NodeType(models.Model):
 class Node(models.Model):
     game_map = models.ForeignKey(GameMap, on_delete=models.CASCADE)
     name = models.CharField(max_length=20, null=True, blank=True)
-    x_position = models.FloatField()  # validate to fit x_dim
-    y_position = models.FloatField()  # validate to fit y_dim
+    x_position = models.FloatField()
+    y_position = models.FloatField()
     node_type = models.ManyToManyField(NodeType)
 
     def __str__(self):
         return f"Node {self.pk} in Map {self.game_map}"
+
+    def save(self, *args, **kwargs):
+        # validate coordinates, if they fit in dimensions of map
+        if not 0 <= self.x_position <= self.game_map.x_dim:
+            raise ValidationError("x-coordinates out of bound")
+        if not 0 <= self.y_position <= self.game_map.y_dim:
+            raise ValidationError("y-coordinates out of bound")
+
+        super().save(*args, **kwargs)
 
 
 class Edge(models.Model):
@@ -53,8 +62,11 @@ class Edge(models.Model):
     name = models.CharField(max_length=20, blank=True, null=True)
     start_node = models.ForeignKey(Node, on_delete=models.CASCADE)
     end_node = models.ForeignKey(Node, on_delete=models.CASCADE)
-    pedestrian = models.BooleanField(default=True)
-    bicycle = models.BooleanField(default=True)
+    bike_speed = models.PositiveSmallIntegerField(default=15)  # 0 if blocked for bikes
+    walk_speed = models.PositiveSmallIntegerField(
+        default=4
+    )  # 0 if blocked for pedestrians
+    max_lanes = models.PositiveSmallIntegerField(default=2)
 
     def euclidean_2d_distance(self):
         dx = self.end_node.x_position - self.start_node.x_position
@@ -64,16 +76,16 @@ class Edge(models.Model):
 
 class StreetEdge(models.Model):
     edge = models.ForeignKey(Edge, on_delete=models.CASCADE)
-    speed_limit = models.DecimalField(decimal_places=2, max_digits=5)
-    lanes = models.PositiveSmallIntegerField()
+    speed_limit = models.PositiveSmallIntegerField(default=50)
+    lanes = models.PositiveSmallIntegerField(default=1)
     dedicated_bus_lane = models.BooleanField(default=False)
 
 
 class BusLine(models.Model):
     game_map = models.ForeignKey(GameMap, on_delete=models.CASCADE)
     name = models.CharField(max_length=20)
-    frequency = models.DecimalField(max_digits=3, decimal_places=2)
-    bus_capacity = models.PositiveIntegerField()
+    frequency = models.FloatField()  # frequency per hour or intervall in minutes?
+    bus_capacity = models.PositiveSmallIntegerField()
     edges = models.ManyToManyField(StreetEdge)
 
 
@@ -84,7 +96,7 @@ class TrainEdge(models.Model):
 class TrainLine(models.Model):
     game_map = models.ForeignKey(GameMap, on_delete=models.CASCADE)
     name = models.CharField(max_length=20)
-    frequency = models.DecimalField(max_digits=3, decimal_places=2)
+    frequency = models.FloatField()  # frequency per hour or intervall in minutes?
     train_capacity = models.PositiveIntegerField()
     edges = models.ManyToManyField(TrainEdge)
 
