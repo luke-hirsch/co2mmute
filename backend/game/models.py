@@ -50,14 +50,15 @@ class GameSession(models.Model):
             self.is_active = False
         super().save(*args, **kwargs)
 
-    def generate_unique_game_id(self):
-        i = 0
-        while True:
-            i += 1
-            game_id = str(uuid.uuid4())[:6].upper()
+    def generate_unique_game_id(self, max_retries=settings.MAX_RETRIES):
+        for _ in range(1, max_retries + 1):
+            game_id = uuid.uuid4().hex[:6].upper()
+
             if not GameSession.objects.filter(game_id=game_id).exists():
-                logger.info(f"Generated unique game_id '{game_id}' after {i} attempts.")
                 return game_id
+
+        logger.error("Failed to generate unique game_id after multiple retries.")
+        raise RuntimeError("Could not assign unique game_id.")
 
     def generate_qr_code(self):
         qr = qrcode.QRCode(
@@ -91,17 +92,18 @@ class Player(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.player_id:
-            self.player_id = self.generate_unique_player_id()
+            self.player_id = "P-" + str(self.generate_unique_player_id())
 
         super().save(*args, **kwargs)
 
-    def generate_unique_player_id(self):
-        i = 0
-        while True:
-            i += 1
-            player_id = str(uuid.uuid4())[:6].upper()
+    def generate_unique_player_id(self, max_retries=settings.MAX_RETRIES):
+        for _ in range(1, max_retries + 1):
+            player_id = uuid.uuid4().hex[:4].upper()
+
             if not Player.objects.filter(game=self.game, player_id=player_id).exists():
-                logger.info(
-                    f"Generated unique game_id '{player_id}' after {i} attempts."
-                )
                 return player_id
+
+        logger.error(
+            f"Failed to generate unique player_id for game {self.game} after {max_retries} attempts."
+        )
+        raise RuntimeError("Could not assign a unique 6-char player ID.")

@@ -1,8 +1,7 @@
 # from django.core.exceptions import ValidationError
 from django.db import models
-import uuid
 import logging
-
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -23,33 +22,71 @@ class GameMap(models.Model):
         "auth.User", on_delete=models.SET_NULL, null=True, blank=True
     )
 
+    def __str__(self):
+        return f"{self.pk} - {self.name}"
+
 
 class NodeType(models.Model):
     name = models.CharField(max_length=50)
     short = models.CharField(max_length=2)
 
+    def __str__(self) -> str:
+        return f"Nodetype {self.name}"
+
 
 class Node(models.Model):
     game_map = models.ForeignKey(GameMap, on_delete=models.CASCADE)
-    node_id = models.CharField(max_length=3, unique=True)
+    name = models.CharField(max_length=20, null=True, blank=True)
     x_position = models.FloatField()  # validate to fit x_dim
     y_position = models.FloatField()  # validate to fit y_dim
     node_type = models.ManyToManyField(NodeType)
 
-    def save(self, *args, **kwargs):
-        if not self.game_id:
-            self.game_id = self.generate_unique_node_id()
+    def __str__(self):
+        return f"Node {self.pk} in Map {self.game_map}"
 
-        super().save(*args, **kwargs)
 
-    def generate_unique_node_id(self):
-        i = 0
-        while True:
-            i += 1
-            node_id = str(uuid.uuid4())[:6].upper()
-            if not Node.objects.filter(game=self.game_map, node_id=node_id).exists():
-                logger.info(f"Generated unique game_id '{node_id}' after {i} attempts.")
-                return node_id
+class Edge(models.Model):
+    class Meta:
+        unique_together = ("start_node", "end_node")
+
+    game_map = models.ForeignKey(GameMap, on_delete=models.CASCADE)
+    name = models.CharField(max_length=20, blank=True, null=True)
+    start_node = models.ForeignKey(Node, on_delete=models.CASCADE)
+    end_node = models.ForeignKey(Node, on_delete=models.CASCADE)
+    pedestrian = models.BooleanField(default=True)
+    bicycle = models.BooleanField(default=True)
+
+    def euclidean_2d_distance(self):
+        dx = self.end_node.x_position - self.start_node.x_position
+        dy = self.end_node.y_position - self.start_node.y_position
+        return math.sqrt((dx * dx) + (dy * dy))
+
+
+class StreetEdge(models.Model):
+    edge = models.ForeignKey(Edge, on_delete=models.CASCADE)
+    speed_limit = models.DecimalField(decimal_places=2, max_digits=5)
+    lanes = models.PositiveSmallIntegerField()
+    dedicated_bus_lane = models.BooleanField(default=False)
+
+
+class BusLine(models.Model):
+    game_map = models.ForeignKey(GameMap, on_delete=models.CASCADE)
+    name = models.CharField(max_length=20)
+    frequency = models.DecimalField(max_digits=3, decimal_places=2)
+    bus_capacity = models.PositiveIntegerField()
+    edges = models.ManyToManyField(StreetEdge)
+
+
+class TrainEdge(models.Model):
+    edge = models.ForeignKey(Edge, on_delete=models.CASCADE)
+
+
+class TrainLine(models.Model):
+    game_map = models.ForeignKey(GameMap, on_delete=models.CASCADE)
+    name = models.CharField(max_length=20)
+    frequency = models.DecimalField(max_digits=3, decimal_places=2)
+    train_capacity = models.PositiveIntegerField()
+    edges = models.ManyToManyField(TrainEdge)
 
 
 # # help text zu lang. bitte kuerzen. limit in km/h sollte reichen. es heist ja train speed. vielleicht nennst du es einfach train_speed_limit dann kann der hilfetext nur die einheit sein.
