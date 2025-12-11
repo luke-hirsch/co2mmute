@@ -8,10 +8,11 @@ logger = logging.getLogger(__name__)
 
 
 class GameMap(models.Model):
+    # add default value ASAP
     name = models.CharField(max_length=100)
-    x_dim = models.PositiveSmallIntegerField()
-    y_dim = models.PositiveSmallIntegerField()
-    scale = models.FloatField()  # add default value ASAP
+    x_dim = models.PositiveSmallIntegerField(default=10)
+    y_dim = models.PositiveSmallIntegerField(default=10)
+    scale = models.FloatField(default=1.0)
 
     created = models.DateTimeField(auto_now_add=True)
     author = models.ForeignKey(
