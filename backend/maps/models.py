@@ -16,15 +16,26 @@ class GameMap(models.Model):
 
     created = models.DateTimeField(auto_now_add=True)
     author = models.ForeignKey(
-        "auth.User", on_delete=models.SET_NULL, null=True, blank=True
+        "auth.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="author",
     )
     updated = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(
-        "auth.User", on_delete=models.SET_NULL, null=True, blank=True
+        "auth.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="operator",
     )
 
     def __str__(self):
         return f"{self.pk} - {self.name}"
+
+    class Meta:
+        ordering = ("name", "pk")
 
 
 class NodeType(models.Model):
@@ -33,6 +44,9 @@ class NodeType(models.Model):
 
     def __str__(self) -> str:
         return f"Nodetype {self.name}"
+
+    class Meta:
+        ordering = ("name", "short")
 
 
 class Node(models.Model):
@@ -54,15 +68,23 @@ class Node(models.Model):
 
         super().save(*args, **kwargs)
 
+    class Meta:
+        ordering = ("game_map", "name", "pk")
+
 
 class Edge(models.Model):
     class Meta:
         unique_together = ("start_node", "end_node")
+        ordering = ("game_map", "name", "pk")
 
     game_map = models.ForeignKey(GameMap, on_delete=models.CASCADE)
     name = models.CharField(max_length=20, blank=True, null=True)
-    start_node = models.ForeignKey(Node, on_delete=models.CASCADE)
-    end_node = models.ForeignKey(Node, on_delete=models.CASCADE)
+    start_node = models.ForeignKey(
+        Node, on_delete=models.CASCADE, related_name="start_node"
+    )
+    end_node = models.ForeignKey(
+        Node, on_delete=models.CASCADE, related_name="end_node"
+    )
     bike_speed = models.PositiveSmallIntegerField(default=15)  # 0 if blocked for bikes
     walk_speed = models.PositiveSmallIntegerField(
         default=4
@@ -81,6 +103,9 @@ class StreetEdge(models.Model):
     lanes = models.PositiveSmallIntegerField(default=1)
     dedicated_bus_lane = models.BooleanField(default=False)
 
+    class Meta:
+        ordering = ("edge__game_map__name", "edge__name", "pk")
+
 
 class BusLine(models.Model):
     game_map = models.ForeignKey(GameMap, on_delete=models.CASCADE)
@@ -89,9 +114,15 @@ class BusLine(models.Model):
     bus_capacity = models.PositiveSmallIntegerField()
     edges = models.ManyToManyField(StreetEdge)
 
+    class Meta:
+        ordering = ("game_map", "name", "pk")
+
 
 class TrainEdge(models.Model):
     edge = models.ForeignKey(Edge, on_delete=models.CASCADE)
+
+    class Meta:
+        ordering = ("edge__game_map__name", "edge__name", "pk")
 
 
 class TrainLine(models.Model):
@@ -100,6 +131,9 @@ class TrainLine(models.Model):
     frequency = models.FloatField()  # frequency per hour or intervall in minutes?
     train_capacity = models.PositiveIntegerField()
     edges = models.ManyToManyField(TrainEdge)
+
+    class Meta:
+        ordering = ("game_map", "name", "pk")
 
 
 # # help text zu lang. bitte kuerzen. limit in km/h sollte reichen. es heist ja train speed. vielleicht nennst du es einfach train_speed_limit dann kann der hilfetext nur die einheit sein.

@@ -25,7 +25,7 @@
         class="mx-auto flex max-w-7xl items-center justify-between p-6 text-main dark:text-darktext lg:px-8"
       >
         <div class="flex lg:flex-1">
-          <a href="#" class="-m-1.5 p-1.5">
+          <a href="/" class="-m-1.5 p-1.5">
             <span class="sr-only">CO<sub>2</sub>mmute</span>
             <img
               src="{% static 'img/logo.svg' %}"
@@ -331,11 +331,19 @@
           >
         </el-popover-group>
         <div class="hidden lg:flex lg:flex-1 lg:justify-end">
+          {% if request.user.is_authenticated %}
           <a
-            href="#"
+            href="{% url 'logout' %}"
+            class="text-sm/6 font-semibold text-main transition hover:text-primary-600 dark:text-darktext dark:hover:text-primary-300"
+            >Log out <span aria-hidden="true">&rarr;</span></a
+          >
+          {% else %}
+          <a
+            href="{% url 'login' %}"
             class="text-sm/6 font-semibold text-main transition hover:text-primary-600 dark:text-darktext dark:hover:text-primary-300"
             >Log in <span aria-hidden="true">&rarr;</span></a
           >
+          {% endif %}
         </div>
       </nav>
       <el-dialog>
@@ -468,11 +476,19 @@
                     >
                   </div>
                   <div class="py-6">
+                    {% if request.user.is_authenticated %}
                     <a
-                      href="#"
+                      href="{% url 'logout' %}"
+                      class="-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
+                      >Log out</a
+                    >
+                    {% else %}
+                    <a
+                      href="{% url 'login' %}"
                       class="-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
                       >Log in</a
                     >
+                    {% endif %}
                   </div>
                 </div>
               </div>

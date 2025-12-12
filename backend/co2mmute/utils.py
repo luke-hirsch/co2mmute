@@ -1,8 +1,7 @@
-from django.contrib.auth.password_validation import PasswordValidator
 from django.core.exceptions import ValidationError
 
 
-class CustomPasswordValidator(PasswordValidator):
+class CustomPasswordValidator:
     def validate(self, password, user=None):
         errors = []
 
@@ -19,3 +18,9 @@ class CustomPasswordValidator(PasswordValidator):
 
         if errors:
             raise ValidationError(errors)
+
+    def get_help_text(self):
+        return (
+            "Your password must include at least one digit, one lowercase and uppercase "
+            "letter, and one special character."
+        )

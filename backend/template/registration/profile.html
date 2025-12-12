@@ -1,0 +1,117 @@
+{% extends "base.html" %} {% block title %}Your Profile{% endblock %} {% block
+main %}
+<section class="mx-auto w-full max-w-4xl px-6 py-12">
+  <header class="mb-10">
+    <h1
+      class="text-3xl font-semibold tracking-tight text-main dark:text-darktext"
+    >
+      Hey {{ request.user.first_name|default:request.user.username }},
+    </h1>
+    <p class="mt-2 text-sm text-muted dark:text-darkmutedtext">
+      Manage your account details and game sessions from here.
+    </p>
+  </header>
+
+  <div class="grid gap-8 lg:grid-cols-[2fr_1fr]">
+    <section
+      class="rounded-2xl bg-white p-6 shadow dark:bg-darksurface dark:text-darktext"
+    >
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-semibold">Your sessions</h2>
+        <a
+          href="{% url create_session_url %}"
+          class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:hover:bg-indigo-400"
+        >
+          New session
+        </a>
+      </div>
+      {% if game_sessions %}
+      <ul class="mt-6 divide-y divide-subtle dark:divide-darksubtle">
+        {% for session in game_sessions %}
+        <li class="py-4">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h3 class="text-base font-semibold">{{ session.game_name }}</h3>
+              <p class="text-sm text-muted dark:text-darkmutedtext">
+                Session ID: <span class="font-mono">{{ session.game_id }}</span>
+              </p>
+              <p class="text-xs text-muted dark:text-darkmutedtext">
+                Created {{ session.created_at|date:"M j, Y H:i" }}
+              </p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <a
+                href="{% url 'session-share' session.game_id %}"
+                class="inline-flex items-center rounded-md border border-subtle px-3 py-1 text-sm font-medium text-main transition hover:bg-elevated dark:border-darksubtle dark:text-darktext dark:hover:bg-darksurface/70"
+              >
+                Share
+              </a>
+              <a
+                href="/app/lobby/{{ session.game_id }}/"
+                class="inline-flex items-center rounded-md bg-surface px-3 py-1 text-sm font-medium text-main transition hover:bg-elevated dark:bg-darksurface/70 dark:text-darktext dark:hover:bg-darksurface"
+              >
+                Open lobby
+              </a>
+            </div>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="mt-6 text-sm text-muted dark:text-darkmutedtext">
+        You haven't created any sessions yet.
+      </p>
+      {% endif %}
+    </section>
+
+    <section class="space-y-6">
+      <div
+        class="rounded-2xl bg-white p-6 shadow dark:bg-darksurface dark:text-darktext"
+      >
+        <h2 class="text-xl font-semibold">Account</h2>
+        <dl class="mt-4 space-y-3">
+          <div>
+            <dt
+              class="text-xs uppercase tracking-wide text-muted dark:text-darkmutedtext"
+            >
+              Username
+            </dt>
+            <dd class="mt-1 text-sm font-medium">
+              {{ request.user.username }}
+            </dd>
+          </div>
+          <div>
+            <dt
+              class="text-xs uppercase tracking-wide text-muted dark:text-darkmutedtext"
+            >
+              Email
+            </dt>
+            <dd class="mt-1 text-sm font-medium">
+              {{ request.user.email|default:"—" }}
+            </dd>
+          </div>
+        </dl>
+        <a
+          href="{% url change_password_url %}"
+          class="mt-6 inline-flex w-full items-center justify-center rounded-md border border-subtle px-3 py-1.5 text-sm font-semibold text-main transition hover:bg-elevated dark:border-darksubtle dark:text-darktext dark:hover:bg-darksurface/70"
+        >
+          Change password
+        </a>
+      </div>
+
+      <div
+        class="rounded-2xl bg-white p-6 shadow dark:bg-darksurface dark:text-darktext"
+      >
+        <h2 class="text-xl font-semibold">Profile details</h2>
+        <p class="mt-2 text-sm text-muted dark:text-darkmutedtext">
+          Update the personal information associated with your account.
+        </p>
+        <p class="mt-4 text-sm text-muted dark:text-darkmutedtext">
+          Editing username and email hasn’t been wired up yet. Let me know how
+          you’d like to handle it (Django form, inline modal, etc.).
+        </p>
+      </div>
+    </section>
+  </div>
+</section>
+{% endblock %}

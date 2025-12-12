@@ -1,11 +1,13 @@
 from io import BytesIO
-import uuid
 import logging
+import uuid
+
 import qrcode
 from django.core.files.base import ContentFile
 from django.db import models
 from django.utils import timezone
 from django.conf import settings
+from django.core.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +33,9 @@ class GameSession(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     started_at = models.DateTimeField(null=True, blank=True)
     ended_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
 
     def __str__(self):
         return self.game_name
@@ -67,7 +72,8 @@ class GameSession(models.Model):
             border=4,
         )
 
-        qr.add_data(f"{settings.BASE_URL}/join/{self.game_id}")
+        join_url = f"{settings.BASE_URL}/join/{self.game_id}/"
+        qr.add_data(join_url)
         qr.make(fit=True)
 
         img = qr.make_image(fill_color="black", back_color="white")
@@ -79,13 +85,17 @@ class GameSession(models.Model):
 
 
 class Player(models.Model):
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=100, null=True, blank=True)
+    game = models.ForeignKey(GameSession, on_delete=models.CASCADE)
     player_id = models.CharField(max_length=6, editable=False, null=True, blank=True)
     user = models.ForeignKey(
         "auth.User", on_delete=models.SET_NULL, null=True, blank=True
     )
     game = models.ForeignKey(GameSession, on_delete=models.CASCADE)
     joined_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("game", "name", "joined_at")
 
     def __str__(self):
         return f"{self.name} in {self.game.game_name}"
@@ -107,3 +117,66 @@ class Player(models.Model):
             f"Failed to generate unique player_id for game {self.game} after {max_retries} attempts."
         )
         raise RuntimeError("Could not assign a unique 6-char player ID.")
+
+
+class GameRound(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        ACTIVE = "active", "Active"
+        COMPLETED = "completed", "Completed"
+        CANCELLED = "cancelled", "Cancelled"
+
+    game = models.ForeignKey(
+        GameSession, on_delete=models.CASCADE, related_name="rounds"
+    )
+    round_number = models.PositiveSmallIntegerField()
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    started_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = (("game", "round_number"),)
+        ordering = ("game", "round_number")
+
+    def __str__(self):
+        return f"Round {self.round_number} of {self.game}"
+
+    def save(self, *args, **kwargs):
+        if not self.round_number:
+            last_round = (
+                GameRound.objects.filter(game=self.game)
+                .order_by("-round_number")
+                .first()
+            )
+            self.round_number = 1 if last_round is None else last_round.round_number + 1
+        super().save(*args, **kwargs)
+
+
+class PlayerMove(models.Model):
+    game_round = models.ForeignKey(
+        GameRound, on_delete=models.CASCADE, related_name="moves"
+    )
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="moves")
+    action = models.CharField(max_length=50)
+    payload = models.JSONField(blank=True, default=dict)
+    started_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = (("game_round", "player"),)
+        ordering = ("game_round", "started_at")
+
+    def __str__(self):
+        return f"Move by {self.player} in round {self.game_round.round_number}"
+
+    def clean(self):
+        if self.player.game.pk != self.game_round.game.pk:
+            raise ValidationError("Player must belong to the same game as the round.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
