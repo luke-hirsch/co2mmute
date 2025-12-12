@@ -1,6 +1,14 @@
 from django.contrib import admin
 from django.urls import path, include, re_path
-from .views import IndexView, SignUpView, DsgvoView, ImpressumView, SpaView, ProfileView
+from .views import (
+    IndexView,
+    LogoutView,
+    SignUpView,
+    DsgvoView,
+    ImpressumView,
+    SpaView,
+    ProfileView,
+)
 from game.views import (
     GameSessionCreateView,
     ShareSessionView,
@@ -12,9 +20,10 @@ from game.views import (
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", IndexView.as_view(), name="index"),
-    path("accounts/", include("django.contrib.auth.urls")),
+    path("accounts/logout/", LogoutView.as_view(), name="logout"),
     path("accounts/signup/", SignUpView.as_view(), name="signup"),
     path("accounts/profile/", ProfileView.as_view(), name="profile"),
+    path("accounts/", include("django.contrib.auth.urls")),
     path("legal/dsgvo", DsgvoView.as_view(), name="dsgvo"),
     path("legal/impressum", ImpressumView.as_view(), name="impressum"),
     path("game/create/", GameSessionCreateView.as_view(), name="session-create"),

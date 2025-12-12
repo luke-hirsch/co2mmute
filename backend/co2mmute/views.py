@@ -1,4 +1,5 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.views import LogoutView as DjangoLogoutView
 from django.views.generic import TemplateView
 
 from game.models import GameSession
@@ -29,10 +30,9 @@ class ProfileView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        user_sessions = (
-            GameSession.objects.filter(game_host=self.request.user)
-            .order_by("-created_at")
-        )
+        user_sessions = GameSession.objects.filter(
+            game_host=self.request.user
+        ).order_by("-created_at")
         context.update(
             {
                 "game_sessions": user_sessions,
@@ -41,3 +41,10 @@ class ProfileView(LoginRequiredMixin, TemplateView):
             }
         )
         return context
+
+
+class LogoutView(DjangoLogoutView):
+    http_method_names = ["get", "post", "options", "head"]
+
+    def get(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
