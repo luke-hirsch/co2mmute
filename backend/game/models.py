@@ -16,7 +16,7 @@ class GameSession(models.Model):
     game_id = models.CharField(max_length=6, unique=True)
     game_password = models.CharField(max_length=50, null=True, blank=True)
     game_qr_code = models.ImageField(upload_to="qr_codes/", null=True, blank=True)
-    map = models.ForeignKey(
+    game_map = models.ForeignKey(
         "maps.GameMap", on_delete=models.SET_NULL, null=True, blank=True
     )
     map_updates = models.BooleanField(default=False)
@@ -45,7 +45,7 @@ class GameSession(models.Model):
             timezone.now() < self.lobby_open
             or self.started_at is not None
             or self.ended_at is not None
-            or self.map is None
+            or self.game_map is None
         ):
             self.is_active = False
         super().save(*args, **kwargs)

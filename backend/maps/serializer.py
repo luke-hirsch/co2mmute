@@ -5,13 +5,18 @@ import maps.models as mm
 class GameMapSerializer(serializers.ModelSerializer):
     class Meta:
         model = mm.GameMap
-        fields = ["id", "name", "x_dim", "y_dim", "scale"]
-
-    id = serializers.IntegerField(read_only=True)
-    name = serializers.CharField()
-    x_dim = serializers.IntegerField(min_value=0, max_value=32767)
-    y_dim = serializers.IntegerField(min_value=0, max_value=32767)
-    scale = serializers.FloatField()
+        fields = (
+            "id",
+            "name",
+            "x_dim",
+            "y_dim",
+            "scale",
+            "created",
+            "author",
+            "updated",
+            "updated_by",
+        )
+        read_only_fields = ("id", "created", "updated")
 
     def validate_scale(self, value):
         if value <= 0:
@@ -22,14 +27,17 @@ class GameMapSerializer(serializers.ModelSerializer):
 class NodeTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = mm.NodeType
-        fields = ["id", "name", "short"]
-
-    id = serializers.IntegerField(read_only=True)
-    name = serializers.CharField()
-    short = serializers.CharField(max_length=2)
+        fields = ("id", "name", "short")
+        read_only_fields = ("id",)
 
 
 class NodeSerializer(serializers.ModelSerializer):
+    node_type = serializers.PrimaryKeyRelatedField(
+        queryset=mm.NodeType.objects.all(),
+        many=True,
+        required=False,
+    )
+
     class Meta:
         model = mm.Node
         fields = [
@@ -40,21 +48,12 @@ class NodeSerializer(serializers.ModelSerializer):
             "y_position",
             "node_type",
         ]
+        read_only_fields = ("id",)
+        extra_kwargs = {
+            "name": {"required": False, "allow_blank": True},
+        }
 
-    id = serializers.IntegerField(read_only=True)
-    game_map = serializers.PrimaryKeyRelatedField(
-        queryset=mm.GameMap.objects.all()
-    )
-    name = serializers.CharField(required=False, allow_blank=True)
-    x_position = serializers.FloatField()
-    y_position = serializers.FloatField()
-    node_type = serializers.PrimaryKeyRelatedField(
-        queryset=mm.NodeType.objects.all(),
-        many=True,
-        required=False,
-    )
-
-    def validate(self, attrs):
+    def validate(self, attrs):  # pragma: no cover - exercised via integration tests
         game_map = attrs.get("game_map") or getattr(self.instance, "game_map", None)
         if game_map is None:
             raise serializers.ValidationError("game_map is required")
@@ -96,32 +95,34 @@ class EdgeSerializer(serializers.ModelSerializer):
             "walk_speed",
             "max_lanes",
         ]
-
-    id = serializers.IntegerField(read_only=True)
-    game_map = serializers.PrimaryKeyRelatedField(
-        queryset=mm.GameMap.objects.all()
-    )
-    name = serializers.CharField(required=False, allow_blank=True)
-    start_node = serializers.PrimaryKeyRelatedField(
-        queryset=mm.Node.objects.all()
-    )
-    end_node = serializers.PrimaryKeyRelatedField(
-        queryset=mm.Node.objects.all()
-    )
-    bike_speed = serializers.IntegerField(min_value=0)
-    walk_speed = serializers.IntegerField(min_value=0)
-    max_lanes = serializers.IntegerField(min_value=0)
+        read_only_fields = ("id",)
+        extra_kwargs = {
+            "name": {"required": False, "allow_blank": True},
+        }
 
     def validate(self, attrs):
         game_map = attrs.get("game_map") or getattr(self.instance, "game_map", None)
-        start_node = attrs.get("start_node") or getattr(self.instance, "start_node", None)
+        start_node = attrs.get("start_node") or getattr(
+            self.instance, "start_node", None
+        )
         end_node = attrs.get("end_node") or getattr(self.instance, "end_node", None)
 
+        errors = {}
+
+        if start_node and end_node and start_node == end_node:
+            errors["end_node"] = "start_node and end_node must be different."
+
+        if start_node and end_node and start_node.game_map_id != end_node.game_map_id:
+            errors["end_node"] = "start_node and end_node must belong to the same map."
+
         if game_map and start_node and start_node.game_map_id != game_map.id:
-            raise serializers.ValidationError("start_node must belong to game_map")
+            errors["start_node"] = "start_node must belong to game_map."
 
         if game_map and end_node and end_node.game_map_id != game_map.id:
-            raise serializers.ValidationError("end_node must belong to game_map")
+            errors["end_node"] = "end_node must belong to game_map."
+
+        if errors:
+            raise serializers.ValidationError(errors)
 
         return attrs
 
@@ -129,59 +130,95 @@ class EdgeSerializer(serializers.ModelSerializer):
 class StreetEdgeSerializer(serializers.ModelSerializer):
     class Meta:
         model = mm.StreetEdge
-        fields = ["id", "edge", "speed_limit", "lanes", "dedicated_bus_lane"]
-
-    id = serializers.IntegerField(read_only=True)
-    edge = serializers.PrimaryKeyRelatedField(
-        queryset=mm.Edge.objects.all()
-    )
-    speed_limit = serializers.IntegerField(min_value=0)
-    lanes = serializers.IntegerField(min_value=0)
-    dedicated_bus_lane = serializers.BooleanField()
+        fields = ("id", "edge", "speed_limit", "lanes", "dedicated_bus_lane")
+        read_only_fields = ("id",)
 
 
 class BusLineSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = mm.BusLine
-        fields = ["id", "game_map", "name", "frequency", "bus_capacity", "edges"]
-
-    id = serializers.IntegerField(read_only=True)
-    game_map = serializers.PrimaryKeyRelatedField(
-        queryset=mm.GameMap.objects.all()
-    )
-    name = serializers.CharField()
-    frequency = serializers.FloatField()
-    bus_capacity = serializers.IntegerField(min_value=0)
     edges = serializers.PrimaryKeyRelatedField(
         queryset=mm.StreetEdge.objects.all(),
         many=True,
     )
 
+    class Meta:
+        model = mm.BusLine
+        fields = ("id", "game_map", "name", "frequency", "bus_capacity", "edges")
+        read_only_fields = ("id",)
+
+    def validate(self, attrs):
+        game_map = attrs.get("game_map") or getattr(self.instance, "game_map", None)
+        edges = attrs.get("edges", None)
+        if edges is None and self.instance is not None:
+            edges = list(self.instance.edges.all())
+
+        if game_map is None:
+            raise serializers.ValidationError({"game_map": "game_map is required."})
+
+        mismatched_edges = [
+            edge.pk for edge in edges or [] if edge.edge.game_map_id != game_map.id
+        ]
+
+        if mismatched_edges:
+            raise serializers.ValidationError(
+                {
+                    "edges": (
+                        "All edges must belong to the same game_map as the bus line. "
+                        f"Invalid edge IDs: {mismatched_edges}"
+                    )
+                }
+            )
+
+        return attrs
+
+    def validate_frequency(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("frequency must be greater than 0.")
+        return value
 
 class TrainEdgeSerializer(serializers.ModelSerializer):
     class Meta:
         model = mm.TrainEdge
-        fields = ["id", "edge"]
-
-    id = serializers.IntegerField(read_only=True)
-    edge = serializers.PrimaryKeyRelatedField(
-        queryset=mm.Edge.objects.all()
-    )
+        fields = ("id", "edge")
+        read_only_fields = ("id",)
 
 
 class TrainLineSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = mm.TrainLine
-        fields = ["id", "game_map", "name", "frequency", "train_capacity", "edges"]
-
-    id = serializers.IntegerField(read_only=True)
-    game_map = serializers.PrimaryKeyRelatedField(
-        queryset=mm.GameMap.objects.all()
-    )
-    name = serializers.CharField()
-    frequency = serializers.FloatField()
-    train_capacity = serializers.IntegerField(min_value=0)
     edges = serializers.PrimaryKeyRelatedField(
         queryset=mm.TrainEdge.objects.all(),
         many=True,
     )
+
+    class Meta:
+        model = mm.TrainLine
+        fields = ("id", "game_map", "name", "frequency", "train_capacity", "edges")
+        read_only_fields = ("id",)
+
+    def validate(self, attrs):
+        game_map = attrs.get("game_map") or getattr(self.instance, "game_map", None)
+        edges = attrs.get("edges", None)
+        if edges is None and self.instance is not None:
+            edges = list(self.instance.edges.all())
+
+        if game_map is None:
+            raise serializers.ValidationError({"game_map": "game_map is required."})
+
+        mismatched_edges = [
+            edge.pk for edge in edges or [] if edge.edge.game_map_id != game_map.id
+        ]
+
+        if mismatched_edges:
+            raise serializers.ValidationError(
+                {
+                    "edges": (
+                        "All edges must belong to the same game_map as the train line. "
+                        f"Invalid edge IDs: {mismatched_edges}"
+                    )
+                }
+            )
+
+        return attrs
+
+    def validate_frequency(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("frequency must be greater than 0.")
+        return value
