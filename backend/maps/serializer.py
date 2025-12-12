@@ -24,6 +24,14 @@ class GameMapSerializer(serializers.ModelSerializer):
         return value
 
 
+class MapGenerationRequestSerializer(serializers.Serializer):
+    latitude = serializers.FloatField()
+    longitude = serializers.FloatField()
+    radius_m = serializers.IntegerField(min_value=50, max_value=10000)
+    complexity = serializers.IntegerField(min_value=1, max_value=10)
+    name = serializers.CharField(required=False, allow_blank=True, max_length=100)
+
+
 class NodeTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = mm.NodeType

@@ -184,6 +184,11 @@ CHANNEL_LAYERS = {
     }
 }
 
+OVERPASS_API_URL = os.environ.get(
+    "OVERPASS_API_URL",
+    "http://overpass-api:80/api/interpreter",
+)
+
 
 # Password validation
 
