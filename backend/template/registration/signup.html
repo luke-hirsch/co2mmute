@@ -15,10 +15,19 @@
           >
             Werde Teil von CO₂mmute
           </h2>
-          <div class="flex items-center justify-between">
+          {% if form.non_field_errors %}
+          <div
+            class="mt-6 rounded-md border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-400/40 dark:bg-red-500/10 dark:text-red-200"
+          >
+            {% for error in form.non_field_errors %}
+            <p>{{ error }}</p>
+            {% endfor %}
+          </div>
+          {% endif %}
+          <div class="mt-6 flex items-center justify-between">
             <div class="text-sm/6">
               <a
-                href="{% url 'login' %}"
+                href="{% url 'login' %}{% if next %}?next={{ next|urlencode }}{% endif %}"
                 class="font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
                 >Schon dabei?</a
               >
@@ -30,6 +39,7 @@
           <div>
             <form method="post" class="space-y-6">
               {% csrf_token %}
+              <input type="hidden" name="next" value="{{ next }}" />
               <div>
                 <label
                   for="username"
@@ -39,13 +49,21 @@
                 <div class="mt-2">
                   <input
                     id="username"
-                    type="username"
+                    type="text"
                     name="username"
                     required
                     autocomplete="username"
-                    class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6 dark:bg-white/5 dark:text-white dark:outline-white/10 dark:placeholder:text-gray-500 dark:focus:outline-indigo-500"
+                    value="{{ form.username.value|default_if_none:'' }}"
+                    class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6 dark:bg-white/5 dark:text-white dark:outline-white/10 dark:placeholder:text-gray-500 dark:focus:outline-indigo-500 {% if form.username.errors %}!outline-red-500 focus:outline-red-500{% endif %}"
                   />
                 </div>
+                {% if form.username.errors %}
+                <div class="mt-2 space-y-1 text-sm text-red-600 dark:text-red-400">
+                  {% for error in form.username.errors %}
+                  <p>{{ error }}</p>
+                  {% endfor %}
+                </div>
+                {% endif %}
               </div>
               <div>
                 <label
@@ -60,9 +78,17 @@
                     name="email"
                     required
                     autocomplete="email"
-                    class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6 dark:bg-white/5 dark:text-white dark:outline-white/10 dark:placeholder:text-gray-500 dark:focus:outline-indigo-500"
+                    value="{{ form.email.value|default_if_none:'' }}"
+                    class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6 dark:bg-white/5 dark:text-white dark:outline-white/10 dark:placeholder:text-gray-500 dark:focus:outline-indigo-500 {% if form.email.errors %}!outline-red-500 focus:outline-red-500{% endif %}"
                   />
                 </div>
+                {% if form.email.errors %}
+                <div class="mt-2 space-y-1 text-sm text-red-600 dark:text-red-400">
+                  {% for error in form.email.errors %}
+                  <p>{{ error }}</p>
+                  {% endfor %}
+                </div>
+                {% endif %}
               </div>
 
               <div>
@@ -77,10 +103,17 @@
                     type="password"
                     name="password"
                     required
-                    autocomplete="current-password"
-                    class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6 dark:bg-white/5 dark:text-white dark:outline-white/10 dark:placeholder:text-gray-500 dark:focus:outline-indigo-500"
+                    autocomplete="new-password"
+                    class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6 dark:bg-white/5 dark:text-white dark:outline-white/10 dark:placeholder:text-gray-500 dark:focus:outline-indigo-500 {% if form.password.errors %}!outline-red-500 focus:outline-red-500{% endif %}"
                   />
                 </div>
+                {% if form.password.errors %}
+                <div class="mt-2 space-y-1 text-sm text-red-600 dark:text-red-400">
+                  {% for error in form.password.errors %}
+                  <p>{{ error }}</p>
+                  {% endfor %}
+                </div>
+                {% endif %}
               </div>
 
               <div>

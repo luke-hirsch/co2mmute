@@ -63,7 +63,7 @@ class TrainEdgeAdmin(admin.ModelAdmin):
 
 @admin.register(BusLine)
 class BusLineAdmin(admin.ModelAdmin):
-    list_display = ("name", "game_map", "frequency", "bus_capacity")
+    list_display = ("name", "game_map", "intervall", "bus_capacity")
     search_fields = ("name", "game_map__name")
     list_filter = ("game_map",)
     ordering = ("game_map", "name")
@@ -71,7 +71,7 @@ class BusLineAdmin(admin.ModelAdmin):
 
 @admin.register(TrainLine)
 class TrainLineAdmin(admin.ModelAdmin):
-    list_display = ("name", "game_map", "frequency", "train_capacity")
+    list_display = ("name", "game_map", "intervall", "train_capacity")
     search_fields = ("name", "game_map__name")
     list_filter = ("game_map",)
     ordering = ("game_map", "name")

@@ -1,11 +1,16 @@
-{% extends "base.html" %}
-{% load static %}
-{% block title %}Create Game Session{% endblock %}
+{% extends "base.html" %} {% load static %} {% block title %}
+<!-- comment  -->
+Create GamSession {% endblock %}
+<!-- comment  -->
 {% block main %}
 <section class="mx-auto w-full max-w-4xl px-6 py-12">
-  <div class="rounded-2xl bg-white p-8 shadow dark:bg-darksurface dark:text-darktext">
+  <div
+    class="rounded-2xl bg-white p-8 shadow dark:bg-darksurface dark:text-darktext"
+  >
     <header class="mb-8">
-      <h1 class="text-3xl font-semibold tracking-tight">Create a new session</h1>
+      <h1 class="text-3xl font-semibold tracking-tight">
+        Create a new session
+      </h1>
       <p class="mt-2 text-sm text-muted dark:text-darkmutedtext">
         Configure the basics for your next CO₂mmute game.
       </p>
@@ -14,6 +19,7 @@
     {% if messages %}
     <div class="mb-8 space-y-3">
       {% for message in messages %}
+      <!-- comment  -->
       {% if "success" in message.tags %}
       <div
         class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-500/40 dark:bg-green-500/10 dark:text-green-200"
@@ -36,22 +42,30 @@
         {{ message }}
       </div>
       {% endif %}
+      <!-- comment  -->
       {% endfor %}
     </div>
     {% endif %}
 
     <form method="post" novalidate class="space-y-6">
       {% csrf_token %}
-
+      <!-- comment  -->
       {% if form.non_field_errors %}
       <div
         class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200"
         role="alert"
       >
-        {% for error in form.non_field_errors %}{{ error }}{% if not forloop.last %}<br />{% endif %}{% endfor %}
+        {% for error in form.non_field_errors %}{{ error }}
+        <!-- comment  -->
+        {% if not forloop.last %}<br />
+        <!-- comment  -->
+        <!-- comment  -->
+        {% endif %}
+        <!-- comment  -->
+        {% endfor %}
       </div>
       {% endif %}
-
+      <!-- comment  -->
       {% for field in form %}
       <div>
         <label
@@ -60,14 +74,13 @@
         >
           {{ field.label }}
         </label>
-        <div class="mt-2">
-          {{ field }}
-        </div>
+        <div class="mt-2">{{ field }}</div>
         {% if field.help_text %}
         <p class="mt-1 text-xs text-muted dark:text-darkmutedtext">
           {{ field.help_text }}
         </p>
         {% endif %}
+        <!-- comment  -->
         {% if field.errors %}
         <ul class="mt-2 space-y-1">
           {% for error in field.errors %}
@@ -81,7 +94,7 @@
       <div class="flex items-center justify-end">
         <button
           type="submit"
-          class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:hover:bg-indigo-400"
+          class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:hover:bg-indigo-400"
         >
           Create session
         </button>

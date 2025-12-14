@@ -1,3 +1,6 @@
+import uuid
+
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect
@@ -8,7 +11,39 @@ from .forms import GameSessionCreateForm, JoinSessionForm, PlayerCreateForm
 from .models import GameSession, Player
 
 
-class GameSessionCreateView(LoginRequiredMixin, CreateView):
+class GameAccessCookieMixin:
+    cookie_prefix = "game_access_"
+    cookie_salt = "game-access-token"
+
+    def _get_token_store(self, request):
+        return request.session.setdefault("game_access_tokens", {})
+
+    def _get_or_create_token(self, request, game_session):
+        tokens = self._get_token_store(request)
+        game_id = game_session.game_id
+        token = tokens.get(game_id)
+        if token is None:
+            token = uuid.uuid4().hex
+            tokens[game_id] = token
+            request.session.modified = True
+        return token
+
+    def _set_access_cookie(self, request, response, game_session):
+        token = self._get_or_create_token(request, game_session)
+        cookie_name = f"{self.cookie_prefix}{game_session.game_id}"
+        secure_flag = getattr(settings, "SESSION_COOKIE_SECURE", False) or request.is_secure()
+        response.set_signed_cookie(
+            cookie_name,
+            token,
+            salt=self.cookie_salt,
+            httponly=True,
+            secure=secure_flag,
+            samesite="Lax",
+        )
+        return response
+
+
+class GameSessionCreateView(GameAccessCookieMixin, LoginRequiredMixin, CreateView):
     template_name = "game/create_session.html"
     form_class = GameSessionCreateForm
     model = GameSession
@@ -19,7 +54,7 @@ class GameSessionCreateView(LoginRequiredMixin, CreateView):
         messages.success(
             self.request, f"Game Session '{form.instance.game_name}' created."
         )
-        return response
+        return self._set_access_cookie(self.request, response, form.instance)
 
     def get_success_url(self):
         return f"/app/lobby/{self.object.game_id}/"
@@ -48,7 +83,7 @@ class ShareSessionView(LoginRequiredMixin, TemplateView):
         return context
 
 
-class JoinSessionView(TemplateView):
+class JoinSessionView(GameAccessCookieMixin, TemplateView):
     template_name = "game/join_session.html"
     form_class = JoinSessionForm
 
@@ -99,7 +134,8 @@ class JoinSessionView(TemplateView):
 
             if not form.errors and not awaiting_password:
                 self._mark_joined(request, game_session)
-                return redirect("player-create", game_id=game_session.game_id)
+                response = redirect("player-create", game_id=game_session.game_id)
+                return self._set_access_cookie(request, response, game_session)
         else:
             game_id = request.POST.get("game_id", "").strip().upper()
             if game_id:
@@ -126,9 +162,10 @@ class JoinSessionView(TemplateView):
             joined_ids.append(game_session.game_id)
             request.session["joined_game_ids"] = joined_ids
             request.session.modified = True
+        self._get_or_create_token(request, game_session)
 
 
-class PlayerCreateView(CreateView):
+class PlayerCreateView(GameAccessCookieMixin, CreateView):
     template_name = "game/create_player.html"
     form_class = PlayerCreateForm
     model = Player
@@ -158,7 +195,7 @@ class PlayerCreateView(CreateView):
             f"Welcome to {self.game_session.game_name}, {form.instance.name or 'player'}!",
         )
         self._mark_joined()
-        return response
+        return self._set_access_cookie(self.request, response, self.game_session)
 
     def _mark_joined(self):
         joined_ids = self.request.session.get("joined_game_ids", [])
@@ -166,6 +203,7 @@ class PlayerCreateView(CreateView):
             joined_ids.append(self.game_session.game_id)
             self.request.session["joined_game_ids"] = joined_ids
             self.request.session.modified = True
+        self._get_or_create_token(self.request, self.game_session)
 
     def get_success_url(self):
         return f"/app/lobby/{self.game_session.game_id}/"

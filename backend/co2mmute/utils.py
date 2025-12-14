@@ -24,3 +24,11 @@ class CustomPasswordValidator:
             "Your password must include at least one digit, one lowercase and uppercase "
             "letter, and one special character."
         )
+
+
+def game_map_clean(version_game_maps, base_game_map):
+    for version_game_map in version_game_maps:
+        if version_game_map != base_game_map:
+            raise ValidationError(
+                f"MapVersion's GameMap {version_game_map} does not match Node's GameMap {base_game_map}"
+            )
