@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { API_BASE_URL } from "../../config";
 import { type Player } from "../../types";
 
 import TextInput from "./../TextInput";
-import type { XMarkIcon } from "@heroicons/react/24/solid";
+import { XMarkIcon } from "@heroicons/react/24/solid";
+import { apiFetch } from "../../utils/api";
 const LeftSidebar = () => {
   const [results, setResults] = useState({
     results: [],
@@ -11,6 +12,33 @@ const LeftSidebar = () => {
     show: false,
   });
   const [players, setPlayers] = useState<Player[]>([]);
+
+  // Fetch players once on mount. Avoid creating the promise during render
+  // which can cause repeated state updates and re-renders.
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchPlayers = async () => {
+      try {
+        const data = await apiFetch(`/game/players/`, { method: "GET" });
+        if (!mounted) return;
+        if (data && Array.isArray(data.players)) {
+          setPlayers(data.players);
+        }
+      } catch (err) {
+        // Silently handle network errors for now; could show UI toast later.
+        // eslint-disable-next-line no-console
+        console.error("Failed to fetch players", err);
+      }
+    };
+
+    fetchPlayers();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const search = async (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
     const search = e.target.value;
@@ -46,17 +74,17 @@ const LeftSidebar = () => {
                 Teilnehmer
               </h6>
               <ul>
-                {results.results.map((id: number) => (
-                  <li>
-                    <a
-                      className="block p-2 rounded text-main transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:text-darktext dark:hover:bg-darkelevated dark:hover:text-darktext"
-                      href={`#`}
-                      key={id}
-                    >
-                      {results.results.toString()}
-                    </a>
-                  </li>
-                ))}
+                {Array.isArray(results.results) &&
+                  results.results.map((id: number) => (
+                    <li key={id}>
+                      <a
+                        className="block p-2 rounded text-main transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:text-darktext dark:hover:bg-darkelevated dark:hover:text-darktext"
+                        href={`#`}
+                      >
+                        {String(id)}
+                      </a>
+                    </li>
+                  ))}
               </ul>
             </div>
           )}
