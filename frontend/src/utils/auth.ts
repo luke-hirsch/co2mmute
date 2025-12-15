@@ -1,5 +1,5 @@
 import { queryOptions } from "@tanstack/react-query";
-import type { AuthResult } from "./types";
+import type { AuthResult } from "../types";
 import { API_BASE_URL } from "../config";
 export const authQueryOptions = queryOptions<AuthResult>({
   queryKey: ["auth"],

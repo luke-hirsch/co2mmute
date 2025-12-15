@@ -28,6 +28,7 @@ class GameSession(models.Model):
     max_CO2_level = models.PositiveIntegerField()  # in kg
 
     lobby_open = models.DateTimeField(default=timezone.now)
+    chat_enabled = models.BooleanField(default=True)
     is_active = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -91,6 +92,7 @@ class Player(models.Model):
     user = models.ForeignKey(
         "auth.User", on_delete=models.SET_NULL, null=True, blank=True
     )
+    is_muted = models.BooleanField(default=False)
     game = models.ForeignKey(GameSession, on_delete=models.CASCADE)
     joined_at = models.DateTimeField(auto_now_add=True)
 

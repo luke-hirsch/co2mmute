@@ -1,5 +1,5 @@
 import TextInput from "./TextInput";
-import { type ChatMessage } from "../utils/types";
+import { type ChatMessage } from "../types";
 import { useState } from "react";
 import { PaperAirplaneIcon } from "@heroicons/react/24/solid";
 const ChatSidebar = () => {
@@ -29,7 +29,7 @@ const ChatSidebar = () => {
     },
   ]);
   return (
-    <div className="flex flex-col justify-between max-h-dvh overflow-y-auto rounded border border-subtle bg-surface p-4 text-main shadow-sm transition-colors duration-300 dark:border-darksubtle dark:bg-darksurface dark:text-darktext">
+    <div className="flex flex-col justify-between max-h-full overflow-y-auto rounded border border-subtle bg-surface p-4 text-main shadow-sm transition-colors duration-300 dark:border-darksubtle dark:bg-darksurface dark:text-darktext">
       {[...messages].map((message) => (
         <div key={message.id} className="mb-2">
           <div className="text-sm font-semibold">{message.authorId}</div>

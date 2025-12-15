@@ -8,6 +8,7 @@ from .views import (
     ImpressumView,
     SpaView,
     ProfileView,
+    WhoAmIView,
 )
 from game.views import (
     GameSessionCreateView,
@@ -39,6 +40,7 @@ urlpatterns = [
         name="player-update",
     ),
     path("api/game/", include("game.urls")),
+    path("api/whoami/", WhoAmIView.as_view(), name="whoami"),
     path("api/game_data/", include("game_data.urls")),
     path("api/maps/", include("maps.urls")),
     re_path(r"^app(?:/.*)?$", SpaView.as_view(), name="app"),

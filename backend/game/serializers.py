@@ -19,6 +19,7 @@ class GameSessionSerializer(serializers.ModelSerializer):
             "max_rounds",
             "max_CO2_level",
             "lobby_open",
+            "chat_enabled",
             "is_active",
             "created_at",
             "updated_at",
@@ -83,8 +84,9 @@ class PlayerSerializer(serializers.ModelSerializer):
             "user",
             "game",
             "joined_at",
+            "is_muted",
         )
-        read_only_fields = ("id", "player_id", "joined_at")
+        read_only_fields = ("id", "player_id", "joined_at", "is_muted")
 
 
 class GameRoundSerializer(serializers.ModelSerializer):

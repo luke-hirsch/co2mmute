@@ -18,3 +18,13 @@ export type ChatMessage = {
   content: string;
   timestamp: number;
 };
+
+export type Player = {
+  id: string;
+  name: string;
+  playerId: string;
+  user?: number;
+  game: string;
+  joinedAt: string;
+  isMuted: boolean;
+};

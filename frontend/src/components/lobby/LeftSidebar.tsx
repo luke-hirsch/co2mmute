@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { API_BASE_URL } from "../../config";
+import { type Player } from "../../types";
 
 import TextInput from "./../TextInput";
+import type { XMarkIcon } from "@heroicons/react/24/solid";
 const LeftSidebar = () => {
   const [results, setResults] = useState({
     results: [],
     data: {},
     show: false,
   });
+  const [players, setPlayers] = useState<Player[]>([]);
   const search = async (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
     const search = e.target.value;
@@ -59,105 +62,21 @@ const LeftSidebar = () => {
           )}
         </div>
       )}
-      <nav className="mt-5 text-main dark:text-darktext">
+      <div className="mt-5 text-main dark:text-darktext">
         <ul className="space-y-2 ">
-          <li>
-            <a
-              href="/neue-anmeldungen"
-              className="block rounded p-2 transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:hover:bg-darkelevated dark:hover:text-darktext"
-            >
-              Anmeldungen
-            </a>
-          </li>
-          <li>
-            <a
-              href="/teilnehmer"
-              className="block rounded p-2 transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:hover:bg-darkelevated dark:hover:text-darktext"
-            >
-              Teilnehmer*innen
-            </a>
-          </li>
-          <li>
-            <a
-              href="/wahlvorbereitung"
-              className="block rounded p-2 transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:hover:bg-darkelevated dark:hover:text-darktext"
-            >
-              Wähler
-            </a>
-          </li>
-          <li>
-            <a
-              href="/authentifizierung"
-              className="block rounded p-2 transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:hover:bg-darkelevated dark:hover:text-darktext"
-            >
-              Authentifizierung
-            </a>
-          </li>
-          <li>
-            <a
-              href="/wahlregister"
-              className="block rounded p-2 transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:hover:bg-darkelevated dark:hover:text-darktext"
-            >
-              Wahlregister
-            </a>
-          </li>
-          <li>
-            <a
-              href="/anwesenheit"
-              className="block rounded p-2 transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:hover:bg-darkelevated dark:hover:text-darktext"
-            >
-              Anwesenheit
-            </a>
-          </li>
+          {players.map((player) => (
+            <li key={player.id}>
+              <a
+                className="flex p-2 rounded text-main transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:text-darktext dark:hover:bg-darkelevated dark:hover:text-darktext justify-between items-center"
+                href={`#`}
+              >
+                {player.name}{" "}
+                {player.isMuted && <XMarkIcon className="h-6 w-auto" />}
+              </a>
+            </li>
+          ))}
         </ul>
-        <div className="mb-2 border-b border-subtle dark:border-darksubtle">
-          <h3 className="mt-5 p-2 text-muted dark:text-darkmutedtext">
-            Verwaltung
-          </h3>
-        </div>
-        <ul className="space-y-2">
-          <li>
-            <a
-              href="/staff"
-              className="block rounded p-2 transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:hover:bg-darkelevated dark:hover:text-darktext"
-            >
-              Staff
-            </a>
-          </li>
-          <li>
-            <a
-              href="/event"
-              className="block rounded p-2 transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:hover:bg-darkelevated dark:hover:text-darktext"
-            >
-              Veranstaltungen
-            </a>
-          </li>
-          <li>
-            <a
-              href="/mail"
-              className="block rounded p-2 transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:hover:bg-darkelevated dark:hover:text-darktext"
-            >
-              Mail
-            </a>
-          </li>
-          <li>
-            <a
-              href="/org"
-              className="block rounded p-2 transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:hover:bg-darkelevated dark:hover:text-darktext"
-            >
-              Organsiationen
-            </a>
-          </li>
-          <li>
-            <a
-              href="/person"
-              className="block rounded p-2 transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:hover:bg-darkelevated dark:hover:text-darktext"
-            >
-              Personen
-            </a>
-          </li>
-        </ul>
-      </nav>
+      </div>
 
       {/* Logout link */}
       <div className="mt-auto">
