@@ -11,3 +11,10 @@ export type Message = {
   type: "info" | "success" | "error" | "warning";
   onClose?: () => void;
 };
+
+export type ChatMessage = {
+  id: string;
+  authorId: string;
+  content: string;
+  timestamp: number;
+};

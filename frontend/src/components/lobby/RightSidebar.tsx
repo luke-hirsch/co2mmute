@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { API_BASE_URL } from "../config";
+import { API_BASE_URL } from "../../config";
 
-import TextInput from "./TextInput";
-const Sidebar = () => {
+import TextInput from "./../TextInput";
+const RightSidebar = () => {
   const [results, setResults] = useState({
     results: [],
     data: {},
@@ -163,7 +163,7 @@ const Sidebar = () => {
       <div className="mt-auto">
         <button
           onClick={() => {}}
-          className="w-full rounded bg-primary-600 p-2 text-left font-semibold text-white transition-colors duration-200 hover:bg-primary-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 dark:bg-primary-600 dark:hover:bg-primary-500"
+          className="w-full rounded bg-primary-600 p-2 text-left font-semibold text-white transition-colors duration-200 hover:bg-primary-500 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-primary-600 dark:bg-primary-600 dark:hover:bg-primary-500"
         >
           Logout
         </button>
@@ -172,4 +172,4 @@ const Sidebar = () => {
   );
 };
 
-export default Sidebar;
+export default RightSidebar;
