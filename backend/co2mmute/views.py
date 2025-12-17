@@ -117,8 +117,8 @@ class WhoAmIView(APIView):
     Recommended: pass ?game_id=ABC123 so player identity is unambiguous.
     """
 
-    PLAYER_COOKIE_PREFIX = "player_"
-    PLAYER_COOKIE_SALT = "player-id-token"
+    PLAYER_COOKIE_PREFIX = settings.COOKIE_PLAYER_PREFIX
+    PLAYER_COOKIE_SALT = settings.COOKIE_PLAYER_SALT
 
     def get(self, request, format=None):
         user = request.user

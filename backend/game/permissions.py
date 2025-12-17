@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core import signing
 from rest_framework.permissions import BasePermission
 
@@ -7,8 +8,8 @@ from .models import GameSession, Player
 class HasGameAccess(BasePermission):
     message = "You do not have access to this game session."
 
-    cookie_prefix = "game_access_"
-    cookie_salt = "game-access-token"
+    cookie_prefix = settings.COOKIE_GAME_PREFIX
+    cookie_salt = settings.COOKIE_GAME_SALT
 
     def has_permission(self, request, view):
         game_id = view.kwargs.get("game_id")
@@ -38,8 +39,8 @@ class HasGameAccess(BasePermission):
 class IsPlayerInGame(BasePermission):
     message = "You are not a player in this game session."
 
-    player_cookie_prefix = "player_"
-    player_cookie_salt = "player-id-token"
+    player_cookie_prefix = settings.COOKIE_PLAYER_PREFIX
+    player_cookie_salt = settings.COOKIE_PLAYER_SALT
 
     def has_permission(self, request, view):
         game_id = view.kwargs.get("game_id")
