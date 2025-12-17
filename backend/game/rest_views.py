@@ -7,6 +7,7 @@ from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import IsAuthenticated
 from game.models import Player, GameSession
 from game.serializers import PlayerSerializer, GameSessionSerializer
+from .cache import get_cached_game_session
 from .permissions import HasGameAccess, IsPlayerInGame
 from .mixins import GameScopedQuerysetMixin
 from django.shortcuts import get_object_or_404
@@ -65,7 +66,12 @@ class GetYourOwnGame(GameScopedQuerysetMixin, GenericAPIView):
     def get(self, request, *args, **kwargs):
         player_id = self.kwargs.get("player_id")
         player = get_object_or_404(Player, player_id=player_id)
-        game = get_object_or_404(GameSession, game_id=player.game.game_id)
+        game = get_cached_game_session(player.game.game_id)
+        if not game:
+            return Response(
+                {"detail": "Game session not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
         serializer = self.get_serializer(game)
         return Response(serializer.data, status=status.HTTP_200_OK)
 

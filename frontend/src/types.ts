@@ -1,6 +1,17 @@
-export type AuthResult = {
-  user: null | {
-    id: string;
+export type Auth = {
+  kind: "user" | "player" | "anonymous";
+  authenticated: boolean;
+  id?: number;
+  isStaff?: boolean;
+  isActive?: boolean;
+  username?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  detail?: string;
+  gameId?: string;
+  player?: {
+    playerId: string;
     name: string;
   };
 };
@@ -27,4 +38,11 @@ export type Player = {
   game: string;
   joinedAt: string;
   isMuted: boolean;
+};
+
+export type WSOptions = {
+  onOpen?: () => void;
+  onClose?: (ev: CloseEvent) => void;
+  onError?: (ev: Event) => void;
+  onMessage?: (data: any) => void;
 };

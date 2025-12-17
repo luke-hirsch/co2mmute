@@ -3,6 +3,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views.generic import CreateView, TemplateView
+from .cache import cache_game_session, get_cached_game_session
 from .mixins import GameAccessCookieMixin, PlayerCookieMixin
 from .forms import GameSessionCreateForm, JoinSessionForm, PlayerCreateForm
 from .models import GameSession, Player
@@ -16,10 +17,13 @@ class GameSessionCreateView(GameAccessCookieMixin, LoginRequiredMixin, CreateVie
     def form_valid(self, form):
         form.instance.game_host = self.request.user
         response = super().form_valid(form)
+        cache_game_session(form.instance)
         messages.success(
             self.request, f"Game Session '{form.instance.game_name}' created."
         )
-        return self._set_access_cookie(self.request, response, form.instance)
+        return self.set_game_access_cookie(
+            self.request, response, form.instance.game_id
+        )
 
     def get_success_url(self):
         return f"/app/lobby/{self.object.game_id}/"
@@ -63,7 +67,7 @@ class JoinSessionView(GameAccessCookieMixin, TemplateView):
         show_password = False
 
         if game_id:
-            game_session = GameSession.objects.filter(game_id=game_id).first()
+            game_session = get_cached_game_session(game_id)
             if game_session:
                 show_password = bool(game_session.game_password)
             else:
@@ -88,9 +92,8 @@ class JoinSessionView(GameAccessCookieMixin, TemplateView):
         if form.is_valid():
             game_id = form.cleaned_data["game_id"].upper()
 
-            try:
-                game_session = GameSession.objects.get(game_id=game_id)
-            except GameSession.DoesNotExist:
+            game_session = get_cached_game_session(game_id)
+            if not game_session:
                 form.add_error("game_id", "No session found with that ID.")
             else:
                 show_password = bool(game_session.game_password)
@@ -141,7 +144,7 @@ class PlayerCreateView(
 
     def dispatch(self, request, *args, **kwargs):
         game_id = kwargs["game_id"]
-        self.game_session = GameSession.objects.filter(game_id=game_id).first()
+        self.game_session = get_cached_game_session(game_id)
 
         if not self.game_session:
             messages.error(request, "We could not find that session.")

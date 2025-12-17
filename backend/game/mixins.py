@@ -3,15 +3,10 @@ from django.conf import settings
 from rest_framework.exceptions import ValidationError
 from game.models import Player
 
-# game/mixins.py
-
-
-from .ws_auth import COOKIE_GAME_PREFIX, COOKIE_GAME_SALT, COOKIE_PLAYER_PREFIX, COOKIE_PLAYER_SALT
-
 
 class GameAccessCookieMixin:
-    cookie_prefix = COOKIE_GAME_PREFIX
-    cookie_salt = COOKIE_GAME_SALT
+    cookie_prefix = settings.COOKIE_GAME_PREFIX
+    cookie_salt = settings.COOKIE_GAME_SALT
 
     def _session_store(self, request):
         return request.session.setdefault("game_access_tokens", {})
@@ -43,8 +38,8 @@ class GameAccessCookieMixin:
 
 
 class PlayerCookieMixin:
-    cookie_prefix = COOKIE_PLAYER_PREFIX
-    cookie_salt = COOKIE_PLAYER_SALT
+    cookie_prefix = settings.COOKIE_PLAYER_PREFIX
+    cookie_salt = settings.COOKIE_PLAYER_SALT
 
     def _player_session_store(self, request):
         return request.session.setdefault("player_by_game", {})

@@ -184,6 +184,15 @@ CHANNEL_LAYERS = {
     }
 }
 
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
+    }
+}
+
+GAME_SESSION_CACHE_TIMEOUT = int(os.environ.get("GAME_SESSION_CACHE_TIMEOUT", 15 * 60))
+
 OVERPASS_API_URL = os.environ.get(
     "OVERPASS_API_URL",
     "http://overpass-api:80/api/interpreter",

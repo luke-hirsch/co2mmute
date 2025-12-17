@@ -1,7 +1,8 @@
 from django.core import signing
 from rest_framework.permissions import BasePermission
 
-from .models import GameSession, Player
+from .cache import get_cached_game_session
+from .models import Player
 
 
 class HasGameAccess(BasePermission):
@@ -16,9 +17,8 @@ class HasGameAccess(BasePermission):
             return False
 
         if request.user.is_authenticated:
-            if GameSession.objects.filter(
-                game_id=game_id, game_host=request.user
-            ).exists():
+            session = get_cached_game_session(game_id)
+            if session and session.game_host_id == request.user.id:
                 return True
 
         tokens = request.session.get("game_access_tokens") or {}

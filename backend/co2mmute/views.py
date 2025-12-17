@@ -13,6 +13,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .forms import SignupForm
+from game.cache import get_cached_game_session
 from game.models import GameSession, Player
 
 
@@ -122,19 +123,22 @@ class WhoAmIView(APIView):
 
     def get(self, request, format=None):
         user = request.user
-
+        game_id = (request.query_params.get("game_id") or "").strip().upper()
         # 1) If user is authenticated, return user info (your existing behavior)
         if user and user.is_authenticated:
+            cached_game = get_cached_game_session(game_id) if game_id else None
             user_data = {
-                "kind": "user",
+                "kind": "host"
+                if cached_game and cached_game.game_host_id == user.id
+                else "user",
                 "authenticated": True,
                 "id": user.id,
-                "is_staff": user.is_staff,
-                "is_active": user.is_active,
+                "isStaff": user.is_staff,
+                "isActive": user.is_active,
                 "username": user.username,
                 "email": user.email,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
+                "firstName": user.first_name,
+                "lastName": user.last_name,
             }
 
             # Optional: attach short-lived JWT
@@ -156,8 +160,6 @@ class WhoAmIView(APIView):
 
             return Response(user_data)
 
-        # 2) Otherwise try player identity via signed cookie
-        game_id = (request.query_params.get("game_id") or "").strip().upper()
         if not game_id:
             # No game scope -> we can't know which player cookie matters
             return Response(
@@ -198,9 +200,9 @@ class WhoAmIView(APIView):
             {
                 "kind": "player",
                 "authenticated": False,
-                "game_id": game_id,
+                "gameId": game_id,
                 "player": {
-                    "player_id": player.player_id,
+                    "playerId": player.player_id,
                     "name": player.name,
                 },
             }

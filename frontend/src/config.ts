@@ -1,6 +1,12 @@
-const fallbackBaseUrl = "/api";
+const resolveApiBaseUrl = () => {
+  if (typeof window === "undefined") {
+    return "";
+  }
 
-export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? fallbackBaseUrl;
+  const { protocol, host } = window.location;
+  return `${protocol}//${host}`;
+};
+
+export const API_BASE_URL = resolveApiBaseUrl();
 
 export const COLOR_MODE_STORAGE_KEY = "colorMode";

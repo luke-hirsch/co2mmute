@@ -12,7 +12,7 @@ const Sidebar = () => {
     e.preventDefault();
     const search = e.target.value;
     if (search.length > 3) {
-      const response = await fetch(`${API_BASE_URL}/mv/?search=${search}`);
+      const response = await fetch(`${API_BASE_URL}/api/mv/?search=${search}`);
       const data = await response.json();
       setResults({ ...results, ...data, show: true });
     }
