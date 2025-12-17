@@ -6,6 +6,10 @@ from .models import Player
 
 
 # Centralized cookie constants (single source of truth)
+COOKIE_GAME_PREFIX = settings.COOKIE_GAME_PREFIX
+COOKIE_GAME_SALT = settings.COOKIE_GAME_SALT
+COOKIE_PLAYER_PREFIX = settings.COOKIE_PLAYER_PREFIX
+COOKIE_PLAYER_SALT = settings.COOKIE_PLAYER_SALT
 
 
 def get_cookie(scope, name: str):
