@@ -1,5 +1,5 @@
 export type Auth = {
-  kind: "user" | "player" | "anonymous";
+  kind: "host" | "user" | "player" | "anonymous";
   authenticated: boolean;
   id?: number;
   isStaff?: boolean;

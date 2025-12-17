@@ -129,7 +129,7 @@ class WhoAmIView(APIView):
             cached_game = get_cached_game_session(game_id) if game_id else None
             user_data = {
                 "kind": "host"
-                if cached_game and cached_game.game_host_id == user.id
+                if cached_game and cached_game.game_host == user
                 else "user",
                 "authenticated": True,
                 "id": user.id,
