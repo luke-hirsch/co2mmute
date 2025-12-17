@@ -1,0 +1,76 @@
+# mobility-realtime-review.toon
+doc:
+  title: Realtime backend recap+review (consumers + player auth)
+  scope: django_channels,redis,player_cookies,lobby_presence,chat_messages
+  source_files[7]: consumers.py,ws_auth.py,routing.py,mixins.py,views.py,urls.py,models.py
+
+recap:
+  identities[2]: host_django_user,player_cookie_identity
+  ws_routes[2]:
+    ws/lobby/{game_id}/: LobbyConsumer
+    ws/chat/{game_id}/: ChatConsumer
+  cookies{type,prefix,salt,purpose}:
+    game_access,game_access_,game-access-token,proves browser allowed into game_id
+    player,player_,player-id-token,identifies player_id within game_id
+  groups{type,pattern}:
+    lobby,lobby:{game_id}
+    chat,chat:{game_id}
+
+review:
+  good_bits[6]:
+    signed cookies prevent client tampering
+    ws reads cookies from scope headers (SimpleCookie)
+    consumers close with 4401/4403 on auth failure
+    lobby presence stored in redis (not DB)
+    chat stored in redis (no Message model) with history cap + ttl
+    basic chat guardrails (max length + rate limit) exist
+  key_assumptions_to_challenge[5]:
+    signing != secrecy (cookie theft = identity theft)
+    SameSite=Lax is fine for first-party, breaks for iframe/cross-site
+    rate_limit 0.35s still allows spam (kid math)
+    presence without TTL/heartbeat causes ghost players
+    client-sent names/timestamps must not be trusted
+
+issues[6]{id,area,problem,impact,fix}:
+  1,repo_integrity,"literal '...' placeholders exist in uploaded files","imports can crash / critical logic hidden","remove placeholders; ensure files are syntactically valid"
+  2,urls,"two urlpatterns share name='player-list' and 'detail' route lacks player_id","reverse() ambiguity; endpoint semantics unclear","rename routes; make 'me' endpoint explicit if cookie-based"
+  3,auth_drift,"cookie parsing/auth duplicated across consumers.py + ws_auth.py + mixins.py","future drift -> inconsistent auth bugs","centralize ws auth helpers; consumers import single resolver"
+  4,presence,"lobby presence may lack TTL/cleanup","stale roster / phantom players after disconnects","add TTL+heartbeat or timestamped cleanup strategy"
+  5,chat_schema,"ensure canonical broadcast payload (server ts, player_id, optional player_name)","frontend reducer complexity, spoofing risk","server adds ts + authoritative player metadata; ignore client ts/name"
+  6,guards,"rate limit may be too permissive for classroom spam","chat becomes unusable","increase min interval or add burst+cooldown"
+
+frontend_contract_hint:
+  ws_event_types[7]: chat.history,chat.message,chat.error,lobby.roster,ping,pong,system.notice
+  must_include_fields[5]: type,game_id,player_id,ts,payload
+
+prompt_for_agent:
+  role: "You are a code-modifying agent working in this repo."
+  goal: "Fix realtime backend correctness + contract stability (no frontend work)."
+  constraints[6]:
+    do not add Message model or persistent chat storage
+    keep messages ephemeral in redis (ttl ok)
+    keep player identity cookie-based (no Django user required)
+    avoid breaking existing URL paths unless absolutely necessary (rename route names is ok)
+    keep websocket close codes 4401/4403 semantics
+    ensure code is lintable and imports run
+  tasks[10]:
+    "1) Remove all placeholder '...' from python files; ensure syntax-valid modules."
+    "2) Define single source of truth for cookie names + salts (constants module or ws_auth)."
+    "3) Refactor consumers to use ws_auth helpers (cookie parsing + unsign + player resolver)."
+    "4) Implement resolve_player(scope,game_id) -> (player|None, close_code, reason)."
+    "5) Ensure connect() in LobbyConsumer and ChatConsumer enforces game_id scoping via signed cookies."
+    "6) Add lobby presence cleanup (TTL+heartbeat OR timestamped sorted set with periodic cleanup)."
+    "7) Add/confirm chat redis history list key, HISTORY_LIMIT trimming, TTL refresh on write."
+    "8) Canonicalize chat outbound payload: include server ts, player_id, (optional) player_name; ignore client ts/name."
+    "9) Fix urls.py naming collisions; make intent explicit (e.g., player-me vs player-list)."
+    "10) Add minimal tests or sanity checks for ws auth + cookie parsing (even 2-3 fast unit tests)."
+  acceptance_criteria[9]:
+    "python -m compileall passes for affected modules"
+    "WS connect rejects missing/invalid cookies with correct close codes"
+    "player from cookie must belong to game_id in URL"
+    "no duplicate route names in urls.py"
+    "lobby roster does not retain disconnected clients after TTL window"
+    "chat history capped to HISTORY_LIMIT and expires after TTL_SECONDS"
+    "outbound chat messages have stable schema across lobby/game routes"
+    "no reliance on Django auth for players"
+    "code duplication reduced (auth logic centralized)"

@@ -1,7 +1,7 @@
 from django.core import signing
 from rest_framework.permissions import BasePermission
 
-from .models import GameSession
+from .models import GameSession, Player
 
 
 class HasGameAccess(BasePermission):
@@ -28,10 +28,34 @@ class HasGameAccess(BasePermission):
 
         cookie_name = f"{self.cookie_prefix}{game_id}"
         try:
-            cookie_token = request.get_signed_cookie(
-                cookie_name, salt=self.cookie_salt
-            )
+            cookie_token = request.get_signed_cookie(cookie_name, salt=self.cookie_salt)
         except (KeyError, signing.BadSignature):
             return False
 
         return cookie_token == session_token
+
+
+class IsPlayerInGame(BasePermission):
+    message = "You are not a player in this game session."
+
+    player_cookie_prefix = "player_"
+    player_cookie_salt = "player-id-token"
+
+    def has_permission(self, request, view):
+        game_id = view.kwargs.get("game_id")
+        if not game_id:
+            return False
+
+        cookie_name = f"{self.player_cookie_prefix}{game_id}"
+
+        try:
+            player_id = request.get_signed_cookie(
+                cookie_name, salt=self.player_cookie_salt
+            )
+        except (KeyError, signing.BadSignature):
+            return False
+
+        # Verify that player exists AND belongs to that game
+        return Player.objects.filter(
+            game__game_id=game_id, player_id=player_id
+        ).exists()

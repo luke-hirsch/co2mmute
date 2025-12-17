@@ -2,6 +2,7 @@ from django.conf import settings
 from django.contrib.auth import login
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LogoutView as DjangoLogoutView
+from django.core import signing
 from django.shortcuts import redirect, resolve_url
 from django.urls import NoReverseMatch
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -12,7 +13,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .forms import SignupForm
-from game.models import GameSession
+from game.models import GameSession, Player
 
 
 class IndexView(TemplateView):
@@ -102,15 +103,30 @@ class LogoutView(DjangoLogoutView):
         return super().post(request, *args, **kwargs)
 
 
+# commute/views.py (or game/views.py, wherever you keep API views)
+
+# adjust import
+
+
 class WhoAmIView(APIView):
     """
-    API endpoint that returns the current authenticated user's information.
+    Returns identity for either:
+    - authenticated Django user (host/admin)
+    - anonymous player identified via signed cookie: player_<game_id>
+
+    Recommended: pass ?game_id=ABC123 so player identity is unambiguous.
     """
+
+    PLAYER_COOKIE_PREFIX = "player_"
+    PLAYER_COOKIE_SALT = "player-id-token"
 
     def get(self, request, format=None):
         user = request.user
-        if user.is_authenticated:
+
+        # 1) If user is authenticated, return user info (your existing behavior)
+        if user and user.is_authenticated:
             user_data = {
+                "kind": "user",
                 "authenticated": True,
                 "id": user.id,
                 "is_staff": user.is_staff,
@@ -120,34 +136,72 @@ class WhoAmIView(APIView):
                 "first_name": user.first_name,
                 "last_name": user.last_name,
             }
-            # Try to attach a short-lived JWT token to the response.
+
+            # Optional: attach short-lived JWT
             try:
                 expiration_seconds = int(
                     getattr(settings, "JWT_EXPIRATION_SECONDS", 300)
                 )
                 algorithm = getattr(settings, "JWT_ALGORITHM", "HS256")
                 exp = datetime.now() + timedelta(seconds=expiration_seconds)
-                payload = {
-                    "user_id": user.id,
-                    "username": user.username,
-                    "exp": exp,
-                }
+                payload = {"user_id": user.id, "username": user.username, "exp": exp}
                 token = jwt.encode(payload, settings.SECRET_KEY, algorithm=algorithm)
-                # jwt.encode may return bytes in some versions — ensure string
                 if isinstance(token, bytes):
                     token = token.decode("utf-8")
                 user_data.update(
-                    {
-                        "token": token,
-                        "token_expires_at": int(exp.timestamp()),
-                    }
+                    {"token": token, "token_expires_at": int(exp.timestamp())}
                 )
             except Exception:
-                # Don't break the endpoint if token creation fails (e.g., PyJWT not installed).
                 pass
 
             return Response(user_data)
-        else:
+
+        # 2) Otherwise try player identity via signed cookie
+        game_id = (request.query_params.get("game_id") or "").strip().upper()
+        if not game_id:
+            # No game scope -> we can't know which player cookie matters
             return Response(
-                {"authenticated": False}, status=status.HTTP_401_UNAUTHORIZED
+                {
+                    "kind": "anonymous",
+                    "authenticated": False,
+                    "detail": "Provide ?game_id=... to resolve player identity.",
+                },
+                status=status.HTTP_401_UNAUTHORIZED,
             )
+
+        cookie_name = f"{self.PLAYER_COOKIE_PREFIX}{game_id}"
+        raw = request.COOKIES.get(cookie_name)
+        if not raw:
+            return Response(
+                {"kind": "anonymous", "authenticated": False},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        try:
+            player_id = signing.loads(raw, salt=self.PLAYER_COOKIE_SALT)
+        except signing.BadSignature:
+            return Response(
+                {"kind": "anonymous", "authenticated": False},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        player = Player.objects.filter(
+            game__game_id=game_id, player_id=player_id
+        ).first()
+        if not player:
+            return Response(
+                {"kind": "anonymous", "authenticated": False},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        return Response(
+            {
+                "kind": "player",
+                "authenticated": False,
+                "game_id": game_id,
+                "player": {
+                    "player_id": player.player_id,
+                    "name": player.name,
+                },
+            }
+        )

@@ -232,3 +232,8 @@ STATICFILES_DIRS = [path for path in [FRONTEND_DIST_DIR, STATIC_DIR] if path.exi
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 MAX_RETRIES = 5
+COOKIE_GAME_PREFIX = "game_access_"
+COOKIE_GAME_SALT = "game-access-token"
+
+COOKIE_PLAYER_PREFIX = "player_"
+COOKIE_PLAYER_SALT = "player-id-token"

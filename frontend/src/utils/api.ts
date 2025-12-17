@@ -24,6 +24,9 @@ export async function apiFetch(url: string, options: RequestInit = {}) {
   if (res.status === 401) {
     throw new Error("unauthenticated");
   }
+  if (res.status === 404) {
+    throw new Error("not found");
+  }
 
   return res.json().catch(() => ({}));
 }
