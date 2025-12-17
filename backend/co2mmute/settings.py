@@ -227,6 +227,17 @@ STATIC_URL = "/static/"
 STATIC_ROOT = Path(os.environ.get("DJANGO_STATIC_ROOT", BASE_DIR / "staticfiles"))
 STATICFILES_DIRS = [path for path in [FRONTEND_DIST_DIR, STATIC_DIR] if path.exists()]
 
+# Media (user-uploaded files)
+MEDIA_URL = os.environ.get("DJANGO_MEDIA_URL", "/media/")
+MEDIA_ROOT = Path(os.environ.get("DJANGO_MEDIA_ROOT", BASE_DIR / "media"))
+
+# ensure media dir exists in local/dev runs
+try:
+    MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
+except Exception:
+    # In containerized environments the directory may be managed by volumes; ignore failures
+    pass
+
 # Default primary key field type
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
