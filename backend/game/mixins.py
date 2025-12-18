@@ -26,13 +26,17 @@ class GameAccessCookieMixin:
             getattr(settings, "SESSION_COOKIE_SECURE", False) or request.is_secure()
         )
 
+        # Embed game_id into cookie value for validation in ws_auth
+        cookie_value = f"{game_id}:{token}"
+
         response.set_signed_cookie(
             f"{self.cookie_prefix}{game_id}",
-            token,
+            cookie_value,
             salt=self.cookie_salt,
             httponly=True,
             secure=secure_flag,
             samesite="Lax",
+            max_age=settings.COOKIE_AGE,
         )
         return response
 
@@ -60,6 +64,7 @@ class PlayerCookieMixin:
             httponly=True,
             secure=secure_flag,
             samesite="Lax",
+            max_age=settings.COOKIE_AGE,
         )
         return response
 

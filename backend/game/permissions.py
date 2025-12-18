@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core import signing
 from rest_framework.permissions import BasePermission
 
@@ -7,9 +8,6 @@ from .models import Player
 
 class HasGameAccess(BasePermission):
     message = "You do not have access to this game session."
-
-    cookie_prefix = "game_access_"
-    cookie_salt = "game-access-token"
 
     def has_permission(self, request, view):
         game_id = view.kwargs.get("game_id")
@@ -26,31 +24,34 @@ class HasGameAccess(BasePermission):
         if not session_token:
             return False
 
-        cookie_name = f"{self.cookie_prefix}{game_id}"
+        cookie_name = f"{settings.COOKIE_GAME_PREFIX}{game_id}"
         try:
-            cookie_token = request.get_signed_cookie(cookie_name, salt=self.cookie_salt)
+            cookie_value = request.get_signed_cookie(
+                cookie_name, salt=settings.COOKIE_GAME_SALT
+            )
+            # Extract embedded game_id and token from "game_id:token" format
+            if ":" not in cookie_value:
+                return False
+            cookie_game_id, cookie_token = cookie_value.split(":", 1)
+            # Verify game_id matches and token matches
+            return cookie_game_id == game_id and cookie_token == session_token
         except (KeyError, signing.BadSignature):
             return False
-
-        return cookie_token == session_token
 
 
 class IsPlayerInGame(BasePermission):
     message = "You are not a player in this game session."
-
-    player_cookie_prefix = "player_"
-    player_cookie_salt = "player-id-token"
 
     def has_permission(self, request, view):
         game_id = view.kwargs.get("game_id")
         if not game_id:
             return False
 
-        cookie_name = f"{self.player_cookie_prefix}{game_id}"
+        cookie_name = f"{settings.COOKIE_PLAYER_PREFIX}{game_id}"
 
         try:
             player_id = request.get_signed_cookie(
-                cookie_name, salt=self.player_cookie_salt
+                cookie_name, salt=settings.COOKIE_PLAYER_SALT
             )
         except (KeyError, signing.BadSignature):
             return False

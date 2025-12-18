@@ -36,20 +36,46 @@ async def resolve_player(scope, game_id: str):
 
     try:
         player_id = unsign(raw_player, settings.COOKIE_PLAYER_SALT)
-        # validate game cookie too (we don't need its value but must verify signature)
-        _ = unsign(raw_game, settings.COOKIE_GAME_SALT)
+        # validate game cookie and extract embedded game_id
+        game_cookie_value = unsign(raw_game, settings.COOKIE_GAME_SALT)
+        # Format is "game_id:token" - validate game_id matches
+        if ":" not in game_cookie_value:
+            return None, 4401, "malformed-game-cookie"
+        cookie_game_id, _ = game_cookie_value.split(":", 1)
+        if cookie_game_id != game_id:
+            return None, 4401, "game-id-mismatch"
     except signing.BadSignature:
         return None, 4401, "bad-signature"
 
-    # DB lookup
+    # DB lookup with game state validation
     @database_sync_to_async
-    def _get_player(game_id_inner, player_id_inner):
-        return Player.objects.filter(
-            game__game_id=game_id_inner, player_id=player_id_inner
-        ).first()
+    def _get_player_with_game_check(game_id_inner, player_id_inner):
+        player = (
+            Player.objects.filter(
+                game__game_id=game_id_inner, player_id=player_id_inner
+            )
+            .select_related("game")
+            .first()
+        )
 
-    player = await _get_player(game_id, player_id)
-    if not player:
-        return None, 4403, "player-not-in-game"
+        if not player:
+            return None, "player-not-found"
+
+        # Validate game is in an acceptable state for WebSocket connections
+        # Reject if game has ended (ended_at is not None)
+        game = player.game
+        if game.ended_at is not None:
+            return None, "game-ended"
+
+        return player, None
+
+    player, error = await _get_player_with_game_check(game_id, player_id)
+    if error:
+        if error == "player-not-found":
+            return None, 4403, "player-not-in-game"
+        elif error == "game-ended":
+            return None, 4403, "game-ended"
+        else:
+            return None, 4403, "game-invalid-state"
 
     return player, None, None

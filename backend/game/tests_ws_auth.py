@@ -32,7 +32,9 @@ class WsAuthTests(TestCase):
         game_cookie_name = f"{settings.COOKIE_GAME_PREFIX}{game_id}"
 
         signed_player = signing.dumps(str(player_id), salt=settings.COOKIE_PLAYER_SALT)
-        signed_game = signing.dumps("token", salt=settings.COOKIE_GAME_SALT)
+        # Game cookie now includes embedded game_id: "game_id:token"
+        game_cookie_content = f"{game_id}:token"
+        signed_game = signing.dumps(game_cookie_content, salt=settings.COOKIE_GAME_SALT)
 
         cookie_header = (
             f"{player_cookie_name}={signed_player}; {game_cookie_name}={signed_game}"

@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import hashlib
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -253,7 +254,12 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 MAX_RETRIES = 5
 COOKIE_GAME_PREFIX = "game_access_"
-COOKIE_GAME_SALT = "game-access-token"
-
 COOKIE_PLAYER_PREFIX = "player_"
-COOKIE_PLAYER_SALT = "player-id-token"
+
+# Derive cookie salts deterministically from SECRET_KEY to prevent hardcoded exposure
+_salt_base = hashlib.sha256(SECRET_KEY.encode()).hexdigest()
+COOKIE_GAME_SALT = f"{_salt_base}:game-access"
+COOKIE_PLAYER_SALT = f"{_salt_base}:player-id"
+
+# Cookie TTL in seconds (14 days for persistent sessions)
+COOKIE_AGE = 14 * 24 * 60 * 60
