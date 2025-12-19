@@ -13,7 +13,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class GameSessionCreateView(GameAccessCookieMixin, LoginRequiredMixin, CreateView):
+class GameSessionCreateView(
+    GameAccessCookieMixin, PlayerCookieMixin, LoginRequiredMixin, CreateView
+):
     template_name = "game/create_session.html"
     form_class = GameSessionCreateForm
     model = GameSession
@@ -24,12 +26,37 @@ class GameSessionCreateView(GameAccessCookieMixin, LoginRequiredMixin, CreateVie
         response = super().form_valid(form)
         cache_game_session(form.instance)
 
+        # Create a player record for the game host automatically
+        user = self.request.user
+        host_name = "Host"
+        if hasattr(user, "get_full_name"):
+            full_name = user.get_full_name()  # type: ignore
+            if full_name.strip():
+                host_name = f"{full_name} (Host)"
+
+        host_player, created = Player.objects.get_or_create(
+            game=form.instance,
+            user=self.request.user,
+            defaults={
+                "name": host_name,
+                "controlled_by_host": True,
+            },
+        )
+
         messages.success(
             self.request, f"Game Session '{form.instance.game_name}' created."
         )
-        return self.set_game_access_cookie(
+
+        # Set both game and player cookies for the host
+        response = self.set_game_access_cookie(
             self.request, response, form.instance.game_id
         )
+        player_id = host_player.player_id
+        if player_id:
+            response = self.set_player_cookie(
+                self.request, response, form.instance.game_id, player_id
+            )
+        return response
 
     def get_success_url(self):
         if self.object:

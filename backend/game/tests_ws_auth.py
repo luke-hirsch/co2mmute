@@ -44,18 +44,19 @@ class WsAuthTests(TestCase):
 
     def test_resolve_player_success(self):
         scope = self._make_scope_with_cookies(self.game.game_id, self.player.player_id)
-        player, close_code, reason = async_to_sync(resolve_player)(
+        player, close_code, reason, is_host = async_to_sync(resolve_player)(
             scope, self.game.game_id
         )
         self.assertIsNone(close_code)
         self.assertIsNone(reason)
         self.assertIsNotNone(player)
+        self.assertFalse(is_host)  # Regular player, not host
         if player:
             self.assertEqual(player.player_id, self.player.player_id)
 
     def test_resolve_player_missing_cookie(self):
         scope = {"headers": []}
-        player, close_code, reason = async_to_sync(resolve_player)(
+        player, close_code, reason, is_host = async_to_sync(resolve_player)(
             scope, self.game.game_id
         )
         self.assertIsNone(player)

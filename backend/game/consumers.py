@@ -2,14 +2,25 @@ import json
 import time
 from typing import Awaitable, cast
 from channels.generic.websocket import AsyncWebsocketConsumer
+from channels.db import database_sync_to_async
 from django.conf import settings
 import redis.asyncio as redis
 
 from .ws_auth import resolve_player
+from .models import Player
 
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def sanitize_group_name(game_id: str) -> str:
+    """
+    Sanitize game_id for use as a Channels group name.
+    Group names must contain only ASCII alphanumerics, hyphens, underscores, or periods.
+    We replace colons and hyphens with underscores to be safe.
+    """
+    return game_id.replace(":", "_").replace("-", "_")
 
 
 class LobbyConsumer(AsyncWebsocketConsumer):
@@ -34,18 +45,25 @@ class LobbyConsumer(AsyncWebsocketConsumer):
         # game_id from URL route
         route = self.scope.get("url_route")
         if not route or "kwargs" not in route:
+            logger.warning("Missing URL route or kwargs")
             await self.close(code=4400)
             return
         self.game_id = route["kwargs"]["game_id"]
-        self.group_name = f"lobby:{self.game_id}"
+        self.group_name = f"lobby_{sanitize_group_name(self.game_id)}"
 
         # authentication via cookie
-        player, close_code, reason = await resolve_player(self.scope, self.game_id)
+        player, close_code, reason, is_host = await resolve_player(
+            self.scope, self.game_id
+        )
         if close_code or player is None:
+            logger.warning(
+                f"WebSocket auth failed for lobby {self.game_id}: code={close_code}, reason={reason}"
+            )
             await self.close(code=close_code)
             return
 
         self.player_id = player.player_id
+        self.is_host = is_host
         self.player_payload = {
             "playerId": str(player.player_id),
             "name": player.name or "unknown Player",
@@ -61,14 +79,28 @@ class LobbyConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
-        # Store player in Redis and broadcast updated roster
-        await self._register_player_presence()
-        await self._broadcast_roster_to_group()
+        # Only register regular players in the roster, not the host
+        # The host is the game master, not a player in the player list
+        if not self.is_host:
+            # Store player in Redis and broadcast updated roster
+            await self._register_player_presence()
+            await self._broadcast_roster_to_group()
+        else:
+            logger.info(
+                f"Host connected to lobby {self.game_id}, not registering in player roster"
+            )
+            # Still broadcast the updated roster to all players (in case any connected)
+            await self._broadcast_roster_to_group()
 
     async def disconnect(self, close_code):
         try:
-            if hasattr(self, "player_id") and hasattr(self, "game_id"):
+            if (
+                hasattr(self, "player_id")
+                and hasattr(self, "game_id")
+                and not self.is_host
+            ):
                 # Mark player as offline instead of removing immediately
+                # Don't do this for hosts since they're not in the player roster
                 await self._mark_player_offline()
                 await self._broadcast_roster_to_group()
         finally:
@@ -206,32 +238,61 @@ class LobbyConsumer(AsyncWebsocketConsumer):
             await redis_pipe.execute()
 
     async def _build_roster_from_redis(self):
-        """Build complete roster by fetching all player metadata from Redis."""
+        """Build complete roster by fetching all player metadata from Redis and host-controlled players from DB."""
         presence_zset_key = self._get_presence_zset_key()
         presence_meta_key = self._get_presence_metadata_key()
 
         # Get all player IDs from sorted set (ordered by timestamp)
         all_player_ids = await self.redis_client.zrange(presence_zset_key, 0, -1)
 
-        if not all_player_ids:
-            return []
-
-        # Fetch metadata for all players
-        raw_player_payloads = await cast(
-            Awaitable[list[str | None]],
-            self.redis_client.hmget(presence_meta_key, *all_player_ids),
-        )
-
         roster = []
-        for raw_payload in raw_player_payloads:
-            if not raw_payload:
-                continue
-            try:
-                player_data = json.loads(raw_payload)
-                roster.append(player_data)
-            except Exception as e:
-                logger.warning(f"Failed to parse player payload: {e}")
-                continue
+
+        # First, add all connected players from Redis
+        if all_player_ids:
+            # Fetch metadata for all players
+            raw_player_payloads = await cast(
+                Awaitable[list[str | None]],
+                self.redis_client.hmget(presence_meta_key, *all_player_ids),
+            )
+
+            for raw_payload in raw_player_payloads:
+                if not raw_payload:
+                    continue
+                try:
+                    player_data = json.loads(raw_payload)
+                    roster.append(player_data)
+                except Exception as e:
+                    logger.warning(f"Failed to parse player payload: {e}")
+                    continue
+
+        # Second, add host-controlled players from DB that aren't already in Redis
+        @database_sync_to_async
+        def get_host_controlled_players():
+            return list(
+                Player.objects.filter(
+                    game__game_id=self.game_id,
+                    controlled_by_host=True,
+                    left_at__isnull=True,  # Only active players
+                ).values(
+                    "player_id", "name", "is_muted", "controlled_by_host", "joined_at"
+                )
+            )
+
+        host_controlled_players = await get_host_controlled_players()
+        existing_player_ids = {p.get("playerId") for p in roster}
+
+        for db_player in host_controlled_players:
+            if db_player["player_id"] not in existing_player_ids:
+                roster.append(
+                    {
+                        "playerId": db_player["player_id"],
+                        "name": db_player["name"] or "unknown Player",
+                        "isMuted": db_player["is_muted"],
+                        "controlledByHost": db_player["controlled_by_host"],
+                        "online": True,
+                        "joinedAt": db_player["joined_at"].isoformat(),
+                    }
+                )
 
         # Sort by name for consistent ordering
         roster.sort(
@@ -264,45 +325,61 @@ class LobbyConsumer(AsyncWebsocketConsumer):
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
-    REDIS_KEY_TEMPLATE = "chat:{game_id}:messages"
-    HISTORY_LIMIT = 100
-    TTL_SECONDS = 2 * 60 * 60
+    CHAT_MESSAGES_REDIS_KEY_PATTERN = "chat:{game_id}:messages"
+    CHAT_MESSAGE_HISTORY_LIMIT = 100
+    CHAT_HISTORY_TTL_SECONDS = 2 * 60 * 60
 
-    MAX_MESSAGE_LEN = 500
-    MIN_SECONDS_BETWEEN_MSGS = 0.35
+    CHAT_MESSAGE_MAX_LENGTH = 500
+    INDIVIDUAL_RATE_LIMIT_SECONDS = 0.35
+    GLOBAL_RATE_LIMIT_KEY_PATTERN = "chat:rate_limit:{game_id}"
+    GLOBAL_RATE_LIMIT_THRESHOLD_PER_SECOND = 10
+    GLOBAL_RATE_LIMIT_WINDOW_SECONDS = 1
+
     CLOSE_CODE_UNAUTH = 4401
     CLOSE_CODE_FORBIDDEN = 4403
 
     async def connect(self):
         route = self.scope.get("url_route")
         if not route or "kwargs" not in route:
+            logger.warning("Missing URL route or kwargs for chat")
             await self.close(code=4400)
             return
-        self.game_id = route["kwargs"]["game_id"]
-        self.group_name = f"chat:{self.game_id}"
 
-        player, close_code, reason = await resolve_player(self.scope, self.game_id)
+        self.game_id = route["kwargs"]["game_id"]
+        self.group_name = f"chat_{sanitize_group_name(self.game_id)}"
+
+        player, close_code, reason, is_host = await resolve_player(
+            self.scope, self.game_id
+        )
         if close_code or player is None:
+            logger.warning(
+                f"WebSocket auth failed for chat {self.game_id}: code={close_code}, reason={reason}"
+            )
             await self.close(code=close_code)
             return
 
         self.player_id = player.player_id
         self.player_name = player.name or "Player"
-        self.last_msg_ts = 0.0
+        self.last_message_sent_timestamp = 0.0
 
-        self.redis = redis.from_url(settings.REDIS_URL, decode_responses=True)
-        self.redis_key = self.REDIS_KEY_TEMPLATE.format(game_id=self.game_id)
+        self.redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+        self.chat_messages_redis_key = self.CHAT_MESSAGES_REDIS_KEY_PATTERN.format(
+            game_id=self.game_id
+        )
+        self.global_rate_limit_key = self.GLOBAL_RATE_LIMIT_KEY_PATTERN.format(
+            game_id=self.game_id
+        )
 
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
-        history = await self._load_history()
+        message_history = await self._load_message_history()
         await self.send(
             json.dumps(
                 {
                     "type": "chat.history",
                     "game_id": self.game_id,
-                    "messages": history,
+                    "messages": message_history,
                 }
             )
         )
@@ -311,8 +388,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         try:
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
         finally:
-            if hasattr(self, "redis"):
-                await self.redis.close()
+            if hasattr(self, "redis_client"):
+                await self.redis_client.close()
 
     async def receive(self, text_data=None, bytes_data=None):
         if not text_data:
@@ -324,75 +401,121 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.send(json.dumps({"type": "chat.error", "error": "Invalid JSON"}))
             return
 
-        msg_type = data.get("type")
+        message_type = data.get("type")
 
-        if msg_type == "ping":
+        if message_type == "ping":
             await self.send(json.dumps({"type": "pong"}))
             return
 
-        if msg_type != "chat.message":
+        if message_type != "chat.message":
             return
 
-        raw_msg = (data.get("message") or "").strip()
-        if not raw_msg:
+        await self._handle_chat_message(data)
+
+    async def _handle_chat_message(self, data: dict):
+        raw_message_text = (data.get("message") or "").strip()
+
+        if not raw_message_text:
             return
 
-        if len(raw_msg) > self.MAX_MESSAGE_LEN:
+        validation_error = self._validate_message_content(raw_message_text)
+        if validation_error:
             await self.send(
-                json.dumps({"type": "chat.error", "error": "Message too long"})
+                json.dumps({"type": "chat.error", "error": validation_error})
             )
             return
 
-        now = time.time()
-        if now - self.last_msg_ts < self.MIN_SECONDS_BETWEEN_MSGS:
-            await self.send(json.dumps({"type": "chat.error", "error": "Slow down"}))
+        rate_limit_error = await self._check_rate_limits()
+        if rate_limit_error:
+            await self.send(
+                json.dumps({"type": "chat.error", "error": rate_limit_error})
+            )
             return
-        self.last_msg_ts = now
 
-        message_obj = {
-            "ts": int(now * 1000),
-            "player_id": str(self.player_id),
-            "player_name": self.player_name,
-            "message": raw_msg,
-        }
-
-        await self._store_message(message_obj)
+        message_object = await self._build_message_object(raw_message_text)
+        await self._store_message(message_object)
 
         await self.channel_layer.group_send(
             self.group_name,
-            {"type": "chat.broadcast", "message": message_obj},
+            {"type": "chat.broadcast", "message_data": message_object},
         )
 
+    def _validate_message_content(self, message_text: str) -> str | None:
+        if len(message_text) > self.CHAT_MESSAGE_MAX_LENGTH:
+            return "Message too long"
+        return None
+
+    async def _check_rate_limits(self) -> str | None:
+        current_timestamp = time.time()
+
+        if (
+            current_timestamp - self.last_message_sent_timestamp
+            < self.INDIVIDUAL_RATE_LIMIT_SECONDS
+        ):
+            return "Slow down"
+
+        messages_in_window = await self.redis_client.incr(self.global_rate_limit_key)
+        if messages_in_window == 1:
+            await self.redis_client.expire(
+                self.global_rate_limit_key, self.GLOBAL_RATE_LIMIT_WINDOW_SECONDS
+            )
+
+        if messages_in_window > self.GLOBAL_RATE_LIMIT_THRESHOLD_PER_SECOND:
+            return "Chat is moving too fast"
+
+        self.last_message_sent_timestamp = current_timestamp
+        return None
+
+    async def _build_message_object(self, message_text: str) -> dict:
+        current_timestamp_ms = int(time.time() * 1000)
+        return {
+            "ts": current_timestamp_ms,
+            "playerName": self.player_name,
+            "message": message_text,
+        }
+
+    async def _store_message(self, message_object: dict):
+        raw_message_json = json.dumps(message_object, separators=(",", ":"))
+
+        redis_pipe = self.redis_client.pipeline()
+        redis_pipe.rpush(self.chat_messages_redis_key, raw_message_json)
+        redis_pipe.ltrim(
+            self.chat_messages_redis_key,
+            -self.CHAT_MESSAGE_HISTORY_LIMIT,
+            -1,
+        )
+        redis_pipe.expire(self.chat_messages_redis_key, self.CHAT_HISTORY_TTL_SECONDS)
+        await redis_pipe.execute()
+
+    async def _load_message_history(self) -> list[dict]:
+        raw_message_items = await cast(
+            Awaitable[list[str]],
+            self.redis_client.lrange(
+                self.chat_messages_redis_key, -self.CHAT_MESSAGE_HISTORY_LIMIT, -1
+            ),
+        )
+
+        parsed_messages = []
+        for raw_message in raw_message_items:
+            try:
+                parsed_message = json.loads(raw_message)
+                parsed_messages.append(parsed_message)
+            except Exception as parse_error:
+                logger.warning(
+                    f"Failed to parse stored chat message for game {self.game_id}: {parse_error}"
+                )
+                continue
+
+        return parsed_messages
+
     async def chat_broadcast(self, event):
+        message_data = event.get("message_data", {})
         await self.send(
             json.dumps(
                 {
                     "type": "chat.message",
                     "game_id": self.game_id,
-                    "message": event["message"],
+                    "message": message_data,
                 }
             )
         )
-
-    async def _store_message(self, message_obj: dict):
-        raw = json.dumps(message_obj, separators=(",", ":"))
-
-        pipe = self.redis.pipeline()
-        pipe.rpush(self.redis_key, raw)
-        pipe.ltrim(self.redis_key, -self.HISTORY_LIMIT, -1)
-        pipe.expire(self.redis_key, self.TTL_SECONDS)
-        await pipe.execute()
-
-    async def _load_history(self):
-        raw_items = await cast(
-            Awaitable[list[str]],
-            self.redis.lrange(self.redis_key, -self.HISTORY_LIMIT, -1),
-        )
-
-        messages = []
-        for raw in raw_items:
-            try:
-                messages.append(json.loads(raw))
-            except Exception:
-                pass
-        return messages

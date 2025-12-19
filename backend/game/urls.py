@@ -1,5 +1,5 @@
 from django.urls import path
-from backend.game.views_rest import PlayerListView, PlayerDetailView
+from game.views_rest import PlayerListView, PlayerDetailView
 
 app_name = "game"
 

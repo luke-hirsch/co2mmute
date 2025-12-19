@@ -56,7 +56,7 @@ class GameSession(models.Model):
             self.is_active = False
         super().save(*args, **kwargs)
 
-    def generate_unique_game_id(self, max_retries=settings.MAX_RETRIES):
+    def generate_unique_game_id(self, max_retries=5):
         for _ in range(1, max_retries + 1):
             game_id = uuid.uuid4().hex[:6].upper()
 
@@ -109,7 +109,7 @@ class Player(models.Model):
 
         super().save(*args, **kwargs)
 
-    def generate_unique_player_id(self, max_retries=settings.MAX_RETRIES):
+    def generate_unique_player_id(self, max_retries=5):
         for _ in range(1, max_retries + 1):
             player_id = uuid.uuid4().hex[:4].upper()
 

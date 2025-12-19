@@ -53,7 +53,7 @@ function LobbyRoute() {
             <aside
               className={`absolute lg:relative min-h-full left-0 top-0 w-60 dark:bg-inherit bg-body flex lg:translate-x-0 ${menu ? "translate-x-0" : "-translate-x-60"} transition-all duration-300 h-full rounded z-50`}
             >
-              <LeftSidebar />
+              <LeftSidebar gameId={gameId} />
             </aside>
           </div>
           <div className="flex flex-1 max-h-svh w-screen overflow-hidden">
@@ -70,7 +70,7 @@ function LobbyRoute() {
             <aside
               className={`absolute lg:relative right-0 top-0 w-60 dark:bg-inherit bg-body flex lg:translate-x-0 ${chat ? "translate-x-0" : "translate-x-60"} transition-all duration-300 h-full rounded z-50`}
             >
-              <ChatSidebar />
+              <ChatSidebar gameId={gameId} />
             </aside>
           </div>
         </div>

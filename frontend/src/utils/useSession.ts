@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { API_BASE_URL } from "../config";
 export type SessionKind = "host" | "anonymous" | "player" | "user";
 
-import type { Auth } from "../types";
+import type { Auth } from "../types/types";
 
 const ANONYMOUS_AUTH: Auth = {
   kind: "anonymous",
