@@ -16,7 +16,7 @@ class HasGameAccess(BasePermission):
 
         if request.user.is_authenticated:
             session = get_cached_game_session(game_id)
-            if session and session.game_host_id == request.user.id:
+            if session and session.game_host == request.user:
                 return True
 
         tokens = request.session.get("game_access_tokens") or {}

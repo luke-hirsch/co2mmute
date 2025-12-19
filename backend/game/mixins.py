@@ -2,6 +2,7 @@ import uuid
 from django.conf import settings
 from rest_framework.exceptions import ValidationError
 from game.models import Player
+from typing import Any, Mapping
 
 
 class GameAccessCookieMixin:
@@ -70,6 +71,8 @@ class PlayerCookieMixin:
 
 
 class GameScopedQuerysetMixin:
+    kwargs: Mapping[str, Any]
+
     def get_queryset(self):
         game_id = self.kwargs.get("game_id")
         if not game_id:

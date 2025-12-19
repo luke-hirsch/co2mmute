@@ -1,31 +1,40 @@
-import { useState, useEffect } from "react";
-import { API_BASE_URL } from "../../config";
-import { type Player } from "../../types";
-import { XMarkIcon } from "@heroicons/react/24/solid";
-import { apiFetch } from "../../utils/api";
+import { type Player } from "../../interfaces";
 
 const LeftSidebar = () => {
-  const [players, setPlayers] = useState<Player[]>([]);
+  const { players, error, isConnected } = useLobbySocket();
 
   return (
     <div className="flex flex-col justify-between max-h-screen overflow-y-auto rounded border border-subtle bg-surface p-4 text-main shadow-sm transition-colors duration-300 dark:border-darksubtle dark:bg-darksurface dark:text-darktext">
-      <div className="mt-5 text-main dark:text-darktext">
-        <ul className="space-y-2 ">
-          {players.map((player) => (
+      <div>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold">Spieler ({players.length})</h2>
+          <div
+            className={`h-2 w-2 rounded-full ${
+              isConnected ? "bg-green-500" : "bg-red-500"
+            }`}
+          />
+        </div>
+
+        {error && (
+          <div className="mb-3 rounded bg-red-100 p-2 text-sm text-red-700 dark:bg-red-900 dark:text-red-200">
+            {error}
+          </div>
+        )}
+
+        <ul className="space-y-2">
+          {players.map((player: Player) => (
             <li key={player.id}>
               <a
-                className="flex p-2 rounded text-main transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:text-darktext dark:hover:bg-darkelevated dark:hover:text-darktext justify-between items-center"
-                href={`#`}
+                className="flex items-center justify-between rounded p-2 text-main transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:text-darktext dark:hover:bg-darkelevated dark:hover:text-darktext"
+                href="#"
               >
-                {player.name}{" "}
-                {player.isMuted && <XMarkIcon className="h-6 w-auto" />}
+                {player.name}
               </a>
             </li>
           ))}
         </ul>
       </div>
 
-      {/* Logout link */}
       <div className="mt-auto">
         <button
           onClick={() => {}}

@@ -93,7 +93,6 @@ class Player(models.Model):
         "auth.User", on_delete=models.SET_NULL, null=True, blank=True
     )
     is_muted = models.BooleanField(default=False)
-    game = models.ForeignKey(GameSession, on_delete=models.CASCADE)
     joined_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

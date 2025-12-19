@@ -50,7 +50,8 @@ class WsAuthTests(TestCase):
         self.assertIsNone(close_code)
         self.assertIsNone(reason)
         self.assertIsNotNone(player)
-        self.assertEqual(player.player_id, self.player.player_id)
+        if player:
+            self.assertEqual(player.player_id, self.player.player_id)
 
     def test_resolve_player_missing_cookie(self):
         scope = {"headers": []}

@@ -1,5 +1,5 @@
 export type WSStatus = "idle" | "connecting" | "open" | "closed" | "error";
-import { type WSOptions } from "../types";
+import { type WSOptions } from "../interfaces";
 
 export class WSClient {
   private ws: WebSocket | null = null;

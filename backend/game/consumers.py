@@ -1,5 +1,5 @@
 from channels.generic.websocket import AsyncWebsocketConsumer
-
+from typing import cast, Awaitable
 # game/consumers.py
 
 import json
@@ -21,16 +21,23 @@ class LobbyConsumer(AsyncWebsocketConsumer):
     # ---------- lifecycle ----------
 
     async def connect(self):
-        self.game_id = self.scope["url_route"]["kwargs"]["game_id"]
+        route = self.scope.get("url_route")
+        if not route or "kwargs" not in route:
+            await self.close(code=4400)
+            return
+        self.game_id = route["kwargs"]["game_id"]
         self.group_name = f"lobby:{self.game_id}"
         # --- authenticate via centralized resolver ---
         player, close_code, reason = await resolve_player(self.scope, self.game_id)
-        if close_code:
+        if close_code or player is None:
             await self.close(code=close_code)
             return
 
         self.player_id = player.player_id
-        self.player_payload = {"id": str(player.player_id), "name": player.name or "Player"}
+        self.player_payload = {
+            "id": str(player.player_id),
+            "name": player.name or "Player",
+        }
 
         # --- setup redis ---
         self.redis = redis.from_url(settings.REDIS_URL, decode_responses=True)
@@ -64,8 +71,6 @@ class LobbyConsumer(AsyncWebsocketConsumer):
         if data.get("type") == "ping":
             await self.send(json.dumps({"type": "pong"}))
 
-    # ---------- redis presence ----------
-
     def _zset_key(self):
         return self.PRESENCE_ZSET.format(game_id=self.game_id)
 
@@ -81,7 +86,7 @@ class LobbyConsumer(AsyncWebsocketConsumer):
         cutoff = now - self.PRESENCE_TTL_SECONDS
         stale = await self.redis.zrangebyscore(zkey, "-inf", cutoff)
         if stale:
-            await self.redis.hdel(mkey, *stale)
+            await cast(Awaitable[int], self.redis.hdel(mkey, *stale))
             await self.redis.zremrangebyscore(zkey, "-inf", cutoff)
 
         # write/update this player's meta and timestamp
@@ -95,7 +100,7 @@ class LobbyConsumer(AsyncWebsocketConsumer):
     async def _presence_remove(self):
         zkey = self._zset_key()
         mkey = self._meta_key()
-        await self.redis.hdel(mkey, str(self.player_id))
+        await cast(Awaitable[int], self.redis.hdel(mkey, str(self.player_id)))
         await self.redis.zrem(zkey, str(self.player_id))
 
     async def _get_roster(self):
@@ -107,7 +112,7 @@ class LobbyConsumer(AsyncWebsocketConsumer):
         if not members:
             return roster
 
-        meta = await self.redis.hmget(mkey, *members)
+        meta = await cast(Awaitable[list[str | None]], self.redis.hmget(mkey, *members))
         for raw in meta:
             if not raw:
                 continue
@@ -160,12 +165,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
     CLOSE_CODE_FORBIDDEN = 4403
 
     async def connect(self):
-        self.game_id = self.scope["url_route"]["kwargs"]["game_id"]
+        route = self.scope.get("url_route")
+        if not route or "kwargs" not in route:
+            await self.close(code=4400)
+            return
+        self.game_id = route["kwargs"]["game_id"]
         self.group_name = f"chat:{self.game_id}"
 
         # --- authenticate via centralized resolver ---
         player, close_code, reason = await resolve_player(self.scope, self.game_id)
-        if close_code:
+        if close_code or player is None:
             await self.close(code=close_code)
             return
 
@@ -264,8 +273,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
         )
 
-    # ---------- Redis helpers ----------
-
     async def _store_message(self, message_obj: dict):
         raw = json.dumps(message_obj, separators=(",", ":"))
 
@@ -278,7 +285,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def _load_history(self):
         # last N messages (already stored chronologically)
-        raw_items = await self.redis.lrange(self.redis_key, -self.HISTORY_LIMIT, -1)
+        raw_items = await cast(
+            Awaitable[list[str]],
+            self.redis.lrange(self.redis_key, -self.HISTORY_LIMIT, -1),
+        )
+
         messages = []
         for raw in raw_items:
             try:
@@ -286,9 +297,3 @@ class ChatConsumer(AsyncWebsocketConsumer):
             except Exception:
                 pass
         return messages
-
-    # ---------- Cookie helpers ----------
-
-    # cookie/db helpers moved to `game.ws_auth.resolve_player` (centralized)
-
-    # (DB helpers moved to ws_auth.resolve_player)

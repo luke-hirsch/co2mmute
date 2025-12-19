@@ -7,17 +7,23 @@ from .cache import cache_game_session, get_cached_game_session
 from .mixins import GameAccessCookieMixin, PlayerCookieMixin
 from .forms import GameSessionCreateForm, JoinSessionForm, PlayerCreateForm
 from .models import GameSession, Player
+from typing import Optional
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class GameSessionCreateView(GameAccessCookieMixin, LoginRequiredMixin, CreateView):
     template_name = "game/create_session.html"
     form_class = GameSessionCreateForm
     model = GameSession
+    object: Optional[GameSession]
 
     def form_valid(self, form):
         form.instance.game_host = self.request.user
         response = super().form_valid(form)
         cache_game_session(form.instance)
+
         messages.success(
             self.request, f"Game Session '{form.instance.game_name}' created."
         )
@@ -26,7 +32,10 @@ class GameSessionCreateView(GameAccessCookieMixin, LoginRequiredMixin, CreateVie
         )
 
     def get_success_url(self):
-        return f"/app/lobby/{self.object.game_id}/"
+        if self.object:
+            return f"/app/lobby/{self.object.game_id}/"
+        logger.error("Game session object is None after creation.")
+        raise ValueError("Game session not found after creation.")
 
 
 class ShareSessionView(LoginRequiredMixin, TemplateView):
@@ -104,7 +113,7 @@ class JoinSessionView(GameAccessCookieMixin, TemplateView):
                     elif password != game_session.game_password:
                         form.add_error("game_password", "Incorrect password.")
 
-            if not form.errors and not awaiting_password:
+            if not form.errors and not awaiting_password and game_session:
                 self._mark_joined(request, game_session)
 
                 response = redirect(
@@ -172,27 +181,33 @@ class PlayerCreateView(
         response = super().form_valid(form)
 
         # set cookies
-        response = self.set_game_access_cookie(
-            self.request,
-            response,
-            self.game_session.game_id,
-        )
-        response = self.set_player_cookie(
-            self.request,
-            response,
-            self.game_session.game_id,
-            form.instance.player_id,
-        )
+        if self.game_session:
+            response = self.set_game_access_cookie(
+                self.request,
+                response,
+                self.game_session.game_id,
+            )
+            response = self.set_player_cookie(
+                self.request,
+                response,
+                self.game_session.game_id,
+                form.instance.player_id,
+            )
 
-        messages.success(
-            self.request,
-            f"Welcome to {self.game_session.game_name}, "
-            f"{form.instance.name or 'player'}!",
-        )
-        return response
+            messages.success(
+                self.request,
+                f"Welcome to {self.game_session.game_name}, "
+                f"{form.instance.name or 'player'}!",
+            )
+            return response
+        logger.error("Game session is None during player creation.")
+        raise ValueError("Game session not found during player creation.")
 
     def get_success_url(self):
-        return f"/app/lobby/{self.game_session.game_id}/"
+        if self.game_session:
+            return f"/app/lobby/{self.game_session.game_id}/"
+        logger.error("Game session is None when determining success URL.")
+        raise ValueError("Game session not found during player creation.")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

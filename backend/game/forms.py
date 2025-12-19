@@ -136,9 +136,7 @@ class PlayerCreateForm(forms.ModelForm):
         model = Player
         fields = ["name"]
         labels = {"name": "Display name"}
-        help_texts = {
-            "name": "Pick the name that other players will see in the lobby."
-        }
+        help_texts = {"name": "Pick the name that other players will see in the lobby."}
         widgets = {
             "name": forms.TextInput(attrs={"autocomplete": "off"}),
         }
@@ -159,7 +157,9 @@ class JoinSessionForm(forms.Form):
     game_id = forms.CharField(
         max_length=6,
         label="Session ID",
-        widget=forms.TextInput(attrs={"autocomplete": "off", "autocapitalize": "characters"}),
+        widget=forms.TextInput(
+            attrs={"autocomplete": "off", "autocapitalize": "characters"}
+        ),
     )
     game_password = forms.CharField(
         max_length=50,
