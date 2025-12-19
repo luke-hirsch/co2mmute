@@ -85,8 +85,15 @@ class PlayerSerializer(serializers.ModelSerializer):
             "game",
             "joined_at",
             "is_muted",
+            "controlled_by_host",
         )
-        read_only_fields = ("id", "player_id", "joined_at", "is_muted")
+        read_only_fields = (
+            "id",
+            "player_id",
+            "joined_at",
+            "is_muted",
+            "controlled_by_host",
+        )
 
 
 class GameRoundSerializer(serializers.ModelSerializer):

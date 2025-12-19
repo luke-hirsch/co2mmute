@@ -94,6 +94,8 @@ class Player(models.Model):
     )
     is_muted = models.BooleanField(default=False)
     joined_at = models.DateTimeField(auto_now_add=True)
+    left_at = models.DateTimeField(null=True, blank=True)
+    controlled_by_host = models.BooleanField(default=False)
 
     class Meta:
         ordering = ("game", "name", "joined_at")

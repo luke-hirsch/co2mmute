@@ -1,5 +1,5 @@
 import TextInput from "./TextInput";
-import { type ChatMessage } from "../types";
+import { type ChatMessage } from "../types/types";
 import { useState } from "react";
 import { PaperAirplaneIcon } from "@heroicons/react/24/solid";
 const ChatSidebar = () => {
