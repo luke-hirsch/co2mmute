@@ -177,6 +177,13 @@
             class="text-sm/6 font-semibold text-main transition hover:text-primary-600 dark:text-darktext dark:hover:text-primary-300"
             >Hintergrund</a
           >
+          {% if request.user.is_authenticated and request.user.is_staff % }
+          <a
+            href="{% url 'map_editor' %}"
+            class="text-sm/6 font-semibold text-main transition hover:text-primary-600 dark:text-darktext dark:hover:text-primary-300"
+            >Map Editor</a
+          >
+          {% endif %}
         </el-popover-group>
         <div class="hidden lg:flex lg:flex-1 lg:justify-end">
           {% if request.user.is_authenticated %}
