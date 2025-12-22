@@ -5,7 +5,7 @@ from rest_framework import status
 
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import IsAuthenticated
-from game.models import Player, GameSession
+from game.models import Player
 from game.serializers import PlayerSerializer, GameSessionSerializer
 from .cache import get_cached_game_session
 from .permissions import HasGameAccess, IsPlayerInGame

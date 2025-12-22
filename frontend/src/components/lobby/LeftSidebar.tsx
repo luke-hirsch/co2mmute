@@ -13,8 +13,7 @@ const LeftSidebar = ({ gameId }: LeftSidebarProps) => {
   // Filter out the host (identified by playerId starting with "host_" or name ending with "(Host)")
   // but keep players controlled by the host
   const regularPlayers = players.filter(
-    (player) =>
-      !player.playerId.startsWith("host_") && !player.name.endsWith("(Host)")
+    (player) => !player.name.endsWith("(Host)")
   );
 
   return (

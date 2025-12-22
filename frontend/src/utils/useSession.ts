@@ -30,6 +30,7 @@ async function fetchSession(): Promise<Auth> {
 }
 
 export function useSession() {
+  console.log("useSession called");
   return useQuery<Auth>({
     queryKey: ["session"],
     queryFn: fetchSession,

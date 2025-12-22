@@ -19,7 +19,8 @@ Idee: Plotly?
 
 - Make HTML Prettier
   - Template Ordner schön machen
-  - Logo entwerfen (svg)
+  - Logos entwerfen (svg)
+    - icon transport wahl (svg) (frontansicht. siehe loading.tsx)
   - Farbshema etc. 
 
 - Hilfetexte? / Spieleerklärung? bzw. Dokumentation 

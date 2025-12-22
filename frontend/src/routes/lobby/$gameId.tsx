@@ -10,19 +10,21 @@ import LeftSidebar from "../../components/lobby/LeftSidebar";
 import Header from "../../components/Header";
 import GameDetail from "../../components/lobby/GameDetail";
 import ChatSidebar from "../../components/ChatSidebar";
+import { useSession } from "../../utils/useSession";
+import Loading from "../../components/Loading";
 
 export const Route = createFileRoute("/lobby/$gameId")({
   component: LobbyRoute,
 });
 
 function LobbyRoute() {
+  const auth = useSession();
   const [menu, setMenu] = useState(false);
   const [chat, setChat] = useState(false);
-
   const { gameId } = Route.useParams();
 
   return (
-    <div className="min-h-svh min-w-full bg-body dark:bg-darkbody dark:text-darktext overflow-hidden">
+    <div className="min-h-svh min-w-full max-w-screen bg-body dark:bg-darkbody dark:text-darktext overflow-hidden">
       <div className="lg:hidden absolute top p-2 w-screen flex justify-between">
         <Bars2Icon
           className={`w-10 h-10 cursor-pointer dark:text-darktext text-main transition-all duration-300 ${menu || chat ? "z-0 opacity-0 translate-x-full" : "opacity-100 z-75"}`}
@@ -46,7 +48,7 @@ function LobbyRoute() {
       </div>
 
       {/* Centering container */}
-      <div className="flex justify-center items-center min-h-full max-h-full w-screen overflow-hidden">
+      <div className="flex justify-center items-center min-h-full max-h-full w-full overflow-hidden">
         <div className="flex max-h-svh min-h-svh w-screen bg-inherit p-4">
           {/* Sidebar left*/}
           <div className=" max-h-svh overflow-hidden">
@@ -61,7 +63,16 @@ function LobbyRoute() {
             <div className="relative flex-1 max-h-svh overflow-y-auto">
               <Header title={`Lobbyy - ${gameId}`} />
               <main className="flex-1 p-6 dark:text-darktext flex flex-col items-center justify-center max-w-screen">
-                <GameDetail id={gameId} />
+                <Loading />
+                {auth.isLoading ? (
+                  <Loading />
+                ) : auth.data?.kind === "user" ? (
+                  <GameDetail id={gameId} />
+                ) : (
+                  <div className="text-center text-main dark:text-darktext">
+                    Du musst eingeloggt sein, um an der Lobby teilzunehmen.
+                  </div>
+                )}
               </main>
             </div>
 
