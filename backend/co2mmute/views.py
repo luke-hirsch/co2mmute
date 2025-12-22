@@ -111,11 +111,13 @@ class LogoutView(DjangoLogoutView):
 
 class WhoAmIView(APIView):
     """
-    Returns identity for either:
-    - authenticated Django user (host/admin)
-    - anonymous player identified via signed cookie: player_<game_id>
+    Returns identity for one of 4 cases:
+    1. authenticated user (host/admin) - if user is logged in without game context
+    2. host (authenticated user in game context) - if user is logged in AND is the game host
+    3. player (authenticated or anonymous) - if player cookie exists for the game
+    4. anonymous (no authentication, no player cookie)
 
-    Recommended: pass ?game_id=ABC123 so player identity is unambiguous.
+    Pass ?game_id=ABC123 to provide game context.
     """
 
     PLAYER_COOKIE_PREFIX = "player_"
@@ -124,13 +126,16 @@ class WhoAmIView(APIView):
     def get(self, request, format=None):
         user = request.user
         game_id = (request.query_params.get("game_id") or "").strip().upper()
-        # 1) If user is authenticated, return user info (your existing behavior)
+
+        # Try to get player from cookie if game_id is provided
+        player = None
+        if game_id:
+            player = self._get_player_from_cookie(request, game_id)
+
+        # Case 1 & 2: User is authenticated
         if user and user.is_authenticated:
-            cached_game = get_cached_game_session(game_id) if game_id else None
             user_data = {
-                "kind": "host"
-                if cached_game and cached_game.game_host == user
-                else "user",
+                "kind": self._get_kind_for_authenticated_user(user, game_id),
                 "authenticated": True,
                 "id": user.id,
                 "isStaff": user.is_staff,
@@ -158,52 +163,67 @@ class WhoAmIView(APIView):
             except Exception:
                 pass
 
+            # If user is also a player in this game context, include player info
+            if player:
+                user_data.update(
+                    {
+                        "gameId": game_id,
+                        "player": {
+                            "playerId": player.player_id,
+                            "name": player.name,
+                        },
+                    }
+                )
+
             return Response(user_data)
 
-        if not game_id:
-            # No game scope -> we can't know which player cookie matters
+        # Case 3: Anonymous player (with game context)
+        if player:
             return Response(
                 {
-                    "kind": "anonymous",
+                    "kind": "player",
                     "authenticated": False,
-                    "detail": "Provide ?game_id=... to resolve player identity.",
-                },
-                status=status.HTTP_401_UNAUTHORIZED,
+                    "gameId": game_id,
+                    "player": {
+                        "playerId": player.player_id,
+                        "name": player.name,
+                    },
+                }
             )
 
+        # Case 4: Anonymous (no context)
+        return Response(
+            {
+                "kind": "anonymous",
+                "authenticated": False,
+            },
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    def _get_player_from_cookie(self, request, game_id):
+        """Extract and validate player from signed cookie."""
         cookie_name = f"{self.PLAYER_COOKIE_PREFIX}{game_id}"
         raw = request.COOKIES.get(cookie_name)
         if not raw:
-            return Response(
-                {"kind": "anonymous", "authenticated": False},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
+            return None
 
         try:
             player_id = signing.loads(raw, salt=self.PLAYER_COOKIE_SALT)
         except signing.BadSignature:
-            return Response(
-                {"kind": "anonymous", "authenticated": False},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
+            return None
 
         player = Player.objects.filter(
             game__game_id=game_id, player_id=player_id
         ).first()
-        if not player:
-            return Response(
-                {"kind": "anonymous", "authenticated": False},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
+        return player
 
-        return Response(
-            {
-                "kind": "player",
-                "authenticated": False,
-                "gameId": game_id,
-                "player": {
-                    "playerId": player.player_id,
-                    "name": player.name,
-                },
-            }
-        )
+    def _get_kind_for_authenticated_user(self, user, game_id):
+        """Determine if authenticated user is 'host' or 'user'."""
+        if not game_id:
+            return "user"
+
+        cached_game = get_cached_game_session(game_id)
+        if cached_game and cached_game.game_host == user:
+            return "host"
+
+        return "user"

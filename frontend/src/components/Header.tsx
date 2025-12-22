@@ -20,7 +20,11 @@ export default function Header({
         target="_blank"
         className="transition-opacity duration-200 hover:opacity-80"
       >
-        <img src="/logo.svg" className="-translate-y-3 h-16 w-auto" alt="Logo" />
+        <img
+          src="/app/logo.svg"
+          className="-translate-y-3 h-16 w-auto"
+          alt="Logo"
+        />
       </a>
       <h2 className=" text-xl font-light text-muted transition-colors duration-300 md:text-2xl dark:text-darkmutedtext">
         {title}

@@ -9,8 +9,13 @@ const ANONYMOUS_AUTH: Auth = {
   authenticated: false,
 };
 
-async function fetchSession(): Promise<Auth> {
-  const res = await fetch(`${API_BASE_URL}/api/whoami/`, {
+async function fetchSession(gameId?: string): Promise<Auth> {
+  const url = new URL(`${API_BASE_URL}/api/whoami/`);
+  if (gameId) {
+    url.searchParams.append("game_id", gameId);
+  }
+
+  const res = await fetch(url.toString(), {
     credentials: "include",
     headers: {
       Accept: "application/json",
@@ -29,11 +34,10 @@ async function fetchSession(): Promise<Auth> {
   return res.json();
 }
 
-export function useSession() {
-  console.log("useSession called");
+export function useSession(gameId?: string) {
   return useQuery<Auth>({
-    queryKey: ["session"],
-    queryFn: fetchSession,
+    queryKey: ["session", gameId],
+    queryFn: () => fetchSession(gameId),
     staleTime: 60_000,
     refetchOnWindowFocus: true,
     retry: false,
