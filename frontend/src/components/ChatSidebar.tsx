@@ -1,18 +1,35 @@
 import TextInput from "./TextInput";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { PaperAirplaneIcon } from "@heroicons/react/24/solid";
 import { useChatSocket } from "../hooks/useChatSocket";
+import { useAuth } from "../context/AuthContext";
 
 interface ChatSidebarProps {
   gameId: string;
 }
 
 const ChatSidebar = ({ gameId }: ChatSidebarProps) => {
+  const { auth } = useAuth();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Get current player name - for hosts, construct it as "username (Host)"
+  // For regular players, use the player name
+  const currentPlayerName =
+    auth?.kind === "host" && auth?.username
+      ? `${auth.username} (Host)`
+      : auth?.player?.name;
+
   const { messages, error, isConnected, sendMessage } = useChatSocket({
     gameId,
+    currentPlayerName,
   });
 
   const [inputText, setInputText] = useState("");
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const handleSendMessage = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -53,15 +70,51 @@ const ChatSidebar = ({ gameId }: ChatSidebarProps) => {
         {messages.length === 0 && (
           <div className="text-xs text-muted italic">No messages yet</div>
         )}
-        {messages.map((message, idx) => (
-          <div key={idx} className="mb-3">
-            <div className="text-sm font-semibold">{message.playerName}</div>
-            <div className="text-base wrap-break-word">{message.message}</div>
-            <div className="text-xs text-muted">
-              {new Date(message.ts).toLocaleTimeString()}
+        {messages.map((message, idx) => {
+          const isHostMessage = message.playerName.includes("(Host)");
+
+          return (
+            <div
+              key={idx}
+              className={`mb-3 flex ${message.isCurrentUser ? "justify-end" : "justify-start"}`}
+            >
+              <div
+                className={`max-w-xs px-3 py-2 ${
+                  message.isCurrentUser
+                    ? "bg-primary-600 text-darktext rounded-lg shadow-md"
+                    : isHostMessage
+                      ? "bg-amber-100 dark:bg-amber-900 text-amber-950 dark:text-amber-50 rounded-lg shadow-md border-2 border-amber-300 dark:border-amber-600"
+                      : "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg shadow-sm"
+                }`}
+              >
+                {!message.isCurrentUser && (
+                  <div
+                    className={`text-sm font-semibold mb-1 ${
+                      isHostMessage ? "text-amber-700 dark:text-amber-200" : ""
+                    }`}
+                  >
+                    {message.playerName}
+                  </div>
+                )}
+                <div className="text-base wrap-break-word">
+                  {message.message}
+                </div>
+                <div
+                  className={`text-xs mt-1 ${
+                    message.isCurrentUser
+                      ? "text-darktext opacity-70"
+                      : isHostMessage
+                        ? "text-amber-600 dark:text-amber-300"
+                        : "text-muted"
+                  }`}
+                >
+                  {new Date(message.ts).toLocaleTimeString()}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Input form */}
@@ -79,7 +132,7 @@ const ChatSidebar = ({ gameId }: ChatSidebarProps) => {
         <button
           type="submit"
           disabled={!isConnected || !inputText.trim()}
-          className="w-full flex rounded bg-primary-600 p-2 text-left font-semibold textt-darktext transition-colors duration-200 hover:bg-primary-500 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-primary-600 dark:bg-primary-600 dark:hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full flex justify-center rounded bg-primary-600 p-2 text-left font-semibold text-darktext transition-colors duration-200 hover:bg-primary-500 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-primary-600 dark:bg-primary-600 dark:hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <PaperAirplaneIcon className="w-5 h-5" /> Send
         </button>

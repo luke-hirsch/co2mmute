@@ -5,10 +5,15 @@ import { ChatWSClient } from "../utils/chatWS";
 interface UseChatSocketOptions {
   gameId: string;
   enabled?: boolean;
+  currentPlayerName?: string;
+}
+
+interface ChatMessageWithMeta extends WSChatMessagePayload {
+  isCurrentUser: boolean;
 }
 
 interface UseChatSocketResult {
-  messages: WSChatMessagePayload[];
+  messages: ChatMessageWithMeta[];
   status: WSStatus;
   error: string | null;
   isConnected: boolean;
@@ -18,13 +23,23 @@ interface UseChatSocketResult {
 export function useChatSocket(
   options: UseChatSocketOptions
 ): UseChatSocketResult {
-  const { gameId, enabled = true } = options;
+  const { gameId, currentPlayerName, enabled = true } = options;
 
-  const [messages, setMessages] = useState<WSChatMessagePayload[]>([]);
+  const [messages, setMessages] = useState<ChatMessageWithMeta[]>([]);
   const [status, setStatus] = useState<WSStatus>("idle");
   const [error, setError] = useState<string | null>(null);
 
   const clientRef = useRef<ChatWSClient | null>(null);
+
+  // Helper function to enrich messages with isCurrentUser flag
+  const enrichMessage = (
+    message: WSChatMessagePayload
+  ): ChatMessageWithMeta => ({
+    ...message,
+    isCurrentUser: currentPlayerName
+      ? message.playerName === currentPlayerName
+      : false,
+  });
 
   useEffect(() => {
     if (!enabled) return;
@@ -41,10 +56,10 @@ export function useChatSocket(
 
     const unsubscribeMessage = client.onChatMessage((message: any) => {
       if (message.type === "chat.history") {
-        setMessages(message.messages || []);
+        setMessages((message.messages || []).map(enrichMessage));
         setError(null);
       } else if (message.type === "chat.message") {
-        setMessages((prev) => [...prev, message.message]);
+        setMessages((prev) => [...prev, enrichMessage(message.message)]);
         setError(null);
       } else if (message.type === "chat.error") {
         setError(message.error);
@@ -71,7 +86,7 @@ export function useChatSocket(
       client.disconnect();
       clientRef.current = null;
     };
-  }, [gameId, enabled]);
+  }, [gameId, enabled, currentPlayerName]);
 
   const sendMessage = (text: string): boolean => {
     if (!clientRef.current) return false;
