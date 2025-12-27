@@ -120,9 +120,6 @@ class WhoAmIView(APIView):
     Pass ?game_id=ABC123 to provide game context.
     """
 
-    PLAYER_COOKIE_PREFIX = "player_"
-    PLAYER_COOKIE_SALT = "player-id-token"
-
     def get(self, request, format=None):
         user = request.user
         game_id = (request.query_params.get("game_id") or "").strip().upper()
@@ -202,13 +199,15 @@ class WhoAmIView(APIView):
 
     def _get_player_from_cookie(self, request, game_id):
         """Extract and validate player from signed cookie."""
-        cookie_name = f"{self.PLAYER_COOKIE_PREFIX}{game_id}"
+        cookie_name = f"{settings.COOKIE_PLAYER_PREFIX}{game_id}"
         raw = request.COOKIES.get(cookie_name)
         if not raw:
             return None
 
         try:
-            player_id = signing.loads(raw, salt=self.PLAYER_COOKIE_SALT)
+            # Use TimestampSigner.unsign() to match the TimestampSigner.sign() in cookie_utils
+            signer = signing.TimestampSigner(salt=settings.COOKIE_PLAYER_SALT)
+            player_id = signer.unsign(raw, max_age=None)
         except signing.BadSignature:
             return None
 

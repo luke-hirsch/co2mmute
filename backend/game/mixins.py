@@ -1,73 +1,52 @@
-import uuid
-from django.conf import settings
 from rest_framework.exceptions import ValidationError
 from game.models import Player
+from game.cookie_utils import set_game_access_cookie, set_player_cookie
 from typing import Any, Mapping
 
 
 class GameAccessCookieMixin:
-    cookie_prefix = settings.COOKIE_GAME_PREFIX
-    cookie_salt = settings.COOKIE_GAME_SALT
+    """
+    Mixin to handle game session access cookies.
 
-    def _session_store(self, request):
-        return request.session.setdefault("game_access_tokens", {})
-
-    def get_or_create_game_token(self, request, game_id: str) -> str:
-        store = self._session_store(request)
-        token = store.get(game_id)
-        if not token:
-            token = uuid.uuid4().hex
-            store[game_id] = token
-            request.session.modified = True
-        return token
+    Uses centralized cookie utilities for consistent signing/unsigning.
+    """
 
     def set_game_access_cookie(self, request, response, game_id: str):
-        token = self.get_or_create_game_token(request, game_id)
-        secure_flag = (
-            getattr(settings, "SESSION_COOKIE_SECURE", False) or request.is_secure()
-        )
+        """
+        Set the game access cookie for a session.
 
-        # Embed game_id into cookie value for validation in ws_auth
-        cookie_value = f"{game_id}:{token}"
+        Args:
+            request: HttpRequest object
+            response: HttpResponse object
+            game_id: The game session ID
 
-        response.set_signed_cookie(
-            f"{self.cookie_prefix}{game_id}",
-            cookie_value,
-            salt=self.cookie_salt,
-            httponly=True,
-            secure=secure_flag,
-            samesite="Lax",
-            max_age=settings.COOKIE_AGE,
-        )
-        return response
+        Returns:
+            The response with the cookie set
+        """
+        return set_game_access_cookie(request, response, game_id)
 
 
 class PlayerCookieMixin:
-    cookie_prefix = settings.COOKIE_PLAYER_PREFIX
-    cookie_salt = settings.COOKIE_PLAYER_SALT
+    """
+    Mixin to handle player identification cookies.
 
-    def _player_session_store(self, request):
-        return request.session.setdefault("player_by_game", {})
+    Uses centralized cookie utilities for consistent signing/unsigning.
+    """
 
     def set_player_cookie(self, request, response, game_id: str, player_id: str):
-        # mirror to session for convenience/debugging (optional)
-        store = self._player_session_store(request)
-        store[game_id] = player_id
-        request.session.modified = True
+        """
+        Set the player identification cookie for a session.
 
-        secure_flag = (
-            getattr(settings, "SESSION_COOKIE_SECURE", False) or request.is_secure()
-        )
-        response.set_signed_cookie(
-            f"{self.cookie_prefix}{game_id}",
-            str(player_id),
-            salt=self.cookie_salt,
-            httponly=True,
-            secure=secure_flag,
-            samesite="Lax",
-            max_age=settings.COOKIE_AGE,
-        )
-        return response
+        Args:
+            request: HttpRequest object
+            response: HttpResponse object
+            game_id: The game session ID
+            player_id: The player ID
+
+        Returns:
+            The response with the cookie set
+        """
+        return set_player_cookie(request, response, game_id, player_id)
 
 
 class GameScopedQuerysetMixin:

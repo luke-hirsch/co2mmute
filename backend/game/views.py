@@ -43,6 +43,10 @@ class GameSessionCreateView(
             },
         )
 
+        # Ensure player_id is generated
+        if not host_player.player_id:
+            host_player.refresh_from_db()
+
         messages.success(
             self.request, f"Game Session '{form.instance.game_name}' created."
         )
@@ -205,30 +209,53 @@ class PlayerCreateView(
 
     def form_valid(self, form):
         form.instance.game = self.game_session
-        response = super().form_valid(form)
+        logger.info(
+            f"PlayerCreateView.form_valid() called, creating player: {form.cleaned_data}"
+        )
 
-        # set cookies
-        if self.game_session:
-            response = self.set_game_access_cookie(
-                self.request,
-                response,
-                self.game_session.game_id,
+        # Manually save the form instead of using super().form_valid()
+        # This allows us to set cookies BEFORE creating the response
+        player = form.save()
+        logger.info(f"Player saved: id={player.id}, player_id={player.player_id}")
+        if not self.game_session:
+            raise ValueError("GameSession not found")
+        if not player.player_id:
+            logger.error(
+                f"Failed to generate player_id for player {player.id} in game {self.game_session.game_id}"
             )
-            response = self.set_player_cookie(
+            messages.error(
                 self.request,
-                response,
-                self.game_session.game_id,
-                form.instance.player_id,
+                "An error occurred while creating your player. Please try again.",
             )
+            return redirect("player-create", game_id=self.game_session.game_id)
 
-            messages.success(
-                self.request,
-                f"Welcome to {self.game_session.game_name}, "
-                f"{form.instance.name or 'player'}!",
-            )
-            return response
-        logger.error("Game session is None during player creation.")
-        raise ValueError("Game session not found during player creation.")
+        # Create the redirect response first
+        success_url = f"/app/lobby/{self.game_session.game_id}/"
+        response = redirect(success_url)
+        logger.info(f"Created redirect response to: {success_url}")
+
+        # Set cookies on the response
+        logger.info(
+            f"Setting cookies for player {player.player_id} in game {self.game_session.game_id}"
+        )
+        response = self.set_game_access_cookie(
+            self.request,
+            response,
+            self.game_session.game_id,
+        )
+        response = self.set_player_cookie(
+            self.request,
+            response,
+            self.game_session.game_id,
+            player.player_id,
+        )
+        logger.info("Cookies set on response")
+
+        messages.success(
+            self.request,
+            f"Welcome to {self.game_session.game_name}, {player.name or 'player'}!",
+        )
+        return response
 
     def get_success_url(self):
         if self.game_session:

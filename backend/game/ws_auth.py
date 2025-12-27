@@ -1,9 +1,9 @@
-from http import cookies
-from django.core import signing
 from channels.db import database_sync_to_async
 from channels.auth import get_user
 from django.conf import settings
+from django.core import signing
 from .models import Player, GameSession
+from .cookie_utils import get_cookie_from_scope, unsign_value
 from datetime import datetime
 import logging
 
@@ -23,21 +23,6 @@ class HostPlayer:
         self.controlled_by_host = True
         self.joined_at = datetime.now()
         self.user = True  # Mark that this has a user associated
-
-
-def get_cookie(scope, name: str):
-    header_bytes = dict(scope.get("headers", {})).get(b"cookie", b"")
-    if not header_bytes:
-        return None
-    jar = cookies.SimpleCookie()
-    jar.load(header_bytes.decode("utf-8"))
-    morsel = jar.get(name)
-    return morsel.value if morsel else None
-
-
-def unsign(value: str, salt: str):
-    # will raise signing.BadSignature if invalid
-    return signing.loads(value, salt=salt)
 
 
 async def resolve_player(scope, game_id: str):
@@ -79,8 +64,8 @@ async def resolve_player(scope, game_id: str):
     player_cookie_name = f"{settings.COOKIE_PLAYER_PREFIX}{game_id}"
     game_cookie_name = f"{settings.COOKIE_GAME_PREFIX}{game_id}"
 
-    raw_player = get_cookie(scope, player_cookie_name)
-    raw_game = get_cookie(scope, game_cookie_name)
+    raw_player = get_cookie_from_scope(scope, player_cookie_name)
+    raw_game = get_cookie_from_scope(scope, game_cookie_name)
 
     if not raw_player or not raw_game:
         logger.warning(
@@ -89,9 +74,11 @@ async def resolve_player(scope, game_id: str):
         return None, 4401, "missing-cookie", False
 
     try:
-        player_id = unsign(raw_player, settings.COOKIE_PLAYER_SALT)
+        player_id = unsign_value(raw_player, settings.COOKIE_PLAYER_SALT)
+        logger.info(f"Unsigned player_id from cookie: {player_id}")
         # validate game cookie and extract embedded game_id
-        game_cookie_value = unsign(raw_game, settings.COOKIE_GAME_SALT)
+        game_cookie_value = unsign_value(raw_game, settings.COOKIE_GAME_SALT)
+        logger.info(f"Unsigned game cookie value: {game_cookie_value}")
         # Format is "game_id:token" - validate game_id matches
         if ":" not in game_cookie_value:
             logger.warning(f"Malformed game cookie for {game_id}")
@@ -109,6 +96,9 @@ async def resolve_player(scope, game_id: str):
     # DB lookup with game state validation
     @database_sync_to_async
     def _get_player_with_game_check(game_id_inner, player_id_inner):
+        logger.info(
+            f"Looking up player with game_id={game_id_inner}, player_id={player_id_inner}"
+        )
         player = (
             Player.objects.filter(
                 game__game_id=game_id_inner, player_id=player_id_inner
@@ -118,6 +108,14 @@ async def resolve_player(scope, game_id: str):
         )
 
         if not player:
+            logger.warning(
+                f"Player not found: game_id={game_id_inner}, player_id={player_id_inner}"
+            )
+            # Log all players in this game for debugging
+            all_players = Player.objects.filter(
+                game__game_id=game_id_inner
+            ).values_list("player_id", "name")
+            logger.debug(f"Players in game {game_id_inner}: {list(all_players)}")
             return None, "player-not-found"
 
         # Validate game is in an acceptable state for WebSocket connections
