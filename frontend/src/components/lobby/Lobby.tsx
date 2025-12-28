@@ -69,7 +69,11 @@ const Lobby = () => {
                 ) : isError ? (
                   <div>Fehler</div>
                 ) : isPlayer ? (
-                  <GameDetail id={gameId} role="player" />
+                  <GameDetail
+                    id={gameId}
+                    role="player"
+                    playerId={auth?.player?.playerId}
+                  />
                 ) : isHost ? (
                   <GameDetail id={gameId} role="host" />
                 ) : (

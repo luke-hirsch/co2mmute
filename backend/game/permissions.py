@@ -65,10 +65,19 @@ class IsPlayerInGame(BasePermission):
         cookie_name = f"{settings.COOKIE_PLAYER_PREFIX}{game_id}"
 
         try:
-            player_id = request.get_signed_cookie(
-                cookie_name, salt=settings.COOKIE_PLAYER_SALT
-            )
-        except (KeyError, signing.BadSignature):
+            # Get the raw cookie value from the request
+            raw_cookie = request.COOKIES.get(cookie_name)
+            if not raw_cookie:
+                logger.warning(f"Player cookie not found: {cookie_name}")
+                return False
+
+            # Use unsign_value from cookie_utils to verify the signature
+            player_id = unsign_value(raw_cookie, settings.COOKIE_PLAYER_SALT)
+        except signing.BadSignature as e:
+            logger.warning(f"Player cookie signature failed for {cookie_name}: {e}")
+            return False
+        except (KeyError, ValueError) as e:
+            logger.warning(f"Player cookie check failed for {cookie_name}: {e}")
             return False
 
         # Verify that player exists AND belongs to that game
