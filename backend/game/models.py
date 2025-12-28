@@ -17,7 +17,7 @@ class GameSession(models.Model):
     game_name = models.CharField(max_length=100)
     game_id = models.CharField(max_length=6, unique=True)
     game_password = models.CharField(max_length=50, null=True, blank=True)
-    game_qr_code = models.ImageField(upload_to="media/qr_codes/", null=True, blank=True)
+    game_qr_code = models.ImageField(upload_to="qr_codes/", null=True, blank=True)
     game_map = models.ForeignKey(
         "maps.GameMap", on_delete=models.SET_NULL, null=True, blank=True
     )
@@ -82,7 +82,7 @@ class GameSession(models.Model):
         img.save(buffer)
         buffer.seek(0)
 
-        return f"qr_codes/{self.game_id}.png", ContentFile(buffer.read())
+        return f"{self.game_id}.png", ContentFile(buffer.read())
 
 
 class Player(models.Model):

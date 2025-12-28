@@ -237,6 +237,132 @@ class LobbyConsumer(AsyncWebsocketConsumer):
             )
             await redis_pipe.execute()
 
+    @staticmethod
+    async def remove_player_from_lobby_cache(game_id: str, player_id):
+        """Remove a player from the lobby Redis cache (called when player is deleted)."""
+        redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+        try:
+            presence_zset_key = LobbyConsumer.PLAYER_PRESENCE_ZSET_KEY_PATTERN.format(
+                game_id=game_id
+            )
+            presence_meta_key = LobbyConsumer.PLAYER_METADATA_HASH_KEY_PATTERN.format(
+                game_id=game_id
+            )
+
+            logger.info(f"Removing {player_id} from Redis for {game_id}")
+            redis_pipe = redis_client.pipeline()
+            redis_pipe.hdel(presence_meta_key, str(player_id))
+            redis_pipe.zrem(presence_zset_key, str(player_id))
+            result = await redis_pipe.execute()
+            logger.info(f"Redis removal result: {result}")
+        finally:
+            await redis_client.close()
+
+    @staticmethod
+    async def broadcast_updated_roster(game_id: str):
+        """Broadcast updated roster to all connected lobby clients after player deletion."""
+        from channels.layers import get_channel_layer
+
+        channel_layer = get_channel_layer()
+        if not channel_layer:
+            logger.warning(f"No channel layer available for broadcast to {game_id}")
+            return
+
+        group_name = f"lobby_{sanitize_group_name(game_id)}"
+
+        redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+        try:
+            presence_zset_key = LobbyConsumer.PLAYER_PRESENCE_ZSET_KEY_PATTERN.format(
+                game_id=game_id
+            )
+            presence_meta_key = LobbyConsumer.PLAYER_METADATA_HASH_KEY_PATTERN.format(
+                game_id=game_id
+            )
+
+            # Build roster from current Redis state
+            all_player_ids = await redis_client.zrange(presence_zset_key, 0, -1)
+            logger.info(
+                f"Broadcast: Found {len(all_player_ids)} players in Redis for {game_id}: {all_player_ids}"
+            )
+            roster = []
+
+            # First, add all connected players from Redis
+            if all_player_ids:
+                raw_player_payloads = await cast(
+                    Awaitable[list[str | None]],
+                    redis_client.hmget(presence_meta_key, *all_player_ids),
+                )
+
+                for player_id, raw_payload in zip(all_player_ids, raw_player_payloads):
+                    if not raw_payload:
+                        logger.warning(
+                            f"Broadcast: No payload for player {player_id} in {game_id}"
+                        )
+                        continue
+                    try:
+                        player_data = json.loads(raw_payload)
+                        roster.append(player_data)
+                    except Exception as e:
+                        logger.warning(f"Failed to parse player payload: {e}")
+                        continue
+
+            # Second, add host-controlled players from DB that aren't already in Redis
+            @database_sync_to_async
+            def get_host_controlled_players():
+                return list(
+                    Player.objects.filter(
+                        game__game_id=game_id,
+                        controlled_by_host=True,
+                        left_at__isnull=True,  # Only active players
+                    ).values(
+                        "player_id",
+                        "name",
+                        "is_muted",
+                        "controlled_by_host",
+                        "joined_at",
+                    )
+                )
+
+            host_controlled_players = await get_host_controlled_players()
+            existing_player_ids = {p.get("playerId") for p in roster}
+            logger.info(
+                f"Broadcast: Found {len(host_controlled_players)} host-controlled players for {game_id}"
+            )
+
+            for db_player in host_controlled_players:
+                if db_player["player_id"] not in existing_player_ids:
+                    roster.append(
+                        {
+                            "playerId": db_player["player_id"],
+                            "name": db_player["name"] or "unknown Player",
+                            "isMuted": db_player["is_muted"],
+                            "controlledByHost": db_player["controlled_by_host"],
+                            "online": True,
+                            "joinedAt": db_player["joined_at"].isoformat(),
+                        }
+                    )
+
+            # Sort by name for consistent ordering
+            roster.sort(
+                key=lambda player: (player.get("name", ""), player.get("playerId", ""))
+            )
+
+            logger.info(
+                f"Broadcast: Sending roster with {len(roster)} players to {game_id}: {[p.get('playerId') for p in roster]}"
+            )
+
+            # Broadcast to all connected clients in the group
+            await channel_layer.group_send(
+                group_name,
+                {
+                    "type": "lobby.roster",
+                    "players": roster,
+                },
+            )
+            logger.info(f"Broadcast: Sent to group {group_name}")
+        finally:
+            await redis_client.close()
+
     async def _build_roster_from_redis(self):
         """Build complete roster by fetching all player metadata from Redis and host-controlled players from DB."""
         presence_zset_key = self._get_presence_zset_key()
