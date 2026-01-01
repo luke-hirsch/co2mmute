@@ -28,5 +28,5 @@ jobs:
             set -e
             cd /srv/commute
             git pull origin stage
-            docker compose -f /srv/devops/docker-compose.yaml up -d --build
+            docker compose -f /srv/commute/devops/docker-compose.yaml up -d --build
           EOF
