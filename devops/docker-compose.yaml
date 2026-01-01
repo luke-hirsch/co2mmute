@@ -1,5 +1,6 @@
 services:
   postgres:
+    restart: unless-stopped
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-co2mmute}
@@ -51,6 +52,7 @@ services:
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
     ports:
       - "8000:8000"
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -92,6 +94,7 @@ services:
       args:
         VITE_API_BASE_URL: ${FRONTEND_API_BASE_URL:-/api}
     image: co2mmute-nginx
+    restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
