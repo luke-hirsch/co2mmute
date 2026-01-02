@@ -1,22 +1,32 @@
-- name: Setup SSH
-  uses: webfactory/ssh-agent@v0.9.0
-  with:
-    ssh-private-key: ${{ secrets.STAGING_KEY }}
+name: Deploy to staging
 
-- name: Add known_hosts
-  run: |
-    mkdir -p ~/.ssh
-    chmod 700 ~/.ssh
-    echo "${{ secrets.STAGING_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
-    chmod 600 ~/.ssh/known_hosts
+on:
+  push:
+    branches: ["stage"]
 
-- name: Deploy on server
-  run: |
-    ssh ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'EOF'
-      set -euo pipefail
-      cd /srv/commute
-      git fetch origin
-      git checkout stage
-      git pull --ff-only origin stage
-      docker compose -f devops/docker-compose.yaml up -d --build
-    EOF
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.STAGING_KEY }}
+
+      - name: Add known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "${{ secrets.STAGING_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy on server
+        run: |
+          ssh ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'EOF'
+            set -euo pipefail
+            cd /srv/commute
+            git fetch origin
+            git checkout stage
+            git pull --ff-only origin stage
+            docker compose -f devops/docker-compose.yaml up -d --build
+          EOF
