@@ -21,8 +21,7 @@ jobs:
           chmod 600 ~/.ssh/known_hosts
       - name: Deploy on server (debug)
         run: |
-          ssh -vvv \
-            -o StrictHostKeyChecking=yes \
+          ssh -o BatchMode=yes \
             ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'EOF'
               whoami
               hostname
