@@ -36,6 +36,8 @@ while True:
         time.sleep(1)
 PY
 fi
+echo "Applying database migrations..."
+python manage.py makemigrations --noinput
 
 echo "Applying database migrations..."
 python manage.py migrate --noinput
