@@ -1,13 +1,11 @@
 services:
   postgres:
     restart: unless-stopped
-    image: postgres:16-alpine
+    image: postgres:18.1-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-co2mmute}
       POSTGRES_USER: ${POSTGRES_USER:-co2mmute}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-co2mmute}
-    ports:
-      - "5432:5432"
     volumes:
       - ./volumes/postgres:/var/lib/postgresql/data
     healthcheck:
@@ -17,10 +15,8 @@ services:
       retries: 10
 
   redis:
-    image: redis:7.4-alpine
+    image: redis:8.4-alpine
     restart: unless-stopped
-    ports:
-      - "6379:6379"
     volumes:
       - redis-data:/data
     healthcheck:
@@ -36,8 +32,8 @@ services:
     image: co2mmute-backend
     environment: &backend-env
       DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
-      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,backend,nginx}
-      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-http://localhost,http://127.0.0.1,http://localhost:8080,http://127.0.0.1:8080,http://nginx,https://localhost,https://127.0.0.1,https://localhosts:8080,https://127.0.0.1:8080,https://nginx}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost}
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-https://localhost}
       DJANGO_STATIC_ROOT: /var/www/backend-static
       DJANGO_MEDIA_ROOT: /var/www/backend-media
       DJANGO_DB_WAIT_TIMEOUT: ${DJANGO_DB_WAIT_TIMEOUT:-60}
@@ -50,8 +46,6 @@ services:
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
-    ports:
-      - "8000:8000"
     restart: unless-stopped
     depends_on:
       postgres:

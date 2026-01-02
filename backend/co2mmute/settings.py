@@ -193,11 +193,11 @@ CACHES = {
 }
 
 GAME_SESSION_CACHE_TIMEOUT = int(os.environ.get("GAME_SESSION_CACHE_TIMEOUT", 15 * 60))
-
-OVERPASS_API_URL = os.environ.get(
-    "OVERPASS_API_URL",
-    "http://overpass-api:80/api/interpreter",
-)
+# OPEN MAPS SHIT
+# OVERPASS_API_URL = os.environ.get(
+#     "OVERPASS_API_URL",
+#     "http://overpass-api:80/api/interpreter",
+# )
 
 
 # Password validation
