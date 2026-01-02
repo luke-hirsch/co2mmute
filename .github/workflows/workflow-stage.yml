@@ -19,13 +19,11 @@ jobs:
           chmod 700 ~/.ssh
           echo "${{ secrets.STAGING_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
-      - name: Deploy on server (debug)
+      - name: SSH smoke test
         run: |
-          ssh -o BatchMode=yes \
-            ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'EOF'
-              whoami
-              hostname
-            EOF
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+            "whoami && hostname"
 
       # - name: Deploy on server
       #   run: |
