@@ -23,8 +23,7 @@ jobs:
 
       - name: SSH smoke test
         run: |
-          ssh -p ${{ secrets.STAGING_PORT }} \
-            -o BatchMode=yes \
+          ssh -o BatchMode=yes \
             -o StrictHostKeyChecking=yes \
             -o PreferredAuthentications=publickey \
             ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
@@ -32,8 +31,7 @@ jobs:
 
       - name: Deploy
         run: |
-          ssh -p ${{ secrets.STAGING_PORT }} \
-            -o BatchMode=yes \
+          ssh -o BatchMode=yes \
             -o StrictHostKeyChecking=yes \
             -o PreferredAuthentications=publickey \
             ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
