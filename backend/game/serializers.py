@@ -30,10 +30,8 @@ class GameSessionSerializer(serializers.ModelSerializer):
             "id",
             "game_id",
             "game_qr_code",
-            "is_active",
             "created_at",
             "updated_at",
-            "started_at",
             "ended_at",
         )
 

@@ -91,3 +91,40 @@ export type WSChatMessage =
   | WSChatHistoryMessage
   | WSChatIncomingMessage
   | WSChatErrorMessage;
+
+// Game State WebSocket Messages
+export interface WSGameStateUpdate {
+  type: "gamestate.update";
+  game: WSGameState;
+  stats: WSGameStats;
+}
+
+export interface WSGameState {
+  game_id: string;
+  game_name: string;
+  is_active: boolean;
+  max_rounds: number;
+  max_co2: number;
+  current_round: number;
+  round_status: "pending" | "active" | "completed";
+  chat_enabled: boolean;
+}
+
+export interface WSGameStats {
+  totalCo2: number;
+  maxCo2: number;
+  co2Percentage: number;
+  players: WSPlayerStats[];
+}
+
+export interface WSPlayerStats {
+  playerId: string;
+  name: string;
+  co2: number;
+  moveCount: number;
+}
+
+export type WSGameStateMessage =
+  | WSPingMessage
+  | WSPongMessage
+  | WSGameStateUpdate;

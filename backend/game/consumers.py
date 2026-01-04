@@ -645,3 +645,294 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 }
             )
         )
+
+
+class GameStateConsumer(AsyncWebsocketConsumer):
+    """
+    WebSocket consumer for real-time game state management.
+    Handles round progression, player moves, and broadcasts game stats.
+    """
+
+    GAME_STATE_KEY_PATTERN = "gamestate:{game_id}"
+    PLAYER_MOVES_SET_PATTERN = "gamestate:{game_id}:moves:{round_number}"
+
+    # CO2 emissions per transportation type (kg)
+    EMISSION_FACTORS = {
+        "car": 120.0,  # Most polluting
+        "public": 60.0,  # Half of car
+        "bike": 0.0,  # Zero emissions
+        "walk": 0.0,  # Zero emissions
+    }
+
+    async def connect(self):
+        route = self.scope.get("url_route")
+        if not route or "kwargs" not in route:
+            logger.warning("Missing URL route for game state")
+            await self.close(code=4400)
+            return
+
+        self.game_id = route["kwargs"]["game_id"]
+        self.group_name = f"gamestate_{sanitize_group_name(self.game_id)}"
+
+        # Authenticate player
+        player, close_code, reason, is_host = await resolve_player(
+            self.scope, self.game_id
+        )
+        if close_code or player is None:
+            logger.warning(
+                f"GameState auth failed for {self.game_id}: code={close_code}"
+            )
+            await self.close(code=close_code)
+            return
+
+        self.player_id = player.player_id
+        self.is_host = is_host
+        self.redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.accept()
+
+        # Send initial game state
+        await self._send_game_state()
+
+        logger.info(
+            f"GameState connection established for {self.game_id} - {self.player_id}"
+        )
+
+    async def disconnect(self, close_code):
+        try:
+            await self.channel_layer.group_discard(self.group_name, self.channel_name)
+        finally:
+            if hasattr(self, "redis_client"):
+                await self.redis_client.close()
+
+    async def receive(self, text_data=None, bytes_data=None):
+        if not text_data:
+            return
+
+        try:
+            data = json.loads(text_data)
+        except Exception:
+            return
+
+        msg_type = data.get("type")
+
+        if msg_type == "ping":
+            await self.send(json.dumps({"type": "pong"}))
+            return
+
+    async def _send_game_state(self):
+        """Send current game state to the connected player."""
+        game_state = await self._get_game_state()
+        await self.send(json.dumps(game_state))
+
+    async def _get_game_state(self) -> dict:
+        """Build current game state from database and cache."""
+
+        @database_sync_to_async
+        def get_game_and_state():
+            from .models import GameSession, GameRound
+
+            try:
+                game = GameSession.objects.get(game_id=self.game_id)
+                current_round = (
+                    GameRound.objects.filter(game=game)
+                    .order_by("-round_number")
+                    .first()
+                )
+                round_number = current_round.round_number if current_round else 0
+                status = current_round.status if current_round else "pending"
+
+                return {
+                    "game_id": self.game_id,
+                    "game_name": game.game_name,
+                    "is_active": game.is_active,
+                    "max_rounds": game.max_rounds,
+                    "max_co2": game.max_CO2_level,
+                    "current_round": round_number,
+                    "round_status": status,
+                    "chat_enabled": game.chat_enabled,
+                }
+            except GameSession.DoesNotExist:
+                return None
+
+        state = await get_game_and_state()
+        if not state:
+            return {"type": "error", "error": "Game not found"}
+
+        # Get game stats
+        stats = await self._get_game_stats()
+
+        return {
+            "type": "gamestate.update",
+            "game": state,
+            "stats": stats,
+        }
+
+    async def _get_game_stats(self) -> dict:
+        """Calculate and return current game statistics."""
+
+        @database_sync_to_async
+        def calculate_stats():
+            from .models import GameSession, Player, GameRound, PlayerMove
+
+            try:
+                game = GameSession.objects.get(game_id=self.game_id)
+                players = Player.objects.filter(game=game, left_at__isnull=True)
+                current_round = (
+                    GameRound.objects.filter(game=game)
+                    .order_by("-round_number")
+                    .first()
+                )
+
+                total_co2 = 0.0
+                player_stats = []
+
+                for player in players:
+                    # Get player moves up to current round
+                    moves_query = PlayerMove.objects.filter(
+                        player=player
+                    ).select_related("game_round")
+
+                    if current_round:
+                        moves_query = moves_query.filter(
+                            game_round__round_number__lte=current_round.round_number
+                        )
+
+                    player_moves = moves_query
+
+                    player_co2 = sum(
+                        self.EMISSION_FACTORS.get(move.action, 0)
+                        for move in player_moves
+                    )
+                    total_co2 += player_co2
+
+                    player_stats.append(
+                        {
+                            "playerId": str(player.player_id),
+                            "name": player.name,
+                            "co2": round(player_co2, 2),
+                            "moveCount": player_moves.count(),
+                        }
+                    )
+
+                return {
+                    "totalCo2": round(total_co2, 2),
+                    "maxCo2": game.max_CO2_level,
+                    "players": sorted(
+                        player_stats, key=lambda x: x["co2"], reverse=True
+                    ),
+                    "co2Percentage": round(
+                        (total_co2 / max(game.max_CO2_level, 1)) * 100, 1
+                    ),
+                }
+            except Exception as e:
+                logger.error(f"Error calculating game stats: {e}")
+                return {
+                    "totalCo2": 0,
+                    "maxCo2": 0,
+                    "players": [],
+                    "co2Percentage": 0,
+                }
+
+        return await calculate_stats()
+
+    @staticmethod
+    async def broadcast_game_state(game_id: str):
+        """Broadcast updated game state to all connected players."""
+        from channels.layers import get_channel_layer
+
+        channel_layer = get_channel_layer()
+        if not channel_layer:
+            logger.warning(f"No channel layer for gamestate broadcast to {game_id}")
+            return
+
+        group_name = f"gamestate_{sanitize_group_name(game_id)}"
+
+        # Build game state using database queries
+        @database_sync_to_async
+        def build_game_state():
+            from .models import GameSession, Player, GameRound, PlayerMove
+
+            try:
+                game = GameSession.objects.get(game_id=game_id)
+                players = Player.objects.filter(game=game, left_at__isnull=True)
+                current_round = (
+                    GameRound.objects.filter(game=game)
+                    .order_by("-round_number")
+                    .first()
+                )
+                round_number = current_round.round_number if current_round else 0
+                status = current_round.status if current_round else "pending"
+
+                # Build stats
+                total_co2 = 0.0
+                player_stats = []
+
+                for player in players:
+                    moves_query = PlayerMove.objects.filter(player=player)
+                    if current_round:
+                        moves_query = moves_query.filter(
+                            game_round__round_number__lte=current_round.round_number
+                        )
+
+                    player_moves = moves_query
+                    player_co2 = sum(
+                        GameStateConsumer.EMISSION_FACTORS.get(move.action, 0)
+                        for move in player_moves
+                    )
+                    total_co2 += player_co2
+
+                    player_stats.append(
+                        {
+                            "playerId": str(player.player_id),
+                            "name": player.name,
+                            "co2": round(player_co2, 2),
+                            "moveCount": player_moves.count(),
+                        }
+                    )
+
+                return {
+                    "type": "gamestate.update",
+                    "game": {
+                        "game_id": game_id,
+                        "game_name": game.game_name,
+                        "is_active": game.is_active,
+                        "max_rounds": game.max_rounds,
+                        "max_co2": game.max_CO2_level,
+                        "current_round": round_number,
+                        "round_status": status,
+                        "chat_enabled": game.chat_enabled,
+                    },
+                    "stats": {
+                        "totalCo2": round(total_co2, 2),
+                        "maxCo2": game.max_CO2_level,
+                        "players": sorted(
+                            player_stats, key=lambda x: x["co2"], reverse=True
+                        ),
+                        "co2Percentage": round(
+                            (total_co2 / max(game.max_CO2_level, 1)) * 100, 1
+                        ),
+                    },
+                }
+            except GameSession.DoesNotExist:
+                return {"type": "error", "error": "Game not found"}
+
+        game_state = await build_game_state()
+
+        try:
+            await channel_layer.group_send(
+                group_name,
+                {
+                    "type": "gamestate.message",
+                    "content": game_state,
+                },
+            )
+            logger.info(f"Broadcasted game state to {group_name}")
+        except Exception as e:
+            logger.error(f"Error broadcasting game state: {e}")
+
+    async def gamestate_message(self, event):
+        """Handler for group messages."""
+        content = event.get("content", {})
+        await self.send(json.dumps(content))

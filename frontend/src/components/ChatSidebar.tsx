@@ -7,9 +7,10 @@ import ConnectionSignal from "./ConnectionSignal";
 
 interface ChatSidebarProps {
   gameId: string;
+  chatEnabled?: boolean;
 }
 
-const ChatSidebar = ({ gameId }: ChatSidebarProps) => {
+const ChatSidebar = ({ gameId, chatEnabled = true }: ChatSidebarProps) => {
   const { auth } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -24,6 +25,7 @@ const ChatSidebar = ({ gameId }: ChatSidebarProps) => {
     useChatSocket({
       gameId,
       currentPlayerName,
+      enabled: chatEnabled,
     });
 
   const [inputText, setInputText] = useState("");

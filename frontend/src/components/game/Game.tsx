@@ -5,23 +5,23 @@ import {
 } from "@heroicons/react/24/solid";
 
 import { useState } from "react";
-import LeftSidebar from "./LeftSidebar";
+
 import Header from "../Header";
-import GameDetail from "./GameDetail";
+import GamePlay from "./GamePlay";
 import ChatSidebar from "../ChatSidebar";
 import { useParams } from "@tanstack/react-router";
 
 import Loading from "../Loading";
 import { useAuth } from "../../context/AuthContext";
-import { useGameDetails } from "../../hooks/gameHooks";
+import GameStatSidebar from "./GameStatSidebar";
+import { useGameState } from "../../hooks/useGameState";
 
-const Lobby = () => {
+const Game = () => {
   const [menu, setMenu] = useState(false);
   const [chat, setChat] = useState(false);
   const { isLoading, isError, isHost, isPlayer, auth } = useAuth();
-  const { gameId } = useParams({ from: "/lobby/$gameId" });
-  const gameData = useGameDetails(gameId);
-  console.log(auth);
+  const { gameId } = useParams({ from: "/game/$gameId" });
+  const { gameState } = useGameState({ gameId });
   return (
     <div className="min-h-svh min-w-full max-w-screen bg-body dark:bg-darkbody dark:text-darktext overflow-hidden">
       <div className="lg:hidden absolute top p-2 w-screen flex justify-between">
@@ -55,7 +55,7 @@ const Lobby = () => {
               <aside
                 className={`absolute lg:relative min-h-full left-0 top-0 w-60 dark:bg-inherit bg-body flex lg:translate-x-0 ${menu ? "translate-x-0" : "-translate-x-60"} transition-all duration-300 h-full rounded z-50`}
               >
-                <LeftSidebar gameId={gameId} />
+                <GameStatSidebar gameId={gameId} />
               </aside>
             ) : (
               <></>
@@ -64,22 +64,18 @@ const Lobby = () => {
           <div className="flex flex-1 max-h-svh w-screen overflow-hidden">
             {/* Main content */}
             <div className="relative flex-1 max-h-svh overflow-y-auto">
-              <Header title={`Lobbyy - ${gameId}`} />
-              <main className="flex-1 p-6 dark:text-darktext flex flex-col items-center justify-center max-w-screen">
+              <Header title={`Game - ${gameId}`} />
+              <main className="flex-1 p-6 dark:text-darktext flex flex-col items-center justify-start max-w-screen min-h-full">
                 {isLoading ? (
                   <Loading />
                 ) : isError ? (
-                  <div>Fehler</div>
+                  <div className="text-red-600 dark:text-red-400">
+                    Error loading game
+                  </div>
                 ) : isPlayer ? (
-                  <GameDetail
-                    id={gameId}
-                    role="player"
-                    playerId={auth?.player?.playerId}
-                  />
-                ) : isHost ? (
-                  <GameDetail id={gameId} role="host" />
+                  <GamePlay gameId={gameId} playerId={auth?.player?.playerId} />
                 ) : (
-                  <div>fuck off</div>
+                  <div>Unauthorized</div>
                 )}
               </main>
             </div>
@@ -91,7 +87,7 @@ const Lobby = () => {
               >
                 <ChatSidebar
                   gameId={gameId}
-                  chatEnabled={gameData?.data?.chat_enabled ?? true}
+                  chatEnabled={gameState?.chat_enabled ?? true}
                 />
               </aside>
             ) : (
@@ -104,4 +100,4 @@ const Lobby = () => {
   );
 };
 
-export default Lobby;
+export default Game;

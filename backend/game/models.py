@@ -47,13 +47,20 @@ class GameSession(models.Model):
         if not self.game_qr_code:
             qr_code_path, qr_image = self.generate_qr_code()
             self.game_qr_code.save(qr_code_path, qr_image, save=False)
+
+        # Only force is_active=False if conditions don't allow the game to be active
+        # A game can be active if:
+        # - Lobby is open (current time >= lobby_open)
+        # - Game has started (started_at is set)
+        # - Game hasn't ended (ended_at is None)
+        # - Map is selected (game_map is not None)
         if (
             timezone.now() < self.lobby_open
-            or self.started_at is not None
             or self.ended_at is not None
             or self.game_map is None
         ):
             self.is_active = False
+
         super().save(*args, **kwargs)
 
     def generate_unique_game_id(self, max_retries=5):

@@ -5,7 +5,8 @@ export function useGameDetails(gameId: string) {
   return useQuery({
     queryKey: ["gameDetails", gameId],
     queryFn: () => apiFetch(`/api/game/${gameId}/`),
-    staleTime: 15000,
+    staleTime: 2000,
+    refetchInterval: 2000,
   });
 }
 
@@ -13,7 +14,8 @@ export function usePlayerGameDetails(gameId: string, playerId: string) {
   return useQuery({
     queryKey: ["playerGameDetails", gameId, playerId],
     queryFn: () => apiFetch(`/api/game/${gameId}/${playerId}/`),
-    staleTime: 15000,
+    staleTime: 2000,
+    refetchInterval: 2000,
   });
 }
 

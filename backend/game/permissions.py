@@ -137,3 +137,22 @@ class CanDeleteOwnPlayer(BasePermission):
         except (KeyError, ValueError) as e:
             logger.warning(f"Player cookie check failed for {cookie_name}: {e}")
             return False
+
+
+class IsGameHost(BasePermission):
+    """Permission to check if user is the host of the game."""
+
+    message = "Only the game host can perform this action."
+
+    def has_permission(self, request, view):
+        game_id = view.kwargs.get("game_id")
+        if not game_id or not request.user.is_authenticated:
+            return False
+
+        session = get_cached_game_session(game_id)
+        if session and session.game_host == request.user:
+            logger.info(f"Host {request.user} authorized for game {game_id}")
+            return True
+
+        logger.warning(f"User {request.user} is not host of game {game_id}")
+        return False

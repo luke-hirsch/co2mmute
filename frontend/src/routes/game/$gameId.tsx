@@ -1,15 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import GameRoute from "../../components/game/GameRoute";
 
 export const Route = createFileRoute("/game/$gameId")({
-  component: LobbyRoute,
+  component: GameRoute,
 });
-
-function LobbyRoute() {
-  // const { gameId } = Route.useParams();
-
-  return (
-    <>
-      <div className="flex min-h-full flex-col"></div>
-    </>
-  );
-}

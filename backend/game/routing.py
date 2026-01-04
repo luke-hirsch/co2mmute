@@ -11,4 +11,8 @@ websocket_urlpatterns = [
         r"ws/chat/(?P<game_id>[A-Za-z0-9_-]+)/$",
         cast(Any, consumers.ChatConsumer.as_asgi()),
     ),
+    re_path(
+        r"ws/gamestate/(?P<game_id>[A-Za-z0-9_-]+)/$",
+        cast(Any, consumers.GameStateConsumer.as_asgi()),
+    ),
 ]

@@ -5,6 +5,7 @@ from game.views_rest import (
     GameSessionDetailView,
     GetYourOwnGame,
     GameSessionListView,
+    PlayerMoveView,
 )
 
 app_name = "game"
@@ -29,4 +30,10 @@ urlpatterns = [
         name="player-game-session-detail",
     ),
     path("sessions/", GameSessionListView.as_view(), name="game-session-list"),
+    # Player moves
+    path(
+        "<str:game_id>/player/<str:player_id>/move/",
+        PlayerMoveView.as_view(),
+        name="player-move",
+    ),
 ]
