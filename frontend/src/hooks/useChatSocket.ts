@@ -1,5 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import type { WSStatus, WSChatMessagePayload } from "../types/wsTypes";
+import type {
+  WSStatus,
+  WSChatMessagePayload,
+  WSConnectionQuality,
+} from "../types/wsTypes";
 import { ChatWSClient } from "../utils/chatWS";
 
 interface UseChatSocketOptions {
@@ -18,6 +22,7 @@ interface UseChatSocketResult {
   error: string | null;
   isConnected: boolean;
   sendMessage: (text: string) => boolean;
+  connectionQuality: WSConnectionQuality | null;
 }
 
 export function useChatSocket(
@@ -28,6 +33,8 @@ export function useChatSocket(
   const [messages, setMessages] = useState<ChatMessageWithMeta[]>([]);
   const [status, setStatus] = useState<WSStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [connectionQuality, setConnectionQuality] =
+    useState<WSConnectionQuality | null>(null);
 
   const clientRef = useRef<ChatWSClient | null>(null);
 
@@ -76,6 +83,12 @@ export function useChatSocket(
       }
     });
 
+    const unsubscribeQuality = client.onConnectionQualityChange(
+      (quality: any) => {
+        setConnectionQuality(quality);
+      }
+    );
+
     client.connect().catch((err: any) => {
       setError(err instanceof Error ? err.message : "Failed to connect");
     });
@@ -83,6 +96,7 @@ export function useChatSocket(
     return () => {
       unsubscribeMessage();
       unsubscribeStatus();
+      unsubscribeQuality();
       client.disconnect();
       clientRef.current = null;
     };
@@ -101,5 +115,6 @@ export function useChatSocket(
     error,
     isConnected,
     sendMessage,
+    connectionQuality,
   };
 }

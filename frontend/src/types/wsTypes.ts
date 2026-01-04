@@ -37,8 +37,25 @@ export interface WSClientConfig {
   heartbeatInterval?: number; // milliseconds
 }
 
+export interface WSLatencyMetrics {
+  current: number; // ms, last ping/pong latency
+  min: number; // ms, best latency seen
+  max: number; // ms, worst latency seen
+  average: number; // ms, rolling average
+}
+
+export interface WSConnectionQuality {
+  signalStrength: 0 | 1 | 2 | 3 | 4 | 5; // 0 = no signal, 5 = excellent
+  latency: WSLatencyMetrics;
+  reconnectAttempts: number;
+  status: WSStatus;
+}
+
 // Union types for easier type guarding in handlers
-export type WSLobbyMessage = WSPingMessage | WSLobbyRosterMessage;
+export type WSLobbyMessage =
+  | WSPingMessage
+  | WSPongMessage
+  | WSLobbyRosterMessage;
 
 export interface WSChatMessagePayload {
   ts: number;
@@ -70,6 +87,7 @@ export interface WSChatOutgoingMessage {
 
 export type WSChatMessage =
   | WSPingMessage
+  | WSPongMessage
   | WSChatHistoryMessage
   | WSChatIncomingMessage
   | WSChatErrorMessage;

@@ -1,7 +1,13 @@
-import type { WSStatus, WSClientConfig } from "../types/wsTypes";
+import type {
+  WSStatus,
+  WSClientConfig,
+  WSConnectionQuality,
+  WSLatencyMetrics,
+} from "../types/wsTypes";
 
 type MessageHandler = (data: any) => void;
 type StatusListener = (status: WSStatus) => void;
+type ConnectionQualityListener = (quality: WSConnectionQuality) => void;
 
 export abstract class BaseWSClient {
   protected ws: WebSocket | null = null;
@@ -11,6 +17,7 @@ export abstract class BaseWSClient {
   // listeners for messages and status changes
   protected messageHandlers: MessageHandler[] = [];
   protected statusListeners: StatusListener[] = [];
+  protected connectionQualityListeners: ConnectionQualityListener[] = [];
 
   // reconnect stuff
   protected maxReconnectAttempts: number = 5;
@@ -22,6 +29,17 @@ export abstract class BaseWSClient {
   // heartbeat stuff
   protected heartbeatInterval: number = 30000;
   protected heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+
+  // latency tracking
+  protected lastPingTimestamp: number = 0;
+  protected latencyMetrics: WSLatencyMetrics = {
+    current: 0,
+    min: Infinity,
+    max: 0,
+    average: 0,
+  };
+  protected latencySamples: number[] = [];
+  protected maxLatencySamples: number = 100; // rolling window of 100 samples
 
   constructor(url: string, config: WSClientConfig = {}) {
     // TODO: Initialize configuration from config object with defaults
@@ -104,6 +122,15 @@ export abstract class BaseWSClient {
     };
   }
 
+  onConnectionQualityChange(listener: ConnectionQualityListener): () => void {
+    this.connectionQualityListeners.push(listener);
+
+    return () => {
+      const idx = this.connectionQualityListeners.indexOf(listener);
+      if (idx >= 0) this.connectionQualityListeners.splice(idx, 1);
+    };
+  }
+
   disconnect(): void {
     this.manuallyClosed = true;
 
@@ -153,6 +180,9 @@ export abstract class BaseWSClient {
         // listener bugs shouldn't break the WS client
       }
     }
+
+    // Also notify connection quality change when status changes
+    this.notifyConnectionQualityChange();
   }
 
   protected startHeartbeat(): void {
@@ -162,7 +192,8 @@ export abstract class BaseWSClient {
       if (!this.isConnected()) return;
 
       // Convention: ping. Your server may expect a different format.
-      this.send({ type: "ping", ts: Date.now() });
+      this.lastPingTimestamp = Date.now();
+      this.send({ type: "ping", ts: this.lastPingTimestamp });
     }, this.heartbeatInterval);
   }
 
@@ -252,6 +283,12 @@ export abstract class BaseWSClient {
         return;
       }
 
+      // Handle pong responses to measure latency
+      if (payload && typeof payload === "object" && payload.type === "pong") {
+        this.handlePong();
+        return;
+      }
+
       this.handleMessage(payload);
       for (const h of this.messageHandlers) h(payload);
     };
@@ -289,5 +326,85 @@ export abstract class BaseWSClient {
   // pong
   protected handlePing(): void {
     this.send({ type: "pong", ts: Date.now() });
+  }
+
+  protected handlePong(): void {
+    if (this.lastPingTimestamp > 0) {
+      const latency = Date.now() - this.lastPingTimestamp;
+      this.recordLatency(latency);
+      this.lastPingTimestamp = 0;
+    }
+  }
+
+  protected recordLatency(latencyMs: number): void {
+    // Update current latency
+    this.latencyMetrics.current = latencyMs;
+
+    // Update min/max
+    this.latencyMetrics.min = Math.min(this.latencyMetrics.min, latencyMs);
+    this.latencyMetrics.max = Math.max(this.latencyMetrics.max, latencyMs);
+
+    // Add to rolling window
+    this.latencySamples.push(latencyMs);
+    if (this.latencySamples.length > this.maxLatencySamples) {
+      this.latencySamples.shift();
+    }
+
+    // Calculate average
+    if (this.latencySamples.length > 0) {
+      const sum = this.latencySamples.reduce((a, b) => a + b, 0);
+      this.latencyMetrics.average = Math.round(
+        sum / this.latencySamples.length
+      );
+    }
+
+    // Notify listeners of quality change
+    this.notifyConnectionQualityChange();
+  }
+
+  protected getConnectionQuality(): WSConnectionQuality {
+    let signalStrength: 0 | 1 | 2 | 3 | 4 | 5 = 0;
+
+    if (this.status === "open") {
+      // Based on latency: excellent (< 50ms) to poor (> 500ms)
+      const latency = this.latencyMetrics.current;
+      if (latency < 50) signalStrength = 5;
+      else if (latency < 100) signalStrength = 4;
+      else if (latency < 200) signalStrength = 3;
+      else if (latency < 400) signalStrength = 2;
+      else signalStrength = 1;
+
+      // Penalize for reconnect attempts
+      if (this.reconnectAttempts > 0) {
+        signalStrength = Math.max(
+          0,
+          (signalStrength - Math.floor(this.reconnectAttempts / 2)) as
+            | 0
+            | 1
+            | 2
+            | 3
+            | 4
+            | 5
+        ) as 0 | 1 | 2 | 3 | 4 | 5;
+      }
+    }
+
+    return {
+      signalStrength,
+      latency: { ...this.latencyMetrics },
+      reconnectAttempts: this.reconnectAttempts,
+      status: this.status,
+    };
+  }
+
+  protected notifyConnectionQualityChange(): void {
+    const quality = this.getConnectionQuality();
+    for (const listener of this.connectionQualityListeners) {
+      try {
+        listener(quality);
+      } catch {
+        // listener bugs shouldn't break the WS client
+      }
+    }
   }
 }

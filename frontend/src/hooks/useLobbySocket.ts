@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import type { WSPlayer, WSStatus } from "../types/wsTypes";
+import type { WSPlayer, WSStatus, WSConnectionQuality } from "../types/wsTypes";
 import { LobbyWSClient } from "../utils/lobbyWS";
 
 interface UseLobbySocketOptions {
@@ -12,6 +12,7 @@ interface UseLobbySocketResult {
   status: WSStatus;
   error: string | null;
   isConnected: boolean;
+  connectionQuality: WSConnectionQuality | null;
 }
 
 /**
@@ -25,6 +26,8 @@ export function useLobbySocket(
   const [players, setPlayers] = useState<WSPlayer[]>([]);
   const [status, setStatus] = useState<WSStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [connectionQuality, setConnectionQuality] =
+    useState<WSConnectionQuality | null>(null);
 
   const clientRef = useRef<LobbyWSClient | null>(null);
 
@@ -63,6 +66,13 @@ export function useLobbySocket(
       }
     });
 
+    // Subscribe to connection quality changes
+    const unsubscribeQuality = client.onConnectionQualityChange(
+      (quality: any) => {
+        setConnectionQuality(quality);
+      }
+    );
+
     // Connect
     client.connect().catch((err: any) => {
       setError(err instanceof Error ? err.message : "Failed to connect");
@@ -72,6 +82,7 @@ export function useLobbySocket(
     return () => {
       unsubscribeMessage();
       unsubscribeStatus();
+      unsubscribeQuality();
       client.disconnect();
       clientRef.current = null;
     };
@@ -84,5 +95,6 @@ export function useLobbySocket(
     status,
     error,
     isConnected,
+    connectionQuality,
   };
 }

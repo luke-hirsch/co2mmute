@@ -3,6 +3,7 @@ import { useLobbySocket } from "../../hooks/useLobbySocket";
 import { useAuth } from "../../context/AuthContext";
 import { API_BASE_URL } from "../../config";
 import { apiFetch } from "../../utils/api";
+import ConnectionSignal from "../ConnectionSignal";
 
 interface LeftSidebarProps {
   gameId: string;
@@ -10,7 +11,7 @@ interface LeftSidebarProps {
 
 const LeftSidebar = ({ gameId }: LeftSidebarProps) => {
   const { auth } = useAuth();
-  const { players, error, isConnected } = useLobbySocket({
+  const { players, error, isConnected, connectionQuality } = useLobbySocket({
     gameId,
   });
 
@@ -57,11 +58,15 @@ const LeftSidebar = ({ gameId }: LeftSidebarProps) => {
           <h2 className="text-sm font-semibold">
             Spieler ({regularPlayers.length})
           </h2>
-          <div
-            className={`h-2 w-2 rounded-full ${
-              isConnected ? "bg-green-500" : "bg-red-500"
-            }`}
-          />
+          {connectionQuality ? (
+            <ConnectionSignal quality={connectionQuality} showTooltip={true} />
+          ) : (
+            <div
+              className={`h-2 w-2 rounded-full ${
+                isConnected ? "bg-green-500" : "bg-red-500"
+              }`}
+            />
+          )}
         </div>
 
         {error && (

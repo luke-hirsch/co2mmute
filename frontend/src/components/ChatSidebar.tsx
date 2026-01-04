@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { PaperAirplaneIcon } from "@heroicons/react/24/solid";
 import { useChatSocket } from "../hooks/useChatSocket";
 import { useAuth } from "../context/AuthContext";
+import ConnectionSignal from "./ConnectionSignal";
 
 interface ChatSidebarProps {
   gameId: string;
@@ -19,10 +20,11 @@ const ChatSidebar = ({ gameId }: ChatSidebarProps) => {
       ? `${auth.username} (Host)`
       : auth?.player?.name;
 
-  const { messages, error, isConnected, sendMessage } = useChatSocket({
-    gameId,
-    currentPlayerName,
-  });
+  const { messages, error, isConnected, sendMessage, connectionQuality } =
+    useChatSocket({
+      gameId,
+      currentPlayerName,
+    });
 
   const [inputText, setInputText] = useState("");
 
@@ -49,15 +51,20 @@ const ChatSidebar = ({ gameId }: ChatSidebarProps) => {
     <div className="flex flex-col justify-between max-h-full overflow-y-auto rounded border border-subtle bg-surface p-4 text-main shadow-sm transition-colors duration-300 dark:border-darksubtle dark:bg-darksurface dark:text-darktext">
       {/* Status indicator */}
       <div className="mb-2">
-        <div className="text-xs font-semibold">
-          {isConnected ? (
-            <span className="text-green-600 dark:text-green-400">
-              ● Connected
-            </span>
-          ) : (
-            <span className="text-amber-600 dark:text-amber-400">
-              ● Connecting...
-            </span>
+        <div className="text-xs font-semibold flex items-center justify-between">
+          <div>
+            {isConnected ? (
+              <span className="text-green-600 dark:text-green-400">
+                ● Connected
+              </span>
+            ) : (
+              <span className="text-amber-600 dark:text-amber-400">
+                ● Connecting...
+              </span>
+            )}
+          </div>
+          {connectionQuality && (
+            <ConnectionSignal quality={connectionQuality} showTooltip={true} />
           )}
         </div>
         {error && (

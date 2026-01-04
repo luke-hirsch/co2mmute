@@ -58,7 +58,13 @@ export class ChatWSClient extends BaseWSClient {
 function isWSChatMessage(data: any): data is WSChatMessage {
   if (!data || !data.type) return false;
 
-  const validTypes = ["ping", "chat.history", "chat.message", "chat.error"];
+  const validTypes = [
+    "ping",
+    "pong",
+    "chat.history",
+    "chat.message",
+    "chat.error",
+  ];
 
   return validTypes.includes(data.type);
 }

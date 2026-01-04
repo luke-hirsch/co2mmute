@@ -55,5 +55,9 @@ export class LobbyWSClient extends BaseWSClient {
  * Type guard to check if message is a valid WSLobbyMessage
  */
 function isWSLobbyMessage(data: any): data is WSLobbyMessage {
-  return data && data.type === "lobby.roster" && Array.isArray(data.players);
+  return (
+    data &&
+    (data.type === "lobby.roster" || data.type === "pong") &&
+    (data.type === "pong" || Array.isArray(data.players))
+  );
 }
