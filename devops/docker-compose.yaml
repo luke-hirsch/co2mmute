@@ -38,6 +38,7 @@ services:
       DJANGO_MEDIA_ROOT: /var/www/backend-media
       DJANGO_DB_WAIT_TIMEOUT: ${DJANGO_DB_WAIT_TIMEOUT:-60}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-insecure-local-key}
+      DJANGO_BASE_URL: ${DJANGO_BASE_URL:-localhost}
       POSTGRES_DB: ${POSTGRES_DB:-co2mmute}
       POSTGRES_USER: ${POSTGRES_USER:-co2mmute}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-co2mmute}
