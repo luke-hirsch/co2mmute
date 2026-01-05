@@ -46,6 +46,13 @@ class MapVersion(models.Model):
     game_map = models.ForeignKey(GameMap, on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
+    base_version = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.name} ({'base' if self.base_version else 'version'}) - {self.game_map}"
+
+    class Meta:
+        ordering = ("game_map", "-base_version", "-pk")
 
 
 class NodeType(models.Model):
