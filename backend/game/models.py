@@ -25,7 +25,6 @@ class GameSession(models.Model):
     agent_per_player = models.PositiveIntegerField()
     max_rounds = models.PositiveIntegerField()
     max_CO2_level = models.PositiveIntegerField()  # in kg
-    lobby_open = models.BooleanField(default=True)
     chat_enabled = models.BooleanField(default=True)
     is_active = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

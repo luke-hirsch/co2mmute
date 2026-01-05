@@ -18,7 +18,6 @@ class GameSessionSerializer(serializers.ModelSerializer):
             "agent_per_player",
             "max_rounds",
             "max_CO2_level",
-            "lobby_open",
             "chat_enabled",
             "is_active",
             "created_at",

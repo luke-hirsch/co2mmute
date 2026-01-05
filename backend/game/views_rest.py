@@ -1,21 +1,26 @@
-from rest_framework.mixins import ListModelMixin
-from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView
-from rest_framework.response import Response
-from rest_framework import status
 import asyncio
 import logging
 import threading
 
+from django.utils import timezone
+from django.shortcuts import get_object_or_404
+from django.conf import settings
+from django.db import transaction
+
+from rest_framework.mixins import ListModelMixin
+from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.response import Response
+from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
-from game.models import Player, GameSession
+
+from game.models import Player, GameSession, GameRound
 from game.serializers import PlayerSerializer, GameSessionSerializer
-from .cache import get_cached_game_session, invalidate_game_session
-from .permissions import HasGameAccess, IsPlayerInGame, CanDeleteOwnPlayer
-from .mixins import GameScopedQuerysetMixin
-from django.shortcuts import get_object_or_404
-from django.conf import settings
+from game.cache import get_cached_game_session, invalidate_game_session
+from game.permissions import HasGameAccess, IsPlayerInGame, CanDeleteOwnPlayer
+from game.mixins import GameScopedQuerysetMixin
+
 
 logger = logging.getLogger(__name__)
 
@@ -134,9 +139,6 @@ class GameSessionDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIVie
 
     def update(self, request, *args, **kwargs):
         """Override update to enforce game state rules for editing."""
-        from django.utils import timezone
-        from .models import GameRound
-        from django.db import transaction
 
         game = self.get_object()
 

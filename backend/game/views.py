@@ -212,6 +212,8 @@ class PlayerCreateView(
         logger.info(
             f"PlayerCreateView.form_valid() called, creating player: {form.cleaned_data}"
         )
+        if self.game_session and self.game_session.is_active:
+            return ValueError("Game has already started")
 
         # Manually save the form instead of using super().form_valid()
         # This allows us to set cookies BEFORE creating the response
