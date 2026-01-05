@@ -5,7 +5,6 @@ import uuid
 import qrcode
 from django.core.files.base import ContentFile
 from django.db import models
-from django.utils import timezone
 from django.conf import settings
 from django.core.exceptions import ValidationError
 
@@ -26,8 +25,7 @@ class GameSession(models.Model):
     agent_per_player = models.PositiveIntegerField()
     max_rounds = models.PositiveIntegerField()
     max_CO2_level = models.PositiveIntegerField()  # in kg
-
-    lobby_open = models.DateTimeField(default=timezone.now)
+    lobby_open = models.BooleanField(default=True)
     chat_enabled = models.BooleanField(default=True)
     is_active = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -50,15 +48,10 @@ class GameSession(models.Model):
 
         # Only force is_active=False if conditions don't allow the game to be active
         # A game can be active if:
-        # - Lobby is open (current time >= lobby_open)
         # - Game has started (started_at is set)
         # - Game hasn't ended (ended_at is None)
         # - Map is selected (game_map is not None)
-        if (
-            timezone.now() < self.lobby_open
-            or self.ended_at is not None
-            or self.game_map is None
-        ):
+        if self.ended_at is not None or self.game_map is None:
             self.is_active = False
 
         super().save(*args, **kwargs)

@@ -31,10 +31,10 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
   const [editedGame, setEditedGame] = useState<Partial<GameInfo>>({});
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [isEditingPassword, setIsEditingPassword] = useState(false);
-  const [editedPassword, setEditedPassword] = useState("");
-  const [isSavingPassword, setIsSavingPassword] = useState(false);
-
+  const [isEditingPassword, setIsEditingPassword] = useState<boolean>(false);
+  const [editedPassword, setEditedPassword] = useState<string>("");
+  const [isSavingPassword, setIsSavingPassword] = useState<boolean>(false);
+  const [zoomQR, setZoomQR] = useState<boolean>(false);
   let gameData;
   if (role === "player" && playerId) {
     gameData = usePlayerGameDetails(id, playerId);
@@ -202,7 +202,7 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
   };
 
   return (
-    <div className="w-full max-w-2xl flex flex-col gap-8">
+    <div className=" w-full max-w-2xl flex flex-col gap-8">
       {/* Header */}
       <div>
         <h1 className="mb-2 text-3xl font-bold">{game.game_name}</h1>
@@ -213,10 +213,29 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
 
       {/* QR Code + Game ID + Password Card */}
       {role === "host" && (
-        <div className="rounded-lg border border-subtle bg-elevated p-6 dark:border-darksubtle dark:bg-darkelevated shadow-md">
-          <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+        <div className="static rounded-lg border border-subtle bg-elevated p-6 dark:border-darksubtle dark:bg-darkelevated shadow-md">
+          {/* qr code zoom */}
+          {zoomQR && (
+            <div
+              onClick={() => setZoomQR(!zoomQR)}
+              className="absolute t-0 l-0 z-30 place-content-center dark:bg-darkbody bg-body p-6 cursor-pointer"
+            >
+              <img
+                src={game.game_qr_code}
+                alt="QR code to join game"
+                className="mx-auto h-90 w-auto rounded border-2 border-primary-600 p-3"
+              />
+              <p className="mt-3 text-2xl text-center font-mono font-bold text-primary-600">
+                {game.game_password}
+              </p>
+            </div>
+          )}
+          <div className=" flex flex-col lg:flex-row gap-6 lg:gap-8">
             {/* QR Code - Left Side */}
-            <div className="flex flex-col items-center gap-3 lg:w-1/3">
+            <div
+              onClick={() => setZoomQR(!zoomQR)}
+              className=" flex flex-col items-center gap-3 lg:w-1/3 cursor-pointer"
+            >
               <h3 className="text-sm font-semibold text-muted dark:text-darkmutedtext">
                 Share this code with players
               </h3>
@@ -277,14 +296,9 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
                     </button>
                   </div>
                 ) : (
-                  <div>
-                    <p className="text-2xl font-mono font-bold text-primary-600">
-                      {game.game_password}
-                    </p>
-                    <p className="text-xs text-muted dark:text-darkmutedtext mt-2">
-                      Like a Zoom meeting code
-                    </p>
-                  </div>
+                  <p className="text-2xl font-mono font-bold text-primary-600">
+                    {game.game_password}
+                  </p>
                 )}
               </div>
             </div>
@@ -306,11 +320,6 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
             >
               {isEditingSettings ? "Cancel" : "Edit"}
             </button>
-          )}
-          {game.ended_at && (
-            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-              Game ended - no changes allowed
-            </p>
           )}
         </div>
 
