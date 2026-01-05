@@ -18,6 +18,12 @@ urlpatterns = [
         views_rest.MapVersionDetailView.as_view(),
         name="mapversion-detail",
     ),
+    # MapVersion Graph endpoint - get complete graph for a specific version
+    path(
+        "<int:pk>/versions/<int:version_pk>/graph/",
+        views_rest.MapVersionGraphView.as_view(),
+        name="mapversion-graph",
+    ),
     # NodeType endpoints - no scoping (global)
     path("node-types/", views_rest.NodeTypeListView.as_view(), name="nodetype-list"),
     path(

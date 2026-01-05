@@ -1,9 +1,13 @@
 from rest_framework.generics import (
     ListCreateAPIView,
     RetrieveUpdateDestroyAPIView,
+    GenericAPIView,
 )
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import SessionAuthentication
+from rest_framework.response import Response
+from rest_framework import status
+from django.core.cache import cache
 
 from maps.models import (
     GameMap,
@@ -254,3 +258,81 @@ class TrainLineDetailView(RetrieveUpdateDestroyAPIView):
     permission_classes = (IsAuthenticated,)
     lookup_field = "pk"
     lookup_url_kwarg = "trainline_pk"
+
+
+# Custom Graph View
+class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
+    """
+    Get the complete graph (all nodes and edges) for a specific map version.
+
+    This is an expensive operation, so results are cached.
+    """
+
+    serializer_class = MapVersionSerializer
+    authentication_classes = (SessionAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request, *args, **kwargs):
+        """Retrieve the complete graph for a specific map version."""
+        try:
+            map_pk = self.get_map_id()
+            version_pk = kwargs.get("version_pk")
+
+            if not version_pk:
+                return Response(
+                    {"error": "version_pk is required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Try to get from cache first
+            cache_key = f"map_graph:{map_pk}:{version_pk}"
+            cached_graph = cache.get(cache_key)
+
+            if cached_graph:
+                return Response(cached_graph, status=status.HTTP_200_OK)
+
+            # Verify map and version exist
+            try:
+                map_obj = GameMap.objects.get(pk=map_pk)
+                version = MapVersion.objects.get(pk=version_pk, game_map=map_obj)
+            except MapVersion.DoesNotExist:
+                return Response(
+                    {"error": "Map version not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            # Get all nodes for this map version
+            nodes = Node.objects.filter(
+                game_map=map_obj, map_versions=version
+            ).prefetch_related("node_type")
+
+            # Get all edges for this map version
+            edges = Edge.objects.filter(
+                game_map=map_obj, map_versions=version
+            ).select_related("start_node", "end_node")
+
+            # Serialize the data
+            nodes_data = NodeSerializer(nodes, many=True).data
+            edges_data = EdgeSerializer(edges, many=True).data
+
+            graph_data = {
+                "map_id": map_pk,
+                "version_id": version_pk,
+                "version_name": version.name,
+                "version_description": version.description,
+                "nodes": nodes_data,
+                "edges": edges_data,
+                "node_count": len(nodes_data),
+                "edge_count": len(edges_data),
+            }
+
+            # Cache the result for 1 hour (3600 seconds)
+            cache.set(cache_key, graph_data, 3600)
+
+            return Response(graph_data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
