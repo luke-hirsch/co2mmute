@@ -47,6 +47,8 @@ class MapVersion(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
     base_version = models.BooleanField(default=False)
+    poll_text = models.TextField(default="Die Karte soll ... ")
+    revert_poll_text = models.TextField(default="Die Karte soll ... ")
 
     def __str__(self):
         return f"{self.name} ({'base' if self.base_version else 'version'}) - {self.game_map}"
