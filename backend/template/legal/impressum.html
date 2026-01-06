@@ -1,0 +1,155 @@
+{% extends "base.html" %} {% block title %}Impressum - CO2MMUTE{% endblock %} {%
+block main %}
+<div class="max-w-4xl mx-auto py-12 px-4">
+  <h1 class="text-4xl font-bold text-main dark:text-darktext mb-8">
+    Impressum
+  </h1>
+
+  <div
+    class="prose dark:prose-invert max-w-none space-y-6 text-main dark:text-darktext"
+  >
+    <section>
+      <h2 class="text-2xl font-semibold text-main dark:text-darktext mt-8 mb-4">
+        Verantwortlicher für den Inhalt gemäß § 7 Abs. 1 TMG (Telemediengesetz):
+      </h2>
+      <div class="space-y-2 text-muted dark:text-darkmutedtext">
+        <p>CO2MMUTE</p>
+        <p>Adresse: [Ihre Adresse einfügen]</p>
+        <p>Telefon: [Ihre Telefonnummer einfügen]</p>
+        <p>
+          E-Mail:
+          <a
+            href="mailto:info@co2mmute.de"
+            class="text-primary-600 dark:text-primary-400 hover:underline"
+            >info@co2mmute.de</a
+          >
+        </p>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="text-2xl font-semibold text-main dark:text-darktext mt-8 mb-4">
+        Vertreten durch:
+      </h2>
+      <p class="text-muted dark:text-darkmutedtext">
+        [Namen der Geschäftsführer einfügen]
+      </p>
+    </section>
+
+    <section>
+      <h2 class="text-2xl font-semibold text-main dark:text-darktext mt-8 mb-4">
+        Registereintrag:
+      </h2>
+      <p class="text-muted dark:text-darkmutedtext">
+        Eintragung im Handelsregister: [Registernummer einfügen]
+      </p>
+      <p class="text-muted dark:text-darkmutedtext">
+        Registerführendes Gericht: [Gericht einfügen]
+      </p>
+    </section>
+
+    <section>
+      <h2 class="text-2xl font-semibold text-main dark:text-darktext mt-8 mb-4">
+        Umsatzsteuer-ID:
+      </h2>
+      <p class="text-muted dark:text-darkmutedtext">
+        Umsatzsteuer-Identifikationsnummer gemäß § 27 a Umsatzsteuergesetz:
+        [USt-ID einfügen]
+      </p>
+    </section>
+
+    <section>
+      <h2 class="text-2xl font-semibold text-main dark:text-darktext mt-8 mb-4">
+        Haftungsausschluss (Disclaimer):
+      </h2>
+      <div class="space-y-4 text-muted dark:text-darkmutedtext">
+        <div>
+          <h3 class="font-semibold text-main dark:text-darktext mb-2">
+            Haftung für Inhalte
+          </h3>
+          <p>
+            Die Inhalte unserer Seiten wurden mit größter Sorgfalt erstellt. Für
+            die Richtigkeit, Vollständigkeit und Aktualität der Inhalte können
+            wir jedoch keine Gewähr übernehmen. Als Dienstanbieter sind wir
+            gemäß § 7 Abs. 1 TMG für eigene Inhalte auf diesen Seiten nach den
+            allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 des TMG sind
+            wir als Dienstanbieter jedoch nicht verpflichtet, übermittelte oder
+            gespeicherte fremde Informationen zu überwachen oder nach Umständen
+            zu forschen, die auf eine rechtswidrige Tätigkeit hinweisen.
+          </p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-main dark:text-darktext mb-2">
+            Haftung für Links
+          </h3>
+          <p>
+            Unsere Website enthält Links zu externen Websites Dritter, auf deren
+            Inhalte wir keinen Einfluss haben. Deshalb können wir für diese
+            fremden Inhalte auch keine Gewähr übernehmen. Für die Inhalte der
+            verlinkten Seiten ist stets der jeweilige Anbieter oder Betreiber
+            der Seiten verantwortlich.
+          </p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-main dark:text-darktext mb-2">
+            Urheberrecht
+          </h3>
+          <p>
+            Die durch die Seitenbetreiber erstellten Inhalte und Werke auf
+            diesen Seiten unterliegen dem deutschen Urheberrecht. Die
+            Vervielfältigung, Bearbeitung, Verbreitung und jede Art der
+            Verwertung außerhalb der Grenzen des Urheberrechtes bedürfen der
+            schriftlichen Zustimmung des Autors oder Schöpfers.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="text-2xl font-semibold text-main dark:text-darktext mt-8 mb-4">
+        Datenschutz:
+      </h2>
+      <p class="text-muted dark:text-darkmutedtext">
+        Informationen zur Verarbeitung Ihrer personenbezogenen Daten finden Sie
+        in unserer
+        <a
+          href="{% url 'dsgvo' %}"
+          class="text-primary-600 dark:text-primary-400 hover:underline"
+          >Datenschutzerklärung</a
+        >.
+      </p>
+    </section>
+
+    <section>
+      <h2 class="text-2xl font-semibold text-main dark:text-darktext mt-8 mb-4">
+        Cookies:
+      </h2>
+      <p class="text-muted dark:text-darkmutedtext">
+        Informationen zu Cookies und deren Verwendung finden Sie in unserer
+        <a
+          href="{% url 'cookies' %}"
+          class="text-primary-600 dark:text-primary-400 hover:underline"
+          >Cookie-Richtlinie</a
+        >.
+      </p>
+    </section>
+
+    <section>
+      <h2 class="text-2xl font-semibold text-main dark:text-darktext mt-8 mb-4">
+        Streitbeilegung:
+      </h2>
+      <p class="text-muted dark:text-darkmutedtext">
+        Die Europäische Kommission stellt eine Plattform zur
+        Online-Streitbeilegung (OS) bereit, welche Sie unter
+        <a
+          href="https://ec.europa.eu/consumers/odr/"
+          target="_blank"
+          class="text-primary-600 dark:text-primary-400 hover:underline"
+          >https://ec.europa.eu/consumers/odr/</a
+        >
+        finden. Unsere E-Mail-Adresse finden Sie oben im Impressum.
+      </p>
+    </section>
+  </div>
+</div>
+{% endblock %}

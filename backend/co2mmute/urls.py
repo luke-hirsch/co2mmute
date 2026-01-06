@@ -6,6 +6,7 @@ from .views import (
     SignUpView,
     DsgvoView,
     ImpressumView,
+    CookiesView,
     SpaView,
     ProfileView,
     WhoAmIView,
@@ -18,6 +19,8 @@ from game.views import (
     PlayerUpdateView,
 )
 
+from maps.views import MapUploadView
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", IndexView.as_view(), name="index"),
@@ -27,6 +30,7 @@ urlpatterns = [
     path("accounts/", include("django.contrib.auth.urls")),
     path("legal/dsgvo", DsgvoView.as_view(), name="dsgvo"),
     path("legal/impressum", ImpressumView.as_view(), name="impressum"),
+    path("legal/cookies", CookiesView.as_view(), name="cookies"),
     path("game/create/", GameSessionCreateView.as_view(), name="session-create"),
     path("game/<game_id>/share/", ShareSessionView.as_view(), name="session-share"),
     path("join/", JoinSessionView.as_view(), name="session-join"),
@@ -39,6 +43,7 @@ urlpatterns = [
         PlayerUpdateView.as_view(),
         name="player-update",
     ),
+    path("map/upload/", MapUploadView.as_view(), name="map-upload"),
     path("api/game/", include("game.urls")),
     path("api/whoami/", WhoAmIView.as_view(), name="whoami"),
     path("api/game_data/", include("game_data.urls")),

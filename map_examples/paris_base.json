@@ -1,0 +1,253 @@
+{
+  "nodes": [
+    {
+      "id": "notre_dame",
+      "x": 5.0,
+      "y": 5.0,
+      "name": "Notre-Dame",
+      "types": ["intersection", "station"]
+    },
+    {
+      "id": "concorde",
+      "x": 4.0,
+      "y": 5.0,
+      "name": "Place de la Concorde",
+      "types": ["intersection"]
+    },
+    {
+      "id": "tuileries",
+      "x": 3.5,
+      "y": 5.0,
+      "name": "Jardin des Tuileries",
+      "types": ["intersection"]
+    },
+    {
+      "id": "etoile",
+      "x": 2.5,
+      "y": 5.0,
+      "name": "Arc de Triomphe",
+      "types": ["intersection", "station"]
+    },
+    {
+      "id": "marais_home",
+      "x": 5.5,
+      "y": 5.5,
+      "name": "Marais District",
+      "types": ["home"]
+    },
+    {
+      "id": "la_defense",
+      "x": 1.5,
+      "y": 5.0,
+      "name": "La Défense",
+      "types": ["workplace", "station"]
+    },
+    {
+      "id": "sacre_coeur",
+      "x": 5.0,
+      "y": 3.5,
+      "name": "Sacré-Cœur",
+      "types": ["intersection"]
+    },
+    {
+      "id": "montparnasse",
+      "x": 4.5,
+      "y": 7.0,
+      "name": "Montparnasse",
+      "types": ["intersection", "station"]
+    },
+    {
+      "id": "gare_lyon",
+      "x": 6.0,
+      "y": 5.5,
+      "name": "Gare de Lyon",
+      "types": ["station"]
+    },
+    {
+      "id": "bastille",
+      "x": 5.5,
+      "y": 4.5,
+      "name": "Bastille",
+      "types": ["intersection", "bus_stop"]
+    },
+    {
+      "id": "versailles_connection",
+      "x": 3.0,
+      "y": 7.5,
+      "name": "Versailles Connection",
+      "types": ["station"]
+    }
+  ],
+  "edges": [
+    {
+      "start_node": "tuileries",
+      "end_node": "concorde",
+      "name": "Rue de Rivoli",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "concorde",
+      "end_node": "notre_dame",
+      "name": "Avenue des Champs-Élysées",
+      "type": "both",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 50,
+      "lanes": 3,
+      "dedicated_bus_lane": true,
+      "max_lanes": 3
+    },
+    {
+      "start_node": "etoile",
+      "end_node": "tuileries",
+      "name": "Avenue de la Grande Armée",
+      "type": "both",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 50,
+      "lanes": 3,
+      "dedicated_bus_lane": true,
+      "max_lanes": 3
+    },
+    {
+      "start_node": "etoile",
+      "end_node": "la_defense",
+      "name": "La Grande Arche",
+      "type": "both",
+      "biking": false,
+      "walking": false,
+      "speed_limit": 90,
+      "lanes": 4,
+      "dedicated_bus_lane": false,
+      "max_lanes": 4
+    },
+    {
+      "start_node": "notre_dame",
+      "end_node": "marais_home",
+      "name": "Rue Saint-Antoine",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "marais_home",
+      "end_node": "bastille",
+      "name": "Bastille Avenue",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "bastille",
+      "end_node": "gare_lyon",
+      "name": "Access to Gare de Lyon",
+      "type": "both",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "notre_dame",
+      "end_node": "sacre_coeur",
+      "name": "Nord Access",
+      "type": "both",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": true,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "notre_dame",
+      "end_node": "montparnasse",
+      "name": "Boulevard Saint-Michel",
+      "type": "both",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": true,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "montparnasse",
+      "end_node": "versailles_connection",
+      "name": "RER B Connection",
+      "type": "train",
+      "speed_limit": 100,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "tuileries",
+      "end_node": "etoile",
+      "name": "RER A Main Line",
+      "type": "train",
+      "speed_limit": 100,
+      "max_lanes": 2
+    }
+  ],
+  "bus_lines": [
+    {
+      "name": "20",
+      "edges": [0, 1, 4, 5],
+      "interval": 7,
+      "capacity": 60
+    },
+    {
+      "name": "69",
+      "edges": [1, 2, 3],
+      "interval": 6,
+      "capacity": 60
+    },
+    {
+      "name": "96",
+      "edges": [7, 8],
+      "interval": 8,
+      "capacity": 60
+    }
+  ],
+  "train_lines": [
+    {
+      "name": "RER A",
+      "edges": [2, 3, 10],
+      "interval": 5,
+      "capacity": 1000
+    },
+    {
+      "name": "RER B",
+      "edges": [8, 9],
+      "interval": 5,
+      "capacity": 1000
+    },
+    {
+      "name": "Line 1",
+      "edges": [1, 6],
+      "interval": 2,
+      "capacity": 600
+    },
+    {
+      "name": "Line 4",
+      "edges": [0, 5, 7],
+      "interval": 2,
+      "capacity": 600
+    }
+  ]
+}

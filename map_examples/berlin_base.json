@@ -1,0 +1,257 @@
+{
+  "nodes": [
+    {
+      "id": "alexanderplatz",
+      "x": 5.0,
+      "y": 5.0,
+      "name": "Alexanderplatz",
+      "types": ["intersection", "station"]
+    },
+    {
+      "id": "hauptbahnhof",
+      "x": 3.5,
+      "y": 5.0,
+      "name": "Berlin Hauptbahnhof",
+      "types": ["station"]
+    },
+    {
+      "id": "brandenburger_tor",
+      "x": 4.0,
+      "y": 5.5,
+      "name": "Brandenburger Tor",
+      "types": ["intersection"]
+    },
+    {
+      "id": "potsdamer_platz",
+      "x": 4.0,
+      "y": 6.0,
+      "name": "Potsdamer Platz",
+      "types": ["intersection", "station"]
+    },
+    {
+      "id": "kreuzberg_home",
+      "x": 4.5,
+      "y": 7.0,
+      "name": "Kreuzberg",
+      "types": ["home"]
+    },
+    {
+      "id": "friedrichshain_work",
+      "x": 6.5,
+      "y": 4.5,
+      "name": "Friedrichshain Office",
+      "types": ["workplace"]
+    },
+    {
+      "id": "charlottenburg_home2",
+      "x": 2.0,
+      "y": 5.5,
+      "name": "Charlottenburg",
+      "types": ["home", "bus_stop"]
+    },
+    {
+      "id": "warschauer_str",
+      "x": 6.0,
+      "y": 5.0,
+      "name": "Warschauer Straße",
+      "types": ["intersection", "station"]
+    },
+    {
+      "id": "ostbahnhof",
+      "x": 6.5,
+      "y": 5.5,
+      "name": "Ostbahnhof",
+      "types": ["station"]
+    },
+    {
+      "id": "boulevard_ring",
+      "x": 3.0,
+      "y": 4.0,
+      "name": "Ring Nord",
+      "types": ["intersection"]
+    },
+    {
+      "id": "boulevard_ring_south",
+      "x": 3.0,
+      "y": 7.0,
+      "name": "Ring Süd",
+      "types": ["intersection"]
+    }
+  ],
+  "edges": [
+    {
+      "start_node": "alexanderplatz",
+      "end_node": "hauptbahnhof",
+      "name": "Straße des 17. Juni",
+      "type": "both",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 50,
+      "lanes": 3,
+      "dedicated_bus_lane": true,
+      "max_lanes": 3
+    },
+    {
+      "start_node": "hauptbahnhof",
+      "end_node": "brandenburger_tor",
+      "name": "Unter den Linden",
+      "type": "both",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "brandenburger_tor",
+      "end_node": "potsdamer_platz",
+      "name": "Straße des 17. Juni South",
+      "type": "both",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": true,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "potsdamer_platz",
+      "end_node": "kreuzberg_home",
+      "name": "Kurfürstendamm",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "alexanderplatz",
+      "end_node": "warschauer_str",
+      "name": "Friedrichstraße",
+      "type": "both",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": true,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "warschauer_str",
+      "end_node": "ostbahnhof",
+      "name": "Ostbahnhof Connection",
+      "type": "both",
+      "biking": false,
+      "walking": false,
+      "speed_limit": 80,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "friedrichshain_work",
+      "end_node": "warschauer_str",
+      "name": "Access to Friedrichshain",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "charlottenburg_home2",
+      "end_node": "hauptbahnhof",
+      "name": "Charlottenburg to Center",
+      "type": "both",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": true,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "hauptbahnhof",
+      "end_node": "boulevard_ring",
+      "name": "Boulevard Ring North",
+      "type": "train",
+      "speed_limit": 80,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "potsdamer_platz",
+      "end_node": "boulevard_ring_south",
+      "name": "Boulevard Ring South",
+      "type": "train",
+      "speed_limit": 80,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "boulevard_ring",
+      "end_node": "alexander_platz",
+      "name": "S-Bahn Ring East",
+      "type": "train",
+      "speed_limit": 100,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "boulevard_ring_south",
+      "end_node": "warschauer_str",
+      "name": "S-Bahn Ring South-East",
+      "type": "train",
+      "speed_limit": 100,
+      "max_lanes": 2
+    }
+  ],
+  "bus_lines": [
+    {
+      "name": "M1",
+      "edges": [0, 2, 3],
+      "interval": 5,
+      "capacity": 60
+    },
+    {
+      "name": "M48",
+      "edges": [1, 4],
+      "interval": 8,
+      "capacity": 60
+    },
+    {
+      "name": "100",
+      "edges": [0, 1],
+      "interval": 10,
+      "capacity": 50
+    }
+  ],
+  "train_lines": [
+    {
+      "name": "S1",
+      "edges": [8, 10, 11],
+      "interval": 10,
+      "capacity": 500
+    },
+    {
+      "name": "S5",
+      "edges": [9, 12],
+      "interval": 10,
+      "capacity": 500
+    },
+    {
+      "name": "U5",
+      "edges": [0, 1, 2],
+      "interval": 3,
+      "capacity": 400
+    },
+    {
+      "name": "U6",
+      "edges": [4, 7, 5],
+      "interval": 4,
+      "capacity": 400
+    }
+  ]
+}

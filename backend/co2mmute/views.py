@@ -79,6 +79,10 @@ class ImpressumView(TemplateView):
     template_name = "legal/impressum.html"
 
 
+class CookiesView(TemplateView):
+    template_name = "legal/cookies.html"
+
+
 class ProfileView(LoginRequiredMixin, TemplateView):
     template_name = "registration/profile.html"
 
