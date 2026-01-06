@@ -72,7 +72,7 @@ class Node(models.Model):
     game_map = models.ForeignKey(GameMap, on_delete=models.CASCADE)
     map_versions = models.ManyToManyField(MapVersion)
 
-    name = models.CharField(max_length=20, null=True, blank=True)
+    name = models.CharField(max_length=100, null=True, blank=True)
     x_position = models.FloatField()
     y_position = models.FloatField()
     node_type = models.ManyToManyField(NodeType)
