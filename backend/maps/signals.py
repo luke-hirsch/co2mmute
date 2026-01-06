@@ -3,7 +3,6 @@
 from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
 from django.core.cache import cache
-from django.db.models import Q
 
 from maps.models import Node, Edge, MapVersion
 
@@ -49,7 +48,9 @@ def ensure_single_base_version(sender, instance, **kwargs):
         # This is more efficient than individual saves
         other_bases = MapVersion.objects.filter(
             game_map=instance.game_map, base_version=True
-        ).exclude(pk=instance.pk if instance.pk else Q(pk__isnull=True))
+        )
+        if instance.pk:
+            other_bases = other_bases.exclude(pk=instance.pk)
 
         if other_bases.exists():
             other_bases.update(base_version=False)

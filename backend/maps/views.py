@@ -152,6 +152,7 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             name=name,
             max_player=max_players,
             author=author,
+            updated_by=author,
             x_dim=100,  # Default, can be adjusted
             y_dim=100,  # Default, can be adjusted
         )
