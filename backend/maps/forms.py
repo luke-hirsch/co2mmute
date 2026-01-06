@@ -13,7 +13,7 @@ class MapUploadForm(forms.Form):
         widget=forms.FileInput(
             attrs={
                 "accept": ".json",
-                "class": "block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100",
+                "class": "block w-full text-sm text-muted dark:text-darkmutedtext file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700",
             }
         ),
     )
@@ -23,7 +23,7 @@ class MapUploadForm(forms.Form):
         max_length=100,
         widget=forms.TextInput(
             attrs={
-                "class": "block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500",
+                "class": "block w-full px-3 py-2 border border-subtle dark:border-darksubtle rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-body dark:bg-darkbody text-main dark:text-darktext",
                 "placeholder": "e.g., Downtown Map",
             }
         ),
@@ -35,7 +35,7 @@ class MapUploadForm(forms.Form):
         widget=forms.Textarea(
             attrs={
                 "rows": 3,
-                "class": "block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500",
+                "class": "block w-full px-3 py-2 border border-subtle dark:border-darksubtle rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-body dark:bg-darkbody text-main dark:text-darktext",
                 "placeholder": "Optional description of the map",
             }
         ),
@@ -48,7 +48,7 @@ class MapUploadForm(forms.Form):
         max_value=20,
         widget=forms.NumberInput(
             attrs={
-                "class": "block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                "class": "block w-full px-3 py-2 border border-subtle dark:border-darksubtle rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-body dark:bg-darkbody text-main dark:text-darktext"
             }
         ),
     )
