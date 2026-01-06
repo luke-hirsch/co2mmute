@@ -1,45 +1,62 @@
 {% extends "base.html" %}
-{% block title %}Share {{ game_session.game_name }}{% endblock %}
+<!-- comment -->
+{% block title %}Tritt meinem Spiel bei!{% endblock %}
+<!-- commebt -->
 {% block main %}
 <section class="mx-auto w-full max-w-5xl px-6 py-12">
   <div class="grid gap-8 lg:grid-cols-[1.2fr_1fr]">
-    <div class="rounded-2xl bg-white p-8 shadow dark:bg-darksurface dark:text-darktext">
-      <h1 class="text-3xl font-semibold tracking-tight">
-        Share your session
-      </h1>
+    <div
+      class="rounded-2xl bg-white p-8 shadow dark:bg-darksurface dark:text-darktext"
+    >
+      <h1 class="text-3xl font-semibold tracking-tight">Share your session</h1>
       <p class="mt-3 text-sm text-muted dark:text-darkmutedtext">
-        Display this page so players can scan the code or read the session ID to join quickly.
+        Display this page so players can scan the code or read the session ID to
+        join quickly.
       </p>
 
       <dl class="mt-8 space-y-4">
         <div>
-          <dt class="text-xs uppercase tracking-wide text-muted dark:text-darkmutedtext">
+          <dt
+            class="text-xs uppercase tracking-wide text-muted dark:text-darkmutedtext"
+          >
             Session name
           </dt>
           <dd class="mt-1 text-lg font-medium">{{ game_session.game_name }}</dd>
         </div>
         <div>
-          <dt class="text-xs uppercase tracking-wide text-muted dark:text-darkmutedtext">
+          <dt
+            class="text-xs uppercase tracking-wide text-muted dark:text-darkmutedtext"
+          >
             Session ID
           </dt>
-          <dd class="mt-1 text-2xl font-semibold tracking-[0.35em] text-indigo-600 dark:text-indigo-400">
+          <dd
+            class="mt-1 text-2xl font-semibold tracking-[0.35em] text-indigo-600 dark:text-indigo-400"
+          >
             {{ game_session.game_id }}
           </dd>
         </div>
         <div>
-          <dt class="text-xs uppercase tracking-wide text-muted dark:text-darkmutedtext">
+          <dt
+            class="text-xs uppercase tracking-wide text-muted dark:text-darkmutedtext"
+          >
             Shareable link
           </dt>
-          <dd class="mt-1 break-all rounded-md border border-subtle bg-surface px-3 py-2 text-sm font-medium dark:border-darksubtle dark:bg-darksurface/60">
+          <dd
+            class="mt-1 break-all rounded-md border border-subtle bg-surface px-3 py-2 text-sm font-medium dark:border-darksubtle dark:bg-darksurface/60"
+          >
             {{ join_url }}
           </dd>
         </div>
       </dl>
     </div>
 
-    <div class="flex flex-col items-center justify-center rounded-2xl bg-white p-8 shadow dark:bg-darksurface dark:text-darktext">
+    <div
+      class="flex flex-col items-center justify-center rounded-2xl bg-white p-8 shadow dark:bg-darksurface dark:text-darktext"
+    >
       {% if game_session.game_qr_code %}
-      <div class="rounded-2xl border border-subtle bg-surface p-4 shadow-sm dark:border-darksubtle dark:bg-darksurface/70">
+      <div
+        class="rounded-2xl border border-subtle bg-surface p-4 shadow-sm dark:border-darksubtle dark:bg-darksurface/70"
+      >
         <img
           src="{{ game_session.game_qr_code.url }}"
           alt="QR code linking to {{ join_url }}"
@@ -48,7 +65,8 @@
       </div>
       {% else %}
       <p class="text-sm text-muted dark:text-darkmutedtext">
-        QR code is not available yet. Save the session first and refresh this page.
+        QR code is not available yet. Save the session first and refresh this
+        page.
       </p>
       {% endif %}
       <p class="mt-4 text-sm text-muted dark:text-darkmutedtext">
