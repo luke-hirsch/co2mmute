@@ -110,7 +110,7 @@ class Edge(models.Model):
 
     game_map = models.ForeignKey(GameMap, on_delete=models.CASCADE)
     map_versions = models.ManyToManyField(MapVersion)
-    name = models.CharField(max_length=20, blank=True, null=True)
+    name = models.CharField(max_length=100, blank=True, null=True)
     start_node = models.ForeignKey(
         Node, on_delete=models.CASCADE, related_name="start_node"
     )

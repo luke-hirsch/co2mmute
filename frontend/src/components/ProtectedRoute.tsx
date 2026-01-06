@@ -1,12 +1,14 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useAuth } from "../context/AuthContext";
 import type { ReactNode } from "react";
+import Loading from "./Loading";
 
 interface ProtectedRouteProps {
   children: ReactNode;
   requiredKind?: string | string[];
   fallbackTo?: string;
   loadingComponent?: ReactNode;
+  staff?: boolean;
 }
 
 /**
@@ -19,10 +21,15 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({
   children,
   requiredKind,
+  staff,
   fallbackTo = "/",
-  loadingComponent = <div>Loading...</div>,
+  loadingComponent = (
+    <div>
+      <Loading />
+    </div>
+  ),
 }: ProtectedRouteProps) {
-  const { isLoading, hasKind } = useAuth();
+  const { isLoading, isStaff, hasKind } = useAuth();
   const navigate = useNavigate();
 
   if (isLoading) {
@@ -30,11 +37,11 @@ export function ProtectedRoute({
   }
 
   const isAuthorized = requiredKind ? hasKind(requiredKind) : true;
-
-  if (!isAuthorized) {
-    navigate({ to: fallbackTo });
-    return null;
-  }
+  if (staff !== undefined && isStaff !== staff)
+    if (!isAuthorized) {
+      navigate({ to: fallbackTo });
+      return null;
+    }
 
   return <>{children}</>;
 }

@@ -1,8 +1,14 @@
 import { Outlet, createRootRoute } from "@tanstack/react-router";
+import { AuthProvider } from "../context/AuthContext";
+
 export const Route = createRootRoute({
   component: RootComponent,
 });
 
 function RootComponent() {
-  return <Outlet />;
+  return (
+    <AuthProvider>
+      <Outlet />
+    </AuthProvider>
+  );
 }

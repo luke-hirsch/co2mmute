@@ -19,6 +19,7 @@ interface AuthContextType {
   isHost: boolean;
   isPlayer: boolean;
   isUser: boolean;
+  isStaff: boolean;
   hasKind: (kind: string | string[]) => boolean;
   refetch: () => void;
 }
@@ -46,6 +47,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
   const isUser = useMemo(() => auth?.kind === "user", [auth]);
 
+  const isStaff = useMemo(() => (auth?.isStaff ? true : false), [auth]);
+
   const hasKind = useCallback(
     (kind: string | string[]) => {
       if (!auth) return false;
@@ -64,6 +67,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       isHost,
       isPlayer,
       isUser,
+      isStaff,
       hasKind,
       refetch: () => refetch(),
     }),
@@ -75,6 +79,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       isHost,
       isPlayer,
       isUser,
+      isStaff,
       hasKind,
       refetch,
     ]

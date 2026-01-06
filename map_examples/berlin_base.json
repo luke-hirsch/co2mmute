@@ -193,7 +193,7 @@
     },
     {
       "start_node": "boulevard_ring",
-      "end_node": "alexander_platz",
+      "end_node": "alexanderplatz",
       "name": "S-Bahn Ring East",
       "type": "train",
       "speed_limit": 100,
@@ -237,7 +237,7 @@
     },
     {
       "name": "S5",
-      "edges": [9, 12],
+      "edges": [9, 10],
       "interval": 10,
       "capacity": 500
     },

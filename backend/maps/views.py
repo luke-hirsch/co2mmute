@@ -4,7 +4,7 @@ from django.views.generic import FormView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib import messages
 from django.db import transaction
-from django.urls import reverse_lazy
+from django.urls import reverse
 from maps.forms import MapUploadForm
 from maps.models import (
     GameMap,
@@ -48,8 +48,14 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
 
     template_name = "maps/map_upload.html"
     form_class = MapUploadForm
-    success_url = reverse_lazy("maps:gamemap-list")
     login_url = "login"
+
+    def get_success_url(self):
+        """Redirect to the map detail view after successful upload."""
+        # The game_map is stored in form_valid, we need to get it from the view
+        # We'll redirect to the latest map for now
+        latest_map = GameMap.objects.latest("created")
+        return reverse("maps:gamemap-view", kwargs={"pk": latest_map.pk})
 
     def test_func(self):
         """Only allow staff users to upload maps."""
@@ -76,11 +82,26 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             description = form.cleaned_data.get("description", "")
             max_players = form.cleaned_data["max_players"]
 
+            # Run validation checks first (dry run)
+            validation_errors = self._validate_graph_data(graph_data)
+            if validation_errors:
+                error_message = "JSON validation errors found:\n" + "\n".join(
+                    [f"• {error}" for error in validation_errors]
+                )
+                logger.warning(
+                    f"Validation errors for map '{map_name}': {validation_errors}"
+                )
+                messages.error(self.request, error_message)
+                return self.form_invalid(form)
+
+            logger.info(f"Starting map creation for '{map_name}'")
+
             # Create map in a transaction
             with transaction.atomic():
                 game_map = self._create_game_map(
                     name=map_name, max_players=max_players, author=self.request.user
                 )
+                logger.info(f"Created GameMap with pk {game_map.pk}")
 
                 # Create base version
                 base_version = MapVersion.objects.create(
@@ -89,6 +110,7 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                     description=description,
                     base_version=True,
                 )
+                logger.info(f"Created MapVersion with pk {base_version.pk}")
 
                 # Create nodes and edges from JSON
                 node_mapping = self._create_nodes(
@@ -96,6 +118,7 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                     base_version=base_version,
                     nodes_data=graph_data.get("nodes", []),
                 )
+                logger.info(f"Created {len(node_mapping)} nodes")
 
                 edge_mapping = self._create_edges(
                     game_map=game_map,
@@ -103,6 +126,7 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                     edges_data=graph_data.get("edges", []),
                     node_mapping=node_mapping,
                 )
+                logger.info(f"Created {len(edge_mapping)} edges")
 
                 # Create street and train edges
                 self._create_specialized_edges(
@@ -143,7 +167,103 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             messages.error(self.request, f"Error creating map: {str(e)}")
             return self.form_invalid(form)
 
+        logger.info(f"Redirecting to success_url: {self.success_url}")
         return super().form_valid(form)
+
+    def _validate_graph_data(self, graph_data):
+        """
+        Validate the entire graph data structure without creating anything.
+        Returns a list of error messages (empty if valid).
+        """
+        errors = []
+
+        # Check basic structure
+        if not isinstance(graph_data, dict):
+            errors.append("JSON root must be an object/dictionary")
+            return errors
+
+        nodes_data = graph_data.get("nodes", [])
+        edges_data = graph_data.get("edges", [])
+        bus_lines_data = graph_data.get("bus_lines", [])
+        train_lines_data = graph_data.get("train_lines", [])
+
+        # Validate nodes
+        if not nodes_data:
+            errors.append("At least one node is required")
+        else:
+            node_ids = set()
+            for idx, node in enumerate(nodes_data):
+                node_id = str(node.get("id", ""))
+                if not node_id:
+                    errors.append(f"Node {idx}: missing or empty 'id' field")
+                if node_id in node_ids:
+                    errors.append(f"Node {idx}: duplicate id '{node_id}'")
+                node_ids.add(node_id)
+
+                if "x" not in node:
+                    errors.append(f"Node '{node_id}': missing 'x' coordinate")
+                if "y" not in node:
+                    errors.append(f"Node '{node_id}': missing 'y' coordinate")
+
+        # Validate edges
+        if not edges_data:
+            errors.append("At least one edge is required")
+        else:
+            for idx, edge in enumerate(edges_data):
+                start = str(edge.get("start_node", ""))
+                end = str(edge.get("end_node", ""))
+
+                if not start:
+                    errors.append(f"Edge {idx}: missing or empty 'start_node' field")
+                elif start not in node_ids:
+                    errors.append(
+                        f"Edge {idx}: start_node '{start}' not found in nodes"
+                    )
+
+                if not end:
+                    errors.append(f"Edge {idx}: missing or empty 'end_node' field")
+                elif end not in node_ids:
+                    errors.append(f"Edge {idx}: end_node '{end}' not found in nodes")
+
+        # Validate bus lines
+        for bus_line_idx, bus_line in enumerate(bus_lines_data):
+            bus_name = bus_line.get("name", f"BusLine {bus_line_idx}")
+            edges = bus_line.get("edges", [])
+
+            if not edges:
+                errors.append(f"Bus line '{bus_name}': no edges specified")
+            else:
+                for edge_idx in edges:
+                    if not isinstance(edge_idx, int) or edge_idx < 0:
+                        errors.append(
+                            f"Bus line '{bus_name}': invalid edge index {edge_idx}"
+                        )
+                    elif edge_idx >= len(edges_data):
+                        errors.append(
+                            f"Bus line '{bus_name}': edge index {edge_idx} not found "
+                            f"(only {len(edges_data)} edges available)"
+                        )
+
+        # Validate train lines
+        for train_line_idx, train_line in enumerate(train_lines_data):
+            train_name = train_line.get("name", f"TrainLine {train_line_idx}")
+            edges = train_line.get("edges", [])
+
+            if not edges:
+                errors.append(f"Train line '{train_name}': no edges specified")
+            else:
+                for edge_idx in edges:
+                    if not isinstance(edge_idx, int) or edge_idx < 0:
+                        errors.append(
+                            f"Train line '{train_name}': invalid edge index {edge_idx}"
+                        )
+                    elif edge_idx >= len(edges_data):
+                        errors.append(
+                            f"Train line '{train_name}': edge index {edge_idx} not found "
+                            f"(only {len(edges_data)} edges available)"
+                        )
+
+        return errors
 
     def _create_game_map(self, name, max_players, author):
         """Create a GameMap instance."""
@@ -223,12 +343,16 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
 
             # Validate nodes exist
             if start_node_id not in node_mapping:
+                available_nodes = ", ".join(sorted(node_mapping.keys()))
                 raise ValueError(
-                    f"Start node '{start_node_id}' from edge not found in nodes"
+                    f"Start node '{start_node_id}' from edge not found in nodes. "
+                    f"Available nodes: {available_nodes}"
                 )
             if end_node_id not in node_mapping:
+                available_nodes = ", ".join(sorted(node_mapping.keys()))
                 raise ValueError(
-                    f"End node '{end_node_id}' from edge not found in nodes"
+                    f"End node '{end_node_id}' from edge not found in nodes. "
+                    f"Available nodes: {available_nodes}"
                 )
 
             start_node = node_mapping[start_node_id]
