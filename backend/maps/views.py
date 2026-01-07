@@ -1,6 +1,6 @@
 import json
 import logging
-from django.views.generic import FormView
+from django.views.generic import FormView, ListView, DetailView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib import messages
 from django.db import transaction
@@ -37,13 +37,41 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             {
                 "start_node": "A",
                 "end_node": "B",
+                "name": "Main Street",
+                "type": "both",  # "street", "train", or "both" (default: "both")
                 "biking": true,
                 "walking": true,
-                "name": "Main Street"
+                "max_lanes": 2,
+                "speed_limit": 50,  # optional, for street edges
+                "lanes": 2,         # optional, for street edges
+                "dedicated_bus_lane": false  # optional, for street edges
             },
             ...
+        ],
+        "bus_lines": [
+            {
+                "name": "M1",
+                "edges": [0, 1, 2],  # indices into edges array
+                "interval": 5,
+                "capacity": 60
+            }
+        ],
+        "train_lines": [
+            {
+                "name": "S1",
+                "edges": [0, 1, 2],  # indices into edges array (must reference train edges)
+                "interval": 10,
+                "capacity": 500
+            }
         ]
     }
+
+    Edge Types:
+    - "street": Street only (can have buses, not trains)
+    - "train": Train only (no biking/walking)
+    - "both": Both street and train infrastructure on the same edge
+
+    Note: Train-only edges should have biking=false and walking=false.
     """
 
     template_name = "maps/map_upload.html"
@@ -55,7 +83,7 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         # The game_map is stored in form_valid, we need to get it from the view
         # We'll redirect to the latest map for now
         latest_map = GameMap.objects.latest("created")
-        return reverse("maps:gamemap-view", kwargs={"pk": latest_map.pk})
+        return reverse("maps:gamemap-detail", kwargs={"pk": latest_map.pk})
 
     def test_func(self):
         """Only allow staff users to upload maps."""
@@ -225,6 +253,22 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                 elif end not in node_ids:
                     errors.append(f"Edge {idx}: end_node '{end}' not found in nodes")
 
+                # Validate edge type
+                edge_type = edge.get("type", "both")
+                if edge_type not in ("street", "train", "both"):
+                    errors.append(
+                        f"Edge {idx}: invalid type '{edge_type}'. "
+                        f"Must be 'street', 'train', or 'both'"
+                    )
+
+                # Validate that train-only edges don't have biking/walking
+                if edge_type == "train":
+                    if edge.get("biking", False) or edge.get("walking", False):
+                        errors.append(
+                            f"Edge {idx}: train-only edges should not have "
+                            f"biking=true or walking=true"
+                        )
+
         # Validate bus lines
         for bus_line_idx, bus_line in enumerate(bus_lines_data):
             bus_name = bus_line.get("name", f"BusLine {bus_line_idx}")
@@ -358,13 +402,20 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             start_node = node_mapping[start_node_id]
             end_node = node_mapping[end_node_id]
 
+            # Determine default biking/walking based on edge type
+            edge_type = edge_data.get("type", "both")
+            # For train-only edges, default to False for biking/walking
+            # For other edge types, default to True
+            default_biking = False if edge_type == "train" else True
+            default_walking = False if edge_type == "train" else True
+
             edge = Edge.objects.create(
                 game_map=game_map,
                 name=edge_data.get("name", f"{start_node_id}-{end_node_id}"),
                 start_node=start_node,
                 end_node=end_node,
-                biking=edge_data.get("biking", True),
-                walking=edge_data.get("walking", True),
+                biking=edge_data.get("biking", default_biking),
+                walking=edge_data.get("walking", default_walking),
                 max_lanes=edge_data.get("max_lanes", 2),
             )
 
@@ -482,3 +533,120 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                     train_edge.map_versions.add(base_version)
 
                 train_line.edges.add(train_edge)
+
+
+class MapListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    model = GameMap
+    template_name = "maps/map_list.html"
+    login_url = "login"
+
+    def test_func(self):
+        """Only allow staff users to upload maps."""
+        return self.request.user.is_staff
+
+
+class MapDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    model = GameMap
+    template_name = "maps/map_detail.html"
+    login_url = "login"
+
+    def test_func(self):
+        """Only allow staff users to upload maps."""
+        return self.request.user.is_staff
+
+    def get_context_data(self, **kwargs):
+        """Add base version graph data to the context."""
+        context = super().get_context_data(**kwargs)
+        game_map = self.get_object()
+
+        # Get the base version
+        base_version = MapVersion.objects.filter(
+            game_map=game_map, base_version=True
+        ).first()
+
+        if base_version:
+            # Get nodes and edges for the base version
+            nodes = Node.objects.filter(
+                game_map=game_map, map_versions=base_version
+            ).prefetch_related("node_type")
+
+            edges = Edge.objects.filter(
+                game_map=game_map, map_versions=base_version
+            ).select_related("start_node", "end_node")
+
+            # Get bus and train lines
+            bus_lines = BusLine.objects.filter(
+                game_map=game_map, map_versions=base_version
+            )
+            train_lines = TrainLine.objects.filter(
+                game_map=game_map, map_versions=base_version
+            )
+
+            # Serialize nodes to JSON for SVG rendering
+            nodes_json = json.dumps(
+                [
+                    {
+                        "id": node.pk,
+                        "name": node.name,
+                        "x_position": float(node.x_position),
+                        "y_position": float(node.y_position),
+                        "node_type": [
+                            {"id": nt.id, "name": nt.name, "short": nt.short}
+                            for nt in node.node_type.all()
+                        ],
+                    }
+                    for node in nodes
+                ]
+            )
+
+            # Serialize edges to JSON for SVG rendering
+            # Pre-fetch street edges and train edges for all edges
+            edge_pks = [edge.pk for edge in edges]
+            street_edges_map = {
+                se.edge_id: se for se in StreetEdge.objects.filter(edge_id__in=edge_pks)
+            }
+            train_edges_map = {
+                te.edge_id: te for te in TrainEdge.objects.filter(edge_id__in=edge_pks)
+            }
+
+            edges_json = json.dumps(
+                [
+                    {
+                        "id": edge.pk,
+                        "name": edge.name,
+                        "start_node": edge.start_node.pk,
+                        "end_node": edge.end_node.pk,
+                        "biking": edge.biking,
+                        "walking": edge.walking,
+                        "max_lanes": edge.max_lanes,
+                        "street_edge": {
+                            "id": street_edges_map[edge.pk].pk,
+                            "speed_limit": street_edges_map[edge.pk].speed_limit,
+                            "lanes": street_edges_map[edge.pk].lanes,
+                            "dedicated_bus_lane": street_edges_map[
+                                edge.pk
+                            ].dedicated_bus_lane,
+                        }
+                        if edge.pk in street_edges_map
+                        else None,
+                        "train_edge": {"id": train_edges_map[edge.pk].pk}
+                        if edge.pk in train_edges_map
+                        else None,
+                    }
+                    for edge in edges
+                ]
+            )
+
+            context["base_version"] = base_version
+            context["nodes"] = nodes
+            context["edges"] = edges
+            context["bus_lines"] = bus_lines
+            context["train_lines"] = train_lines
+            context["node_count"] = nodes.count()
+            context["edge_count"] = edges.count()
+            context["bus_line_count"] = bus_lines.count()
+            context["train_line_count"] = train_lines.count()
+            context["nodes_json"] = nodes_json
+            context["edges_json"] = edges_json
+
+        return context

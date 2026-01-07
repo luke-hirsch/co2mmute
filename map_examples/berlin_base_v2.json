@@ -1,0 +1,1301 @@
+{
+  "nodes": [
+    {
+      "id": "alexanderplatz",
+      "x": 5.0,
+      "y": 5.0,
+      "name": "Alexanderplatz",
+      "types": ["intersection", "station"]
+    },
+    {
+      "id": "hauptbahnhof",
+      "x": 3.5,
+      "y": 5.0,
+      "name": "Berlin Hauptbahnhof",
+      "types": ["station"]
+    },
+    {
+      "id": "brandenburger_tor",
+      "x": 4.0,
+      "y": 5.5,
+      "name": "Brandenburger Tor",
+      "types": ["intersection"]
+    },
+    {
+      "id": "potsdamer_platz",
+      "x": 4.0,
+      "y": 6.0,
+      "name": "Potsdamer Platz",
+      "types": ["intersection", "station"]
+    },
+    {
+      "id": "kreuzberg_home",
+      "x": 4.5,
+      "y": 7.0,
+      "name": "Kreuzberg",
+      "types": ["home"]
+    },
+    {
+      "id": "friedrichshain_work",
+      "x": 6.5,
+      "y": 4.5,
+      "name": "Friedrichshain Office",
+      "types": ["workplace"]
+    },
+    {
+      "id": "charlottenburg_home2",
+      "x": 2.0,
+      "y": 5.5,
+      "name": "Charlottenburg",
+      "types": ["home", "bus_stop"]
+    },
+    {
+      "id": "warschauer_str",
+      "x": 6.0,
+      "y": 5.0,
+      "name": "Warschauer Straße",
+      "types": ["intersection", "station"]
+    },
+    {
+      "id": "ostbahnhof",
+      "x": 6.5,
+      "y": 5.5,
+      "name": "Ostbahnhof",
+      "types": ["station"]
+    },
+    {
+      "id": "boulevard_ring",
+      "x": 3.0,
+      "y": 4.0,
+      "name": "Ring Nord",
+      "types": ["intersection"]
+    },
+    {
+      "id": "boulevard_ring_south",
+      "x": 3.0,
+      "y": 7.0,
+      "name": "Ring Süd",
+      "types": ["intersection"]
+    },
+    {
+      "id": "kurfurstendamm_mid",
+      "x": 3.5,
+      "y": 6.2,
+      "name": "Kurfürstendamm Mid",
+      "types": ["intersection"]
+    },
+    {
+      "id": "tiergarten",
+      "x": 3.2,
+      "y": 5.3,
+      "name": "Tiergarten",
+      "types": ["intersection"]
+    },
+    {
+      "id": "checkpoint_charlie",
+      "x": 4.8,
+      "y": 5.8,
+      "name": "Checkpoint Charlie",
+      "types": ["intersection"]
+    },
+    {
+      "id": "gendarmenmarkt",
+      "x": 4.5,
+      "y": 5.2,
+      "name": "Gendarmenmarkt",
+      "types": ["intersection"]
+    },
+    {
+      "id": "museum_island",
+      "x": 4.8,
+      "y": 4.8,
+      "name": "Museum Island",
+      "types": ["intersection"]
+    },
+    {
+      "id": "friedrich_ebert_platz",
+      "x": 3.8,
+      "y": 5.7,
+      "name": "Friedrich-Ebert-Platz",
+      "types": ["intersection"]
+    },
+    {
+      "id": "berlin_gesundbrunnen",
+      "x": 4.5,
+      "y": 4.0,
+      "name": "Gesundbrunnen Station",
+      "types": ["station"]
+    },
+    {
+      "id": "friedrichstr_station",
+      "x": 4.5,
+      "y": 5.5,
+      "name": "Friedrichstraße Station",
+      "types": ["station"]
+    },
+    {
+      "id": "south_cross_station",
+      "x": 4.0,
+      "y": 7.5,
+      "name": "Südkreuz",
+      "types": ["station"]
+    },
+    {
+      "id": "westkreuz",
+      "x": 2.0,
+      "y": 6.0,
+      "name": "Westkreuz",
+      "types": ["station"]
+    },
+    {
+      "id": "gesundbrunnen_ring",
+      "x": 4.5,
+      "y": 3.5,
+      "name": "Gesundbrunnen",
+      "types": ["station"]
+    },
+    {
+      "id": "schoenhauser",
+      "x": 5.5,
+      "y": 3.8,
+      "name": "Schönhauser Allee",
+      "types": ["station"]
+    },
+    {
+      "id": "ostkreuz",
+      "x": 7.0,
+      "y": 5.5,
+      "name": "Ostkreuz",
+      "types": ["station"]
+    },
+    {
+      "id": "treptower_park",
+      "x": 6.5,
+      "y": 7.0,
+      "name": "Treptower Park",
+      "types": ["station"]
+    },
+    {
+      "id": "neukoelln",
+      "x": 5.5,
+      "y": 7.5,
+      "name": "Neukölln",
+      "types": ["station"]
+    },
+    {
+      "id": "tempelhof",
+      "x": 4.5,
+      "y": 8.0,
+      "name": "Tempelhof",
+      "types": ["station"]
+    },
+    {
+      "id": "a100_west",
+      "x": 2.5,
+      "y": 7.0,
+      "name": "A100 Westend",
+      "types": ["intersection"]
+    },
+    {
+      "id": "a100_schoeneberg",
+      "x": 3.5,
+      "y": 7.5,
+      "name": "A100 Schöneberg",
+      "types": ["intersection"]
+    },
+    {
+      "id": "a100_neukoelln",
+      "x": 5.0,
+      "y": 8.0,
+      "name": "A100 Neukölln",
+      "types": ["intersection"]
+    },
+    {
+      "id": "a100_treptow",
+      "x": 6.5,
+      "y": 7.5,
+      "name": "A100 Treptow",
+      "types": ["intersection"]
+    }
+  ],
+  "edges": [
+    {
+      "start_node": "alexanderplatz",
+      "end_node": "hauptbahnhof",
+      "name": "Straße des 17. Juni (West)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 50,
+      "lanes": 4,
+      "dedicated_bus_lane": true,
+      "max_lanes": 4
+    },
+    {
+      "start_node": "hauptbahnhof",
+      "end_node": "alexanderplatz",
+      "name": "Straße des 17. Juni (East)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 50,
+      "lanes": 4,
+      "dedicated_bus_lane": true,
+      "max_lanes": 4
+    },
+    {
+      "start_node": "hauptbahnhof",
+      "end_node": "brandenburger_tor",
+      "name": "Unter den Linden (East)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 40,
+      "lanes": 3,
+      "dedicated_bus_lane": true,
+      "max_lanes": 3
+    },
+    {
+      "start_node": "brandenburger_tor",
+      "end_node": "hauptbahnhof",
+      "name": "Unter den Linden (West)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 40,
+      "lanes": 3,
+      "dedicated_bus_lane": true,
+      "max_lanes": 3
+    },
+    {
+      "start_node": "brandenburger_tor",
+      "end_node": "potsdamer_platz",
+      "name": "Ebertstraße (South)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "potsdamer_platz",
+      "end_node": "brandenburger_tor",
+      "name": "Ebertstraße (North)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "potsdamer_platz",
+      "end_node": "kreuzberg_home",
+      "name": "Kurfürstendamm (South)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 50,
+      "lanes": 3,
+      "dedicated_bus_lane": true,
+      "max_lanes": 3
+    },
+    {
+      "start_node": "kreuzberg_home",
+      "end_node": "potsdamer_platz",
+      "name": "Kurfürstendamm (North)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 50,
+      "lanes": 3,
+      "dedicated_bus_lane": true,
+      "max_lanes": 3
+    },
+    {
+      "start_node": "alexanderplatz",
+      "end_node": "warschauer_str",
+      "name": "Friedrichstraße (East)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 40,
+      "lanes": 3,
+      "dedicated_bus_lane": true,
+      "max_lanes": 3
+    },
+    {
+      "start_node": "warschauer_str",
+      "end_node": "alexanderplatz",
+      "name": "Friedrichstraße (West)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 40,
+      "lanes": 3,
+      "dedicated_bus_lane": true,
+      "max_lanes": 3
+    },
+    {
+      "start_node": "warschauer_str",
+      "end_node": "ostbahnhof",
+      "name": "Boxhagener Straße (East)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "ostbahnhof",
+      "end_node": "warschauer_str",
+      "name": "Boxhagener Straße (West)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "friedrichshain_work",
+      "end_node": "warschauer_str",
+      "name": "Access to Friedrichshain (West)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "warschauer_str",
+      "end_node": "friedrichshain_work",
+      "name": "Access to Friedrichshain (East)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "charlottenburg_home2",
+      "end_node": "hauptbahnhof",
+      "name": "Turmstraße (East)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": true,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "hauptbahnhof",
+      "end_node": "charlottenburg_home2",
+      "name": "Turmstraße (West)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": true,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "hauptbahnhof",
+      "end_node": "tiergarten",
+      "name": "Köthener Straße (South)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "tiergarten",
+      "end_node": "hauptbahnhof",
+      "name": "Köthener Straße (North)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "brandenburger_tor",
+      "end_node": "gendarmenmarkt",
+      "name": "Behrenstraße (South)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "gendarmenmarkt",
+      "end_node": "brandenburger_tor",
+      "name": "Behrenstraße (North)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "gendarmenmarkt",
+      "end_node": "checkpoint_charlie",
+      "name": "Markgrafenstraße (East)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "checkpoint_charlie",
+      "end_node": "gendarmenmarkt",
+      "name": "Markgrafenstraße (West)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "checkpoint_charlie",
+      "end_node": "potsdamer_platz",
+      "name": "Leipziger Straße (South)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 40,
+      "lanes": 2,
+      "dedicated_bus_lane": true,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "potsdamer_platz",
+      "end_node": "checkpoint_charlie",
+      "name": "Leipziger Straße (North)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 40,
+      "lanes": 2,
+      "dedicated_bus_lane": true,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "museum_island",
+      "end_node": "alexanderplatz",
+      "name": "Unter den Linden East (East)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 40,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "alexanderplatz",
+      "end_node": "museum_island",
+      "name": "Unter den Linden East (West)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 40,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "gendarmenmarkt",
+      "end_node": "museum_island",
+      "name": "Bebelplatz (East)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "museum_island",
+      "end_node": "gendarmenmarkt",
+      "name": "Bebelplatz (West)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "friedrich_ebert_platz",
+      "end_node": "potsdamer_platz",
+      "name": "Rauchstraße (South)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "potsdamer_platz",
+      "end_node": "friedrich_ebert_platz",
+      "name": "Rauchstraße (North)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "friedrich_ebert_platz",
+      "end_node": "brandenburger_tor",
+      "name": "Wilhelmstraße (East)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 40,
+      "lanes": 3,
+      "dedicated_bus_lane": false,
+      "max_lanes": 3
+    },
+    {
+      "start_node": "brandenburger_tor",
+      "end_node": "friedrich_ebert_platz",
+      "name": "Wilhelmstraße (West)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 40,
+      "lanes": 3,
+      "dedicated_bus_lane": false,
+      "max_lanes": 3
+    },
+    {
+      "start_node": "charlottenburg_home2",
+      "end_node": "boulevard_ring",
+      "name": "Wedding Connection (East)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "boulevard_ring",
+      "end_node": "charlottenburg_home2",
+      "name": "Wedding Connection (West)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "kurfurstendamm_mid",
+      "end_node": "potsdamer_platz",
+      "name": "Corneliusstraße (South)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "potsdamer_platz",
+      "end_node": "kurfurstendamm_mid",
+      "name": "Corneliusstraße (North)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "kurfurstendamm_mid",
+      "end_node": "kreuzberg_home",
+      "name": "Hallesches Tor (South)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 40,
+      "lanes": 2,
+      "dedicated_bus_lane": true,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "kreuzberg_home",
+      "end_node": "kurfurstendamm_mid",
+      "name": "Hallesches Tor (North)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 40,
+      "lanes": 2,
+      "dedicated_bus_lane": true,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "potsdamer_platz",
+      "end_node": "south_cross_station",
+      "name": "Mehringdamm (South)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 50,
+      "lanes": 3,
+      "dedicated_bus_lane": true,
+      "max_lanes": 3
+    },
+    {
+      "start_node": "south_cross_station",
+      "end_node": "potsdamer_platz",
+      "name": "Mehringdamm (North)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 50,
+      "lanes": 3,
+      "dedicated_bus_lane": true,
+      "max_lanes": 3
+    },
+    {
+      "start_node": "hauptbahnhof",
+      "end_node": "berlin_gesundbrunnen",
+      "name": "Wedding - Mitte Connection (North)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 40,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "berlin_gesundbrunnen",
+      "end_node": "hauptbahnhof",
+      "name": "Wedding - Mitte Connection (South)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 40,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "friedrichstr_station",
+      "end_node": "checkpoint_charlie",
+      "name": "Friedrichstraße Pedestrian (South)",
+      "type": "street",
+      "biking": false,
+      "walking": true,
+      "speed_limit": 20,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "checkpoint_charlie",
+      "end_node": "friedrichstr_station",
+      "name": "Friedrichstraße Pedestrian (North)",
+      "type": "street",
+      "biking": false,
+      "walking": true,
+      "speed_limit": 20,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "alexanderplatz",
+      "end_node": "berlin_gesundbrunnen",
+      "name": "Gartenstraße (North)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "berlin_gesundbrunnen",
+      "end_node": "alexanderplatz",
+      "name": "Gartenstraße (South)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "hauptbahnhof",
+      "end_node": "friedrich_ebert_platz",
+      "name": "Invalidenstraße (South)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 40,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "friedrich_ebert_platz",
+      "end_node": "hauptbahnhof",
+      "name": "Invalidenstraße (North)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 40,
+      "lanes": 2,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "hauptbahnhof",
+      "end_node": "boulevard_ring",
+      "name": "S-Bahn Connection North",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "potsdamer_platz",
+      "end_node": "boulevard_ring_south",
+      "name": "S-Bahn Ring South",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "boulevard_ring",
+      "end_node": "alexanderplatz",
+      "name": "S-Bahn Ring East",
+      "type": "train",
+      "max_lanes": 3
+    },
+    {
+      "start_node": "boulevard_ring_south",
+      "end_node": "warschauer_str",
+      "name": "S-Bahn Ring South-East",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "friedrichstr_station",
+      "end_node": "alexanderplatz",
+      "name": "U6 U-Bahn (North)",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "alexanderplatz",
+      "end_node": "friedrichstr_station",
+      "name": "U6 U-Bahn (South)",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "friedrichstr_station",
+      "end_node": "potsdamer_platz",
+      "name": "U2 U-Bahn (South)",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "potsdamer_platz",
+      "end_node": "friedrichstr_station",
+      "name": "U2 U-Bahn (North)",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "gendarmenmarkt",
+      "end_node": "friedrichstr_station",
+      "name": "Walking to Station (South)",
+      "type": "street",
+      "biking": false,
+      "walking": true,
+      "speed_limit": 20,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "friedrichstr_station",
+      "end_node": "gendarmenmarkt",
+      "name": "Walking to Station (North)",
+      "type": "street",
+      "biking": false,
+      "walking": true,
+      "speed_limit": 20,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "kreuzberg_home",
+      "end_node": "south_cross_station",
+      "name": "Mehringdamm Walking Path (South)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "south_cross_station",
+      "end_node": "kreuzberg_home",
+      "name": "Mehringdamm Walking Path (North)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "gesundbrunnen_ring",
+      "end_node": "schoenhauser",
+      "name": "Ringbahn Gesundbrunnen - Schönhauser",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "schoenhauser",
+      "end_node": "gesundbrunnen_ring",
+      "name": "Ringbahn Schönhauser - Gesundbrunnen",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "schoenhauser",
+      "end_node": "alexanderplatz",
+      "name": "Ringbahn Schönhauser - Alex",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "alexanderplatz",
+      "end_node": "schoenhauser",
+      "name": "Ringbahn Alex - Schönhauser",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "alexanderplatz",
+      "end_node": "ostkreuz",
+      "name": "Ringbahn Alex - Ostkreuz",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "ostkreuz",
+      "end_node": "alexanderplatz",
+      "name": "Ringbahn Ostkreuz - Alex",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "ostkreuz",
+      "end_node": "treptower_park",
+      "name": "Ringbahn Ostkreuz - Treptower Park",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "treptower_park",
+      "end_node": "ostkreuz",
+      "name": "Ringbahn Treptower Park - Ostkreuz",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "treptower_park",
+      "end_node": "neukoelln",
+      "name": "Ringbahn Treptower Park - Neukölln",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "neukoelln",
+      "end_node": "treptower_park",
+      "name": "Ringbahn Neukölln - Treptower Park",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "neukoelln",
+      "end_node": "tempelhof",
+      "name": "Ringbahn Neukölln - Tempelhof",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "tempelhof",
+      "end_node": "neukoelln",
+      "name": "Ringbahn Tempelhof - Neukölln",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "tempelhof",
+      "end_node": "south_cross_station",
+      "name": "Ringbahn Tempelhof - Südkreuz",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "south_cross_station",
+      "end_node": "tempelhof",
+      "name": "Ringbahn Südkreuz - Tempelhof",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "south_cross_station",
+      "end_node": "westkreuz",
+      "name": "Ringbahn Südkreuz - Westkreuz",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "westkreuz",
+      "end_node": "south_cross_station",
+      "name": "Ringbahn Westkreuz - Südkreuz",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "westkreuz",
+      "end_node": "charlottenburg_home2",
+      "name": "Ringbahn Westkreuz - Charlottenburg",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "charlottenburg_home2",
+      "end_node": "westkreuz",
+      "name": "Ringbahn Charlottenburg - Westkreuz",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "charlottenburg_home2",
+      "end_node": "gesundbrunnen_ring",
+      "name": "Ringbahn Charlottenburg - Gesundbrunnen",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "gesundbrunnen_ring",
+      "end_node": "charlottenburg_home2",
+      "name": "Ringbahn Gesundbrunnen - Charlottenburg",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "a100_west",
+      "end_node": "a100_schoeneberg",
+      "name": "A100 West - Schöneberg",
+      "type": "street",
+      "biking": false,
+      "walking": false,
+      "speed_limit": 80,
+      "lanes": 3,
+      "dedicated_bus_lane": false,
+      "max_lanes": 4
+    },
+    {
+      "start_node": "a100_schoeneberg",
+      "end_node": "a100_west",
+      "name": "A100 Schöneberg - West",
+      "type": "street",
+      "biking": false,
+      "walking": false,
+      "speed_limit": 80,
+      "lanes": 3,
+      "dedicated_bus_lane": false,
+      "max_lanes": 4
+    },
+    {
+      "start_node": "a100_schoeneberg",
+      "end_node": "a100_neukoelln",
+      "name": "A100 Schöneberg - Neukölln",
+      "type": "street",
+      "biking": false,
+      "walking": false,
+      "speed_limit": 80,
+      "lanes": 3,
+      "dedicated_bus_lane": false,
+      "max_lanes": 4
+    },
+    {
+      "start_node": "a100_neukoelln",
+      "end_node": "a100_schoeneberg",
+      "name": "A100 Neukölln - Schöneberg",
+      "type": "street",
+      "biking": false,
+      "walking": false,
+      "speed_limit": 80,
+      "lanes": 3,
+      "dedicated_bus_lane": false,
+      "max_lanes": 4
+    },
+    {
+      "start_node": "a100_neukoelln",
+      "end_node": "a100_treptow",
+      "name": "A100 Neukölln - Treptow",
+      "type": "street",
+      "biking": false,
+      "walking": false,
+      "speed_limit": 80,
+      "lanes": 3,
+      "dedicated_bus_lane": false,
+      "max_lanes": 4
+    },
+    {
+      "start_node": "a100_treptow",
+      "end_node": "a100_neukoelln",
+      "name": "A100 Treptow - Neukölln",
+      "type": "street",
+      "biking": false,
+      "walking": false,
+      "speed_limit": 80,
+      "lanes": 3,
+      "dedicated_bus_lane": false,
+      "max_lanes": 4
+    },
+    {
+      "start_node": "charlottenburg_home2",
+      "end_node": "a100_west",
+      "name": "A100 Auffahrt Charlottenburg",
+      "type": "street",
+      "biking": false,
+      "walking": false,
+      "speed_limit": 50,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "a100_west",
+      "end_node": "charlottenburg_home2",
+      "name": "A100 Abfahrt Charlottenburg",
+      "type": "street",
+      "biking": false,
+      "walking": false,
+      "speed_limit": 50,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "south_cross_station",
+      "end_node": "a100_schoeneberg",
+      "name": "A100 Auffahrt Südkreuz",
+      "type": "street",
+      "biking": false,
+      "walking": false,
+      "speed_limit": 50,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "a100_schoeneberg",
+      "end_node": "south_cross_station",
+      "name": "A100 Abfahrt Südkreuz",
+      "type": "street",
+      "biking": false,
+      "walking": false,
+      "speed_limit": 50,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "tempelhof",
+      "end_node": "a100_neukoelln",
+      "name": "A100 Auffahrt Tempelhof",
+      "type": "street",
+      "biking": false,
+      "walking": false,
+      "speed_limit": 50,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "a100_neukoelln",
+      "end_node": "tempelhof",
+      "name": "A100 Abfahrt Tempelhof",
+      "type": "street",
+      "biking": false,
+      "walking": false,
+      "speed_limit": 50,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "treptower_park",
+      "end_node": "a100_treptow",
+      "name": "A100 Auffahrt Treptow",
+      "type": "street",
+      "biking": false,
+      "walking": false,
+      "speed_limit": 50,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "a100_treptow",
+      "end_node": "treptower_park",
+      "name": "A100 Abfahrt Treptow",
+      "type": "street",
+      "biking": false,
+      "walking": false,
+      "speed_limit": 50,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 2
+    }
+  ],
+  "bus_lines": [
+    {
+      "name": "M1",
+      "edges": [0, 5, 7],
+      "interval": 5,
+      "capacity": 60
+    },
+    {
+      "name": "M48",
+      "edges": [2, 9],
+      "interval": 8,
+      "capacity": 60
+    },
+    {
+      "name": "100",
+      "edges": [0, 2],
+      "interval": 10,
+      "capacity": 50
+    },
+    {
+      "name": "TXL",
+      "edges": [15, 16],
+      "interval": 10,
+      "capacity": 70
+    },
+    {
+      "name": "M29",
+      "edges": [7, 36, 37],
+      "interval": 6,
+      "capacity": 60
+    },
+    {
+      "name": "142",
+      "edges": [9, 11],
+      "interval": 10,
+      "capacity": 50
+    },
+    {
+      "name": "265",
+      "edges": [23, 25],
+      "interval": 10,
+      "capacity": 50
+    }
+  ],
+  "train_lines": [
+    {
+      "name": "S1",
+      "edges": [48, 50, 51],
+      "interval": 10,
+      "capacity": 500
+    },
+    {
+      "name": "S5",
+      "edges": [49, 50],
+      "interval": 10,
+      "capacity": 500
+    },
+    {
+      "name": "S7",
+      "edges": [48, 51, 52],
+      "interval": 10,
+      "capacity": 500
+    },
+    {
+      "name": "U2",
+      "edges": [54, 55],
+      "interval": 3,
+      "capacity": 400
+    },
+    {
+      "name": "U6",
+      "edges": [52, 53],
+      "interval": 4,
+      "capacity": 400
+    },
+    {
+      "name": "S41",
+      "comment": "Ringbahn clockwise",
+      "edges": [60, 62, 64, 66, 68, 70, 72, 74, 76],
+      "interval": 5,
+      "capacity": 600
+    },
+    {
+      "name": "S42",
+      "comment": "Ringbahn counter-clockwise",
+      "edges": [61, 63, 65, 67, 69, 71, 73, 75, 77],
+      "interval": 5,
+      "capacity": 600
+    }
+  ]
+}

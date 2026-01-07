@@ -20,7 +20,12 @@ urlpatterns = [
     ),
     # MapVersion Graph endpoint - get complete graph for a specific version
     path(
-        "<int:pk>/versions/<int:version_pk>/graph/",
+        "<int:pk>/graph/version/<int:version_pk>/",
+        views_rest.MapVersionGraphView.as_view(),
+        name="mapversion-graph",
+    ),
+    path(
+        "<int:pk>/graph/baseversion/",
         views_rest.MapVersionGraphView.as_view(),
         name="mapversion-graph",
     ),

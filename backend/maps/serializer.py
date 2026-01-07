@@ -123,6 +123,9 @@ class NodeSerializer(MapVersionsMixin, serializers.ModelSerializer):
 
 
 class EdgeSerializer(MapVersionsMixin, serializers.ModelSerializer):
+    street_edge = serializers.SerializerMethodField()
+    train_edge = serializers.SerializerMethodField()
+
     class Meta:
         model = mm.Edge
         fields = [
@@ -135,11 +138,36 @@ class EdgeSerializer(MapVersionsMixin, serializers.ModelSerializer):
             "walking",
             "max_lanes",
             "map_versions",
+            "street_edge",
+            "train_edge",
         ]
-        read_only_fields = ("id",)
+        read_only_fields = ("id", "street_edge", "train_edge")
         extra_kwargs = {
             "name": {"required": False, "allow_blank": True},
         }
+
+    def get_street_edge(self, obj):
+        """Get street edge data if it exists for this edge."""
+        try:
+            street_edge = obj.streetedge
+            return {
+                "id": street_edge.id,
+                "speed_limit": street_edge.speed_limit,
+                "lanes": street_edge.lanes,
+                "dedicated_bus_lane": street_edge.dedicated_bus_lane,
+            }
+        except mm.StreetEdge.DoesNotExist:
+            return None
+
+    def get_train_edge(self, obj):
+        """Get train edge data if it exists for this edge."""
+        try:
+            train_edge = obj.trainedge
+            return {
+                "id": train_edge.id,
+            }
+        except mm.TrainEdge.DoesNotExist:
+            return None
 
     def validate(self, attrs):
         game_map = attrs.get("game_map") or getattr(self.instance, "game_map", None)

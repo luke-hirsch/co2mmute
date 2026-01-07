@@ -1,0 +1,592 @@
+{% extends "base.html" %}
+<!-- comment -->
+{% load static %}
+<!-- comment -->
+{% block title %} {{object.name}} {% endblock %}
+<!-- comment -->
+{% block main %}
+<div
+  class="min-h-screen bg-linear-to-b from-body to-surface dark:from-darkbody dark:to-darksurface py-12"
+>
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Header Section -->
+    <div class="mb-8">
+      <a
+        href="{% url 'map-list' %}"
+        class="inline-flex items-center gap-2 text-main dark:text-darktext hover:opacity-70 transition-opacity mb-4"
+      >
+        <svg
+          class="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 19l-7-7 7-7"
+          ></path>
+        </svg>
+        Back to Maps
+      </a>
+      <h1 class="text-4xl font-bold text-main dark:text-darktext mb-2">
+        {{ object.name }}
+      </h1>
+      {% if object.description %}
+      <p class="text-muted dark:text-darkmutedtext text-lg">
+        {{ object.description }}
+      </p>
+      {% endif %}
+    </div>
+
+    <!-- Map Info Grid -->
+    <div
+      class="bg-bg-elevated dark:bg-darkelevated rounded-lg p-6 mb-8 border border-subtle dark:border-darksubtle shadow-sm"
+    >
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div>
+          <p class="text-sm text-muted dark:text-darkmutedtext mb-1">
+            Max Players
+          </p>
+          <p class="text-2xl font-bold text-main dark:text-darktext">
+            {{ object.max_player }}
+          </p>
+        </div>
+        <div>
+          <p class="text-sm text-muted dark:text-darkmutedtext mb-1">
+            Dimensions
+          </p>
+          <p class="text-2xl font-bold text-main dark:text-darktext">
+            {{ object.x_dim }} × {{ object.y_dim }}
+          </p>
+        </div>
+        <div>
+          <p class="text-sm text-muted dark:text-darkmutedtext mb-1">Author</p>
+          <p class="text-lg font-semibold text-main dark:text-darktext">
+            {{ object.author.username }}
+          </p>
+        </div>
+        <div>
+          <p class="text-sm text-muted dark:text-darkmutedtext mb-1">Created</p>
+          <p class="text-lg font-semibold text-main dark:text-darktext">
+            {{ object.created|date:"d.m.Y" }}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    {% if base_version %}
+    <!-- Graph Stats Section -->
+    <div
+      class="bg-bg-elevated dark:bg-darkelevated rounded-lg p-6 mb-8 border border-subtle dark:border-darksubtle shadow-sm"
+    >
+      <h2 class="text-xl font-semibold text-main dark:text-darktext mb-4">
+        Base Version: {{ base_version.name }}
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div>
+          <p class="text-sm text-muted dark:text-darkmutedtext mb-1">Nodes</p>
+          <p class="text-2xl font-bold text-main dark:text-darktext">
+            {{ node_count }}
+          </p>
+        </div>
+        <div>
+          <p class="text-sm text-muted dark:text-darkmutedtext mb-1">Edges</p>
+          <p class="text-2xl font-bold text-main dark:text-darktext">
+            {{ edge_count }}
+          </p>
+        </div>
+        <div>
+          <p class="text-sm text-muted dark:text-darkmutedtext mb-1">
+            Bus Lines
+          </p>
+          <p class="text-2xl font-bold text-main dark:text-darktext">
+            {{ bus_line_count }}
+          </p>
+        </div>
+        <div>
+          <p class="text-sm text-muted dark:text-darkmutedtext mb-1">
+            Train Lines
+          </p>
+          <p class="text-2xl font-bold text-main dark:text-darktext">
+            {{ train_line_count }}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SVG Map Visualization -->
+    <div
+      class="bg-bg-elevated dark:bg-darkelevated rounded-lg p-6 mb-8 border border-subtle dark:border-darksubtle shadow-sm"
+    >
+      <h2 class="text-xl font-semibold text-main dark:text-darktext mb-4">
+        Map Visualization
+      </h2>
+      <p class="text-sm text-muted dark:text-darkmutedtext mb-4">
+        Click on a node to show its name.
+      </p>
+      <div
+        class="bg-white dark:bg-slate-900 rounded-lg shadow-lg border border-subtle dark:border-darksubtle overflow-hidden"
+      >
+        <svg
+          id="mapSvg"
+          class="w-full min-h-96 linear bg-bg-surface dark:bg-darksurface"
+        >
+          <!-- Grid pattern with dark mode support -->
+          <defs>
+            <pattern
+              id="grid"
+              width="100"
+              height="100"
+              patternUnits="userSpaceOnUse"
+            >
+              <path
+                d="M 100 0 L 0 0 0 100"
+                fill="none"
+                class="grid-line"
+                stroke-width="0.5"
+              />
+            </pattern>
+          </defs>
+          <rect id="gridRect" fill="url(#grid)" style="display: none" />
+
+          <!-- Styles for labels with dark mode support -->
+          <style>
+            .grid-line {
+              stroke: #e5e7eb;
+            }
+            .node-label {
+              fill: #1f2937;
+            }
+            .node-label-bg {
+              fill: rgba(255, 255, 255, 0.9);
+              stroke: #e5e7eb;
+              stroke-width: 1;
+            }
+            @media (prefers-color-scheme: dark) {
+              .grid-line {
+                stroke: #374151;
+              }
+              .node-label {
+                fill: #f3f4f6;
+              }
+              .node-label-bg {
+                fill: rgba(30, 41, 59, 0.95);
+                stroke: #475569;
+              }
+            }
+            .dark .grid-line {
+              stroke: #374151;
+            }
+            .dark .node-label {
+              fill: #f3f4f6;
+            }
+            .dark .node-label-bg {
+              fill: rgba(30, 41, 59, 0.95);
+              stroke: #475569;
+            }
+          </style>
+          <!-- Edges will be rendered here -->
+          <!-- Nodes will be rendered here -->
+        </svg>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div
+      class="bg-bg-elevated dark:bg-darkelevated rounded-lg p-6 mb-8 border border-subtle dark:border-darksubtle shadow-sm"
+    >
+      <h2 class="text-xl font-semibold text-main dark:text-darktext mb-4">
+        Legend
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <h3 class="font-semibold text-main dark:text-darktext mb-3">
+            Node Types
+          </h3>
+          <ul class="space-y-2 text-sm">
+            <li class="flex items-center gap-2">
+              <div
+                class="w-4 h-4 rounded-full"
+                style="background-color: #10b981"
+              ></div>
+              <span class="text-muted dark:text-darkmutedtext">Home</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <div
+                class="w-4 h-4 rounded-full"
+                style="background-color: #3b82f6"
+              ></div>
+              <span class="text-muted dark:text-darkmutedtext">Workplace</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <div
+                class="w-4 h-4 rounded-full"
+                style="background-color: #f59e0b"
+              ></div>
+              <span class="text-muted dark:text-darkmutedtext">Station</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <div
+                class="w-4 h-4 rounded-full"
+                style="background-color: #ef4444"
+              ></div>
+              <span class="text-muted dark:text-darkmutedtext">Bus Stop</span>
+            </li>
+          </ul>
+        </div>
+        <div>
+          <h3 class="font-semibold text-main dark:text-darktext mb-3">
+            Edge Types
+          </h3>
+          <ul class="space-y-2 text-sm">
+            <li class="flex items-center gap-2">
+              <div class="w-8 h-0.5" style="background-color: #10b981"></div>
+              <span class="text-muted dark:text-darkmutedtext"
+                >Walking Path</span
+              >
+            </li>
+            <li class="flex items-center gap-2">
+              <div class="w-8 h-0.5" style="background-color: #3b82f6"></div>
+              <span class="text-muted dark:text-darkmutedtext"
+                >Biking Path</span
+              >
+            </li>
+            <li class="flex items-center gap-2">
+              <div class="w-8 h-0.5" style="background-color: #8b5cf6"></div>
+              <span class="text-muted dark:text-darkmutedtext"
+                >Walking & Biking</span
+              >
+            </li>
+            <li class="flex items-center gap-2">
+              <div class="w-8 h-0.5" style="background-color: #6b7280"></div>
+              <span class="text-muted dark:text-darkmutedtext">Street</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <div
+                class="w-8 h-0.5"
+                style="background-color: #ef4444; stroke-dasharray: 5, 5"
+              ></div>
+              <span class="text-muted dark:text-darkmutedtext">Train Line</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <div class="w-8 h-0.5" style="background-color: #f97316"></div>
+              <span class="text-muted dark:text-darkmutedtext"
+                >Street + Train</span
+              >
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hidden elements to pass data to external JS -->
+    <script type="application/json" id="mapNodesData">
+      {{ nodes_json|safe }}
+    </script>
+    <script type="application/json" id="mapEdgesData">
+      {{ edges_json|safe }}
+    </script>
+
+    <!-- External map rendering script -->
+    <script src="{% static 'js/map_detail.js' %}"></script>
+    {% endif %}
+
+    <!-- Nodes Section -->
+    {% if nodes %}
+    <div
+      class="bg-bg-elevated dark:bg-darkelevated rounded-lg p-6 mb-8 border border-subtle dark:border-darksubtle shadow-sm"
+    >
+      <h2 class="text-xl font-semibold text-main dark:text-darktext mb-4">
+        Nodes ({{ node_count }})
+      </h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-subtle dark:border-darksubtle">
+              <th
+                class="text-left py-3 px-4 text-muted dark:text-darkmutedtext font-semibold"
+              >
+                ID
+              </th>
+              <th
+                class="text-left py-3 px-4 text-muted dark:text-darkmutedtext font-semibold"
+              >
+                Name
+              </th>
+              <th
+                class="text-left py-3 px-4 text-muted dark:text-darkmutedtext font-semibold"
+              >
+                Position
+              </th>
+              <th
+                class="text-left py-3 px-4 text-muted dark:text-darkmutedtext font-semibold"
+              >
+                Types
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for node in nodes %}
+            <tr
+              class="border-b border-subtle dark:border-darksubtle hover:bg-subtle dark:hover:bg-darksubtle transition-colors"
+            >
+              <td class="py-3 px-4 text-main dark:text-darktext">
+                #{{ node.id }}
+              </td>
+              <td class="py-3 px-4 text-main dark:text-darktext font-semibold">
+                {{ node.name }}
+              </td>
+              <td class="py-3 px-4 text-muted dark:text-darkmutedtext">
+                {{ node.x_position }}, {{ node.y_position }}
+              </td>
+              <td class="py-3 px-4">
+                <div class="flex flex-wrap gap-1">
+                  {% for node_type in node.node_type.all %}
+                  <span
+                    class="inline-block bg-main dark:bg-darktext text-white dark:text-black text-xs px-2 py-1 rounded"
+                  >
+                    {{ node_type.short }}
+                  </span>
+                  {% endfor %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Edges Section -->
+    {% if edges %}
+    <div
+      class="bg-bg-elevated dark:bg-darkelevated rounded-lg p-6 mb-8 border border-subtle dark:border-darksubtle shadow-sm"
+    >
+      <h2 class="text-xl font-semibold text-main dark:text-darktext mb-4">
+        Edges ({{ edge_count }})
+      </h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-subtle dark:border-darksubtle">
+              <th
+                class="text-left py-3 px-4 text-muted dark:text-darkmutedtext font-semibold"
+              >
+                ID
+              </th>
+              <th
+                class="text-left py-3 px-4 text-muted dark:text-darkmutedtext font-semibold"
+              >
+                Name
+              </th>
+              <th
+                class="text-left py-3 px-4 text-muted dark:text-darkmutedtext font-semibold"
+              >
+                Start → End
+              </th>
+              <th
+                class="text-left py-3 px-4 text-muted dark:text-darkmutedtext font-semibold"
+              >
+                Type
+              </th>
+              <th
+                class="text-left py-3 px-4 text-muted dark:text-darkmutedtext font-semibold"
+              >
+                Accessibility
+              </th>
+              <th
+                class="text-left py-3 px-4 text-muted dark:text-darkmutedtext font-semibold"
+              >
+                Lanes
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for edge in edges %}
+            <tr
+              class="border-b border-subtle dark:border-darksubtle hover:bg-subtle dark:hover:bg-darksubtle transition-colors"
+            >
+              <td class="py-3 px-4 text-main dark:text-darktext">
+                #{{ edge.id }}
+              </td>
+              <td class="py-3 px-4 text-main dark:text-darktext font-semibold">
+                {{ edge.name }}
+              </td>
+              <td class="py-3 px-4 text-muted dark:text-darkmutedtext">
+                {{ edge.start_node.name }} → {{ edge.end_node.name }}
+              </td>
+              <td class="py-3 px-4">
+                <div class="flex flex-wrap gap-1">
+                  {% if edge.streetedge %}
+                  <span
+                    class="inline-block bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 text-xs px-2 py-1 rounded"
+                  >
+                    Street
+                  </span>
+                  {% endif %}
+                  <!-- comment -->
+                  {% if edge.trainedge %}
+                  <span
+                    class="inline-block bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100 text-xs px-2 py-1 rounded"
+                  >
+                    Train
+                  </span>
+                  {% endif %}
+                  <!-- comment -->
+                  {% if not edge.streetedge and not edge.trainedge %}
+                  <span
+                    class="inline-block bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 text-xs px-2 py-1 rounded"
+                  >
+                    Path
+                  </span>
+                  {% endif %}
+                </div>
+              </td>
+              <td class="py-3 px-4">
+                <div class="flex flex-wrap gap-1">
+                  {% if edge.walking %}
+                  <span
+                    class="inline-block bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 text-xs px-2 py-1 rounded"
+                  >
+                    Walk
+                  </span>
+                  {% endif %}
+                  <!-- comment -->
+                  {% if edge.biking %}
+                  <span
+                    class="inline-block bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100 text-xs px-2 py-1 rounded"
+                  >
+                    Bike
+                  </span>
+                  {% endif %}
+                </div>
+              </td>
+              <td class="py-3 px-4 text-main dark:text-darktext">
+                {{ edge.max_lanes }}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Bus Lines Section -->
+    {% if bus_lines %}
+    <div
+      class="bg-bg-elevated dark:bg-darkelevated rounded-lg p-6 mb-8 border border-subtle dark:border-darksubtle shadow-sm"
+    >
+      <h2 class="text-xl font-semibold text-main dark:text-darktext mb-4">
+        Bus Lines ({{ bus_line_count }})
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for bus_line in bus_lines %}
+        <div
+          class="border border-subtle dark:border-darksubtle rounded p-4 hover:bg-subtle dark:hover:bg-darksubtle transition-colors"
+        >
+          <div class="flex items-baseline gap-2 mb-2">
+            <h3 class="text-lg font-semibold text-main dark:text-darktext">
+              {{ bus_line.name }}
+            </h3>
+            <span
+              class="text-xs bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100 px-2 py-1 rounded"
+            >
+              Bus
+            </span>
+          </div>
+          <div class="space-y-2 text-sm">
+            <div>
+              <span class="text-muted dark:text-darkmutedtext">Interval:</span>
+              <span class="font-semibold text-main dark:text-darktext ml-2"
+                >{{ bus_line.intervall }} min</span
+              >
+            </div>
+            <div>
+              <span class="text-muted dark:text-darkmutedtext">Capacity:</span>
+              <span class="font-semibold text-main dark:text-darktext ml-2"
+                >{{ bus_line.bus_capacity }} passengers</span
+              >
+            </div>
+            <div>
+              <span class="text-muted dark:text-darkmutedtext">Edges:</span>
+              <span class="font-semibold text-main dark:text-darktext ml-2"
+                >{{ bus_line.edges.count }}</span
+              >
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Train Lines Section -->
+    {% if train_lines %}
+    <div
+      class="bg-bg-elevated dark:bg-darkelevated rounded-lg p-6 mb-8 border border-subtle dark:border-darksubtle shadow-sm"
+    >
+      <h2 class="text-xl font-semibold text-main dark:text-darktext mb-4">
+        Train Lines ({{ train_line_count }})
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for train_line in train_lines %}
+        <div
+          class="border border-subtle dark:border-darksubtle rounded p-4 hover:bg-subtle dark:hover:bg-darksubtle transition-colors"
+        >
+          <div class="flex items-baseline gap-2 mb-2">
+            <h3 class="text-lg font-semibold text-main dark:text-darktext">
+              {{ train_line.name }}
+            </h3>
+            <span
+              class="text-xs bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-100 px-2 py-1 rounded"
+            >
+              Train
+            </span>
+          </div>
+          <div class="space-y-2 text-sm">
+            <div>
+              <span class="text-muted dark:text-darkmutedtext">Interval:</span>
+              <span class="font-semibold text-main dark:text-darktext ml-2"
+                >{{ train_line.intervall }} min</span
+              >
+            </div>
+            <div>
+              <span class="text-muted dark:text-darkmutedtext">Capacity:</span>
+              <span class="font-semibold text-main dark:text-darktext ml-2"
+                >{{ train_line.train_capacity }} passengers</span
+              >
+            </div>
+            <div>
+              <span class="text-muted dark:text-darkmutedtext">Edges:</span>
+              <span class="font-semibold text-main dark:text-darktext ml-2"
+                >{{ train_line.edges.count }}</span
+              >
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}
+    <!-- No Base Version Message -->
+    <div
+      class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6"
+    >
+      <h3
+        class="text-lg font-semibold text-yellow-800 dark:text-yellow-200 mb-2"
+      >
+        No Base Version
+      </h3>
+      <p class="text-yellow-700 dark:text-yellow-300">
+        This map does not have a base version yet. Please upload map data to
+        create a base version.
+      </p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

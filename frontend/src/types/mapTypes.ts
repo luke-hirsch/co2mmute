@@ -26,6 +26,18 @@ export interface Edge {
   name: string;
   start_node: number;
   end_node: number;
+  biking?: boolean;
+  walking?: boolean;
+  max_lanes?: number;
+  street_edge?: {
+    id: number;
+    speed_limit: number;
+    lanes: number;
+    dedicated_bus_lane: boolean;
+  } | null;
+  train_edge?: {
+    id: number;
+  } | null;
 }
 
 export interface GameMap {

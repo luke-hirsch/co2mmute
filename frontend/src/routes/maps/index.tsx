@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import MapListRoute from "../../components/map/MapListRoute";
+import RedirectToJoin from "../../utils/RedirectToJoin";
 
 export const Route = createFileRoute("/maps/")({
-  component: MapListRoute,
+  component: RedirectToJoin,
 });

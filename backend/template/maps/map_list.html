@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+<!-- comment -->
+{% load static %}
+<!-- comment -->
+{% block title %} Karten {% endblock %}
+<!-- comment -->
+{% block main %}
+<div
+  class="min-h-screen bg-linear-to-b from-body to-surface dark:from-darkbody dark:to-darksurface py-12"
+>
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Header Section -->
+    <div class="mb-12">
+      <div class="flex items-center justify-between mb-2">
+        <h1 class="text-4xl font-bold text-main dark:text-darktext">Maps</h1>
+        <a
+          href="{% url 'map-upload' %}"
+          class="inline-flex items-center gap-2 bg-main dark:bg-darktext text-white dark:text-black px-4 py-2 rounded-lg hover:opacity-80 transition-opacity font-semibold"
+        >
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 4v16m8-8H4"
+            ></path>
+          </svg>
+          Upload Map
+        </a>
+      </div>
+      <p class="text-muted dark:text-darkmutedtext text-lg">
+        Manage and view all game maps
+      </p>
+    </div>
+
+    <!-- Maps Grid -->
+    {% if object_list %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {% for map in object_list %}
+      <div
+        class="group bg-bg-elevated dark:bg-darkelevated rounded-lg border border-subtle dark:border-darksubtle shadow-sm hover:shadow-lg hover:border-main dark:hover:border-darktext transition-all duration-200 overflow-hidden"
+      >
+        <!-- Card Header -->
+        <div
+          class="bg-linear-to-r from-main/10 to-main/5 dark:from-darktext/10 dark:to-darktext/5 px-6 py-4 border-b border-subtle dark:border-darksubtle"
+        >
+          <h2
+            class="text-xl font-bold text-main dark:text-darktext group-hover:text-main/80 dark:group-hover:text-darktext/80 transition-colors"
+          >
+            {{ map.name }}
+          </h2>
+        </div>
+
+        <!-- Card Content -->
+        <div class="px-6 py-4 space-y-4">
+          <!-- Description -->
+          {% if map.description %}
+          <p class="text-muted dark:text-darkmutedtext text-sm line-clamp-2">
+            {{ map.description }}
+          </p>
+          {% else %}
+          <p class="text-muted dark:text-darkmutedtext text-sm italic">
+            No description
+          </p>
+          {% endif %}
+
+          <!-- Stats -->
+          <div
+            class="grid grid-cols-3 gap-3 py-3 border-y border-subtle dark:border-darksubtle"
+          >
+            <div class="text-center">
+              <p class="text-xs text-muted dark:text-darkmutedtext mb-1">
+                Players
+              </p>
+              <p class="text-lg font-bold text-main dark:text-darktext">
+                {{ map.max_player }}
+              </p>
+            </div>
+            <div class="text-center">
+              <p class="text-xs text-muted dark:text-darkmutedtext mb-1">
+                Size
+              </p>
+              <p class="text-lg font-bold text-main dark:text-darktext">
+                {{ map.x_dim }}×{{ map.y_dim }}
+              </p>
+            </div>
+            <div class="text-center">
+              <p class="text-xs text-muted dark:text-darkmutedtext mb-1">
+                Created
+              </p>
+              <p class="text-xs font-semibold text-main dark:text-darktext">
+                {{ map.created|date:"M d" }}
+              </p>
+            </div>
+          </div>
+
+          <!-- Author -->
+          <div class="flex items-center justify-between">
+            <div class="text-sm">
+              <p class="text-xs text-muted dark:text-darkmutedtext">By</p>
+              <p class="font-semibold text-main dark:text-darktext">
+                {{ map.author.username }}
+              </p>
+            </div>
+            <span
+              class="text-xs bg-main/10 dark:bg-darktext/10 text-main dark:text-darktext px-2 py-1 rounded"
+            >
+              ID: {{ map.pk }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Card Footer (Action Buttons) -->
+        <div class="bg-subtle dark:bg-darksubtle/50 px-6 py-3 flex gap-2">
+          <a
+            href="{% url 'map-detail' map.pk %}"
+            class="flex-1 inline-flex items-center justify-center gap-2 bg-main dark:bg-darktext text-white dark:text-black px-4 py-2 rounded hover:opacity-80 transition-opacity font-semibold text-sm"
+          >
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              ></path>
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+              ></path>
+            </svg>
+            View
+          </a>
+          <a
+            href="{% url 'map-upload' %}"
+            class="inline-flex items-center justify-center gap-2 bg-bg-elevated dark:bg-darkelevated text-main dark:text-darktext px-3 py-2 rounded border border-subtle dark:border-darksubtle hover:bg-main/10 dark:hover:bg-darktext/10 transition-colors text-sm"
+            title="Upload new map"
+          >
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+              ></path>
+            </svg>
+          </a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% else %}
+    <!-- Empty State -->
+    <div class="max-w-2xl mx-auto">
+      <div
+        class="bg-subtle dark:bg-darksubtle rounded-lg p-12 border-2 border-dashed border-subtle dark:border-darksubtle text-center"
+      >
+        <svg
+          class="w-16 h-16 text-muted dark:text-darkmutedtext mx-auto mb-4 opacity-50"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
+          ></path>
+        </svg>
+        <h3 class="text-xl font-bold text-main dark:text-darktext mb-2">
+          No Maps Yet
+        </h3>
+        <p class="text-muted dark:text-darkmutedtext mb-6">
+          Get started by uploading your first map
+        </p>
+        <a
+          href="{% url 'map-upload' %}"
+          class="inline-flex items-center gap-2 bg-main dark:bg-darktext text-white dark:text-black px-6 py-3 rounded-lg hover:opacity-80 transition-opacity font-semibold"
+        >
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 4v16m8-8H4"
+            ></path>
+          </svg>
+          Upload Map
+        </a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

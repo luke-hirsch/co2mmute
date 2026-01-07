@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework.generics import (
     ListCreateAPIView,
     RetrieveUpdateDestroyAPIView,
@@ -32,6 +34,8 @@ from maps.serializer import (
     TrainLineSerializer,
 )
 from maps.mixins import MapScopedQuerysetMixin
+
+logger = logging.getLogger(__name__)
 
 
 # GameMap Views
@@ -274,42 +278,55 @@ class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
 
     def get(self, request, *args, **kwargs):
         """Retrieve the complete graph for a specific map version."""
+        map_pk = self.get_map_id()
+        version_pk = kwargs.get("version_pk")
+
         try:
-            map_pk = self.get_map_id()
-            version_pk = kwargs.get("version_pk")
+            map_obj = GameMap.objects.get(pk=map_pk)
 
-            if not version_pk:
+        except GameMap.DoesNotExist:
+            logger.error("map not found")
+            return Response(
+                {"error": "Map not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Build cache key
+        cache_key = f"map_graph:{map_pk}:{version_pk}"
+
+        # Try to get from cache first
+        cached_graph = cache.get(cache_key)
+        if cached_graph:
+            return Response(cached_graph, status=status.HTTP_200_OK)
+
+        # Get or determine version
+        if not version_pk:
+            version = MapVersion.objects.filter(game_map=map_obj).first()
+            if not version:
                 return Response(
-                    {"error": "version_pk is required"},
-                    status=status.HTTP_400_BAD_REQUEST,
+                    {"error": "No map version found"},
+                    status=status.HTTP_404_NOT_FOUND,
                 )
-
-            # Try to get from cache first
-            cache_key = f"map_graph:{map_pk}:{version_pk}"
-            cached_graph = cache.get(cache_key)
-
-            if cached_graph:
-                return Response(cached_graph, status=status.HTTP_200_OK)
-
-            # Verify map and version exist
+        else:
             try:
-                map_obj = GameMap.objects.get(pk=map_pk)
                 version = MapVersion.objects.get(pk=version_pk, game_map=map_obj)
             except MapVersion.DoesNotExist:
+                logger.error(f"version {version_pk} not found for map {map_pk}")
                 return Response(
                     {"error": "Map version not found"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
+        try:
             # Get all nodes for this map version
             nodes = Node.objects.filter(
                 game_map=map_obj, map_versions=version
             ).prefetch_related("node_type")
 
-            # Get all edges for this map version
+            # Get all edges for this map version with street_edge and train_edge prefetch
             edges = Edge.objects.filter(
                 game_map=map_obj, map_versions=version
-            ).select_related("start_node", "end_node")
+            ).select_related("start_node", "end_node", "streetedge", "trainedge")
 
             # Serialize the data
             nodes_data = NodeSerializer(nodes, many=True).data
@@ -317,7 +334,7 @@ class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
 
             graph_data = {
                 "map_id": map_pk,
-                "version_id": version_pk,
+                "version_id": version_pk or version.pk,
                 "version_name": version.name,
                 "version_description": version.description,
                 "nodes": nodes_data,
@@ -332,7 +349,10 @@ class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
             return Response(graph_data, status=status.HTTP_200_OK)
 
         except Exception as e:
+            logger.exception(
+                f"Error building graph for map {map_pk} version {version_pk}:{str(e)}"
+            )
             return Response(
-                {"error": str(e)},
+                {"error": "Error building graph"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )

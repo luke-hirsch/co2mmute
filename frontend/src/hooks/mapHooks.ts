@@ -37,9 +37,10 @@ export const useMapGraph = (
   versionId?: string | number
 ) => {
   // If no versionId is provided, we'll get the base version
+  // <int:pk>/graph/version/<int:version_pk>/
   const queryUrl = versionId
-    ? `${API_BASE_URL}/api/maps/${mapId}/versions/${versionId}/graph/`
-    : `${API_BASE_URL}/api/maps/${mapId}/versions/1/graph/`;
+    ? `${API_BASE_URL}/api/maps/${mapId}/graph/version/${versionId}`
+    : `${API_BASE_URL}/api/maps/${mapId}/graph/baseversion/`;
 
   return useQuery<MapGraph>({
     queryKey: ["mapGraph", mapId, versionId],
