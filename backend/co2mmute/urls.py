@@ -19,7 +19,7 @@ from game.views import (
     PlayerUpdateView,
 )
 
-from maps.views import MapUploadView, MapListView, MapDetailView
+from maps.views import MapUploadView, MapListView, MapDetailView, MapEditorView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -48,6 +48,7 @@ urlpatterns = [
     path("map/upload/", MapUploadView.as_view(), name="map-upload"),
     path("map/list/", MapListView.as_view(), name="map-list"),
     path("map/<int:pk>/", MapDetailView.as_view(), name="map-detail"),
+    path("map/<int:pk>/edit/", MapEditorView.as_view(), name="map-editor"),
     path("api/game/", include("game.urls")),
     path("api/whoami/", WhoAmIView.as_view(), name="whoami"),
     path("api/game_data/", include("game_data.urls")),
