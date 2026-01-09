@@ -2,7 +2,6 @@ from typing import Optional
 
 from django.conf import settings
 from django.core.cache import cache
-from django.utils import timezone
 
 from .models import GameSession
 
@@ -22,14 +21,10 @@ def _should_cache(session: GameSession) -> bool:
     if session.ended_at:
         return False
 
-    return session.started_at is not None or session.lobby_open <= timezone.now()
+    return session.started_at is not None or session.is_active
 
 
 def cache_game_session(session: Optional[GameSession]):
-    """
-    Store the session in cache if it is live or the lobby is open.
-    Otherwise clear any stale entry.
-    """
     if not session:
         return
 
@@ -47,9 +42,6 @@ def invalidate_game_session(game_id: str):
 
 
 def get_cached_game_session(game_id: str) -> Optional[GameSession]:
-    """
-    Fetch a GameSession from cache, falling back to DB and caching the result.
-    """
     if not game_id:
         return None
 
