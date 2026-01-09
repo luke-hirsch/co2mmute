@@ -72,11 +72,11 @@ class GameSessionCreateForm(forms.ModelForm):
             for field_name, value in defaults.items():
                 self.initial.setdefault(field_name, value)
                 self.fields[field_name].initial = self.initial[field_name]
-        # Apply consistent styling to all form controls.
+        # styling
         base_class = (
             "block w-full rounded-md bg-white px-3 py-2 text-base text-gray-900 "
             "outline outline-1 outline-gray-300 focus:outline-2 "
-            "focus:outline-indigo-600 dark:bg-white/5 dark:text-white "
+            "focus:outline-indigo-600   dark:bg-white/5 dark:text-white "
             "dark:outline-white/10"
         )
         checkbox_class = (
@@ -143,6 +143,7 @@ class PlayerCreateForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # styling
         base_class = (
             "block w-full rounded-md bg-white px-3 py-2 text-base text-gray-900 "
             "outline outline-1 outline-gray-300 focus:outline-2 "
@@ -170,6 +171,7 @@ class JoinSessionForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # styling
         text_class = (
             "block w-full rounded-md bg-white px-3 py-2 text-base text-gray-900 "
             "outline outline-1 outline-gray-300 focus:outline-2 "

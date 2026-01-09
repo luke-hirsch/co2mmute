@@ -7,9 +7,7 @@ from channels.auth import AuthMiddlewareStack
 
 django_asgi_app = get_asgi_application()
 
-# Import game routing after Django is initialized
-# noinspection PyPep8
-from game import routing
+from game import routing  # noqa: E402
 
 application = ProtocolTypeRouter(
     {

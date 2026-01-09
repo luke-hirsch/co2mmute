@@ -493,8 +493,8 @@ object.name }}{% endblock %} {% block extra_head %}
 <!-- Pass data to JS -->
 <script>
   window.mapEditorData = {
-    nodesData: JSON.parse('{{ nodes_json|escapejs }}') || [],
-    edgesData: JSON.parse('{{ edges_json|escapejs }}') || [],
+    nodesData: JSON.parse("{{ nodes_json|escapejs }}") || [],
+    edgesData: JSON.parse("{{ edges_json|escapejs }}") || [],
   };
   console.log("Data loaded from Django:", window.mapEditorData);
 </script>

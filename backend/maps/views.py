@@ -666,6 +666,9 @@ class MapEditorView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
     def post(self, request, *args, **kwargs):
         """Handle saving the edited map as a new version."""
         game_map = self.get_object()
+        if not isinstance(game_map, GameMap):
+            messages.error(request, "Map not found")
+            return self.get(request, *args, **kwargs)
 
         try:
             # Get form data
