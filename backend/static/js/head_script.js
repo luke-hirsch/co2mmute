@@ -74,8 +74,6 @@ function setColorScheme(colorMode = "light") {
   } else {
     root.classList.remove("dark");
   }
-  console.log("Applied color scheme:", colorMode);
-  console.log("Current classes on root:", root);
 }
 
 // toggle color mode
