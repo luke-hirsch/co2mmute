@@ -118,6 +118,7 @@ INSTALLED_APPS = [
     "game_data",
     "game",
     "maps",
+    "content",
 ]
 
 MIDDLEWARE = [
