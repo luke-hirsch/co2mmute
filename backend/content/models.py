@@ -29,7 +29,7 @@ class SiteContent(models.Model):
 
 class SiteContentBlock(models.Model):
     content = models.ForeignKey(SiteContent, on_delete=models.CASCADE, related_name="sections")
-
+    key = models.SlugField(blank=True, null=True)
     order = models.PositiveIntegerField(default=0)
     title = models.CharField(max_length=200, blank=True)
     body = models.TextField(blank=True)
