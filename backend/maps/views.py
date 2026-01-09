@@ -23,75 +23,18 @@ logger = logging.getLogger(__name__)
 
 
 class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
-    """
-    View for uploading a JSON file containing a graph structure and converting it to map models.
-
-    Restricted to staff users only.
-
-    Expected JSON format:
-    {
-        "nodes": [
-            {"id": "A", "x": 0.0, "y": 0.0, "types": ["city"], "name": "Node A"},
-            ...
-        ],
-        "edges": [
-            {
-                "start_node": "A",
-                "end_node": "B",
-                "name": "Main Street",
-                "type": "both",  # "street", "train", or "both" (default: "both")
-                "biking": true,
-                "walking": true,
-                "max_lanes": 2,
-                "speed_limit": 50,  # optional, for street edges
-                "lanes": 2,         # optional, for street edges
-                "dedicated_bus_lane": false  # optional, for street edges
-            },
-            ...
-        ],
-        "bus_lines": [
-            {
-                "name": "M1",
-                "edges": [0, 1, 2],  # indices into edges array
-                "interval": 5,
-                "capacity": 60
-            }
-        ],
-        "train_lines": [
-            {
-                "name": "S1",
-                "edges": [0, 1, 2],  # indices into edges array (must reference train edges)
-                "interval": 10,
-                "capacity": 500
-            }
-        ]
-    }
-
-    Edge Types:
-    - "street": Street only (can have buses, not trains)
-    - "train": Train only (no biking/walking)
-    - "both": Both street and train infrastructure on the same edge
-
-    Note: Train-only edges should have biking=false and walking=false.
-    """
-
     template_name = "maps/map_upload.html"
     form_class = MapUploadForm
     login_url = "login"
 
     def get_success_url(self):
-        """Redirect to the map detail view after successful upload."""
-        # The game_map is stored in form_valid, we need to get it from the view
-        # We'll redirect to the latest map for now
         latest_map = GameMap.objects.latest("created")
-        return reverse("maps:gamemap-detail", kwargs={"pk": latest_map.pk})
+        return reverse("map-detail", kwargs={"pk": latest_map.pk})
 
     def test_func(self):
-        """Only allow staff users to upload maps."""
         return self.request.user.is_staff
 
     def handle_no_permission(self):
-        """Redirect non-staff users with an error message."""
         messages.error(
             self.request,
             "You do not have permission to upload maps. Staff access required.",
@@ -99,7 +42,6 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         return super().handle_no_permission()
 
     def form_valid(self, form):
-        """Process the uploaded JSON file and create map models."""
         try:
             # Parse JSON from file
             json_file = form.cleaned_data["json_file"]
@@ -200,10 +142,6 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         return super().form_valid(form)
 
     def _validate_graph_data(self, graph_data):
-        """
-        Validate the entire graph data structure without creating anything.
-        Returns a list of error messages (empty if valid).
-        """
         errors = []
 
         # Check basic structure
@@ -311,8 +249,6 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         return errors
 
     def _create_game_map(self, name, max_players, author):
-        """Create a GameMap instance."""
-        # Calculate dimensions from nodes (will be updated after nodes are created)
         game_map = GameMap.objects.create(
             name=name,
             max_player=max_players,
@@ -324,11 +260,6 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         return game_map
 
     def _create_nodes(self, game_map, base_version, nodes_data):
-        """
-        Create Node instances from JSON data.
-
-        Returns a mapping of node IDs to Node instances.
-        """
         node_mapping = {}
         max_x = 0
         max_y = 0
@@ -375,11 +306,6 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         return node_mapping
 
     def _create_edges(self, game_map, base_version, edges_data, node_mapping):
-        """
-        Create Edge instances from JSON data.
-
-        Returns a mapping of edge indices to Edge instances.
-        """
         edge_mapping = {}
 
         for edge_idx, edge_data in enumerate(edges_data):
@@ -403,10 +329,7 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             start_node = node_mapping[start_node_id]
             end_node = node_mapping[end_node_id]
 
-            # Determine default biking/walking based on edge type
             edge_type = edge_data.get("type", "both")
-            # For train-only edges, default to False for biking/walking
-            # For other edge types, default to True
             default_biking = False if edge_type == "train" else True
             default_walking = False if edge_type == "train" else True
 
@@ -429,11 +352,6 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         return edge_mapping
 
     def _create_specialized_edges(self, base_version, edges_data, edge_mapping):
-        """
-        Create StreetEdge and TrainEdge instances based on edge type specification.
-
-        Edge type can be 'street', 'train', or 'both' (default: 'both')
-        """
         for edge_idx, edge_data in enumerate(edges_data):
             edge = edge_mapping[edge_idx]
             edge_type = edge_data.get("type", "both")
@@ -454,19 +372,6 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                 train_edge.map_versions.add(base_version)
 
     def _create_bus_lines(self, game_map, base_version, bus_lines_data, edge_mapping):
-        """
-        Create BusLine instances with their associated StreetEdges.
-
-        bus_lines format:
-        [
-            {
-                "name": "M1",
-                "edges": [0, 1, 2],  # indices into edges array
-                "interval": 5,
-                "capacity": 60
-            }
-        ]
-        """
         for bus_line_data in bus_lines_data:
             bus_line = BusLine.objects.create(
                 game_map=game_map,
@@ -496,19 +401,6 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
     def _create_train_lines(
         self, game_map, base_version, train_lines_data, edges_data, edge_mapping
     ):
-        """
-        Create TrainLine instances with their associated TrainEdges.
-
-        train_lines format:
-        [
-            {
-                "name": "S1",
-                "edges": [0, 1, 2],  # indices into edges array
-                "interval": 10,
-                "capacity": 500
-            }
-        ]
-        """
         for train_line_data in train_lines_data:
             train_line = TrainLine.objects.create(
                 game_map=game_map,
@@ -859,20 +751,16 @@ class MapDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
     login_url = "login"
 
     def test_func(self):
-        """Only allow staff users to upload maps."""
         return self.request.user.is_staff
 
     def get_context_data(self, **kwargs):
-        """Add version graph data to the context with navigation support."""
         context = super().get_context_data(**kwargs)
         game_map = self.get_object()
 
-        # Get all versions for this map, ordered by creation date
         all_versions = list(MapVersion.objects.filter(game_map=game_map).order_by("pk"))
         context["all_versions"] = all_versions
         context["version_count"] = len(all_versions)
 
-        # Get the requested version (from query param) or default to base version
         version_pk = self.request.GET.get("version")
         if version_pk:
             try:
@@ -887,18 +775,15 @@ class MapDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
                 game_map=game_map, base_version=True
             ).first()
 
-        # If still no version, use the first available
         if not current_version and all_versions:
             current_version = all_versions[0]
 
         if current_version:
-            # Find current index for navigation
             try:
                 current_index = all_versions.index(current_version)
             except ValueError:
                 current_index = 0
 
-            # Set up navigation
             context["current_version"] = current_version
             context["current_index"] = current_index + 1  # 1-based for display
             context["prev_version"] = (
@@ -910,7 +795,6 @@ class MapDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
                 else None
             )
 
-            # Get nodes and edges for the current version
             nodes = Node.objects.filter(
                 game_map=game_map, map_versions=current_version
             ).prefetch_related("node_type")
@@ -919,7 +803,6 @@ class MapDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
                 game_map=game_map, map_versions=current_version
             ).select_related("start_node", "end_node")
 
-            # Get bus and train lines
             bus_lines = BusLine.objects.filter(
                 game_map=game_map, map_versions=current_version
             )
@@ -927,7 +810,6 @@ class MapDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
                 game_map=game_map, map_versions=current_version
             )
 
-            # Serialize nodes to JSON for SVG rendering
             nodes_json = json.dumps(
                 [
                     {
@@ -944,7 +826,6 @@ class MapDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
                 ]
             )
 
-            # Pre-fetch street edges and train edges for all edges
             edge_pks = [edge.pk for edge in edges]
             street_edges_map = {
                 se.edge.pk: se for se in StreetEdge.objects.filter(edge_id__in=edge_pks)
@@ -981,7 +862,6 @@ class MapDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
                 ]
             )
 
-            # Keep base_version for backwards compatibility
             context["base_version"] = current_version
             context["nodes"] = nodes
             context["edges"] = edges

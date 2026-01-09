@@ -273,3 +273,96 @@ class PlayerCreateView(
 
 class PlayerUpdateView(PlayerCookieMixin, TemplateView):
     template_name = "game/update_player.html"
+
+
+class PostGameView(GameAccessCookieMixin, PlayerCookieMixin, TemplateView):
+    template_name = "game/post_game.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        game_id = kwargs.get("game_id", "").upper()
+        self.game_session = get_object_or_404(GameSession, game_id=game_id)
+
+        # Check access - either host or player who joined
+        has_access = False
+        if (
+            request.user.is_authenticated
+            and request.user == self.game_session.game_host
+        ):
+            has_access = True
+        else:
+            # Check if player joined this game (via session)
+            joined_ids = request.session.get("joined_game_ids", [])
+            if game_id in joined_ids:
+                has_access = True
+
+        if not has_access:
+            messages.error(request, "You don't have access to this game summary.")
+            return redirect("session-join")
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        game = self.game_session
+        players = Player.objects.filter(game=game, left_at__isnull=True)
+
+        # Calculate stats for each player
+        from .models import PlayerMove, GameRound
+
+        player_stats = []
+        total_co2 = 0.0
+
+        # CO2 emissions per transportation type (kg) - should match consumers.py
+        emission_factors = {
+            "car": 120.0,
+            "public": 60.0,
+            "bike": 0.0,
+            "walk": 0.0,
+        }
+
+        for player in players:
+            moves = PlayerMove.objects.filter(player=player)
+            player_co2 = sum(emission_factors.get(move.action, 0) for move in moves)
+            total_co2 += player_co2
+
+            player_stats.append(
+                {
+                    "name": player.name,
+                    "player_id": player.player_id,
+                    "co2": round(player_co2, 2),
+                    "move_count": moves.count(),
+                }
+            )
+
+        # Sort by CO2 (lowest first = best)
+        player_stats.sort(key=lambda x: x["co2"])
+
+        # Add ranking
+        for i, stat in enumerate(player_stats):
+            stat["rank"] = i + 1
+
+        # Get round count
+        rounds_played = GameRound.objects.filter(game=game, status="completed").count()
+
+        # Determine game outcome
+        co2_limit_exceeded = total_co2 > game.max_CO2_level
+
+        context.update(
+            {
+                "game": game,
+                "player_stats": player_stats,
+                "total_co2": round(total_co2, 2),
+                "max_co2": game.max_CO2_level,
+                "co2_percentage": round(
+                    (total_co2 / max(game.max_CO2_level, 1)) * 100, 1
+                ),
+                "co2_limit_exceeded": co2_limit_exceeded,
+                "rounds_played": rounds_played,
+                "max_rounds": game.max_rounds,
+                "player_count": len(player_stats),
+                "winner": player_stats[0] if player_stats else None,
+            }
+        )
+
+        return context

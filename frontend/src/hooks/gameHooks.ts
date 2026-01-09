@@ -1,21 +1,27 @@
 import { apiFetch } from "../utils/api";
 import { useQuery } from "@tanstack/react-query";
 
-export function useGameDetails(gameId: string) {
+export function useGameDetails(gameId: string, enabled: boolean = true) {
   return useQuery({
     queryKey: ["gameDetails", gameId],
     queryFn: () => apiFetch(`/api/game/${gameId}/`),
     staleTime: 2000,
     refetchInterval: 2000,
+    enabled: enabled && !!gameId,
   });
 }
 
-export function usePlayerGameDetails(gameId: string, playerId: string) {
+export function usePlayerGameDetails(
+  gameId: string,
+  playerId: string,
+  enabled: boolean = true
+) {
   return useQuery({
     queryKey: ["playerGameDetails", gameId, playerId],
     queryFn: () => apiFetch(`/api/game/${gameId}/${playerId}/`),
     staleTime: 2000,
     refetchInterval: 2000,
+    enabled: enabled && !!gameId && !!playerId,
   });
 }
 

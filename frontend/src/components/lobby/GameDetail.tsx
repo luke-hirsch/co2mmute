@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { useGameDetails, usePlayerGameDetails } from "../../hooks/gameHooks";
+import { useGameState } from "../../hooks/useGameState";
 import Loading from "../Loading";
 import { API_BASE_URL } from "../../config";
 import { apiFetch } from "../../utils/api";
@@ -35,6 +37,34 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
   const [editedPassword, setEditedPassword] = useState<string>("");
   const [isSavingPassword, setIsSavingPassword] = useState<boolean>(false);
   const [zoomQR, setZoomQR] = useState<boolean>(false);
+
+  const navigate = useNavigate();
+
+  // Subscribe to game state updates to detect when game starts
+  const { gameState } = useGameState({ gameId: id });
+
+  // Redirect players to game when it becomes active (host stays in lobby)
+  useEffect(() => {
+    if (!gameState?.is_active) return;
+
+    if (role === "player") {
+      // Players always redirect when game starts
+      navigate({ to: "/game/$gameId", params: { gameId: id } });
+    }
+    // Host does NOT auto-redirect - they can use the "Go to Game" button
+  }, [gameState?.is_active, id, navigate, role]);
+
+  // Redirect players to summary when game ends
+  useEffect(() => {
+    if (!gameState?.ended_at) return;
+
+    if (role === "player") {
+      // Players redirect to summary page when game ends
+      window.location.href = `/game/${id}/summary/`;
+    }
+    // Host stays in lobby - they can use the "View Summary" button
+  }, [gameState?.ended_at, id, role]);
+
   let gameData;
   if (role === "player" && playerId) {
     gameData = usePlayerGameDetails(id, playerId);
@@ -532,13 +562,23 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
           {!game.ended_at ? (
             <>
               {game.is_active ? (
-                <button
-                  onClick={handleStopGame}
-                  disabled={isStartingGame}
-                  className="w-full rounded-lg bg-red-600 px-6 py-3 font-semibold text-white transition-colors duration-200 hover:bg-red-500 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-red-600 dark:hover:bg-red-500"
-                >
-                  {isStartingGame ? "Stopping Game..." : "Stop Game"}
-                </button>
+                <>
+                  <button
+                    onClick={() =>
+                      navigate({ to: "/game/$gameId", params: { gameId: id } })
+                    }
+                    className="w-full rounded-lg bg-green-600 px-6 py-3 font-semibold text-white transition-colors duration-200 hover:bg-green-500 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-green-600 dark:bg-green-600 dark:hover:bg-green-500"
+                  >
+                    Go to Game
+                  </button>
+                  <button
+                    onClick={handleStopGame}
+                    disabled={isStartingGame}
+                    className="w-full rounded-lg bg-red-600 px-6 py-3 font-semibold text-white transition-colors duration-200 hover:bg-red-500 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-red-600 dark:hover:bg-red-500"
+                  >
+                    {isStartingGame ? "Stopping Game..." : "Stop Game"}
+                  </button>
+                </>
               ) : (
                 <button
                   onClick={handleStartGame}
@@ -555,12 +595,15 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
               </p>
             </>
           ) : (
-            <div className="rounded-lg bg-gray-100 p-4 text-center dark:bg-gray-800">
-              <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+            <div className="space-y-3">
+              <a
+                href={`/game/${id}/summary/`}
+                className="block w-full rounded-lg bg-primary-600 px-6 py-3 font-semibold text-white text-center transition-colors duration-200 hover:bg-primary-500 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-primary-600 dark:bg-primary-600 dark:hover:bg-primary-500"
+              >
+                View Summary
+              </a>
+              <p className="text-center text-xs text-muted dark:text-darkmutedtext">
                 Game has ended
-              </p>
-              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                No further actions available
               </p>
             </div>
           )}

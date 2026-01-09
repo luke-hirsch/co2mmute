@@ -4,7 +4,7 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/solid";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import Header from "../Header";
 import GamePlay from "./GamePlay";
@@ -22,6 +22,14 @@ const Game = () => {
   const { isLoading, isError, isHost, isPlayer, auth } = useAuth();
   const { gameId } = useParams({ from: "/game/$gameId" });
   const { gameState } = useGameState({ gameId });
+
+  // Redirect to summary when game ends
+  useEffect(() => {
+    if (gameState?.ended_at) {
+      window.location.href = `/game/${gameId}/summary/`;
+    }
+  }, [gameState?.ended_at, gameId]);
+
   return (
     <div className="min-h-svh min-w-full max-w-screen bg-body dark:bg-darkbody dark:text-darktext overflow-hidden">
       <div className="lg:hidden absolute top p-2 w-screen flex justify-between">
@@ -72,8 +80,12 @@ const Game = () => {
                   <div className="text-red-600 dark:text-red-400">
                     Error loading game
                   </div>
-                ) : isPlayer ? (
-                  <GamePlay gameId={gameId} playerId={auth?.player?.playerId} />
+                ) : isPlayer || isHost ? (
+                  <GamePlay
+                    gameId={gameId}
+                    playerId={auth?.player?.playerId}
+                    isHost={isHost}
+                  />
                 ) : (
                   <div>Unauthorized</div>
                 )}

@@ -1,11 +1,15 @@
 import { useState } from "react";
 import { useGameState } from "../../hooks/useGameState";
 import { usePlayerMove } from "../../hooks/usePlayerMove";
+import { useGameDetails, usePlayerGameDetails } from "../../hooks/gameHooks";
+import { useMapGraph } from "../../hooks/mapHooks";
 import Loading from "../Loading";
+import GameMapViewer from "./GameMapViewer";
 
 interface GamePlayProps {
   gameId: string;
   playerId?: string;
+  isHost?: boolean;
 }
 
 const TRANSPORTATION_OPTIONS = [
@@ -47,7 +51,11 @@ const TRANSPORTATION_OPTIONS = [
   },
 ];
 
-export default function GamePlay({ gameId, playerId }: GamePlayProps) {
+export default function GamePlay({
+  gameId,
+  playerId,
+  isHost = false,
+}: GamePlayProps) {
   const {
     gameState,
     gameStats,
@@ -67,6 +75,30 @@ export default function GamePlay({ gameId, playerId }: GamePlayProps) {
   const [selectedTransport, setSelectedTransport] = useState<string | null>(
     null
   );
+
+  // Fetch game details to get map ID - use different endpoint based on user type
+  // Host uses /api/game/<id>/, players use /api/game/<id>/<playerId>/
+  // Only enable the relevant hook to avoid 403 errors
+  const hostGameDetails = useGameDetails(gameId, isHost);
+  const playerGameDetails = usePlayerGameDetails(
+    gameId,
+    playerId || "",
+    !isHost && !!playerId
+  );
+
+  // Select the appropriate data based on user type
+  const gameDetails = isHost ? hostGameDetails.data : playerGameDetails.data;
+  const gameDetailsLoading = isHost
+    ? hostGameDetails.isLoading
+    : playerGameDetails.isLoading;
+
+  // Fetch map graph once we have the map ID
+  const mapId = gameDetails?.game_map;
+  const {
+    data: mapGraph,
+    isLoading: mapLoading,
+    error: mapError,
+  } = useMapGraph(mapId ?? "", undefined);
 
   if (!isConnected) {
     return (
@@ -134,6 +166,19 @@ export default function GamePlay({ gameId, playerId }: GamePlayProps) {
           </div>
         </div>
       )}
+
+      {/* Map View */}
+      <div className="mb-8">
+        <h2 className="text-xl font-semibold mb-4 text-main dark:text-darktext">
+          Map
+        </h2>
+        <GameMapViewer
+          mapGraph={mapGraph ?? null}
+          isLoading={mapLoading || gameDetailsLoading}
+          error={mapError ? "Failed to load map" : null}
+          compact={true}
+        />
+      </div>
 
       {/* Transportation Selection */}
       <div className="mb-8">

@@ -1,3 +1,4 @@
+import { useNavigate } from "@tanstack/react-router";
 import { useGameState } from "../../hooks/useGameState";
 import ConnectionSignal from "../ConnectionSignal";
 
@@ -9,6 +10,7 @@ export default function GameStatSidebar({ gameId }: GameStatSidebarProps) {
   const { gameStats, connectionQuality } = useGameState({
     gameId,
   });
+  const navigate = useNavigate();
 
   if (!gameStats) {
     return (
@@ -107,7 +109,14 @@ export default function GameStatSidebar({ gameId }: GameStatSidebarProps) {
 
       {/* Footer Info */}
       <div className="mt-auto pt-4 border-t border-subtle dark:border-darksubtle text-xs text-muted dark:text-darkmutedtext">
-        <p>Round progress and CO₂ tracking</p>
+        <button
+          onClick={() => {
+            navigate({ from: "/game/$gameId", to: "/lobby/$gameId" });
+          }}
+          className="w-full rounded bg-red-600 p-2 text-left font-semibold text-white transition-colors duration-200 hover:bg-red-700 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:bg-red-600 dark:hover:bg-red-700"
+        >
+          retun to lobby
+        </button>
       </div>
     </div>
   );

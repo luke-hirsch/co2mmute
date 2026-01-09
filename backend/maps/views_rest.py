@@ -266,18 +266,10 @@ class TrainLineDetailView(RetrieveUpdateDestroyAPIView):
 
 # Custom Graph View
 class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
-    """
-    Get the complete graph (all nodes and edges) for a specific map version.
-
-    This is an expensive operation, so results are cached.
-    """
-
     serializer_class = MapVersionSerializer
     authentication_classes = (SessionAuthentication,)
-    permission_classes = (IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
-        """Retrieve the complete graph for a specific map version."""
         map_pk = self.get_map_id()
         version_pk = kwargs.get("version_pk")
 
@@ -324,9 +316,12 @@ class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
             ).prefetch_related("node_type")
 
             # Get all edges for this map version with street_edge and train_edge prefetch
-            edges = Edge.objects.filter(
-                game_map=map_obj, map_versions=version
-            ).select_related("start_node", "end_node", "streetedge", "trainedge")
+            # StreetEdge and TrainEdge have ForeignKey to Edge, so we use prefetch_related
+            edges = (
+                Edge.objects.filter(game_map=map_obj, map_versions=version)
+                .select_related("start_node", "end_node")
+                .prefetch_related("streetedge_set", "trainedge_set")
+            )
 
             # Serialize the data
             nodes_data = NodeSerializer(nodes, many=True).data

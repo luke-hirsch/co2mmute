@@ -656,7 +656,7 @@ class GameStateConsumer(AsyncWebsocketConsumer):
     GAME_STATE_KEY_PATTERN = "gamestate:{game_id}"
     PLAYER_MOVES_SET_PATTERN = "gamestate:{game_id}:moves:{round_number}"
 
-    # CO2 emissions per transportation type (kg)
+    # to settings
     EMISSION_FACTORS = {
         "car": 120.0,  # Most polluting
         "public": 60.0,  # Half of car
@@ -747,6 +747,7 @@ class GameStateConsumer(AsyncWebsocketConsumer):
                     "game_id": self.game_id,
                     "game_name": game.game_name,
                     "is_active": game.is_active,
+                    "ended_at": game.ended_at.isoformat() if game.ended_at else None,
                     "max_rounds": game.max_rounds,
                     "max_co2": game.max_CO2_level,
                     "current_round": round_number,
@@ -898,6 +899,9 @@ class GameStateConsumer(AsyncWebsocketConsumer):
                         "game_id": game_id,
                         "game_name": game.game_name,
                         "is_active": game.is_active,
+                        "ended_at": game.ended_at.isoformat()
+                        if game.ended_at
+                        else None,
                         "max_rounds": game.max_rounds,
                         "max_co2": game.max_CO2_level,
                         "current_round": round_number,

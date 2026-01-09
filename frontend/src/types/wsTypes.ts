@@ -103,6 +103,7 @@ export interface WSGameState {
   game_id: string;
   game_name: string;
   is_active: boolean;
+  ended_at: string | null;
   max_rounds: number;
   max_co2: number;
   current_round: number;

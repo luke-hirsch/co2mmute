@@ -9,7 +9,7 @@ import {
 
 //types
 import type { Auth } from "../types/types";
-import { useSession } from "../utils/useSession";
+import { useSession } from "../hooks/useSession";
 
 interface AuthContextType {
   auth: Auth | undefined;

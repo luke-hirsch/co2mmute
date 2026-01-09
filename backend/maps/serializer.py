@@ -149,24 +149,30 @@ class EdgeSerializer(MapVersionsMixin, serializers.ModelSerializer):
     def get_street_edge(self, obj):
         """Get street edge data if it exists for this edge."""
         try:
-            street_edge = obj.streetedge
-            return {
-                "id": street_edge.id,
-                "speed_limit": street_edge.speed_limit,
-                "lanes": street_edge.lanes,
-                "dedicated_bus_lane": street_edge.dedicated_bus_lane,
-            }
-        except mm.StreetEdge.DoesNotExist:
+            # StreetEdge has ForeignKey to Edge, access via reverse relation
+            street_edge = obj.streetedge_set.first()
+            if street_edge:
+                return {
+                    "id": street_edge.id,
+                    "speed_limit": street_edge.speed_limit,
+                    "lanes": street_edge.lanes,
+                    "dedicated_bus_lane": street_edge.dedicated_bus_lane,
+                }
+            return None
+        except Exception:
             return None
 
     def get_train_edge(self, obj):
         """Get train edge data if it exists for this edge."""
         try:
-            train_edge = obj.trainedge
-            return {
-                "id": train_edge.id,
-            }
-        except mm.TrainEdge.DoesNotExist:
+            # TrainEdge has ForeignKey to Edge, access via reverse relation
+            train_edge = obj.trainedge_set.first()
+            if train_edge:
+                return {
+                    "id": train_edge.id,
+                }
+            return None
+        except Exception:
             return None
 
     def validate(self, attrs):
