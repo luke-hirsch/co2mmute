@@ -114,6 +114,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "channels",
+    "tinymce",
     # Custom apps
     "game_data",
     "game",

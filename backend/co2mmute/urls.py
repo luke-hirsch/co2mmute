@@ -56,4 +56,5 @@ urlpatterns = [
     path("api/game_data/", include("game_data.urls")),
     path("api/maps/", include("maps.urls")),
     re_path(r"^app(?:/.*)?$", SpaView.as_view(), name="app"),
+    path("tinymce/", include("tinymce.urls")),
 ]
