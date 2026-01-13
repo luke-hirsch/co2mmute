@@ -13,8 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 class HostPlayer:
-    """Pseudo-player object for authenticated game hosts."""
-
     def __init__(self, user_id: int, username: str):
         self.user_id = user_id
         self.player_id = f"host_{user_id}"
@@ -22,20 +20,14 @@ class HostPlayer:
         self.is_muted = False
         self.controlled_by_host = True
         self.joined_at = datetime.now()
-        self.user = True  # Mark that this has a user associated
+        self.user = True
 
 
 async def resolve_player(scope, game_id: str):
-    # First, check if the user is authenticated and is the game host
     user = await get_user(scope)
-
-    logger.debug(
-        f"Resolving player for game {game_id}, user: {user}, authenticated: {user.is_authenticated if user else False}"
-    )
 
     @database_sync_to_async
     def _check_if_host_and_get_player(user_obj, game_id_inner):
-        """Check if user is authenticated game host, return HostPlayer instead of creating DB record."""
         if not user_obj or not user_obj.is_authenticated:
             logger.debug("User not authenticated or None")
             return None
@@ -47,20 +39,14 @@ async def resolve_player(scope, game_id: str):
         )
 
         if not game_session:
-            logger.debug(f"User {user_obj} is not host of game {game_id_inner}")
             return None
 
-        logger.info(f"User {user_obj} is host of game {game_id_inner}")
-        # Return a HostPlayer object - not a real Player DB record
         return HostPlayer(user_obj.id, user_obj.username)
 
     host_player = await _check_if_host_and_get_player(user, game_id)
     if host_player:
-        logger.info(f"WebSocket auth granted to host for game {game_id}")
-        return host_player, None, None, True  # Fourth return value: is_host=True
+        return host_player, None, None, True
 
-    # If not host, check for regular player cookies
-    # Read raw cookies
     player_cookie_name = f"{settings.COOKIE_PLAYER_PREFIX}{game_id}"
     game_cookie_name = f"{settings.COOKIE_GAME_PREFIX}{game_id}"
 
@@ -75,11 +61,7 @@ async def resolve_player(scope, game_id: str):
 
     try:
         player_id = unsign_value(raw_player, settings.COOKIE_PLAYER_SALT)
-        logger.info(f"Unsigned player_id from cookie: {player_id}")
-        # validate game cookie and extract embedded game_id
         game_cookie_value = unsign_value(raw_game, settings.COOKIE_GAME_SALT)
-        logger.info(f"Unsigned game cookie value: {game_cookie_value}")
-        # Format is "game_id:token" - validate game_id matches
         if ":" not in game_cookie_value:
             logger.warning(f"Malformed game cookie for {game_id}")
             return None, 4401, "malformed-game-cookie", False
@@ -96,9 +78,6 @@ async def resolve_player(scope, game_id: str):
     # DB lookup with game state validation
     @database_sync_to_async
     def _get_player_with_game_check(game_id_inner, player_id_inner):
-        logger.info(
-            f"Looking up player with game_id={game_id_inner}, player_id={player_id_inner}"
-        )
         player = (
             Player.objects.filter(
                 game__game_id=game_id_inner, player_id=player_id_inner
@@ -118,8 +97,6 @@ async def resolve_player(scope, game_id: str):
             logger.debug(f"Players in game {game_id_inner}: {list(all_players)}")
             return None, "player-not-found"
 
-        # Validate game is in an acceptable state for WebSocket connections
-        # Reject if game has ended (ended_at is not None)
         game = player.game
         if game.ended_at is not None:
             return None, "game-ended"
@@ -138,4 +115,4 @@ async def resolve_player(scope, game_id: str):
         else:
             return None, 4403, "game-invalid-state", False
 
-    return player, None, None, False  # Fourth return value: is_host=False
+    return player, None, None, False

@@ -73,23 +73,14 @@ class LobbyConsumer(AsyncWebsocketConsumer):
             "joinedAt": player.joined_at.isoformat(),
         }
 
-        # redis connection
         self.redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
 
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
-
-        # Only register regular players in the roster, not the host
-        # The host is the game master, not a player in the player list
         if not self.is_host:
-            # Store player in Redis and broadcast updated roster
             await self._register_player_presence()
             await self._broadcast_roster_to_group()
         else:
-            logger.info(
-                f"Host connected to lobby {self.game_id}, not registering in player roster"
-            )
-            # Still broadcast the updated roster to all players (in case any connected)
             await self._broadcast_roster_to_group()
 
     async def disconnect(self, close_code):
@@ -141,7 +132,6 @@ class LobbyConsumer(AsyncWebsocketConsumer):
         return self.PLAYER_METADATA_HASH_KEY_PATTERN.format(game_id=self.game_id)
 
     async def _register_player_presence(self):
-        """Register player in Redis and mark as online."""
         current_timestamp = time.time()
         presence_zset_key = self._get_presence_zset_key()
         presence_meta_key = self._get_presence_metadata_key()
@@ -167,7 +157,6 @@ class LobbyConsumer(AsyncWebsocketConsumer):
         await redis_pipe.execute()
 
     async def _refresh_player_presence(self):
-        """Refresh player presence on ping (extends TTL and updates timestamp)."""
         current_timestamp = time.time()
         presence_zset_key = self._get_presence_zset_key()
         presence_meta_key = self._get_presence_metadata_key()
@@ -189,7 +178,6 @@ class LobbyConsumer(AsyncWebsocketConsumer):
         await redis_pipe.execute()
 
     async def _mark_player_offline(self):
-        """Mark player as offline (still visible in roster for TTL duration)."""
         current_timestamp = time.time()
         presence_zset_key = self._get_presence_zset_key()
         presence_meta_key = self._get_presence_metadata_key()
@@ -214,7 +202,6 @@ class LobbyConsumer(AsyncWebsocketConsumer):
         await redis_pipe.execute()
 
     async def _cleanup_stale_players(self):
-        """Remove players that haven't been seen in PLAYER_ACTIVE_TTL_SECONDS."""
         current_timestamp = time.time()
         stale_cutoff_timestamp = (
             current_timestamp - self.PRESENCE_STALE_THRESHOLD_SECONDS
@@ -239,7 +226,6 @@ class LobbyConsumer(AsyncWebsocketConsumer):
 
     @staticmethod
     async def remove_player_from_lobby_cache(game_id: str, player_id):
-        """Remove a player from the lobby Redis cache (called when player is deleted)."""
         redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
         try:
             presence_zset_key = LobbyConsumer.PLAYER_PRESENCE_ZSET_KEY_PATTERN.format(
@@ -249,18 +235,15 @@ class LobbyConsumer(AsyncWebsocketConsumer):
                 game_id=game_id
             )
 
-            logger.info(f"Removing {player_id} from Redis for {game_id}")
             redis_pipe = redis_client.pipeline()
             redis_pipe.hdel(presence_meta_key, str(player_id))
             redis_pipe.zrem(presence_zset_key, str(player_id))
-            result = await redis_pipe.execute()
-            logger.info(f"Redis removal result: {result}")
+            await redis_pipe.execute()
         finally:
             await redis_client.close()
 
     @staticmethod
     async def broadcast_updated_roster(game_id: str):
-        """Broadcast updated roster to all connected lobby clients after player deletion."""
         from channels.layers import get_channel_layer
 
         channel_layer = get_channel_layer()
@@ -279,14 +262,9 @@ class LobbyConsumer(AsyncWebsocketConsumer):
                 game_id=game_id
             )
 
-            # Build roster from current Redis state
             all_player_ids = await redis_client.zrange(presence_zset_key, 0, -1)
-            logger.info(
-                f"Broadcast: Found {len(all_player_ids)} players in Redis for {game_id}: {all_player_ids}"
-            )
             roster = []
 
-            # First, add all connected players from Redis
             if all_player_ids:
                 raw_player_payloads = await cast(
                     Awaitable[list[str | None]],
@@ -325,9 +303,6 @@ class LobbyConsumer(AsyncWebsocketConsumer):
 
             host_controlled_players = await get_host_controlled_players()
             existing_player_ids = {p.get("playerId") for p in roster}
-            logger.info(
-                f"Broadcast: Found {len(host_controlled_players)} host-controlled players for {game_id}"
-            )
 
             for db_player in host_controlled_players:
                 if db_player["player_id"] not in existing_player_ids:
@@ -342,16 +317,10 @@ class LobbyConsumer(AsyncWebsocketConsumer):
                         }
                     )
 
-            # Sort by name for consistent ordering
             roster.sort(
                 key=lambda player: (player.get("name", ""), player.get("playerId", ""))
             )
 
-            logger.info(
-                f"Broadcast: Sending roster with {len(roster)} players to {game_id}: {[p.get('playerId') for p in roster]}"
-            )
-
-            # Broadcast to all connected clients in the group
             await channel_layer.group_send(
                 group_name,
                 {
@@ -359,23 +328,18 @@ class LobbyConsumer(AsyncWebsocketConsumer):
                     "players": roster,
                 },
             )
-            logger.info(f"Broadcast: Sent to group {group_name}")
         finally:
             await redis_client.close()
 
     async def _build_roster_from_redis(self):
-        """Build complete roster by fetching all player metadata from Redis and host-controlled players from DB."""
         presence_zset_key = self._get_presence_zset_key()
         presence_meta_key = self._get_presence_metadata_key()
 
-        # Get all player IDs from sorted set (ordered by timestamp)
         all_player_ids = await self.redis_client.zrange(presence_zset_key, 0, -1)
 
         roster = []
 
-        # First, add all connected players from Redis
         if all_player_ids:
-            # Fetch metadata for all players
             raw_player_payloads = await cast(
                 Awaitable[list[str | None]],
                 self.redis_client.hmget(presence_meta_key, *all_player_ids),
@@ -391,7 +355,6 @@ class LobbyConsumer(AsyncWebsocketConsumer):
                     logger.warning(f"Failed to parse player payload: {e}")
                     continue
 
-        # Second, add host-controlled players from DB that aren't already in Redis
         @database_sync_to_async
         def get_host_controlled_players():
             return list(
@@ -420,14 +383,12 @@ class LobbyConsumer(AsyncWebsocketConsumer):
                     }
                 )
 
-        # Sort by name for consistent ordering
         roster.sort(
             key=lambda player: (player.get("name", ""), player.get("playerId", ""))
         )
         return roster
 
     async def _broadcast_roster_to_group(self):
-        """Build roster and broadcast to all players in game group."""
         roster = await self._build_roster_from_redis()
         await self.channel_layer.group_send(
             self.group_name,
@@ -438,7 +399,6 @@ class LobbyConsumer(AsyncWebsocketConsumer):
         )
 
     async def lobby_roster(self, event):
-        """Handler for roster broadcasts from group_send."""
         await self.send(
             json.dumps(
                 {

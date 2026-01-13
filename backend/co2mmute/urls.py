@@ -34,7 +34,7 @@ urlpatterns = [
     path("legal/cookies/", CookiesView.as_view(), name="cookies"),
     path("game/create/", GameSessionCreateView.as_view(), name="session-create"),
     path("game/<game_id>/share/", ShareSessionView.as_view(), name="session-share"),
-    path("game/<game_id>/summary", PostGameView.as_view(), name="session-summery"),
+    path("game/<game_id>/summary/", PostGameView.as_view(), name="session-summery"),
     path("join/", JoinSessionView.as_view(), name="session-join"),
     path("join/<game_id>/", JoinSessionView.as_view(), name="session-join-direct"),
     path(
