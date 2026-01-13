@@ -143,7 +143,6 @@ class PlayerCreateForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # styling
         base_class = (
             "block w-full rounded-md bg-white px-3 py-2 text-base text-gray-900 "
             "outline outline-1 outline-gray-300 focus:outline-2 "
@@ -171,7 +170,6 @@ class JoinSessionForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # styling
         text_class = (
             "block w-full rounded-md bg-white px-3 py-2 text-base text-gray-900 "
             "outline outline-1 outline-gray-300 focus:outline-2 "

@@ -114,29 +114,16 @@ class LogoutView(DjangoLogoutView):
 
 
 class WhoAmIView(APIView):
-    """
-    Returns identity for one of 4 cases:
-    1. authenticated user (host/admin) - if user is logged in without game context
-    2. host (authenticated user in game context) - if user is logged in AND is the game host
-    3. player (authenticated or anonymous) - if player cookie exists for the game
-    4. anonymous (no authentication, no player cookie)
-
-    Pass ?game_id=ABC123 to provide game context.
-    """
-
     def get(self, request, format=None):
         user = request.user
         game_id = (request.query_params.get("game_id") or "").strip().upper()
 
-        # Try to get player from cookie if game_id is provided
         player = None
         if game_id:
             player = self._get_player_from_cookie(request, game_id)
 
-        # Case 1 & 2: User is authenticated
         if user and user.is_authenticated:
             user_data = {
-                "kind": self._get_kind_for_authenticated_user(user, game_id),
                 "authenticated": True,
                 "id": user.id,
                 "isStaff": user.is_staff,
@@ -147,7 +134,6 @@ class WhoAmIView(APIView):
                 "lastName": user.last_name,
             }
 
-            # Optional: attach short-lived JWT
             try:
                 expiration_seconds = int(
                     getattr(settings, "JWT_EXPIRATION_SECONDS", 300)
@@ -164,7 +150,6 @@ class WhoAmIView(APIView):
             except Exception:
                 pass
 
-            # If user is also a player in this game context, include player info
             if player:
                 user_data.update(
                     {
@@ -175,10 +160,16 @@ class WhoAmIView(APIView):
                         },
                     }
                 )
+            user_data.update(
+                {
+                    "kind": self._get_kind_for_authenticated_user(
+                        user, game_id, player
+                    ),
+                }
+            )
 
             return Response(user_data)
 
-        # Case 3: Anonymous player (with game context)
         if player:
             return Response(
                 {
@@ -192,7 +183,6 @@ class WhoAmIView(APIView):
                 }
             )
 
-        # Case 4: Anonymous (no context)
         return Response(
             {
                 "kind": "anonymous",
@@ -202,14 +192,12 @@ class WhoAmIView(APIView):
         )
 
     def _get_player_from_cookie(self, request, game_id):
-        """Extract and validate player from signed cookie."""
         cookie_name = f"{settings.COOKIE_PLAYER_PREFIX}{game_id}"
         raw = request.COOKIES.get(cookie_name)
         if not raw:
             return None
 
         try:
-            # Use TimestampSigner.unsign() to match the TimestampSigner.sign() in cookie_utils
             signer = signing.TimestampSigner(salt=settings.COOKIE_PLAYER_SALT)
             player_id = signer.unsign(raw, max_age=None)
         except signing.BadSignature:
@@ -220,13 +208,13 @@ class WhoAmIView(APIView):
         ).first()
         return player
 
-    def _get_kind_for_authenticated_user(self, user, game_id):
-        """Determine if authenticated user is 'host' or 'user'."""
+    def _get_kind_for_authenticated_user(self, user, game_id, player):
         if not game_id:
             return "user"
 
         cached_game = get_cached_game_session(game_id)
         if cached_game and cached_game.game_host == user:
             return "host"
-
+        if cached_game and player:
+            return "player"
         return "user"

@@ -655,10 +655,6 @@ class GameStateConsumer(AsyncWebsocketConsumer):
         # Send initial game state
         await self._send_game_state()
 
-        logger.info(
-            f"GameState connection established for {self.game_id} - {self.player_id}"
-        )
-
     async def disconnect(self, close_code):
         try:
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
@@ -892,7 +888,6 @@ class GameStateConsumer(AsyncWebsocketConsumer):
                     "content": game_state,
                 },
             )
-            logger.info(f"Broadcasted game state to {group_name}")
         except Exception as e:
             logger.error(f"Error broadcasting game state: {e}")
 

@@ -2,6 +2,31 @@
 
 A game to simulate different means of transportation and their impact to transportation infrastructure and CO2 Emissions based on the master thesis of Sebastian Werblinski.
 
+# Work in Progress
+
+## Noch zu implementieren
+- Game Engine
+  - Dijkstra Frontend
+  - Dijkstra Backend
+  - Zeitberechnung
+  - Emissionsberechnung
+  - Geldberechnung (?)
+- Code kommentieren
+- Api Docs
+- dark light modus switch
+  
+
+## Bugs
+- kritisch
+  - spieler koennen sich noch einloggen, wenn spiel schon gestartet ist
+- geht so
+  - chat enabled nur pausiert, aber wenn wieder aktiviert, gehen alle nachrichten durch
+- nicht wichtig
+  - jwt geht nicht
+  - chat fenster hoizontal scroll 
+
+
+
 # Game Concept
 
 ## Spielanleitung
@@ -37,26 +62,47 @@ A game to simulate different means of transportation and their impact to transpo
    1. Spieler stimmen ab.
    
 
-# Design
+# Netzwerkstruktur
 
-<svg width="200" height="200" viewBox="0 0 200 200"
-     xmlns="http://www.w3.org/2000/svg">
-  <path d="M140 40
-           A70 70 0 1 0 140 160"
-        fill="none"
-        stroke="#1E88E5"
-        stroke-width="20"
-        stroke-linecap="round" />
-  <rect x="85" y="85" width="30" height="30"
-        fill="#1E88E5"
-        rx="4"
-        transform="rotate(45 100 100)" />
-  <line x1="121" y1="100" x2="165" y2="100"
-        stroke="#1E88E5"
-        stroke-width="20"
-        stroke-linecap="round" />
+### Knotentypen:
 
-</svg>
+- es gibt folgende Typen:
+  - **H**ome
+  - **W**ork
+  - **B**us **S**tation
+  - **I**ntersection
+  - **T**rain **S**tation
+- jeder Knoten hat einen oder mehrere Typen 
+  - Beispiel: Knoten ist Intersection aber auch gleichzeitig Busstation
 
+### Kantentypen:
+
+- übergeordneter Typ **Edge** für Kanten mit folgenden Attributen:
+  - Fußgänger erlaubt (Default: ja)
+  - Fahrrad erlaubt (Default: ja)
+  
+- abgeleitete Typen:
+  - **S**treet mit zusätzlichen Eigenschaften:
+    - Fuß und Fahrradweg optional! --> z.B.: Stadtautobahn auch mgl.
+  - **T**rain:
+    - in übergeordneter Kante dazu muss Fuß- und Fahrradweg aus!   
+    T (Pflicht: Fuß und Fahrrad müssen aus)
+
+### ÖPNV Struktur:
+
+- Bus und Zuglinien = Sammlung der entsprechenden Edges (nach wie vor Metaeigenschaft)
+- Eigenschaften:
+  - 
+
+
+# Berechnungen: 
+
+
+- Berechnung der Wegzeiten:
+- Idee: Agenten in realistischer Zahl modellieren (Faktor Personen pro Agent in GameSession)
+- nach Wahl der Runde werden Personen losgeschickt und bewegen sich auf dem vorher festlegten Weg
+- Zeitschritte von ...s in der Simulation --> wieviele befindet sich gleichzeitig auf einer Kante? --> Geschwindigkeit wird für diesen Zeitschritt angepasst
+- Bus und Bahn: wenn zuviele Spieler gleichzeitig auf der Zug oder Buskante, dann zufällig für diese Kante Wartezeit (1 bis Frequenz zufällig) oder nicht (Glück gehabt oder Pech)
+- 
 
 

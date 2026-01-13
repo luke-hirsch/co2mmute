@@ -18,31 +18,25 @@ class HasGameAccess(BasePermission):
         if not game_id:
             return False
 
-        # Check if user is authenticated game host
         if request.user.is_authenticated:
             session = get_cached_game_session(game_id)
             if session and session.game_host == request.user:
                 logger.info(f"Host {request.user} has access to game {game_id}")
                 return True
 
-        # For non-authenticated users, check for game access cookie using signed cookies
         cookie_name = f"{settings.COOKIE_GAME_PREFIX}{game_id}"
         try:
-            # Get the raw cookie value from the request
             raw_cookie = request.COOKIES.get(cookie_name)
             if not raw_cookie:
                 logger.warning(f"Game access cookie not found: {cookie_name}")
                 return False
 
-            # Use unsign_value from cookie_utils to verify the signature
             cookie_value = unsign_value(raw_cookie, settings.COOKIE_GAME_SALT)
 
-            # Extract embedded game_id from "game_id:token" format
             if ":" not in cookie_value:
                 logger.warning(f"Malformed game cookie for {game_id}")
                 return False
             cookie_game_id, _ = cookie_value.split(":", 1)
-            # Verify game_id matches
             has_access = cookie_game_id == game_id
             logger.info(f"Game cookie access for {game_id}: {has_access}")
             return has_access
@@ -65,13 +59,11 @@ class IsPlayerInGame(BasePermission):
         cookie_name = f"{settings.COOKIE_PLAYER_PREFIX}{game_id}"
 
         try:
-            # Get the raw cookie value from the request
             raw_cookie = request.COOKIES.get(cookie_name)
             if not raw_cookie:
                 logger.warning(f"Player cookie not found: {cookie_name}")
                 return False
 
-            # Use unsign_value from cookie_utils to verify the signature
             player_id = unsign_value(raw_cookie, settings.COOKIE_PLAYER_SALT)
         except signing.BadSignature as e:
             logger.warning(f"Player cookie signature failed for {cookie_name}: {e}")
@@ -80,18 +72,12 @@ class IsPlayerInGame(BasePermission):
             logger.warning(f"Player cookie check failed for {cookie_name}: {e}")
             return False
 
-        # Verify that player exists AND belongs to that game
         return Player.objects.filter(
             game__game_id=game_id, player_id=player_id
         ).exists()
 
 
 class CanDeleteOwnPlayer(BasePermission):
-    """
-    Permission to allow players to delete only their own player record.
-    Uses cookie-based authentication like ws_auth.py
-    """
-
     message = "You can only delete your own player record."
 
     def has_permission(self, request, view):
@@ -106,25 +92,18 @@ class CanDeleteOwnPlayer(BasePermission):
             )
             return False
 
-        # Check if user is authenticated game host - hosts can delete any player
         if request.user.is_authenticated:
             session = get_cached_game_session(game_id)
             if session and session.game_host == request.user:
-                logger.info(
-                    f"Host {request.user} authorized to delete player {player_id}"
-                )
                 return True
 
-        # Check if player_id matches the signed cookie
         cookie_name = f"{settings.COOKIE_PLAYER_PREFIX}{game_id}"
         try:
-            # Get the raw cookie value from the request
             raw_cookie = request.COOKIES.get(cookie_name)
             if not raw_cookie:
                 logger.warning(f"Player cookie not found: {cookie_name}")
                 return False
 
-            # Use unsign_value from cookie_utils to verify the signature
             cookie_player_id = unsign_value(raw_cookie, settings.COOKIE_PLAYER_SALT)
             match = cookie_player_id == player_id
             logger.info(
@@ -140,8 +119,6 @@ class CanDeleteOwnPlayer(BasePermission):
 
 
 class IsGameHost(BasePermission):
-    """Permission to check if user is the host of the game."""
-
     message = "Only the game host can perform this action."
 
     def has_permission(self, request, view):
