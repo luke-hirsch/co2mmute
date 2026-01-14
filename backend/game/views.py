@@ -110,6 +110,11 @@ class JoinSessionView(GameAccessCookieMixin, TemplateView):
             game_session = get_cached_game_session(game_id)
             if game_session:
                 show_password = bool(game_session.game_password)
+                if game_session.started_at:
+                    form.add_error(
+                        "game_id",
+                        "Game is already in progress. Please join a different game.",
+                    )
             else:
                 form = self.form_class(data={"game_id": game_id})
                 form.is_valid()
@@ -133,16 +138,23 @@ class JoinSessionView(GameAccessCookieMixin, TemplateView):
             game_id = form.cleaned_data["game_id"].upper()
 
             game_session = get_cached_game_session(game_id)
+
             if not game_session:
                 form.add_error("game_id", "No session found with that ID.")
+
             else:
-                show_password = bool(game_session.game_password)
-                if show_password:
-                    password = form.cleaned_data.get("game_password")
-                    if not password:
-                        awaiting_password = True
-                    elif password != game_session.game_password:
-                        form.add_error("game_password", "Incorrect password.")
+                if game_session.started_at:
+                    form.add_error(
+                        "game_id",
+                        "Game is already in progress. Please join a different game.",
+                    )
+                    show_password = bool(game_session.game_password)
+                    if show_password:
+                        password = form.cleaned_data.get("game_password")
+                        if not password:
+                            awaiting_password = True
+                        elif password != game_session.game_password:
+                            form.add_error("game_password", "Incorrect password.")
 
             if not form.errors and not awaiting_password and game_session:
                 self._mark_joined(request, game_session)
@@ -213,10 +225,9 @@ class PlayerCreateView(
             f"PlayerCreateView.form_valid() called, creating player: {form.cleaned_data}"
         )
         if self.game_session and self.game_session.is_active:
-            return ValueError("Game has already started")
+            messages.error(self.request, "Game has already started.")
+            return redirect("session-join")
 
-        # Manually save the form instead of using super().form_valid()
-        # This allows us to set cookies BEFORE creating the response
         player = form.save()
         logger.info(f"Player saved: id={player.id}, player_id={player.player_id}")
         if not self.game_session:
@@ -231,15 +242,9 @@ class PlayerCreateView(
             )
             return redirect("player-create", game_id=self.game_session.game_id)
 
-        # Create the redirect response first
         success_url = f"/app/lobby/{self.game_session.game_id}/"
         response = redirect(success_url)
-        logger.info(f"Created redirect response to: {success_url}")
 
-        # Set cookies on the response
-        logger.info(
-            f"Setting cookies for player {player.player_id} in game {self.game_session.game_id}"
-        )
         response = self.set_game_access_cookie(
             self.request,
             response,
@@ -251,7 +256,9 @@ class PlayerCreateView(
             self.game_session.game_id,
             player.player_id,
         )
-        logger.info("Cookies set on response")
+        logger.info(
+            f"Set cookies for player {player.player_id} in game {self.game_session.game_id}"
+        )
 
         messages.success(
             self.request,
@@ -276,13 +283,14 @@ class PlayerUpdateView(PlayerCookieMixin, TemplateView):
 
 
 class PostGameView(GameAccessCookieMixin, PlayerCookieMixin, TemplateView):
+    """this is a placeholder cbv"""
+
     template_name = "game/post_game.html"
 
     def dispatch(self, request, *args, **kwargs):
         game_id = kwargs.get("game_id", "").upper()
         self.game_session = get_object_or_404(GameSession, game_id=game_id)
 
-        # Check access - either host or player who joined
         has_access = False
         if (
             request.user.is_authenticated
@@ -307,13 +315,11 @@ class PostGameView(GameAccessCookieMixin, PlayerCookieMixin, TemplateView):
         game = self.game_session
         players = Player.objects.filter(game=game, left_at__isnull=True)
 
-        # Calculate stats for each player
         from .models import PlayerMove, GameRound
 
         player_stats = []
         total_co2 = 0.0
 
-        # CO2 emissions per transportation type (kg) - should match consumers.py
         emission_factors = {
             "car": 120.0,
             "public": 60.0,
@@ -335,10 +341,8 @@ class PostGameView(GameAccessCookieMixin, PlayerCookieMixin, TemplateView):
                 }
             )
 
-        # Sort by CO2 (lowest first = best)
         player_stats.sort(key=lambda x: x["co2"])
 
-        # Add ranking
         for i, stat in enumerate(player_stats):
             stat["rank"] = i + 1
 

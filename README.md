@@ -11,6 +11,7 @@ A game to simulate different means of transportation and their impact to transpo
   - Zeitberechnung
   - Emissionsberechnung
   - Geldberechnung (?)
+  - game/views.py: post game view.
 - Code kommentieren
 - Api Docs
 - dark light modus switch
@@ -18,12 +19,13 @@ A game to simulate different means of transportation and their impact to transpo
 
 ## Bugs
 - kritisch
-  - spieler koennen sich noch einloggen, wenn spiel schon gestartet ist
+  - ✅ spieler koennen sich noch einloggen, wenn spiel schon gestartet ist 
 - geht so
   - chat enabled nur pausiert, aber wenn wieder aktiviert, gehen alle nachrichten durch
 - nicht wichtig
   - jwt geht nicht
   - chat fenster hoizontal scroll 
+  - messages an falscher stelle 
 
 
 
