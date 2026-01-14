@@ -2,7 +2,7 @@ name: go live
 
 on:
   push:
-    branches: ["stage"]
+    branches: ["prod"]
 
 jobs:
   deploy:
