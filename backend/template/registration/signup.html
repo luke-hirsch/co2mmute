@@ -1,6 +1,6 @@
-{% extends "base.html" %} {% load static %} {% block title %} Sign Up
+{% extends "base.html" %} {% load static %}
 <!-- even more comments -->
-{% endblock %}
+{% block title %} Sign Up {% endblock %}
 <!-- some comment  -->
 {% block main %}
 <section class="mx-auto w-full max-w-3xl px-6 py-20">
@@ -58,7 +58,9 @@
                   />
                 </div>
                 {% if form.username.errors %}
-                <div class="mt-2 space-y-1 text-sm text-red-600 dark:text-red-400">
+                <div
+                  class="mt-2 space-y-1 text-sm text-red-600 dark:text-red-400"
+                >
                   {% for error in form.username.errors %}
                   <p>{{ error }}</p>
                   {% endfor %}
@@ -83,7 +85,9 @@
                   />
                 </div>
                 {% if form.email.errors %}
-                <div class="mt-2 space-y-1 text-sm text-red-600 dark:text-red-400">
+                <div
+                  class="mt-2 space-y-1 text-sm text-red-600 dark:text-red-400"
+                >
                   {% for error in form.email.errors %}
                   <p>{{ error }}</p>
                   {% endfor %}
@@ -108,7 +112,9 @@
                   />
                 </div>
                 {% if form.password.errors %}
-                <div class="mt-2 space-y-1 text-sm text-red-600 dark:text-red-400">
+                <div
+                  class="mt-2 space-y-1 text-sm text-red-600 dark:text-red-400"
+                >
                   {% for error in form.password.errors %}
                   <p>{{ error }}</p>
                   {% endfor %}
