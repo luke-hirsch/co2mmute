@@ -5,7 +5,6 @@ from rest_framework.generics import (
     RetrieveUpdateDestroyAPIView,
     GenericAPIView,
 )
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.response import Response
 from rest_framework import status
@@ -34,6 +33,7 @@ from maps.serializer import (
     TrainLineSerializer,
 )
 from maps.mixins import MapScopedQuerysetMixin
+from maps.permissions import IsStaffOrReadOnly
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ class GameMapListView(ListCreateAPIView):
     queryset = GameMap.objects.all()
     serializer_class = GameMapSerializer
     authentication_classes = (SessionAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsStaffOrReadOnly,)
 
     def perform_create(self, serializer):
         """Set the author when creating a new map."""
@@ -58,7 +58,7 @@ class GameMapDetailView(RetrieveUpdateDestroyAPIView):
     queryset = GameMap.objects.all()
     serializer_class = GameMapSerializer
     authentication_classes = (SessionAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsStaffOrReadOnly,)
     lookup_field = "pk"
 
     def perform_update(self, serializer):
@@ -72,7 +72,7 @@ class MapVersionListView(MapScopedQuerysetMixin, ListCreateAPIView):
 
     serializer_class = MapVersionSerializer
     authentication_classes = (SessionAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsStaffOrReadOnly,)
 
     def get_queryset(self):
         """Filter map versions by the specific map."""
@@ -86,7 +86,7 @@ class MapVersionDetailView(RetrieveUpdateDestroyAPIView):
     queryset = MapVersion.objects.all()
     serializer_class = MapVersionSerializer
     authentication_classes = (SessionAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsStaffOrReadOnly,)
     lookup_field = "pk"
     lookup_url_kwarg = "version_pk"
 
@@ -98,7 +98,7 @@ class NodeTypeListView(ListCreateAPIView):
     queryset = NodeType.objects.all()
     serializer_class = NodeTypeSerializer
     authentication_classes = (SessionAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsStaffOrReadOnly,)
 
 
 class NodeTypeDetailView(RetrieveUpdateDestroyAPIView):
@@ -107,7 +107,7 @@ class NodeTypeDetailView(RetrieveUpdateDestroyAPIView):
     queryset = NodeType.objects.all()
     serializer_class = NodeTypeSerializer
     authentication_classes = (SessionAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsStaffOrReadOnly,)
     lookup_field = "pk"
     lookup_url_kwarg = "nodetype_pk"
 
@@ -118,7 +118,7 @@ class NodeListView(MapScopedQuerysetMixin, ListCreateAPIView):
 
     serializer_class = NodeSerializer
     authentication_classes = (SessionAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsStaffOrReadOnly,)
 
     def get_queryset(self):
         """Filter nodes by the specific map."""
@@ -132,7 +132,7 @@ class NodeDetailView(RetrieveUpdateDestroyAPIView):
     queryset = Node.objects.all()
     serializer_class = NodeSerializer
     authentication_classes = (SessionAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsStaffOrReadOnly,)
     lookup_field = "pk"
     lookup_url_kwarg = "node_pk"
 
@@ -143,7 +143,7 @@ class EdgeListView(MapScopedQuerysetMixin, ListCreateAPIView):
 
     serializer_class = EdgeSerializer
     authentication_classes = (SessionAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsStaffOrReadOnly,)
 
     def get_queryset(self):
         """Filter edges by the specific map."""
@@ -157,7 +157,7 @@ class EdgeDetailView(RetrieveUpdateDestroyAPIView):
     queryset = Edge.objects.all()
     serializer_class = EdgeSerializer
     authentication_classes = (SessionAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsStaffOrReadOnly,)
     lookup_field = "pk"
     lookup_url_kwarg = "edge_pk"
 
@@ -168,7 +168,7 @@ class StreetEdgeListView(MapScopedQuerysetMixin, ListCreateAPIView):
 
     serializer_class = StreetEdgeSerializer
     authentication_classes = (SessionAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsStaffOrReadOnly,)
 
     def get_queryset(self):
         """Filter street edges by the specific map."""
@@ -184,7 +184,7 @@ class StreetEdgeDetailView(RetrieveUpdateDestroyAPIView):
     queryset = StreetEdge.objects.all()
     serializer_class = StreetEdgeSerializer
     authentication_classes = (SessionAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsStaffOrReadOnly,)
     lookup_field = "pk"
     lookup_url_kwarg = "streetedge_pk"
 
@@ -195,7 +195,7 @@ class BusLineListView(MapScopedQuerysetMixin, ListCreateAPIView):
 
     serializer_class = BusLineSerializer
     authentication_classes = (SessionAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsStaffOrReadOnly,)
 
     def get_queryset(self):
         """Filter bus lines by the specific map."""
@@ -209,7 +209,7 @@ class BusLineDetailView(RetrieveUpdateDestroyAPIView):
     queryset = BusLine.objects.all()
     serializer_class = BusLineSerializer
     authentication_classes = (SessionAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsStaffOrReadOnly,)
     lookup_field = "pk"
     lookup_url_kwarg = "busline_pk"
 
@@ -220,7 +220,7 @@ class TrainEdgeListView(MapScopedQuerysetMixin, ListCreateAPIView):
 
     serializer_class = TrainEdgeSerializer
     authentication_classes = (SessionAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsStaffOrReadOnly,)
 
     def get_queryset(self):
         """Filter train edges by the specific map."""
@@ -234,7 +234,7 @@ class TrainEdgeDetailView(RetrieveUpdateDestroyAPIView):
     queryset = TrainEdge.objects.all()
     serializer_class = TrainEdgeSerializer
     authentication_classes = (SessionAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsStaffOrReadOnly,)
     lookup_field = "pk"
     lookup_url_kwarg = "trainedge_pk"
 
@@ -245,7 +245,7 @@ class TrainLineListView(MapScopedQuerysetMixin, ListCreateAPIView):
 
     serializer_class = TrainLineSerializer
     authentication_classes = (SessionAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsStaffOrReadOnly,)
 
     def get_queryset(self):
         """Filter train lines by the specific map."""
@@ -259,7 +259,7 @@ class TrainLineDetailView(RetrieveUpdateDestroyAPIView):
     queryset = TrainLine.objects.all()
     serializer_class = TrainLineSerializer
     authentication_classes = (SessionAuthentication,)
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsStaffOrReadOnly,)
     lookup_field = "pk"
     lookup_url_kwarg = "trainline_pk"
 

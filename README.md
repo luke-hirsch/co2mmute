@@ -12,20 +12,36 @@ A game to simulate different means of transportation and their impact to transpo
   - Emissionsberechnung
   - Geldberechnung (?)
   - game/views.py: post game view.
+- Maps  
+  - map mit background
+  - 
 - Code kommentieren
 - Api Docs
 - dark light modus switch
+- Idee: anklicken zeigt interval der public transport
+- Legende fehlt
   
 
 ## Bugs
 - kritisch
-  - ✅ spieler koennen sich noch einloggen, wenn spiel schon gestartet ist 
+  - ✅ spieler koennen sich noch einloggen, wenn spiel schon gestartet ist
+  - Spiel wartet nicht auf eingaben aller User (Ein user kann mehrere Runden spielen ohne die anderen) 
+  - Spiel endet nur nach CO2 Limit und nicht nach Runden
 - geht so
   - chat enabled nur pausiert, aber wenn wieder aktiviert, gehen alle nachrichten durch
+  - Wenn Spieler das Spiel verlässt muss er aus der Liste verschwinden
+    - Aus redis rausnehmen? 
 - nicht wichtig
   - jwt geht nicht
   - chat fenster hoizontal scroll 
   - messages an falscher stelle 
+  - Karte über Bildrand (abgeschnitten)
+  - Man sieht gar nicht die Buttons für die Auswahlmöglichkeiten
+  - Evtl Füllbalken vertikal an der Seite 
+  - Game Name in eine Zeile mit Logo und Game ID
+  - Chat evtl. zu Game Stats? Dann Buttons rechts?
+  - Edges lassen sich nicht anklicken
+
 
 
 
