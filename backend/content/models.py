@@ -1,4 +1,5 @@
 from django.db import models
+from ckeditor_uploader.fields import RichTextUploadingField
 
 # Create your models here.
 class SiteContent(models.Model):
@@ -32,11 +33,32 @@ class SiteContentBlock(models.Model):
     key = models.SlugField(blank=True, null=True)
     order = models.PositiveIntegerField(default=0)
     title = models.CharField(max_length=200, blank=True)
-    body = models.TextField(blank=True)
-
+    body = RichTextUploadingField(blank=True)
     class Meta:
         ordering = ["order", "id"]  
 
     def __str__(self):
         return f"{self.content.key} - #{self.order})" 
     
+
+class SiteContentImage(models.Model):
+
+    content_block = models.ForeignKey(
+        SiteContentBlock, on_delete=models.CASCADE, related_name="images"
+    )
+
+    image = models.ImageField(upload_to="site_content/",
+                              blank=True,
+                              null=True,
+                              height_field="height",
+                              width_field="width", 
+                              max_length=100)
+    
+    caption = models.CharField(max_length=200, blank=True)
+    alt_text = models.CharField(max_length=200, blank=True)
+    orientation = models.CharField(max_length=20, blank=True)
+    height = models.PositiveIntegerField(null=True, blank=True)
+    width = models.PositiveIntegerField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Image for {self.content_block}"
