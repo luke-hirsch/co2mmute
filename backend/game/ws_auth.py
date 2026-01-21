@@ -3,7 +3,7 @@ from channels.auth import get_user
 from django.conf import settings
 from django.core import signing
 from .models import Player, GameSession
-from .cookie_utils import get_cookie_from_scope, unsign_value
+from co2mmute.utils import get_cookie_from_scope, unsign_value
 from datetime import datetime
 import logging
 

@@ -1,40 +1,33 @@
+from maps.models import Node
+from models import (
+    BikeMobility,
+    CarMobility,
+    BusMobility,
+    TrainMobility,
+    WalkingMobility,GameRound
+)
+
+
 class Dijkstra:
-    def __init__(self, startNode, endNode) -> None:
+    def __init__(
+        self, startNode: Node, endNode: Node, transportation: str, game_session_id: str
+    ) -> None:
         self.startNode = startNode
         self.endNode = endNode
+        self.transportation = transportation
+        self.game_session_id = game_session_id
 
-    def velocity(self, x, t):
-        return x / t
+        game_session = 
 
-    class Walking:
-        def cost_x_t(self, x, t):
-            pass
-
-        def time_x(self, v, x):
-            return
-
-    class Bike:
-        pass
-
-    class Car:
-        pass
-
-    class PublicTransport:
-        pass
-
-    def way_time(self):
-        pass
-
-    def way_emissions(self, transportation):
         if transportation == "car":
-            return 120.0
+            self.transportation_obj = CarMobility.objects.create(game_session_id)
         elif transportation == "public":
-            return 60.0
+            self.transportation_obj = PublicMobility()
+        elif transportation == "bus":
+            self.transportation_obj = BusMobility()
+        elif transportation == "train":
+            self.transportation_obj = TrainMobility()
+        elif transportation == "bike":
+            self.transportation_obj = BikeMobility()
         else:
-            return 0.0
-
-    def way_cost(self):
-        pass
-
-    def car_emmissions_x_t(self):
-        pass
+            self.transportation_obj = WalkingMobility()

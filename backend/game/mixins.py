@@ -1,7 +1,7 @@
 from rest_framework.exceptions import ValidationError
 from game.models import Player
-from game.cookie_utils import set_game_access_cookie, set_player_cookie
 from typing import Any, Mapping
+from co2mmute.utils import set_game_access_cookie, set_player_cookie
 
 
 class GameAccessCookieMixin:

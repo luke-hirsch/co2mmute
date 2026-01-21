@@ -4,7 +4,7 @@ from rest_framework.permissions import BasePermission
 
 from .cache import get_cached_game_session
 from .models import Player
-from .cookie_utils import unsign_value
+from co2mmute.utils import unsign_value
 import logging
 
 logger = logging.getLogger(__name__)

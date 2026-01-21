@@ -1,12 +1,14 @@
 from io import BytesIO
 import logging
 import uuid
-
 import qrcode
+
 from django.core.files.base import ContentFile
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
+
+from co2mmute.utils import per_passenger
 
 logger = logging.getLogger(__name__)
 
@@ -177,3 +179,51 @@ class PlayerMove(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
+
+
+class CarMobility(models.Model):
+    session_round = models.ForeignKey(GameRound, on_delete=models.CASCADE)
+
+    base_emissions_g_per_km = models.FloatField(default=166.8)  # g CO2e / vehicle-km
+    base_cost_per_km = models.FloatField(default=0.32)  # € / vehicle-km
+
+    def emissions_per_km(self, passengers_onboard: float = 1.0) -> float:
+        return per_passenger(self.base_emissions_g_per_km, passengers_onboard)
+
+    def cost_per_km(self, passengers_onboard: float = 1.0) -> float:
+        return per_passenger(self.base_cost_per_km, passengers_onboard)
+
+
+class TrainMobility(models.Model):
+    session_round = models.ForeignKey(GameRound, on_delete=models.CASCADE)
+    base_emissions_g_per_km = models.FloatField(default=3500.0)  # g CO2e / vehicle-km
+    base_cost_per_km = models.FloatField(default=12.0)  # € / vehicle-km
+
+    def emissions_per_km(self, passengers_onboard: float) -> float:
+        return per_passenger(self.base_emissions_g_per_km, passengers_onboard)
+
+    def cost_per_km(self, passengers_onboard: float) -> float:
+        return per_passenger(self.base_cost_per_km, passengers_onboard)
+
+
+class BusMobility(models.Model):
+    session_round = models.ForeignKey(GameRound, on_delete=models.CASCADE)
+    base_emissions_g_per_km = models.FloatField(default=1200.0)  # g CO2e / vehicle-km
+    base_cost_per_km = models.FloatField(default=4.5)  # € / vehicle-km
+
+    def emissions_per_km(self, passengers_onboard: float) -> float:
+        return per_passenger(self.base_emissions_g_per_km, passengers_onboard)
+
+    def cost_per_km(self, passengers_onboard: float) -> float:
+        return per_passenger(self.base_cost_per_km, passengers_onboard)
+
+
+class BikeMobility(models.Model):
+    session_round = models.ForeignKey(GameRound, on_delete=models.CASCADE)
+
+    emissions_g_per_km = models.FloatField(default=18.0)  # g CO2e / passenger-km
+    cost_per_km = models.FloatField(default=0.08)  # € / passenger-km
+
+
+class WalkingMobility(models.Model):
+    session_round = models.ForeignKey(GameRound, on_delete=models.CASCADE)

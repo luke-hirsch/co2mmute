@@ -115,7 +115,6 @@ INSTALLED_APPS = [
     "corsheaders",
     "channels",
     # Custom apps
-    "game_data",
     "game",
     "maps",
 ]

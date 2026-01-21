@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from game.cache import cache_game_session, invalidate_game_session
 from game.models import GameSession, GameRound
+from game.consumers import GameStateConsumer
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +60,6 @@ def on_round_completed(sender, game_id, **kwargs):
 
 
 def _broadcast_state(game_id: str):
-    from .consumers import GameStateConsumer
-
     try:
         asyncio.run(GameStateConsumer.broadcast_game_state(game_id))
     except Exception as e:
