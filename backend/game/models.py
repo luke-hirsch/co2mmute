@@ -1,14 +1,13 @@
-from io import BytesIO
 import logging
 import uuid
-import qrcode
+from io import BytesIO
 
-from django.core.files.base import ContentFile
-from django.db import models
+import qrcode
+from co2mmute.utils import per_passenger
 from django.conf import settings
 from django.core.exceptions import ValidationError
-
-from co2mmute.utils import per_passenger
+from django.core.files.base import ContentFile
+from django.db import models
 
 logger = logging.getLogger(__name__)
 
@@ -155,6 +154,16 @@ class GameRound(models.Model):
         super().save(*args, **kwargs)
 
 
+class GameStats(models.Model):
+    round = models.ForeignKey(GameRound, on_delete=models.CASCADE, related_name="stats")
+    total_emissions_g = models.FloatField(default=0.0)  # in grams
+    total_cost_eur = models.FloatField(default=0.0)  # in euros
+    total_distance_km = models.FloatField(default=0.0)  # in kilometers
+
+    def __str__(self):
+        return f"Stats for {self.round.game} Round {self.round.round_number}"
+
+
 class PlayerMove(models.Model):
     game_round = models.ForeignKey(
         GameRound, on_delete=models.CASCADE, related_name="moves"
@@ -162,12 +171,11 @@ class PlayerMove(models.Model):
     player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="moves")
     action = models.CharField(max_length=50)
     payload = models.JSONField(blank=True, default=dict)
-    started_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    move_made_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         unique_together = (("game_round", "player"),)
-        ordering = ("game_round", "started_at")
+        ordering = ("game_round", "move_made_at")
 
     def __str__(self):
         return f"Move by {self.player} in round {self.game_round.round_number}"

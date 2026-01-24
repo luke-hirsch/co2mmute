@@ -1,15 +1,14 @@
-from django.db.models.signals import post_delete, post_save
-from django.dispatch import receiver, Signal
 import logging
-import asyncio
-import threading
-from django.utils import timezone
+
+from co2mmute.utils import round_complete, send_chat_system_message
+from django.db.models.signals import post_delete, post_save
+from django.dispatch import Signal, receiver
 
 from game.cache import cache_game_session, invalidate_game_session
-from game.models import GameSession, GameRound
-from game.consumers import GameStateConsumer
+from game.models import GameRound, GameSession, Player, PlayerMove
 
 logger = logging.getLogger(__name__)
+
 
 round_completed = Signal()
 
@@ -24,43 +23,70 @@ def clear_session_cache(sender, instance: GameSession, **kwargs):
     invalidate_game_session(instance.game_id)
 
 
-@receiver(round_completed)
-def on_round_completed(sender, game_id, **kwargs):
-    try:
-        game = GameSession.objects.get(game_id=game_id)
-        current_round = GameRound.objects.get(game=game, status="active")
-
-        current_round.status = "completed"
-        current_round.save()
-
-        if current_round.round_number >= game.max_rounds:
-            logger.info(f"Game {game_id} reached max rounds")
-            game.is_active = False
-            game.ended_at = timezone.now()
-            game.save()
-
-            thread = threading.Thread(
-                target=_broadcast_state, args=(game_id,), daemon=True
-            )
-            thread.start()
-            return
-        next_round_number = current_round.round_number + 1
-        GameRound.objects.create(
-            game=game, round_number=next_round_number, status="active"
+@receiver(post_save, sender=PlayerMove, dispatch_uid="check_round_completion")
+def check_round_completion(sender, instance: PlayerMove, **kwargs):
+    game_session = instance.game_round.game
+    total_players = Player.objects.filter(game=game_session).count()
+    completed_moves = PlayerMove.objects.filter(
+        game_session=game_session, game_round=instance.game_round
+    ).count()
+    if round_complete(
+        completed_moves,
+        total_players,
+    ):
+        logger.info(
+            f"Round {instance.game_round.round_number} complete for GameSession {game_session.game_id}"
         )
-        thread = threading.Thread(target=_broadcast_state, args=(game_id,), daemon=True)
-        thread.start()
-
-    except GameRound.DoesNotExist:
-        logger.warning(f"No active round found for game {game_id}")
-    except GameSession.DoesNotExist:
-        logger.warning(f"Game {game_id} not found")
-    except Exception as e:
-        logger.error(f"Error processing round completion: {e}")
+        round_completed.send(
+            sender=GameSession,
+            game_session=game_session,
+            game_round=instance.game_round,
+        )
 
 
-def _broadcast_state(game_id: str):
-    try:
-        asyncio.run(GameStateConsumer.broadcast_game_state(game_id))
-    except Exception as e:
-        logger.error(f"Error broadcasting game state: {e}")
+@receiver(post_save, sender=Player)
+def set_up_player(sender, instance: Player, created: bool, **kwargs):
+    if created:
+        game_session = instance.game
+        logger.info(
+            f"New Player {instance.player_id} added to GameSession {game_session.game_id}"
+        )
+        player_name = instance.name or "A new player"
+        send_chat_system_message(game_session.game_id, f"{player_name} joined the game")
+        # TODO: notify game consumer about new player
+
+
+@receiver(post_delete, sender=Player)
+def cleanup_leaving_player(sender, instance: Player, **kwargs):
+    game_session = instance.game
+    player_name = instance.name or "A player"
+    send_chat_system_message(game_session.game_id, f"{player_name} left the game")
+
+    last_move = (
+        PlayerMove.objects.filter(player=instance).order_by("-game_round").first()
+    )
+    last_round = (
+        GameRound.objects.filter(game=game_session).order_by("-round_number").first()
+    )
+    # Check if the leaving player hadn't submitted a move for the current round
+    # and their departure completes the round
+    if (
+        last_move
+        and last_round
+        and last_round.round_number != last_move.game_round.round_number
+        and game_session.is_active
+    ):
+        total_players = Player.objects.filter(game=game_session).count()
+        completed_moves = PlayerMove.objects.filter(
+            game_session=game_session, game_round=last_round
+        ).count()
+        if round_complete(completed_moves, total_players):
+            logger.info(
+                f"Round {last_round.round_number} complete for GameSession {game_session.game_id} after Player {instance.player_id} deletion"
+            )
+            round_completed.send(
+                sender=GameSession,
+                game_session=game_session,
+                game_round=last_round,
+            )
+    # TODO: notify game consumer about leaving player

@@ -80,6 +80,12 @@ export interface WSChatErrorMessage {
   error: string;
 }
 
+export interface WSChatSystemMessage {
+  type: "chat.system";
+  game_id: string;
+  message: string;
+}
+
 export interface WSChatOutgoingMessage {
   type: "chat.message";
   message: string;
@@ -90,7 +96,8 @@ export type WSChatMessage =
   | WSPongMessage
   | WSChatHistoryMessage
   | WSChatIncomingMessage
-  | WSChatErrorMessage;
+  | WSChatErrorMessage
+  | WSChatSystemMessage;
 
 // Game State WebSocket Messages
 export interface WSGameStateUpdate {

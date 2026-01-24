@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import type {
   WSStatus,
   WSChatMessagePayload,
   WSConnectionQuality,
+  WSChatMessage,
 } from "../types/wsTypes";
 import { ChatWSClient } from "../utils/chatWS";
 
@@ -14,10 +15,19 @@ interface UseChatSocketOptions {
 
 interface ChatMessageWithMeta extends WSChatMessagePayload {
   isCurrentUser: boolean;
+  isSystem?: false;
 }
 
+interface SystemMessage {
+  ts: number;
+  message: string;
+  isSystem: true;
+}
+
+type ChatMessage = ChatMessageWithMeta | SystemMessage;
+
 interface UseChatSocketResult {
-  messages: ChatMessageWithMeta[];
+  messages: ChatMessage[];
   status: WSStatus;
   error: string | null;
   isConnected: boolean;
@@ -30,7 +40,7 @@ export function useChatSocket(
 ): UseChatSocketResult {
   const { gameId, currentPlayerName, enabled = true } = options;
 
-  const [messages, setMessages] = useState<ChatMessageWithMeta[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [status, setStatus] = useState<WSStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [connectionQuality, setConnectionQuality] =
@@ -39,14 +49,16 @@ export function useChatSocket(
   const clientRef = useRef<ChatWSClient | null>(null);
 
   // Helper function to enrich messages with isCurrentUser flag
-  const enrichMessage = (
-    message: WSChatMessagePayload
-  ): ChatMessageWithMeta => ({
-    ...message,
-    isCurrentUser: currentPlayerName
-      ? message.playerName === currentPlayerName
-      : false,
-  });
+  const enrichMessage = useCallback(
+    (message: WSChatMessagePayload): ChatMessageWithMeta => ({
+      ...message,
+      isCurrentUser: currentPlayerName
+        ? message.playerName === currentPlayerName
+        : false,
+      isSystem: false as const,
+    }),
+    [currentPlayerName]
+  );
 
   useEffect(() => {
     if (!enabled) return;
@@ -61,19 +73,26 @@ export function useChatSocket(
 
     const client = clientRef.current;
 
-    const unsubscribeMessage = client.onChatMessage((message: any) => {
+    const unsubscribeMessage = client.onChatMessage((message: WSChatMessage) => {
       if (message.type === "chat.history") {
         setMessages((message.messages || []).map(enrichMessage));
         setError(null);
       } else if (message.type === "chat.message") {
         setMessages((prev) => [...prev, enrichMessage(message.message)]);
         setError(null);
+      } else if (message.type === "chat.system") {
+        const systemMessage: SystemMessage = {
+          ts: Date.now(),
+          message: message.message,
+          isSystem: true,
+        };
+        setMessages((prev) => [...prev, systemMessage]);
       } else if (message.type === "chat.error") {
         setError(message.error);
       }
     });
 
-    const unsubscribeStatus = client.onStatusChange((newStatus: any) => {
+    const unsubscribeStatus = client.onStatusChange((newStatus: WSStatus) => {
       setStatus(newStatus);
 
       if (newStatus === "open") {
@@ -84,12 +103,12 @@ export function useChatSocket(
     });
 
     const unsubscribeQuality = client.onConnectionQualityChange(
-      (quality: any) => {
+      (quality: WSConnectionQuality) => {
         setConnectionQuality(quality);
       }
     );
 
-    client.connect().catch((err: any) => {
+    client.connect().catch((err: unknown) => {
       setError(err instanceof Error ? err.message : "Failed to connect");
     });
 
@@ -100,7 +119,7 @@ export function useChatSocket(
       client.disconnect();
       clientRef.current = null;
     };
-  }, [gameId, enabled, currentPlayerName]);
+  }, [gameId, enabled, enrichMessage]);
 
   const sendMessage = (text: string): boolean => {
     if (!clientRef.current) return false;

@@ -1,10 +1,14 @@
-from django.core.exceptions import ValidationError
-from django.core.cache import cache
-
-from django.core import signing
-from django.conf import settings
-from http import cookies
 import logging
+from http import cookies
+
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+from django.conf import settings
+from django.core import signing
+from django.core.cache import cache
+from django.core.exceptions import ValidationError
+
+logger = logging.getLogger(__name__)
 
 
 class CustomPasswordValidator:
@@ -85,16 +89,6 @@ def track_cached_version(map_pk: int, version_pk: int) -> None:
     cached_versions = cache.get(versions_key, set())
     cached_versions.add(version_pk)
     cache.set(versions_key, cached_versions, timeout=None)  # Keep indefinitely
-
-
-"""
-Centralized cookie handling using Django's signing module.
-
-This module provides a unified way to sign and unsign cookies across the application.
-All cookie operations should go through these functions to ensure consistency.
-"""
-
-logger = logging.getLogger(__name__)
 
 
 def sign_value(value, salt: str) -> str:
@@ -192,9 +186,20 @@ def set_player_cookie(request, response, game_id: str, player_id: str):
 
 
 def sanitize_group_name(game_id: str) -> str:
-    """
-    Sanitize game_id for use as a Channels group name.
-    Group names must contain only ASCII alphanumerics, hyphens, underscores, or periods.
-    We replace colons and hyphens with underscores to be safe.
-    """
     return game_id.replace(":", "_").replace("-", "_")
+
+
+def round_complete(movecount, playercount) -> bool:
+    return playercount > 0 and movecount >= playercount
+
+
+def send_chat_system_message(game_id: str, message: str):
+    channel_layer = get_channel_layer()
+    if channel_layer is None:
+        logger.warning("No channel layer configured, cannot send chat system message")
+        return
+    group_name = f"chat_{sanitize_group_name(game_id)}"
+    async_to_sync(channel_layer.group_send)(
+        group_name,
+        {"type": "chat.system", "message": message},
+    )

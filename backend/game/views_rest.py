@@ -1,27 +1,24 @@
-import asyncio
 import logging
 import threading
 
-from django.utils import timezone
-from django.shortcuts import get_object_or_404
 from django.conf import settings
 from django.db import transaction
-
-from rest_framework.mixins import ListModelMixin
-from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView
-from rest_framework.response import Response
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
+from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.mixins import ListModelMixin
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
-from game.models import Player, GameSession, GameRound, PlayerMove
-from game.serializers import PlayerSerializer, GameSessionSerializer
 from game.cache import get_cached_game_session, invalidate_game_session
-from game.permissions import HasGameAccess, IsPlayerInGame, CanDeleteOwnPlayer
 from game.mixins import GameScopedQuerysetMixin
+from game.models import GameRound, GameSession, Player, PlayerMove
+from game.permissions import CanDeleteOwnPlayer, HasGameAccess, IsPlayerInGame
+from game.serializers import GameSessionSerializer, PlayerSerializer
 from game.signals import round_completed
-from game.consumers import LobbyConsumer
 
 logger = logging.getLogger(__name__)
 
@@ -36,17 +33,10 @@ class PlayerDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIView):
         game_id = self.kwargs.get("game_id")
 
         instance = self.get_object()
-        player_id = instance.player_id
         instance.delete()
 
         if game_id:
             invalidate_game_session(game_id)
-
-        if game_id and player_id:
-            thread = threading.Thread(
-                target=self._cleanup_lobby_cache, args=(game_id, player_id), daemon=True
-            )
-            thread.start()
 
         response = Response({"redirect_url": "/"}, status=status.HTTP_204_NO_CONTENT)
 
@@ -58,23 +48,6 @@ class PlayerDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIView):
             response.delete_cookie(game_cookie_name, path="/")
 
         return response
-
-    @staticmethod
-    def _cleanup_lobby_cache(game_id, player_id):
-        try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
-            try:
-                loop.run_until_complete(
-                    LobbyConsumer.remove_player_from_lobby_cache(game_id, player_id)
-                )
-
-                loop.run_until_complete(LobbyConsumer.broadcast_updated_roster(game_id))
-            finally:
-                loop.close()
-        except Exception as e:
-            logger.warning(f"Failed to cleanup lobby cache: {e}", exc_info=True)
 
 
 class PlayerListView(GameScopedQuerysetMixin, ListModelMixin, GenericAPIView):
@@ -202,12 +175,6 @@ class GameSessionDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIVie
         else:
             return super().update(request, *args, **kwargs)
 
-    @staticmethod
-    def _broadcast_game_state(game_id: str):
-        from .consumers import GameStateConsumer
-
-        asyncio.run(GameStateConsumer.broadcast_game_state(game_id))
-
 
 class GetYourOwnGame(GameScopedQuerysetMixin, GenericAPIView):
     serializer_class = GameSessionSerializer
@@ -246,7 +213,7 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
 
     def post(self, request, game_id, player_id):
         try:
-            from .models import GameSession, Player, GameRound, PlayerMove
+            from .models import GameRound, GameSession, Player, PlayerMove
 
             game = GameSession.objects.get(game_id=game_id)
             if not game.is_active:

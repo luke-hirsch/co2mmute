@@ -80,6 +80,16 @@ const ChatSidebar = ({ gameId, chatEnabled = true }: ChatSidebarProps) => {
           <div className="text-xs text-muted italic">No messages yet</div>
         )}
         {messages.map((message, idx) => {
+          if (message.isSystem) {
+            return (
+              <div key={idx} className="mb-3 flex justify-center">
+                <div className="px-3 py-1 text-xs text-muted italic bg-gray-100 dark:bg-gray-800 rounded-full">
+                  {message.message}
+                </div>
+              </div>
+            );
+          }
+
           const isHostMessage = message.playerName.includes("(Host)");
 
           return (
