@@ -1,6 +1,7 @@
 import logging
 from http import cookies
 
+import redis
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.conf import settings
@@ -203,3 +204,18 @@ def send_chat_system_message(game_id: str, message: str):
         group_name,
         {"type": "chat.system", "message": message},
     )
+
+
+CHAT_MESSAGES_REDIS_KEY_PATTERN = "chat:{game_id}:messages"
+
+
+def clear_chat_messages(game_id: str):
+    """Clear all chat messages for a game from Redis."""
+    try:
+        redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+        key = CHAT_MESSAGES_REDIS_KEY_PATTERN.format(game_id=game_id)
+        redis_client.delete(key)
+        redis_client.close()
+        logger.info(f"Cleared chat messages for game {game_id}")
+    except Exception as e:
+        logger.error(f"Failed to clear chat messages for game {game_id}: {e}")

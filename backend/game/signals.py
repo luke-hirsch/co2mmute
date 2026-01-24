@@ -1,7 +1,7 @@
 import logging
 
-from co2mmute.utils import round_complete, send_chat_system_message
-from django.db.models.signals import post_delete, post_save
+from co2mmute.utils import clear_chat_messages, round_complete, send_chat_system_message
+from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import Signal, receiver
 
 from game.cache import cache_game_session, invalidate_game_session
@@ -11,6 +11,22 @@ logger = logging.getLogger(__name__)
 
 
 round_completed = Signal()
+
+
+@receiver(pre_save, sender=GameSession)
+def clear_chat_on_toggle(sender, instance: GameSession, **kwargs):
+    if not instance.pk:
+        return
+
+    try:
+        old_instance = GameSession.objects.get(pk=instance.pk)
+        if old_instance.chat_enabled != instance.chat_enabled:
+            clear_chat_messages(instance.game_id)
+            logger.info(
+                f"Chat {'enabled' if instance.chat_enabled else 'disabled'} for game {instance.game_id}, messages cleared"
+            )
+    except GameSession.DoesNotExist:
+        pass
 
 
 @receiver(post_save, sender=GameSession)
