@@ -13,7 +13,7 @@ from rest_framework.mixins import ListModelMixin
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from game.cache import get_cached_game_session, invalidate_game_session
+from game.cache import get_cached_game_session
 from game.mixins import GameScopedQuerysetMixin
 from game.models import GameRound, GameSession, Player, PlayerMove
 from game.permissions import CanDeleteOwnPlayer, HasGameAccess, IsPlayerInGame
@@ -31,12 +31,12 @@ class PlayerDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIView):
 
     def destroy(self, request, *args, **kwargs):
         game_id = self.kwargs.get("game_id")
+        is_kicked = request.query_params.get("kicked", "").lower() == "true"
 
         instance = self.get_object()
+        # Set a temporary attribute so the signal knows if player was kicked
+        instance._was_kicked = is_kicked
         instance.delete()
-
-        if game_id:
-            invalidate_game_session(game_id)
 
         response = Response({"redirect_url": "/"}, status=status.HTTP_204_NO_CONTENT)
 

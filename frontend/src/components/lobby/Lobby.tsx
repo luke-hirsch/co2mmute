@@ -9,19 +9,21 @@ import LeftSidebar from "./LeftSidebar";
 import Header from "../Header";
 import GameDetail from "./GameDetail";
 import ChatSidebar from "../ChatSidebar";
+import PlayerDetailPanel from "./PlayerDetailPanel";
 import { useParams } from "@tanstack/react-router";
 
 import Loading from "../Loading";
 import { useAuth } from "../../context/AuthContext";
 import { useGameDetails } from "../../hooks/gameHooks";
+import { type WSPlayer } from "../../types/wsTypes";
 
 const Lobby = () => {
   const [menu, setMenu] = useState(false);
   const [chat, setChat] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState<WSPlayer | null>(null);
   const { isLoading, isError, isHost, isPlayer, auth } = useAuth();
   const { gameId } = useParams({ from: "/lobby/$gameId" });
   const gameData = useGameDetails(gameId);
-  console.log(auth);
   return (
     <div className="min-h-svh min-w-full max-w-screen bg-body dark:bg-darkbody dark:text-darktext overflow-hidden">
       <div className="lg:hidden absolute top p-2 w-screen flex justify-between">
@@ -55,7 +57,11 @@ const Lobby = () => {
               <aside
                 className={`absolute lg:relative min-h-full left-0 top-0 w-60 dark:bg-inherit bg-body flex lg:translate-x-0 ${menu ? "translate-x-0" : "-translate-x-60"} transition-all duration-300 h-full rounded z-50`}
               >
-                <LeftSidebar gameId={gameId} />
+                <LeftSidebar
+                  gameId={gameId}
+                  selectedPlayerId={selectedPlayer?.playerId}
+                  onPlayerSelect={setSelectedPlayer}
+                />
               </aside>
             ) : (
               <></>
@@ -70,6 +76,18 @@ const Lobby = () => {
                   <Loading />
                 ) : isError ? (
                   <div>Fehler</div>
+                ) : isHost && selectedPlayer ? (
+                  <PlayerDetailPanel
+                    player={selectedPlayer}
+                    gameId={gameId}
+                    onClose={() => setSelectedPlayer(null)}
+                    onPlayerUpdated={() => {
+                      // Lobby socket will auto-update the player list
+                    }}
+                    onPlayerKicked={() => {
+                      setSelectedPlayer(null);
+                    }}
+                  />
                 ) : isPlayer ? (
                   <GameDetail
                     id={gameId}
@@ -79,7 +97,7 @@ const Lobby = () => {
                 ) : isHost ? (
                   <GameDetail id={gameId} role="host" />
                 ) : (
-                  <div>fuck off</div>
+                  <div>No access</div>
                 )}
               </main>
             </div>

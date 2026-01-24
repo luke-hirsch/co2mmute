@@ -1,19 +1,29 @@
+import { useState } from "react";
 import { type WSPlayer } from "../../types/wsTypes";
 import { useLobbySocket } from "../../hooks/useLobbySocket";
 import { useAuth } from "../../context/AuthContext";
 import { API_BASE_URL } from "../../config";
 import { apiFetch } from "../../utils/api";
 import ConnectionSignal from "../ConnectionSignal";
+import ConfirmDialog from "../ConfirmDialog";
 
 interface LeftSidebarProps {
   gameId: string;
+  selectedPlayerId?: string;
+  onPlayerSelect?: (player: WSPlayer | null) => void;
 }
 
-const LeftSidebar = ({ gameId }: LeftSidebarProps) => {
+const LeftSidebar = ({
+  gameId,
+  selectedPlayerId,
+  onPlayerSelect,
+}: LeftSidebarProps) => {
   const { auth } = useAuth();
   const { players, error, isConnected, connectionQuality } = useLobbySocket({
     gameId,
   });
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
 
   // Filter out the host (identified by playerId starting with "host_" or name ending with "(Host)")
   // but keep players controlled by the host
@@ -24,11 +34,16 @@ const LeftSidebar = ({ gameId }: LeftSidebarProps) => {
   const handleLeaveLobby = async () => {
     if (!auth) {
       window.location.href = "/";
-    } else if (auth.kind === "host") {
-      // Redirect to profile
+      return;
+    }
+
+    if (auth.kind === "host") {
       window.location.href = "/accounts/profile/";
-    } else if (auth.kind === "player" && auth.player?.playerId) {
-      // Delete the player - backend will clear cookies and return redirect URL
+      return;
+    }
+
+    if (auth.kind === "player" && auth.player?.playerId) {
+      setIsLeaving(true);
       try {
         const response = await apiFetch(
           `${API_BASE_URL}/api/game/${gameId}/player/${auth.player.playerId}/`,
@@ -37,16 +52,37 @@ const LeftSidebar = ({ gameId }: LeftSidebarProps) => {
           }
         );
 
-        // Backend clears cookies in response and provides redirect URL
         if (response.status === 204 && response.redirect_url) {
           window.location.href = response.redirect_url;
         } else {
-          // Fallback to home if no redirect URL provided
           window.location.href = "/";
         }
-      } catch (error) {
-        console.error("Error leaving lobby:", error);
+      } catch (err) {
+        console.error("Error leaving lobby:", err);
         alert("An error occurred while leaving the lobby. Please try again.");
+        setIsLeaving(false);
+        setShowLeaveConfirm(false);
+      }
+    }
+  };
+
+  const handleLeaveClick = () => {
+    if (auth?.kind === "host") {
+      // Hosts go directly to profile, no confirmation needed
+      window.location.href = "/accounts/profile/";
+    } else {
+      // Players see confirmation dialog
+      setShowLeaveConfirm(true);
+    }
+  };
+
+  const handlePlayerClick = (player: WSPlayer) => {
+    if (auth?.kind === "host" && onPlayerSelect) {
+      // Toggle selection if clicking the same player
+      if (selectedPlayerId === player.playerId) {
+        onPlayerSelect(null);
+      } else {
+        onPlayerSelect(player);
       }
     }
   };
@@ -78,12 +114,26 @@ const LeftSidebar = ({ gameId }: LeftSidebarProps) => {
         <ul className="space-y-2">
           {regularPlayers.map((player: WSPlayer) => (
             <li key={player.playerId}>
-              <a
-                className="flex items-center justify-between rounded p-2 text-main transition-colors duration-200 hover:bg-elevated hover:text-primary-600 dark:text-darktext dark:hover:bg-darkelevated dark:hover:text-darktext"
-                href="#"
+              <button
+                onClick={() => handlePlayerClick(player)}
+                className={`w-full flex items-center justify-between rounded p-2 text-left text-main transition-colors duration-200 dark:text-darktext ${
+                  selectedPlayerId === player.playerId
+                    ? "bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-200"
+                    : "hover:bg-elevated hover:text-primary-600 dark:hover:bg-darkelevated dark:hover:text-darktext"
+                } ${auth?.kind === "host" ? "cursor-pointer" : "cursor-default"}`}
               >
-                {player.name}
-              </a>
+                <span className="truncate">{player.name}</span>
+                <div className="flex items-center gap-2">
+                  {player.isMuted && (
+                    <span className="text-xs text-red-500" title="Muted">
+                      🔇
+                    </span>
+                  )}
+                  <div
+                    className={`h-2 w-2 rounded-full ${player.online ? "bg-green-500" : "bg-gray-400"}`}
+                  />
+                </div>
+              </button>
             </li>
           ))}
         </ul>
@@ -91,12 +141,24 @@ const LeftSidebar = ({ gameId }: LeftSidebarProps) => {
 
       <div className="mt-auto">
         <button
-          onClick={handleLeaveLobby}
+          onClick={handleLeaveClick}
           className="w-full rounded bg-red-600 p-2 text-left font-semibold text-white transition-colors duration-200 hover:bg-red-700 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:bg-red-600 dark:hover:bg-red-700"
         >
           Lobby verlassen
         </button>
       </div>
+
+      {/* Leave Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showLeaveConfirm}
+        title="Lobby verlassen?"
+        message="Bist du sicher, dass du die Lobby verlassen willst? Wenn das Spiel startet oder bereits läuft, kannst du nicht mehr beitreten."
+        confirmLabel={isLeaving ? "Verlassen..." : "Verlassen"}
+        cancelLabel="Abbrechen"
+        variant="danger"
+        onConfirm={handleLeaveLobby}
+        onCancel={() => setShowLeaveConfirm(false)}
+      />
     </div>
   );
 };

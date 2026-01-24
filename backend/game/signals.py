@@ -60,7 +60,14 @@ def set_up_player(sender, instance: Player, created: bool, **kwargs):
 def cleanup_leaving_player(sender, instance: Player, **kwargs):
     game_session = instance.game
     player_name = instance.name or "A player"
-    send_chat_system_message(game_session.game_id, f"{player_name} left the game")
+    was_kicked = getattr(instance, "_was_kicked", False)
+
+    if was_kicked:
+        send_chat_system_message(
+            game_session.game_id, f"{player_name} was removed from the game"
+        )
+    else:
+        send_chat_system_message(game_session.game_id, f"{player_name} left the game")
 
     last_move = (
         PlayerMove.objects.filter(player=instance).order_by("-game_round").first()
