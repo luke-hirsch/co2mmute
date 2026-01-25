@@ -114,9 +114,12 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "channels",
+    "ckeditor",
+    "ckeditor_uploader",
     # Custom apps
     "game",
     "maps",
+    "content",
 ]
 
 MIDDLEWARE = [
@@ -239,6 +242,27 @@ STATICFILES_DIRS = [path for path in [FRONTEND_DIST_DIR, STATIC_DIR] if path.exi
 # Media (user-uploaded files)
 MEDIA_URL = os.environ.get("DJANGO_MEDIA_URL", "/media/")
 MEDIA_ROOT = Path(os.environ.get("DJANGO_MEDIA_ROOT", BASE_DIR / "media"))
+
+CKEDITOR_UPLOAD_PATH = "uploads/"
+
+# ensure editor only has basic formatting options
+CKEDITOR_CONFIGS = {
+    "content-only": {
+        "toolbar": [
+            ["Bold", "Italic", "Underline", "Strike", "Subscript", "Superscript"],
+            ["NumberedList", "BulletedList", "Outdent", "Indent", "Blockquote"],
+            ["Link", "Unlink"],
+            ["RemoveFormat"],
+        ],
+        "height": 300,
+        "width": "100%",
+
+        "removeButtons": "Styles, Format, BGColor, JustifyLeft, JustifyCenter, JustifyRight, JustifyBlock, "
+                          "Image, Table, HorizontalRule, SpecialChar, PasteFromWord, Source",
+
+        "forcePasteAsPlainText": True,
+    }
+}
 
 # ensure media dir exists in local/dev runs
 try:
