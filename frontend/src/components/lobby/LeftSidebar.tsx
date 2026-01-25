@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { type WSPlayer } from "../../types/wsTypes";
-import { useLobbySocket } from "../../hooks/useLobbySocket";
+import { useGameSocket } from "../../hooks/useGameSocket";
 import { useAuth } from "../../context/AuthContext";
 import { API_BASE_URL } from "../../config";
 import { apiFetch } from "../../utils/api";
@@ -19,11 +19,14 @@ const LeftSidebar = ({
   onPlayerSelect,
 }: LeftSidebarProps) => {
   const { auth } = useAuth();
-  const { players, error, isConnected, connectionQuality } = useLobbySocket({
+  const { error, isConnected, connectionQuality } = useGameSocket({
     gameId,
   });
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
+
+  // TODO: Players will be populated when GameConsumer sends roster updates
+  const [players] = useState<WSPlayer[]>([]);
 
   // Filter out the host (identified by playerId starting with "host_" or name ending with "(Host)")
   // but keep players controlled by the host

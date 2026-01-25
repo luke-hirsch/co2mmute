@@ -14,14 +14,20 @@ import { useParams } from "@tanstack/react-router";
 import Loading from "../Loading";
 import { useAuth } from "../../context/AuthContext";
 import GameStatSidebar from "./GameStatSidebar";
-import { useGameState } from "../../hooks/useGameState";
+import { useGameSocket } from "../../hooks/useGameSocket";
+import type { WSGameState } from "../../types/wsTypes";
 
 const Game = () => {
   const [menu, setMenu] = useState(false);
   const [chat, setChat] = useState(false);
   const { isLoading, isError, isHost, isPlayer, auth } = useAuth();
   const { gameId } = useParams({ from: "/game/$gameId" });
-  const { gameState } = useGameState({ gameId });
+
+  // Connect to game websocket
+  useGameSocket({ gameId });
+
+  // TODO: gameState will be populated when GameConsumer sends state updates
+  const [gameState] = useState<WSGameState | null>(null);
 
   // Redirect to summary when game ends
   useEffect(() => {

@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useGameDetails, usePlayerGameDetails } from "../../hooks/gameHooks";
-import { useGameState } from "../../hooks/useGameState";
+import { useGameSocket } from "../../hooks/useGameSocket";
+import type { WSGameState } from "../../types/wsTypes";
 import Loading from "../Loading";
 import { API_BASE_URL } from "../../config";
 import { apiFetch } from "../../utils/api";
@@ -40,8 +41,11 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
 
   const navigate = useNavigate();
 
-  // Subscribe to game state updates to detect when game starts
-  const { gameState } = useGameState({ gameId: id });
+  // Connect to game websocket (game state updates will come from GameConsumer)
+  useGameSocket({ gameId: id });
+
+  // TODO: gameState will be populated when GameConsumer sends state updates
+  const [gameState] = useState<WSGameState | null>(null);
 
   // Redirect players to game when it becomes active (host stays in lobby)
   useEffect(() => {

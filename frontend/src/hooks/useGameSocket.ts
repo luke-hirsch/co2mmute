@@ -1,62 +1,55 @@
 import { useState, useEffect, useRef } from "react";
-import type { WSPlayer, WSStatus, WSConnectionQuality } from "../types/wsTypes";
-import { LobbyWSClient } from "../utils/lobbyWS";
+import type { WSStatus, WSConnectionQuality } from "../types/wsTypes";
+import { GameWSClient } from "../utils/gameWS";
 
-interface UseLobbySocketOptions {
+interface UseGameSocketOptions {
   gameId: string;
   enabled?: boolean;
 }
 
-interface UseLobbySocketResult {
-  players: WSPlayer[];
+interface UseGameSocketResult {
   status: WSStatus;
   error: string | null;
   isConnected: boolean;
   connectionQuality: WSConnectionQuality | null;
+  sendMessage: (data: object) => boolean;
 }
 
 /**
- * Hook to manage lobby WebSocket connection
+ * Hook to manage game WebSocket connection
+ * This replaces both useLobbySocket and useGameState
  */
-export function useLobbySocket(
-  options: UseLobbySocketOptions
-): UseLobbySocketResult {
+export function useGameSocket(
+  options: UseGameSocketOptions
+): UseGameSocketResult {
   const { gameId, enabled = true } = options;
 
-  const [players, setPlayers] = useState<WSPlayer[]>([]);
   const [status, setStatus] = useState<WSStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [connectionQuality, setConnectionQuality] =
     useState<WSConnectionQuality | null>(null);
 
-  const clientRef = useRef<LobbyWSClient | null>(null);
+  const clientRef = useRef<GameWSClient | null>(null);
 
-  // Create and connect to lobby socket
   useEffect(() => {
     if (!enabled) return;
 
-    // Initialize client if not already done
     if (!clientRef.current) {
-      // Construct WebSocket URL from current location
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const host = window.location.host;
-      const wsUrl = `${protocol}//${host}/ws/lobby/${gameId}/`;
+      const wsUrl = `${protocol}//${host}/ws/game/${gameId}/`;
 
-      clientRef.current = new LobbyWSClient(wsUrl);
+      clientRef.current = new GameWSClient(wsUrl);
     }
 
     const client = clientRef.current;
 
-    // Subscribe to messages
-    const unsubscribeMessage = client.onLobbyMessage((message: any) => {
-      if (message.type === "lobby.roster") {
-        setPlayers(message.players);
-        setError(null);
-      }
+    const unsubscribeMessage = client.onGameMessage((message: unknown) => {
+      // Message handling will be implemented as the GameConsumer is built
+      console.debug("Game message received:", message);
     });
 
-    // Subscribe to status changes
-    const unsubscribeStatus = client.onStatusChange((newStatus: any) => {
+    const unsubscribeStatus = client.onStatusChange((newStatus: WSStatus) => {
       setStatus(newStatus);
 
       if (newStatus === "open") {
@@ -66,19 +59,16 @@ export function useLobbySocket(
       }
     });
 
-    // Subscribe to connection quality changes
     const unsubscribeQuality = client.onConnectionQualityChange(
-      (quality: any) => {
+      (quality: WSConnectionQuality) => {
         setConnectionQuality(quality);
       }
     );
 
-    // Connect
-    client.connect().catch((err: any) => {
+    client.connect().catch((err: unknown) => {
       setError(err instanceof Error ? err.message : "Failed to connect");
     });
 
-    // Cleanup on unmount
     return () => {
       unsubscribeMessage();
       unsubscribeStatus();
@@ -88,13 +78,18 @@ export function useLobbySocket(
     };
   }, [gameId, enabled]);
 
+  const sendMessage = (data: object): boolean => {
+    if (!clientRef.current) return false;
+    return clientRef.current.send(data);
+  };
+
   const isConnected = status === "open";
 
   return {
-    players,
     status,
     error,
     isConnected,
     connectionQuality,
+    sendMessage,
   };
 }

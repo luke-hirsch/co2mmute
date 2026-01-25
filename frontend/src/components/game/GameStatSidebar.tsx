@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { useGameState } from "../../hooks/useGameState";
+import { useGameSocket } from "../../hooks/useGameSocket";
+import type { WSGameStats } from "../../types/wsTypes";
 import ConnectionSignal from "../ConnectionSignal";
 
 interface GameStatSidebarProps {
@@ -7,10 +9,13 @@ interface GameStatSidebarProps {
 }
 
 export default function GameStatSidebar({ gameId }: GameStatSidebarProps) {
-  const { gameStats, connectionQuality } = useGameState({
+  const { connectionQuality } = useGameSocket({
     gameId,
   });
   const navigate = useNavigate();
+
+  // TODO: gameStats will be populated when GameConsumer sends stats updates
+  const [gameStats] = useState<WSGameStats | null>(null);
 
   if (!gameStats) {
     return (

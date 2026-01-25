@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useGameState } from "../../hooks/useGameState";
+import { useGameSocket } from "../../hooks/useGameSocket";
+import type { WSGameState, WSGameStats } from "../../types/wsTypes";
 import { usePlayerMove } from "../../hooks/usePlayerMove";
 import { useGameDetails, usePlayerGameDetails } from "../../hooks/gameHooks";
 import { useMapGraph } from "../../hooks/mapHooks";
@@ -57,13 +58,15 @@ export default function GamePlay({
   isHost = false,
 }: GamePlayProps) {
   const {
-    gameState,
-    gameStats,
     isConnected,
     error: gameError,
-  } = useGameState({
+  } = useGameSocket({
     gameId,
   });
+
+  // TODO: gameState and gameStats will be populated when GameConsumer sends updates
+  const [gameState] = useState<WSGameState | null>(null);
+  const [gameStats] = useState<WSGameStats | null>(null);
   const {
     submitMove,
     isLoading,
