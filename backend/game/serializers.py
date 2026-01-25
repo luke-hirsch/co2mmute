@@ -1,4 +1,5 @@
 from rest_framework import serializers
+
 import game.models as gm
 
 
@@ -134,7 +135,7 @@ class PlayerMoveSerializer(serializers.ModelSerializer):
         model = gm.PlayerMove
         fields = (
             "id",
-            "game_round",
+            "session_round",
             "player",
             "action",
             "payload",
@@ -144,19 +145,91 @@ class PlayerMoveSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "started_at", "updated_at")
 
     def validate(self, attrs):
-        game_round = attrs.get("game_round") or getattr(
-            self.instance, "game_round", None
+        session_round = attrs.get("session_round") or getattr(
+            self.instance, "session_round", None
         )
         player = attrs.get("player") or getattr(self.instance, "player", None)
 
-        if game_round is None:
-            raise serializers.ValidationError({"game_round": "game_round is required."})
+        if session_round is None:
+            raise serializers.ValidationError(
+                {"session_round": "session_round is required."}
+            )
         if player is None:
             raise serializers.ValidationError({"player": "player is required."})
 
-        if player.game_id != game_round.game_id:
+        if player.game.game_id != session_round.game.game_id:
             raise serializers.ValidationError(
                 {"player": "Player must belong to the same game as the round."}
             )
 
         return attrs
+
+
+class GameStatsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = gm.GameStats
+        fields = (
+            "id",
+            "session_round",
+            "total_emissions_g",
+            "total_cost_eur",
+        )
+        read_only_fields = ("id",)
+
+
+class CarMobilitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = gm.CarMobility
+        fields = (
+            "id",
+            "session_round",
+            "base_emissions_g_per_km",
+            "base_cost_per_km",
+        )
+        read_only_fields = ("id",)
+
+
+class TrainMobilitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = gm.TrainMobility
+        fields = (
+            "id",
+            "session_round",
+            "base_emissions_g_per_km",
+            "base_cost_per_km",
+        )
+        read_only_fields = ("id",)
+
+
+class BusMobilitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = gm.BusMobility
+        fields = (
+            "id",
+            "session_round",
+            "base_emissions_g_per_km",
+            "base_cost_per_km",
+        )
+        read_only_fields = ("id",)
+
+
+class BikeMobilitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = gm.BikeMobility
+        fields = (
+            "id",
+            "session_round",
+            "emissions_g_per_km",
+            "cost_per_km",
+        )
+        read_only_fields = ("id",)
+
+
+class WalkingMobilitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = gm.WalkingMobility
+        fields = (
+            "id",
+            "session_round",
+        )
+        read_only_fields = ("id",)

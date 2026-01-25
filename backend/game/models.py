@@ -155,33 +155,34 @@ class GameRound(models.Model):
 
 
 class GameStats(models.Model):
-    round = models.ForeignKey(GameRound, on_delete=models.CASCADE, related_name="stats")
+    session_round = models.ForeignKey(
+        GameRound, on_delete=models.CASCADE, related_name="stats"
+    )
     total_emissions_g = models.FloatField(default=0.0)  # in grams
     total_cost_eur = models.FloatField(default=0.0)  # in euros
-    total_distance_km = models.FloatField(default=0.0)  # in kilometers
 
     def __str__(self):
-        return f"Stats for {self.round.game} Round {self.round.round_number}"
+        return f"Stats for {self.session_round.game.game_name} Round {self.session_round.round_number}"
 
 
 class PlayerMove(models.Model):
-    game_round = models.ForeignKey(
+    session_round = models.ForeignKey(
         GameRound, on_delete=models.CASCADE, related_name="moves"
     )
     player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="moves")
     action = models.CharField(max_length=50)
     payload = models.JSONField(blank=True, default=dict)
-    move_made_at = models.DateTimeField(auto_now_add=True)
+    moved_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = (("game_round", "player"),)
-        ordering = ("game_round", "move_made_at")
+        unique_together = (("session_round", "player"),)
+        ordering = ("session_round", "moved_at")
 
     def __str__(self):
-        return f"Move by {self.player} in round {self.game_round.round_number}"
+        return f"Move by {self.player} in round {self.session_round.round_number}"
 
     def clean(self):
-        if self.player.game.pk != self.game_round.game.pk:
+        if self.player.game.pk != self.session_round.game.pk:
             raise ValidationError("Player must belong to the same game as the round.")
 
     def save(self, *args, **kwargs):

@@ -41,22 +41,22 @@ def clear_session_cache(sender, instance: GameSession, **kwargs):
 
 @receiver(post_save, sender=PlayerMove, dispatch_uid="check_round_completion")
 def check_round_completion(sender, instance: PlayerMove, **kwargs):
-    game_session = instance.game_round.game
+    game_session = instance.session_round.game
     total_players = Player.objects.filter(game=game_session).count()
     completed_moves = PlayerMove.objects.filter(
-        game_session=game_session, game_round=instance.game_round
+        game_session=game_session, game_round=instance.session_round
     ).count()
     if round_complete(
         completed_moves,
         total_players,
     ):
         logger.info(
-            f"Round {instance.game_round.round_number} complete for GameSession {game_session.game_id}"
+            f"Round {instance.session_round.round_number} complete for GameSession {game_session.game_id}"
         )
         round_completed.send(
             sender=GameSession,
             game_session=game_session,
-            game_round=instance.game_round,
+            game_round=instance.session_round,
         )
 
 
@@ -96,12 +96,12 @@ def cleanup_leaving_player(sender, instance: Player, **kwargs):
     if (
         last_move
         and last_round
-        and last_round.round_number != last_move.game_round.round_number
+        and last_round.round_number != last_move.session_round.round_number
         and game_session.is_active
     ):
         total_players = Player.objects.filter(game=game_session).count()
         completed_moves = PlayerMove.objects.filter(
-            game_session=game_session, game_round=last_round
+            game_session=game_session, session_round=last_round
         ).count()
         if round_complete(completed_moves, total_players):
             logger.info(

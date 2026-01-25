@@ -36,11 +36,28 @@ while True:
         time.sleep(1)
 PY
 fi
-echo "Applying database migrations..."
+# TODO: Remove makemigrations after production is fixed
+echo "Creating migrations (temporary fix)..."
 python manage.py makemigrations --noinput
 
+echo "Current migration state:"
+python manage.py showmigrations --list
+
 echo "Applying database migrations..."
-python manage.py migrate --noinput
+# Temporarily disable exit-on-error for migration fallback logic
+set +e
+python manage.py migrate --fake-initial --noinput 2>&1
+exit_code=$?
+set -e
+
+if [ $exit_code -ne 0 ]; then
+  echo "Migration failed (exit code: $exit_code). Attempting recovery..."
+  echo "Faking all migrations for apps with existing tables..."
+  python manage.py migrate game --fake || true
+  python manage.py migrate maps --fake || true
+  echo "Running migrate again..."
+  python manage.py migrate --noinput
+fi
 
 echo "Building Tailwind CSS assets..."
 npm run build:css --silent

@@ -1,6 +1,17 @@
 from django.contrib import admin
 
-from .models import GameSession, GameRound, Player, PlayerMove
+from .models import (
+    BikeMobility,
+    BusMobility,
+    CarMobility,
+    GameRound,
+    GameSession,
+    GameStats,
+    Player,
+    PlayerMove,
+    TrainMobility,
+    WalkingMobility,
+)
 
 
 @admin.register(GameSession)
@@ -36,13 +47,50 @@ class PlayerAdmin(admin.ModelAdmin):
 
 @admin.register(PlayerMove)
 class PlayerMoveAdmin(admin.ModelAdmin):
-    list_display = ("game_round", "player", "action", "started_at")
-    list_filter = ("action", "started_at")
+    list_display = ("session_round", "player", "action", "moved_at")
+    list_filter = ("action", "moved_at")
     search_fields = (
         "player__name",
         "player__player_id",
-        "game_round__game__game_name",
-        "game_round__game__game_id",
+        "session_round__game__game_name",
+        "session_round__game__game_id",
         "action",
     )
-    ordering = ("game_round", "started_at")
+    ordering = ("session_round", "moved_at")
+
+
+@admin.register(GameStats)
+class GameStatsAdmin(admin.ModelAdmin):
+    list_display = ("session_round", "total_emissions_g", "total_cost_eur")
+    search_fields = ("session_round__game__game_name", "session_round__game__game_id")
+    ordering = ("session_round",)
+
+
+@admin.register(CarMobility)
+class CarMobilityAdmin(admin.ModelAdmin):
+    list_display = ("session_round", "base_emissions_g_per_km", "base_cost_per_km")
+    ordering = ("session_round",)
+
+
+@admin.register(TrainMobility)
+class TrainMobilityAdmin(admin.ModelAdmin):
+    list_display = ("session_round", "base_emissions_g_per_km", "base_cost_per_km")
+    ordering = ("session_round",)
+
+
+@admin.register(BusMobility)
+class BusMobilityAdmin(admin.ModelAdmin):
+    list_display = ("session_round", "base_emissions_g_per_km", "base_cost_per_km")
+    ordering = ("session_round",)
+
+
+@admin.register(BikeMobility)
+class BikeMobilityAdmin(admin.ModelAdmin):
+    list_display = ("session_round", "emissions_g_per_km", "cost_per_km")
+    ordering = ("session_round",)
+
+
+@admin.register(WalkingMobility)
+class WalkingMobilityAdmin(admin.ModelAdmin):
+    list_display = ("session_round",)
+    ordering = ("session_round",)
