@@ -1,28 +1,28 @@
-from django.contrib import admin
-from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
-from .views import (
-    IndexView,
-    LogoutView,
-    SignUpView,
-    DsgvoView,
-    ImpressumView,
-    CookiesView,
-    SpaView,
-    ProfileView,
-    WhoAmIView,
-)
+from django.contrib import admin
+from django.urls import include, path, re_path
 from game.views import (
     GameSessionCreateView,
-    ShareSessionView,
     JoinSessionView,
     PlayerCreateView,
     PlayerUpdateView,
     PostGameView,
+    ShareSessionView,
 )
+from maps.views import MapDetailView, MapEditorView, MapListView, MapUploadView
 
-from maps.views import MapUploadView, MapListView, MapDetailView, MapEditorView
+from .views import (
+    CookiesView,
+    DsgvoView,
+    ImpressumView,
+    IndexView,
+    LogoutView,
+    ProfileView,
+    SignUpView,
+    SpaView,
+    WhoAmIView,
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -57,5 +57,5 @@ urlpatterns = [
     path("api/whoami/", WhoAmIView.as_view(), name="whoami"),
     path("api/maps/", include("maps.urls")),
     re_path(r"^app(?:/.*)?$", SpaView.as_view(), name="app"),
-    path("ckeditor/", include("ckeditor_uploader.urls")),
+    # path("ckeditor/", include("ckeditor_uploader.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

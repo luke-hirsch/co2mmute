@@ -1,6 +1,6 @@
-from pathlib import Path
-import os
 import hashlib
+import os
+from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -114,8 +114,8 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "channels",
-    "ckeditor",
-    "ckeditor_uploader",
+    # "ckeditor",
+    # "ckeditor_uploader",
     # Custom apps
     "game",
     "maps",
@@ -246,23 +246,21 @@ MEDIA_ROOT = Path(os.environ.get("DJANGO_MEDIA_ROOT", BASE_DIR / "media"))
 CKEDITOR_UPLOAD_PATH = "uploads/"
 
 # ensure editor only has basic formatting options
-CKEDITOR_CONFIGS = {
-    "content-only": {
-        "toolbar": [
-            ["Bold", "Italic", "Underline", "Strike", "Subscript", "Superscript"],
-            ["NumberedList", "BulletedList", "Outdent", "Indent", "Blockquote"],
-            ["Link", "Unlink"],
-            ["RemoveFormat"],
-        ],
-        "height": 300,
-        "width": "100%",
-
-        "removeButtons": "Styles, Format, BGColor, JustifyLeft, JustifyCenter, JustifyRight, JustifyBlock, "
-                          "Image, Table, HorizontalRule, SpecialChar, PasteFromWord, Source",
-
-        "forcePasteAsPlainText": True,
-    }
-}
+# CKEDITOR_CONFIGS = {
+#     "content-only": {
+#         "toolbar": [
+#             ["Bold", "Italic", "Underline", "Strike", "Subscript", "Superscript"],
+#             ["NumberedList", "BulletedList", "Outdent", "Indent", "Blockquote"],
+#             ["Link", "Unlink"],
+#             ["RemoveFormat"],
+#         ],
+#         "height": 300,
+#         "width": "100%",
+#         "removeButtons": "Styles, Format, BGColor, JustifyLeft, JustifyCenter, JustifyRight, JustifyBlock, "
+#         "Image, Table, HorizontalRule, SpecialChar, PasteFromWord, Source",
+#         "forcePasteAsPlainText": True,
+#     }
+# }
 
 # ensure media dir exists in local/dev runs
 try:
