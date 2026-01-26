@@ -42,6 +42,7 @@ A game to simulate different means of transportation and their impact to transpo
   - Game Name in eine Zeile mit Logo und Game ID
   - Chat evtl. zu Game Stats? Dann Buttons rechts?
   - Edges lassen sich nicht anklicken
+  - logout dark mode nicht lesbar
 
 # Game Concept
 
@@ -105,8 +106,7 @@ A game to simulate different means of transportation and their impact to transpo
 ### ÖPNV Struktur:
 
 - Bus und Zuglinien = Sammlung der entsprechenden Edges (nach wie vor Metaeigenschaft)
-- Eigenschaften:
-  -
+- ## Eigenschaften:
 
 # Berechnungen:
 
