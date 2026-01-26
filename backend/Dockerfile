@@ -2,14 +2,16 @@ FROM python:3.13.9-slim-trixie
 
 WORKDIR /app
 
-# System dependencies for building Python wheels (e.g., psycopg, Pillow, npm)
+# System dependencies for building Python wheels (e.g., psycopg, Pillow)
+# and Node.js for Tailwind CSS build
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential libpq-dev curl\
+    && apt-get install -y --no-install-recommends build-essential libpq-dev curl ca-certificates gnupg \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update \
+    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
-
-RUN curl -fsSL https://deb.nodesource.com/setup_23.x -o nodesource_setup.sh \
-    && bash nodesource_setup.sh \
-    && apt install -y nodejs
 
 # Python runtime defaults
 ENV PYTHONDONTWRITEBYTECODE=1 \
