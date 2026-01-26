@@ -6,7 +6,6 @@ from .models import (
     CarMobility,
     GameRound,
     GameSession,
-    GameStats,
     Player,
     PlayerMove,
     TrainMobility,
@@ -57,13 +56,6 @@ class PlayerMoveAdmin(admin.ModelAdmin):
         "action",
     )
     ordering = ("session_round", "moved_at")
-
-
-@admin.register(GameStats)
-class GameStatsAdmin(admin.ModelAdmin):
-    list_display = ("session_round", "total_emissions_g", "total_cost_eur")
-    search_fields = ("session_round__game__game_name", "session_round__game__game_id")
-    ordering = ("session_round",)
 
 
 @admin.register(CarMobility)

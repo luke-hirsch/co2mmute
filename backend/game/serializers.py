@@ -165,18 +165,6 @@ class PlayerMoveSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class GameStatsSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = gm.GameStats
-        fields = (
-            "id",
-            "session_round",
-            "total_emissions_g",
-            "total_cost_eur",
-        )
-        read_only_fields = ("id",)
-
-
 class CarMobilitySerializer(serializers.ModelSerializer):
     class Meta:
         model = gm.CarMobility

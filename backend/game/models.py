@@ -135,6 +135,8 @@ class GameRound(models.Model):
     )
     started_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
+    total_emissions_g = models.FloatField(default=0.0)  # in grams
+    total_cost_eur = models.FloatField(default=0.0)
 
     class Meta:
         unique_together = (("game", "round_number"),)
@@ -152,17 +154,6 @@ class GameRound(models.Model):
             )
             self.round_number = 1 if last_round is None else last_round.round_number + 1
         super().save(*args, **kwargs)
-
-
-class GameStats(models.Model):
-    session_round = models.ForeignKey(
-        GameRound, on_delete=models.CASCADE, related_name="stats"
-    )
-    total_emissions_g = models.FloatField(default=0.0)  # in grams
-    total_cost_eur = models.FloatField(default=0.0)  # in euros
-
-    def __str__(self):
-        return f"Stats for {self.session_round.game.game_name} Round {self.session_round.round_number}"
 
 
 class PlayerMove(models.Model):
