@@ -114,8 +114,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "channels",
-    # "ckeditor",
-    # "ckeditor_uploader",
+    "prose",
     # Custom apps
     "game",
     "maps",

@@ -56,6 +56,6 @@ urlpatterns = [
     path("api/game/", include("game.urls")),
     path("api/whoami/", WhoAmIView.as_view(), name="whoami"),
     path("api/maps/", include("maps.urls")),
+    path("prose/", include("prose.urls")),
     re_path(r"^app(?:/.*)?$", SpaView.as_view(), name="app"),
-    # path("ckeditor/", include("ckeditor_uploader.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
