@@ -1,10 +1,9 @@
 from django.db import models
-
-# from ckeditor_uploader.fields import RichTextUploadingField
+from prose.models import AbstractDocument
 
 
 # Create your models here.
-class SiteContent(models.Model):
+class Page(models.Model):
     key = models.SlugField(unique=True)
     title = models.CharField(max_length=200, blank=True)
     heading = models.CharField(max_length=200, blank=True)
@@ -17,42 +16,45 @@ class SiteContent(models.Model):
         "auth.User",
         on_delete=models.SET_NULL,
         null=True,
-        related_name="sitecontent_created",
+        related_name="page_created",
     )
     updated_by = models.ForeignKey(
         "auth.User",
         on_delete=models.SET_NULL,
         null=True,
-        related_name="sitecontent_updated",
+        related_name="page_updated",
     )
 
     def __str__(self):
         return self.key
 
+class ContentBlockBody(AbstractDocument):
+    content_block = models.OneToOneField(
+        "ContentBlock", on_delete=models.CASCADE, related_name="body"
+    )
 
-class SiteContentBlock(models.Model):
-    content = models.ForeignKey(
-        SiteContent, on_delete=models.CASCADE, related_name="sections"
+class ContentBlock(models.Model):
+    page = models.ForeignKey(
+        Page, on_delete=models.CASCADE, related_name="sections"
     )
     key = models.SlugField(blank=True, null=True)
     order = models.PositiveIntegerField(default=0)
     title = models.CharField(max_length=200, blank=True)
-
-    # body = RichTextUploadingField(blank=True)
+        
     class Meta:
         ordering = ["order", "id"]
 
     def __str__(self):
-        return f"{self.content.key} - #{self.order})"
+        return f"{self.page.key} - #{self.order})"
 
 
-class SiteContentImage(models.Model):
+class ContentBlockImage(models.Model):
     content_block = models.ForeignKey(
-        SiteContentBlock, on_delete=models.CASCADE, related_name="images"
+        ContentBlock, on_delete=models.CASCADE, related_name="images"
     )
 
     image = models.ImageField(
-        upload_to="site_content/",
+        upload_to="page_content/",
         blank=True,
         null=True,
         height_field="height",
