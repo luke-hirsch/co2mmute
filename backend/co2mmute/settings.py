@@ -114,7 +114,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "channels",
-    "prose",
+    "django_prose_editor",
     # Custom apps
     "game",
     "maps",
@@ -288,3 +288,7 @@ COOKIE_PLAYER_SALT = f"{_salt_base}:player-id"
 
 # Cookie TTL in seconds (14 days for persistent sessions)
 COOKIE_AGE = 14 * 24 * 60 * 60
+
+PROSE_ATTACHMENTS_ALLOWED = False
+PROSE_MEDIA_ROOT = None
+PROSE_MEDIA_URL = None

@@ -57,6 +57,7 @@ class ContentBlockBodyInline(admin.StackedInline):
 class ContentBlockImageInline(admin.StackedInline):
     model = ContentBlockImage
     extra = 0
+    max_num = 3
 
 @admin.register(ContentBlock)
 class ContentBlockAdmin(admin.ModelAdmin):
