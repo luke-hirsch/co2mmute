@@ -85,10 +85,18 @@ class ContentBlockColumn(models.Model):
         default=33, 
         help_text="Width of column in percent (1-100)",
         validators=[MinValueValidator(1), MaxValueValidator(100)],)
-    alignment = models.Choices(
-        LEFT = "left", "Left",
-        CENTER = "center", "Center",
-        RIGHT = "right", "Right",
+    
+    alignment_choices = {
+        "L" : "Links",
+        "C" : "Zentriert",
+        "R" : "Rechts",
+    }
+
+    alignment = models.CharField(
+        max_length=1,
+        choices=alignment_choices, 
+        default="L",
+        help_text="Alignment of content within the column",
     )
     
     # optional fields if kind is text
