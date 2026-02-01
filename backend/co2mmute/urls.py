@@ -2,6 +2,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path, re_path
+from content.views import PageDetailView
 from game.views import (
     GameSessionCreateView,
     JoinSessionView,
@@ -56,6 +57,6 @@ urlpatterns = [
     path("api/game/", include("game.urls")),
     path("api/whoami/", WhoAmIView.as_view(), name="whoami"),
     path("api/maps/", include("maps.urls")),
-    path("prose/", include("prose.urls")),
+    path("<slug:key>/", PageDetailView.as_view(), name="static-page"),
     re_path(r"^app(?:/.*)?$", SpaView.as_view(), name="app"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

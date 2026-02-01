@@ -115,6 +115,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "channels",
     "django_prose_editor",
+    "adminsortable2",
     # Custom apps
     "game",
     "maps",
@@ -143,6 +144,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "django.template.context_processors.static"
             ],
         },
     },

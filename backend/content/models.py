@@ -4,6 +4,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django_prose_editor.fields import ProseEditorField
 
 
+
 # Create your models here.
 class Page(models.Model):
 
@@ -11,6 +12,7 @@ class Page(models.Model):
     key = models.SlugField(unique=True)
     title = models.CharField(max_length=200, blank=True)
     heading = models.CharField(max_length=200, blank=True)
+    area = models.CharField(max_length=200, blank=True)
 
     # publication info 
     is_published = models.BooleanField(default=False)
@@ -47,34 +49,103 @@ class ContentBlock(models.Model):
 
     # block info
     key = models.SlugField(blank=True, null=True)
-    order = models.PositiveIntegerField(default=0)
+    order = models.PositiveIntegerField(default=0, blank=False, null=False, db_index=True)
     title = models.CharField(max_length=200, blank=True)
         
     class Meta:
-        ordering = ["order", "id"]
+        ordering = ["order"]
+
+#        constraints = [
+#            models.UniqueConstraint(
+#                fields=["page", "order"],
+#                name="unique_content_block_order_per_page",
+#            )
+#        ]
 
     def __str__(self):
         return f"{self.page.key} - #{self.order}"
 
 class ContentBlockColumn(models.Model):
     
+    # relation to content block
     content_block = models.ForeignKey(
-        ContentBlock, on_delete=models.CASCADE, related_name="content_column"
+        ContentBlock, on_delete=models.CASCADE, related_name="content_columns"
     )
+    
+    class Kind(models.TextChoices):
+        TEXT = "text", "Text"
+        IMAGE = "image", "Image"
 
-    order = models.PositiveIntegerField(default=0, help_text="Order of column left to right")
+    
+    kind = models.CharField(max_length=10, choices=Kind.choices)
+    order = models.PositiveIntegerField(default=0, db_index=True, null=False, blank=False)
 
+    # column width in percent
     width = models.PositiveIntegerField(
         default=33, 
         help_text="Width of column in percent (1-100)",
         validators=[MinValueValidator(1), MaxValueValidator(100)],)
+    
+    # optional fields if kind is text
+    title = models.CharField(max_length=200, blank=True)
+    body = ProseEditorField(
+        extensions={
+            # Core text formatting
+            "Bold": True,
+            "Italic": True,
+            "Strike": True,
+            "Underline": True,
+            "HardBreak": True,
+
+            # Structure
+            "BulletList": True,
+            "OrderedList": True,
+            "ListItem": True, # Used by BulletList and OrderedList
+            "Blockquote": True,
+
+            # Advanced extensions
+            "Link": {
+                "enableTarget": True,  # Enable "open in new window"
+                "protocols": ["http", "https", "mailto"],  # Limit protocols
+            },
+            "Table": True,
+            "TableRow": True,
+            "TableHeader": True,
+            "TableCell": True,
+
+            # Editor capabilities
+            "History": True,       # Enables undo/redo
+            "HTML": True,          # Allows HTML view
+            "Typographic": True,   # Enables typographic chars
+        }, 
+        sanitize=True,
+        blank=True,
+    )
+
+    # optional fields if kind is image
+    image = models.ImageField(
+        upload_to="page_content/",
+        blank=True,
+        null=True,
+        height_field="img_height",
+        width_field="img_width",
+        max_length=100,
+    )
+
+    caption = models.CharField(max_length=200, blank=True)
+    alt_text = models.CharField(max_length=200, blank=True)
+
+    img_height = models.PositiveIntegerField(null=True, blank=True, editable=False)
+    img_width = models.PositiveIntegerField(null=True, blank=True, editable=False)
+
+    
     class Meta:
-        ordering = ["order", "id"]
+        ordering = ["order"]
         constraints = [
-            models.UniqueConstraint(
-                fields=["content_block", "order"],
-                name="unique_column_order_per_content_block",
-            ),
+#            models.UniqueConstraint(
+#                fields=["content_block", "order"],
+#                name="unique_column_order_per_content_block",
+#            ),
             models.CheckConstraint(
                 check=models.Q(width__gte=1) & models.Q(width__lte=100),
                 name="column_width_between_1_and_100",
@@ -105,65 +176,3 @@ class ContentBlockColumn(models.Model):
                     "width": f"Total width of all columns for a content block cannot exceed 100%. Current total would be {total}%."
                 }
             )
-
-class TextColumn(ContentBlockColumn):
-
-    title = models.CharField(max_length=200, blank=True)
-    body = ProseEditorField(
-        extensions={
-            # Core text formatting
-            "Bold": True,
-            "Italic": True,
-            "Strike": True,
-            "Underline": True,
-            "HardBreak": True,
-
-            # Structure
-            "Heading": {
-                "levels": [1, 2, 3]  # Only allow h1, h2, h3
-            },
-            "BulletList": True,
-            "OrderedList": True,
-            "ListItem": True, # Used by BulletList and OrderedList
-            "Blockquote": True,
-
-            # Advanced extensions
-            "Link": {
-                "enableTarget": True,  # Enable "open in new window"
-                "protocols": ["http", "https", "mailto"],  # Limit protocols
-            },
-            "Table": True,
-            "TableRow": True,
-            "TableHeader": True,
-            "TableCell": True,
-
-            # Editor capabilities
-            "History": True,       # Enables undo/redo
-            "HTML": True,          # Allows HTML view
-            "Typographic": True,   # Enables typographic chars
-        }
-    )
-
-    def __str__(self):
-        return f"Text Column #{self.order} for {self.content_block}"
-    
-class ImageColumn(ContentBlockColumn):
-
-    image = models.ImageField(
-        upload_to="page_content/",
-        blank=True,
-        null=True,
-        height_field="img_height",
-        width_field="img_width",
-        max_length=100,
-    )
-
-    caption = models.CharField(max_length=200, blank=True)
-    alt_text = models.CharField(max_length=200, blank=True)
-
-    img_height = models.PositiveIntegerField(null=True, blank=True, editable=False)
-    img_width = models.PositiveIntegerField(null=True, blank=True, editable=False)
-
-
-    def __str__(self):
-        return f"Image Column #{self.order} for {self.content_block}"
