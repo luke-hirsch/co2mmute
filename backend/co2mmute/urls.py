@@ -57,6 +57,6 @@ urlpatterns = [
     path("api/game/", include("game.urls")),
     path("api/whoami/", WhoAmIView.as_view(), name="whoami"),
     path("api/maps/", include("maps.urls")),
-    path("<slug:key>/", PageDetailView.as_view(), name="static-page"),
+    path("content/", include("content.urls", namespace="content")),
     re_path(r"^app(?:/.*)?$", SpaView.as_view(), name="app"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

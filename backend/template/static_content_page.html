@@ -25,7 +25,7 @@
                   {% if column.title %}
                     <h3 class="text-xl font-semibold mb-2">{{ column.title }}</h3>
                   {% endif %}
-                  {{ column.body|prose_editor_render|safe }}
+                  {{ column.body|safe }}
                 {% elif column.kind == "image" and column.image %}
                   <figure class="space-y-3">
                     <img

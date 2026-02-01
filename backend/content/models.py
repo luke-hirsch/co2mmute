@@ -12,6 +12,7 @@ class Page(models.Model):
     key = models.SlugField(unique=True)
     title = models.CharField(max_length=200, blank=True)
     heading = models.CharField(max_length=200, blank=True)
+    placement = models.CharField(max_length=100, blank=True)
 
     # publication info 
     is_published = models.BooleanField(default=False)
