@@ -80,7 +80,7 @@ class ContentBlockColumn(models.Model):
     kind = models.CharField(max_length=10, choices=Kind.choices)
     order = models.PositiveIntegerField(default=0, db_index=True, null=False, blank=False)
 
-    # column width in percent
+    # column width in percent and alignment
     width = models.PositiveIntegerField(
         default=33, 
         help_text="Width of column in percent (1-100)",
@@ -148,6 +148,7 @@ class ContentBlockColumn(models.Model):
     caption = models.CharField(max_length=200, blank=True)
     alt_text = models.CharField(max_length=200, blank=True)
 
+    # automatically set image dimensions
     img_height = models.PositiveIntegerField(null=True, blank=True, editable=False)
     img_width = models.PositiveIntegerField(null=True, blank=True, editable=False)
 
