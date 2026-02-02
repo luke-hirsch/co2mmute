@@ -86,19 +86,6 @@ class ContentBlockColumn(models.Model):
         help_text="Width of column in percent (1-100)",
         validators=[MinValueValidator(1), MaxValueValidator(100)],)
     
-    alignment_choices = {
-        "L" : "Links",
-        "C" : "Zentriert",
-        "R" : "Rechts",
-    }
-
-    alignment = models.CharField(
-        max_length=1,
-        choices=alignment_choices, 
-        default="L",
-        help_text="Alignment of content within the column",
-    )
-    
     # optional fields if kind is text
     title = models.CharField(max_length=200, blank=True)
     body = ProseEditorField(
@@ -125,6 +112,12 @@ class ContentBlockColumn(models.Model):
             "TableRow": True,
             "TableHeader": True,
             "TableCell": True,
+
+            # ✨ Text alignment
+            "TextAlign": {
+                "types": ["heading", "paragraph"],   # Which blocks can be aligned
+                "alignments": ["left", "center", "right", "justify"],
+            },
 
             # Editor capabilities
             "History": True,       # Enables undo/redo
