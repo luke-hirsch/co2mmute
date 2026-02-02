@@ -112,6 +112,7 @@ class ContentBlockColumn(models.Model):
             "TableRow": True,
             "TableHeader": True,
             "TableCell": True,
+            "TextStyle": True,
 
             # ✨ Text alignment
             "TextAlign": {
