@@ -213,11 +213,56 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 
 
 class GameConsumer(AsyncJsonWebsocketConsumer):
-    async def connect(self):
+    async def connect(self) -> None:
+        route = self.scope.get("url_route")
+        if not route or "kwargs" not in route:
+            logger.warning("Missing URL route for game state")
+            await self.close(code=4400)
+            return
+
+        self.game_id = route["kwargs"]["game_id"]
+        self.group_name = f"gamestate_{sanitize_group_name(self.game_id)}"
+
+        player, close_code, reason, is_host = await resolve_player(
+            self.scope, self.game_id
+        )
+        if close_code or player is None:
+            logger.warning(
+                f"GameState auth failed for {self.game_id}: code={close_code}"
+            )
+            await self.close(code=close_code)
+            return
+
+        self.player_id = player.player_id
+        self.is_host = is_host
+        self.redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
+        return await super().connect()
 
-    async def disconnect(self, close_code):
-        pass
+    async def disconnect(self, code: int) -> None:
+        # set player as inactive
+        await self.close()
+        return await super().disconnect(code)
 
-    async def receive(self, text_data=None, bytes_data=None):
-        pass
+    async def receive(
+        self,
+        text_data: str | None = None,
+        bytes_data: bytes | None = None,
+        **kwargs,
+    ) -> None:
+        if not text_data:
+            return
+
+        try:
+            data = json.loads(text_data)
+        except Exception:
+            return
+
+        msg_type = data.get("type")
+
+        if msg_type == "ping":
+            await self.send(json.dumps({"type": "pong"}))
+            return
+        return await super().receive(text_data, bytes_data, **kwargs)

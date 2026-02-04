@@ -91,8 +91,6 @@ def cleanup_leaving_player(sender, instance: Player, **kwargs):
     last_round = (
         GameRound.objects.filter(game=game_session).order_by("-round_number").first()
     )
-    # Check if the leaving player hadn't submitted a move for the current round
-    # and their departure completes the round
     if (
         last_move
         and last_round
@@ -115,16 +113,23 @@ def cleanup_leaving_player(sender, instance: Player, **kwargs):
     # TODO: notify game consumer about leaving player
 
 
-@receiver(post_save, sender=GameRound)
-def end_game_or_update_stats(sender, instance: GameRound, **kwargs):
-    def update_stats(game_round: GameRound, redis_key):
-        # get stats from redis
-        # replace hard coded values
-        instance.total_cost_eur = 100.50
-        instance.total_emissions_g = 100.50
-        instance.save()
-
-    if instance.round_number >= instance.game.max_rounds:
-        # end game
-        update_stats(instance, f"some_{instance.game.game_id}_key")
+@receiver(post_save, sender=GameSession)
+def game_start(sender, instance=GameSession, created=False, **kwargs):
+    if instance.is_active:
+        # notify game consumer, that players progress from lobby to active game
         pass
+    else:
+        # return player to lobby
+        if instance.ended_at:
+            # display summery in lobby
+            pass
+        pass
+
+
+@receiver(round_completed, sender=GameRound)
+def new_round(sende, instande=GameRound, **kwargs):
+    # caluclate moves
+    # check game end condition and notify consumer if end condition met.
+    # create new round and noitfy consumer, to progress players into new round
+
+    pass

@@ -50,42 +50,21 @@ def per_passenger(value_per_vehicle_km: float, passengers_onboard: float) -> flo
 
 
 def get_graph_cache_key(map_pk: int, version_pk: int) -> str:
-    """Generate cache key for a map version graph."""
     return f"map_graph:{map_pk}:{version_pk}"
 
 
 def invalidate_map_version_graphs(map_pk: int) -> None:
-    """
-    Invalidate all cached graphs for a specific map.
-
-    This should be called when nodes, edges, or other map data is modified.
-
-    Args:
-        map_pk: The GameMap primary key
-    """
-    # Get all cached keys pattern and delete those matching our map
-    # Since we can't easily pattern-match in all cache backends,
-    # we'll use a tracking approach with a set of version keys
     versions_key = f"map_versions:{map_pk}"
     cached_versions = cache.get(versions_key, set())
 
-    # Clear all graph caches for this map's versions
     for version_pk in cached_versions:
         cache_key = get_graph_cache_key(map_pk, version_pk)
         cache.delete(cache_key)
 
-    # Clear the versions tracker
     cache.delete(versions_key)
 
 
 def track_cached_version(map_pk: int, version_pk: int) -> None:
-    """
-    Track a cached graph so we can invalidate it later.
-
-    Args:
-        map_pk: The GameMap primary key
-        version_pk: The MapVersion primary key
-    """
     versions_key = f"map_versions:{map_pk}"
     cached_versions = cache.get(versions_key, set())
     cached_versions.add(version_pk)
@@ -210,7 +189,6 @@ CHAT_MESSAGES_REDIS_KEY_PATTERN = "chat:{game_id}:messages"
 
 
 def clear_chat_messages(game_id: str):
-    """Clear all chat messages for a game from Redis."""
     try:
         redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
         key = CHAT_MESSAGES_REDIS_KEY_PATTERN.format(game_id=game_id)
