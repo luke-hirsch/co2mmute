@@ -21,6 +21,24 @@ export interface WSPlayer {
   joinedAt: string;
 }
 
+// Player status for game roster
+export type PlayerStatus = "ready" | "making_move" | "waiting" | "not_connected";
+
+export interface WSRosterPlayer {
+  player_id: string;
+  name: string;
+  is_host: boolean;
+  controlled_by_host: boolean;
+  online: boolean;
+  status: PlayerStatus;
+}
+
+export interface WSRosterUpdateMessage {
+  type: "roster.update";
+  game_id: string;
+  players: WSRosterPlayer[];
+}
+
 export interface WSOptions {
   onOpen?: () => void;
   onClose?: (ev: CloseEvent) => void;
@@ -99,40 +117,107 @@ export type WSChatMessage =
   | WSChatErrorMessage
   | WSChatSystemMessage;
 
-// Game State WebSocket Messages
-export interface WSGameStateUpdate {
-  type: "gamestate.update";
-  game: WSGameState;
-  stats: WSGameStats;
+// Game State WebSocket Messages (from GameConsumer)
+
+// Player stats for a single round
+export interface WSPlayerRoundStats {
+  player_id: string;
+  player_name: string;
+  action: "car" | "public" | "bike" | "walk";
+  emissions_g: number;
+  cost_eur: number;
+  time_min: number;
 }
 
-export interface WSGameState {
+// game.started event
+export interface WSGameStartedMessage {
+  type: "game.started";
   game_id: string;
-  game_name: string;
-  is_active: boolean;
-  ended_at: string | null;
-  max_rounds: number;
-  max_co2: number;
-  current_round: number;
-  round_status: "pending" | "active" | "completed";
-  chat_enabled: boolean;
+  data: {
+    game_name: string;
+    max_rounds: number;
+    max_co2_level: number;
+    current_round: number;
+    started_at: string | null;
+  };
 }
 
-export interface WSGameStats {
-  totalCo2: number;
-  maxCo2: number;
-  co2Percentage: number;
-  players: WSPlayerStats[];
+// game.ended event
+export interface WSGameEndedMessage {
+  type: "game.ended";
+  game_id: string;
+  data: {
+    reason: "co2_limit" | "max_rounds";
+    final_round: number;
+    total_emissions_g: number;
+    max_co2_level_g: number;
+    ended_at: string | null;
+  };
 }
 
-export interface WSPlayerStats {
-  playerId: string;
-  name: string;
-  co2: number;
-  moveCount: number;
+// round.started event
+export interface WSRoundStartedMessage {
+  type: "round.started";
+  game_id: string;
+  data: {
+    round_number: number;
+    max_rounds: number;
+    total_game_emissions_g: number;
+    max_co2_level_g: number;
+  };
 }
 
+// round.completed event
+export interface WSRoundCompletedMessage {
+  type: "round.completed";
+  game_id: string;
+  data: {
+    round_number: number;
+    round_emissions_g: number;
+    round_cost_eur: number;
+    total_game_emissions_g: number;
+    max_co2_level_g: number;
+    player_stats: WSPlayerRoundStats[];
+  };
+}
+
+// game.state event (sent on reconnect to sync client state)
+export interface WSGameStateInitMessage {
+  type: "game.state";
+  game_id: string;
+  data: {
+    isActive: boolean;
+    currentRound: number;
+    totalEmissionsG: number;
+    maxCo2LevelG: number;
+    maxRounds: number;
+    startedAt: string | null;
+    endedAt: string | null;
+  };
+}
+
+// Union type for all game state messages
 export type WSGameStateMessage =
   | WSPingMessage
   | WSPongMessage
-  | WSGameStateUpdate;
+  | WSGameStartedMessage
+  | WSGameEndedMessage
+  | WSRoundStartedMessage
+  | WSRoundCompletedMessage
+  | WSRosterUpdateMessage
+  | WSGameStateInitMessage;
+
+// Combined game state for UI consumption
+export interface WSGameState {
+  gameId: string;
+  gameName: string;
+  isActive: boolean;
+  endedAt: string | null;
+  endReason: "co2_limit" | "max_rounds" | null;
+  maxRounds: number;
+  maxCo2LevelG: number;
+  currentRound: number;
+  totalEmissionsG: number;
+  lastRoundStats: WSPlayerRoundStats[] | null;
+  roster: WSRosterPlayer[];
+}

@@ -1,14 +1,16 @@
+import logging
+from typing import Optional
+
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views.generic import CreateView, TemplateView
+
 from .cache import cache_game_session, get_cached_game_session
-from .mixins import GameAccessCookieMixin, PlayerCookieMixin
 from .forms import GameSessionCreateForm, JoinSessionForm, PlayerCreateForm
+from .mixins import GameAccessCookieMixin, PlayerCookieMixin
 from .models import GameSession, Player
-from typing import Optional
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +66,7 @@ class GameSessionCreateView(
 
     def get_success_url(self):
         if self.object:
-            return f"/app/lobby/{self.object.game_id}/"
+            return f"/app/game/{self.object.game_id}/"
         logger.error("Game session object is None after creation.")
         raise ValueError("Game session not found after creation.")
 
@@ -242,7 +244,7 @@ class PlayerCreateView(
             )
             return redirect("player-create", game_id=self.game_session.game_id)
 
-        success_url = f"/app/lobby/{self.game_session.game_id}/"
+        success_url = f"/app/game/{self.game_session.game_id}/"
         response = redirect(success_url)
 
         response = self.set_game_access_cookie(
@@ -268,7 +270,7 @@ class PlayerCreateView(
 
     def get_success_url(self):
         if self.game_session:
-            return f"/app/lobby/{self.game_session.game_id}/"
+            return f"/app/game/{self.game_session.game_id}/"
         logger.error("Game session is None when determining success URL.")
         raise ValueError("Game session not found during player creation.")
 
@@ -315,7 +317,7 @@ class PostGameView(GameAccessCookieMixin, PlayerCookieMixin, TemplateView):
         game = self.game_session
         players = Player.objects.filter(game=game, left_at__isnull=True)
 
-        from .models import PlayerMove, GameRound
+        from .models import GameRound, PlayerMove
 
         player_stats = []
         total_co2 = 0.0

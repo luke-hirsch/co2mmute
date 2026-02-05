@@ -84,6 +84,7 @@ class PlayerSerializer(serializers.ModelSerializer):
             "joined_at",
             "is_muted",
             "controlled_by_host",
+            "agent_assignments",
         )
         read_only_fields = (
             "id",
@@ -91,6 +92,7 @@ class PlayerSerializer(serializers.ModelSerializer):
             "joined_at",
             "is_muted",
             "controlled_by_host",
+            "agent_assignments",
         )
 
 

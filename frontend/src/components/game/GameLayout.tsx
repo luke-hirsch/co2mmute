@@ -1,29 +1,56 @@
+import { useParams } from "@tanstack/react-router";
 import {
   Bars2Icon,
   ChatBubbleBottomCenterTextIcon,
   XMarkIcon,
 } from "@heroicons/react/24/solid";
 
-import { useState } from "react";
-import LeftSidebar from "./LeftSidebar";
-import Header from "../Header";
-import GameDetail from "./GameDetail";
-import ChatSidebar from "../ChatSidebar";
-import PlayerDetailPanel from "./PlayerDetailPanel";
-import { useParams } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 
-import Loading from "../Loading";
+import Header from "./../../components/Header";
+import Game from "./../../components/game/Game";
+import GameDetail from "./../../components/game/GameDetail";
+import ChatSidebar from "./../../components/ChatSidebar";
+
+import Loading from "./../../components/Loading";
 import { useAuth } from "../../context/AuthContext";
-import { useGameDetails } from "../../hooks/gameHooks";
-import { type WSPlayer } from "../../types/wsTypes";
+import { useGameSocket } from "../../hooks/useGameSocket";
+import { useGameDetails, usePlayerGameDetails, usePlayerDetail } from "../../hooks/gameHooks";
+import StatusBar from "../../components/game/StatusBar";
+import type { PlayerAgentAssignments } from "../../types/types";
 
-const Lobby = () => {
+const GameLayout = () => {
+  const { gameId } = useParams({ from: "/game/$gameId" });
   const [menu, setMenu] = useState(false);
   const [chat, setChat] = useState(false);
-  const [selectedPlayer, setSelectedPlayer] = useState<WSPlayer | null>(null);
   const { isLoading, isError, isHost, isPlayer, auth } = useAuth();
-  const { gameId } = useParams({ from: "/lobby/$gameId" });
-  const gameData = useGameDetails(gameId);
+
+  // Connect to game websocket and receive game state updates
+  const { gameState } = useGameSocket({ gameId });
+
+  // Fetch REST game data for chat_enabled (not in websocket state)
+  const hostGameData = useGameDetails(gameId, isHost);
+  const playerGameData = usePlayerGameDetails(
+    gameId,
+    auth?.player?.playerId || "",
+    isPlayer && !!auth?.player?.playerId,
+  );
+  const restGameData = isHost ? hostGameData.data : playerGameData.data;
+
+  // Fetch player details for agent assignments
+  const playerDetailData = usePlayerDetail(
+    gameId,
+    auth?.player?.playerId || "",
+    isPlayer && !!auth?.player?.playerId,
+  );
+  const agentAssignments = playerDetailData.data?.agent_assignments as PlayerAgentAssignments | undefined;
+
+  // Redirect to summary when game ends
+  useEffect(() => {
+    if (gameState?.endedAt) {
+      window.location.href = `/game/${gameId}/summary/`;
+    }
+  }, [gameState?.endedAt, gameId]);
   return (
     <div className="min-h-svh min-w-full max-w-screen bg-body dark:bg-darkbody dark:text-darktext overflow-hidden">
       <div className="lg:hidden absolute top p-2 w-screen flex justify-between">
@@ -57,11 +84,7 @@ const Lobby = () => {
               <aside
                 className={`absolute lg:relative min-h-full left-0 top-0 w-60 dark:bg-inherit bg-body flex lg:translate-x-0 ${menu ? "translate-x-0" : "-translate-x-60"} transition-all duration-300 h-full rounded z-50`}
               >
-                <LeftSidebar
-                  gameId={gameId}
-                  selectedPlayerId={selectedPlayer?.playerId}
-                  onPlayerSelect={setSelectedPlayer}
-                />
+                <StatusBar gameId={gameId} />
               </aside>
             ) : (
               <></>
@@ -70,34 +93,31 @@ const Lobby = () => {
           <div className="flex flex-1 max-h-svh w-screen overflow-hidden">
             {/* Main content */}
             <div className="relative flex-1 max-h-svh overflow-y-auto">
-              <Header title={`Lobbyy - ${gameId}`} />
-              <main className="flex-1 p-6 dark:text-darktext flex flex-col items-center justify-center max-w-screen">
+              <Header title={`Game - ${gameId}`} />
+              <main className="flex-1 p-6 dark:text-darktext flex flex-col items-center justify-start max-w-screen min-h-full">
                 {isLoading ? (
                   <Loading />
                 ) : isError ? (
-                  <div>Fehler</div>
-                ) : isHost && selectedPlayer ? (
-                  <PlayerDetailPanel
-                    player={selectedPlayer}
-                    gameId={gameId}
-                    onClose={() => setSelectedPlayer(null)}
-                    onPlayerUpdated={() => {
-                      // Lobby socket will auto-update the player list
-                    }}
-                    onPlayerKicked={() => {
-                      setSelectedPlayer(null);
-                    }}
-                  />
-                ) : isPlayer ? (
+                  <div className="text-red-600 dark:text-red-400">
+                    Error loading game content
+                  </div>
+                ) : isHost ? (
                   <GameDetail
                     id={gameId}
-                    role="player"
-                    playerId={auth?.player?.playerId}
+                    role="host"
                   />
-                ) : isHost ? (
-                  <GameDetail id={gameId} role="host" />
+                ) : isPlayer ? (
+                  <Game
+                    gameId={gameId}
+                    gameState={gameState}
+                    playerId={auth?.player?.playerId}
+                    isHost={false}
+                    agentCount={restGameData?.agent_per_player ?? 4}
+                    mapId={restGameData?.game_map}
+                    agentAssignments={agentAssignments}
+                  />
                 ) : (
-                  <div>No access</div>
+                  <div>Unauthorized</div>
                 )}
               </main>
             </div>
@@ -109,7 +129,7 @@ const Lobby = () => {
               >
                 <ChatSidebar
                   gameId={gameId}
-                  chatEnabled={gameData?.data?.chat_enabled ?? true}
+                  chatEnabled={restGameData?.chat_enabled ?? true}
                 />
               </aside>
             ) : (
@@ -122,4 +142,4 @@ const Lobby = () => {
   );
 };
 
-export default Lobby;
+export default GameLayout;

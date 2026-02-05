@@ -18,6 +18,7 @@ from game.mixins import GameScopedQuerysetMixin
 from game.models import GameRound, GameSession, Player, PlayerMove
 from game.permissions import CanDeleteOwnPlayer, HasGameAccess, IsPlayerInGame
 from game.serializers import GameSessionSerializer, PlayerSerializer
+from co2mmute.utils import send_player_status_update
 from game.signals import round_completed
 
 logger = logging.getLogger(__name__)
@@ -162,14 +163,12 @@ class GameSessionDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIVie
                 game.refresh_from_db()
 
                 GameRound.objects.get_or_create(
-                    game=game, round_number=1, defaults={"status": "active"}
+                    game=game,
+                    round_number=1,
+                    defaults={"status": "active", "started_at": timezone.now()},
                 )
 
-            thread = threading.Thread(
-                target=self._broadcast_game_state, args=(game.game_id,), daemon=True
-            )
-            thread.start()
-
+            # The post_save signal on GameSession will broadcast game.started
             serializer = self.get_serializer(game)
             return Response(serializer.data, status=status.HTTP_200_OK)
         else:
@@ -234,6 +233,7 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
                 )
 
             action = request.data.get("action")
+            payload = request.data.get("payload", {})
             valid_actions = ["car", "public", "bike", "walk"]
             if action not in valid_actions:
                 return Response(
@@ -241,11 +241,23 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+            # Validate payload if it contains agent choices
+            if payload and "agents" in payload:
+                for agent_choice in payload["agents"]:
+                    if agent_choice.get("action") not in valid_actions:
+                        return Response(
+                            {"error": f"Invalid agent action. Must be one of {valid_actions}"},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
             move, created = PlayerMove.objects.update_or_create(
-                game_round=current_round,
+                session_round=current_round,
                 player=player,
-                defaults={"action": action, "payload": {}},
+                defaults={"action": action, "payload": payload or {}},
             )
+
+            # Notify clients that this player has made their move
+            send_player_status_update(game_id, player_id, "waiting")
 
             thread = threading.Thread(
                 target=self._check_round_completion,
@@ -291,7 +303,7 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
             ).count()
 
             moves_count = PlayerMove.objects.filter(
-                game_round=current_round,
+                session_round=current_round,
                 player__controlled_by_host=False,
             ).count()
 

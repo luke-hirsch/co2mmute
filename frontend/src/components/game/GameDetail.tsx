@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useGameDetails, usePlayerGameDetails } from "../../hooks/gameHooks";
 import { useGameSocket } from "../../hooks/useGameSocket";
-import type { WSGameState } from "../../types/wsTypes";
 import Loading from "../Loading";
 import { API_BASE_URL } from "../../config";
 import { apiFetch } from "../../utils/api";
@@ -41,40 +40,58 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
 
   const navigate = useNavigate();
 
-  // Connect to game websocket (game state updates will come from GameConsumer)
-  useGameSocket({ gameId: id });
+  // Fetch game data via REST API (hooks must be called unconditionally)
+  const hostGameData = useGameDetails(id);
+  const playerGameData = usePlayerGameDetails(id, playerId || "");
 
-  // TODO: gameState will be populated when GameConsumer sends state updates
-  const [gameState] = useState<WSGameState | null>(null);
+  // Select the appropriate data based on role
+  const gameData = role === "host" ? hostGameData : playerGameData;
+
+  // Store refetch in a ref so callbacks can access it without stale closures
+  const refetchRef = useRef(gameData.refetch);
+  refetchRef.current = gameData.refetch;
+
+  // Connect to game websocket and receive game state updates
+  const { gameState } = useGameSocket({
+    gameId: id,
+    onGameStarted: (data) => {
+      console.log("Game started:", data);
+      // Refetch game data to sync REST state
+      refetchRef.current?.();
+    },
+    onGameEnded: (data) => {
+      console.log("Game ended:", data);
+      refetchRef.current?.();
+    },
+    onRoundStarted: (data) => {
+      console.log("Round started:", data);
+    },
+    onRoundCompleted: (data) => {
+      console.log("Round completed:", data);
+    },
+  });
 
   // Redirect players to game when it becomes active (host stays in lobby)
   useEffect(() => {
-    if (!gameState?.is_active) return;
+    if (!gameState?.isActive) return;
 
     if (role === "player") {
       // Players always redirect when game starts
       navigate({ to: "/game/$gameId", params: { gameId: id } });
     }
     // Host does NOT auto-redirect - they can use the "Go to Game" button
-  }, [gameState?.is_active, id, navigate, role]);
+  }, [gameState?.isActive, id, navigate, role]);
 
   // Redirect players to summary when game ends
   useEffect(() => {
-    if (!gameState?.ended_at) return;
+    if (!gameState?.endedAt) return;
 
     if (role === "player") {
       // Players redirect to summary page when game ends
       window.location.href = `/game/${id}/summary/`;
     }
     // Host stays in lobby - they can use the "View Summary" button
-  }, [gameState?.ended_at, id, role]);
-
-  let gameData;
-  if (role === "player" && playerId) {
-    gameData = usePlayerGameDetails(id, playerId);
-  } else if (role === "host") {
-    gameData = useGameDetails(id);
-  } else throw new Error("Invalid role");
+  }, [gameState?.endedAt, id, role]);
 
   if (gameData.isLoading) return <Loading />;
   if (gameData.isError) return (window.location.href = "/");
@@ -553,6 +570,118 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
           </p>
         </div>
       </div>
+
+      {/* Real-time Game State (from WebSocket) */}
+      {gameState && (
+        <div className="rounded-lg border border-primary-300 bg-primary-50 p-4 dark:border-primary-700 dark:bg-primary-900/20">
+          <h3 className="text-lg font-semibold mb-3 text-primary-700 dark:text-primary-300">
+            Live Game State
+          </h3>
+
+          {/* Round Progress */}
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="p-3 rounded bg-white dark:bg-darksurface">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted dark:text-darkmutedtext mb-1">
+                Current Round
+              </p>
+              <p className="text-2xl font-bold text-primary-600">
+                {gameState.currentRound} / {gameState.maxRounds}
+              </p>
+            </div>
+            <div className="p-3 rounded bg-white dark:bg-darksurface">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted dark:text-darkmutedtext mb-1">
+                Total CO₂
+              </p>
+              <p className="text-2xl font-bold text-primary-600">
+                {(gameState.totalEmissionsG / 1000).toFixed(2)} kg
+              </p>
+              <div className="mt-1 h-2 rounded-full bg-gray-200 dark:bg-gray-700">
+                <div
+                  className={`h-2 rounded-full transition-all ${
+                    gameState.totalEmissionsG / gameState.maxCo2LevelG > 0.8
+                      ? "bg-red-500"
+                      : gameState.totalEmissionsG / gameState.maxCo2LevelG > 0.5
+                        ? "bg-amber-500"
+                        : "bg-green-500"
+                  }`}
+                  style={{
+                    width: `${Math.min(100, (gameState.totalEmissionsG / gameState.maxCo2LevelG) * 100)}%`,
+                  }}
+                />
+              </div>
+              <p className="text-xs text-muted dark:text-darkmutedtext mt-1">
+                Limit: {(gameState.maxCo2LevelG / 1000).toFixed(0)} kg
+              </p>
+            </div>
+          </div>
+
+          {/* Game End Status */}
+          {gameState.endedAt && (
+            <div
+              className={`p-3 rounded mb-4 ${
+                gameState.endReason === "co2_limit"
+                  ? "bg-red-100 dark:bg-red-900/30"
+                  : "bg-green-100 dark:bg-green-900/30"
+              }`}
+            >
+              <p
+                className={`font-semibold ${
+                  gameState.endReason === "co2_limit"
+                    ? "text-red-700 dark:text-red-300"
+                    : "text-green-700 dark:text-green-300"
+                }`}
+              >
+                {gameState.endReason === "co2_limit"
+                  ? "Game Over - CO₂ limit exceeded!"
+                  : "Game Complete - All rounds finished!"}
+              </p>
+            </div>
+          )}
+
+          {/* Last Round Stats */}
+          {gameState.lastRoundStats && gameState.lastRoundStats.length > 0 && (
+            <div>
+              <h4 className="text-sm font-semibold mb-2 text-muted dark:text-darkmutedtext">
+                Last Round Results
+              </h4>
+              <div className="space-y-2">
+                {gameState.lastRoundStats.map((stat) => (
+                  <div
+                    key={stat.player_id}
+                    className="flex items-center justify-between p-2 rounded bg-white dark:bg-darksurface text-sm"
+                  >
+                    <span className="font-medium">{stat.player_name}</span>
+                    <div className="flex gap-4 text-xs">
+                      <span
+                        className={`px-2 py-1 rounded ${
+                          stat.action === "car"
+                            ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
+                            : stat.action === "public"
+                              ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                              : stat.action === "bike"
+                                ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                                : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                        }`}
+                      >
+                        {stat.action}
+                      </span>
+                      <span className="text-muted dark:text-darkmutedtext">
+                        {stat.emissions_g}g CO₂
+                      </span>
+                      <span className="text-muted dark:text-darkmutedtext">
+                        €{stat.cost_eur.toFixed(2)}
+                      </span>
+                      <span className="text-muted dark:text-darkmutedtext">
+                        {stat.time_min}min
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Host Controls */}
       {role === "host" && (

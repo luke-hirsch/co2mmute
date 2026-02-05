@@ -25,11 +25,12 @@ export function usePlayerGameDetails(
   });
 }
 
-export function usePlayerDetail(gameId: string, playerId: string) {
-  useQuery({
+export function usePlayerDetail(gameId: string, playerId: string, enabled: boolean = true) {
+  return useQuery({
     queryKey: ["playerDetail", gameId, playerId],
     queryFn: () => apiFetch(`/api/game/${gameId}/player/${playerId}/`),
     staleTime: 15000,
+    enabled: enabled && !!gameId && !!playerId,
   });
 }
 

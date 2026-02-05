@@ -91,6 +91,8 @@ class Player(models.Model):
     joined_at = models.DateTimeField(auto_now_add=True)
     left_at = models.DateTimeField(null=True, blank=True)
     controlled_by_host = models.BooleanField(default=False)
+    # Agent assignments: {"home_node": int, "agents": [{"id": 1, "destination_node": int}, ...]}
+    agent_assignments = models.JSONField(blank=True, null=True)
 
     class Meta:
         ordering = ("game", "name", "joined_at")

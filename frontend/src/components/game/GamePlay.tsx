@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useGameSocket } from "../../hooks/useGameSocket";
-import type { WSGameState, WSGameStats } from "../../types/wsTypes";
 import { usePlayerMove } from "../../hooks/usePlayerMove";
 import { useGameDetails, usePlayerGameDetails } from "../../hooks/gameHooks";
 import { useMapGraph } from "../../hooks/mapHooks";
@@ -60,13 +59,11 @@ export default function GamePlay({
   const {
     isConnected,
     error: gameError,
+    gameState,
   } = useGameSocket({
     gameId,
   });
 
-  // TODO: gameState and gameStats will be populated when GameConsumer sends updates
-  const [gameState] = useState<WSGameState | null>(null);
-  const [gameStats] = useState<WSGameStats | null>(null);
   const {
     submitMove,
     isLoading,
@@ -135,40 +132,38 @@ export default function GamePlay({
       {/* Game Header */}
       <div className="mb-8 text-center">
         <h1 className="text-3xl font-bold text-main dark:text-darktext mb-2">
-          {gameState.game_name}
+          {gameState.gameName || `Game ${gameId}`}
         </h1>
         <div className="flex justify-center gap-6 text-sm text-muted dark:text-darkmutedtext">
           <span>
-            Round {gameState.current_round} of {gameState.max_rounds}
+            Round {gameState.currentRound} of {gameState.maxRounds}
           </span>
           <span>•</span>
           <span>
-            CO₂: {gameStats?.totalCo2.toFixed(1)} / {gameState.max_co2} kg
+            CO₂: {(gameState.totalEmissionsG / 1000).toFixed(1)} / {(gameState.maxCo2LevelG / 1000).toFixed(0)} kg
           </span>
         </div>
       </div>
 
       {/* CO2 Progress Bar */}
-      {gameStats && (
-        <div className="mb-8">
-          <div className="flex justify-between mb-2 text-sm">
-            <span className="font-semibold">CO₂ Progress</span>
-            <span>{gameStats.co2Percentage.toFixed(1)}%</span>
-          </div>
-          <div className="w-full bg-gray-300 dark:bg-gray-600 rounded-full h-3">
-            <div
-              className={`h-3 rounded-full transition-all duration-300 ${
-                gameStats.co2Percentage > 75
-                  ? "bg-red-500"
-                  : gameStats.co2Percentage > 50
-                    ? "bg-yellow-500"
-                    : "bg-green-500"
-              }`}
-              style={{ width: `${Math.min(gameStats.co2Percentage, 100)}%` }}
-            />
-          </div>
+      <div className="mb-8">
+        <div className="flex justify-between mb-2 text-sm">
+          <span className="font-semibold">CO₂ Progress</span>
+          <span>{((gameState.totalEmissionsG / gameState.maxCo2LevelG) * 100).toFixed(1)}%</span>
         </div>
-      )}
+        <div className="w-full bg-gray-300 dark:bg-gray-600 rounded-full h-3">
+          <div
+            className={`h-3 rounded-full transition-all duration-300 ${
+              gameState.totalEmissionsG / gameState.maxCo2LevelG > 0.75
+                ? "bg-red-500"
+                : gameState.totalEmissionsG / gameState.maxCo2LevelG > 0.5
+                  ? "bg-yellow-500"
+                  : "bg-green-500"
+            }`}
+            style={{ width: `${Math.min((gameState.totalEmissionsG / gameState.maxCo2LevelG) * 100, 100)}%` }}
+          />
+        </div>
+      </div>
 
       {/* Map View */}
       <div className="mb-8">

@@ -1,12 +1,13 @@
-import { createFileRoute, useParams } from "@tanstack/react-router";
+import GameLayout from "../../components/game/GameLayout";
 import { ProtectedLayout } from "../../components/ProtectedLayout";
-import GameRoute from "../../components/game/GameRoute";
+import { createFileRoute, useParams } from "@tanstack/react-router";
 
 function GameWrapper() {
   const { gameId } = useParams({ from: "/game/$gameId" });
+
   return (
-    <ProtectedLayout gameId={gameId}>
-      <GameRoute />
+    <ProtectedLayout gameId={`${gameId}`} requiredKind={["host", "player"]}>
+      <GameLayout />
     </ProtectedLayout>
   );
 }

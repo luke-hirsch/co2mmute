@@ -6,6 +6,8 @@ interface GameMapViewerProps {
   isLoading?: boolean;
   error?: string | null;
   compact?: boolean;
+  homeNodeId?: number;
+  destinationNodeId?: number;
 }
 
 /**
@@ -16,6 +18,8 @@ const GameMapViewer = ({
   isLoading = false,
   error = null,
   compact = false,
+  homeNodeId,
+  destinationNodeId,
 }: GameMapViewerProps) => {
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
 
@@ -199,7 +203,9 @@ const GameMapViewer = ({
             const x = node.x_position * 100;
             const y = node.y_position * 100;
             const isSelected = selectedNodeId === node.id;
-            const radius = isSelected ? 12 : 8;
+            const isHomeNode = homeNodeId === node.id;
+            const isDestinationNode = destinationNodeId === node.id;
+            const radius = isSelected || isHomeNode || isDestinationNode ? 12 : 8;
 
             return (
               <g key={`node-${node.id}`}>
@@ -208,8 +214,8 @@ const GameMapViewer = ({
                   cy={y}
                   r={radius}
                   fill={getNodeColor(node.node_type)}
-                  stroke={isSelected ? "#000" : "none"}
-                  strokeWidth={isSelected ? "2" : "0"}
+                  stroke={isSelected ? "#000" : isHomeNode ? "#10b981" : isDestinationNode ? "#ef4444" : "none"}
+                  strokeWidth={isSelected || isHomeNode || isDestinationNode ? "3" : "0"}
                   className="cursor-pointer transition-all hover:opacity-80"
                   onClick={() => setSelectedNodeId(isSelected ? null : node.id)}
                 />
@@ -228,6 +234,70 @@ const GameMapViewer = ({
               </g>
             );
           })}
+
+          {/* Home pin marker */}
+          {homeNodeId && mapGraph.nodes.find((n) => n.id === homeNodeId) && (() => {
+            const homeNode = mapGraph.nodes.find((n) => n.id === homeNodeId)!;
+            const x = homeNode.x_position * 100;
+            const y = homeNode.y_position * 100;
+            return (
+              <g key="home-pin">
+                {/* Pin shape */}
+                <path
+                  d={`M ${x} ${y - 30}
+                      C ${x - 12} ${y - 30} ${x - 12} ${y - 18} ${x} ${y - 12}
+                      C ${x + 12} ${y - 18} ${x + 12} ${y - 30} ${x} ${y - 30}
+                      L ${x} ${y - 8}`}
+                  fill="#10b981"
+                  stroke="#065f46"
+                  strokeWidth="1"
+                />
+                {/* Home icon */}
+                <text
+                  x={x}
+                  y={y - 18}
+                  textAnchor="middle"
+                  fontSize="10"
+                  fill="white"
+                  className="pointer-events-none"
+                >
+                  🏠
+                </text>
+              </g>
+            );
+          })()}
+
+          {/* Destination pin marker */}
+          {destinationNodeId && mapGraph.nodes.find((n) => n.id === destinationNodeId) && (() => {
+            const destNode = mapGraph.nodes.find((n) => n.id === destinationNodeId)!;
+            const x = destNode.x_position * 100;
+            const y = destNode.y_position * 100;
+            return (
+              <g key="dest-pin">
+                {/* Pin shape */}
+                <path
+                  d={`M ${x} ${y - 30}
+                      C ${x - 12} ${y - 30} ${x - 12} ${y - 18} ${x} ${y - 12}
+                      C ${x + 12} ${y - 18} ${x + 12} ${y - 30} ${x} ${y - 30}
+                      L ${x} ${y - 8}`}
+                  fill="#ef4444"
+                  stroke="#991b1b"
+                  strokeWidth="1"
+                />
+                {/* Target icon */}
+                <text
+                  x={x}
+                  y={y - 18}
+                  textAnchor="middle"
+                  fontSize="10"
+                  fill="white"
+                  className="pointer-events-none"
+                >
+                  📍
+                </text>
+              </g>
+            );
+          })()}
         </svg>
       </div>
 

@@ -2,6 +2,16 @@ export type AuthKind = "host" | "user" | "player" | "anonymous";
 
 export type MessageType = "info" | "success" | "error" | "warning";
 
+export interface AgentAssignment {
+  id: number;
+  destination_node: number;
+}
+
+export interface PlayerAgentAssignments {
+  home_node: number;
+  agents: AgentAssignment[];
+}
+
 export interface Auth {
   kind: AuthKind;
   authenticated: boolean;

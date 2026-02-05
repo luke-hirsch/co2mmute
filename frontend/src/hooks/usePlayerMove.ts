@@ -8,13 +8,15 @@ interface UsePlayerMoveOptions {
 }
 
 interface UsePlayerMoveResult {
-  submitMove: (action: string) => Promise<boolean>;
+  submitMove: (action: string, payload?: Record<string, unknown>) => Promise<boolean>;
   isLoading: boolean;
   error: string | null;
 }
 
 /**
  * Hook to submit player moves (transportation choices)
+ * @param action - Primary action type (car, public, bike, walk)
+ * @param payload - Optional additional data (e.g., per-agent choices)
  */
 export function usePlayerMove({
   gameId,
@@ -24,25 +26,26 @@ export function usePlayerMove({
   const [error, setError] = useState<string | null>(null);
 
   const submitMove = useCallback(
-    async (action: string): Promise<boolean> => {
+    async (action: string, payload?: Record<string, unknown>): Promise<boolean> => {
       setIsLoading(true);
       setError(null);
 
       try {
-        const response = await apiFetch(
+        // apiFetch returns parsed JSON directly, not a Response object
+        const data = await apiFetch(
           `${API_BASE_URL}/api/game/${gameId}/player/${playerId}/move/`,
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ action }),
+            body: JSON.stringify({ action, payload }),
           }
         );
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          setError(errorData.error || "Failed to submit move");
+        // Check for error in response data
+        if (data.error) {
+          setError(data.error);
           return false;
         }
 

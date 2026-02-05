@@ -1,11 +1,12 @@
+import logging
+
+from co2mmute.utils import unsign_value
 from django.conf import settings
 from django.core import signing
 from rest_framework.permissions import BasePermission
 
 from .cache import get_cached_game_session
 from .models import Player
-from co2mmute.utils import unsign_value
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,6 @@ class HasGameAccess(BasePermission):
         if request.user.is_authenticated:
             session = get_cached_game_session(game_id)
             if session and session.game_host == request.user:
-                logger.info(f"Host {request.user} has access to game {game_id}")
                 return True
 
         cookie_name = f"{settings.COOKIE_GAME_PREFIX}{game_id}"
@@ -38,7 +38,6 @@ class HasGameAccess(BasePermission):
                 return False
             cookie_game_id, _ = cookie_value.split(":", 1)
             has_access = cookie_game_id == game_id
-            logger.info(f"Game cookie access for {game_id}: {has_access}")
             return has_access
         except signing.BadSignature as e:
             logger.warning(f"Game cookie signature failed for {cookie_name}: {e}")
@@ -106,9 +105,7 @@ class CanDeleteOwnPlayer(BasePermission):
 
             cookie_player_id = unsign_value(raw_cookie, settings.COOKIE_PLAYER_SALT)
             match = cookie_player_id == player_id
-            logger.info(
-                f"Cookie player_id={cookie_player_id}, URL player_id={player_id}, match={match}"
-            )
+
             return match
         except signing.BadSignature as e:
             logger.warning(f"Player cookie signature failed for {cookie_name}: {e}")
@@ -128,7 +125,6 @@ class IsGameHost(BasePermission):
 
         session = get_cached_game_session(game_id)
         if session and session.game_host == request.user:
-            logger.info(f"Host {request.user} authorized for game {game_id}")
             return True
 
         logger.warning(f"User {request.user} is not host of game {game_id}")

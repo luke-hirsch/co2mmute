@@ -4,7 +4,7 @@ import { API_BASE_URL } from "../../config";
 import { apiFetch } from "../../utils/api";
 import ConfirmDialog from "../ConfirmDialog";
 
-interface PlayerDetailPanelProps {
+interface PlayerDetailProps {
   player: WSPlayer;
   gameId: string;
   onClose: () => void;
@@ -12,13 +12,13 @@ interface PlayerDetailPanelProps {
   onPlayerKicked?: () => void;
 }
 
-const PlayerDetailPanel = ({
+const PlayerDetail = ({
   player,
   gameId,
   onClose,
   onPlayerUpdated,
   onPlayerKicked,
-}: PlayerDetailPanelProps) => {
+}: PlayerDetailProps) => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(player.name);
   const [isSaving, setIsSaving] = useState(false);
@@ -42,7 +42,7 @@ const PlayerDetailPanel = ({
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: editedName.trim() }),
-        }
+        },
       );
 
       if (data && typeof data === "object" && "error" in data) {
@@ -67,7 +67,7 @@ const PlayerDetailPanel = ({
         `${API_BASE_URL}/api/game/${gameId}/player/${player.playerId}/mute/`,
         {
           method: "POST",
-        }
+        },
       );
 
       if (data && typeof data === "object" && "error" in data) {
@@ -90,7 +90,7 @@ const PlayerDetailPanel = ({
         `${API_BASE_URL}/api/game/${gameId}/player/${player.playerId}/?kicked=true`,
         {
           method: "DELETE",
-        }
+        },
       );
 
       if (response && typeof response === "object" && "error" in response) {
@@ -239,9 +239,7 @@ const PlayerDetailPanel = ({
           <button
             onClick={handleToggleMute}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              !player.isMuted
-                ? "bg-green-600"
-                : "bg-gray-300 dark:bg-gray-600"
+              !player.isMuted ? "bg-green-600" : "bg-gray-300 dark:bg-gray-600"
             }`}
           >
             <span
@@ -286,4 +284,4 @@ const PlayerDetailPanel = ({
   );
 };
 
-export default PlayerDetailPanel;
+export default PlayerDetail;

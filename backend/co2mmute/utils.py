@@ -185,6 +185,32 @@ def send_chat_system_message(game_id: str, message: str):
     )
 
 
+def send_game_state_message(game_id: str, event_type: str, data: dict | None = None):
+    """
+    Broadcast a game state event to all connected clients via GameConsumer.
+
+    event_type can be:
+    - game.started: Game has started, players move from lobby to game
+    - game.ended: Game has ended (max rounds or CO2 limit reached)
+    - round.started: A new round has begun
+    - round.completed: Round finished, stats available
+    - player.joined: A player joined the game
+    - player.left: A player left the game
+    """
+    channel_layer = get_channel_layer()
+    if channel_layer is None:
+        logger.warning("No channel layer configured, cannot send game state message")
+        return
+    group_name = f"gamestate_{sanitize_group_name(game_id)}"
+    message = {
+        "type": "game.state",
+        "event": event_type,
+        "data": data or {},
+    }
+    async_to_sync(channel_layer.group_send)(group_name, message)
+    logger.info(f"Sent game state event '{event_type}' for game {game_id}")
+
+
 CHAT_MESSAGES_REDIS_KEY_PATTERN = "chat:{game_id}:messages"
 
 
@@ -197,3 +223,23 @@ def clear_chat_messages(game_id: str):
         logger.info(f"Cleared chat messages for game {game_id}")
     except Exception as e:
         logger.error(f"Failed to clear chat messages for game {game_id}: {e}")
+
+
+def send_player_status_update(game_id: str, player_id: str, status: str):
+    """
+    Broadcast a player status update to all connected clients.
+
+    status can be: ready, making_move, waiting, not_connected
+    """
+    channel_layer = get_channel_layer()
+    if channel_layer is None:
+        logger.warning("No channel layer configured, cannot send player status update")
+        return
+    group_name = f"gamestate_{sanitize_group_name(game_id)}"
+    message = {
+        "type": "player_status_update",
+        "player_id": player_id,
+        "status": status,
+    }
+    async_to_sync(channel_layer.group_send)(group_name, message)
+    logger.debug(f"Sent player status update for {player_id}: {status}")
