@@ -31,6 +31,8 @@ from maps.serializer import (
     BusLineSerializer,
     TrainEdgeSerializer,
     TrainLineSerializer,
+    serialize_bus_line_for_graph,
+    serialize_train_line_for_graph,
 )
 from maps.mixins import MapScopedQuerysetMixin
 from maps.permissions import IsStaffOrReadOnly
@@ -319,13 +321,29 @@ class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
             # StreetEdge and TrainEdge have ForeignKey to Edge, so we use prefetch_related
             edges = (
                 Edge.objects.filter(game_map=map_obj, map_versions=version)
-                .select_related("start_node", "end_node")
+                .select_related("start_node", "end_node", "game_map")
                 .prefetch_related("streetedge_set", "trainedge_set")
             )
+
+            # Get PT lines for this map version
+            bus_lines = BusLine.objects.filter(
+                game_map=map_obj, map_versions=version
+            ).prefetch_related("edges", "edges__edge")
+            train_lines = TrainLine.objects.filter(
+                game_map=map_obj, map_versions=version
+            ).prefetch_related("edges", "edges__edge")
 
             # Serialize the data
             nodes_data = NodeSerializer(nodes, many=True).data
             edges_data = EdgeSerializer(edges, many=True).data
+
+            # Serialize PT lines for graph/routing
+            bus_lines_data = [
+                serialize_bus_line_for_graph(bl, version) for bl in bus_lines
+            ]
+            train_lines_data = [
+                serialize_train_line_for_graph(tl, version) for tl in train_lines
+            ]
 
             graph_data = {
                 "map_id": map_pk,
@@ -336,6 +354,9 @@ class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
                 "edges": edges_data,
                 "node_count": len(nodes_data),
                 "edge_count": len(edges_data),
+                "bus_lines": bus_lines_data,
+                "train_lines": train_lines_data,
+                "scale": map_obj.scale,
             }
 
             # Cache the result for 1 hour (3600 seconds)

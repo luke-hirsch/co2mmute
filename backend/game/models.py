@@ -229,3 +229,141 @@ class BikeMobility(models.Model):
 
 class WalkingMobility(models.Model):
     session_round = models.ForeignKey(GameRound, on_delete=models.CASCADE)
+
+
+# =============================================================================
+# Route Storage Models (for traffic simulation)
+# =============================================================================
+
+
+class AgentRoute(models.Model):
+    """Stores the route submitted by a player for a specific agent."""
+
+    class TransportMode(models.TextChoices):
+        CAR = "car", "Car"
+        PUBLIC = "public", "Public Transport"
+        BIKE = "bike", "Bike"
+        WALK = "walk", "Walk"
+
+    class Optimization(models.TextChoices):
+        TIME = "time", "Fastest"
+        DISTANCE = "distance", "Shortest"
+        CO2 = "co2", "Lowest CO2"
+
+    player_move = models.ForeignKey(
+        PlayerMove, on_delete=models.CASCADE, related_name="routes"
+    )
+    agent_id = models.PositiveSmallIntegerField()
+    transport_mode = models.CharField(
+        max_length=20, choices=TransportMode.choices
+    )
+    optimization = models.CharField(
+        max_length=20, choices=Optimization.choices, null=True, blank=True
+    )
+    total_distance_m = models.FloatField()
+    estimated_time_min = models.FloatField()
+
+    class Meta:
+        unique_together = (("player_move", "agent_id"),)
+        ordering = ("player_move", "agent_id")
+
+    def __str__(self):
+        return f"Route for agent {self.agent_id} in {self.player_move}"
+
+
+class RouteSegment(models.Model):
+    """Individual segment of a route (an edge with transport mode)."""
+
+    class SegmentMode(models.TextChoices):
+        CAR = "car", "Car"
+        BUS = "bus", "Bus"
+        TRAIN = "train", "Train"
+        BIKE = "bike", "Bike"
+        WALK = "walk", "Walk"
+
+    agent_route = models.ForeignKey(
+        AgentRoute, on_delete=models.CASCADE, related_name="segments"
+    )
+    order = models.PositiveSmallIntegerField()
+    edge = models.ForeignKey("maps.Edge", on_delete=models.CASCADE)
+    mode = models.CharField(max_length=20, choices=SegmentMode.choices)
+    pt_line_id = models.PositiveIntegerField(null=True, blank=True)  # BusLine or TrainLine ID
+
+    class Meta:
+        ordering = ("agent_route", "order")
+        unique_together = (("agent_route", "order"),)
+
+    def __str__(self):
+        return f"Segment {self.order} of {self.agent_route}"
+
+
+# =============================================================================
+# Simulation Result Models
+# =============================================================================
+
+
+class SimulationResult(models.Model):
+    """Results of traffic simulation for a round."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        RUNNING = "running", "Running"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+
+    game_round = models.OneToOneField(
+        GameRound, on_delete=models.CASCADE, related_name="simulation"
+    )
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.PENDING
+    )
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    total_co2_g = models.FloatField(default=0.0)
+    total_cost_eur = models.FloatField(default=0.0)
+    error_message = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Simulation for {self.game_round}"
+
+
+class AgentSimulationResult(models.Model):
+    """Per-agent simulation results."""
+
+    simulation = models.ForeignKey(
+        SimulationResult, on_delete=models.CASCADE, related_name="agent_results"
+    )
+    agent_route = models.ForeignKey(
+        AgentRoute, on_delete=models.CASCADE, related_name="simulation_results"
+    )
+    mean_trip_time_min = models.FloatField()
+    mean_return_time_min = models.FloatField(default=0.0)
+    mean_cost_eur = models.FloatField()
+    total_co2_g = models.FloatField()
+    congestion_delay_min = models.FloatField(default=0.0)
+    wait_time_min = models.FloatField(default=0.0)  # For public transport
+
+    class Meta:
+        unique_together = (("simulation", "agent_route"),)
+
+    def __str__(self):
+        return f"Result for {self.agent_route}"
+
+
+class EdgeTrafficSnapshot(models.Model):
+    """Traffic state per edge per time tick for replay/analysis."""
+
+    simulation = models.ForeignKey(
+        SimulationResult, on_delete=models.CASCADE, related_name="traffic_snapshots"
+    )
+    edge = models.ForeignKey("maps.Edge", on_delete=models.CASCADE)
+    time_tick = models.PositiveSmallIntegerField()  # Minutes from simulation start
+    vehicle_count = models.PositiveIntegerField()
+    speed_kmh = models.FloatField()  # Actual speed after congestion
+
+    class Meta:
+        unique_together = (("simulation", "edge", "time_tick"),)
+        ordering = ("simulation", "time_tick", "edge")
+
+    def __str__(self):
+        return f"Traffic on edge {self.edge.id} at tick {self.time_tick}"

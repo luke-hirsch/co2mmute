@@ -29,6 +29,7 @@ export interface Edge {
   biking?: boolean;
   walking?: boolean;
   max_lanes?: number;
+  distance_m?: number; // Euclidean distance in meters (computed from nodes * scale)
   street_edge?: {
     id: number;
     speed_limit: number;

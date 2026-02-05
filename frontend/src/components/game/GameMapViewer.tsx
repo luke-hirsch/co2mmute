@@ -1,17 +1,31 @@
 import { useState } from "react";
 import type { MapGraph } from "../../types/mapTypes";
+import type { RouteSegment, SegmentMode, ExtendedMapGraph } from "../../types/routeTypes";
 
 interface GameMapViewerProps {
-  mapGraph: MapGraph | null;
+  mapGraph: MapGraph | ExtendedMapGraph | null;
   isLoading?: boolean;
   error?: string | null;
   compact?: boolean;
   homeNodeId?: number;
   destinationNodeId?: number;
+  routeSegments?: RouteSegment[];
+  highlightedNodes?: Set<number>;
+  pathfindingVisited?: Set<number>;
+  pathfindingCurrent?: number | null;
 }
 
+// Colors for different transport modes on route segments
+const ROUTE_COLORS: Record<SegmentMode, string> = {
+  car: "#ef4444", // Red
+  bus: "#f97316", // Orange
+  train: "#8b5cf6", // Purple
+  bike: "#10b981", // Green
+  walk: "#3b82f6", // Blue
+};
+
 /**
- * Simplified map viewer for gameplay - shows the map without detailed info panels
+ * Simplified map viewer for gameplay - shows the map with route visualization
  */
 const GameMapViewer = ({
   mapGraph,
@@ -20,6 +34,10 @@ const GameMapViewer = ({
   compact = false,
   homeNodeId,
   destinationNodeId,
+  routeSegments,
+  highlightedNodes,
+  pathfindingVisited,
+  pathfindingCurrent,
 }: GameMapViewerProps) => {
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
 
@@ -114,6 +132,9 @@ const GameMapViewer = ({
     );
   }
 
+  // Build a set of edge IDs that are part of the route
+  const routeEdgeIds = new Set(routeSegments?.map((s) => s.edgeId) ?? []);
+
   // Calculate SVG dimensions with padding
   const padding = 40;
   const minX =
@@ -159,6 +180,14 @@ const GameMapViewer = ({
                 className="dark:stroke-gray-700"
               />
             </pattern>
+            {/* Glow filter for route edges */}
+            <filter id="routeGlow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+              <feMerge>
+                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
           </defs>
           <rect
             x={minX}
@@ -168,8 +197,11 @@ const GameMapViewer = ({
             fill="url(#gameGrid)"
           />
 
-          {/* Edges */}
+          {/* Base Edges (non-route) */}
           {mapGraph.edges.map((edge) => {
+            // Skip if this edge is part of the route (we'll render it separately)
+            if (routeEdgeIds.has(edge.id)) return null;
+
             const startNode = mapGraph.nodes.find(
               (n) => n.id === edge.start_node
             );
@@ -193,10 +225,102 @@ const GameMapViewer = ({
                 stroke={stroke}
                 strokeWidth="2"
                 strokeDasharray={strokeDasharray}
-                opacity="0.6"
+                opacity="0.4"
               />
             );
           })}
+
+          {/* Route Edges (highlighted) */}
+          {routeSegments?.map((segment, index) => {
+            const edge = mapGraph.edges.find((e) => e.id === segment.edgeId);
+            if (!edge) return null;
+
+            const startNode = mapGraph.nodes.find(
+              (n) => n.id === segment.startNode
+            );
+            const endNode = mapGraph.nodes.find(
+              (n) => n.id === segment.endNode
+            );
+
+            if (!startNode || !endNode) return null;
+
+            const x1 = startNode.x_position * 100;
+            const y1 = startNode.y_position * 100;
+            const x2 = endNode.x_position * 100;
+            const y2 = endNode.y_position * 100;
+
+            const color = ROUTE_COLORS[segment.mode] || "#6b7280";
+
+            return (
+              <g key={`route-segment-${index}`}>
+                {/* Background glow */}
+                <line
+                  x1={x1}
+                  y1={y1}
+                  x2={x2}
+                  y2={y2}
+                  stroke={color}
+                  strokeWidth="8"
+                  opacity="0.3"
+                  strokeLinecap="round"
+                />
+                {/* Main line */}
+                <line
+                  x1={x1}
+                  y1={y1}
+                  x2={x2}
+                  y2={y2}
+                  stroke={color}
+                  strokeWidth="4"
+                  opacity="1"
+                  strokeLinecap="round"
+                  strokeDasharray={segment.mode === "walk" ? "8,4" : "0"}
+                />
+              </g>
+            );
+          })}
+
+          {/* Pathfinding visualization - visited nodes */}
+          {pathfindingVisited && Array.from(pathfindingVisited).map((nodeId) => {
+            const node = mapGraph.nodes.find((n) => n.id === nodeId);
+            if (!node) return null;
+            const x = node.x_position * 100;
+            const y = node.y_position * 100;
+
+            return (
+              <circle
+                key={`visited-${nodeId}`}
+                cx={x}
+                cy={y}
+                r={14}
+                fill="none"
+                stroke="#10b981"
+                strokeWidth="2"
+                opacity="0.5"
+              />
+            );
+          })}
+
+          {/* Pathfinding visualization - current node */}
+          {pathfindingCurrent && (() => {
+            const node = mapGraph.nodes.find((n) => n.id === pathfindingCurrent);
+            if (!node) return null;
+            const x = node.x_position * 100;
+            const y = node.y_position * 100;
+
+            return (
+              <circle
+                key="current-node"
+                cx={x}
+                cy={y}
+                r={16}
+                fill="none"
+                stroke="#f59e0b"
+                strokeWidth="3"
+                className="animate-pulse"
+              />
+            );
+          })()}
 
           {/* Nodes */}
           {mapGraph.nodes.map((node) => {
@@ -205,7 +329,8 @@ const GameMapViewer = ({
             const isSelected = selectedNodeId === node.id;
             const isHomeNode = homeNodeId === node.id;
             const isDestinationNode = destinationNodeId === node.id;
-            const radius = isSelected || isHomeNode || isDestinationNode ? 12 : 8;
+            const isHighlighted = highlightedNodes?.has(node.id);
+            const radius = isSelected || isHomeNode || isDestinationNode ? 12 : isHighlighted ? 10 : 8;
 
             return (
               <g key={`node-${node.id}`}>
@@ -214,8 +339,20 @@ const GameMapViewer = ({
                   cy={y}
                   r={radius}
                   fill={getNodeColor(node.node_type)}
-                  stroke={isSelected ? "#000" : isHomeNode ? "#10b981" : isDestinationNode ? "#ef4444" : "none"}
-                  strokeWidth={isSelected || isHomeNode || isDestinationNode ? "3" : "0"}
+                  stroke={
+                    isSelected
+                      ? "#000"
+                      : isHomeNode
+                        ? "#10b981"
+                        : isDestinationNode
+                          ? "#ef4444"
+                          : isHighlighted
+                            ? "#f59e0b"
+                            : "none"
+                  }
+                  strokeWidth={
+                    isSelected || isHomeNode || isDestinationNode || isHighlighted ? "3" : "0"
+                  }
                   className="cursor-pointer transition-all hover:opacity-80"
                   onClick={() => setSelectedNodeId(isSelected ? null : node.id)}
                 />
@@ -236,68 +373,74 @@ const GameMapViewer = ({
           })}
 
           {/* Home pin marker */}
-          {homeNodeId && mapGraph.nodes.find((n) => n.id === homeNodeId) && (() => {
-            const homeNode = mapGraph.nodes.find((n) => n.id === homeNodeId)!;
-            const x = homeNode.x_position * 100;
-            const y = homeNode.y_position * 100;
-            return (
-              <g key="home-pin">
-                {/* Pin shape */}
-                <path
-                  d={`M ${x} ${y - 30}
+          {homeNodeId &&
+            mapGraph.nodes.find((n) => n.id === homeNodeId) &&
+            (() => {
+              const homeNode = mapGraph.nodes.find((n) => n.id === homeNodeId)!;
+              const x = homeNode.x_position * 100;
+              const y = homeNode.y_position * 100;
+              return (
+                <g key="home-pin">
+                  {/* Pin shape */}
+                  <path
+                    d={`M ${x} ${y - 30}
                       C ${x - 12} ${y - 30} ${x - 12} ${y - 18} ${x} ${y - 12}
                       C ${x + 12} ${y - 18} ${x + 12} ${y - 30} ${x} ${y - 30}
                       L ${x} ${y - 8}`}
-                  fill="#10b981"
-                  stroke="#065f46"
-                  strokeWidth="1"
-                />
-                {/* Home icon */}
-                <text
-                  x={x}
-                  y={y - 18}
-                  textAnchor="middle"
-                  fontSize="10"
-                  fill="white"
-                  className="pointer-events-none"
-                >
-                  🏠
-                </text>
-              </g>
-            );
-          })()}
+                    fill="#10b981"
+                    stroke="#065f46"
+                    strokeWidth="1"
+                  />
+                  {/* Home icon */}
+                  <text
+                    x={x}
+                    y={y - 18}
+                    textAnchor="middle"
+                    fontSize="10"
+                    fill="white"
+                    className="pointer-events-none"
+                  >
+                    H
+                  </text>
+                </g>
+              );
+            })()}
 
           {/* Destination pin marker */}
-          {destinationNodeId && mapGraph.nodes.find((n) => n.id === destinationNodeId) && (() => {
-            const destNode = mapGraph.nodes.find((n) => n.id === destinationNodeId)!;
-            const x = destNode.x_position * 100;
-            const y = destNode.y_position * 100;
-            return (
-              <g key="dest-pin">
-                {/* Pin shape */}
-                <path
-                  d={`M ${x} ${y - 30}
+          {destinationNodeId &&
+            mapGraph.nodes.find((n) => n.id === destinationNodeId) &&
+            (() => {
+              const destNode = mapGraph.nodes.find(
+                (n) => n.id === destinationNodeId
+              )!;
+              const x = destNode.x_position * 100;
+              const y = destNode.y_position * 100;
+              return (
+                <g key="dest-pin">
+                  {/* Pin shape */}
+                  <path
+                    d={`M ${x} ${y - 30}
                       C ${x - 12} ${y - 30} ${x - 12} ${y - 18} ${x} ${y - 12}
                       C ${x + 12} ${y - 18} ${x + 12} ${y - 30} ${x} ${y - 30}
                       L ${x} ${y - 8}`}
-                  fill="#ef4444"
-                  stroke="#991b1b"
-                  strokeWidth="1"
-                />
-                {/* Target icon */}
-                <text
-                  x={x}
-                  y={y - 18}
-                  textAnchor="middle"
-                  fontSize="10"
-                  fill="white"
-                  className="pointer-events-none"
-                >
-                  📍
-                </text>
-              </g>
-            );
-          })()}
+                    fill="#ef4444"
+                    stroke="#991b1b"
+                    strokeWidth="1"
+                  />
+                  {/* Target icon */}
+                  <text
+                    x={x}
+                    y={y - 18}
+                    textAnchor="middle"
+                    fontSize="10"
+                    fill="white"
+                    className="pointer-events-none"
+                  >
+                    D
+                  </text>
+                </g>
+              );
+            })()}
         </svg>
       </div>
 
@@ -320,8 +463,26 @@ const GameMapViewer = ({
         </div>
       )}
 
+      {/* Route Legend */}
+      {routeSegments && routeSegments.length > 0 && (
+        <div className="mt-3 p-2 bg-subtle dark:bg-darksubtle rounded text-xs">
+          <div className="font-semibold mb-1">Route</div>
+          <div className="flex flex-wrap gap-2">
+            {Array.from(new Set(routeSegments.map((s) => s.mode))).map((mode) => (
+              <div key={mode} className="flex items-center gap-1">
+                <div
+                  className="w-4 h-1 rounded"
+                  style={{ backgroundColor: ROUTE_COLORS[mode] }}
+                ></div>
+                <span className="capitalize">{mode}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Compact Legend */}
-      {!compact && (
+      {!compact && !routeSegments && (
         <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted dark:text-darkmutedtext">
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded-full bg-green-500"></div>

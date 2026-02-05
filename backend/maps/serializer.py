@@ -125,6 +125,7 @@ class NodeSerializer(MapVersionsMixin, serializers.ModelSerializer):
 class EdgeSerializer(MapVersionsMixin, serializers.ModelSerializer):
     street_edge = serializers.SerializerMethodField()
     train_edge = serializers.SerializerMethodField()
+    distance_m = serializers.SerializerMethodField()
 
     class Meta:
         model = mm.Edge
@@ -140,8 +141,9 @@ class EdgeSerializer(MapVersionsMixin, serializers.ModelSerializer):
             "map_versions",
             "street_edge",
             "train_edge",
+            "distance_m",
         ]
-        read_only_fields = ("id", "street_edge", "train_edge")
+        read_only_fields = ("id", "street_edge", "train_edge", "distance_m")
         extra_kwargs = {
             "name": {"required": False, "allow_blank": True},
         }
@@ -174,6 +176,10 @@ class EdgeSerializer(MapVersionsMixin, serializers.ModelSerializer):
             return None
         except Exception:
             return None
+
+    def get_distance_m(self, obj):
+        """Calculate distance in meters using euclidean_2d_distance * scale."""
+        return obj.euclidean_2d_distance() * obj.game_map.scale
 
     def validate(self, attrs):
         game_map = attrs.get("game_map") or getattr(self.instance, "game_map", None)
@@ -413,3 +419,68 @@ class TrainLineSerializer(MapVersionsMixin, serializers.ModelSerializer):
         if value <= 0:
             raise serializers.ValidationError("intervall must be greater than 0.")
         return value
+
+
+# Graph-specific serializers for pathfinding/routing
+class PTLineGraphSerializer(serializers.Serializer):
+    """Serializer for PT lines in graph context (for frontend routing)."""
+
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    type = serializers.CharField()  # "bus" or "train"
+    interval = serializers.IntegerField()
+    capacity = serializers.IntegerField()
+    edges = serializers.ListField(child=serializers.IntegerField())
+    stops = serializers.ListField(child=serializers.IntegerField())
+
+
+def serialize_bus_line_for_graph(bus_line, version):
+    """Serialize a bus line for graph/routing purposes."""
+    # Get edges in order and extract underlying edge IDs
+    street_edges = bus_line.edges.filter(map_versions=version).select_related("edge")
+    edge_ids = [se.edge_id for se in street_edges]
+
+    # Extract stops (unique nodes from edges in order)
+    stops = []
+    for se in street_edges:
+        edge = se.edge
+        if edge.start_node_id not in stops:
+            stops.append(edge.start_node_id)
+        if edge.end_node_id not in stops:
+            stops.append(edge.end_node_id)
+
+    return {
+        "id": bus_line.id,
+        "name": bus_line.name,
+        "type": "bus",
+        "interval": bus_line.intervall,
+        "capacity": bus_line.bus_capacity,
+        "edges": edge_ids,
+        "stops": stops,
+    }
+
+
+def serialize_train_line_for_graph(train_line, version):
+    """Serialize a train line for graph/routing purposes."""
+    # Get edges in order and extract underlying edge IDs
+    train_edges = train_line.edges.filter(map_versions=version).select_related("edge")
+    edge_ids = [te.edge_id for te in train_edges]
+
+    # Extract stops (unique nodes from edges in order)
+    stops = []
+    for te in train_edges:
+        edge = te.edge
+        if edge.start_node_id not in stops:
+            stops.append(edge.start_node_id)
+        if edge.end_node_id not in stops:
+            stops.append(edge.end_node_id)
+
+    return {
+        "id": train_line.id,
+        "name": train_line.name,
+        "type": "train",
+        "interval": train_line.intervall,
+        "capacity": train_line.train_capacity,
+        "edges": edge_ids,
+        "stops": stops,
+    }

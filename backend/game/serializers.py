@@ -223,3 +223,131 @@ class WalkingMobilitySerializer(serializers.ModelSerializer):
             "session_round",
         )
         read_only_fields = ("id",)
+
+
+# =============================================================================
+# Route Serializers (for traffic simulation)
+# =============================================================================
+
+
+class RouteSegmentSerializer(serializers.ModelSerializer):
+    """Serializer for individual route segments."""
+
+    class Meta:
+        model = gm.RouteSegment
+        fields = (
+            "id",
+            "order",
+            "edge",
+            "mode",
+            "pt_line_id",
+        )
+        read_only_fields = ("id",)
+
+
+class AgentRouteSerializer(serializers.ModelSerializer):
+    """Serializer for agent routes with nested segments."""
+
+    segments = RouteSegmentSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = gm.AgentRoute
+        fields = (
+            "id",
+            "agent_id",
+            "transport_mode",
+            "optimization",
+            "total_distance_m",
+            "estimated_time_min",
+            "segments",
+        )
+        read_only_fields = ("id",)
+
+
+# Input serializers for route submission
+
+
+class RouteSegmentInputSerializer(serializers.Serializer):
+    """Input serializer for route segment data from frontend."""
+
+    edge_id = serializers.IntegerField()
+    start_node = serializers.IntegerField()
+    end_node = serializers.IntegerField()
+    mode = serializers.ChoiceField(choices=gm.RouteSegment.SegmentMode.choices)
+    pt_line_id = serializers.IntegerField(required=False, allow_null=True)
+
+
+class RouteInputSerializer(serializers.Serializer):
+    """Input serializer for route data from frontend."""
+
+    total_distance_m = serializers.FloatField()
+    estimated_time_min = serializers.FloatField()
+    segments = RouteSegmentInputSerializer(many=True)
+
+
+class AgentRouteInputSerializer(serializers.Serializer):
+    """Input serializer for per-agent route submission."""
+
+    id = serializers.IntegerField()  # agent_id
+    transport_mode = serializers.ChoiceField(choices=gm.AgentRoute.TransportMode.choices)
+    optimization = serializers.ChoiceField(
+        choices=gm.AgentRoute.Optimization.choices, required=False, allow_null=True
+    )
+    route = RouteInputSerializer()
+
+
+class PlayerMoveWithRoutesInputSerializer(serializers.Serializer):
+    """Input serializer for player move with route data."""
+
+    agents = AgentRouteInputSerializer(many=True)
+
+    def validate_agents(self, agents):
+        """Validate that agent IDs are unique."""
+        agent_ids = [agent["id"] for agent in agents]
+        if len(agent_ids) != len(set(agent_ids)):
+            raise serializers.ValidationError("Agent IDs must be unique.")
+        return agents
+
+
+# Result serializers
+
+
+class AgentSimulationResultSerializer(serializers.ModelSerializer):
+    """Serializer for per-agent simulation results."""
+
+    agent_id = serializers.IntegerField(source="agent_route.agent_id", read_only=True)
+    transport_mode = serializers.CharField(
+        source="agent_route.transport_mode", read_only=True
+    )
+
+    class Meta:
+        model = gm.AgentSimulationResult
+        fields = (
+            "agent_id",
+            "transport_mode",
+            "mean_trip_time_min",
+            "mean_return_time_min",
+            "mean_cost_eur",
+            "total_co2_g",
+            "congestion_delay_min",
+            "wait_time_min",
+        )
+
+
+class SimulationResultSerializer(serializers.ModelSerializer):
+    """Serializer for simulation results."""
+
+    agent_results = AgentSimulationResultSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = gm.SimulationResult
+        fields = (
+            "id",
+            "status",
+            "started_at",
+            "completed_at",
+            "total_co2_g",
+            "total_cost_eur",
+            "agent_results",
+        )
+        read_only_fields = ("id", "started_at", "completed_at")

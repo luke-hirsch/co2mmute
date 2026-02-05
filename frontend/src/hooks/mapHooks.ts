@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { API_BASE_URL } from "../config";
 import { apiFetch } from "../utils/api";
-import type { GameMap, MapGraph } from "../types/mapTypes";
+import type { GameMap } from "../types/mapTypes";
+import type { ExtendedMapGraph } from "../types/routeTypes";
 
 /**
  * Fetch all game maps
@@ -42,7 +43,7 @@ export const useMapGraph = (
     ? `${API_BASE_URL}/api/maps/${mapId}/graph/version/${versionId}`
     : `${API_BASE_URL}/api/maps/${mapId}/graph/baseversion/`;
 
-  return useQuery<MapGraph>({
+  return useQuery<ExtendedMapGraph>({
     queryKey: ["mapGraph", mapId, versionId],
     queryFn: async () => {
       return apiFetch(queryUrl);

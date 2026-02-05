@@ -289,10 +289,13 @@ def game_start(sender, instance: GameSession, created=False, **kwargs):
 @receiver(round_completed)
 def handle_round_completed(sender, game_id=None, game_session=None, game_round=None, **kwargs):
     """
-    Handle round completion: calculate stats, check end conditions, create new round or end game.
+    Handle round completion: run simulation, calculate stats, check end conditions, create new round or end game.
 
-    For dry run: uses hardcoded emission values per action type.
+    If routes are available, runs the traffic simulation engine.
+    Falls back to hardcoded values if no routes (legacy mode).
     """
+    from game.models import AgentRoute
+
     # Resolve game_session from either direct reference or game_id
     if game_session is None and game_id:
         try:
@@ -317,76 +320,22 @@ def handle_round_completed(sender, game_id=None, game_session=None, game_round=N
         logger.error(f"No round found for game {game_session.game_id}")
         return
 
-    # Mark round as completed
+    # Mark round as simulating
     game_round.status = GameRound.Status.COMPLETED
     game_round.save(update_fields=["status", "updated_at"])
 
-    # Calculate round stats with hardcoded values for dry run
-    # Values: car=150g, public=30g, bike=5g, walk=0g per move
-    HARDCODED_EMISSIONS = {
-        "car": 150.0,
-        "public": 30.0,
-        "bike": 5.0,
-        "walk": 0.0,
-    }
-    HARDCODED_COSTS = {
-        "car": 5.0,
-        "public": 2.5,
-        "bike": 0.5,
-        "walk": 0.0,
-    }
-    HARDCODED_TIME = {
-        "car": 15,  # minutes
-        "public": 25,
-        "bike": 20,
-        "walk": 45,
-    }
-
+    # Check if we have routes for this round (new simulation mode)
     moves = PlayerMove.objects.filter(session_round=game_round)
-    round_emissions = 0.0
-    round_cost = 0.0
-    player_stats = []
+    has_routes = AgentRoute.objects.filter(player_move__in=moves).exists()
 
-    for move in moves:
-        # Check if move has per-agent choices in payload
-        payload = move.payload or {}
-        agents = payload.get("agents", [])
-
-        if agents:
-            # Calculate emissions for all agents
-            player_emissions = 0.0
-            player_cost = 0.0
-            player_time = 0
-            actions_used = []
-
-            for agent in agents:
-                agent_action = agent.get("action", move.action)
-                player_emissions += HARDCODED_EMISSIONS.get(agent_action, 0.0)
-                player_cost += HARDCODED_COSTS.get(agent_action, 0.0)
-                player_time += HARDCODED_TIME.get(agent_action, 0)
-                actions_used.append(agent_action)
-
-            # Summarize actions for display
-            action_summary = ", ".join(set(actions_used)) if len(set(actions_used)) > 1 else actions_used[0] if actions_used else move.action
-        else:
-            # Fallback to single action (legacy mode)
-            action = move.action
-            player_emissions = HARDCODED_EMISSIONS.get(action, 0.0)
-            player_cost = HARDCODED_COSTS.get(action, 0.0)
-            player_time = HARDCODED_TIME.get(action, 0)
-            action_summary = action
-
-        round_emissions += player_emissions
-        round_cost += player_cost
-
-        player_stats.append({
-            "player_id": move.player.player_id,
-            "player_name": move.player.name or "Player",
-            "action": action_summary,
-            "emissions_g": player_emissions,
-            "cost_eur": player_cost,
-            "time_min": player_time,
-        })
+    if has_routes:
+        # Run traffic simulation
+        round_emissions, round_cost, player_stats = _run_simulation(
+            game_session, game_round, moves
+        )
+    else:
+        # Fallback to hardcoded values (legacy mode)
+        round_emissions, round_cost, player_stats = _calculate_hardcoded_stats(moves)
 
     # Update round totals
     game_round.total_emissions_g = round_emissions
@@ -410,11 +359,12 @@ def handle_round_completed(sender, game_id=None, game_session=None, game_round=N
             "total_game_emissions_g": total_game_emissions,
             "max_co2_level_g": game_session.max_CO2_level * 1000,
             "player_stats": player_stats,
+            "simulation_used": has_routes,
         },
     )
     logger.info(
         f"Round {game_round.round_number} completed for game {game_session.game_id}: "
-        f"{round_emissions}g CO2, €{round_cost}"
+        f"{round_emissions}g CO2, €{round_cost} (simulation={has_routes})"
     )
 
     # Check game end conditions
@@ -452,3 +402,177 @@ def handle_round_completed(sender, game_id=None, game_session=None, game_round=N
         },
     )
     logger.info(f"Round {new_round_obj.round_number} started for game {game_session.game_id}")
+
+
+def _run_simulation(game_session, game_round, moves):
+    """
+    Run the traffic simulation engine and return results.
+
+    Returns:
+        Tuple of (round_emissions, round_cost, player_stats)
+    """
+    from game.simulation import TrafficSimulator
+
+    # Broadcast simulation starting
+    send_game_state_message(
+        game_session.game_id,
+        "simulation.progress",
+        {
+            "round_number": game_round.round_number,
+            "status": "starting",
+            "progress_percent": 0,
+        },
+    )
+
+    # Get scale from game map
+    scale = game_session.game_map.scale if game_session.game_map else 100.0
+
+    def on_progress(tick, total_ticks):
+        """Broadcast simulation progress."""
+        # Only broadcast every 10 ticks to avoid spam
+        if tick % 10 == 0:
+            send_game_state_message(
+                game_session.game_id,
+                "simulation.progress",
+                {
+                    "round_number": game_round.round_number,
+                    "status": "running",
+                    "tick": tick,
+                    "total_ticks": total_ticks,
+                    "progress_percent": int((tick / total_ticks) * 100),
+                },
+            )
+
+    try:
+        simulator = TrafficSimulator(game_round, scale=scale)
+        result = simulator.run_simulation(max_ticks=200, on_progress=on_progress)
+
+        # Build player stats from simulation results
+        from game.models import AgentSimulationResult
+
+        player_stats = []
+        round_emissions = result.total_co2_g
+        round_cost = result.total_cost_eur
+
+        for move in moves:
+            player_emissions = 0.0
+            player_cost = 0.0
+            player_time = 0.0
+            agent_details = []
+
+            # Get simulation results for this player's agents
+            agent_results = AgentSimulationResult.objects.filter(
+                simulation=result,
+                agent_route__player_move=move,
+            ).select_related("agent_route")
+
+            for agent_result in agent_results:
+                player_emissions += agent_result.total_co2_g
+                player_time += agent_result.mean_trip_time_min
+                agent_details.append({
+                    "agent_id": agent_result.agent_route.agent_id,
+                    "mode": agent_result.agent_route.transport_mode,
+                    "trip_time_min": round(agent_result.mean_trip_time_min, 1),
+                    "delay_min": round(agent_result.congestion_delay_min, 1),
+                    "co2_g": round(agent_result.total_co2_g, 1),
+                })
+
+            # Summarize transport modes
+            modes_used = list(set(a["mode"] for a in agent_details))
+            action_summary = ", ".join(modes_used) if modes_used else "unknown"
+
+            player_stats.append({
+                "player_id": move.player.player_id,
+                "player_name": move.player.name or "Player",
+                "action": action_summary,
+                "emissions_g": round(player_emissions, 1),
+                "cost_eur": round(player_cost, 2),
+                "time_min": round(player_time / len(agent_details), 1) if agent_details else 0,
+                "agents": agent_details,
+            })
+
+        return round_emissions, round_cost, player_stats
+
+    except Exception as e:
+        logger.exception(f"Simulation failed for round {game_round.round_number}")
+        # Fall back to hardcoded if simulation fails
+        send_game_state_message(
+            game_session.game_id,
+            "simulation.progress",
+            {
+                "round_number": game_round.round_number,
+                "status": "failed",
+                "error": str(e),
+            },
+        )
+        return _calculate_hardcoded_stats(moves)
+
+
+def _calculate_hardcoded_stats(moves):
+    """
+    Calculate stats using hardcoded values (legacy fallback).
+
+    Returns:
+        Tuple of (round_emissions, round_cost, player_stats)
+    """
+    HARDCODED_EMISSIONS = {
+        "car": 150.0,
+        "public": 30.0,
+        "bike": 5.0,
+        "walk": 0.0,
+    }
+    HARDCODED_COSTS = {
+        "car": 5.0,
+        "public": 2.5,
+        "bike": 0.5,
+        "walk": 0.0,
+    }
+    HARDCODED_TIME = {
+        "car": 15,
+        "public": 25,
+        "bike": 20,
+        "walk": 45,
+    }
+
+    round_emissions = 0.0
+    round_cost = 0.0
+    player_stats = []
+
+    for move in moves:
+        payload = move.payload or {}
+        agents = payload.get("agents", [])
+
+        if agents:
+            player_emissions = 0.0
+            player_cost = 0.0
+            player_time = 0
+            actions_used = []
+
+            for agent in agents:
+                agent_action = agent.get("action", move.action)
+                player_emissions += HARDCODED_EMISSIONS.get(agent_action, 0.0)
+                player_cost += HARDCODED_COSTS.get(agent_action, 0.0)
+                player_time += HARDCODED_TIME.get(agent_action, 0)
+                actions_used.append(agent_action)
+
+            action_summary = ", ".join(set(actions_used)) if len(set(actions_used)) > 1 else actions_used[0] if actions_used else move.action
+        else:
+            action = move.action
+            player_emissions = HARDCODED_EMISSIONS.get(action, 0.0)
+            player_cost = HARDCODED_COSTS.get(action, 0.0)
+            player_time = HARDCODED_TIME.get(action, 0)
+            action_summary = action
+
+        round_emissions += player_emissions
+        round_cost += player_cost
+
+        player_stats.append({
+            "player_id": move.player.player_id,
+            "player_name": move.player.name or "Player",
+            "action": action_summary,
+            "emissions_g": player_emissions,
+            "cost_eur": player_cost,
+            "time_min": player_time,
+        })
+
+    return round_emissions, round_cost, player_stats

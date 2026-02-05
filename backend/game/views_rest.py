@@ -15,11 +15,16 @@ from rest_framework.response import Response
 
 from game.cache import get_cached_game_session
 from game.mixins import GameScopedQuerysetMixin
-from game.models import GameRound, GameSession, Player, PlayerMove
+from game.models import AgentRoute, GameRound, GameSession, Player, PlayerMove, RouteSegment
 from game.permissions import CanDeleteOwnPlayer, HasGameAccess, IsPlayerInGame
-from game.serializers import GameSessionSerializer, PlayerSerializer
+from game.serializers import (
+    GameSessionSerializer,
+    PlayerSerializer,
+    PlayerMoveWithRoutesInputSerializer,
+)
 from co2mmute.utils import send_player_status_update
 from game.signals import round_completed
+from maps.models import Edge
 
 logger = logging.getLogger(__name__)
 
@@ -212,8 +217,6 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
 
     def post(self, request, game_id, player_id):
         try:
-            from .models import GameRound, GameSession, Player, PlayerMove
-
             game = GameSession.objects.get(game_id=game_id)
             if not game.is_active:
                 return Response(
@@ -235,26 +238,65 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
             action = request.data.get("action")
             payload = request.data.get("payload", {})
             valid_actions = ["car", "public", "bike", "walk"]
-            if action not in valid_actions:
-                return Response(
-                    {"error": f"Invalid action. Must be one of {valid_actions}"},
-                    status=status.HTTP_400_BAD_REQUEST,
+
+            # Check if this is a route submission (new format) or legacy format
+            has_routes = payload and "agents" in payload and any(
+                "route" in agent for agent in payload.get("agents", [])
+            )
+
+            if has_routes:
+                # New format: validate with route serializer
+                route_serializer = PlayerMoveWithRoutesInputSerializer(data=payload)
+                if not route_serializer.is_valid():
+                    return Response(
+                        {"error": "Invalid route data", "details": route_serializer.errors},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                # Validate routes: check edge connectivity and permissions
+                validation_error = self._validate_routes(
+                    route_serializer.validated_data["agents"],
+                    player,
+                    game,
+                )
+                if validation_error:
+                    return Response(
+                        {"error": validation_error},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                # Use "route_submission" as action for new format
+                action = "route_submission"
+            else:
+                # Legacy format: simple action validation
+                if action not in valid_actions:
+                    return Response(
+                        {"error": f"Invalid action. Must be one of {valid_actions}"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                # Validate legacy payload if it contains agent choices
+                if payload and "agents" in payload:
+                    for agent_choice in payload["agents"]:
+                        if agent_choice.get("action") not in valid_actions:
+                            return Response(
+                                {"error": f"Invalid agent action. Must be one of {valid_actions}"},
+                                status=status.HTTP_400_BAD_REQUEST,
+                            )
+
+            with transaction.atomic():
+                move, created = PlayerMove.objects.update_or_create(
+                    session_round=current_round,
+                    player=player,
+                    defaults={"action": action, "payload": payload or {}},
                 )
 
-            # Validate payload if it contains agent choices
-            if payload and "agents" in payload:
-                for agent_choice in payload["agents"]:
-                    if agent_choice.get("action") not in valid_actions:
-                        return Response(
-                            {"error": f"Invalid agent action. Must be one of {valid_actions}"},
-                            status=status.HTTP_400_BAD_REQUEST,
-                        )
+                # If routes were submitted, store them in the database
+                if has_routes:
+                    # Delete any existing routes for this move (in case of update)
+                    AgentRoute.objects.filter(player_move=move).delete()
 
-            move, created = PlayerMove.objects.update_or_create(
-                session_round=current_round,
-                player=player,
-                defaults={"action": action, "payload": payload or {}},
-            )
+                    self._store_routes(move, route_serializer.validated_data["agents"])
 
             # Notify clients that this player has made their move
             send_player_status_update(game_id, player_id, "waiting")
@@ -284,6 +326,98 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
             return Response(
                 {"error": "Player not found"}, status=status.HTTP_404_NOT_FOUND
             )
+
+    def _validate_routes(self, agents_data, player, game):
+        """
+        Validate submitted routes for connectivity and transport permissions.
+        Returns error message string if invalid, None if valid.
+        """
+        # Get player's agent assignments to validate agent IDs and nodes
+        agent_assignments = player.agent_assignments or {}
+        home_node = agent_assignments.get("home_node")
+        assigned_agents = {a["id"]: a for a in agent_assignments.get("agents", [])}
+
+        if not home_node or not assigned_agents:
+            return "Player has no agent assignments"
+
+        for agent_data in agents_data:
+            agent_id = agent_data["id"]
+            if agent_id not in assigned_agents:
+                return f"Invalid agent ID: {agent_id}"
+
+            route = agent_data["route"]
+            segments = route["segments"]
+
+            if not segments:
+                return f"Agent {agent_id} route has no segments"
+
+            # Validate first segment starts from home
+            first_segment = segments[0]
+            if first_segment["start_node"] != home_node:
+                return f"Agent {agent_id} route must start from home node {home_node}"
+
+            # Validate last segment ends at destination
+            destination = assigned_agents[agent_id]["destination_node"]
+            last_segment = segments[-1]
+            if last_segment["end_node"] != destination:
+                return f"Agent {agent_id} route must end at destination {destination}"
+
+            # Validate segment connectivity and edge existence
+            for i, segment in enumerate(segments):
+                try:
+                    edge = Edge.objects.get(id=segment["edge_id"])
+                except Edge.DoesNotExist:
+                    return f"Edge {segment['edge_id']} does not exist"
+
+                # Validate edge matches start/end nodes
+                if edge.start_node_id != segment["start_node"] or edge.end_node_id != segment["end_node"]:
+                    return f"Edge {segment['edge_id']} does not connect nodes {segment['start_node']} and {segment['end_node']}"
+
+                # Validate transport mode is allowed on this edge
+                mode = segment["mode"]
+                if mode == "walk" and not edge.walking:
+                    return f"Walking not allowed on edge {segment['edge_id']}"
+                if mode == "bike" and not edge.biking:
+                    return f"Biking not allowed on edge {segment['edge_id']}"
+                if mode == "car" and not hasattr(edge, "streetedge_set"):
+                    # Check if edge has a street edge
+                    if not edge.streetedge_set.exists():
+                        return f"Cars not allowed on edge {segment['edge_id']}"
+                if mode in ("bus", "train"):
+                    # For PT modes, we trust the frontend's line selection
+                    # Full validation would require checking line routes
+                    pass
+
+                # Validate connectivity with previous segment
+                if i > 0:
+                    prev_segment = segments[i - 1]
+                    if prev_segment["end_node"] != segment["start_node"]:
+                        return f"Route discontinuity at segment {i}: {prev_segment['end_node']} != {segment['start_node']}"
+
+        return None
+
+    def _store_routes(self, move, agents_data):
+        """Store agent routes and segments in the database."""
+        for agent_data in agents_data:
+            route_data = agent_data["route"]
+
+            agent_route = AgentRoute.objects.create(
+                player_move=move,
+                agent_id=agent_data["id"],
+                transport_mode=agent_data["transport_mode"],
+                optimization=agent_data.get("optimization"),
+                total_distance_m=route_data["total_distance_m"],
+                estimated_time_min=route_data["estimated_time_min"],
+            )
+
+            for i, segment_data in enumerate(route_data["segments"]):
+                RouteSegment.objects.create(
+                    agent_route=agent_route,
+                    order=i,
+                    edge_id=segment_data["edge_id"],
+                    mode=segment_data["mode"],
+                    pt_line_id=segment_data.get("pt_line_id"),
+                )
 
     @staticmethod
     def _check_round_completion(game_id: str):
