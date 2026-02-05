@@ -72,19 +72,37 @@ export function buildAdjacencyList(
  * Check if an edge can be used for a given transport mode
  */
 export function canUseEdge(edge: Edge, mode: TransportMode): boolean {
+  let canUse = false;
+
   switch (mode) {
     case "walk":
-      return edge.walking !== false; // Default true if not specified
+      canUse = edge.walking !== false; // Default true if not specified
+      break;
     case "bike":
-      return edge.biking !== false;
+      canUse = edge.biking !== false;
+      break;
     case "car":
-      return edge.street_edge != null;
+      canUse = edge.street_edge != null;
+      break;
     case "public":
       // Public transport uses specific routes, handled separately
-      return false;
+      canUse = false;
+      break;
     default:
-      return false;
+      canUse = false;
   }
+
+  // Log for debugging
+  if (!canUse) {
+    console.log(`[canUseEdge] Edge ${edge.id} cannot be used for ${mode}:`, {
+      walking: edge.walking,
+      biking: edge.biking,
+      street_edge: edge.street_edge,
+      train_edge: edge.train_edge,
+    });
+  }
+
+  return canUse;
 }
 
 /**
@@ -173,6 +191,15 @@ export async function dijkstra(
     animationDelayMs = 0,
   } = options;
 
+  console.log(`[dijkstra] Starting pathfinding:`, {
+    mode,
+    optimization,
+    from: startNodeId,
+    to: endNodeId,
+    nodes: graph.nodes.length,
+    edges: graph.edges.length,
+  });
+
   // Build node map for quick lookup
   const nodeMap = new Map<number, Node>();
   for (const node of graph.nodes) {
@@ -181,6 +208,15 @@ export async function dijkstra(
 
   // Build adjacency list
   const adjacency = buildAdjacencyList(graph.edges, graph.nodes);
+
+  // Log usable edges for this mode
+  const usableEdges = graph.edges.filter((e) => canUseEdge(e, mode));
+  console.log(`[dijkstra] Found ${usableEdges.length}/${graph.edges.length} usable edges for mode ${mode}`);
+
+  if (usableEdges.length === 0) {
+    console.error(`[dijkstra] No usable edges found for mode ${mode}!`);
+    console.log("[dijkstra] Sample edges:", graph.edges.slice(0, 3));
+  }
 
   // Initialize Dijkstra data structures
   const distances = new Map<number, number>();
@@ -356,6 +392,14 @@ export async function dijkstra(
   // Calculate totals
   const totalDistanceM = segments.reduce((sum, s) => sum + s.distanceM, 0);
   const estimatedTimeMin = segments.reduce((sum, s) => sum + s.estimatedTimeMin, 0);
+
+  console.log(`[dijkstra] Path found:`, {
+    pathNodes: path.length,
+    segments: segments.length,
+    totalDistanceM,
+    estimatedTimeMin,
+    segmentSample: segments.slice(0, 2),
+  });
 
   // Final state update with path
   if (onStateChange) {

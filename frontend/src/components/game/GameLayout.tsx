@@ -8,16 +8,15 @@ import {
 import { useState, useEffect } from "react";
 
 import Header from "./../../components/Header";
-import Game from "./../../components/game/Game";
+import GamePlay from "./../../components/game/GamePlay";
 import GameDetail from "./../../components/game/GameDetail";
 import ChatSidebar from "./../../components/ChatSidebar";
 
 import Loading from "./../../components/Loading";
 import { useAuth } from "../../context/AuthContext";
 import { useGameSocket } from "../../hooks/useGameSocket";
-import { useGameDetails, usePlayerGameDetails, usePlayerDetail } from "../../hooks/gameHooks";
+import { useGameDetails, usePlayerGameDetails } from "../../hooks/gameHooks";
 import StatusBar from "../../components/game/StatusBar";
-import type { PlayerAgentAssignments } from "../../types/types";
 
 const GameLayout = () => {
   const { gameId } = useParams({ from: "/game/$gameId" });
@@ -36,14 +35,6 @@ const GameLayout = () => {
     isPlayer && !!auth?.player?.playerId,
   );
   const restGameData = isHost ? hostGameData.data : playerGameData.data;
-
-  // Fetch player details for agent assignments
-  const playerDetailData = usePlayerDetail(
-    gameId,
-    auth?.player?.playerId || "",
-    isPlayer && !!auth?.player?.playerId,
-  );
-  const agentAssignments = playerDetailData.data?.agent_assignments as PlayerAgentAssignments | undefined;
 
   // Redirect to summary when game ends
   useEffect(() => {
@@ -107,14 +98,10 @@ const GameLayout = () => {
                     role="host"
                   />
                 ) : isPlayer ? (
-                  <Game
+                  <GamePlay
                     gameId={gameId}
-                    gameState={gameState}
                     playerId={auth?.player?.playerId}
                     isHost={false}
-                    agentCount={restGameData?.agent_per_player ?? 4}
-                    mapId={restGameData?.game_map}
-                    agentAssignments={agentAssignments}
                   />
                 ) : (
                   <div>Unauthorized</div>

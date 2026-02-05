@@ -230,6 +230,22 @@ export async function findPTRoute(
 ): Promise<PTRoutingResult> {
   const { scale = 100, onStateChange, animationDelayMs = 0 } = options;
 
+  console.log("[ptRouting] Starting PT route search:", {
+    from: startNodeId,
+    to: endNodeId,
+    scale,
+    busLines: graph.bus_lines?.length ?? 0,
+    trainLines: graph.train_lines?.length ?? 0,
+  });
+
+  // Debug: Log all nodes with station/bus_stop type
+  const stationNodes = graph.nodes.filter((n) => {
+    const types = n.node_type?.map((t) => t.name) ?? [];
+    return types.includes("station") || types.includes("bus_stop");
+  });
+  console.log("[ptRouting] Station nodes in graph:", stationNodes.length,
+    stationNodes.map(n => ({ id: n.id, types: n.node_type?.map(t => t.name) })));
+
   // Build node map
   const nodeMap = new Map<number, Node>();
   for (const node of graph.nodes) {
@@ -240,6 +256,7 @@ export async function findPTRoute(
   const endNode = nodeMap.get(endNodeId);
 
   if (!startNode || !endNode) {
+    console.error("[ptRouting] Start or end node not found:", { startNodeId, endNodeId });
     return {
       success: false,
       walkToStation: [],
@@ -254,11 +271,14 @@ export async function findPTRoute(
 
   // Find nearby stations from start
   const startStations = findNearbyStations(startNode, graph.nodes, MAX_WALK_DISTANCE_M, scale);
+  console.log("[ptRouting] Stations near start:", startStations.length, startStations);
 
   // Find nearby stations from end
   const endStations = findNearbyStations(endNode, graph.nodes, MAX_WALK_DISTANCE_M, scale);
+  console.log("[ptRouting] Stations near end:", endStations.length, endStations);
 
   if (startStations.length === 0 || endStations.length === 0) {
+    console.log("[ptRouting] No stations nearby, falling back to walking");
     // No stations nearby, fall back to walking
     const walkResult = await dijkstra(graph, startNodeId, endNodeId, "walk", {
       scale,
@@ -293,14 +313,22 @@ export async function findPTRoute(
   const busLines = graph.bus_lines ?? [];
   const trainLines = graph.train_lines ?? [];
 
+  console.log("[ptRouting] Available PT lines:", {
+    busLines: busLines.map(l => ({ id: l.id, name: l.name, stops: l.stops })),
+    trainLines: trainLines.map(l => ({ id: l.id, name: l.name, stops: l.stops })),
+  });
+
   // Try all combinations of start/end stations
   let bestRoute: PTRoutingResult | null = null;
   let bestTotalTime = Infinity;
+  let routesChecked = 0;
 
   for (const startStation of startStations) {
     for (const endStation of endStations) {
       // Skip if same station
       if (startStation.nodeId === endStation.nodeId) continue;
+
+      routesChecked++;
 
       // Find direct PT route between stations
       const ptRoute = findDirectPTRoute(
@@ -313,7 +341,12 @@ export async function findPTRoute(
         scale
       );
 
-      if (!ptRoute) continue;
+      if (!ptRoute) {
+        console.log(`[ptRouting] No direct PT route from station ${startStation.nodeId} to ${endStation.nodeId}`);
+        continue;
+      }
+
+      console.log(`[ptRouting] Found PT route via ${ptRoute.line.name}:`, ptRoute);
 
       // Calculate wait time (average half the interval)
       const waitTimeMin = ptRoute.line.interval / 2;
@@ -398,8 +431,11 @@ export async function findPTRoute(
   }
 
   if (bestRoute) {
+    console.log("[ptRouting] Best PT route found:", bestRoute);
     return bestRoute;
   }
+
+  console.log(`[ptRouting] No PT route found after checking ${routesChecked} station combinations. Falling back to walking.`);
 
   // No PT route found, try walking directly
   const walkResult = await dijkstra(graph, startNodeId, endNodeId, "walk", {

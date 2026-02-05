@@ -2,7 +2,7 @@
  * Pathfinding hook with animation support
  */
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import type { MapGraph } from "../types/mapTypes";
 import type {
   TransportMode,
@@ -227,20 +227,44 @@ export function useAgentRoutes(
 ): UseAgentRoutesResult {
   const { scale = 100 } = options;
 
-  const [agents, setAgents] = useState<AgentRouteState[]>(() =>
-    agentAssignments.map((a) => ({
-      agentId: a.id,
-      destinationNode: a.destination_node,
-      selectedMode: null,
-      selectedOptimization: undefined,
-      route: null,
-      isPathfinding: false,
-      error: null,
-    }))
-  );
+  const [agents, setAgents] = useState<AgentRouteState[]>([]);
+
+  // Keep a ref to the latest agents to avoid stale closure issues
+  const agentsRef = useRef<AgentRouteState[]>(agents);
+  useEffect(() => {
+    agentsRef.current = agents;
+  }, [agents]);
+
+  // Update agents when assignments change (e.g., from async fetch)
+  useEffect(() => {
+    console.log("[useAgentRoutes] agentAssignments changed:", agentAssignments);
+    if (agentAssignments.length > 0) {
+      setAgents((prev) => {
+        // Only update if assignments actually changed
+        const prevIds = prev.map((a) => a.agentId).join(",");
+        const newIds = agentAssignments.map((a) => a.id).join(",");
+        if (prevIds === newIds) {
+          console.log("[useAgentRoutes] Assignments unchanged, keeping previous state");
+          return prev;
+        }
+
+        console.log("[useAgentRoutes] Initializing agents:", agentAssignments.length);
+        return agentAssignments.map((a) => ({
+          agentId: a.id,
+          destinationNode: a.destination_node,
+          selectedMode: null,
+          selectedOptimization: undefined,
+          route: null,
+          isPathfinding: false,
+          error: null,
+        }));
+      });
+    }
+  }, [agentAssignments]);
 
   const setAgentMode = useCallback(
     (agentId: number, mode: TransportMode, optimization?: CarOptimization) => {
+      console.log(`[useAgentRoutes] Setting mode for agent ${agentId}:`, mode, optimization);
       setAgents((prev) =>
         prev.map((a) =>
           a.agentId === agentId
@@ -265,8 +289,23 @@ export function useAgentRoutes(
       homeNode: number,
       trafficData?: EdgeTrafficData[]
     ) => {
-      const agent = agents.find((a) => a.agentId === agentId);
-      if (!agent || !agent.selectedMode) return;
+      // Use ref to get latest agents state (avoids stale closure)
+      const currentAgents = agentsRef.current;
+      const agent = currentAgents.find((a) => a.agentId === agentId);
+      console.log(`[useAgentRoutes] findAgentRoute called for agent ${agentId}`, {
+        agent,
+        homeNode,
+        destination: agent?.destinationNode,
+        mode: agent?.selectedMode,
+        graphNodes: graph.nodes.length,
+        graphEdges: graph.edges.length,
+        allAgents: currentAgents.map(a => ({ id: a.agentId, mode: a.selectedMode })),
+      });
+
+      if (!agent || !agent.selectedMode) {
+        console.warn(`[useAgentRoutes] Agent ${agentId} not found or no mode selected`);
+        return;
+      }
 
       setAgents((prev) =>
         prev.map((a) =>
@@ -276,6 +315,12 @@ export function useAgentRoutes(
 
       try {
         let result: PathfindingResult | PTRoutingResult;
+
+        console.log(`[useAgentRoutes] Starting pathfinding for agent ${agentId}`, {
+          mode: agent.selectedMode,
+          from: homeNode,
+          to: agent.destinationNode,
+        });
 
         if (agent.selectedMode === "public") {
           const extendedGraph = graph as ExtendedMapGraph;
@@ -290,7 +335,10 @@ export function useAgentRoutes(
           });
         }
 
+        console.log(`[useAgentRoutes] Pathfinding result for agent ${agentId}:`, result);
+
         if (!result.success) {
+          console.error(`[useAgentRoutes] Pathfinding failed for agent ${agentId}:`, result.error);
           setAgents((prev) =>
             prev.map((a) =>
               a.agentId === agentId
@@ -330,12 +378,21 @@ export function useAgentRoutes(
           segments,
         };
 
+        console.log(`[useAgentRoutes] Created route for agent ${agentId}:`, {
+          segments: route.segments.length,
+          distance: route.totalDistanceM,
+          time: route.estimatedTimeMin,
+          firstSegment: route.segments[0],
+          lastSegment: route.segments[route.segments.length - 1],
+        });
+
         setAgents((prev) =>
           prev.map((a) =>
             a.agentId === agentId ? { ...a, isPathfinding: false, route, error: null } : a
           )
         );
       } catch (err) {
+        console.error(`[useAgentRoutes] Exception in findAgentRoute for agent ${agentId}:`, err);
         const errorMessage = err instanceof Error ? err.message : "Unknown error";
         setAgents((prev) =>
           prev.map((a) =>
@@ -344,7 +401,7 @@ export function useAgentRoutes(
         );
       }
     },
-    [agents, scale]
+    [scale] // Using agentsRef to avoid stale closure
   );
 
   const clearAgentRoute = useCallback((agentId: number) => {

@@ -195,7 +195,10 @@ class GetYourOwnGame(GameScopedQuerysetMixin, GenericAPIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
         serializer = self.get_serializer(game)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        # Include player's agent assignments in response
+        response_data = serializer.data
+        response_data["agent_assignments"] = player.agent_assignments
+        return Response(response_data, status=status.HTTP_200_OK)
 
 
 class GameSessionListView(GameScopedQuerysetMixin, ListModelMixin, GenericAPIView):

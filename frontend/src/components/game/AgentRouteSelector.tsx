@@ -93,6 +93,7 @@ export default function AgentRouteSelector({
   const [showOptimization, setShowOptimization] = useState(false);
 
   const handleModeSelect = (mode: TransportMode) => {
+    console.log(`[AgentRouteSelector] Mode selected for agent ${_agentId}:`, mode);
     if (mode === "car") {
       setShowOptimization(true);
       onSelectMode(mode, "time"); // Default to time optimization
@@ -103,8 +104,11 @@ export default function AgentRouteSelector({
   };
 
   const handleOptimizationSelect = (optimization: CarOptimization) => {
+    console.log(`[AgentRouteSelector] Car optimization selected for agent ${_agentId}:`, optimization);
     onSelectMode("car", optimization);
     setShowOptimization(false);
+    // Auto-find route after selecting car optimization
+    setTimeout(() => onFindRoute(), 100);
   };
 
   const formatTime = (minutes: number): string => {

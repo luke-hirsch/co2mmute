@@ -5,6 +5,7 @@ Handles tick-by-tick traffic simulation where each agent represents 1000 simulat
 Uses BPR (Bureau of Public Roads) function for congestion modeling.
 """
 
+import logging
 import math
 import random
 from collections import defaultdict
@@ -23,6 +24,7 @@ from game.models import (
 )
 from maps.models import Edge, StreetPerRound
 
+logger = logging.getLogger(__name__)
 
 # Simulation parameters
 PEOPLE_PER_AGENT = 1000
@@ -205,7 +207,8 @@ class TrafficSimulator:
         # Get all player moves for this round
         from game.models import PlayerMove
 
-        player_moves = PlayerMove.objects.filter(game_round=self.game_round)
+        player_moves = PlayerMove.objects.filter(session_round=self.game_round)
+        logger.info(f"[SIM] Loading routes for {player_moves.count()} player moves")
 
         for move in player_moves:
             routes = AgentRoute.objects.filter(player_move=move).prefetch_related(
@@ -213,8 +216,12 @@ class TrafficSimulator:
             )
             for route in routes:
                 self.agent_routes[route.agent_id] = route
-                self.route_segments[route.agent_id] = list(
-                    route.segments.order_by("order")
+                segments = list(route.segments.order_by("order"))
+                self.route_segments[route.agent_id] = segments
+
+                logger.debug(
+                    f"[SIM] Agent {route.agent_id}: mode={route.transport_mode}, "
+                    f"distance={route.total_distance_m:.0f}m, segments={len(segments)}"
                 )
 
                 # Initialize result tracking
@@ -224,6 +231,8 @@ class TrafficSimulator:
                     "mode": route.transport_mode,
                 }
 
+        logger.info(f"[SIM] Loaded {len(self.agent_routes)} agent routes")
+
     def _initialize_edges(self):
         """Initialize edge states from the map."""
         # Get unique edges from all routes
@@ -231,6 +240,8 @@ class TrafficSimulator:
         for segments in self.route_segments.values():
             for seg in segments:
                 edge_ids.add(seg.edge_id)
+
+        logger.info(f"[SIM] Initializing {len(edge_ids)} unique edges")
 
         # Load edges and initialize states
         edges = Edge.objects.filter(id__in=edge_ids).select_related(
@@ -248,12 +259,20 @@ class TrafficSimulator:
             else:
                 speed_limit = DEFAULT_CAR_SPEED_KMH
 
+            capacity = calculate_edge_capacity(distance_m)
             self.edge_states[edge.id] = EdgeState(
                 edge_id=edge.id,
                 distance_m=distance_m,
                 free_flow_speed_kmh=speed_limit,
-                capacity=calculate_edge_capacity(distance_m),
+                capacity=capacity,
             )
+
+            logger.debug(
+                f"[SIM] Edge {edge.id}: dist={distance_m:.0f}m, "
+                f"speed={speed_limit}km/h, capacity={capacity}"
+            )
+
+        logger.info(f"[SIM] Initialized {len(self.edge_states)} edge states")
 
     def _generate_departures(self, is_morning: bool = True):
         """Generate departure times for all agents."""
@@ -432,6 +451,11 @@ class TrafficSimulator:
         """
         self.on_progress = on_progress
 
+        logger.info(
+            f"[SIM] Starting simulation for round {self.game_round.round_number}, "
+            f"scale={self.scale}, max_ticks={max_ticks}"
+        )
+
         # Create simulation result record
         self.simulation_result = SimulationResult.objects.create(
             game_round=self.game_round,
@@ -443,14 +467,56 @@ class TrafficSimulator:
             self._load_routes()
             self._initialize_edges()
 
+            if not self.agent_routes:
+                logger.warning("[SIM] No agent routes found, simulation will be empty")
+
             # Run morning commute
             self._generate_departures(is_morning=True)
+            total_departures = sum(len(s) for s in self.departure_schedule.values())
+            logger.info(
+                f"[SIM] Generated {total_departures} departures for "
+                f"{len(self.departure_schedule)} agents"
+            )
 
             # Simulation loop
             self.current_tick = 0
+            vehicles_spawned = 0
+            vehicles_arrived = 0
+
             while self.current_tick < max_ticks:
+                prev_vehicle_count = len(self.vehicles)
                 self._spawn_vehicles()
+                new_spawned = len(self.vehicles) - prev_vehicle_count
+                vehicles_spawned += new_spawned
+
+                prev_arrived = sum(1 for v in self.vehicles.values() if v.arrived)
                 self._move_vehicles()
+                new_arrived = sum(1 for v in self.vehicles.values() if v.arrived) - prev_arrived
+                vehicles_arrived += new_arrived
+
+                # Log progress every 20 ticks
+                if self.current_tick % 20 == 0:
+                    active = sum(1 for v in self.vehicles.values() if v.departed and not v.arrived)
+                    arrived = sum(1 for v in self.vehicles.values() if v.arrived)
+
+                    # Find congested edges
+                    congested = [
+                        (eid, s.volume, s.capacity, s.get_current_speed())
+                        for eid, s in self.edge_states.items()
+                        if s.volume > s.capacity * 0.5
+                    ]
+
+                    logger.info(
+                        f"[SIM] Tick {self.current_tick}: active={active}, "
+                        f"arrived={arrived}/{len(self.vehicles)}, congested_edges={len(congested)}"
+                    )
+
+                    if congested and self.current_tick % 40 == 0:
+                        for eid, vol, cap, speed in congested[:3]:
+                            logger.debug(
+                                f"[SIM]   Edge {eid}: {vol}/{cap} vehicles, "
+                                f"speed={speed:.1f}km/h"
+                            )
 
                 # Record traffic every 5 ticks
                 if self.current_tick % 5 == 0:
@@ -466,6 +532,9 @@ class TrafficSimulator:
                     and self._all_vehicles_arrived()
                     and len(self.vehicles) > 0
                 ):
+                    logger.info(
+                        f"[SIM] All {len(self.vehicles)} vehicles arrived at tick {self.current_tick}"
+                    )
                     break
 
                 self.current_tick += 1
@@ -477,7 +546,13 @@ class TrafficSimulator:
             self.simulation_result.status = SimulationResult.Status.COMPLETED
             self.simulation_result.save()
 
+            logger.info(
+                f"[SIM] Simulation completed: {self.current_tick} ticks, "
+                f"CO2={self.simulation_result.total_co2_g:.0f}g"
+            )
+
         except Exception as e:
+            logger.exception(f"[SIM] Simulation failed: {e}")
             if self.simulation_result:
                 self.simulation_result.status = SimulationResult.Status.FAILED
                 self.simulation_result.save()
@@ -487,18 +562,22 @@ class TrafficSimulator:
 
     def _calculate_results(self):
         """Calculate final results and store in database."""
+        logger.info(f"[SIM] Calculating results for {len(self.agent_results)} agents")
+
         total_co2 = 0.0
         total_cost = 0.0
 
         for agent_id, results in self.agent_results.items():
             route = self.agent_routes.get(agent_id)
             if not route:
+                logger.warning(f"[SIM] No route found for agent {agent_id}")
                 continue
 
             trip_times = results["trip_times"]
             delays = results["delays"]
 
             if not trip_times:
+                logger.warning(f"[SIM] No trip times recorded for agent {agent_id}")
                 continue
 
             mean_trip_time = sum(trip_times) / len(trip_times)
@@ -507,6 +586,12 @@ class TrafficSimulator:
             # Calculate CO2 based on mode
             co2 = self._calculate_co2(route, mean_trip_time)
             total_co2 += co2
+
+            logger.debug(
+                f"[SIM] Agent {agent_id} ({route.transport_mode}): "
+                f"trips={len(trip_times)}, avg_time={mean_trip_time:.1f}min, "
+                f"avg_delay={mean_delay:.1f}min, CO2={co2:.0f}g"
+            )
 
             # Create agent result
             AgentSimulationResult.objects.create(
@@ -521,6 +606,8 @@ class TrafficSimulator:
         self.simulation_result.total_co2_g = total_co2
         self.simulation_result.total_cost_eur = total_cost
         self.simulation_result.save()
+
+        logger.info(f"[SIM] Total CO2: {total_co2:.0f}g, Total cost: {total_cost:.2f}EUR")
 
         # Update street speeds for next round
         self._update_street_speeds()

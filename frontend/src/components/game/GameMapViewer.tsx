@@ -135,6 +135,15 @@ const GameMapViewer = ({
   // Build a set of edge IDs that are part of the route
   const routeEdgeIds = new Set(routeSegments?.map((s) => s.edgeId) ?? []);
 
+  console.log("[GameMapViewer] Rendering with:", {
+    mapNodes: mapGraph?.nodes.length,
+    mapEdges: mapGraph?.edges.length,
+    routeSegments: routeSegments?.length ?? 0,
+    routeEdgeIds: Array.from(routeEdgeIds),
+    homeNodeId,
+    destinationNodeId,
+  });
+
   // Calculate SVG dimensions with padding
   const padding = 40;
   const minX =
@@ -251,9 +260,27 @@ const GameMapViewer = ({
 
             const color = ROUTE_COLORS[segment.mode] || "#6b7280";
 
+            // Calculate arrow position (midpoint)
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2;
+
+            // Calculate angle for direction arrow
+            const angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
+
             return (
               <g key={`route-segment-${index}`}>
-                {/* Background glow */}
+                {/* Outer glow for visibility */}
+                <line
+                  x1={x1}
+                  y1={y1}
+                  x2={x2}
+                  y2={y2}
+                  stroke={color}
+                  strokeWidth="12"
+                  opacity="0.2"
+                  strokeLinecap="round"
+                />
+                {/* Inner glow */}
                 <line
                   x1={x1}
                   y1={y1}
@@ -261,7 +288,7 @@ const GameMapViewer = ({
                   y2={y2}
                   stroke={color}
                   strokeWidth="8"
-                  opacity="0.3"
+                  opacity="0.4"
                   strokeLinecap="round"
                 />
                 {/* Main line */}
@@ -275,7 +302,31 @@ const GameMapViewer = ({
                   opacity="1"
                   strokeLinecap="round"
                   strokeDasharray={segment.mode === "walk" ? "8,4" : "0"}
+                  className={segment.mode !== "walk" ? "animate-pulse" : ""}
                 />
+                {/* Direction arrow at midpoint */}
+                <g transform={`translate(${midX}, ${midY}) rotate(${angle})`}>
+                  <polygon
+                    points="0,-4 8,0 0,4"
+                    fill={color}
+                    opacity="0.9"
+                  />
+                </g>
+                {/* Segment number label */}
+                {routeSegments.length > 1 && (
+                  <g transform={`translate(${midX}, ${midY})`}>
+                    <circle r="8" fill="white" stroke={color} strokeWidth="1.5" />
+                    <text
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      fontSize="8"
+                      fill={color}
+                      fontWeight="bold"
+                    >
+                      {index + 1}
+                    </text>
+                  </g>
+                )}
               </g>
             );
           })}
@@ -465,18 +516,32 @@ const GameMapViewer = ({
 
       {/* Route Legend */}
       {routeSegments && routeSegments.length > 0 && (
-        <div className="mt-3 p-2 bg-subtle dark:bg-darksubtle rounded text-xs">
-          <div className="font-semibold mb-1">Route</div>
-          <div className="flex flex-wrap gap-2">
-            {Array.from(new Set(routeSegments.map((s) => s.mode))).map((mode) => (
-              <div key={mode} className="flex items-center gap-1">
-                <div
-                  className="w-4 h-1 rounded"
-                  style={{ backgroundColor: ROUTE_COLORS[mode] }}
-                ></div>
-                <span className="capitalize">{mode}</span>
-              </div>
-            ))}
+        <div className="mt-3 p-3 bg-subtle dark:bg-darksubtle rounded text-xs border border-gray-200 dark:border-gray-700">
+          <div className="font-semibold mb-2 flex items-center justify-between">
+            <span>Route ({routeSegments.length} segments)</span>
+            <span className="text-muted dark:text-darkmutedtext font-normal">
+              {(routeSegments.reduce((sum, s) => sum + s.distanceM, 0) / 1000).toFixed(1)} km
+              {" | "}
+              {Math.round(routeSegments.reduce((sum, s) => sum + s.estimatedTimeMin, 0))} min
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {Array.from(new Set(routeSegments.map((s) => s.mode))).map((mode) => {
+              const modeSegments = routeSegments.filter((s) => s.mode === mode);
+              const modeDistance = modeSegments.reduce((sum, s) => sum + s.distanceM, 0);
+              return (
+                <div key={mode} className="flex items-center gap-1.5">
+                  <div
+                    className="w-5 h-1.5 rounded"
+                    style={{ backgroundColor: ROUTE_COLORS[mode] }}
+                  ></div>
+                  <span className="capitalize font-medium">{mode}</span>
+                  <span className="text-muted dark:text-darkmutedtext">
+                    ({(modeDistance / 1000).toFixed(1)}km)
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
