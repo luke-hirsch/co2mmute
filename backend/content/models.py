@@ -3,7 +3,59 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django_prose_editor.fields import ProseEditorField
 
+class NavigationItem(models.Model):
+    
+    location = models.CharField(max_length=100, blank=True)
+    # if no page is given this item can be used as a non-clickable parent for grouping other items in the menu
+    page = models.ForeignKey(
+        "Page", 
+        on_delete=models.CASCADE, 
+        related_name="navigation_items", 
+        null=True, 
+        blank=True
+        )
 
+    # if no parent is given this item will be a top-level item in the menu and needs a page assigned to be clickable
+    parent = models.ForeignKey(
+        "self", 
+        on_delete=models.SET_NULL, 
+        null=True, blank=True, 
+        related_name="children"
+        )
+    
+
+    label = models.CharField(max_length=100, blank=False)
+    order = models.PositiveIntegerField(default=0, blank=False, null=False, db_index=True )
+
+    class Meta:
+        ordering = ["order"]
+
+    def __str__(self):
+        return f"NavItem: {self.label} ({self.page.key})"
+    
+    def clean(self):
+
+        # prevent circular references
+        parent = self.parent
+        while parent is not None:
+            if parent == self:
+                raise ValidationError("A navigation item cannot be its own ancestor.")
+            parent = parent.parent
+
+        # make sure parent and child items have the same location
+        if self.parent and self.parent.location != self.location:
+            raise ValidationError("Parent navigation item must have the same placement.")
+        
+        # submenu container rule: if navitem has children it must not have a page assigned (non-clickable)
+        if self.page and self.children.exists():
+            raise ValidationError("A menu container cannot also link to a page.")
+        
+        # clickable item rule: if navitem has a page assigned it must not have children (must be a leaf)
+        if not self.page and not self.children.exists():
+            raise ValidationError("A clickable menu item must link to a page and cannot have child items.")
+        
+
+    
 
 # Create your models here.
 class Page(models.Model):

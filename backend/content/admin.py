@@ -16,6 +16,7 @@ class ContentBlockInline(SortableStackedInline):
     ordering = ("order","id")
     show_change_link = True
 
+
 @admin.register(Page)
 class PageAdmin(SortableAdminBase,admin.ModelAdmin):
     inlines = [ContentBlockInline]
@@ -53,6 +54,15 @@ class PageAdmin(SortableAdminBase,admin.ModelAdmin):
             ),
         )
         return format_html("<div style='min-width: 220px;'>{}</div>", items)
+
+    def save_model(self, request, obj, form, change):
+        # no object pk means this is a new object, so set created_by
+        if not obj.pk:
+            obj.created_by = request.user
+        
+        # always set updated_by to the current user
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
     
 
 class ContentBlockColumnInline(SortableStackedInline):
@@ -62,6 +72,12 @@ class ContentBlockColumnInline(SortableStackedInline):
     readonly_fields = ("img_width", "img_height")
     ordering = ("order", "id")
 
+    def save_model(self, request, obj, form, change):
+        
+        # set updated_by of the related page to the current user
+        obj.content_block.page.updated_by = request.user
+        obj.content_block.page.save(update_fields=["updated_by"])
+        super().save_model(request, obj, form, change)
 
 @admin.register(ContentBlock)
 class ContentBlockAdmin(SortableAdminBase, admin.ModelAdmin):
@@ -76,3 +92,10 @@ class ContentBlockAdmin(SortableAdminBase, admin.ModelAdmin):
     def get_model_perms(self, request):
         # Hide ContentBlock from the admin index page
         return {}
+    
+    def save_model(self, request, obj, form, change):
+        # set updated_by of the related page to the current user
+        obj.page.updated_by = request.user
+        obj.page.save(update_fields=["updated_by"])
+        super().save_model(request, obj, form, change)
+        
