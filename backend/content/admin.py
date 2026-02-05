@@ -4,7 +4,7 @@ from django.urls import reverse
 from django import forms
 from django.core.exceptions import ValidationError
 from django.utils.html import format_html, format_html_join
-from .models import Page, ContentBlock, ContentBlockColumn
+from .models import Page, ContentBlock, ContentBlockColumn, NavigationItem
 from adminsortable2.admin import SortableStackedInline, SortableAdminBase
 
 # Register your models here.
@@ -73,7 +73,7 @@ class ContentBlockColumnInline(SortableStackedInline):
     ordering = ("order", "id")
 
     def save_model(self, request, obj, form, change):
-        
+
         # set updated_by of the related page to the current user
         obj.content_block.page.updated_by = request.user
         obj.content_block.page.save(update_fields=["updated_by"])
@@ -99,3 +99,21 @@ class ContentBlockAdmin(SortableAdminBase, admin.ModelAdmin):
         obj.page.save(update_fields=["updated_by"])
         super().save_model(request, obj, form, change)
         
+class NavigationItemInline(SortableStackedInline):
+    model = NavigationItem
+    extra = 0
+    fk_name = "parent"
+    fields = ("label", "page", "order")
+    readonly_fields = ("parent", "location")
+    ordering = ("order", "id")
+
+@admin.register(NavigationItem)
+class NavigationItemAdmin(SortableAdminMixin, admin.ModelAdmin):
+    list_display = ("label", "location", "order", "parent")
+    list_filter = ("location", "parent")
+    search_fields = ("label", "page__key", "page__title")
+    ordering = ("location", "parent__id", "order")
+    inlines = [NavigationItemInline]
+
+
+    

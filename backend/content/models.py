@@ -5,8 +5,10 @@ from django_prose_editor.fields import ProseEditorField
 
 class NavigationItem(models.Model):
     
-    location = models.CharField(max_length=100, blank=True)
-    # if no page is given this item can be used as a non-clickable parent for grouping other items in the menu
+    # header, footer, sidebar, etc.
+    location = models.CharField(max_length=100)
+
+    # page blank means this item can be used as menu container 
     page = models.ForeignKey(
         "Page", 
         on_delete=models.CASCADE, 
@@ -15,7 +17,7 @@ class NavigationItem(models.Model):
         blank=True
         )
 
-    # if no parent is given this item will be a top-level item in the menu and needs a page assigned to be clickable
+    # top-level item in the menu if blank (meaning: page and parent can't both be blank!)
     parent = models.ForeignKey(
         "self", 
         on_delete=models.SET_NULL, 
@@ -23,15 +25,32 @@ class NavigationItem(models.Model):
         related_name="children"
         )
     
-
+    
     label = models.CharField(max_length=100, blank=False)
+
+    # ordering field for manual sorting of items within the same level and location
     order = models.PositiveIntegerField(default=0, blank=False, null=False, db_index=True )
 
     class Meta:
         ordering = ["order"]
+        constraints = [
+            # order for top-level items must be unique within the same location
+            models.UniqueConstraint(
+                fields=["location", "order"], 
+                condition=models.Q(parent__isnull=True),
+                name="unique_location_order_for_top_level_items"
+            ), 
+            # order for child items must be unique within the same parent
+            models.UniqueConstraint(
+                fields=["parent", "order"],
+                condition=models.Q(parent__isnull=False),
+                name="unique_order_per_parent"
+            )
+        ]
 
     def __str__(self):
-        return f"NavItem: {self.label} ({self.page.key})"
+        page_key = self.page.key if self.page else "No page"
+        return f"NavItem: {self.label} ({page_key})"
     
     def clean(self):
 
@@ -44,16 +63,11 @@ class NavigationItem(models.Model):
 
         # make sure parent and child items have the same location
         if self.parent and self.parent.location != self.location:
-            raise ValidationError("Parent navigation item must have the same placement.")
+            raise ValidationError("Parent navigation item must have the same location.")
         
         # submenu container rule: if navitem has children it must not have a page assigned (non-clickable)
         if self.page and self.children.exists():
             raise ValidationError("A menu container cannot also link to a page.")
-        
-        # clickable item rule: if navitem has a page assigned it must not have children (must be a leaf)
-        if not self.page and not self.children.exists():
-            raise ValidationError("A clickable menu item must link to a page and cannot have child items.")
-        
 
     
 
