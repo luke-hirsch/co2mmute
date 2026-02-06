@@ -37,7 +37,6 @@ while True:
 PY
 fi
 echo "Applying database migrations..."
-python manage.py makemigrations --noinput
 python manage.py migrate --noinput
 
 echo "Building Tailwind CSS assets..."
