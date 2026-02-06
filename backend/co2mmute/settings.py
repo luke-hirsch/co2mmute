@@ -114,8 +114,8 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "channels",
-    # "ckeditor",
-    # "ckeditor_uploader",
+    "django_prose_editor",
+    "adminsortable2",
     # Custom apps
     "game",
     "maps",
@@ -144,6 +144,8 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "django.template.context_processors.static",
+                "content.context_processor.navigation_items_processor",
             ],
         },
     },
@@ -299,3 +301,7 @@ COOKIE_PLAYER_SALT = f"{_salt_base}:player-id"
 
 # Cookie TTL in seconds (14 days for persistent sessions)
 COOKIE_AGE = 14 * 24 * 60 * 60
+
+PROSE_ATTACHMENTS_ALLOWED = False
+PROSE_MEDIA_ROOT = None
+PROSE_MEDIA_URL = None

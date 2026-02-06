@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page.title }}{% endblock %}
+
+{% block main %}
+<div class="max-w-4xl mx-auto py-12 px-4">
+  <h1 class="text-4xl font-bold text-main dark:text-darktext mb-8">
+    {{ page.title }}
+  </h1>
+
+  <div class="prose dark:prose-invert max-w-none space-y-10 text-main dark:text-darktext">
+    {% for block in page.sections.all %}
+      <section>
+        {% if block.title %}
+          <h2 class="text-2xl font-semibold mt-8 mb-4">{{ block.title }}</h2>
+        {% endif %}
+
+        {% with cols=block.content_columns.all %}
+          {# mobile: stacked, md+: grid #}
+          <div class="grid grid-cols-1 gap-6 md:gap-8 md:[grid-template-columns:var(--cols)]"
+               style="--cols:{% for c in cols %}{{ c.width }}%{% if not forloop.last %} {% endif %}{% endfor %}">
+            {% for column in cols %}
+              <div class="min-w-0">
+                {% if column.kind == "text" %}
+                  {% if column.title %}
+                    <h3 class="text-xl font-semibold {% if column.alignment == 'center' %}text-center{% elif column.alignment == 'right' %}text-right{% else %}text-left{% endif %} mb-2">{{ column.title }}</h3>
+                  {% endif %}
+                  <p class="{% if column.alignment == 'center' %}text-center{% elif column.alignment == 'right' %}text-right{% else %}text-left{% endif %}">{{ column.body|safe }}</p>
+                {% elif column.kind == "image" and column.image %}
+                  <figure class="space-y-3">
+                    <img
+                      src="{{ column.image.url }}"
+                      alt="{{ column.alt_text|default:column.title|default:'Image' }}"
+                      class="{% if column.alignment == 'center' %}mx-auto{% elif column.alignment == 'right' %}ml-auto{% else %}mr-auto{% endif %} max-w-full h-auto"
+                    />
+                    {% if column.caption %}
+                      <figcaption class="{% if column.alignment == 'center' %}text-center{% elif column.alignment == 'right' %}text-right{% else %}text-left{% endif %} text-sm text-muted dark:text-darkmutedtext">
+                        {{ column.caption }}
+                      </figcaption>
+                    {% endif %}
+                  </figure>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        {% endwith %}
+      </section>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
