@@ -5,8 +5,13 @@ from django_prose_editor.fields import ProseEditorField
 
 class NavigationItem(models.Model):
     
+    LOCATION_CHOICES = [
+        ("header", "Header"),
+        ("footer", "Footer"),
+        ("sidebar", "Sidebar"),
+    ]
     # header, footer, sidebar, etc.
-    location = models.CharField(max_length=100)
+    location = models.CharField(max_length=100 , choices=LOCATION_CHOICES, blank=True)
 
     # page blank means this item can be used as menu container 
     page = models.ForeignKey(
@@ -26,33 +31,26 @@ class NavigationItem(models.Model):
         )
     
     
-    label = models.CharField(max_length=100, blank=False)
+    label = models.CharField(max_length=100, blank=False, help_text="Label to display in the navigation menu")
 
     # ordering field for manual sorting of items within the same level and location
     order = models.PositiveIntegerField(default=0, blank=False, null=False, db_index=True )
 
     class Meta:
         ordering = ["order"]
-        constraints = [
-            # order for top-level items must be unique within the same location
-            models.UniqueConstraint(
-                fields=["location", "order"], 
-                condition=models.Q(parent__isnull=True),
-                name="unique_location_order_for_top_level_items"
-            ), 
-            # order for child items must be unique within the same parent
-            models.UniqueConstraint(
-                fields=["parent", "order"],
-                condition=models.Q(parent__isnull=False),
-                name="unique_order_per_parent"
-            )
-        ]
 
     def __str__(self):
         page_key = self.page.key if self.page else "No page"
         return f"NavItem: {self.label} ({page_key})"
     
+
+
     def clean(self):
+        super().clean()
+
+        # if child but location missing just take location from parent
+        if self.parent and not self.location:
+            self.location = self.parent.location
 
         # prevent circular references
         parent = self.parent
@@ -60,14 +58,15 @@ class NavigationItem(models.Model):
             if parent == self:
                 raise ValidationError("A navigation item cannot be its own ancestor.")
             parent = parent.parent
-
         # make sure parent and child items have the same location
         if self.parent and self.parent.location != self.location:
             raise ValidationError("Parent navigation item must have the same location.")
-        
-        # submenu container rule: if navitem has children it must not have a page assigned (non-clickable)
-        if self.page and self.children.exists():
-            raise ValidationError("A menu container cannot also link to a page.")
+
+    # submenu container rule:
+    # if navitem already has children in DB, it must not have a page assigned
+        if self.page and self.pk:
+            if self.children.exists():
+                raise ValidationError("A menu container cannot also link to a page.")
 
     
 
@@ -75,10 +74,9 @@ class NavigationItem(models.Model):
 class Page(models.Model):
 
     # page info
-    key = models.SlugField(unique=True)
-    title = models.CharField(max_length=200, blank=True)
-    heading = models.CharField(max_length=200, blank=True)
-    placement = models.CharField(max_length=100, blank=True)
+    key = models.SlugField(unique=True, help_text="Unique identifier for the page (used in URLs)")
+    title = models.CharField(max_length=200, blank=True, help_text="Title of the page")
+    heading = models.CharField(max_length=200, blank=True, help_text="Heading displayed on the page")
 
     # publication info 
     is_published = models.BooleanField(default=False)
@@ -153,7 +151,7 @@ class ContentBlockColumn(models.Model):
         validators=[MinValueValidator(1), MaxValueValidator(100)],)
     
     # optional fields if kind is text
-    title = models.CharField(max_length=200, blank=True)
+    title = models.CharField(max_length=200, blank=True, help_text="Optional Heading for the text column")
     body = ProseEditorField(
         extensions={
             # Core text formatting
@@ -207,10 +205,19 @@ class ContentBlockColumn(models.Model):
 
     caption = models.CharField(max_length=200, blank=True)
     alt_text = models.CharField(max_length=200, blank=True)
+    alignment = models.CharField(
+        max_length=20,
+        choices=[
+            ("left", "Left"),
+            ("center", "Center"),
+            ("right", "Right"),
+        ],        default="center",
+        help_text="Image and heading alignment within the column",
+    )
 
     # automatically set image dimensions
-    img_height = models.PositiveIntegerField(null=True, blank=True, editable=False)
-    img_width = models.PositiveIntegerField(null=True, blank=True, editable=False)
+    img_height = models.PositiveIntegerField(null=True, blank=True, editable=False, help_text="Height of the uploaded image in pixels")
+    img_width = models.PositiveIntegerField(null=True, blank=True, editable=False, help_text="Width of the uploaded image in pixels")
 
     
     class Meta:

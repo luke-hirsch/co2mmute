@@ -1,11 +1,10 @@
-from django.contrib import admin
-from django.forms.models import BaseInlineFormSet
+from django.contrib import admin, messages
 from django.urls import reverse
-from django import forms
-from django.core.exceptions import ValidationError
+#from django.core.exceptions import ValidationError
 from django.utils.html import format_html, format_html_join
 from .models import Page, ContentBlock, ContentBlockColumn, NavigationItem
-from adminsortable2.admin import SortableStackedInline, SortableAdminBase
+from adminsortable2.admin import SortableStackedInline, SortableAdminBase, SortableAdminMixin
+
 
 # Register your models here.
 
@@ -68,7 +67,7 @@ class PageAdmin(SortableAdminBase,admin.ModelAdmin):
 class ContentBlockColumnInline(SortableStackedInline):
     model = ContentBlockColumn
     extra = 0
-    fields = ("order", "kind",  "width", "title", "body", "image", "alt_text", "caption", "img_width", "img_height")
+    fields = ("order", "kind",  "width", "title", "body", "image", "alt_text", "caption", "alignment", "img_width", "img_height")
     readonly_fields = ("img_width", "img_height")
     ordering = ("order", "id")
 
@@ -99,21 +98,38 @@ class ContentBlockAdmin(SortableAdminBase, admin.ModelAdmin):
         obj.page.save(update_fields=["updated_by"])
         super().save_model(request, obj, form, change)
         
-class NavigationItemInline(SortableStackedInline):
+    
+class NavigationItemChildInline(SortableStackedInline):
     model = NavigationItem
-    extra = 0
     fk_name = "parent"
+    extra = 0
     fields = ("label", "page", "order")
-    readonly_fields = ("parent", "location")
-    ordering = ("order", "id")
+    exclude = ("location",)
+    ordering = ("order",)
 
 @admin.register(NavigationItem)
 class NavigationItemAdmin(SortableAdminMixin, admin.ModelAdmin):
-    list_display = ("label", "location", "order", "parent")
     list_filter = ("location", "parent")
     search_fields = ("label", "page__key", "page__title")
-    ordering = ("location", "parent__id", "order")
-    inlines = [NavigationItemInline]
+    ordering = ("order",)
+    inlines = [NavigationItemChildInline]
 
+    def _is_constrained(self, request) -> bool:
+        q = request.GET
+        has_location = "location" in q and q.get("location") != ""
+        has_parent = ("parent__id__exact" in q) or (q.get("parent__isnull") == "True")
+        return has_location or has_parent
 
+    def get_list_display(self, request):
+        cols = ["label", "location", "parent"]  # <-- order nur 1x hier
+
+        if self._is_constrained(request):
+            return ("_reorder_", *cols)
+
+        return tuple(cols)  # ohne _reorder_
+
+    def changelist_view(self, request, extra_context=None):
+        if request.method == "GET" and not self._is_constrained(request):
+            messages.info(request, "Sortieren ist deaktiviert. Bitte zuerst nach Location oder Parent filtern.")
+        return super().changelist_view(request, extra_context=extra_context)
     
