@@ -28,6 +28,14 @@ class GameSession(models.Model):
     max_CO2_level = models.PositiveIntegerField()  # in kg
     chat_enabled = models.BooleanField(default=True)
     is_active = models.BooleanField(default=False)
+
+    # Simulation parameters
+    people_per_agent = models.PositiveIntegerField(default=1000)
+    tick_duration_min = models.PositiveSmallIntegerField(default=5)
+    morning_departure_hour = models.PositiveSmallIntegerField(default=9)  # 9:00 AM
+    evening_departure_hour = models.PositiveSmallIntegerField(default=17)  # 5:00 PM
+    departure_std_dev_min = models.PositiveSmallIntegerField(default=10)  # Standard deviation for departure times
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     started_at = models.DateTimeField(null=True, blank=True)

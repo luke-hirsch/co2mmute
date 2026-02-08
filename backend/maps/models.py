@@ -18,6 +18,11 @@ class GameMap(models.Model):
 
     max_player = models.PositiveSmallIntegerField(default=4)
 
+    # Default speed settings for different transport modes (km/h)
+    walk_speed_kmh = models.PositiveSmallIntegerField(default=5)
+    bike_speed_kmh = models.PositiveSmallIntegerField(default=20)
+    default_car_speed_kmh = models.PositiveSmallIntegerField(default=50)
+
     created = models.DateTimeField(auto_now_add=True)
     author = models.ForeignKey(
         "auth.User",
@@ -163,6 +168,7 @@ class BusLine(models.Model):
     map_versions = models.ManyToManyField(MapVersion)
     intervall = models.PositiveSmallIntegerField(default=5)
     bus_capacity = models.PositiveSmallIntegerField()
+    bus_speed_kmh = models.PositiveSmallIntegerField(default=30)
     edges = models.ManyToManyField(StreetEdge)
 
     def clean(self) -> None:
@@ -191,6 +197,7 @@ class TrainLine(models.Model):
     name = models.CharField(max_length=20)
     intervall = models.PositiveSmallIntegerField(default=5)
     train_capacity = models.PositiveIntegerField()
+    train_speed_kmh = models.PositiveSmallIntegerField(default=40)
     edges = models.ManyToManyField(TrainEdge)
 
     def clean(self) -> None:

@@ -1,44 +1,36 @@
-"""
-Traffic Simulation Engine
-
-Handles tick-by-tick traffic simulation where each agent represents 1000 simulated people.
-Uses BPR (Bureau of Public Roads) function for congestion modeling.
-"""
-
 import logging
-import math
 import random
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Tuple
 
-from django.db import transaction
+from maps.models import Edge, StreetPerRound
 
 from game.models import (
     AgentRoute,
-    RouteSegment,
-    SimulationResult,
     AgentSimulationResult,
     EdgeTrafficSnapshot,
     GameRound,
+    RouteSegment,
+    SimulationResult,
 )
-from maps.models import Edge, StreetPerRound
 
 logger = logging.getLogger(__name__)
 
-# Simulation parameters
-PEOPLE_PER_AGENT = 1000
-TICK_DURATION_MIN = 5
-MORNING_DEPARTURE_HOUR = 9  # 9:00 AM
-EVENING_DEPARTURE_HOUR = 17  # 5:00 PM
-DEPARTURE_STD_DEV_MIN = 10  # Standard deviation for departure times
+# Simulation parameters - fallback values if not set in GameSession
+FALLBACK_PEOPLE_PER_AGENT = 1000
+FALLBACK_TICK_DURATION_MIN = 5
+FALLBACK_MORNING_DEPARTURE_HOUR = 9  # 9:00 AM
+FALLBACK_EVENING_DEPARTURE_HOUR = 17  # 5:00 PM
+FALLBACK_DEPARTURE_STD_DEV_MIN = 10  # Standard deviation for departure times
 
-# Speed constants
-WALK_SPEED_KMH = 5
-BIKE_SPEED_KMH = 20
-DEFAULT_CAR_SPEED_KMH = 50
-BUS_SPEED_KMH = 30
-TRAIN_SPEED_KMH = 40
+# Speed constants are now loaded from GameMap model
+# These fallback values are used only if the map doesn't specify speeds
+FALLBACK_WALK_SPEED_KMH = 5
+FALLBACK_BIKE_SPEED_KMH = 20
+FALLBACK_DEFAULT_CAR_SPEED_KMH = 50
+FALLBACK_BUS_SPEED_KMH = 30
+FALLBACK_TRAIN_SPEED_KMH = 40
 
 
 @dataclass
@@ -78,10 +70,23 @@ class EdgeState:
     distance_m: float
     free_flow_speed_kmh: float
     capacity: int  # Number of cars at optimal flow
-    current_vehicles: Set[int] = field(default_factory=set)  # Vehicle IDs on this edge
+    lanes: int = 1
+    has_dedicated_bus_lane: bool = False
+    current_vehicles: Set[int] = field(
+        default_factory=set
+    )  # All vehicle IDs on this edge
+    buses_on_dedicated_lane: Set[int] = field(
+        default_factory=set
+    )  # Buses using dedicated lane
 
     @property
     def volume(self) -> int:
+        """Return traffic volume affecting congestion (excludes buses on dedicated lanes)."""
+        return len(self.current_vehicles) - len(self.buses_on_dedicated_lane)
+
+    @property
+    def total_vehicles(self) -> int:
+        """Return total number of vehicles (including all buses)."""
         return len(self.current_vehicles)
 
     def get_current_speed(self) -> float:
@@ -108,27 +113,45 @@ def bpr_speed(free_flow_speed: float, volume: int, capacity: int) -> float:
     if capacity <= 0:
         return free_flow_speed
     ratio = volume / capacity
-    return free_flow_speed / (1 + 0.15 * (ratio ** 4))
+    return free_flow_speed / (1 + 0.15 * (ratio**4))
 
 
-def calculate_edge_capacity(distance_m: float) -> int:
+def calculate_edge_capacity(
+    distance_m: float, speed_limit_kmh: float = 50, lanes: int = 1
+) -> int:
     """
-    Calculate edge capacity based on length.
-    1 car per 50m at optimal flow.
+    Calculate edge capacity based on length, speed limit, and lanes.
+
+    Uses a more realistic capacity model:
+    - Capacity per lane ≈ speed_limit * 15 vehicles per km per hour
+    - This accounts for required spacing at different speeds
+    - At 30 km/h: ~450 vehicles/km/lane (every 2.2m)
+    - At 50 km/h: ~750 vehicles/km/lane (every 1.3m)
+    - At 80 km/h: ~1200 vehicles/km/lane (every 0.8m)
 
     Args:
         distance_m: Edge length in meters
+        speed_limit_kmh: Speed limit in km/h
+        lanes: Number of lanes
 
     Returns:
         Capacity in number of vehicles
     """
-    return max(1, int(distance_m / 50))
+    # Calculate capacity per lane per km
+    capacity_per_lane_per_km = speed_limit_kmh * 15
+
+    # Calculate total capacity for this edge
+    distance_km = distance_m / 1000
+    capacity = int(capacity_per_lane_per_km * lanes * distance_km)
+
+    return max(1, capacity)
 
 
 def generate_departure_times(
     num_people: int,
     base_hour: int,
-    std_dev_min: float = DEPARTURE_STD_DEV_MIN,
+    std_dev_min: float,
+    tick_duration_min: int = 5,
 ) -> List[int]:
     """
     Generate departure times using normal distribution.
@@ -137,9 +160,10 @@ def generate_departure_times(
         num_people: Number of departure times to generate
         base_hour: Base departure hour (e.g., 9 for 9:00 AM)
         std_dev_min: Standard deviation in minutes
+        tick_duration_min: Duration of each tick in minutes
 
     Returns:
-        List of departure ticks (5-min buckets relative to simulation start)
+        List of departure ticks (tick buckets relative to simulation start)
     """
     base_minutes = base_hour * 60
     departures = []
@@ -149,8 +173,8 @@ def generate_departure_times(
         departure_min = random.gauss(base_minutes, std_dev_min)
         # Clamp to reasonable range (1 hour before to 1 hour after base time)
         departure_min = max(base_minutes - 60, min(base_minutes + 60, departure_min))
-        # Convert to tick (5-min buckets)
-        tick = int((departure_min - (base_hour - 1) * 60) / TICK_DURATION_MIN)
+        # Convert to tick (tick_duration_min buckets)
+        tick = int((departure_min - (base_hour - 1) * 60) / tick_duration_min)
         departures.append(max(0, tick))
 
     return departures
@@ -176,6 +200,26 @@ class TrafficSimulator:
         self.scale = scale
         self.simulation_result: Optional[SimulationResult] = None
 
+        # Load simulation parameters from GameSession
+        game_session = game_round.game
+        self.people_per_agent = game_session.people_per_agent
+        self.tick_duration_min = game_session.tick_duration_min
+        self.morning_departure_hour = game_session.morning_departure_hour
+        self.evening_departure_hour = game_session.evening_departure_hour
+        self.departure_std_dev_min = game_session.departure_std_dev_min
+
+        # Load speed settings from GameMap
+        game_map = game_round.game.game_map
+        if game_map:
+            self.walk_speed_kmh = game_map.walk_speed_kmh
+            self.bike_speed_kmh = game_map.bike_speed_kmh
+            self.default_car_speed_kmh = game_map.default_car_speed_kmh
+        else:
+            # Use fallback values if no map is set
+            self.walk_speed_kmh = FALLBACK_WALK_SPEED_KMH
+            self.bike_speed_kmh = FALLBACK_BIKE_SPEED_KMH
+            self.default_car_speed_kmh = FALLBACK_DEFAULT_CAR_SPEED_KMH
+
         # Edge states indexed by edge_id
         self.edge_states: Dict[int, EdgeState] = {}
 
@@ -189,6 +233,10 @@ class TrafficSimulator:
         # Route data indexed by agent_id
         self.agent_routes: Dict[int, AgentRoute] = {}
         self.route_segments: Dict[int, List[RouteSegment]] = {}
+
+        # PT line speed cache: line_id -> speed_kmh
+        self.bus_line_speeds: Dict[int, int] = {}
+        self.train_line_speeds: Dict[int, int] = {}
 
         # Departure schedules: agent_id -> list of (person_index, departure_tick)
         self.departure_schedule: Dict[int, List[Tuple[int, int]]] = {}
@@ -233,6 +281,39 @@ class TrafficSimulator:
 
         logger.info(f"[SIM] Loaded {len(self.agent_routes)} agent routes")
 
+        # Load PT line speeds
+        self._load_pt_line_speeds()
+
+    def _load_pt_line_speeds(self):
+        """Load bus and train line speeds from database."""
+        from maps.models import BusLine, TrainLine
+
+        # Collect unique PT line IDs from route segments
+        bus_line_ids = set()
+        train_line_ids = set()
+
+        for segments in self.route_segments.values():
+            for seg in segments:
+                if seg.pt_line_id:
+                    if seg.mode == "bus":
+                        bus_line_ids.add(seg.pt_line_id)
+                    elif seg.mode == "train":
+                        train_line_ids.add(seg.pt_line_id)
+
+        # Load bus line speeds
+        if bus_line_ids:
+            bus_lines = BusLine.objects.filter(id__in=bus_line_ids)
+            for bus_line in bus_lines:
+                self.bus_line_speeds[bus_line.id] = bus_line.bus_speed_kmh
+            logger.info(f"[SIM] Loaded {len(self.bus_line_speeds)} bus line speeds")
+
+        # Load train line speeds
+        if train_line_ids:
+            train_lines = TrainLine.objects.filter(id__in=train_line_ids)
+            for train_line in train_lines:
+                self.train_line_speeds[train_line.id] = train_line.train_speed_kmh
+            logger.info(f"[SIM] Loaded {len(self.train_line_speeds)} train line speeds")
+
     def _initialize_edges(self):
         """Initialize edge states from the map."""
         # Get unique edges from all routes
@@ -252,34 +333,46 @@ class TrafficSimulator:
             # Calculate distance
             distance_m = edge.euclidean_2d_distance() * self.scale
 
-            # Get speed limit
+            # Get speed limit, lanes, and bus lane info from StreetEdge
             street_edge = edge.streetedge_set.first()
             if street_edge:
                 speed_limit = street_edge.speed_limit
+                lanes = street_edge.lanes
+                has_dedicated_bus_lane = street_edge.dedicated_bus_lane
             else:
-                speed_limit = DEFAULT_CAR_SPEED_KMH
+                speed_limit = self.default_car_speed_kmh
+                lanes = 1
+                has_dedicated_bus_lane = False
 
-            capacity = calculate_edge_capacity(distance_m)
-            self.edge_states[edge.id] = EdgeState(
-                edge_id=edge.id,
+            capacity = calculate_edge_capacity(distance_m, speed_limit, lanes)
+            self.edge_states[edge.pk] = EdgeState(
+                edge_id=edge.pk,
                 distance_m=distance_m,
                 free_flow_speed_kmh=speed_limit,
                 capacity=capacity,
+                lanes=lanes,
+                has_dedicated_bus_lane=has_dedicated_bus_lane,
             )
 
             logger.debug(
-                f"[SIM] Edge {edge.id}: dist={distance_m:.0f}m, "
-                f"speed={speed_limit}km/h, capacity={capacity}"
+                f"[SIM] Edge {edge.pk}: dist={distance_m:.0f}m, "
+                f"speed={speed_limit}km/h, lanes={lanes}, capacity={capacity}, "
+                f"dedicated_bus_lane={has_dedicated_bus_lane}"
             )
 
         logger.info(f"[SIM] Initialized {len(self.edge_states)} edge states")
 
     def _generate_departures(self, is_morning: bool = True):
         """Generate departure times for all agents."""
-        base_hour = MORNING_DEPARTURE_HOUR if is_morning else EVENING_DEPARTURE_HOUR
+        base_hour = self.morning_departure_hour if is_morning else self.evening_departure_hour
 
         for agent_id in self.agent_routes:
-            departures = generate_departure_times(PEOPLE_PER_AGENT, base_hour)
+            departures = generate_departure_times(
+                self.people_per_agent,
+                base_hour,
+                self.departure_std_dev_min,
+                self.tick_duration_min
+            )
             self.departure_schedule[agent_id] = [
                 (i, tick) for i, tick in enumerate(departures)
             ]
@@ -315,9 +408,12 @@ class TrafficSimulator:
                     # Add to first edge
                     first_segment = segments[0]
                     if first_segment.edge_id in self.edge_states:
-                        self.edge_states[first_segment.edge_id].current_vehicles.add(
-                            vehicle_id
-                        )
+                        edge_state = self.edge_states[first_segment.edge_id]
+                        edge_state.current_vehicles.add(vehicle_id)
+
+                        # Track buses on dedicated lanes separately
+                        if vehicle.mode == "bus" and edge_state.has_dedicated_bus_lane:
+                            edge_state.buses_on_dedicated_lane.add(vehicle_id)
 
     def _move_vehicles(self):
         """Move all vehicles based on current conditions."""
@@ -343,34 +439,57 @@ class TrafficSimulator:
 
             # Calculate speed based on mode and congestion
             if vehicle.mode in ["car"]:
+                # Cars experience full congestion
                 current_speed = edge_state.get_current_speed()
                 free_flow_time = (
                     edge_state.distance_m / 1000 / edge_state.free_flow_speed_kmh * 60
                 )
                 actual_time = edge_state.distance_m / 1000 / current_speed * 60
                 delay = max(0, actual_time - free_flow_time)
+            elif vehicle.mode == "bus":
+                # Get bus speed from PT line or use fallback
+                if current_segment.pt_line_id and current_segment.pt_line_id in self.bus_line_speeds:
+                    bus_speed = self.bus_line_speeds[current_segment.pt_line_id]
+                else:
+                    bus_speed = FALLBACK_BUS_SPEED_KMH
+
+                # Buses on dedicated lanes bypass traffic, otherwise affected by congestion
+                if edge_state.has_dedicated_bus_lane:
+                    # Dedicated bus lane: use fixed bus speed, no delay
+                    current_speed = bus_speed
+                    delay = 0
+                else:
+                    # No dedicated lane: buses stuck in traffic like cars
+                    current_speed = edge_state.get_current_speed()
+                    # Use bus speed as baseline, but apply congestion factor
+                    current_speed = min(bus_speed, current_speed)
+                    free_flow_time = edge_state.distance_m / 1000 / bus_speed * 60
+                    actual_time = edge_state.distance_m / 1000 / current_speed * 60
+                    delay = max(0, actual_time - free_flow_time)
+            elif vehicle.mode == "train":
+                # Get train speed from PT line or use fallback
+                if current_segment.pt_line_id and current_segment.pt_line_id in self.train_line_speeds:
+                    train_speed = self.train_line_speeds[current_segment.pt_line_id]
+                else:
+                    train_speed = FALLBACK_TRAIN_SPEED_KMH
+                current_speed = train_speed
+                delay = 0
             elif vehicle.mode == "bike":
-                current_speed = BIKE_SPEED_KMH
+                current_speed = self.bike_speed_kmh
                 delay = 0
             elif vehicle.mode == "walk":
-                current_speed = WALK_SPEED_KMH
-                delay = 0
-            elif vehicle.mode == "bus":
-                current_speed = BUS_SPEED_KMH
-                delay = 0
-            elif vehicle.mode == "train":
-                current_speed = TRAIN_SPEED_KMH
+                current_speed = self.walk_speed_kmh
                 delay = 0
             else:
-                current_speed = WALK_SPEED_KMH
+                current_speed = self.walk_speed_kmh
                 delay = 0
 
             # Calculate distance traveled in this tick
-            distance_this_tick = current_speed * 1000 / 60 * TICK_DURATION_MIN
+            distance_this_tick = current_speed * 1000 / 60 * self.tick_duration_min
 
             # Update position
             vehicle.position_on_edge_m += distance_this_tick
-            vehicle.total_travel_time_min += TICK_DURATION_MIN
+            vehicle.total_travel_time_min += self.tick_duration_min
             vehicle.congestion_delay_min += delay
 
             # Check if vehicle has completed current segment
@@ -379,6 +498,7 @@ class TrafficSimulator:
             if remaining <= 0:
                 # Remove from current edge
                 edge_state.current_vehicles.discard(vehicle_id)
+                edge_state.buses_on_dedicated_lane.discard(vehicle_id)
 
                 # Move to next segment
                 vehicle.segment_index += 1
@@ -394,9 +514,15 @@ class TrafficSimulator:
 
                     # Add to next edge
                     if next_segment.edge_id in self.edge_states:
-                        self.edge_states[next_segment.edge_id].current_vehicles.add(
-                            vehicle_id
-                        )
+                        next_edge_state = self.edge_states[next_segment.edge_id]
+                        next_edge_state.current_vehicles.add(vehicle_id)
+
+                        # Track buses on dedicated lanes
+                        if (
+                            vehicle.mode == "bus"
+                            and next_edge_state.has_dedicated_bus_lane
+                        ):
+                            next_edge_state.buses_on_dedicated_lane.add(vehicle_id)
 
         # Record arrival times
         for vehicle_id in arrived_vehicles:
@@ -413,14 +539,14 @@ class TrafficSimulator:
 
         snapshots = []
         for edge_id, state in self.edge_states.items():
-            if state.volume > 0:
+            if state.total_vehicles > 0:
                 snapshots.append(
                     EdgeTrafficSnapshot(
                         simulation=self.simulation_result,
                         edge_id=edge_id,
                         time_tick=self.current_tick,
-                        vehicle_count=state.volume,
-                        speed_kmh=state.get_current_speed(),
+                        vehicle_count=state.total_vehicles,  # Total vehicles for visualization
+                        speed_kmh=state.get_current_speed(),  # Speed based on congestion volume
                     )
                 )
 
@@ -491,12 +617,18 @@ class TrafficSimulator:
 
                 prev_arrived = sum(1 for v in self.vehicles.values() if v.arrived)
                 self._move_vehicles()
-                new_arrived = sum(1 for v in self.vehicles.values() if v.arrived) - prev_arrived
+                new_arrived = (
+                    sum(1 for v in self.vehicles.values() if v.arrived) - prev_arrived
+                )
                 vehicles_arrived += new_arrived
 
                 # Log progress every 20 ticks
                 if self.current_tick % 20 == 0:
-                    active = sum(1 for v in self.vehicles.values() if v.departed and not v.arrived)
+                    active = sum(
+                        1
+                        for v in self.vehicles.values()
+                        if v.departed and not v.arrived
+                    )
                     arrived = sum(1 for v in self.vehicles.values() if v.arrived)
 
                     # Find congested edges
@@ -607,7 +739,9 @@ class TrafficSimulator:
         self.simulation_result.total_cost_eur = total_cost
         self.simulation_result.save()
 
-        logger.info(f"[SIM] Total CO2: {total_co2:.0f}g, Total cost: {total_cost:.2f}EUR")
+        logger.info(
+            f"[SIM] Total CO2: {total_co2:.0f}g, Total cost: {total_cost:.2f}EUR"
+        )
 
         # Update street speeds for next round
         self._update_street_speeds()
@@ -645,8 +779,8 @@ class TrafficSimulator:
                 elif avg_speed > 80:
                     base_emission *= 1.1
 
-        # Total CO2 for all 1000 people represented by this agent
-        return base_emission * distance_km * PEOPLE_PER_AGENT
+        # Total CO2 for all people represented by this agent
+        return base_emission * distance_km * self.people_per_agent
 
     def _update_street_speeds(self):
         """Update StreetPerRound with average speeds from simulation."""
