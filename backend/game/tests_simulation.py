@@ -11,9 +11,18 @@ Tests cover:
 - Full simulation integration
 """
 
-import pytest
 from django.contrib.auth.models import User
 from django.test import TestCase
+from maps.models import (
+    BusLine,
+    Edge,
+    GameMap,
+    MapVersion,
+    Node,
+    StreetEdge,
+    TrainEdge,
+    TrainLine,
+)
 
 from game.models import (
     AgentRoute,
@@ -29,16 +38,6 @@ from game.simulation import (
     bpr_speed,
     calculate_edge_capacity,
     generate_departure_times,
-)
-from maps.models import (
-    BusLine,
-    Edge,
-    GameMap,
-    MapVersion,
-    Node,
-    StreetEdge,
-    TrainLine,
-    TrainEdge,
 )
 
 
@@ -244,36 +243,24 @@ class DepartureTimeGenerationTests(TestCase):
     def test_generates_correct_number(self):
         """Test that correct number of departure times are generated."""
         departures = generate_departure_times(
-            num_people=100,
-            base_hour=9,
-            std_dev_min=10,
-            tick_duration_min=5
+            num_people=100, base_hour=9, std_dev_min=10, tick_duration_min=5
         )
         self.assertEqual(len(departures), 100)
 
     def test_all_non_negative(self):
         """Test that all departure times are non-negative."""
         departures = generate_departure_times(
-            num_people=100,
-            base_hour=9,
-            std_dev_min=10,
-            tick_duration_min=5
+            num_people=100, base_hour=9, std_dev_min=10, tick_duration_min=5
         )
         self.assertTrue(all(t >= 0 for t in departures))
 
     def test_different_tick_duration(self):
         """Test departure times with different tick durations."""
         departures_5min = generate_departure_times(
-            num_people=100,
-            base_hour=9,
-            std_dev_min=10,
-            tick_duration_min=5
+            num_people=100, base_hour=9, std_dev_min=10, tick_duration_min=5
         )
         departures_10min = generate_departure_times(
-            num_people=100,
-            base_hour=9,
-            std_dev_min=10,
-            tick_duration_min=10
+            num_people=100, base_hour=9, std_dev_min=10, tick_duration_min=10
         )
 
         # With larger tick duration, tick numbers should generally be smaller
@@ -285,10 +272,7 @@ class DepartureTimeGenerationTests(TestCase):
     def test_zero_std_dev(self):
         """Test with zero standard deviation (everyone departs at same time)."""
         departures = generate_departure_times(
-            num_people=100,
-            base_hour=9,
-            std_dev_min=0,
-            tick_duration_min=5
+            num_people=100, base_hour=9, std_dev_min=0, tick_duration_min=5
         )
         # All should be at the same tick
         self.assertEqual(len(set(departures)), 1)
@@ -299,11 +283,11 @@ class SimulationParameterLoadingTests(TestCase):
 
     def setUp(self):
         """Set up test data."""
-        self.user = User.objects.create_user(username='testuser', password='12345')
+        self.user = User.objects.create_user(username="testuser", password="12345")
 
         # Create GameMap with custom speeds
         self.game_map = GameMap.objects.create(
-            name='Test Map',
+            name="Test Map",
             x_dim=10,
             y_dim=10,
             scale=100.0,
@@ -315,7 +299,7 @@ class SimulationParameterLoadingTests(TestCase):
         # Create GameSession with custom simulation parameters
         self.game_session = GameSession.objects.create(
             game_host=self.user,
-            game_name='Test Game',
+            game_name="Test Game",
             game_map=self.game_map,
             max_players=4,
             agent_per_player=2,
@@ -357,7 +341,7 @@ class SimulationParameterLoadingTests(TestCase):
         # Create session without map
         game_session_no_map = GameSession.objects.create(
             game_host=self.user,
-            game_name='Test Game No Map',
+            game_name="Test Game No Map",
             game_map=None,
             max_players=4,
             agent_per_player=2,
@@ -374,14 +358,16 @@ class SimulationParameterLoadingTests(TestCase):
 
         # Should use fallback values
         from game.simulation import (
-            FALLBACK_WALK_SPEED_KMH,
             FALLBACK_BIKE_SPEED_KMH,
             FALLBACK_DEFAULT_CAR_SPEED_KMH,
+            FALLBACK_WALK_SPEED_KMH,
         )
 
         self.assertEqual(simulator.walk_speed_kmh, FALLBACK_WALK_SPEED_KMH)
         self.assertEqual(simulator.bike_speed_kmh, FALLBACK_BIKE_SPEED_KMH)
-        self.assertEqual(simulator.default_car_speed_kmh, FALLBACK_DEFAULT_CAR_SPEED_KMH)
+        self.assertEqual(
+            simulator.default_car_speed_kmh, FALLBACK_DEFAULT_CAR_SPEED_KMH
+        )
 
 
 class PTLineSpeedLoadingTests(TestCase):
@@ -389,11 +375,11 @@ class PTLineSpeedLoadingTests(TestCase):
 
     def setUp(self):
         """Set up test data."""
-        self.user = User.objects.create_user(username='testuser', password='12345')
+        self.user = User.objects.create_user(username="testuser", password="12345")
 
         # Create GameMap
         self.game_map = GameMap.objects.create(
-            name='Test Map',
+            name="Test Map",
             x_dim=10,
             y_dim=10,
             scale=100.0,
@@ -402,7 +388,7 @@ class PTLineSpeedLoadingTests(TestCase):
         # Create MapVersion
         self.map_version = MapVersion.objects.create(
             game_map=self.game_map,
-            name='Base Version',
+            name="Base Version",
             base_version=True,
         )
 
@@ -440,7 +426,7 @@ class PTLineSpeedLoadingTests(TestCase):
         # Create BusLine with custom speed
         self.bus_line = BusLine.objects.create(
             game_map=self.game_map,
-            name='Express Bus',
+            name="Express Bus",
             bus_capacity=50,
             bus_speed_kmh=45,
         )
@@ -456,7 +442,7 @@ class PTLineSpeedLoadingTests(TestCase):
         # Create TrainLine with custom speed
         self.train_line = TrainLine.objects.create(
             game_map=self.game_map,
-            name='Metro',
+            name="Metro",
             train_capacity=200,
             train_speed_kmh=60,
         )
@@ -466,7 +452,7 @@ class PTLineSpeedLoadingTests(TestCase):
         # Create GameSession
         self.game_session = GameSession.objects.create(
             game_host=self.user,
-            game_name='Test Game',
+            game_name="Test Game",
             game_map=self.game_map,
             max_players=4,
             agent_per_player=2,
@@ -482,7 +468,7 @@ class PTLineSpeedLoadingTests(TestCase):
 
         # Create Player
         self.player = Player.objects.create(
-            name='Test Player',
+            name="Test Player",
             game=self.game_session,
         )
 
@@ -490,14 +476,14 @@ class PTLineSpeedLoadingTests(TestCase):
         self.player_move = PlayerMove.objects.create(
             session_round=self.game_round,
             player=self.player,
-            action='route_submit',
+            action="route_submit",
         )
 
         # Create AgentRoute with bus mode
         self.agent_route = AgentRoute.objects.create(
             player_move=self.player_move,
             agent_id=1,
-            transport_mode='public',
+            transport_mode="public",
             total_distance_m=1000,
             estimated_time_min=10,
         )
@@ -507,8 +493,8 @@ class PTLineSpeedLoadingTests(TestCase):
             agent_route=self.agent_route,
             order=1,
             edge=self.edge,
-            mode='bus',
-            pt_line_id=self.bus_line.id,
+            mode="bus",
+            pt_line_id=self.bus_line.pk,
         )
 
     def test_loads_bus_line_speeds(self):
@@ -516,7 +502,7 @@ class PTLineSpeedLoadingTests(TestCase):
         simulator = TrafficSimulator(self.game_round, scale=100.0)
 
         # Bus line speed should be loaded
-        self.assertIn(self.bus_line.id, simulator.bus_line_speeds)
+        self.assertIn(self.bus_line.pk, simulator.bus_line_speeds)
         self.assertEqual(simulator.bus_line_speeds[self.bus_line.id], 45)
 
     def test_loads_train_line_speeds(self):
@@ -526,14 +512,14 @@ class PTLineSpeedLoadingTests(TestCase):
             agent_route=self.agent_route,
             order=2,
             edge=self.edge,
-            mode='train',
-            pt_line_id=self.train_line.id,
+            mode="train",
+            pt_line_id=self.train_line.pk,
         )
 
         simulator = TrafficSimulator(self.game_round, scale=100.0)
 
         # Train line speed should be loaded
-        self.assertIn(self.train_line.id, simulator.train_line_speeds)
+        self.assertIn(self.train_line.pk, simulator.train_line_speeds)
         self.assertEqual(simulator.train_line_speeds[self.train_line.id], 60)
 
 
@@ -579,7 +565,3 @@ class BusTrafficIntegrationTests(TestCase):
         # Speed should be calculated based on 7 vehicles
         expected_speed = bpr_speed(50, 7, 100)
         self.assertAlmostEqual(edge_state.get_current_speed(), expected_speed, places=2)
-
-
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
