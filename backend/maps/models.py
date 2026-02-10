@@ -16,6 +16,18 @@ class GameMap(models.Model):
     y_dim = models.PositiveSmallIntegerField(default=10)
     scale = models.FloatField(default=1.0)
 
+    # Background image and transform parameters
+    background_image = models.ImageField(
+        upload_to="map_backgrounds/", null=True, blank=True
+    )
+    image_offset_x = models.FloatField(default=0.0)
+    image_offset_y = models.FloatField(default=0.0)
+    image_scale = models.FloatField(default=1.0)
+    image_crop_top = models.FloatField(default=0.0)
+    image_crop_right = models.FloatField(default=0.0)
+    image_crop_bottom = models.FloatField(default=0.0)
+    image_crop_left = models.FloatField(default=0.0)
+
     max_player = models.PositiveSmallIntegerField(default=4)
 
     # Default speed settings for different transport modes (km/h)
@@ -54,6 +66,13 @@ class MapVersion(models.Model):
     base_version = models.BooleanField(default=False)
     poll_text = models.TextField(default="Die Karte soll ... ")
     revert_poll_text = models.TextField(default="Die Karte soll ... ")
+    source_version = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="derived_versions",
+    )
 
     def __str__(self):
         return f"{self.name} ({'base' if self.base_version else 'version'}) - {self.game_map}"
@@ -110,7 +129,6 @@ class Node(models.Model):
 
 class Edge(models.Model):
     class Meta:
-        unique_together = ("start_node", "end_node")
         ordering = ("game_map", "name", "pk")
 
     game_map = models.ForeignKey(GameMap, on_delete=models.CASCADE)

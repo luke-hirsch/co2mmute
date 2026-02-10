@@ -1,41 +1,45 @@
 import logging
 
+from django.core.cache import cache
+from django.db import transaction
+from django.shortcuts import get_object_or_404
+from rest_framework import status
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.generics import (
+    GenericAPIView,
     ListCreateAPIView,
     RetrieveUpdateDestroyAPIView,
-    GenericAPIView,
 )
-from rest_framework.authentication import SessionAuthentication
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
-from rest_framework import status
-from django.core.cache import cache
 
+from maps.mixins import MapScopedQuerysetMixin
 from maps.models import (
+    BusLine,
+    Edge,
     GameMap,
     MapVersion,
     Node,
-    Edge,
     NodeType,
     StreetEdge,
-    BusLine,
     TrainEdge,
     TrainLine,
 )
+from maps.permissions import IsStaffOrReadOnly
 from maps.serializer import (
+    BusLineSerializer,
+    EdgeSerializer,
     GameMapSerializer,
     MapVersionSerializer,
     NodeSerializer,
-    EdgeSerializer,
     NodeTypeSerializer,
     StreetEdgeSerializer,
-    BusLineSerializer,
     TrainEdgeSerializer,
     TrainLineSerializer,
+    VersionDiffInputSerializer,
     serialize_bus_line_for_graph,
     serialize_train_line_for_graph,
 )
-from maps.mixins import MapScopedQuerysetMixin
-from maps.permissions import IsStaffOrReadOnly
 
 logger = logging.getLogger(__name__)
 
@@ -357,6 +361,20 @@ class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
                 "bus_lines": bus_lines_data,
                 "train_lines": train_lines_data,
                 "scale": map_obj.scale,
+                "x_dim": map_obj.x_dim,
+                "y_dim": map_obj.y_dim,
+                "background_image_url": (
+                    request.build_absolute_uri(map_obj.background_image.url)
+                    if map_obj.background_image
+                    else None
+                ),
+                "image_offset_x": map_obj.image_offset_x,
+                "image_offset_y": map_obj.image_offset_y,
+                "image_scale": map_obj.image_scale,
+                "image_crop_top": map_obj.image_crop_top,
+                "image_crop_right": map_obj.image_crop_right,
+                "image_crop_bottom": map_obj.image_crop_bottom,
+                "image_crop_left": map_obj.image_crop_left,
             }
 
             # Cache the result for 1 hour (3600 seconds)
@@ -372,3 +390,267 @@ class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
                 {"error": "Error building graph"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+def _invalidate_map_cache(map_pk):
+    """Invalidate graph cache for all versions of a map."""
+    for version in MapVersion.objects.filter(game_map_id=map_pk):
+        cache.delete(f"map_graph:{map_pk}:{version.pk}")
+    cache.delete(f"map_graph:{map_pk}:None")
+
+
+class GameMapImageUploadView(GenericAPIView):
+    """Upload a background image for a game map."""
+
+    authentication_classes = (SessionAuthentication,)
+    permission_classes = (IsStaffOrReadOnly,)
+    parser_classes = (MultiPartParser, FormParser)
+
+    def post(self, request, pk):
+        game_map = get_object_or_404(GameMap, pk=pk)
+        image = request.FILES.get("image")
+        if not image:
+            return Response(
+                {"error": "No image provided"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        game_map.background_image = image
+        game_map.updated_by = request.user
+        game_map.save()
+        _invalidate_map_cache(pk)
+        serializer = GameMapSerializer(game_map, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def delete(self, request, pk):
+        game_map = get_object_or_404(GameMap, pk=pk)
+        if game_map.background_image:
+            game_map.background_image.delete(save=False)
+            game_map.background_image = None
+            game_map.updated_by = request.user
+            game_map.save()
+        _invalidate_map_cache(pk)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class VersionDiffCreateView(GenericAPIView):
+    """Create a new map version from a source version + changeset."""
+
+    authentication_classes = (SessionAuthentication,)
+    permission_classes = (IsStaffOrReadOnly,)
+
+    @transaction.atomic
+    def post(self, request, pk):
+        game_map = get_object_or_404(GameMap, pk=pk)
+        serializer = VersionDiffInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        if not isinstance(data, dict):
+            return Response(
+                {"error": "Cannot create empty version diff."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        # Get source version
+        try:
+            source = MapVersion.objects.get(
+                pk=data["source_version_id"], game_map=game_map
+            )
+        except MapVersion.DoesNotExist:
+            return Response(
+                {"error": "Source version not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Unset other base versions if this will be base
+        if data.get("is_base_version"):
+            MapVersion.objects.filter(game_map=game_map, base_version=True).update(
+                base_version=False
+            )
+
+        # 1. Create new MapVersion
+        new_version = MapVersion.objects.create(
+            game_map=game_map,
+            name=data["version_name"],
+            description=data.get("description", ""),
+            poll_text=data.get("poll_text", "Die Karte soll ... "),
+            revert_poll_text=data.get("revert_poll_text", "Die Karte soll ... "),
+            base_version=data.get("is_base_version", False),
+            source_version=source,
+        )
+
+        # 2. Clone all M2M from source version
+        for node in Node.objects.filter(map_versions=source):
+            node.map_versions.add(new_version)
+        for edge in Edge.objects.filter(map_versions=source):
+            edge.map_versions.add(new_version)
+        for se in StreetEdge.objects.filter(map_versions=source):
+            se.map_versions.add(new_version)
+        for te in TrainEdge.objects.filter(map_versions=source):
+            te.map_versions.add(new_version)
+        for bl in BusLine.objects.filter(map_versions=source):
+            bl.map_versions.add(new_version)
+        for tl in TrainLine.objects.filter(map_versions=source):
+            tl.map_versions.add(new_version)
+
+        # 3. Apply edge changes (clone approach)
+        for change in data.get("edge_changes", []):
+            try:
+                original_edge = Edge.objects.get(
+                    pk=change["edge_id"], game_map=game_map
+                )
+            except Edge.DoesNotExist:
+                continue
+
+            # Remove original edge from new version
+            original_edge.map_versions.remove(new_version)
+
+            # Create cloned edge with modified properties
+            cloned_edge = Edge.objects.create(
+                game_map=game_map,
+                name=original_edge.name,
+                start_node=original_edge.start_node,
+                end_node=original_edge.end_node,
+                biking=change.get("biking", original_edge.biking),
+                walking=change.get("walking", original_edge.walking),
+                max_lanes=change.get("max_lanes", original_edge.max_lanes),
+            )
+            cloned_edge.map_versions.add(new_version)
+
+            # Clone StreetEdge if original had one
+            original_se = StreetEdge.objects.filter(
+                edge=original_edge, map_versions=source
+            ).first()
+            if original_se:
+                original_se.map_versions.remove(new_version)
+                cloned_se = StreetEdge.objects.create(
+                    edge=cloned_edge,
+                    speed_limit=change.get("speed_limit", original_se.speed_limit),
+                    lanes=change.get("lanes", original_se.lanes),
+                    dedicated_bus_lane=change.get(
+                        "dedicated_bus_lane", original_se.dedicated_bus_lane
+                    ),
+                )
+                cloned_se.map_versions.add(new_version)
+
+                # Update BusLines that referenced the original StreetEdge
+                for bl in BusLine.objects.filter(
+                    edges=original_se, map_versions=new_version
+                ):
+                    bl.edges.remove(original_se)
+                    bl.edges.add(cloned_se)
+
+            # Clone TrainEdge if original had one
+            original_te = TrainEdge.objects.filter(
+                edge=original_edge, map_versions=source
+            ).first()
+            if original_te:
+                original_te.map_versions.remove(new_version)
+                cloned_te = TrainEdge.objects.create(edge=cloned_edge)
+                cloned_te.map_versions.add(new_version)
+
+                # Update TrainLines that referenced the original TrainEdge
+                for tl in TrainLine.objects.filter(
+                    edges=original_te, map_versions=new_version
+                ):
+                    tl.edges.remove(original_te)
+                    tl.edges.add(cloned_te)
+
+        # 4. Apply PT line changes
+        try:
+            pt_line_changes = data.get("pt_line_changes", [])
+        except ValueError:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        for pt_change in pt_line_changes:
+            action = pt_change["action"]
+            line_type = pt_change["line_type"]
+
+            if action == "add":
+                if line_type == "bus":
+                    bl = BusLine.objects.create(
+                        game_map=game_map,
+                        name=pt_change.get("name", "New Bus Line"),
+                        intervall=pt_change.get("interval", 5),
+                        bus_capacity=pt_change.get("capacity", 60),
+                        bus_speed_kmh=pt_change.get("speed_kmh", 30),
+                    )
+                    bl.map_versions.add(new_version)
+                    if pt_change.get("edge_ids"):
+                        bl.edges.set(
+                            StreetEdge.objects.filter(pk__in=pt_change["edge_ids"])
+                        )
+                else:
+                    tl = TrainLine.objects.create(
+                        game_map=game_map,
+                        name=pt_change.get("name", "New Train Line"),
+                        intervall=pt_change.get("interval", 10),
+                        train_capacity=pt_change.get("capacity", 500),
+                        train_speed_kmh=pt_change.get("speed_kmh", 40),
+                    )
+                    tl.map_versions.add(new_version)
+                    if pt_change.get("edge_ids"):
+                        tl.edges.set(
+                            TrainEdge.objects.filter(pk__in=pt_change["edge_ids"])
+                        )
+
+            elif action == "remove" and pt_change.get("id"):
+                if line_type == "bus":
+                    bl = BusLine.objects.filter(pk=pt_change["id"]).first()
+                    if bl:
+                        bl.map_versions.remove(new_version)
+                else:
+                    tl = TrainLine.objects.filter(pk=pt_change["id"]).first()
+                    if tl:
+                        tl.map_versions.remove(new_version)
+
+            elif action == "modify" and pt_change.get("id"):
+                # Clone the line for the new version
+                if line_type == "bus":
+                    original = BusLine.objects.filter(pk=pt_change["id"]).first()
+                    if original:
+                        original.map_versions.remove(new_version)
+                        cloned = BusLine.objects.create(
+                            game_map=game_map,
+                            name=pt_change.get("name", original.name),
+                            intervall=pt_change.get("interval", original.intervall),
+                            bus_capacity=pt_change.get(
+                                "capacity", original.bus_capacity
+                            ),
+                            bus_speed_kmh=pt_change.get(
+                                "speed_kmh", original.bus_speed_kmh
+                            ),
+                        )
+                        cloned.map_versions.add(new_version)
+                        if pt_change.get("edge_ids"):
+                            cloned.edges.set(
+                                StreetEdge.objects.filter(pk__in=pt_change["edge_ids"])
+                            )
+                        else:
+                            cloned.edges.set(original.edges.all())
+                else:
+                    original = TrainLine.objects.filter(pk=pt_change["id"]).first()
+                    if original:
+                        original.map_versions.remove(new_version)
+                        cloned = TrainLine.objects.create(
+                            game_map=game_map,
+                            name=pt_change.get("name", original.name),
+                            intervall=pt_change.get("interval", original.intervall),
+                            train_capacity=pt_change.get(
+                                "capacity", original.train_capacity
+                            ),
+                            train_speed_kmh=pt_change.get(
+                                "speed_kmh", original.train_speed_kmh
+                            ),
+                        )
+                        cloned.map_versions.add(new_version)
+                        if pt_change.get("edge_ids"):
+                            cloned.edges.set(
+                                TrainEdge.objects.filter(pk__in=pt_change["edge_ids"])
+                            )
+                        else:
+                            cloned.edges.set(original.edges.all())
+
+        # 5. Invalidate cache
+        _invalidate_map_cache(pk)
+
+        return Response(
+            MapVersionSerializer(new_version).data,
+            status=status.HTTP_201_CREATED,
+        )

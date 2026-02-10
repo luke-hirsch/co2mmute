@@ -95,6 +95,17 @@ export interface ExtendedMapGraph {
   train_lines: PTLine[];
   scale: number; // Meters per coordinate unit
   previous_round_traffic?: EdgeTrafficData[];
+  // Background image
+  x_dim?: number;
+  y_dim?: number;
+  background_image_url?: string | null;
+  image_offset_x?: number;
+  image_offset_y?: number;
+  image_scale?: number;
+  image_crop_top?: number;
+  image_crop_right?: number;
+  image_crop_bottom?: number;
+  image_crop_left?: number;
 }
 
 // Pathfinding options

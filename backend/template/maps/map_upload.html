@@ -12,10 +12,10 @@
     <!-- Header -->
     <div class="text-center mb-8">
       <h1 class="text-4xl font-bold text-main dark:text-darktext mb-2">
-        Upload Map
+        Create a New Game Map
       </h1>
       <p class="text-lg text-muted dark:text-darkmutedtext">
-        Import a game map from a JSON file
+        Start with a blank map or import from a JSON file
       </p>
     </div>
 
@@ -331,7 +331,6 @@
             class="block text-sm font-medium text-main dark:text-darktext mb-1"
           >
             {{ form.json_file.label }}
-            <span class="text-red-600">*</span>
           </label>
           {{ form.json_file }}
           <p class="text-xs text-muted dark:text-darkmutedtext mt-2">
@@ -340,6 +339,27 @@
           {% if form.json_file.errors %}
           <div class="mt-2 text-sm text-red-600 dark:text-red-400">
             {% for error in form.json_file.errors %}
+            <p>{{ error }}</p>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Background Image Field -->
+        <div>
+          <label
+            for="{{ form.image_file.id_for_label }}"
+            class="block text-sm font-medium text-main dark:text-darktext mb-1"
+          >
+            {{ form.image_file.label }}
+          </label>
+          {{ form.image_file }}
+          <p class="text-xs text-muted dark:text-darkmutedtext mt-2">
+            {{ form.image_file.help_text }}
+          </p>
+          {% if form.image_file.errors %}
+          <div class="mt-2 text-sm text-red-600 dark:text-red-400">
+            {% for error in form.image_file.errors %}
             <p>{{ error }}</p>
             {% endfor %}
           </div>

@@ -250,6 +250,10 @@ class TrafficSimulator:
         # Callback for progress updates
         self.on_progress: Optional[callable] = None
 
+        # Load routes and initialize edges during construction
+        self._load_routes()
+        self._initialize_edges()
+
     def _load_routes(self):
         """Load all agent routes for the round."""
         # Get all player moves for this round
@@ -589,10 +593,7 @@ class TrafficSimulator:
         )
 
         try:
-            # Load data
-            self._load_routes()
-            self._initialize_edges()
-
+            # Routes and edges are already loaded in __init__
             if not self.agent_routes:
                 logger.warning("[SIM] No agent routes found, simulation will be empty")
 

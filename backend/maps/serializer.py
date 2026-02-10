@@ -5,7 +5,16 @@ import maps.models as mm
 class MapVersionSerializer(serializers.ModelSerializer):
     class Meta:
         model = mm.MapVersion
-        fields = ("id", "game_map", "name", "description")
+        fields = (
+            "id",
+            "game_map",
+            "name",
+            "description",
+            "base_version",
+            "poll_text",
+            "revert_poll_text",
+            "source_version",
+        )
         read_only_fields = ("id",)
 
 
@@ -26,6 +35,8 @@ class MapVersionsMixin:
 
 
 class GameMapSerializer(serializers.ModelSerializer):
+    background_image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = mm.GameMap
         fields = (
@@ -38,8 +49,24 @@ class GameMapSerializer(serializers.ModelSerializer):
             "author",
             "updated",
             "updated_by",
+            "background_image_url",
+            "image_offset_x",
+            "image_offset_y",
+            "image_scale",
+            "image_crop_top",
+            "image_crop_right",
+            "image_crop_bottom",
+            "image_crop_left",
         )
-        read_only_fields = ("id", "created", "updated")
+        read_only_fields = ("id", "created", "updated", "background_image_url")
+
+    def get_background_image_url(self, obj):
+        if obj.background_image:
+            request = self.context.get("request")
+            if request:
+                return request.build_absolute_uri(obj.background_image.url)
+            return obj.background_image.url
+        return None
 
     def validate_scale(self, value):
         if value <= 0:
@@ -484,3 +511,50 @@ def serialize_train_line_for_graph(train_line, version):
         "edges": edge_ids,
         "stops": stops,
     }
+
+
+# --- Version Diff serializers ---
+
+
+class EdgeChangeSerializer(serializers.Serializer):
+    """A single edge modification in a version diff changeset."""
+
+    edge_id = serializers.IntegerField()
+    biking = serializers.BooleanField(required=False)
+    walking = serializers.BooleanField(required=False)
+    max_lanes = serializers.IntegerField(required=False)
+    speed_limit = serializers.IntegerField(required=False)
+    lanes = serializers.IntegerField(required=False)
+    dedicated_bus_lane = serializers.BooleanField(required=False)
+
+
+class PTLineChangeSerializer(serializers.Serializer):
+    """A PT line addition, modification, or removal in a version diff."""
+
+    id = serializers.IntegerField(required=False)
+    action = serializers.ChoiceField(choices=["add", "modify", "remove"])
+    line_type = serializers.ChoiceField(choices=["bus", "train"])
+    name = serializers.CharField(required=False)
+    interval = serializers.IntegerField(required=False)
+    capacity = serializers.IntegerField(required=False)
+    speed_kmh = serializers.IntegerField(required=False)
+    edge_ids = serializers.ListField(
+        child=serializers.IntegerField(), required=False, default=[]
+    )
+
+
+class VersionDiffInputSerializer(serializers.Serializer):
+    """Input for creating a new map version from a source version + changeset."""
+
+    source_version_id = serializers.IntegerField()
+    version_name = serializers.CharField(max_length=100)
+    description = serializers.CharField(required=False, allow_blank=True, default="")
+    poll_text = serializers.CharField(
+        required=False, allow_blank=True, default="Die Karte soll ... "
+    )
+    revert_poll_text = serializers.CharField(
+        required=False, allow_blank=True, default="Die Karte soll ... "
+    )
+    is_base_version = serializers.BooleanField(required=False, default=False)
+    edge_changes = EdgeChangeSerializer(many=True, required=False, default=[])
+    pt_line_changes = PTLineChangeSerializer(many=True, required=False, default=[])

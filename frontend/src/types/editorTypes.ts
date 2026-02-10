@@ -1,0 +1,60 @@
+export type EditorMode = "image" | "graph" | "pt-lines" | "version-diff";
+
+export interface EditorState {
+  mode: EditorMode;
+  selectedEdgeIds: Set<number>;
+  selectedNodeId: number | null;
+  isDirty: boolean;
+}
+
+export interface ImageTransformValues {
+  image_offset_x: number;
+  image_offset_y: number;
+  image_scale: number;
+  image_crop_top: number;
+  image_crop_right: number;
+  image_crop_bottom: number;
+  image_crop_left: number;
+}
+
+export interface EdgeChange {
+  edge_id: number;
+  biking?: boolean;
+  walking?: boolean;
+  max_lanes?: number;
+  speed_limit?: number;
+  lanes?: number;
+  dedicated_bus_lane?: boolean;
+}
+
+export interface PTLineChange {
+  id?: number;
+  action: "add" | "modify" | "remove";
+  line_type: "bus" | "train";
+  name?: string;
+  interval?: number;
+  capacity?: number;
+  speed_kmh?: number;
+  edge_ids?: number[];
+}
+
+export interface VersionDiffPayload {
+  source_version_id: number;
+  version_name: string;
+  description?: string;
+  poll_text?: string;
+  revert_poll_text?: string;
+  is_base_version?: boolean;
+  edge_changes: EdgeChange[];
+  pt_line_changes: PTLineChange[];
+}
+
+export type EditorAction =
+  | { type: "SET_MODE"; mode: EditorMode }
+  | { type: "SELECT_NODE"; nodeId: number | null }
+  | { type: "SELECT_EDGE"; edgeId: number }
+  | { type: "DESELECT_EDGE"; edgeId: number }
+  | { type: "TOGGLE_EDGE"; edgeId: number }
+  | { type: "CLEAR_SELECTION" }
+  | { type: "MARK_DIRTY" }
+  | { type: "MARK_CLEAN" };

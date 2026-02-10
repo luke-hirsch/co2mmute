@@ -9,10 +9,23 @@ class MapUploadForm(forms.Form):
 
     json_file = forms.FileField(
         label="Map JSON File",
-        help_text="Upload a JSON file containing the map graph structure",
+        required=False,
+        help_text="Optional — upload a JSON file with the map graph structure, or leave empty to create a blank map.",
         widget=forms.FileInput(
             attrs={
                 "accept": ".json",
+                "class": "block w-full text-sm text-muted dark:text-darkmutedtext file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700",
+            }
+        ),
+    )
+
+    image_file = forms.ImageField(
+        label="Background Image",
+        required=False,
+        help_text="Optional background image for the map (PNG, JPG, etc.)",
+        widget=forms.FileInput(
+            attrs={
+                "accept": "image/*",
                 "class": "block w-full text-sm text-muted dark:text-darkmutedtext file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700",
             }
         ),
@@ -58,7 +71,7 @@ class MapUploadForm(forms.Form):
         file = self.cleaned_data.get("json_file")
 
         if not file:
-            raise ValidationError("Please upload a JSON file.")
+            return None
 
         # Check file extension
         if not file.name.endswith(".json"):

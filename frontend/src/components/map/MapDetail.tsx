@@ -1,4 +1,4 @@
-import { useParams } from "@tanstack/react-router";
+import { useParams, Link } from "@tanstack/react-router";
 import { useGameMap, useMapGraph } from "../../hooks/mapHooks";
 import MapViewer from "./MapViewer";
 import Loading from "../Loading";
@@ -29,12 +29,23 @@ const MapDetail = () => {
       {isLoading ? (
         <Loading />
       ) : gameMap && mapGraph ? (
-        <MapViewer
-          gameMap={gameMap}
-          mapGraph={mapGraph}
-          isLoading={false}
-          error={null}
-        />
+        <>
+          <div className="max-w-[1600px] mx-auto px-4 pt-4">
+            <Link
+              to="/maps/$mapId/editor"
+              params={{ mapId }}
+              className="inline-block px-4 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+            >
+              Edit Map
+            </Link>
+          </div>
+          <MapViewer
+            gameMap={gameMap}
+            mapGraph={mapGraph}
+            isLoading={false}
+            error={null}
+          />
+        </>
       ) : errorMessage ? (
         <MapViewer
           gameMap={gameMap!}

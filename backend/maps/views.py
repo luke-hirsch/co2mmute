@@ -43,27 +43,30 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
 
     def form_valid(self, form):
         try:
-            # Parse JSON from file
-            json_file = form.cleaned_data["json_file"]
-            json_file.seek(0)
-            graph_data = json.loads(json_file.read().decode("utf-8"))
-
             # Extract form data
+            json_file = form.cleaned_data.get("json_file")
+            image_file = form.cleaned_data.get("image_file")
             map_name = form.cleaned_data["map_name"]
             description = form.cleaned_data.get("description", "")
             max_players = form.cleaned_data["max_players"]
 
-            # Run validation checks first (dry run)
-            validation_errors = self._validate_graph_data(graph_data)
-            if validation_errors:
-                error_message = "JSON validation errors found:\n" + "\n".join(
-                    [f"• {error}" for error in validation_errors]
-                )
-                logger.warning(
-                    f"Validation errors for map '{map_name}': {validation_errors}"
-                )
-                messages.error(self.request, error_message)
-                return self.form_invalid(form)
+            # Parse JSON if provided
+            graph_data = None
+            if json_file:
+                json_file.seek(0)
+                graph_data = json.loads(json_file.read().decode("utf-8"))
+
+                # Run validation checks first (dry run)
+                validation_errors = self._validate_graph_data(graph_data)
+                if validation_errors:
+                    error_message = "JSON validation errors found:\n" + "\n".join(
+                        [f"• {error}" for error in validation_errors]
+                    )
+                    logger.warning(
+                        f"Validation errors for map '{map_name}': {validation_errors}"
+                    )
+                    messages.error(self.request, error_message)
+                    return self.form_invalid(form)
 
             logger.info(f"Starting map creation for '{map_name}'")
 
@@ -74,6 +77,11 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                 )
                 logger.info(f"Created GameMap with pk {game_map.pk}")
 
+                # Save background image if provided
+                if image_file:
+                    game_map.background_image = image_file
+                    game_map.save()
+
                 # Create base version
                 base_version = MapVersion.objects.create(
                     game_map=game_map,
@@ -83,55 +91,64 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                 )
                 logger.info(f"Created MapVersion with pk {base_version.pk}")
 
-                # Create nodes and edges from JSON
-                node_mapping = self._create_nodes(
-                    game_map=game_map,
-                    base_version=base_version,
-                    nodes_data=graph_data.get("nodes", []),
-                )
-                logger.info(f"Created {len(node_mapping)} nodes")
+                if graph_data:
+                    # Create nodes and edges from JSON
+                    node_mapping = self._create_nodes(
+                        game_map=game_map,
+                        base_version=base_version,
+                        nodes_data=graph_data.get("nodes", []),
+                    )
+                    logger.info(f"Created {len(node_mapping)} nodes")
 
-                edge_mapping = self._create_edges(
-                    game_map=game_map,
-                    base_version=base_version,
-                    edges_data=graph_data.get("edges", []),
-                    node_mapping=node_mapping,
-                )
-                logger.info(f"Created {len(edge_mapping)} edges")
+                    edge_mapping = self._create_edges(
+                        game_map=game_map,
+                        base_version=base_version,
+                        edges_data=graph_data.get("edges", []),
+                        node_mapping=node_mapping,
+                    )
+                    logger.info(f"Created {len(edge_mapping)} edges")
 
-                # Create street and train edges
-                self._create_specialized_edges(
-                    base_version=base_version,
-                    edges_data=graph_data.get("edges", []),
-                    edge_mapping=edge_mapping,
-                )
+                    # Create street and train edges
+                    self._create_specialized_edges(
+                        base_version=base_version,
+                        edges_data=graph_data.get("edges", []),
+                        edge_mapping=edge_mapping,
+                    )
 
-                # Create bus lines
-                self._create_bus_lines(
-                    game_map=game_map,
-                    base_version=base_version,
-                    bus_lines_data=graph_data.get("bus_lines", []),
-                    edge_mapping=edge_mapping,
-                )
+                    # Create bus lines
+                    self._create_bus_lines(
+                        game_map=game_map,
+                        base_version=base_version,
+                        bus_lines_data=graph_data.get("bus_lines", []),
+                        edge_mapping=edge_mapping,
+                    )
 
-                # Create train lines
-                self._create_train_lines(
-                    game_map=game_map,
-                    base_version=base_version,
-                    train_lines_data=graph_data.get("train_lines", []),
-                    edges_data=graph_data.get("edges", []),
-                    edge_mapping=edge_mapping,
-                )
+                    # Create train lines
+                    self._create_train_lines(
+                        game_map=game_map,
+                        base_version=base_version,
+                        train_lines_data=graph_data.get("train_lines", []),
+                        edges_data=graph_data.get("edges", []),
+                        edge_mapping=edge_mapping,
+                    )
 
-                messages.success(
-                    self.request,
-                    f"Map '{map_name}' created successfully with "
-                    f"{len(node_mapping)} nodes and {len(graph_data.get('edges', []))} edges!",
-                )
-                logger.info(
-                    f"User {self.request.user.username} created map '{map_name}' "
-                    f"with {len(node_mapping)} nodes"
-                )
+                    messages.success(
+                        self.request,
+                        f"Map '{map_name}' created successfully with "
+                        f"{len(node_mapping)} nodes and {len(graph_data.get('edges', []))} edges!",
+                    )
+                    logger.info(
+                        f"User {self.request.user.username} created map '{map_name}' "
+                        f"with {len(node_mapping)} nodes"
+                    )
+                else:
+                    messages.success(
+                        self.request,
+                        f"Blank map '{map_name}' created successfully!",
+                    )
+                    logger.info(
+                        f"User {self.request.user.username} created blank map '{map_name}'"
+                    )
 
         except Exception as e:
             logger.error(f"Error processing map upload: {str(e)}", exc_info=True)

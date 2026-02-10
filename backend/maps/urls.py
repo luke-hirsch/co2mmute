@@ -94,4 +94,16 @@ urlpatterns = [
         views_rest.TrainLineDetailView.as_view(),
         name="trainline-detail",
     ),
+    # Background image upload
+    path(
+        "<int:pk>/background-image/",
+        views_rest.GameMapImageUploadView.as_view(),
+        name="gamemap-background-image",
+    ),
+    # Version diff creation
+    path(
+        "<int:pk>/versions/create-from-diff/",
+        views_rest.VersionDiffCreateView.as_view(),
+        name="version-diff-create",
+    ),
 ]

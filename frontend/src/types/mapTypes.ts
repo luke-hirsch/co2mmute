@@ -52,6 +52,14 @@ export interface GameMap {
   updated: string;
   author: User;
   updated_by?: User;
+  background_image_url?: string | null;
+  image_offset_x?: number;
+  image_offset_y?: number;
+  image_scale?: number;
+  image_crop_top?: number;
+  image_crop_right?: number;
+  image_crop_bottom?: number;
+  image_crop_left?: number;
 }
 
 export interface MapVersion {
