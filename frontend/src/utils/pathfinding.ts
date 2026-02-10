@@ -53,15 +53,11 @@ export function buildAdjacencyList(
     adjacency.set(node.id, []);
   }
 
-  // Add edges (undirected - both directions)
+  // Add edges (directed: start_node → end_node only)
   for (const edge of edges) {
     adjacency.get(edge.start_node)?.push({
       edge,
       neighbor: edge.end_node,
-    });
-    adjacency.get(edge.end_node)?.push({
-      edge,
-      neighbor: edge.start_node,
     });
   }
 

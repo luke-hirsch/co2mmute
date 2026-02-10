@@ -257,14 +257,14 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
                     )
 
                 # Validate routes: check edge connectivity and permissions
-                validation_error = self._validate_routes(
+                validation_errors = self._validate_routes(
                     route_serializer.validated_data["agents"],
                     player,
                     game,
                 )
-                if validation_error:
+                if validation_errors:
                     return Response(
-                        {"error": validation_error},
+                        {"error": validation_errors},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
@@ -333,71 +333,73 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
     def _validate_routes(self, agents_data, player, game):
         """
         Validate submitted routes for connectivity and transport permissions.
-        Returns error message string if invalid, None if valid.
+        Returns list of error message strings if invalid, None if valid.
         """
+        errors = []
+
         # Get player's agent assignments to validate agent IDs and nodes
         agent_assignments = player.agent_assignments or {}
         home_node = agent_assignments.get("home_node")
         assigned_agents = {a["id"]: a for a in agent_assignments.get("agents", [])}
 
         if not home_node or not assigned_agents:
-            return "Player has no agent assignments"
+            return ["Player has no agent assignments"]
 
         for agent_data in agents_data:
             agent_id = agent_data["id"]
             if agent_id not in assigned_agents:
-                return f"Invalid agent ID: {agent_id}"
+                errors.append(f"Invalid agent ID: {agent_id}")
+                continue
 
             route = agent_data["route"]
             segments = route["segments"]
 
             if not segments:
-                return f"Agent {agent_id} route has no segments"
+                errors.append(f"Agent {agent_id} route has no segments")
+                continue
 
             # Validate first segment starts from home
             first_segment = segments[0]
             if first_segment["start_node"] != home_node:
-                return f"Agent {agent_id} route must start from home node {home_node}"
+                errors.append(f"Agent {agent_id} route must start from home node {home_node}")
 
             # Validate last segment ends at destination
             destination = assigned_agents[agent_id]["destination_node"]
             last_segment = segments[-1]
             if last_segment["end_node"] != destination:
-                return f"Agent {agent_id} route must end at destination {destination}"
+                errors.append(f"Agent {agent_id} route must end at destination {destination}")
 
             # Validate segment connectivity and edge existence
             for i, segment in enumerate(segments):
                 try:
                     edge = Edge.objects.get(id=segment["edge_id"])
                 except Edge.DoesNotExist:
-                    return f"Edge {segment['edge_id']} does not exist"
+                    errors.append(f"Agent {agent_id}: edge {segment['edge_id']} does not exist")
+                    continue
 
                 # Validate edge matches start/end nodes
                 if edge.start_node_id != segment["start_node"] or edge.end_node_id != segment["end_node"]:
-                    return f"Edge {segment['edge_id']} does not connect nodes {segment['start_node']} and {segment['end_node']}"
+                    errors.append(f"Agent {agent_id}: edge {segment['edge_id']} does not connect nodes {segment['start_node']} → {segment['end_node']}")
 
                 # Validate transport mode is allowed on this edge
                 mode = segment["mode"]
                 if mode == "walk" and not edge.walking:
-                    return f"Walking not allowed on edge {segment['edge_id']}"
+                    errors.append(f"Agent {agent_id}: walking not allowed on edge {segment['edge_id']}")
                 if mode == "bike" and not edge.biking:
-                    return f"Biking not allowed on edge {segment['edge_id']}"
+                    errors.append(f"Agent {agent_id}: biking not allowed on edge {segment['edge_id']}")
                 if mode == "car" and not hasattr(edge, "streetedge_set"):
-                    # Check if edge has a street edge
                     if not edge.streetedge_set.exists():
-                        return f"Cars not allowed on edge {segment['edge_id']}"
+                        errors.append(f"Agent {agent_id}: cars not allowed on edge {segment['edge_id']}")
                 if mode in ("bus", "train"):
-                    # For PT modes, we trust the frontend's line selection
-                    # Full validation would require checking line routes
                     pass
 
                 # Validate connectivity with previous segment
                 if i > 0:
                     prev_segment = segments[i - 1]
                     if prev_segment["end_node"] != segment["start_node"]:
-                        return f"Route discontinuity at segment {i}: {prev_segment['end_node']} != {segment['start_node']}"
+                        errors.append(f"Agent {agent_id}: route discontinuity at segment {i}: {prev_segment['end_node']} != {segment['start_node']}")
 
-        return None
+        return errors if errors else None
 
     def _store_routes(self, move, agents_data):
         """Store agent routes and segments in the database."""
