@@ -206,6 +206,27 @@ const GameMapViewer = ({
             fill="url(#gameGrid)"
           />
 
+          {/* Background Image */}
+          {"background_image_url" in mapGraph &&
+            mapGraph.background_image_url && (
+              <image
+                href={mapGraph.background_image_url}
+                x={(mapGraph.image_offset_x ?? 0) * 100}
+                y={(mapGraph.image_offset_y ?? 0) * 100}
+                width={
+                  (mapGraph.x_dim ?? 10) * 100 * (mapGraph.image_scale ?? 1)
+                }
+                height={
+                  (mapGraph.y_dim ?? 10) * 100 * (mapGraph.image_scale ?? 1)
+                }
+                opacity={0.4}
+                preserveAspectRatio="none"
+                style={{
+                  clipPath: `inset(${mapGraph.image_crop_top ?? 0}% ${mapGraph.image_crop_right ?? 0}% ${mapGraph.image_crop_bottom ?? 0}% ${mapGraph.image_crop_left ?? 0}%)`,
+                }}
+              />
+            )}
+
           {/* Base Edges (non-route) */}
           {mapGraph.edges.map((edge) => {
             // Skip if this edge is part of the route (we'll render it separately)

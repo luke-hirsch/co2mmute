@@ -118,28 +118,37 @@ function calculatePTTravelTime(
   const startIdx = Math.min(fromStopIndex, toStopIndex);
   const endIdx = Math.max(fromStopIndex, toStopIndex);
 
-  // Use edges if available, otherwise estimate from stop positions
+  // Use edges where available, fill gaps with stop-position estimates
   if (line.edges.length > 0) {
-    // Use actual edge distances
     const relevantEdgeIds = line.edges.slice(startIdx, endIdx);
-    for (const edgeId of relevantEdgeIds) {
-      const edge = edgeMap.get(edgeId);
-      if (edge) {
-        if (edge.distance_m) {
-          totalDistance += edge.distance_m;
-        } else {
-          // Calculate from nodes
-          const start = nodeMap.get(edge.start_node);
-          const end = nodeMap.get(edge.end_node);
-          if (start && end) {
-            totalDistance += calculateDistance(start, end, scale);
+    if (relevantEdgeIds.length > 0) {
+      for (const edgeId of relevantEdgeIds) {
+        const edge = edgeMap.get(edgeId);
+        if (edge) {
+          if (edge.distance_m) {
+            totalDistance += edge.distance_m;
+          } else {
+            const start = nodeMap.get(edge.start_node);
+            const end = nodeMap.get(edge.end_node);
+            if (start && end) {
+              totalDistance += calculateDistance(start, end, scale);
+            }
           }
+          usedEdgeIds.push(edgeId);
         }
-        usedEdgeIds.push(edgeId);
+      }
+    } else {
+      // No edges in this range, estimate from stop positions
+      for (let i = startIdx; i < endIdx; i++) {
+        const from = nodeMap.get(line.stops[i]);
+        const to = nodeMap.get(line.stops[i + 1]);
+        if (from && to) {
+          totalDistance += calculateDistance(from, to, scale);
+        }
       }
     }
   } else {
-    // Estimate from stop positions
+    // No edges at all, estimate from stop positions
     for (let i = startIdx; i < endIdx; i++) {
       const from = nodeMap.get(line.stops[i]);
       const to = nodeMap.get(line.stops[i + 1]);

@@ -16,6 +16,7 @@ from rest_framework.response import Response
 from maps.mixins import MapScopedQuerysetMixin
 from maps.models import (
     BusLine,
+    BusLineEdge,
     Edge,
     GameMap,
     MapVersion,
@@ -24,6 +25,7 @@ from maps.models import (
     StreetEdge,
     TrainEdge,
     TrainLine,
+    TrainLineEdge,
 )
 from maps.permissions import IsStaffOrReadOnly
 from maps.serializer import (
@@ -329,13 +331,29 @@ class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
                 .prefetch_related("streetedge_set", "trainedge_set")
             )
 
-            # Get PT lines for this map version
+            # Get PT lines for this map version (ordered by through table)
+            from django.db.models import Prefetch
+
             bus_lines = BusLine.objects.filter(
                 game_map=map_obj, map_versions=version
-            ).prefetch_related("edges", "edges__edge")
+            ).prefetch_related(
+                Prefetch(
+                    "edges",
+                    queryset=StreetEdge.objects.select_related("edge").order_by(
+                        "buslineedge__order"
+                    ),
+                )
+            )
             train_lines = TrainLine.objects.filter(
                 game_map=map_obj, map_versions=version
-            ).prefetch_related("edges", "edges__edge")
+            ).prefetch_related(
+                Prefetch(
+                    "edges",
+                    queryset=TrainEdge.objects.select_related("edge").order_by(
+                        "trainlineedge__order"
+                    ),
+                )
+            )
 
             # Serialize the data
             nodes_data = NodeSerializer(nodes, many=True).data
@@ -534,8 +552,14 @@ class VersionDiffCreateView(GenericAPIView):
                 for bl in BusLine.objects.filter(
                     edges=original_se, map_versions=new_version
                 ):
-                    bl.edges.remove(original_se)
-                    bl.edges.add(cloned_se)
+                    through_row = BusLineEdge.objects.get(
+                        bus_line=bl, street_edge=original_se
+                    )
+                    preserved_order = through_row.order
+                    through_row.delete()
+                    BusLineEdge.objects.create(
+                        bus_line=bl, street_edge=cloned_se, order=preserved_order
+                    )
 
             # Clone TrainEdge if original had one
             original_te = TrainEdge.objects.filter(
@@ -550,8 +574,14 @@ class VersionDiffCreateView(GenericAPIView):
                 for tl in TrainLine.objects.filter(
                     edges=original_te, map_versions=new_version
                 ):
-                    tl.edges.remove(original_te)
-                    tl.edges.add(cloned_te)
+                    through_row = TrainLineEdge.objects.get(
+                        train_line=tl, train_edge=original_te
+                    )
+                    preserved_order = through_row.order
+                    through_row.delete()
+                    TrainLineEdge.objects.create(
+                        train_line=tl, train_edge=cloned_te, order=preserved_order
+                    )
 
         # 4. Apply PT line changes
         try:
@@ -573,9 +603,16 @@ class VersionDiffCreateView(GenericAPIView):
                     )
                     bl.map_versions.add(new_version)
                     if pt_change.get("edge_ids"):
-                        bl.edges.set(
-                            StreetEdge.objects.filter(pk__in=pt_change["edge_ids"])
-                        )
+                        edge_ids = pt_change["edge_ids"]
+                        se_by_pk = {
+                            se.pk: se
+                            for se in StreetEdge.objects.filter(pk__in=edge_ids)
+                        }
+                        BusLineEdge.objects.bulk_create([
+                            BusLineEdge(bus_line=bl, street_edge=se_by_pk[eid], order=idx)
+                            for idx, eid in enumerate(edge_ids)
+                            if eid in se_by_pk
+                        ])
                 else:
                     tl = TrainLine.objects.create(
                         game_map=game_map,
@@ -586,9 +623,16 @@ class VersionDiffCreateView(GenericAPIView):
                     )
                     tl.map_versions.add(new_version)
                     if pt_change.get("edge_ids"):
-                        tl.edges.set(
-                            TrainEdge.objects.filter(pk__in=pt_change["edge_ids"])
-                        )
+                        edge_ids = pt_change["edge_ids"]
+                        te_by_pk = {
+                            te.pk: te
+                            for te in TrainEdge.objects.filter(pk__in=edge_ids)
+                        }
+                        TrainLineEdge.objects.bulk_create([
+                            TrainLineEdge(train_line=tl, train_edge=te_by_pk[eid], order=idx)
+                            for idx, eid in enumerate(edge_ids)
+                            if eid in te_by_pk
+                        ])
 
             elif action == "remove" and pt_change.get("id"):
                 if line_type == "bus":
@@ -619,11 +663,21 @@ class VersionDiffCreateView(GenericAPIView):
                         )
                         cloned.map_versions.add(new_version)
                         if pt_change.get("edge_ids"):
-                            cloned.edges.set(
-                                StreetEdge.objects.filter(pk__in=pt_change["edge_ids"])
-                            )
+                            edge_ids = pt_change["edge_ids"]
+                            se_by_pk = {
+                                se.pk: se
+                                for se in StreetEdge.objects.filter(pk__in=edge_ids)
+                            }
+                            BusLineEdge.objects.bulk_create([
+                                BusLineEdge(bus_line=cloned, street_edge=se_by_pk[eid], order=idx)
+                                for idx, eid in enumerate(edge_ids)
+                                if eid in se_by_pk
+                            ])
                         else:
-                            cloned.edges.set(original.edges.all())
+                            BusLineEdge.objects.bulk_create([
+                                BusLineEdge(bus_line=cloned, street_edge=t.street_edge, order=t.order)
+                                for t in BusLineEdge.objects.filter(bus_line=original).order_by("order")
+                            ])
                 else:
                     original = TrainLine.objects.filter(pk=pt_change["id"]).first()
                     if original:
@@ -641,11 +695,21 @@ class VersionDiffCreateView(GenericAPIView):
                         )
                         cloned.map_versions.add(new_version)
                         if pt_change.get("edge_ids"):
-                            cloned.edges.set(
-                                TrainEdge.objects.filter(pk__in=pt_change["edge_ids"])
-                            )
+                            edge_ids = pt_change["edge_ids"]
+                            te_by_pk = {
+                                te.pk: te
+                                for te in TrainEdge.objects.filter(pk__in=edge_ids)
+                            }
+                            TrainLineEdge.objects.bulk_create([
+                                TrainLineEdge(train_line=cloned, train_edge=te_by_pk[eid], order=idx)
+                                for idx, eid in enumerate(edge_ids)
+                                if eid in te_by_pk
+                            ])
                         else:
-                            cloned.edges.set(original.edges.all())
+                            TrainLineEdge.objects.bulk_create([
+                                TrainLineEdge(train_line=cloned, train_edge=t.train_edge, order=t.order)
+                                for t in TrainLineEdge.objects.filter(train_line=original).order_by("order")
+                            ])
 
         # 5. Invalidate cache
         _invalidate_map_cache(pk)

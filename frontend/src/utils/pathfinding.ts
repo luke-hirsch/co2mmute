@@ -53,11 +53,15 @@ export function buildAdjacencyList(
     adjacency.set(node.id, []);
   }
 
-  // Add edges (directed: start_node → end_node only)
+  // Add edges in both directions (undirected graph)
   for (const edge of edges) {
     adjacency.get(edge.start_node)?.push({
       edge,
       neighbor: edge.end_node,
+    });
+    adjacency.get(edge.end_node)?.push({
+      edge,
+      neighbor: edge.start_node,
     });
   }
 
@@ -86,16 +90,6 @@ export function canUseEdge(edge: Edge, mode: TransportMode): boolean {
       break;
     default:
       canUse = false;
-  }
-
-  // Log for debugging
-  if (!canUse) {
-    console.log(`[canUseEdge] Edge ${edge.id} cannot be used for ${mode}:`, {
-      walking: edge.walking,
-      biking: edge.biking,
-      street_edge: edge.street_edge,
-      train_edge: edge.train_edge,
-    });
   }
 
   return canUse;
@@ -262,6 +256,7 @@ export async function dijkstra(
 
     // No reachable nodes left
     if (currentNode === null || minDistance === Infinity) {
+      console.warn(`[dijkstra] No path found from ${startNodeId} to ${endNodeId} (mode: ${mode}, visited: ${visited.size}/${graph.nodes.length})`);
       await updateState(null, true);
       return {
         success: false,

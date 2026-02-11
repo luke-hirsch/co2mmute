@@ -15,6 +15,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from maps.models import (
     BusLine,
+    BusLineEdge,
     Edge,
     GameMap,
     MapVersion,
@@ -22,6 +23,7 @@ from maps.models import (
     StreetEdge,
     TrainEdge,
     TrainLine,
+    TrainLineEdge,
 )
 
 from game.models import (
@@ -431,7 +433,9 @@ class PTLineSpeedLoadingTests(TestCase):
             bus_speed_kmh=45,
         )
         self.bus_line.map_versions.add(self.map_version)
-        self.bus_line.edges.add(self.street_edge)
+        BusLineEdge.objects.create(
+            bus_line=self.bus_line, street_edge=self.street_edge, order=0
+        )
 
         # Create TrainEdge
         self.train_edge = TrainEdge.objects.create(
@@ -447,7 +451,9 @@ class PTLineSpeedLoadingTests(TestCase):
             train_speed_kmh=60,
         )
         self.train_line.map_versions.add(self.map_version)
-        self.train_line.edges.add(self.train_edge)
+        TrainLineEdge.objects.create(
+            train_line=self.train_line, train_edge=self.train_edge, order=0
+        )
 
         # Create GameSession
         self.game_session = GameSession.objects.create(

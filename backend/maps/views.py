@@ -16,7 +16,9 @@ from maps.models import (
     StreetEdge,
     TrainEdge,
     BusLine,
+    BusLineEdge,
     TrainLine,
+    TrainLineEdge,
 )
 
 logger = logging.getLogger(__name__)
@@ -72,8 +74,9 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
 
             # Create map in a transaction
             with transaction.atomic():
+                scale = graph_data.get("scale", 1.0) if graph_data else 1.0
                 game_map = self._create_game_map(
-                    name=map_name, max_players=max_players, author=self.request.user
+                    name=map_name, max_players=max_players, author=self.request.user, scale=scale
                 )
                 logger.info(f"Created GameMap with pk {game_map.pk}")
 
@@ -265,7 +268,7 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
 
         return errors
 
-    def _create_game_map(self, name, max_players, author):
+    def _create_game_map(self, name, max_players, author, scale=1.0):
         game_map = GameMap.objects.create(
             name=name,
             max_player=max_players,
@@ -273,6 +276,7 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             updated_by=author,
             x_dim=100,  # Default, can be adjusted
             y_dim=100,  # Default, can be adjusted
+            scale=scale,
         )
         return game_map
 
@@ -398,8 +402,8 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             )
             bus_line.map_versions.add(base_version)
 
-            # Add street edges to bus line
-            for edge_idx in bus_line_data.get("edges", []):
+            # Add street edges to bus line (ordered)
+            for order, edge_idx in enumerate(bus_line_data.get("edges", [])):
                 if edge_idx not in edge_mapping:
                     raise ValueError(
                         f"Bus line '{bus_line_data['name']}': "
@@ -413,7 +417,9 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                     street_edge = StreetEdge.objects.create(edge=edge)
                     street_edge.map_versions.add(base_version)
 
-                bus_line.edges.add(street_edge)
+                BusLineEdge.objects.create(
+                    bus_line=bus_line, street_edge=street_edge, order=order
+                )
 
     def _create_train_lines(
         self, game_map, base_version, train_lines_data, edges_data, edge_mapping
@@ -427,8 +433,8 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             )
             train_line.map_versions.add(base_version)
 
-            # Add train edges to train line
-            for edge_idx in train_line_data.get("edges", []):
+            # Add train edges to train line (ordered)
+            for order, edge_idx in enumerate(train_line_data.get("edges", [])):
                 if edge_idx not in edge_mapping:
                     raise ValueError(
                         f"Train line '{train_line_data['name']}': "
@@ -442,7 +448,9 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                     train_edge = TrainEdge.objects.create(edge=edge)
                     train_edge.map_versions.add(base_version)
 
-                train_line.edges.add(train_edge)
+                TrainLineEdge.objects.create(
+                    train_line=train_line, train_edge=train_edge, order=order
+                )
 
 
 class MapListView(LoginRequiredMixin, UserPassesTestMixin, ListView):

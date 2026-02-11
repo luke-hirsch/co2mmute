@@ -287,10 +287,7 @@ class StreetEdgeSerializer(MapVersionsMixin, serializers.ModelSerializer):
 
 
 class BusLineSerializer(MapVersionsMixin, serializers.ModelSerializer):
-    edges = serializers.PrimaryKeyRelatedField(
-        queryset=mm.StreetEdge.objects.all(),
-        many=True,
-    )
+    edges = serializers.SerializerMethodField()
 
     class Meta:
         model = mm.BusLine
@@ -305,28 +302,16 @@ class BusLineSerializer(MapVersionsMixin, serializers.ModelSerializer):
         )
         read_only_fields = ("id",)
 
+    def get_edges(self, obj):
+        return list(
+            obj.edges.order_by("buslineedge__order").values_list("pk", flat=True)
+        )
+
     def validate(self, attrs):
         game_map = attrs.get("game_map") or getattr(self.instance, "game_map", None)
-        edges = attrs.get("edges", None)
-        if edges is None and self.instance is not None:
-            edges = list(self.instance.edges.all())
 
         if game_map is None:
             raise serializers.ValidationError({"game_map": "game_map is required."})
-
-        mismatched_edges = [
-            edge.pk for edge in edges or [] if edge.edge.game_map_id != game_map.id
-        ]
-
-        if mismatched_edges:
-            raise serializers.ValidationError(
-                {
-                    "edges": (
-                        "All edges must belong to the same game_map as the bus line. "
-                        f"Invalid edge IDs: {mismatched_edges}"
-                    )
-                }
-            )
 
         map_versions = attrs.get("map_versions")
         if map_versions is not None:
@@ -383,10 +368,7 @@ class TrainEdgeSerializer(MapVersionsMixin, serializers.ModelSerializer):
 
 
 class TrainLineSerializer(MapVersionsMixin, serializers.ModelSerializer):
-    edges = serializers.PrimaryKeyRelatedField(
-        queryset=mm.TrainEdge.objects.all(),
-        many=True,
-    )
+    edges = serializers.SerializerMethodField()
 
     class Meta:
         model = mm.TrainLine
@@ -401,28 +383,16 @@ class TrainLineSerializer(MapVersionsMixin, serializers.ModelSerializer):
         )
         read_only_fields = ("id",)
 
+    def get_edges(self, obj):
+        return list(
+            obj.edges.order_by("trainlineedge__order").values_list("pk", flat=True)
+        )
+
     def validate(self, attrs):
         game_map = attrs.get("game_map") or getattr(self.instance, "game_map", None)
-        edges = attrs.get("edges", None)
-        if edges is None and self.instance is not None:
-            edges = list(self.instance.edges.all())
 
         if game_map is None:
             raise serializers.ValidationError({"game_map": "game_map is required."})
-
-        mismatched_edges = [
-            edge.pk for edge in edges or [] if edge.edge.game_map_id != game_map.id
-        ]
-
-        if mismatched_edges:
-            raise serializers.ValidationError(
-                {
-                    "edges": (
-                        "All edges must belong to the same game_map as the train line. "
-                        f"Invalid edge IDs: {mismatched_edges}"
-                    )
-                }
-            )
 
         map_versions = attrs.get("map_versions")
         if map_versions is not None:
@@ -464,7 +434,11 @@ class PTLineGraphSerializer(serializers.Serializer):
 def serialize_bus_line_for_graph(bus_line, version):
     """Serialize a bus line for graph/routing purposes."""
     # Get edges in order and extract underlying edge IDs
-    street_edges = bus_line.edges.filter(map_versions=version).select_related("edge")
+    street_edges = (
+        bus_line.edges.filter(map_versions=version)
+        .select_related("edge")
+        .order_by("buslineedge__order")
+    )
     edge_ids = [se.edge_id for se in street_edges]
 
     # Extract stops (unique nodes from edges in order)
@@ -490,7 +464,11 @@ def serialize_bus_line_for_graph(bus_line, version):
 def serialize_train_line_for_graph(train_line, version):
     """Serialize a train line for graph/routing purposes."""
     # Get edges in order and extract underlying edge IDs
-    train_edges = train_line.edges.filter(map_versions=version).select_related("edge")
+    train_edges = (
+        train_line.edges.filter(map_versions=version)
+        .select_related("edge")
+        .order_by("trainlineedge__order")
+    )
     edge_ids = [te.edge_id for te in train_edges]
 
     # Extract stops (unique nodes from edges in order)

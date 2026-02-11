@@ -187,7 +187,7 @@ class BusLine(models.Model):
     intervall = models.PositiveSmallIntegerField(default=5)
     bus_capacity = models.PositiveSmallIntegerField()
     bus_speed_kmh = models.PositiveSmallIntegerField(default=30)
-    edges = models.ManyToManyField(StreetEdge)
+    edges = models.ManyToManyField(StreetEdge, through="BusLineEdge")
 
     def clean(self) -> None:
         game_map_clean(self.map_versions.all(), self.game_map)
@@ -195,6 +195,16 @@ class BusLine(models.Model):
 
     class Meta:
         ordering = ("game_map", "name", "pk")
+
+
+class BusLineEdge(models.Model):
+    bus_line = models.ForeignKey(BusLine, on_delete=models.CASCADE)
+    street_edge = models.ForeignKey(StreetEdge, on_delete=models.CASCADE)
+    order = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ("order",)
+        unique_together = ("bus_line", "order")
 
 
 class TrainEdge(models.Model):
@@ -216,7 +226,7 @@ class TrainLine(models.Model):
     intervall = models.PositiveSmallIntegerField(default=5)
     train_capacity = models.PositiveIntegerField()
     train_speed_kmh = models.PositiveSmallIntegerField(default=40)
-    edges = models.ManyToManyField(TrainEdge)
+    edges = models.ManyToManyField(TrainEdge, through="TrainLineEdge")
 
     def clean(self) -> None:
         game_map_clean(self.map_versions.all(), self.game_map)
@@ -224,3 +234,13 @@ class TrainLine(models.Model):
 
     class Meta:
         ordering = ("game_map", "name", "pk")
+
+
+class TrainLineEdge(models.Model):
+    train_line = models.ForeignKey(TrainLine, on_delete=models.CASCADE)
+    train_edge = models.ForeignKey(TrainEdge, on_delete=models.CASCADE)
+    order = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ("order",)
+        unique_together = ("train_line", "order")
