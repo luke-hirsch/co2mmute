@@ -1,0 +1,333 @@
+{
+  "scale": 1000,
+  "nodes": [
+    {
+      "id": "work_north",
+      "x": 4, "y": 0,
+      "name": "Industriegebiet Nord",
+      "types": ["workplace"]
+    },
+    {
+      "id": "hwy_jct",
+      "x": 4, "y": 2,
+      "name": "Autobahnkreuz",
+      "types": ["intersection"]
+    },
+    {
+      "id": "home_1",
+      "x": 3, "y": 3.5,
+      "name": "Kiez West",
+      "types": ["home"]
+    },
+    {
+      "id": "home_2",
+      "x": 4, "y": 3.5,
+      "name": "Kiez Mitte",
+      "types": ["home"]
+    },
+    {
+      "id": "home_3",
+      "x": 5, "y": 3.5,
+      "name": "Kiez Ost",
+      "types": ["home"]
+    },
+    {
+      "id": "work_center",
+      "x": 4, "y": 4,
+      "name": "Späti am Eck",
+      "types": ["workplace"]
+    },
+    {
+      "id": "sta_bus",
+      "x": 4, "y": 5,
+      "name": "Bushaltestelle Kiez",
+      "types": ["station", "bus_stop"]
+    },
+    {
+      "id": "sta_transfer",
+      "x": 4, "y": 7,
+      "name": "Umsteigebahnhof",
+      "types": ["station", "bus_stop"]
+    },
+    {
+      "id": "work_south",
+      "x": 4, "y": 9,
+      "name": "Büropark Süd",
+      "types": ["workplace", "bus_stop"]
+    },
+    {
+      "id": "sta_train",
+      "x": 1, "y": 7,
+      "name": "Bahnhof West",
+      "types": ["station"]
+    },
+    {
+      "id": "work_west",
+      "x": 0, "y": 7,
+      "name": "Uni Campus West",
+      "types": ["workplace"]
+    },
+    {
+      "id": "work_east",
+      "x": 10, "y": 3.5,
+      "name": "Gewerbegebiet Ost",
+      "types": ["workplace"]
+    }
+  ],
+  "edges": [
+    {
+      "start_node": "home_1",
+      "end_node": "home_2",
+      "name": "Kiezstraße West-Mitte",
+      "type": "street",
+      "walking": true, "biking": true,
+      "speed_limit": 30, "lanes": 1, "max_lanes": 2
+    },
+    {
+      "start_node": "home_2",
+      "end_node": "home_1",
+      "name": "Kiezstraße Mitte-West",
+      "type": "street",
+      "walking": true, "biking": true,
+      "speed_limit": 30, "lanes": 1, "max_lanes": 2
+    },
+    {
+      "start_node": "home_2",
+      "end_node": "home_3",
+      "name": "Kiezstraße Mitte-Ost",
+      "type": "street",
+      "walking": true, "biking": true,
+      "speed_limit": 30, "lanes": 1, "max_lanes": 2
+    },
+    {
+      "start_node": "home_3",
+      "end_node": "home_2",
+      "name": "Kiezstraße Ost-Mitte",
+      "type": "street",
+      "walking": true, "biking": true,
+      "speed_limit": 30, "lanes": 1, "max_lanes": 2
+    },
+    {
+      "start_node": "home_2",
+      "end_node": "hwy_jct",
+      "name": "Hauptstraße Nord",
+      "type": "street",
+      "walking": true, "biking": true,
+      "speed_limit": 50, "lanes": 1, "max_lanes": 2
+    },
+    {
+      "start_node": "hwy_jct",
+      "end_node": "home_2",
+      "name": "Hauptstraße Süd",
+      "type": "street",
+      "walking": true, "biking": true,
+      "speed_limit": 50, "lanes": 1, "max_lanes": 2
+    },
+    {
+      "start_node": "home_2",
+      "end_node": "work_center",
+      "name": "Nebenstraße zum Späti",
+      "type": "street",
+      "walking": true, "biking": true,
+      "speed_limit": 30, "lanes": 1, "max_lanes": 1
+    },
+    {
+      "start_node": "work_center",
+      "end_node": "home_2",
+      "name": "Nebenstraße vom Späti",
+      "type": "street",
+      "walking": true, "biking": true,
+      "speed_limit": 30, "lanes": 1, "max_lanes": 1
+    },
+    {
+      "start_node": "home_1",
+      "end_node": "work_center",
+      "name": "Seitenweg West zum Späti",
+      "type": "street",
+      "walking": true, "biking": true,
+      "speed_limit": 30, "lanes": 1, "max_lanes": 1
+    },
+    {
+      "start_node": "work_center",
+      "end_node": "home_1",
+      "name": "Seitenweg vom Späti nach West",
+      "type": "street",
+      "walking": true, "biking": true,
+      "speed_limit": 30, "lanes": 1, "max_lanes": 1
+    },
+    {
+      "start_node": "home_3",
+      "end_node": "work_center",
+      "name": "Seitenweg Ost zum Späti",
+      "type": "street",
+      "walking": true, "biking": true,
+      "speed_limit": 30, "lanes": 1, "max_lanes": 1
+    },
+    {
+      "start_node": "work_center",
+      "end_node": "home_3",
+      "name": "Seitenweg vom Späti nach Ost",
+      "type": "street",
+      "walking": true, "biking": true,
+      "speed_limit": 30, "lanes": 1, "max_lanes": 1
+    },
+    {
+      "start_node": "work_center",
+      "end_node": "sta_bus",
+      "name": "Weg zur Bushaltestelle (Süd)",
+      "type": "street",
+      "walking": true, "biking": true,
+      "speed_limit": 50, "lanes": 1, "max_lanes": 2
+    },
+    {
+      "start_node": "sta_bus",
+      "end_node": "work_center",
+      "name": "Weg von der Bushaltestelle (Nord)",
+      "type": "street",
+      "walking": true, "biking": true,
+      "speed_limit": 50, "lanes": 1, "max_lanes": 2
+    },
+    {
+      "start_node": "sta_bus",
+      "end_node": "sta_transfer",
+      "name": "Busroute Süd",
+      "type": "street",
+      "walking": true, "biking": true,
+      "speed_limit": 50, "lanes": 2, "max_lanes": 2
+    },
+    {
+      "start_node": "sta_transfer",
+      "end_node": "sta_bus",
+      "name": "Busroute Nord",
+      "type": "street",
+      "walking": true, "biking": true,
+      "speed_limit": 50, "lanes": 2, "max_lanes": 2
+    },
+    {
+      "start_node": "sta_transfer",
+      "end_node": "work_south",
+      "name": "Busroute weiter Süd",
+      "type": "street",
+      "walking": true, "biking": true,
+      "speed_limit": 50, "lanes": 1, "max_lanes": 2
+    },
+    {
+      "start_node": "work_south",
+      "end_node": "sta_transfer",
+      "name": "Busroute zurück Nord",
+      "type": "street",
+      "walking": true, "biking": true,
+      "speed_limit": 50, "lanes": 1, "max_lanes": 2
+    },
+    {
+      "start_node": "sta_transfer",
+      "end_node": "sta_train",
+      "name": "Verbindungsstraße West",
+      "type": "street",
+      "walking": true, "biking": true,
+      "speed_limit": 30, "lanes": 1, "max_lanes": 1
+    },
+    {
+      "start_node": "sta_train",
+      "end_node": "sta_transfer",
+      "name": "Verbindungsstraße Ost",
+      "type": "street",
+      "walking": true, "biking": true,
+      "speed_limit": 30, "lanes": 1, "max_lanes": 1
+    },
+    {
+      "start_node": "sta_train",
+      "end_node": "work_west",
+      "name": "Zugang Uni Campus",
+      "type": "street",
+      "walking": true, "biking": true,
+      "speed_limit": 30, "lanes": 1, "max_lanes": 1
+    },
+    {
+      "start_node": "work_west",
+      "end_node": "sta_train",
+      "name": "Abgang Uni Campus",
+      "type": "street",
+      "walking": true, "biking": true,
+      "speed_limit": 30, "lanes": 1, "max_lanes": 1
+    },
+    {
+      "start_node": "hwy_jct",
+      "end_node": "work_north",
+      "name": "Autobahn Nord (Auffahrt)",
+      "type": "street",
+      "walking": false, "biking": false,
+      "speed_limit": 80, "lanes": 2, "max_lanes": 3
+    },
+    {
+      "start_node": "work_north",
+      "end_node": "hwy_jct",
+      "name": "Autobahn Nord (Abfahrt)",
+      "type": "street",
+      "walking": false, "biking": false,
+      "speed_limit": 80, "lanes": 2, "max_lanes": 3
+    },
+    {
+      "start_node": "home_3",
+      "end_node": "work_east",
+      "name": "Landstraße Ost",
+      "type": "street",
+      "walking": true, "biking": true,
+      "speed_limit": 50, "lanes": 1, "max_lanes": 2
+    },
+    {
+      "start_node": "work_east",
+      "end_node": "home_3",
+      "name": "Landstraße West",
+      "type": "street",
+      "walking": true, "biking": true,
+      "speed_limit": 50, "lanes": 1, "max_lanes": 2
+    },
+    {
+      "start_node": "sta_transfer",
+      "end_node": "sta_train",
+      "name": "Bahnstrecke West",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "sta_train",
+      "end_node": "sta_transfer",
+      "name": "Bahnstrecke Ost",
+      "type": "train",
+      "max_lanes": 2
+    }
+  ],
+  "bus_lines": [
+    {
+      "name": "M1",
+      "comment": "Kiez -> Süd (forward)",
+      "edges": [14, 16],
+      "interval": 15,
+      "capacity": 60
+    },
+    {
+      "name": "M1r",
+      "comment": "Süd -> Kiez (reverse)",
+      "edges": [17, 15],
+      "interval": 15,
+      "capacity": 60
+    }
+  ],
+  "train_lines": [
+    {
+      "name": "S1",
+      "comment": "Umsteigebahnhof -> Bahnhof West",
+      "edges": [26],
+      "interval": 5,
+      "capacity": 500
+    },
+    {
+      "name": "S1r",
+      "comment": "Bahnhof West -> Umsteigebahnhof",
+      "edges": [27],
+      "interval": 5,
+      "capacity": 500
+    }
+  ]
+}

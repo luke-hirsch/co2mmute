@@ -53,15 +53,12 @@ export function buildAdjacencyList(
     adjacency.set(node.id, []);
   }
 
-  // Add edges in both directions (undirected graph)
+  // Add edges in forward direction only (directed graph)
+  // Maps have explicit reverse edges for bidirectional streets
   for (const edge of edges) {
     adjacency.get(edge.start_node)?.push({
       edge,
       neighbor: edge.end_node,
-    });
-    adjacency.get(edge.end_node)?.push({
-      edge,
-      neighbor: edge.start_node,
     });
   }
 
@@ -378,8 +375,8 @@ export async function dijkstra(
 
       segments.unshift({
         edgeId: edge.id,
-        startNode: prev.nodeId,
-        endNode: current,
+        startNode: edge.start_node,
+        endNode: edge.end_node,
         mode: segmentMode,
         distanceM,
         estimatedTimeMin: timeMin,

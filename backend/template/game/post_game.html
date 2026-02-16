@@ -101,11 +101,11 @@
           </div>
           <div class="text-right">
             <span
-              class="font-bold {% if player.co2 == 0 %}text-green-600{% else %}text-gray-700 dark:text-gray-300{% endif %}"
-              >{{ player.co2 }} kg</span
+              class="font-bold {% if player.co2_kg == 0 %}text-green-600{% else %}text-gray-700 dark:text-gray-300{% endif %}"
+              >{{ player.co2_kg }} kg</span
             >
             <span class="text-xs text-muted dark:text-darkmutedtext ml-2"
-              >({{ player.move_count }} moves)</span
+              >{{ player.modes }}</span
             >
           </div>
         </div>
@@ -116,6 +116,33 @@
         {% endfor %}
       </div>
     </div>
+
+    <!-- Per-Round Breakdown -->
+    {% if round_stats %}
+    <div class="mb-8">
+      <h3 class="text-lg font-semibold mb-4">Per-Round Breakdown</h3>
+      <div class="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 dark:bg-gray-800">
+            <tr>
+              <th class="px-4 py-2 text-left font-medium text-muted dark:text-darkmutedtext">Round</th>
+              <th class="px-4 py-2 text-right font-medium text-muted dark:text-darkmutedtext">CO&#8322;</th>
+              <th class="px-4 py-2 text-right font-medium text-muted dark:text-darkmutedtext">Cost</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+            {% for round in round_stats %}
+            <tr>
+              <td class="px-4 py-2">Round {{ round.number }}</td>
+              <td class="px-4 py-2 text-right font-medium">{{ round.emissions_kg }} kg</td>
+              <td class="px-4 py-2 text-right">€{{ round.cost_eur }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
 
     <!-- Actions -->
     <div class="pt-6 border-t border-gray-200 dark:border-gray-700">

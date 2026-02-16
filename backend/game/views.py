@@ -317,58 +317,89 @@ class PostGameView(GameAccessCookieMixin, PlayerCookieMixin, TemplateView):
         game = self.game_session
         players = Player.objects.filter(game=game, left_at__isnull=True)
 
-        from .models import GameRound, PlayerMove
+        from .models import AgentRoute, AgentSimulationResult, GameRound, PlayerMove
 
+        completed_rounds = GameRound.objects.filter(
+            game=game, status=GameRound.Status.COMPLETED
+        ).order_by("round_number")
+
+        # Use stored round totals (populated by simulation or hardcoded fallback)
+        total_co2_g = sum(r.total_emissions_g for r in completed_rounds)
+        total_co2_kg = total_co2_g / 1000
+
+        # Per-round stats for breakdown
+        round_stats = []
+        for game_round in completed_rounds:
+            round_stats.append({
+                "number": game_round.round_number,
+                "emissions_kg": round(game_round.total_emissions_g / 1000, 2),
+                "cost_eur": round(game_round.total_cost_eur, 2),
+            })
+
+        # Per-player stats: aggregate from simulation results across all rounds
         player_stats = []
-        total_co2 = 0.0
-
-        emission_factors = {
-            "car": 120.0,
-            "public": 60.0,
-            "bike": 0.0,
-            "walk": 0.0,
-        }
-
         for player in players:
-            moves = PlayerMove.objects.filter(player=player)
-            player_co2 = sum(emission_factors.get(move.action, 0) for move in moves)
-            total_co2 += player_co2
-
-            player_stats.append(
-                {
-                    "name": player.name,
-                    "player_id": player.player_id,
-                    "co2": round(player_co2, 2),
-                    "move_count": moves.count(),
-                }
+            moves = PlayerMove.objects.filter(
+                player=player, session_round__in=completed_rounds
             )
+            player_co2_g = 0.0
+            player_cost_eur = 0.0
+            modes_used = set()
 
-        player_stats.sort(key=lambda x: x["co2"])
+            # Try simulation results first
+            agent_results = AgentSimulationResult.objects.filter(
+                agent_route__player_move__in=moves
+            ).select_related("agent_route")
 
+            if agent_results.exists():
+                for result in agent_results:
+                    player_co2_g += result.total_co2_g
+                    player_cost_eur += result.mean_cost_eur
+                    modes_used.add(result.agent_route.transport_mode)
+            else:
+                # Fallback: use AgentRoute transport modes with simple factors
+                agent_routes = AgentRoute.objects.filter(player_move__in=moves)
+                fallback_emissions = {
+                    "car": 166.8, "public": 60.0, "bike": 18.0, "walk": 0.0,
+                }
+                for route in agent_routes:
+                    dist_km = route.total_distance_m / 1000
+                    player_co2_g += fallback_emissions.get(route.transport_mode, 0) * dist_km
+                    modes_used.add(route.transport_mode)
+
+            player_stats.append({
+                "name": player.name,
+                "player_id": player.player_id,
+                "co2_kg": round(player_co2_g / 1000, 2),
+                "cost_eur": round(player_cost_eur, 2),
+                "modes": ", ".join(sorted(modes_used)) if modes_used else "—",
+                "move_count": moves.count(),
+            })
+
+        player_stats.sort(key=lambda x: x["co2_kg"])
         for i, stat in enumerate(player_stats):
             stat["rank"] = i + 1
 
-        # Get round count
-        rounds_played = GameRound.objects.filter(game=game, status="completed").count()
+        rounds_played = completed_rounds.count()
 
-        # Determine game outcome
-        co2_limit_exceeded = total_co2 > game.max_CO2_level
-
-        context.update(
-            {
-                "game": game,
-                "player_stats": player_stats,
-                "total_co2": round(total_co2, 2),
-                "max_co2": game.max_CO2_level,
-                "co2_percentage": round(
-                    (total_co2 / max(game.max_CO2_level, 1)) * 100, 1
-                ),
-                "co2_limit_exceeded": co2_limit_exceeded,
-                "rounds_played": rounds_played,
-                "max_rounds": game.max_rounds,
-                "player_count": len(player_stats),
-                "winner": player_stats[0] if player_stats else None,
-            }
+        # max_CO2_level is in kg
+        co2_limit_exceeded = total_co2_kg > game.max_CO2_level
+        co2_percentage = round(
+            (total_co2_kg / max(game.max_CO2_level, 1)) * 100, 1
         )
+
+        context.update({
+            "game": game,
+            "player_stats": player_stats,
+            "total_co2": round(total_co2_kg, 2),
+            "max_co2": game.max_CO2_level,
+            "co2_percentage": co2_percentage,
+            "co2_limit_exceeded": co2_limit_exceeded,
+            "rounds_played": rounds_played,
+            "max_rounds": game.max_rounds,
+            "player_count": len(player_stats),
+            "winner": player_stats[0] if player_stats else None,
+            "round_stats": round_stats,
+        })
 
         return context
