@@ -1,0 +1,298 @@
+{
+  "scale": 1000,
+  "nodes": [
+    {
+      "id": "home_a",
+      "x": 0,
+      "y": 1,
+      "name": "Home A (West)",
+      "types": ["home"]
+    },
+    {
+      "id": "sta_west",
+      "x": 1,
+      "y": 1,
+      "name": "Station West",
+      "types": ["station"]
+    },
+    {
+      "id": "sta_center",
+      "x": 3,
+      "y": 1,
+      "name": "Station Center",
+      "types": ["station", "intersection"]
+    },
+    {
+      "id": "sta_east",
+      "x": 5,
+      "y": 1,
+      "name": "Station East",
+      "types": ["station"]
+    },
+    {
+      "id": "work_a",
+      "x": 6,
+      "y": 1,
+      "name": "Work A (East)",
+      "types": ["workplace"]
+    },
+    {
+      "id": "sta_south",
+      "x": 3,
+      "y": 3,
+      "name": "Station South",
+      "types": ["station"]
+    },
+    {
+      "id": "work_b",
+      "x": 4,
+      "y": 3,
+      "name": "Work B (South-East)",
+      "types": ["workplace"]
+    },
+    {
+      "id": "home_b",
+      "x": 3,
+      "y": 4,
+      "name": "Home B (South)",
+      "types": ["home"]
+    }
+  ],
+  "edges": [
+    {
+      "start_node": "home_a",
+      "end_node": "sta_west",
+      "name": "Walk Home A - Station West",
+      "type": "street",
+      "walking": true,
+      "biking": true,
+      "speed_limit": 50,
+      "lanes": 1,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "sta_west",
+      "end_node": "home_a",
+      "name": "Walk Station West - Home A",
+      "type": "street",
+      "walking": true,
+      "biking": true,
+      "speed_limit": 50,
+      "lanes": 1,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "sta_west",
+      "end_node": "sta_center",
+      "name": "Street West - Center",
+      "type": "street",
+      "walking": true,
+      "biking": true,
+      "speed_limit": 50,
+      "lanes": 2,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "sta_center",
+      "end_node": "sta_west",
+      "name": "Street Center - West",
+      "type": "street",
+      "walking": true,
+      "biking": true,
+      "speed_limit": 50,
+      "lanes": 2,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "sta_center",
+      "end_node": "sta_east",
+      "name": "Street Center - East",
+      "type": "street",
+      "walking": true,
+      "biking": true,
+      "speed_limit": 50,
+      "lanes": 2,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "sta_east",
+      "end_node": "sta_center",
+      "name": "Street East - Center",
+      "type": "street",
+      "walking": true,
+      "biking": true,
+      "speed_limit": 50,
+      "lanes": 2,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "sta_east",
+      "end_node": "work_a",
+      "name": "Walk Station East - Work A",
+      "type": "street",
+      "walking": true,
+      "biking": true,
+      "speed_limit": 50,
+      "lanes": 1,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "work_a",
+      "end_node": "sta_east",
+      "name": "Walk Work A - Station East",
+      "type": "street",
+      "walking": true,
+      "biking": true,
+      "speed_limit": 50,
+      "lanes": 1,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "sta_center",
+      "end_node": "sta_south",
+      "name": "Street Center - South",
+      "type": "street",
+      "walking": true,
+      "biking": true,
+      "speed_limit": 50,
+      "lanes": 1,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "sta_south",
+      "end_node": "sta_center",
+      "name": "Street South - Center",
+      "type": "street",
+      "walking": true,
+      "biking": true,
+      "speed_limit": 50,
+      "lanes": 1,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "sta_south",
+      "end_node": "work_b",
+      "name": "Walk Station South - Work B",
+      "type": "street",
+      "walking": true,
+      "biking": true,
+      "speed_limit": 50,
+      "lanes": 1,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "work_b",
+      "end_node": "sta_south",
+      "name": "Walk Work B - Station South",
+      "type": "street",
+      "walking": true,
+      "biking": true,
+      "speed_limit": 50,
+      "lanes": 1,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "sta_south",
+      "end_node": "home_b",
+      "name": "Walk Station South - Home B",
+      "type": "street",
+      "walking": true,
+      "biking": true,
+      "speed_limit": 50,
+      "lanes": 1,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "home_b",
+      "end_node": "sta_south",
+      "name": "Walk Home B - Station South",
+      "type": "street",
+      "walking": true,
+      "biking": true,
+      "speed_limit": 50,
+      "lanes": 1,
+      "max_lanes": 2
+    },
+    {
+      "start_node": "sta_west",
+      "end_node": "sta_center",
+      "name": "Train L1 West-Center",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "sta_center",
+      "end_node": "sta_east",
+      "name": "Train L1 Center-East",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "sta_east",
+      "end_node": "sta_center",
+      "name": "Train L1r East-Center",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "sta_center",
+      "end_node": "sta_west",
+      "name": "Train L1r Center-West",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "sta_center",
+      "end_node": "sta_south",
+      "name": "Train L2 Center-South",
+      "type": "train",
+      "max_lanes": 2
+    },
+    {
+      "start_node": "sta_south",
+      "end_node": "sta_center",
+      "name": "Train L2r South-Center",
+      "type": "train",
+      "max_lanes": 2
+    }
+  ],
+  "bus_lines": [
+    {
+      "name": "M1",
+      "comment": "Bus along main street: Home A -> Work A",
+      "edges": [0, 2, 4, 6],
+      "interval": 5,
+      "capacity": 60
+    }
+  ],
+  "train_lines": [
+    {
+      "name": "L1",
+      "comment": "Eastbound: West -> Center -> East",
+      "edges": [14, 15],
+      "interval": 5,
+      "capacity": 500
+    },
+    {
+      "name": "L1r",
+      "comment": "Westbound: East -> Center -> West",
+      "edges": [16, 17],
+      "interval": 5,
+      "capacity": 500
+    },
+    {
+      "name": "L2",
+      "comment": "Southbound: Center -> South",
+      "edges": [18],
+      "interval": 10,
+      "capacity": 300
+    },
+    {
+      "name": "L2r",
+      "comment": "Northbound: South -> Center",
+      "edges": [19],
+      "interval": 10,
+      "capacity": 300
+    }
+  ]
+}

@@ -137,7 +137,7 @@ def assign_agent_nodes(game_session: GameSession, player: Player) -> dict | None
         Node.objects.filter(
             game_map=game_map,
             map_versions=base_version,
-            node_type__name__in=["workplace", "station", "bus_stop"],
+            node_type__name__in=["workplace"],
         ).values_list("id", flat=True)
     )
 

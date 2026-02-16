@@ -144,7 +144,7 @@ export default function GamePlay({
     clearAgentRoute,
     allRoutesComplete,
     getSubmissionPayload,
-  } = useAgentRoutes(agentAssignments, { scale: 100 });
+  } = useAgentRoutes(agentAssignments, { scale: (mapGraph as ExtendedMapGraph)?.scale ?? 100 });
 
   // Reset submission state when round changes
   useEffect(() => {
@@ -190,7 +190,7 @@ export default function GamePlay({
       ...mapGraph,
       bus_lines: (mapGraph as ExtendedMapGraph).bus_lines ?? [],
       train_lines: (mapGraph as ExtendedMapGraph).train_lines ?? [],
-      scale: 100,
+      scale: (mapGraph as ExtendedMapGraph).scale ?? 100,
     };
 
     await findAgentRoute(agentId, extendedGraph, homeNode);
