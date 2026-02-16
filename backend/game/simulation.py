@@ -4,7 +4,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Tuple
 
-from maps.models import Edge, StreetPerRound
+from maps.models import BusLine, Edge, StreetPerRound, TrainLine
 
 from game.models import (
     AgentRoute,
@@ -14,6 +14,16 @@ from game.models import (
     RouteSegment,
     SimulationResult,
 )
+
+# Emission factors from Mobility models (defaults)
+CAR_EMISSIONS_G_PER_KM = 166.8  # g CO2e per vehicle-km (1 person = 1 vehicle)
+BUS_EMISSIONS_G_PER_VEHICLE_KM = 1200.0  # g CO2e per bus-km
+TRAIN_EMISSIONS_G_PER_VEHICLE_KM = 3500.0  # g CO2e per train-km
+
+# Cost factors from Mobility models (defaults)
+CAR_COST_PER_KM = 0.32  # € per vehicle-km
+BUS_COST_PER_VEHICLE_KM = 4.5  # € per bus-km
+TRAIN_COST_PER_VEHICLE_KM = 12.0  # € per train-km
 
 logger = logging.getLogger(__name__)
 
@@ -716,14 +726,15 @@ class TrafficSimulator:
             mean_trip_time = sum(trip_times) / len(trip_times)
             mean_delay = sum(delays) / len(delays) if delays else 0.0
 
-            # Calculate CO2 based on mode
-            co2 = self._calculate_co2(route, mean_trip_time)
+            # Calculate CO2 and cost based on mode and segments
+            co2, cost = self._calculate_emissions_and_cost(route)
             total_co2 += co2
+            total_cost += cost
 
             logger.debug(
                 f"[SIM] Agent {agent_id} ({route.transport_mode}): "
                 f"trips={len(trip_times)}, avg_time={mean_trip_time:.1f}min, "
-                f"avg_delay={mean_delay:.1f}min, CO2={co2:.0f}g"
+                f"avg_delay={mean_delay:.1f}min, CO2={co2:.0f}g, cost={cost:.2f}EUR"
             )
 
             # Create agent result
@@ -731,6 +742,7 @@ class TrafficSimulator:
                 simulation=self.simulation_result,
                 agent_route=route,
                 mean_trip_time_min=mean_trip_time,
+                mean_cost_eur=cost / self.people_per_agent if self.people_per_agent else 0.0,
                 total_co2_g=co2,
                 congestion_delay_min=mean_delay,
             )
@@ -747,41 +759,79 @@ class TrafficSimulator:
         # Update street speeds for next round
         self._update_street_speeds()
 
-    def _calculate_co2(self, route: AgentRoute, mean_trip_time: float) -> float:
+    def _calculate_emissions_and_cost(self, route: AgentRoute) -> Tuple[float, float]:
         """
-        Calculate CO2 emissions for an agent's route.
+        Calculate CO2 emissions and cost for an agent's route.
 
-        Uses emission factors based on transport mode.
-        For public transport, emissions are divided by average occupancy.
+        Uses Mobility model emission/cost factors per segment:
+        - Car: 166.8 g/vehicle-km, each person drives alone → per-person = per-vehicle
+        - Bus: 1200 g/vehicle-km ÷ capacity = per-person g/km
+        - Train: 3500 g/vehicle-km ÷ capacity = per-person g/km
+        - Bike/Walk: 0 emissions, 0 cost
+
+        Returns:
+            Tuple of (total_co2_g, total_cost_eur) for all people_per_agent persons.
         """
-        # Base CO2 emissions per km (g/km)
-        co2_per_km = {
-            "car": 120,  # Average car
-            "bike": 0,
-            "walk": 0,
-            "public": 30,  # Average PT (divided by occupancy)
-        }
+        segments = self.route_segments.get(route.agent_id, [])
+        if not segments:
+            return 0.0, 0.0
 
-        distance_km = route.total_distance_m / 1000
-        mode = route.transport_mode
+        total_co2_per_person = 0.0
+        total_cost_per_person = 0.0
 
-        base_emission = co2_per_km.get(mode, 0)
+        for seg in segments:
+            edge_state = self.edge_states.get(seg.edge_id)
+            if not edge_state:
+                continue
 
-        # For car, factor in congestion (more emissions at lower speeds)
-        if mode == "car":
-            # Estimate average speed from trip time
-            if mean_trip_time > 0:
-                avg_speed = distance_km / (mean_trip_time / 60)
-                # Apply CO2 factor based on speed
-                if avg_speed < 20:
-                    base_emission *= 1.5
-                elif avg_speed < 40:
-                    base_emission *= 1.2
-                elif avg_speed > 80:
-                    base_emission *= 1.1
+            distance_km = edge_state.distance_m / 1000
 
-        # Total CO2 for all people represented by this agent
-        return base_emission * distance_km * self.people_per_agent
+            if seg.mode == "car":
+                total_co2_per_person += CAR_EMISSIONS_G_PER_KM * distance_km
+                total_cost_per_person += CAR_COST_PER_KM * distance_km
+
+            elif seg.mode == "bus":
+                # Get bus capacity for per-person calculation
+                capacity = self._get_pt_capacity(seg.pt_line_id, "bus")
+                total_co2_per_person += BUS_EMISSIONS_G_PER_VEHICLE_KM * distance_km / capacity
+                total_cost_per_person += BUS_COST_PER_VEHICLE_KM * distance_km / capacity
+
+            elif seg.mode == "train":
+                # Get train capacity for per-person calculation
+                capacity = self._get_pt_capacity(seg.pt_line_id, "train")
+                total_co2_per_person += TRAIN_EMISSIONS_G_PER_VEHICLE_KM * distance_km / capacity
+                total_cost_per_person += TRAIN_COST_PER_VEHICLE_KM * distance_km / capacity
+
+            # bike and walk: 0 emissions, 0 cost
+
+        # Multiply by people_per_agent (each agent represents N persons)
+        total_co2 = total_co2_per_person * self.people_per_agent
+        total_cost = total_cost_per_person * self.people_per_agent
+
+        return total_co2, total_cost
+
+    def _get_pt_capacity(self, pt_line_id: Optional[int], mode: str) -> float:
+        """Get the passenger capacity for a PT line. Returns a default if not found."""
+        if not pt_line_id:
+            return 60.0 if mode == "bus" else 500.0
+
+        if mode == "bus":
+            if not hasattr(self, "_bus_capacities"):
+                self._bus_capacities: Dict[int, int] = {}
+            if pt_line_id not in self._bus_capacities:
+                bus_line = BusLine.objects.filter(id=pt_line_id).first()
+                self._bus_capacities[pt_line_id] = bus_line.bus_capacity if bus_line else 60
+            return max(1.0, float(self._bus_capacities[pt_line_id]))
+
+        if mode == "train":
+            if not hasattr(self, "_train_capacities"):
+                self._train_capacities: Dict[int, int] = {}
+            if pt_line_id not in self._train_capacities:
+                train_line = TrainLine.objects.filter(id=pt_line_id).first()
+                self._train_capacities[pt_line_id] = train_line.train_capacity if train_line else 500
+            return max(1.0, float(self._train_capacities[pt_line_id]))
+
+        return 60.0
 
     def _update_street_speeds(self):
         """Update StreetPerRound with average speeds from simulation."""
