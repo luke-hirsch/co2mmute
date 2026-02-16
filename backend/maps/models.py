@@ -1,10 +1,11 @@
 # from django.core.exceptions import ValidationError
-from django.db import models
 import logging
 import math
-from django.core.exceptions import ValidationError
-from game.models import GameRound
+
 from co2mmute.utils import game_map_clean
+from django.core.exceptions import ValidationError
+from django.db import models
+from game.models import GameRound
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +143,7 @@ class Edge(models.Model):
     )
     biking = models.BooleanField(default=True)
     walking = models.BooleanField(default=True)
-    max_lanes = models.PositiveSmallIntegerField(default=2)
+    max_lanes = models.PositiveSmallIntegerField(default=1)
 
     def euclidean_2d_distance(self):
         dx = self.end_node.x_position - self.start_node.x_position

@@ -32,7 +32,7 @@ function getCO2Factor(speedKmh: number): number {
 export function calculateDistance(
   node1: Node,
   node2: Node,
-  scale: number = 100
+  scale: number = 100,
 ): number {
   const dx = node2.x_position - node1.x_position;
   const dy = node2.y_position - node1.y_position;
@@ -44,7 +44,7 @@ export function calculateDistance(
  */
 export function buildAdjacencyList(
   edges: Edge[],
-  nodes: Node[]
+  nodes: Node[],
 ): Map<number, { edge: Edge; neighbor: number }[]> {
   const adjacency = new Map<number, { edge: Edge; neighbor: number }[]>();
 
@@ -105,7 +105,7 @@ export function calculateEdgeWeight(
   mode: TransportMode,
   optimization: CarOptimization = "time",
   trafficData?: EdgeTrafficData[],
-  scale: number = 100
+  scale: number = 100,
 ): number | null {
   // Check if edge can be used
   if (!canUseEdge(edge, mode)) {
@@ -113,7 +113,8 @@ export function calculateEdgeWeight(
   }
 
   // Calculate distance
-  const distanceM = edge.distance_m ?? calculateDistance(startNode, endNode, scale);
+  const distanceM =
+    edge.distance_m ?? calculateDistance(startNode, endNode, scale);
   const distanceKm = distanceM / 1000;
 
   switch (mode) {
@@ -171,7 +172,7 @@ export async function dijkstra(
     scale?: number;
     onStateChange?: (state: PathfindingState) => void;
     animationDelayMs?: number;
-  } = {}
+  } = {},
 ): Promise<PathfindingResult> {
   const {
     optimization = "time",
@@ -201,7 +202,9 @@ export async function dijkstra(
 
   // Log usable edges for this mode
   const usableEdges = graph.edges.filter((e) => canUseEdge(e, mode));
-  console.log(`[dijkstra] Found ${usableEdges.length}/${graph.edges.length} usable edges for mode ${mode}`);
+  console.log(
+    `[dijkstra] Found ${usableEdges.length}/${graph.edges.length} usable edges for mode ${mode}`,
+  );
 
   if (usableEdges.length === 0) {
     console.error(`[dijkstra] No usable edges found for mode ${mode}!`);
@@ -220,7 +223,10 @@ export async function dijkstra(
   }
 
   // Helper to update state for animation
-  const updateState = async (currentNode: number | null, isComplete: boolean) => {
+  const updateState = async (
+    currentNode: number | null,
+    isComplete: boolean,
+  ) => {
     if (onStateChange) {
       onStateChange({
         isRunning: !isComplete,
@@ -228,7 +234,7 @@ export async function dijkstra(
         currentNode,
         tentativeDistances: new Map(distances),
         previousNodes: new Map(
-          Array.from(previous.entries()).map(([k, v]) => [k, v.nodeId])
+          Array.from(previous.entries()).map(([k, v]) => [k, v.nodeId]),
         ),
         finalPath: null,
         isComplete,
@@ -256,7 +262,9 @@ export async function dijkstra(
 
     // No reachable nodes left
     if (currentNode === null || minDistance === Infinity) {
-      console.warn(`[dijkstra] No path found from ${startNodeId} to ${endNodeId} (mode: ${mode}, visited: ${visited.size}/${graph.nodes.length})`);
+      console.warn(
+        `[dijkstra] No path found from ${startNodeId} to ${endNodeId} (mode: ${mode}, visited: ${visited.size}/${graph.nodes.length})`,
+      );
       await updateState(null, true);
       return {
         success: false,
@@ -303,7 +311,7 @@ export async function dijkstra(
         mode,
         optimization,
         trafficData,
-        scale
+        scale,
       );
 
       if (weight === null) continue; // Edge not usable for this mode
@@ -345,7 +353,8 @@ export async function dijkstra(
     const endNode = nodeMap.get(current);
 
     if (startNode && endNode) {
-      const distanceM = edge.distance_m ?? calculateDistance(startNode, endNode, scale);
+      const distanceM =
+        edge.distance_m ?? calculateDistance(startNode, endNode, scale);
       let timeMin: number;
 
       switch (mode) {
@@ -355,10 +364,11 @@ export async function dijkstra(
         case "bike":
           timeMin = (distanceM / 1000 / BIKE_SPEED_KMH) * 60;
           break;
-        case "car":
+        case "car": {
           const speed = edge.street_edge?.speed_limit ?? DEFAULT_CAR_SPEED_KMH;
           timeMin = (distanceM / 1000 / speed) * 60;
           break;
+        }
         default:
           timeMin = 0;
       }
@@ -382,7 +392,10 @@ export async function dijkstra(
 
   // Calculate totals
   const totalDistanceM = segments.reduce((sum, s) => sum + s.distanceM, 0);
-  const estimatedTimeMin = segments.reduce((sum, s) => sum + s.estimatedTimeMin, 0);
+  const estimatedTimeMin = segments.reduce(
+    (sum, s) => sum + s.estimatedTimeMin,
+    0,
+  );
 
   console.log(`[dijkstra] Path found:`, {
     pathNodes: path.length,
@@ -400,7 +413,7 @@ export async function dijkstra(
       currentNode: null,
       tentativeDistances: new Map(distances),
       previousNodes: new Map(
-        Array.from(previous.entries()).map(([k, v]) => [k, v.nodeId])
+        Array.from(previous.entries()).map(([k, v]) => [k, v.nodeId]),
       ),
       finalPath: path,
       isComplete: true,
@@ -430,7 +443,7 @@ export async function findPath(
     scale?: number;
     onStateChange?: (state: PathfindingState) => void;
     animationDelayMs?: number;
-  } = {}
+  } = {},
 ): Promise<PathfindingResult> {
   if (mode === "public") {
     // Public transport routing is handled separately in ptRouting.ts
@@ -459,7 +472,7 @@ export async function findBestPath(
     optimization?: CarOptimization;
     trafficData?: EdgeTrafficData[];
     scale?: number;
-  } = {}
+  } = {},
 ): Promise<PathfindingResult> {
   // For non-public modes, just return the standard path
   if (mode !== "public") {
@@ -468,7 +481,13 @@ export async function findBestPath(
 
   // For public transport, we need to compare with walking
   // This is a simplified version - full PT routing is in ptRouting.ts
-  const walkResult = await dijkstra(graph, startNodeId, endNodeId, "walk", options);
+  const walkResult = await dijkstra(
+    graph,
+    startNodeId,
+    endNodeId,
+    "walk",
+    options,
+  );
 
   // Return walking result for now
   // Full PT routing will compare and return best option

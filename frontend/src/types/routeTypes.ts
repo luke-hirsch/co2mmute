@@ -138,6 +138,22 @@ export interface PTRoutingResult {
   error?: string;
 }
 
+// PT routing internal types
+export interface StationLineInfo {
+  line: PTLine;
+  stopIndex: number;
+}
+
+export interface PTRouteCandidate {
+  type: "direct" | "transfer";
+  startStation: { nodeId: number; walkTimeMin: number; walkDistanceM: number };
+  endStation: { nodeId: number; walkTimeMin: number; walkDistanceM: number };
+  legs: { line: PTLine; fromStopIdx: number; toStopIdx: number }[];
+  totalTimeMin: number;
+  totalDistanceM: number;
+  waitTimeMin: number;
+}
+
 // Agent selection state for UI
 export interface AgentSelectionState {
   agentId: number;

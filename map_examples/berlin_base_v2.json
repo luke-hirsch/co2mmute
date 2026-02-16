@@ -1207,6 +1207,174 @@
       "lanes": 1,
       "dedicated_bus_lane": false,
       "max_lanes": 2
+    },
+    {
+      "start_node": "gesundbrunnen_ring",
+      "end_node": "berlin_gesundbrunnen",
+      "name": "Gesundbrunnen Ringbahn Zugang (South)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "berlin_gesundbrunnen",
+      "end_node": "gesundbrunnen_ring",
+      "name": "Gesundbrunnen Ringbahn Zugang (North)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "schoenhauser",
+      "end_node": "berlin_gesundbrunnen",
+      "name": "Schönhauser Allee Zugang (West)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "berlin_gesundbrunnen",
+      "end_node": "schoenhauser",
+      "name": "Schönhauser Allee Zugang (East)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "ostkreuz",
+      "end_node": "ostbahnhof",
+      "name": "Ostkreuz Zugang (West)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "ostbahnhof",
+      "end_node": "ostkreuz",
+      "name": "Ostkreuz Zugang (East)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "treptower_park",
+      "end_node": "ostbahnhof",
+      "name": "Treptower Park Zugang (North)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "ostbahnhof",
+      "end_node": "treptower_park",
+      "name": "Treptower Park Zugang (South)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "neukoelln",
+      "end_node": "kreuzberg_home",
+      "name": "Neukölln Zugang (West)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "kreuzberg_home",
+      "end_node": "neukoelln",
+      "name": "Neukölln Zugang (East)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "tempelhof",
+      "end_node": "south_cross_station",
+      "name": "Tempelhof Zugang (North)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "south_cross_station",
+      "end_node": "tempelhof",
+      "name": "Tempelhof Zugang (South)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "westkreuz",
+      "end_node": "charlottenburg_home2",
+      "name": "Westkreuz Zugang (East)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "charlottenburg_home2",
+      "end_node": "westkreuz",
+      "name": "Westkreuz Zugang (West)",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false,
+      "max_lanes": 1
     }
   ],
   "bus_lines": [
@@ -1294,7 +1462,7 @@
     {
       "name": "S42",
       "comment": "Ringbahn counter-clockwise",
-      "edges": [61, 63, 65, 67, 69, 71, 73, 75, 77],
+      "edges": [77, 75, 73, 71, 69, 67, 65, 63, 61],
       "interval": 5,
       "capacity": 600
     }
