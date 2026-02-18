@@ -3,8 +3,10 @@ from typing import Optional
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
+from django.views import View
 from django.views.generic import CreateView, TemplateView
 
 from .cache import cache_game_session, get_cached_game_session
@@ -315,7 +317,9 @@ class PostGameView(GameAccessCookieMixin, PlayerCookieMixin, TemplateView):
         context = super().get_context_data(**kwargs)
 
         game = self.game_session
-        players = Player.objects.filter(game=game, left_at__isnull=True)
+        players = Player.objects.filter(
+            game=game, left_at__isnull=True, controlled_by_host=False
+        )
 
         from .models import AgentRoute, AgentSimulationResult, GameRound, PlayerMove
 
@@ -358,13 +362,15 @@ class PostGameView(GameAccessCookieMixin, PlayerCookieMixin, TemplateView):
                     modes_used.add(result.agent_route.transport_mode)
             else:
                 # Fallback: use AgentRoute transport modes with simple factors
+                # Multiply by people_per_agent to match simulation-path scale
                 agent_routes = AgentRoute.objects.filter(player_move__in=moves)
                 fallback_emissions = {
                     "car": 166.8, "public": 60.0, "bike": 18.0, "walk": 0.0,
                 }
                 for route in agent_routes:
                     dist_km = route.total_distance_m / 1000
-                    player_co2_g += fallback_emissions.get(route.transport_mode, 0) * dist_km
+                    per_person_co2 = fallback_emissions.get(route.transport_mode, 0) * dist_km
+                    player_co2_g += per_person_co2 * game.people_per_agent
                     modes_used.add(route.transport_mode)
 
             player_stats.append({
@@ -403,3 +409,52 @@ class PostGameView(GameAccessCookieMixin, PlayerCookieMixin, TemplateView):
         })
 
         return context
+
+
+class SimulationLogDownloadView(View):
+    """Download detailed simulation logs for all rounds in a game."""
+
+    def get(self, request, game_id):
+        game_id = game_id.upper()
+        game_session = get_object_or_404(GameSession, game_id=game_id)
+
+        # Access check: host or joined player
+        has_access = (
+            request.user.is_authenticated and request.user == game_session.game_host
+        ) or game_id in request.session.get("joined_game_ids", [])
+
+        if not has_access:
+            return HttpResponse("Unauthorized", status=403)
+
+        from .models import GameRound, SimulationResult
+
+        rounds = GameRound.objects.filter(
+            game=game_session, status=GameRound.Status.COMPLETED
+        ).order_by("round_number")
+
+        parts = []
+        for game_round in rounds:
+            try:
+                sim = SimulationResult.objects.get(game_round=game_round)
+                if sim.detailed_log:
+                    parts.append(sim.detailed_log)
+                else:
+                    parts.append(
+                        f"Round {game_round.round_number}: No detailed log available "
+                        f"(status={sim.status})\n"
+                    )
+            except SimulationResult.DoesNotExist:
+                parts.append(
+                    f"Round {game_round.round_number}: No simulation result found\n"
+                )
+
+        if not parts:
+            content = "No completed rounds found for this game.\n"
+        else:
+            content = ("\n" + "=" * 80 + "\n\n").join(parts)
+
+        response = HttpResponse(content, content_type="text/plain; charset=utf-8")
+        response["Content-Disposition"] = (
+            f'attachment; filename="simulation_log_{game_id}.txt"'
+        )
+        return response

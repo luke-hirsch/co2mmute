@@ -42,7 +42,7 @@
         <div class="flex-1"></div>
         {% endif %}
         <a
-          href="{% url 'map-editor' object.pk %}"
+          href="/app/maps/{{ object.pk }}/editor"
           class="inline-flex items-center gap-2 px-4 py-2 bg-primary-mid text-white rounded-lg hover:bg-primary-dark transition-colors"
         >
           <svg

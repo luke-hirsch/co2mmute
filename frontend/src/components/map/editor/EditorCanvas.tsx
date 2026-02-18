@@ -1,3 +1,4 @@
+import { useRef, useState, useCallback, useEffect } from "react";
 import type { GameMap } from "../../../types/mapTypes";
 import type { ExtendedMapGraph } from "../../../types/routeTypes";
 import type { EditorState, EdgeChange } from "../../../types/editorTypes";
@@ -11,6 +12,7 @@ interface EditorCanvasProps {
   onEdgeClick: (edgeId: number) => void;
   onNodeClick: (nodeId: number) => void;
   onCanvasClick: () => void;
+  onNodeDragEnd?: (nodeId: number, x: number, y: number) => void;
 }
 
 const getEdgeColorAndStyle = (edge: any) => {
@@ -43,6 +45,21 @@ const PT_LINE_COLORS = [
   "#14b8a6", "#f97316", "#6366f1", "#84cc16",
 ];
 
+interface DragState {
+  nodeId: number;
+  startX: number;
+  startY: number;
+}
+
+function clientToSvg(svg: SVGSVGElement, clientX: number, clientY: number) {
+  const ctm = svg.getScreenCTM();
+  if (!ctm) return { x: 0, y: 0 };
+  return {
+    x: (clientX - ctm.e) / ctm.a,
+    y: (clientY - ctm.f) / ctm.d,
+  };
+}
+
 const EditorCanvas = ({
   gameMap,
   mapGraph,
@@ -52,7 +69,88 @@ const EditorCanvas = ({
   onEdgeClick,
   onNodeClick,
   onCanvasClick,
+  onNodeDragEnd,
 }: EditorCanvasProps) => {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const dragRef = useRef<DragState | null>(null);
+  const [dragOffset, setDragOffset] = useState<{ nodeId: number; dx: number; dy: number } | null>(null);
+
+  const isDragMode = state.mode === "graph";
+
+  const handlePointerDown = useCallback(
+    (nodeId: number, e: React.PointerEvent) => {
+      if (!isDragMode || !svgRef.current) return;
+      e.stopPropagation();
+      (e.target as SVGElement).setPointerCapture(e.pointerId);
+      const pt = clientToSvg(svgRef.current, e.clientX, e.clientY);
+      dragRef.current = { nodeId, startX: pt.x, startY: pt.y };
+      setDragOffset({ nodeId, dx: 0, dy: 0 });
+    },
+    [isDragMode]
+  );
+
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!dragRef.current || !svgRef.current) return;
+      const pt = clientToSvg(svgRef.current, e.clientX, e.clientY);
+      const dx = pt.x - dragRef.current.startX;
+      const dy = pt.y - dragRef.current.startY;
+      setDragOffset({ nodeId: dragRef.current.nodeId, dx, dy });
+    },
+    []
+  );
+
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent) => {
+      if (!dragRef.current || !svgRef.current || !mapGraph) return;
+      const drag = dragRef.current;
+      const pt = clientToSvg(svgRef.current, e.clientX, e.clientY);
+      const dx = pt.x - drag.startX;
+      const dy = pt.y - drag.startY;
+      dragRef.current = null;
+      setDragOffset(null);
+
+      // Only fire if actually moved (threshold: 2px in SVG space)
+      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+        const node = mapGraph.nodes.find((n) => n.id === drag.nodeId);
+        if (node && onNodeDragEnd) {
+          const newX = node.x_position + dx / 100;
+          const newY = node.y_position + dy / 100;
+          onNodeDragEnd(drag.nodeId, newX, newY);
+        }
+      } else {
+        // Treat as click
+        onNodeClick(drag.nodeId);
+      }
+    },
+    [mapGraph, onNodeDragEnd, onNodeClick]
+  );
+
+  // Clean up drag on escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && dragRef.current) {
+        dragRef.current = null;
+        setDragOffset(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // Get position for a node, accounting for drag offset
+  const getNodePos = useCallback(
+    (node: { id: number; x_position: number; y_position: number }) => {
+      const x = node.x_position * 100;
+      const y = node.y_position * 100;
+      if (dragOffset && dragOffset.nodeId === node.id) {
+        return { x: x + dragOffset.dx, y: y + dragOffset.dy };
+      }
+      return { x, y };
+    },
+    [dragOffset]
+  );
+
   if (!mapGraph || mapGraph.nodes.length === 0) {
     // Show empty canvas with background image if available
     const w = gameMap.x_dim * 100;
@@ -60,6 +158,7 @@ const EditorCanvas = ({
     return (
       <div className="bg-white dark:bg-slate-900 rounded-lg shadow-lg border border-subtle dark:border-darksubtle overflow-hidden">
         <svg
+          ref={svgRef}
           viewBox={`-60 -60 ${w + 120} ${h + 120}`}
           className="w-full"
           style={{ aspectRatio: `${w + 120}/${h + 120}`, minHeight: "500px" }}
@@ -115,12 +214,15 @@ const EditorCanvas = ({
   return (
     <div className="bg-white dark:bg-slate-900 rounded-lg shadow-lg border border-subtle dark:border-darksubtle overflow-hidden">
       <svg
+        ref={svgRef}
         viewBox={`${minX} ${minY} ${width} ${height}`}
         className="w-full"
         style={{ aspectRatio: `${width}/${height}`, minHeight: "500px" }}
         onClick={(e) => {
           if (e.target === e.currentTarget) onCanvasClick();
         }}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
       >
         <defs>
           <pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse">
@@ -157,13 +259,13 @@ const EditorCanvas = ({
                   const sn = nodeById.get(edge.start_node);
                   const en = nodeById.get(edge.end_node);
                   if (!sn || !en) return null;
+                  const p1 = getNodePos(sn);
+                  const p2 = getNodePos(en);
                   return (
                     <line
                       key={`ptline-edge-${line.id}-${edgeId}`}
-                      x1={sn.x_position * 100}
-                      y1={sn.y_position * 100}
-                      x2={en.x_position * 100}
-                      y2={en.y_position * 100}
+                      x1={p1.x} y1={p1.y}
+                      x2={p2.x} y2={p2.y}
                       stroke={color}
                       strokeWidth="6"
                       opacity={0.35}
@@ -183,13 +285,13 @@ const EditorCanvas = ({
           const sn = nodeById.get(edge.start_node);
           const en = nodeById.get(edge.end_node);
           if (!sn || !en) return null;
+          const p1 = getNodePos(sn);
+          const p2 = getNodePos(en);
           return (
             <g key={`ptline-new-${edgeId}`}>
               <line
-                x1={sn.x_position * 100}
-                y1={sn.y_position * 100}
-                x2={en.x_position * 100}
-                y2={en.y_position * 100}
+                x1={p1.x} y1={p1.y}
+                x2={p2.x} y2={p2.y}
                 stroke="#fbbf24"
                 strokeWidth="8"
                 opacity={0.6}
@@ -197,8 +299,8 @@ const EditorCanvas = ({
                 strokeDasharray="10,5"
               />
               <text
-                x={(sn.x_position * 100 + en.x_position * 100) / 2}
-                y={(sn.y_position * 100 + en.y_position * 100) / 2 - 8}
+                x={(p1.x + p2.x) / 2}
+                y={(p1.y + p2.y) / 2 - 8}
                 textAnchor="middle"
                 fontSize="10"
                 fill="#fbbf24"
@@ -216,10 +318,8 @@ const EditorCanvas = ({
           const endNode = nodeById.get(edge.end_node);
           if (!startNode || !endNode) return null;
 
-          const x1 = startNode.x_position * 100;
-          const y1 = startNode.y_position * 100;
-          const x2 = endNode.x_position * 100;
-          const y2 = endNode.y_position * 100;
+          const p1 = getNodePos(startNode);
+          const p2 = getNodePos(endNode);
           const isSelected = state.selectedEdgeIds.has(edge.id);
           const isInPtRoute = ptLineEdgeIds.includes(edge.id);
           const isChanged = changedEdgeIds.has(edge.id);
@@ -230,7 +330,7 @@ const EditorCanvas = ({
               {/* Diff highlight */}
               {isChanged && state.mode === "version-diff" && (
                 <line
-                  x1={x1} y1={y1} x2={x2} y2={y2}
+                  x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
                   stroke="#fbbf24"
                   strokeWidth="8"
                   opacity={0.4}
@@ -238,7 +338,7 @@ const EditorCanvas = ({
                 />
               )}
               <line
-                x1={x1} y1={y1} x2={x2} y2={y2}
+                x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
                 stroke={stroke}
                 strokeWidth={isSelected ? "3" : "2"}
                 strokeDasharray={strokeDasharray}
@@ -255,31 +355,37 @@ const EditorCanvas = ({
 
         {/* Nodes */}
         {mapGraph.nodes.map((node) => {
-          const x = node.x_position * 100;
-          const y = node.y_position * 100;
+          const pos = getNodePos(node);
           const isSelected = state.selectedNodeId === node.id;
+          const isDragging = dragOffset?.nodeId === node.id;
           const radius = isSelected ? 14 : 10;
 
           return (
             <g key={`node-${node.id}`}>
               <circle
-                cx={x}
-                cy={y}
+                cx={pos.x}
+                cy={pos.y}
                 r={radius}
                 fill={getNodeColor(node.node_type)}
                 stroke={isSelected ? "#000" : "none"}
                 strokeWidth={isSelected ? "2" : "0"}
-                className="cursor-pointer transition-all"
+                className={isDragMode ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}
+                style={{ transition: isDragging ? "none" : "all 0.15s" }}
+                onPointerDown={(e) => handlePointerDown(node.id, e)}
                 onClick={(e) => {
-                  e.stopPropagation();
-                  onNodeClick(node.id);
+                  // Only fire click if not in drag mode (drag mode handles clicks in pointerUp)
+                  if (!isDragMode) {
+                    e.stopPropagation();
+                    onNodeClick(node.id);
+                  }
                 }}
               />
-              {isSelected && (
+              {(isSelected || isDragging) && (
                 <text
-                  x={x} y={y + radius + 15}
+                  x={pos.x} y={pos.y + radius + 15}
                   textAnchor="middle" fontSize="11" fill="currentColor"
                   className="text-main dark:text-darktext pointer-events-none font-semibold"
+                  style={{ transition: isDragging ? "none" : "all 0.15s" }}
                 >
                   {node.name}
                 </text>

@@ -65,6 +65,32 @@ export const useUpdateImageTransform = (mapId: string | number) => {
   });
 };
 
+export const useUpdateNodePosition = (mapId: string | number) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      nodeId,
+      x_position,
+      y_position,
+    }: {
+      nodeId: number;
+      x_position: number;
+      y_position: number;
+    }) => {
+      return apiFetch(
+        `${API_BASE_URL}/api/maps/${mapId}/nodes/${nodeId}/`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ x_position, y_position }),
+        }
+      );
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["mapGraph", mapId] });
+    },
+  });
+};
+
 export const useCreateVersionFromDiff = (mapId: string | number) => {
   const qc = useQueryClient();
   return useMutation({

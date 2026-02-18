@@ -330,6 +330,7 @@ class SimulationResult(models.Model):
     total_co2_g = models.FloatField(default=0.0)
     total_cost_eur = models.FloatField(default=0.0)
     error_message = models.TextField(null=True, blank=True)
+    detailed_log = models.TextField(null=True, blank=True)
 
     def __str__(self):
         return f"Simulation for {self.game_round}"

@@ -1,4 +1,6 @@
+import io
 import logging
+import math
 import random
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -47,7 +49,7 @@ FALLBACK_TRAIN_SPEED_KMH = 40
 class Vehicle:
     """Represents a single vehicle/person in the simulation."""
 
-    agent_id: int
+    route_pk: int
     person_index: int  # 0-999 for each agent
     mode: str  # car, bus, train, bike, walk
     segment_index: int  # Current segment in route
@@ -58,6 +60,7 @@ class Vehicle:
     arrived: bool = False
     waiting_for_pt: bool = False
     pt_vehicle_id: Optional[int] = None
+    passenger_count: int = 1  # Number of people this vehicle carries (>1 for PT vehicles)
 
 
 @dataclass
@@ -70,6 +73,43 @@ class PTVehicle:
     passenger_count: int
     capacity: int
     departure_tick: int  # When this vehicle starts its route
+
+
+class SimulationLog:
+    """Collects detailed simulation logs into a downloadable text report."""
+
+    def __init__(self):
+        self._buf = io.StringIO()
+        self._edge_names: Dict[int, str] = {}  # edge_id -> name
+        self._route_labels: Dict[int, str] = {}  # route_pk -> "Player/Agent#N (mode)"
+        # Per-edge per-route sample tracking: (route_pk, edge_id) -> {enter_tick, exit_tick, ...}
+        self._sample_edge_events: Dict[Tuple[int, int], Dict] = {}
+
+    def set_edge_names(self, edge_names: Dict[int, str]):
+        self._edge_names = edge_names
+
+    def set_route_labels(self, route_labels: Dict[int, str]):
+        self._route_labels = route_labels
+
+    def _edge_label(self, edge_id: int) -> str:
+        name = self._edge_names.get(edge_id, "")
+        return f"Edge {edge_id} ({name})" if name else f"Edge {edge_id}"
+
+    def _route_label(self, route_pk: int) -> str:
+        return self._route_labels.get(route_pk, f"Route {route_pk}")
+
+    def write(self, line: str):
+        self._buf.write(line + "\n")
+
+    def header(self, text: str):
+        sep = "=" * 70
+        self._buf.write(f"\n{sep}\n{text}\n{sep}\n")
+
+    def subheader(self, text: str):
+        self._buf.write(f"\n--- {text} ---\n")
+
+    def get_text(self) -> str:
+        return self._buf.getvalue()
 
 
 @dataclass
@@ -240,7 +280,7 @@ class TrafficSimulator:
         # PT vehicles
         self.pt_vehicles: List[PTVehicle] = []
 
-        # Route data indexed by agent_id
+        # Route data indexed by route.pk (globally unique)
         self.agent_routes: Dict[int, AgentRoute] = {}
         self.route_segments: Dict[int, List[RouteSegment]] = {}
 
@@ -248,11 +288,14 @@ class TrafficSimulator:
         self.bus_line_speeds: Dict[int, int] = {}
         self.train_line_speeds: Dict[int, int] = {}
 
-        # Departure schedules: agent_id -> list of (person_index, departure_tick)
+        # Vehicle scaling for PT routes: route_pk -> (num_vehicles, passenger_count)
+        self.route_vehicle_scaling: Dict[int, Tuple[int, int]] = {}
+
+        # Departure schedules: route_pk -> list of (person_index, departure_tick)
         self.departure_schedule: Dict[int, List[Tuple[int, int]]] = {}
 
         # Results tracking
-        self.agent_results: Dict[int, Dict] = {}  # agent_id -> results dict
+        self.agent_results: Dict[int, Dict] = {}  # route_pk -> results dict
 
         # Current simulation tick
         self.current_tick = 0
@@ -260,43 +303,85 @@ class TrafficSimulator:
         # Callback for progress updates
         self.on_progress: Optional[callable] = None
 
+        # Detailed simulation log
+        self.sim_log = SimulationLog()
+
+        # Sample vehicle IDs: route_pk -> vehicle_id (person_index=0, for detailed logging)
+        self.sample_vehicles: Dict[int, int] = {}
+
         # Load routes and initialize edges during construction
         self._load_routes()
         self._initialize_edges()
 
     def _load_routes(self):
         """Load all agent routes for the round."""
-        # Get all player moves for this round
         from game.models import PlayerMove
 
         player_moves = PlayerMove.objects.filter(session_round=self.game_round)
         logger.info(f"[SIM] Loading routes for {player_moves.count()} player moves")
 
+        route_labels = {}
         for move in player_moves:
+            player_name = move.player.name or f"Player {move.player.player_id}"
             routes = AgentRoute.objects.filter(player_move=move).prefetch_related(
                 "segments", "segments__edge"
             )
             for route in routes:
-                self.agent_routes[route.agent_id] = route
+                self.agent_routes[route.pk] = route
                 segments = list(route.segments.order_by("order"))
-                self.route_segments[route.agent_id] = segments
+                self.route_segments[route.pk] = segments
+
+                label = f"{player_name}/Agent#{route.agent_id} ({route.transport_mode})"
+                route_labels[route.pk] = label
 
                 logger.debug(
-                    f"[SIM] Agent {route.agent_id}: mode={route.transport_mode}, "
+                    f"[SIM] Route {route.pk} (agent {route.agent_id}): "
+                    f"mode={route.transport_mode}, "
                     f"distance={route.total_distance_m:.0f}m, segments={len(segments)}"
                 )
 
                 # Initialize result tracking
-                self.agent_results[route.agent_id] = {
+                self.agent_results[route.pk] = {
                     "trip_times": [],
                     "delays": [],
                     "mode": route.transport_mode,
                 }
 
+        self.sim_log.set_route_labels(route_labels)
         logger.info(f"[SIM] Loaded {len(self.agent_routes)} agent routes")
 
-        # Load PT line speeds
+        # Load PT line speeds and compute vehicle scaling
         self._load_pt_line_speeds()
+        self._compute_vehicle_scaling()
+
+    def _compute_vehicle_scaling(self):
+        """Compute how many actual vehicles to spawn per route.
+
+        For car/bike/walk: 1 vehicle per person (people_per_agent vehicles).
+        For bus/train: ceil(people_per_agent / PT_capacity) vehicles,
+        each carrying multiple passengers.
+        """
+        for route_pk, segments in self.route_segments.items():
+            # Find the minimum PT capacity across all PT segments in this route
+            min_pt_capacity = None
+            for seg in segments:
+                if seg.mode in ("bus", "train"):
+                    cap = self._get_pt_capacity(seg.pt_line_id, seg.mode)
+                    if min_pt_capacity is None or cap < min_pt_capacity:
+                        min_pt_capacity = cap
+
+            if min_pt_capacity and min_pt_capacity > 1:
+                num_vehicles = math.ceil(self.people_per_agent / min_pt_capacity)
+                passenger_count = math.ceil(self.people_per_agent / num_vehicles)
+                self.route_vehicle_scaling[route_pk] = (num_vehicles, passenger_count)
+                logger.info(
+                    f"[SIM] Route {route_pk}: PT scaling — "
+                    f"{num_vehicles} vehicles × {passenger_count} passengers "
+                    f"(capacity={min_pt_capacity:.0f})"
+                )
+            else:
+                # Car/bike/walk: 1 person per vehicle
+                self.route_vehicle_scaling[route_pk] = (self.people_per_agent, 1)
 
     def _load_pt_line_speeds(self):
         """Load bus and train line speeds from database."""
@@ -318,14 +403,14 @@ class TrafficSimulator:
         if bus_line_ids:
             bus_lines = BusLine.objects.filter(id__in=bus_line_ids)
             for bus_line in bus_lines:
-                self.bus_line_speeds[bus_line.id] = bus_line.bus_speed_kmh
+                self.bus_line_speeds[bus_line.pk] = bus_line.bus_speed_kmh
             logger.info(f"[SIM] Loaded {len(self.bus_line_speeds)} bus line speeds")
 
         # Load train line speeds
         if train_line_ids:
             train_lines = TrainLine.objects.filter(id__in=train_line_ids)
             for train_line in train_lines:
-                self.train_line_speeds[train_line.id] = train_line.train_speed_kmh
+                self.train_line_speeds[train_line.pk] = train_line.train_speed_kmh
             logger.info(f"[SIM] Loaded {len(self.train_line_speeds)} train line speeds")
 
     def _initialize_edges(self):
@@ -343,6 +428,7 @@ class TrafficSimulator:
             "start_node", "end_node", "game_map"
         )
 
+        edge_names = {}
         for edge in edges:
             # Calculate distance
             distance_m = edge.euclidean_2d_distance() * self.scale
@@ -368,56 +454,76 @@ class TrafficSimulator:
                 has_dedicated_bus_lane=has_dedicated_bus_lane,
             )
 
+            # Build edge name for logging
+            start_name = edge.start_node.name or f"Node {edge.start_node.pk}"
+            end_name = edge.end_node.name or f"Node {edge.end_node.pk}"
+            edge_names[edge.pk] = f"{start_name} → {end_name}"
+
             logger.debug(
                 f"[SIM] Edge {edge.pk}: dist={distance_m:.0f}m, "
                 f"speed={speed_limit}km/h, lanes={lanes}, capacity={capacity}, "
                 f"dedicated_bus_lane={has_dedicated_bus_lane}"
             )
 
+        self.sim_log.set_edge_names(edge_names)
         logger.info(f"[SIM] Initialized {len(self.edge_states)} edge states")
 
     def _generate_departures(self, is_morning: bool = True):
         """Generate departure times for all agents."""
-        base_hour = self.morning_departure_hour if is_morning else self.evening_departure_hour
+        base_hour = (
+            self.morning_departure_hour if is_morning else self.evening_departure_hour
+        )
 
-        for agent_id in self.agent_routes:
+        for route_pk in self.agent_routes:
+            num_vehicles, _ = self.route_vehicle_scaling.get(
+                route_pk, (self.people_per_agent, 1)
+            )
             departures = generate_departure_times(
-                self.people_per_agent,
+                num_vehicles,
                 base_hour,
                 self.departure_std_dev_min,
-                self.tick_duration_min
+                self.tick_duration_min,
             )
-            self.departure_schedule[agent_id] = [
+            self.departure_schedule[route_pk] = [
                 (i, tick) for i, tick in enumerate(departures)
             ]
 
     def _spawn_vehicles(self):
         """Spawn vehicles that should depart at the current tick."""
-        for agent_id, schedule in self.departure_schedule.items():
-            route = self.agent_routes.get(agent_id)
+        for route_pk, schedule in self.departure_schedule.items():
+            route = self.agent_routes.get(route_pk)
             if not route:
                 continue
 
-            segments = self.route_segments.get(agent_id, [])
+            segments = self.route_segments.get(route_pk, [])
             if not segments:
                 continue
 
-            # Find people who should depart at this tick
+            _, passenger_count = self.route_vehicle_scaling.get(
+                route_pk, (self.people_per_agent, 1)
+            )
+
+            # Find vehicles that should depart at this tick
             for person_index, departure_tick in schedule:
                 if departure_tick == self.current_tick:
                     # Create vehicle
                     vehicle = Vehicle(
-                        agent_id=agent_id,
+                        route_pk=route_pk,
                         person_index=person_index,
                         mode=segments[0].mode,  # Start with first segment mode
                         segment_index=0,
                         position_on_edge_m=0.0,
                         departed=True,
+                        passenger_count=passenger_count,
                     )
 
                     vehicle_id = self.next_vehicle_id
                     self.next_vehicle_id += 1
                     self.vehicles[vehicle_id] = vehicle
+
+                    # Track first vehicle (person_index=0) as sample for detailed logging
+                    if person_index == 0:
+                        self.sample_vehicles[route_pk] = vehicle_id
 
                     # Add to first edge
                     first_segment = segments[0]
@@ -437,7 +543,7 @@ class TrafficSimulator:
             if vehicle.arrived or not vehicle.departed:
                 continue
 
-            segments = self.route_segments.get(vehicle.agent_id, [])
+            segments = self.route_segments.get(vehicle.route_pk, [])
             if vehicle.segment_index >= len(segments):
                 vehicle.arrived = True
                 arrived_vehicles.append(vehicle_id)
@@ -451,18 +557,21 @@ class TrafficSimulator:
                 vehicle.segment_index += 1
                 continue
 
-            # Calculate speed based on mode and congestion
+            # Calculate speed based on mode and congestion.
+            # Delay is computed per-tick as the fraction of tick lost to congestion.
             if vehicle.mode in ["car"]:
                 # Cars experience full congestion
                 current_speed = edge_state.get_current_speed()
-                free_flow_time = (
-                    edge_state.distance_m / 1000 / edge_state.free_flow_speed_kmh * 60
-                )
-                actual_time = edge_state.distance_m / 1000 / current_speed * 60
-                delay = max(0, actual_time - free_flow_time)
+                base_speed = edge_state.free_flow_speed_kmh
+                delay = self.tick_duration_min * max(
+                    0, 1 - current_speed / base_speed
+                ) if base_speed > 0 else 0
             elif vehicle.mode == "bus":
                 # Get bus speed from PT line or use fallback
-                if current_segment.pt_line_id and current_segment.pt_line_id in self.bus_line_speeds:
+                if (
+                    current_segment.pt_line_id
+                    and current_segment.pt_line_id in self.bus_line_speeds
+                ):
                     bus_speed = self.bus_line_speeds[current_segment.pt_line_id]
                 else:
                     bus_speed = FALLBACK_BUS_SPEED_KMH
@@ -474,15 +583,16 @@ class TrafficSimulator:
                     delay = 0
                 else:
                     # No dedicated lane: buses stuck in traffic like cars
-                    current_speed = edge_state.get_current_speed()
-                    # Use bus speed as baseline, but apply congestion factor
-                    current_speed = min(bus_speed, current_speed)
-                    free_flow_time = edge_state.distance_m / 1000 / bus_speed * 60
-                    actual_time = edge_state.distance_m / 1000 / current_speed * 60
-                    delay = max(0, actual_time - free_flow_time)
+                    current_speed = min(bus_speed, edge_state.get_current_speed())
+                    delay = self.tick_duration_min * max(
+                        0, 1 - current_speed / bus_speed
+                    ) if bus_speed > 0 else 0
             elif vehicle.mode == "train":
                 # Get train speed from PT line or use fallback
-                if current_segment.pt_line_id and current_segment.pt_line_id in self.train_line_speeds:
+                if (
+                    current_segment.pt_line_id
+                    and current_segment.pt_line_id in self.train_line_speeds
+                ):
                     train_speed = self.train_line_speeds[current_segment.pt_line_id]
                 else:
                     train_speed = FALLBACK_TRAIN_SPEED_KMH
@@ -510,6 +620,30 @@ class TrafficSimulator:
             remaining = edge_state.distance_m - vehicle.position_on_edge_m
 
             if remaining <= 0:
+                # Log per-edge detail for sample vehicles
+                is_sample = self.sample_vehicles.get(vehicle.route_pk) == vehicle_id
+                if is_sample:
+                    free_flow = edge_state.free_flow_speed_kmh
+                    ff_time_min = (
+                        edge_state.distance_m / 1000 / free_flow * 60
+                        if free_flow > 0
+                        else 0
+                    )
+                    actual_time_min = (
+                        edge_state.distance_m / 1000 / max(current_speed, 0.1) * 60
+                    )
+                    self.sim_log.write(
+                        f"  [tick {self.current_tick:>3}] {self.sim_log._route_label(vehicle.route_pk)} | "
+                        f"{self.sim_log._edge_label(current_segment.edge_id)} | "
+                        f"mode={vehicle.mode} | "
+                        f"dist={edge_state.distance_m:.0f}m | "
+                        f"free_flow={free_flow:.0f}km/h ({ff_time_min:.1f}min) | "
+                        f"actual={current_speed:.1f}km/h ({actual_time_min:.1f}min) | "
+                        f"delay={delay:.2f}min | "
+                        f"vehicles_on_edge={edge_state.total_vehicles} | "
+                        f"volume/capacity={edge_state.volume}/{edge_state.capacity}"
+                    )
+
                 # Remove from current edge
                 edge_state.current_vehicles.discard(vehicle_id)
                 edge_state.buses_on_dedicated_lane.discard(vehicle_id)
@@ -538,13 +672,14 @@ class TrafficSimulator:
                         ):
                             next_edge_state.buses_on_dedicated_lane.add(vehicle_id)
 
-        # Record arrival times
+        # Record arrival times (each vehicle may represent multiple passengers)
         for vehicle_id in arrived_vehicles:
             vehicle = self.vehicles[vehicle_id]
-            agent_results = self.agent_results.get(vehicle.agent_id)
+            agent_results = self.agent_results.get(vehicle.route_pk)
             if agent_results:
-                agent_results["trip_times"].append(vehicle.total_travel_time_min)
-                agent_results["delays"].append(vehicle.congestion_delay_min)
+                for _ in range(vehicle.passenger_count):
+                    agent_results["trip_times"].append(vehicle.total_travel_time_min)
+                    agent_results["delays"].append(vehicle.congestion_delay_min)
 
     def _record_edge_traffic(self):
         """Record traffic snapshot for each edge."""
@@ -603,6 +738,50 @@ class TrafficSimulator:
         )
 
         try:
+            # Write log header
+            self.sim_log.header(
+                f"SIMULATION LOG — Round {self.game_round.round_number} "
+                f"(Game: {self.game_round.game.game_name})"
+            )
+            self.sim_log.write(f"Scale: {self.scale} m/unit")
+            self.sim_log.write(f"People per agent: {self.people_per_agent}")
+            self.sim_log.write(f"Tick duration: {self.tick_duration_min} min")
+            self.sim_log.write(f"Max ticks: {max_ticks}")
+            self.sim_log.write(f"Walk speed: {self.walk_speed_kmh} km/h")
+            self.sim_log.write(f"Bike speed: {self.bike_speed_kmh} km/h")
+            self.sim_log.write(f"Default car speed: {self.default_car_speed_kmh} km/h")
+
+            # Log routes
+            self.sim_log.header("ROUTES")
+            for route_pk, route in self.agent_routes.items():
+                segments = self.route_segments.get(route_pk, [])
+                self.sim_log.write(
+                    f"  {self.sim_log._route_label(route_pk)}: "
+                    f"distance={route.total_distance_m:.0f}m, "
+                    f"est_time={route.estimated_time_min:.1f}min, "
+                    f"segments={len(segments)}"
+                )
+                for seg in segments:
+                    es = self.edge_states.get(seg.edge_id)
+                    if es:
+                        self.sim_log.write(
+                            f"    seg {seg.order}: {self.sim_log._edge_label(seg.edge_id)} | "
+                            f"mode={seg.mode} | dist={es.distance_m:.0f}m | "
+                            f"free_flow={es.free_flow_speed_kmh:.0f}km/h | "
+                            f"capacity={es.capacity} | lanes={es.lanes}"
+                            + (f" | pt_line={seg.pt_line_id}" if seg.pt_line_id else "")
+                        )
+
+            # Log edges
+            self.sim_log.header("EDGES")
+            for eid, es in sorted(self.edge_states.items()):
+                self.sim_log.write(
+                    f"  {self.sim_log._edge_label(eid)}: "
+                    f"dist={es.distance_m:.0f}m, speed={es.free_flow_speed_kmh:.0f}km/h, "
+                    f"lanes={es.lanes}, capacity={es.capacity}"
+                    + (", DEDICATED BUS LANE" if es.has_dedicated_bus_lane else "")
+                )
+
             # Routes and edges are already loaded in __init__
             if not self.agent_routes:
                 logger.warning("[SIM] No agent routes found, simulation will be empty")
@@ -613,6 +792,13 @@ class TrafficSimulator:
             logger.info(
                 f"[SIM] Generated {total_departures} departures for "
                 f"{len(self.departure_schedule)} agents"
+            )
+
+            self.sim_log.header("SIMULATION TICK LOG (sample vehicle per route)")
+            self.sim_log.write(
+                f"Total vehicles to spawn: {total_departures} "
+                f"({len(self.departure_schedule)} routes, {self.people_per_agent} people/agent, "
+                f"PT vehicles scaled by capacity)"
             )
 
             # Simulation loop
@@ -633,8 +819,8 @@ class TrafficSimulator:
                 )
                 vehicles_arrived += new_arrived
 
-                # Log progress every 20 ticks
-                if self.current_tick % 20 == 0:
+                # Log progress every 10 ticks to simulation log
+                if self.current_tick % 10 == 0:
                     active = sum(
                         1
                         for v in self.vehicles.values()
@@ -649,17 +835,25 @@ class TrafficSimulator:
                         if s.volume > s.capacity * 0.5
                     ]
 
+                    tick_line = (
+                        f"[tick {self.current_tick:>3}] "
+                        f"spawned={len(self.vehicles)}, active={active}, "
+                        f"arrived={arrived}/{len(self.vehicles)}, "
+                        f"congested_edges={len(congested)}"
+                    )
+                    self.sim_log.write(tick_line)
+
+                    for eid, vol, cap, speed in congested:
+                        self.sim_log.write(
+                            f"    CONGESTION: {self.sim_log._edge_label(eid)} — "
+                            f"{vol}/{cap} vehicles, speed={speed:.1f}km/h "
+                            f"(free_flow={self.edge_states[eid].free_flow_speed_kmh:.0f}km/h)"
+                        )
+
                     logger.info(
                         f"[SIM] Tick {self.current_tick}: active={active}, "
                         f"arrived={arrived}/{len(self.vehicles)}, congested_edges={len(congested)}"
                     )
-
-                    if congested and self.current_tick % 40 == 0:
-                        for eid, vol, cap, speed in congested[:3]:
-                            logger.debug(
-                                f"[SIM]   Edge {eid}: {vol}/{cap} vehicles, "
-                                f"speed={speed:.1f}km/h"
-                            )
 
                 # Record traffic every 5 ticks
                 if self.current_tick % 5 == 0:
@@ -675,6 +869,9 @@ class TrafficSimulator:
                     and self._all_vehicles_arrived()
                     and len(self.vehicles) > 0
                 ):
+                    self.sim_log.write(
+                        f"\n>>> All {len(self.vehicles)} vehicles arrived at tick {self.current_tick}"
+                    )
                     logger.info(
                         f"[SIM] All {len(self.vehicles)} vehicles arrived at tick {self.current_tick}"
                     )
@@ -682,11 +879,24 @@ class TrafficSimulator:
 
                 self.current_tick += 1
 
+            # Log sample vehicle summaries
+            self.sim_log.header("SAMPLE VEHICLE TRIP SUMMARIES")
+            for route_pk, vid in self.sample_vehicles.items():
+                v = self.vehicles.get(vid)
+                if v:
+                    self.sim_log.write(
+                        f"  {self.sim_log._route_label(route_pk)}: "
+                        f"total_time={v.total_travel_time_min:.1f}min, "
+                        f"congestion_delay={v.congestion_delay_min:.2f}min, "
+                        f"arrived={'YES' if v.arrived else 'NO'}"
+                    )
+
             # Calculate final results
             self._calculate_results()
 
             # Update simulation status
             self.simulation_result.status = SimulationResult.Status.COMPLETED
+            self.simulation_result.detailed_log = self.sim_log.get_text()
             self.simulation_result.save()
 
             logger.info(
@@ -698,6 +908,7 @@ class TrafficSimulator:
             logger.exception(f"[SIM] Simulation failed: {e}")
             if self.simulation_result:
                 self.simulation_result.status = SimulationResult.Status.FAILED
+                self.simulation_result.detailed_log = self.sim_log.get_text()
                 self.simulation_result.save()
             raise e
 
@@ -707,32 +918,102 @@ class TrafficSimulator:
         """Calculate final results and store in database."""
         logger.info(f"[SIM] Calculating results for {len(self.agent_results)} agents")
 
+        self.sim_log.header("RESULTS — PER ROUTE")
+
         total_co2 = 0.0
         total_cost = 0.0
 
-        for agent_id, results in self.agent_results.items():
-            route = self.agent_routes.get(agent_id)
+        for route_pk, results in self.agent_results.items():
+            route = self.agent_routes.get(route_pk)
             if not route:
-                logger.warning(f"[SIM] No route found for agent {agent_id}")
+                logger.warning(f"[SIM] No route found for route_pk {route_pk}")
+                self.sim_log.write(f"  WARNING: No route found for route_pk {route_pk}")
                 continue
 
             trip_times = results["trip_times"]
             delays = results["delays"]
 
             if not trip_times:
-                logger.warning(f"[SIM] No trip times recorded for agent {agent_id}")
-                continue
-
-            mean_trip_time = sum(trip_times) / len(trip_times)
-            mean_delay = sum(delays) / len(delays) if delays else 0.0
+                logger.warning(f"[SIM] No trip times recorded for route_pk {route_pk}")
+                self.sim_log.write(
+                    f"  WARNING: No trip times for {self.sim_log._route_label(route_pk)} "
+                    f"(0/{self.people_per_agent} vehicles arrived)"
+                )
+                # Use pathfinding estimate as fallback — but still calculate CO2
+                mean_trip_time = route.estimated_time_min
+                min_trip_time = route.estimated_time_min
+                max_trip_time = route.estimated_time_min
+                mean_delay = 0.0
+            else:
+                mean_trip_time = sum(trip_times) / len(trip_times)
+                min_trip_time = min(trip_times)
+                max_trip_time = max(trip_times)
+                mean_delay = sum(delays) / len(delays) if delays else 0.0
 
             # Calculate CO2 and cost based on mode and segments
             co2, cost = self._calculate_emissions_and_cost(route)
             total_co2 += co2
             total_cost += cost
 
+            co2_per_person = co2 / self.people_per_agent if self.people_per_agent else 0
+            cost_per_person = (
+                cost / self.people_per_agent if self.people_per_agent else 0
+            )
+
+            self.sim_log.subheader(self.sim_log._route_label(route_pk))
+            self.sim_log.write(f"  Distance: {route.total_distance_m:.0f}m")
+            self.sim_log.write(
+                f"  Estimated time (pathfinding): {route.estimated_time_min:.1f}min"
+            )
+            self.sim_log.write(
+                f"  Simulated trip time: "
+                f"mean={mean_trip_time:.1f}min, min={min_trip_time:.1f}min, max={max_trip_time:.1f}min"
+            )
+            self.sim_log.write(f"  Mean congestion delay: {mean_delay:.2f}min")
+            self.sim_log.write(
+                f"  Vehicles arrived: {len(trip_times)}/{self.people_per_agent}"
+            )
+            self.sim_log.write(
+                f"  CO2: {co2:.0f}g total ({co2_per_person:.1f}g per person, {co2 / 1000:.2f}kg total)"
+            )
+            self.sim_log.write(
+                f"  Cost: €{cost:.2f} total (€{cost_per_person:.4f} per person)"
+            )
+
+            # Per-segment emission breakdown
+            segments = self.route_segments.get(route_pk, [])
+            for seg in segments:
+                es = self.edge_states.get(seg.edge_id)
+                if not es:
+                    continue
+                dist_km = es.distance_m / 1000
+                if seg.mode == "car":
+                    seg_co2 = CAR_EMISSIONS_G_PER_KM * dist_km
+                    self.sim_log.write(
+                        f"    seg {seg.order} ({seg.mode}): {es.distance_m:.0f}m → "
+                        f"{seg_co2:.1f}g/person × {self.people_per_agent} = {seg_co2 * self.people_per_agent:.0f}g"
+                    )
+                elif seg.mode == "bus":
+                    cap = self._get_pt_capacity(seg.pt_line_id, "bus")
+                    seg_co2 = BUS_EMISSIONS_G_PER_VEHICLE_KM * dist_km / cap
+                    self.sim_log.write(
+                        f"    seg {seg.order} ({seg.mode}, cap={cap:.0f}): {es.distance_m:.0f}m → "
+                        f"{seg_co2:.2f}g/person × {self.people_per_agent} = {seg_co2 * self.people_per_agent:.0f}g"
+                    )
+                elif seg.mode == "train":
+                    cap = self._get_pt_capacity(seg.pt_line_id, "train")
+                    seg_co2 = TRAIN_EMISSIONS_G_PER_VEHICLE_KM * dist_km / cap
+                    self.sim_log.write(
+                        f"    seg {seg.order} ({seg.mode}, cap={cap:.0f}): {es.distance_m:.0f}m → "
+                        f"{seg_co2:.2f}g/person × {self.people_per_agent} = {seg_co2 * self.people_per_agent:.0f}g"
+                    )
+                else:
+                    self.sim_log.write(
+                        f"    seg {seg.order} ({seg.mode}): {es.distance_m:.0f}m → 0g (zero emission)"
+                    )
+
             logger.debug(
-                f"[SIM] Agent {agent_id} ({route.transport_mode}): "
+                f"[SIM] Route {route_pk} (agent {route.agent_id}, {route.transport_mode}): "
                 f"trips={len(trip_times)}, avg_time={mean_trip_time:.1f}min, "
                 f"avg_delay={mean_delay:.1f}min, CO2={co2:.0f}g, cost={cost:.2f}EUR"
             )
@@ -742,10 +1023,18 @@ class TrafficSimulator:
                 simulation=self.simulation_result,
                 agent_route=route,
                 mean_trip_time_min=mean_trip_time,
-                mean_cost_eur=cost / self.people_per_agent if self.people_per_agent else 0.0,
+                mean_cost_eur=cost / self.people_per_agent
+                if self.people_per_agent
+                else 0.0,
                 total_co2_g=co2,
                 congestion_delay_min=mean_delay,
             )
+
+        # Totals
+        self.sim_log.header("TOTALS")
+        self.sim_log.write(f"Total CO2: {total_co2:.0f}g ({total_co2 / 1000:.2f}kg)")
+        self.sim_log.write(f"Total cost: €{total_cost:.2f}")
+        self.sim_log.write(f"Routes processed: {len(self.agent_results)}")
 
         # Update totals
         self.simulation_result.total_co2_g = total_co2
@@ -772,7 +1061,7 @@ class TrafficSimulator:
         Returns:
             Tuple of (total_co2_g, total_cost_eur) for all people_per_agent persons.
         """
-        segments = self.route_segments.get(route.agent_id, [])
+        segments = self.route_segments.get(route.pk, [])
         if not segments:
             return 0.0, 0.0
 
@@ -793,14 +1082,22 @@ class TrafficSimulator:
             elif seg.mode == "bus":
                 # Get bus capacity for per-person calculation
                 capacity = self._get_pt_capacity(seg.pt_line_id, "bus")
-                total_co2_per_person += BUS_EMISSIONS_G_PER_VEHICLE_KM * distance_km / capacity
-                total_cost_per_person += BUS_COST_PER_VEHICLE_KM * distance_km / capacity
+                total_co2_per_person += (
+                    BUS_EMISSIONS_G_PER_VEHICLE_KM * distance_km / capacity
+                )
+                total_cost_per_person += (
+                    BUS_COST_PER_VEHICLE_KM * distance_km / capacity
+                )
 
             elif seg.mode == "train":
                 # Get train capacity for per-person calculation
                 capacity = self._get_pt_capacity(seg.pt_line_id, "train")
-                total_co2_per_person += TRAIN_EMISSIONS_G_PER_VEHICLE_KM * distance_km / capacity
-                total_cost_per_person += TRAIN_COST_PER_VEHICLE_KM * distance_km / capacity
+                total_co2_per_person += (
+                    TRAIN_EMISSIONS_G_PER_VEHICLE_KM * distance_km / capacity
+                )
+                total_cost_per_person += (
+                    TRAIN_COST_PER_VEHICLE_KM * distance_km / capacity
+                )
 
             # bike and walk: 0 emissions, 0 cost
 
@@ -820,7 +1117,9 @@ class TrafficSimulator:
                 self._bus_capacities: Dict[int, int] = {}
             if pt_line_id not in self._bus_capacities:
                 bus_line = BusLine.objects.filter(id=pt_line_id).first()
-                self._bus_capacities[pt_line_id] = bus_line.bus_capacity if bus_line else 60
+                self._bus_capacities[pt_line_id] = (
+                    bus_line.bus_capacity if bus_line else 60
+                )
             return max(1.0, float(self._bus_capacities[pt_line_id]))
 
         if mode == "train":
@@ -828,7 +1127,9 @@ class TrafficSimulator:
                 self._train_capacities: Dict[int, int] = {}
             if pt_line_id not in self._train_capacities:
                 train_line = TrainLine.objects.filter(id=pt_line_id).first()
-                self._train_capacities[pt_line_id] = train_line.train_capacity if train_line else 500
+                self._train_capacities[pt_line_id] = (
+                    train_line.train_capacity if train_line else 500
+                )
             return max(1.0, float(self._train_capacities[pt_line_id]))
 
         return 60.0

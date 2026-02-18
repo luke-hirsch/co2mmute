@@ -1,6 +1,8 @@
 import { useReducer, useState, useCallback } from "react";
 import { useParams, Link } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useGameMap, useMapGraph, useMapVersions } from "../../../hooks/mapHooks";
+import { useUpdateNodePosition } from "../../../hooks/mapEditorHooks";
 import Loading from "../../Loading";
 import EditorToolbar from "./EditorToolbar";
 import EditorCanvas from "./EditorCanvas";
@@ -127,6 +129,37 @@ const MapEditor = () => {
     dispatch({ type: "CLEAR_SELECTION" });
   }, []);
 
+  const updateNodeMutation = useUpdateNodePosition(mapId);
+  const qc = useQueryClient();
+
+  const handleNodeDragEnd = useCallback(
+    (nodeId: number, x: number, y: number) => {
+      // Optimistically update the cached mapGraph so the node stays in place
+      qc.setQueryData(
+        ["mapGraph", mapId, selectedVersionId],
+        (old: ExtendedMapGraph | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            nodes: old.nodes.map((n) =>
+              n.id === nodeId ? { ...n, x_position: x, y_position: y } : n
+            ),
+          };
+        }
+      );
+      updateNodeMutation.mutate(
+        { nodeId, x_position: x, y_position: y },
+        {
+          onError: () => {
+            // Revert on failure
+            qc.invalidateQueries({ queryKey: ["mapGraph", mapId] });
+          },
+        }
+      );
+    },
+    [mapId, selectedVersionId, qc, updateNodeMutation]
+  );
+
   if (mapLoading || graphLoading) return <Loading />;
   if (!gameMap) {
     return (
@@ -190,6 +223,7 @@ const MapEditor = () => {
               onEdgeClick={handleEdgeClick}
               onNodeClick={handleNodeClick}
               onCanvasClick={handleCanvasClick}
+              onNodeDragEnd={handleNodeDragEnd}
             />
           </div>
 

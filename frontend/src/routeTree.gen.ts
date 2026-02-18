@@ -14,6 +14,7 @@ import { Route as MapsIndexRouteImport } from './routes/maps/index'
 import { Route as GameIndexRouteImport } from './routes/game/index'
 import { Route as MapsMapIdRouteImport } from './routes/maps/$mapId'
 import { Route as GameGameIdRouteImport } from './routes/game/$gameId'
+import { Route as MapsMapIdIndexRouteImport } from './routes/maps/$mapId.index'
 import { Route as MapsMapIdEditorRouteImport } from './routes/maps/$mapId.editor'
 
 const IndexRoute = IndexRouteImport.update({
@@ -41,6 +42,11 @@ const GameGameIdRoute = GameGameIdRouteImport.update({
   path: '/game/$gameId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MapsMapIdIndexRoute = MapsMapIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => MapsMapIdRoute,
+} as any)
 const MapsMapIdEditorRoute = MapsMapIdEditorRouteImport.update({
   id: '/editor',
   path: '/editor',
@@ -51,17 +57,18 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/game/$gameId': typeof GameGameIdRoute
   '/maps/$mapId': typeof MapsMapIdRouteWithChildren
-  '/game': typeof GameIndexRoute
-  '/maps': typeof MapsIndexRoute
+  '/game/': typeof GameIndexRoute
+  '/maps/': typeof MapsIndexRoute
   '/maps/$mapId/editor': typeof MapsMapIdEditorRoute
+  '/maps/$mapId/': typeof MapsMapIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/game/$gameId': typeof GameGameIdRoute
-  '/maps/$mapId': typeof MapsMapIdRouteWithChildren
   '/game': typeof GameIndexRoute
   '/maps': typeof MapsIndexRoute
   '/maps/$mapId/editor': typeof MapsMapIdEditorRoute
+  '/maps/$mapId': typeof MapsMapIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,6 +78,7 @@ export interface FileRoutesById {
   '/game/': typeof GameIndexRoute
   '/maps/': typeof MapsIndexRoute
   '/maps/$mapId/editor': typeof MapsMapIdEditorRoute
+  '/maps/$mapId/': typeof MapsMapIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -78,17 +86,18 @@ export interface FileRouteTypes {
     | '/'
     | '/game/$gameId'
     | '/maps/$mapId'
-    | '/game'
-    | '/maps'
+    | '/game/'
+    | '/maps/'
     | '/maps/$mapId/editor'
+    | '/maps/$mapId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/game/$gameId'
-    | '/maps/$mapId'
     | '/game'
     | '/maps'
     | '/maps/$mapId/editor'
+    | '/maps/$mapId'
   id:
     | '__root__'
     | '/'
@@ -97,6 +106,7 @@ export interface FileRouteTypes {
     | '/game/'
     | '/maps/'
     | '/maps/$mapId/editor'
+    | '/maps/$mapId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -119,14 +129,14 @@ declare module '@tanstack/react-router' {
     '/maps/': {
       id: '/maps/'
       path: '/maps'
-      fullPath: '/maps'
+      fullPath: '/maps/'
       preLoaderRoute: typeof MapsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/game/': {
       id: '/game/'
       path: '/game'
-      fullPath: '/game'
+      fullPath: '/game/'
       preLoaderRoute: typeof GameIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
@@ -144,6 +154,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GameGameIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/maps/$mapId/': {
+      id: '/maps/$mapId/'
+      path: '/'
+      fullPath: '/maps/$mapId/'
+      preLoaderRoute: typeof MapsMapIdIndexRouteImport
+      parentRoute: typeof MapsMapIdRoute
+    }
     '/maps/$mapId/editor': {
       id: '/maps/$mapId/editor'
       path: '/editor'
@@ -156,10 +173,12 @@ declare module '@tanstack/react-router' {
 
 interface MapsMapIdRouteChildren {
   MapsMapIdEditorRoute: typeof MapsMapIdEditorRoute
+  MapsMapIdIndexRoute: typeof MapsMapIdIndexRoute
 }
 
 const MapsMapIdRouteChildren: MapsMapIdRouteChildren = {
   MapsMapIdEditorRoute: MapsMapIdEditorRoute,
+  MapsMapIdIndexRoute: MapsMapIdIndexRoute,
 }
 
 const MapsMapIdRouteWithChildren = MapsMapIdRoute._addFileChildren(

@@ -145,7 +145,14 @@
     {% endif %}
 
     <!-- Actions -->
-    <div class="pt-6 border-t border-gray-200 dark:border-gray-700">
+    <div class="pt-6 border-t border-gray-200 dark:border-gray-700 space-y-3">
+      <a
+        href="{% url 'simulation-log' game.game_id %}"
+        class="block w-full text-center py-3 px-6 bg-gray-600 hover:bg-gray-500 text-white font-semibold rounded-lg transition-colors"
+        download
+      >
+        Download Simulation Log
+      </a>
       <a
         href="/"
         class="block w-full text-center py-3 px-6 bg-primary-600 hover:bg-primary-500 text-white font-semibold rounded-lg transition-colors"

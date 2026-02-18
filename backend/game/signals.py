@@ -468,6 +468,7 @@ def _run_simulation(game_session, game_round, moves):
 
             for agent_result in agent_results:
                 player_emissions += agent_result.total_co2_g
+                player_cost += agent_result.mean_cost_eur
                 player_time += agent_result.mean_trip_time_min
                 agent_details.append({
                     "agent_id": agent_result.agent_route.agent_id,

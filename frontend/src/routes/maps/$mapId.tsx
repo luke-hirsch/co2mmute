@@ -1,15 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { ProtectedLayout } from "../../components/ProtectedLayout";
-import MapDetailRoute from "../../components/map/MapDetailRoute";
 
-function MapDetailWrapper() {
+function MapDetailLayout() {
   return (
     <ProtectedLayout>
-      <MapDetailRoute />
+      <Outlet />
     </ProtectedLayout>
   );
 }
 
 export const Route = createFileRoute("/maps/$mapId")({
-  component: MapDetailWrapper,
+  component: MapDetailLayout,
 });
