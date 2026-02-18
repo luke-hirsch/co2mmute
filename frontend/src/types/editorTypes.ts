@@ -1,9 +1,12 @@
 export type EditorMode = "image" | "graph" | "pt-lines" | "version-diff";
+export type GraphTool = "select" | "add-node" | "add-edge";
 
 export interface EditorState {
   mode: EditorMode;
+  graphTool: GraphTool;
   selectedEdgeIds: Set<number>;
   selectedNodeId: number | null;
+  edgeSourceNodeId: number | null;
   isDirty: boolean;
 }
 
@@ -51,6 +54,9 @@ export interface VersionDiffPayload {
 
 export type EditorAction =
   | { type: "SET_MODE"; mode: EditorMode }
+  | { type: "SET_GRAPH_TOOL"; tool: GraphTool }
+  | { type: "SET_EDGE_SOURCE"; nodeId: number }
+  | { type: "CLEAR_EDGE_SOURCE" }
   | { type: "SELECT_NODE"; nodeId: number | null }
   | { type: "SELECT_EDGE"; edgeId: number }
   | { type: "DESELECT_EDGE"; edgeId: number }

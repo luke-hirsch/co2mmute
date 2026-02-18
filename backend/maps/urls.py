@@ -72,6 +72,11 @@ urlpatterns = [
         views_rest.BusLineDetailView.as_view(),
         name="busline-detail",
     ),
+    path(
+        "<int:pk>/bus-lines/<int:busline_pk>/edges/",
+        views_rest.BusLineEdgesView.as_view(),
+        name="busline-edges",
+    ),
     # TrainEdge endpoints - scoped to specific map
     path(
         "<int:pk>/train-edges/",
@@ -93,6 +98,11 @@ urlpatterns = [
         "<int:pk>/train-lines/<int:trainline_pk>/",
         views_rest.TrainLineDetailView.as_view(),
         name="trainline-detail",
+    ),
+    path(
+        "<int:pk>/train-lines/<int:trainline_pk>/edges/",
+        views_rest.TrainLineEdgesView.as_view(),
+        name="trainline-edges",
     ),
     # Background image upload
     path(

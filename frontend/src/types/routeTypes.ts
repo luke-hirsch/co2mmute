@@ -77,6 +77,7 @@ export interface PTLine {
   type: "bus" | "train";
   interval: number; // Minutes between vehicles
   capacity: number;
+  speed_kmh: number;
   edges: number[]; // Ordered edge IDs
   stops: number[]; // Ordered node IDs (stations/bus_stops)
 }

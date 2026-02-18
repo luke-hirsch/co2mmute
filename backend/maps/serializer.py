@@ -297,6 +297,7 @@ class BusLineSerializer(MapVersionsMixin, serializers.ModelSerializer):
             "name",
             "intervall",
             "bus_capacity",
+            "bus_speed_kmh",
             "edges",
             "map_versions",
         )
@@ -378,6 +379,7 @@ class TrainLineSerializer(MapVersionsMixin, serializers.ModelSerializer):
             "name",
             "intervall",
             "train_capacity",
+            "train_speed_kmh",
             "edges",
             "map_versions",
         )
@@ -427,6 +429,7 @@ class PTLineGraphSerializer(serializers.Serializer):
     type = serializers.CharField()  # "bus" or "train"
     interval = serializers.IntegerField()
     capacity = serializers.IntegerField()
+    speed_kmh = serializers.IntegerField()
     edges = serializers.ListField(child=serializers.IntegerField())
     stops = serializers.ListField(child=serializers.IntegerField())
 
@@ -456,6 +459,7 @@ def serialize_bus_line_for_graph(bus_line, version):
         "type": "bus",
         "interval": bus_line.intervall,
         "capacity": bus_line.bus_capacity,
+        "speed_kmh": bus_line.bus_speed_kmh,
         "edges": edge_ids,
         "stops": stops,
     }
@@ -486,6 +490,7 @@ def serialize_train_line_for_graph(train_line, version):
         "type": "train",
         "interval": train_line.intervall,
         "capacity": train_line.train_capacity,
+        "speed_kmh": train_line.train_speed_kmh,
         "edges": edge_ids,
         "stops": stops,
     }

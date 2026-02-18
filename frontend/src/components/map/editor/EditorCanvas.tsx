@@ -11,7 +11,7 @@ interface EditorCanvasProps {
   edgeChanges: EdgeChange[];
   onEdgeClick: (edgeId: number) => void;
   onNodeClick: (nodeId: number) => void;
-  onCanvasClick: () => void;
+  onCanvasClick: (x?: number, y?: number) => void;
   onNodeDragEnd?: (nodeId: number, x: number, y: number) => void;
 }
 
@@ -75,7 +75,9 @@ const EditorCanvas = ({
   const dragRef = useRef<DragState | null>(null);
   const [dragOffset, setDragOffset] = useState<{ nodeId: number; dx: number; dy: number } | null>(null);
 
-  const isDragMode = state.mode === "graph";
+  const isDragMode = state.mode === "graph" && state.graphTool === "select";
+  const isAddNodeMode = state.mode === "graph" && state.graphTool === "add-node";
+  const isAddEdgeMode = state.mode === "graph" && state.graphTool === "add-edge";
 
   const handlePointerDown = useCallback(
     (nodeId: number, e: React.PointerEvent) => {
@@ -151,37 +153,69 @@ const EditorCanvas = ({
     [dragOffset]
   );
 
+  // Compute background image geometry and optional SVG clip rect
+  const getImageGeometry = (graph: ExtendedMapGraph) => {
+    const imgW = (graph.x_dim ?? gameMap.x_dim) * 100 * (graph.image_scale ?? 1);
+    const imgH = (graph.y_dim ?? gameMap.y_dim) * 100 * (graph.image_scale ?? 1);
+    const imgX = (graph.image_offset_x ?? 0) * 100;
+    const imgY = (graph.image_offset_y ?? 0) * 100;
+    const ct = (graph.image_crop_top ?? 0) / 100;
+    const cr = (graph.image_crop_right ?? 0) / 100;
+    const cb = (graph.image_crop_bottom ?? 0) / 100;
+    const cl = (graph.image_crop_left ?? 0) / 100;
+    const hasCrop = ct > 0 || cr > 0 || cb > 0 || cl > 0;
+    return {
+      imgX, imgY, imgW, imgH, hasCrop,
+      clipX: imgX + imgW * cl,
+      clipY: imgY + imgH * ct,
+      clipW: imgW * (1 - cl - cr),
+      clipH: imgH * (1 - ct - cb),
+    };
+  };
+
   if (!mapGraph || mapGraph.nodes.length === 0) {
     // Show empty canvas with background image if available
     const w = gameMap.x_dim * 100;
     const h = gameMap.y_dim * 100;
+    const img = mapGraph ? getImageGeometry(mapGraph) : null;
     return (
       <div className="bg-white dark:bg-slate-900 rounded-lg shadow-lg border border-subtle dark:border-darksubtle overflow-hidden">
         <svg
           ref={svgRef}
           viewBox={`-60 -60 ${w + 120} ${h + 120}`}
           className="w-full"
-          style={{ aspectRatio: `${w + 120}/${h + 120}`, minHeight: "500px" }}
-          onClick={onCanvasClick}
+          style={{
+            aspectRatio: `${w + 120}/${h + 120}`,
+            minHeight: "500px",
+            cursor: isAddNodeMode ? "crosshair" : undefined,
+          }}
+          onClick={(e) => {
+            if (!svgRef.current) return;
+            const pt = clientToSvg(svgRef.current, e.clientX, e.clientY);
+            onCanvasClick(pt.x / 100, pt.y / 100);
+          }}
         >
           <defs>
             <pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse">
               <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#e5e7eb" strokeWidth="0.5" />
             </pattern>
+            {img?.hasCrop && (
+              <clipPath id="bg-img-clip">
+                <rect x={img.clipX} y={img.clipY} width={img.clipW} height={img.clipH} />
+              </clipPath>
+            )}
           </defs>
           <rect x="-60" y="-60" width={w + 120} height={h + 120} fill="url(#grid)" />
-          {mapGraph?.background_image_url && (
+          {mapGraph?.background_image_url && img && (
             <image
               href={mapGraph.background_image_url}
-              x={(mapGraph.image_offset_x ?? 0) * 100}
-              y={(mapGraph.image_offset_y ?? 0) * 100}
-              width={(mapGraph.x_dim ?? gameMap.x_dim) * 100 * (mapGraph.image_scale ?? 1)}
-              height={(mapGraph.y_dim ?? gameMap.y_dim) * 100 * (mapGraph.image_scale ?? 1)}
+              x={img.imgX}
+              y={img.imgY}
+              width={img.imgW}
+              height={img.imgH}
               opacity={0.5}
               preserveAspectRatio="none"
-              style={{
-                clipPath: `inset(${mapGraph.image_crop_top ?? 0}% ${mapGraph.image_crop_right ?? 0}% ${mapGraph.image_crop_bottom ?? 0}% ${mapGraph.image_crop_left ?? 0}%)`,
-              }}
+              clipPath={img.hasCrop ? "url(#bg-img-clip)" : undefined}
             />
           )}
           <text
@@ -217,9 +251,20 @@ const EditorCanvas = ({
         ref={svgRef}
         viewBox={`${minX} ${minY} ${width} ${height}`}
         className="w-full"
-        style={{ aspectRatio: `${width}/${height}`, minHeight: "500px" }}
+        style={{
+          aspectRatio: `${width}/${height}`,
+          minHeight: "500px",
+          cursor: isAddNodeMode ? "crosshair" : undefined,
+        }}
         onClick={(e) => {
-          if (e.target === e.currentTarget) onCanvasClick();
+          if (e.target === e.currentTarget) {
+            if (isAddNodeMode && svgRef.current) {
+              const pt = clientToSvg(svgRef.current, e.clientX, e.clientY);
+              onCanvasClick(pt.x / 100, pt.y / 100);
+            } else {
+              onCanvasClick();
+            }
+          }
         }}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -229,7 +274,16 @@ const EditorCanvas = ({
             <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#e5e7eb" strokeWidth="0.5" />
           </pattern>
         </defs>
-        <rect x={minX} y={minY} width={width} height={height} fill="url(#grid)" />
+        <rect
+          x={minX} y={minY} width={width} height={height} fill="url(#grid)"
+          onClick={(e) => {
+            if (isAddNodeMode && svgRef.current) {
+              e.stopPropagation();
+              const pt = clientToSvg(svgRef.current, e.clientX, e.clientY);
+              onCanvasClick(pt.x / 100, pt.y / 100);
+            }
+          }}
+        />
 
         {/* Background Image */}
         {mapGraph.background_image_url && (
@@ -371,15 +425,25 @@ const EditorCanvas = ({
                 strokeWidth={isSelected ? "2" : "0"}
                 className={isDragMode ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}
                 style={{ transition: isDragging ? "none" : "all 0.15s" }}
-                onPointerDown={(e) => handlePointerDown(node.id, e)}
+                onPointerDown={(e) => {
+                  if (isDragMode) handlePointerDown(node.id, e);
+                }}
                 onClick={(e) => {
-                  // Only fire click if not in drag mode (drag mode handles clicks in pointerUp)
                   if (!isDragMode) {
                     e.stopPropagation();
                     onNodeClick(node.id);
                   }
                 }}
               />
+              {/* Edge source highlight */}
+              {isAddEdgeMode && state.edgeSourceNodeId === node.id && (
+                <circle
+                  cx={pos.x} cy={pos.y} r={18}
+                  fill="none" stroke="#f59e0b" strokeWidth="3"
+                  strokeDasharray="6,3"
+                  className="pointer-events-none"
+                />
+              )}
               {(isSelected || isDragging) && (
                 <text
                   x={pos.x} y={pos.y + radius + 15}

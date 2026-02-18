@@ -2,7 +2,13 @@ import { useReducer, useState, useCallback } from "react";
 import { useParams, Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useGameMap, useMapGraph, useMapVersions } from "../../../hooks/mapHooks";
-import { useUpdateNodePosition } from "../../../hooks/mapEditorHooks";
+import {
+  useUpdateNodePosition,
+  useCreateNode,
+  useDeleteNode,
+  useCreateEdge,
+  useDeleteEdge,
+} from "../../../hooks/mapEditorHooks";
 import Loading from "../../Loading";
 import EditorToolbar from "./EditorToolbar";
 import EditorCanvas from "./EditorCanvas";
@@ -11,6 +17,7 @@ import type {
   EditorState,
   EditorAction,
   EditorMode,
+  GraphTool,
   EdgeChange,
   PTLineChange,
 } from "../../../types/editorTypes";
@@ -19,8 +26,10 @@ import type { MapVersion } from "../../../types/mapTypes";
 
 const initialState: EditorState = {
   mode: "image",
+  graphTool: "select",
   selectedEdgeIds: new Set(),
   selectedNodeId: null,
+  edgeSourceNodeId: null,
   isDirty: false,
 };
 
@@ -30,9 +39,23 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       return {
         ...state,
         mode: action.mode,
+        graphTool: "select",
         selectedEdgeIds: new Set(),
         selectedNodeId: null,
+        edgeSourceNodeId: null,
       };
+    case "SET_GRAPH_TOOL":
+      return {
+        ...state,
+        graphTool: action.tool,
+        selectedEdgeIds: new Set(),
+        selectedNodeId: null,
+        edgeSourceNodeId: null,
+      };
+    case "SET_EDGE_SOURCE":
+      return { ...state, edgeSourceNodeId: action.nodeId };
+    case "CLEAR_EDGE_SOURCE":
+      return { ...state, edgeSourceNodeId: null };
     case "SELECT_NODE":
       return { ...state, selectedNodeId: action.nodeId, selectedEdgeIds: new Set() };
     case "SELECT_EDGE": {
@@ -55,7 +78,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       return { ...state, selectedEdgeIds: newSet };
     }
     case "CLEAR_SELECTION":
-      return { ...state, selectedEdgeIds: new Set(), selectedNodeId: null };
+      return { ...state, selectedEdgeIds: new Set(), selectedNodeId: null, edgeSourceNodeId: null };
     case "MARK_DIRTY":
       return { ...state, isDirty: true };
     case "MARK_CLEAN":
@@ -81,7 +104,7 @@ const MapEditor = () => {
 
   const [state, dispatch] = useReducer(editorReducer, initialState);
 
-  // PT line creation state
+  // PT line creation/editing state
   const [ptLineEdgeIds, setPtLineEdgeIds] = useState<number[]>([]);
   const [ptLineCreating, setPtLineCreating] = useState<"bus" | "train" | null>(null);
 
@@ -97,9 +120,13 @@ const MapEditor = () => {
     setPtLineChanges([]);
   }, []);
 
+  const handleGraphToolChange = useCallback((tool: GraphTool) => {
+    dispatch({ type: "SET_GRAPH_TOOL", tool });
+  }, []);
+
   const handleEdgeClick = useCallback(
     (edgeId: number) => {
-      if (state.mode === "pt-lines" && ptLineCreating) {
+      if (state.mode === "pt-lines" && (ptLineCreating || state.selectedNodeId === null)) {
         // Toggle edge in PT line route
         setPtLineEdgeIds((prev) =>
           prev.includes(edgeId)
@@ -107,7 +134,6 @@ const MapEditor = () => {
             : [...prev, edgeId]
         );
       } else if (state.mode === "version-diff") {
-        // Select edge for modification
         dispatch({ type: "SELECT_EDGE", edgeId });
       } else {
         // Graph mode: select single edge
@@ -115,26 +141,54 @@ const MapEditor = () => {
         dispatch({ type: "SELECT_EDGE", edgeId });
       }
     },
-    [state.mode, ptLineCreating]
+    [state.mode, ptLineCreating, state.selectedNodeId]
   );
 
   const handleNodeClick = useCallback(
     (nodeId: number) => {
-      dispatch({ type: "SELECT_NODE", nodeId });
+      if (state.mode === "graph" && state.graphTool === "add-edge") {
+        if (state.edgeSourceNodeId === null) {
+          dispatch({ type: "SET_EDGE_SOURCE", nodeId });
+        } else if (state.edgeSourceNodeId !== nodeId) {
+          // Create edge between source and this node
+          handleCreateEdge(state.edgeSourceNodeId, nodeId);
+          dispatch({ type: "CLEAR_EDGE_SOURCE" });
+        }
+      } else {
+        dispatch({ type: "SELECT_NODE", nodeId });
+      }
     },
-    []
+    [state.mode, state.graphTool, state.edgeSourceNodeId]
   );
 
-  const handleCanvasClick = useCallback(() => {
-    dispatch({ type: "CLEAR_SELECTION" });
-  }, []);
+  const handleCanvasClick = useCallback(
+    (x?: number, y?: number) => {
+      if (
+        state.mode === "graph" &&
+        state.graphTool === "add-node" &&
+        x !== undefined &&
+        y !== undefined
+      ) {
+        handleAddNode(x, y);
+      } else {
+        dispatch({ type: "CLEAR_SELECTION" });
+      }
+    },
+    [state.mode, state.graphTool]
+  );
 
+  // Mutations
   const updateNodeMutation = useUpdateNodePosition(mapId);
+  const createNodeMutation = useCreateNode(mapId);
+  const deleteNodeMutation = useDeleteNode(mapId);
+  const createEdgeMutation = useCreateEdge(mapId);
+  const deleteEdgeMutation = useDeleteEdge(mapId);
   const qc = useQueryClient();
+
+  const versionId = selectedVersionId ?? mapGraph?.version_id;
 
   const handleNodeDragEnd = useCallback(
     (nodeId: number, x: number, y: number) => {
-      // Optimistically update the cached mapGraph so the node stays in place
       qc.setQueryData(
         ["mapGraph", mapId, selectedVersionId],
         (old: ExtendedMapGraph | undefined) => {
@@ -151,7 +205,6 @@ const MapEditor = () => {
         { nodeId, x_position: x, y_position: y },
         {
           onError: () => {
-            // Revert on failure
             qc.invalidateQueries({ queryKey: ["mapGraph", mapId] });
           },
         }
@@ -159,6 +212,43 @@ const MapEditor = () => {
     },
     [mapId, selectedVersionId, qc, updateNodeMutation]
   );
+
+  const handleAddNode = useCallback(
+    (x: number, y: number) => {
+      createNodeMutation.mutate({
+        x_position: x,
+        y_position: y,
+        map_versions: versionId ? [versionId] : [],
+      });
+    },
+    [createNodeMutation, versionId]
+  );
+
+  const handleCreateEdge = useCallback(
+    (startNodeId: number, endNodeId: number) => {
+      createEdgeMutation.mutate({
+        start_node: startNodeId,
+        end_node: endNodeId,
+        map_versions: versionId ? [versionId] : [],
+      });
+    },
+    [createEdgeMutation, versionId]
+  );
+
+  const handleDeleteSelected = useCallback(() => {
+    if (state.selectedNodeId) {
+      if (confirm("Delete this node and all its connected edges?")) {
+        deleteNodeMutation.mutate(state.selectedNodeId);
+        dispatch({ type: "CLEAR_SELECTION" });
+      }
+    } else if (state.selectedEdgeIds.size === 1) {
+      const edgeId = [...state.selectedEdgeIds][0];
+      if (confirm("Delete this edge?")) {
+        deleteEdgeMutation.mutate(edgeId);
+        dispatch({ type: "CLEAR_SELECTION" });
+      }
+    }
+  }, [state.selectedNodeId, state.selectedEdgeIds, deleteNodeMutation, deleteEdgeMutation]);
 
   if (mapLoading || graphLoading) return <Loading />;
   if (!gameMap) {
@@ -199,6 +289,10 @@ const MapEditor = () => {
           onModeChange={handleModeChange}
           mapId={mapId}
           gameMap={gameMap}
+          graphTool={state.graphTool}
+          onGraphToolChange={handleGraphToolChange}
+          hasSelection={state.selectedNodeId !== null || state.selectedEdgeIds.size > 0}
+          onDeleteSelected={handleDeleteSelected}
           ptLineCreating={ptLineCreating}
           onStartPtLine={(type) => {
             setPtLineCreating(type);

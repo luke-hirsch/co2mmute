@@ -22,6 +22,7 @@ def invalidate_map_version_graphs(map_pk: int) -> None:
     for version in versions:
         cache_key = f"map_graph:{map_pk}:{version.pk}"
         cache.delete(cache_key)
+    cache.delete(f"map_graph:{map_pk}:None")
 
 
 @receiver(pre_save, sender=MapVersion)

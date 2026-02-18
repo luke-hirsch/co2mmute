@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { API_BASE_URL } from "../config";
 import { apiFetch } from "../utils/api";
-import type { GameMap } from "../types/mapTypes";
+import type { GameMap, NodeType } from "../types/mapTypes";
 import type { ExtendedMapGraph } from "../types/routeTypes";
 
 /**
@@ -49,6 +49,18 @@ export const useMapGraph = (
       return apiFetch(queryUrl);
     },
     enabled: !!mapId,
+  });
+};
+
+/**
+ * Fetch all available node types
+ */
+export const useNodeTypes = () => {
+  return useQuery<NodeType[]>({
+    queryKey: ["nodeTypes"],
+    queryFn: async () => {
+      return apiFetch(`${API_BASE_URL}/api/maps/node-types/`);
+    },
   });
 };
 

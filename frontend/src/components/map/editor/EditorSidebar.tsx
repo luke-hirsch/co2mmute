@@ -68,10 +68,15 @@ const EditorSidebar = ({
 
       {/* Graph mode */}
       {state.mode === "graph" && selectedNode && (
-        <NodePropertyPanel node={selectedNode} />
+        <NodePropertyPanel node={selectedNode} mapId={mapId} />
       )}
       {state.mode === "graph" && selectedEdge && (
-        <EdgePropertyPanel edge={selectedEdge} />
+        <EdgePropertyPanel
+          edge={selectedEdge}
+          mapId={mapId}
+          versionId={mapGraph?.version_id}
+          editable
+        />
       )}
       {state.mode === "graph" && !selectedNode && !selectedEdge && (
         <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle">

@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import type { EditorMode } from "../../../types/editorTypes";
+import type { EditorMode, GraphTool } from "../../../types/editorTypes";
 import type { GameMap } from "../../../types/mapTypes";
 import { useUploadBackgroundImage } from "../../../hooks/mapEditorHooks";
 
@@ -8,6 +8,10 @@ interface EditorToolbarProps {
   onModeChange: (mode: EditorMode) => void;
   mapId: string;
   gameMap: GameMap;
+  graphTool: GraphTool;
+  onGraphToolChange: (tool: GraphTool) => void;
+  hasSelection: boolean;
+  onDeleteSelected: () => void;
   ptLineCreating: "bus" | "train" | null;
   onStartPtLine: (type: "bus" | "train") => void;
   onCancelPtLine: () => void;
@@ -20,11 +24,21 @@ const modes: { key: EditorMode; label: string }[] = [
   { key: "version-diff", label: "Version Diff" },
 ];
 
+const graphTools: { key: GraphTool; label: string }[] = [
+  { key: "select", label: "Select" },
+  { key: "add-node", label: "+ Node" },
+  { key: "add-edge", label: "+ Edge" },
+];
+
 const EditorToolbar = ({
   mode,
   onModeChange,
   mapId,
   gameMap,
+  graphTool,
+  onGraphToolChange,
+  hasSelection,
+  onDeleteSelected,
   ptLineCreating,
   onStartPtLine,
   onCancelPtLine,
@@ -61,7 +75,7 @@ const EditorToolbar = ({
 
       <div className="w-px h-6 bg-subtle dark:bg-darksubtle mx-2" />
 
-      {/* Mode-specific actions */}
+      {/* Image mode actions */}
       {mode === "image" && (
         <>
           <input
@@ -86,6 +100,46 @@ const EditorToolbar = ({
         </>
       )}
 
+      {/* Graph mode actions */}
+      {mode === "graph" && (
+        <>
+          <div className="flex gap-1">
+            {graphTools.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => onGraphToolChange(t.key)}
+                className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
+                  graphTool === t.key
+                    ? "bg-emerald-600 text-white"
+                    : "text-muted dark:text-darkmutedtext hover:bg-body dark:hover:bg-darkbody border border-subtle dark:border-darksubtle"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {hasSelection && (
+            <button
+              onClick={onDeleteSelected}
+              className="px-2.5 py-1 text-xs bg-red-600 text-white rounded-md hover:bg-red-700"
+            >
+              Delete
+            </button>
+          )}
+          {graphTool === "add-node" && (
+            <span className="text-xs text-amber-600 dark:text-amber-400">
+              Click on canvas to place a node
+            </span>
+          )}
+          {graphTool === "add-edge" && (
+            <span className="text-xs text-amber-600 dark:text-amber-400">
+              Click two nodes to connect them
+            </span>
+          )}
+        </>
+      )}
+
+      {/* PT Lines mode actions */}
       {mode === "pt-lines" && !ptLineCreating && (
         <>
           <button

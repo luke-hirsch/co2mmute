@@ -72,6 +72,7 @@ class GameMapDetailView(RetrieveUpdateDestroyAPIView):
     def perform_update(self, serializer):
         """Set updated_by when updating a map."""
         serializer.save(updated_by=self.request.user)
+        _invalidate_map_cache(self.kwargs["pk"])
 
 
 # MapVersion Views
@@ -210,6 +211,18 @@ class BusLineListView(MapScopedQuerysetMixin, ListCreateAPIView):
         map_id = self.get_map_id()
         return BusLine.objects.filter(game_map_id=map_id)
 
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        edge_ids = self.request.data.get("edges", [])
+        if edge_ids:
+            se_by_pk = {se.pk: se for se in StreetEdge.objects.filter(pk__in=edge_ids)}
+            BusLineEdge.objects.bulk_create([
+                BusLineEdge(bus_line=instance, street_edge=se_by_pk[eid], order=idx)
+                for idx, eid in enumerate(edge_ids)
+                if eid in se_by_pk
+            ])
+        _invalidate_map_cache(self.kwargs["pk"])
+
 
 class BusLineDetailView(RetrieveUpdateDestroyAPIView):
     """Retrieve, update, or delete a specific bus line."""
@@ -220,6 +233,39 @@ class BusLineDetailView(RetrieveUpdateDestroyAPIView):
     permission_classes = (IsStaffOrReadOnly,)
     lookup_field = "pk"
     lookup_url_kwarg = "busline_pk"
+
+    def perform_update(self, serializer):
+        serializer.save()
+        _invalidate_map_cache(self.kwargs["pk"])
+
+    def perform_destroy(self, instance):
+        map_pk = self.kwargs["pk"]
+        instance.delete()
+        _invalidate_map_cache(map_pk)
+
+
+class BusLineEdgesView(GenericAPIView):
+    """Replace all edges for a bus line."""
+
+    authentication_classes = (SessionAuthentication,)
+    permission_classes = (IsStaffOrReadOnly,)
+
+    def put(self, request, pk, busline_pk):
+        bus_line = get_object_or_404(BusLine, pk=busline_pk, game_map_id=pk)
+        edge_ids = request.data.get("edges", [])
+        BusLineEdge.objects.filter(bus_line=bus_line).delete()
+        if edge_ids:
+            se_by_pk = {se.pk: se for se in StreetEdge.objects.filter(pk__in=edge_ids)}
+            BusLineEdge.objects.bulk_create([
+                BusLineEdge(bus_line=bus_line, street_edge=se_by_pk[eid], order=idx)
+                for idx, eid in enumerate(edge_ids)
+                if eid in se_by_pk
+            ])
+        _invalidate_map_cache(pk)
+        return Response(
+            BusLineSerializer(bus_line).data,
+            status=status.HTTP_200_OK,
+        )
 
 
 # TrainEdge Views
@@ -260,6 +306,18 @@ class TrainLineListView(MapScopedQuerysetMixin, ListCreateAPIView):
         map_id = self.get_map_id()
         return TrainLine.objects.filter(game_map_id=map_id)
 
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        edge_ids = self.request.data.get("edges", [])
+        if edge_ids:
+            te_by_pk = {te.pk: te for te in TrainEdge.objects.filter(pk__in=edge_ids)}
+            TrainLineEdge.objects.bulk_create([
+                TrainLineEdge(train_line=instance, train_edge=te_by_pk[eid], order=idx)
+                for idx, eid in enumerate(edge_ids)
+                if eid in te_by_pk
+            ])
+        _invalidate_map_cache(self.kwargs["pk"])
+
 
 class TrainLineDetailView(RetrieveUpdateDestroyAPIView):
     """Retrieve, update, or delete a specific train line."""
@@ -270,6 +328,39 @@ class TrainLineDetailView(RetrieveUpdateDestroyAPIView):
     permission_classes = (IsStaffOrReadOnly,)
     lookup_field = "pk"
     lookup_url_kwarg = "trainline_pk"
+
+    def perform_update(self, serializer):
+        serializer.save()
+        _invalidate_map_cache(self.kwargs["pk"])
+
+    def perform_destroy(self, instance):
+        map_pk = self.kwargs["pk"]
+        instance.delete()
+        _invalidate_map_cache(map_pk)
+
+
+class TrainLineEdgesView(GenericAPIView):
+    """Replace all edges for a train line."""
+
+    authentication_classes = (SessionAuthentication,)
+    permission_classes = (IsStaffOrReadOnly,)
+
+    def put(self, request, pk, trainline_pk):
+        train_line = get_object_or_404(TrainLine, pk=trainline_pk, game_map_id=pk)
+        edge_ids = request.data.get("edges", [])
+        TrainLineEdge.objects.filter(train_line=train_line).delete()
+        if edge_ids:
+            te_by_pk = {te.pk: te for te in TrainEdge.objects.filter(pk__in=edge_ids)}
+            TrainLineEdge.objects.bulk_create([
+                TrainLineEdge(train_line=train_line, train_edge=te_by_pk[eid], order=idx)
+                for idx, eid in enumerate(edge_ids)
+                if eid in te_by_pk
+            ])
+        _invalidate_map_cache(pk)
+        return Response(
+            TrainLineSerializer(train_line).data,
+            status=status.HTTP_200_OK,
+        )
 
 
 # Custom Graph View
