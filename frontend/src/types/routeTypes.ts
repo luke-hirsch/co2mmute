@@ -61,6 +61,10 @@ export interface PathfindingState {
   previousNodes: Map<number, number>; // For reconstructing path
   finalPath: number[] | null;
   isComplete: boolean;
+  // Edge-level tracking for Dijkstra visualization
+  exploredEdges: Set<number>; // Edge IDs that have been examined
+  relaxedEdge: number | null; // Edge ID just improved (transient flash)
+  previousEdges: Map<number, number>; // nodeId -> edgeId on shortest path tree
 }
 
 // Traffic data from previous rounds (for car time optimization)

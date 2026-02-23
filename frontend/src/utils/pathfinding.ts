@@ -213,6 +213,9 @@ export async function dijkstra(
   const previous = new Map<number, { nodeId: number; edge: Edge }>();
   const visited = new Set<number>();
   const unvisited = new Set<number>(graph.nodes.map((n) => n.id));
+  const exploredEdges = new Set<number>();
+  const previousEdges = new Map<number, number>(); // nodeId -> edgeId
+  let relaxedEdge: number | null = null;
 
   // Set initial distances
   for (const node of graph.nodes) {
@@ -235,7 +238,12 @@ export async function dijkstra(
         ),
         finalPath: null,
         isComplete,
+        exploredEdges: new Set(exploredEdges),
+        relaxedEdge,
+        previousEdges: new Map(previousEdges),
       });
+      // Clear transient relaxedEdge after emitting
+      relaxedEdge = null;
 
       if (animationDelayMs > 0) {
         await new Promise((resolve) => setTimeout(resolve, animationDelayMs));
@@ -262,7 +270,22 @@ export async function dijkstra(
       console.warn(
         `[dijkstra] No path found from ${startNodeId} to ${endNodeId} (mode: ${mode}, visited: ${visited.size}/${graph.nodes.length})`,
       );
-      await updateState(null, true);
+      if (onStateChange) {
+        onStateChange({
+          isRunning: false,
+          visitedNodes: new Set(visited),
+          currentNode: null,
+          tentativeDistances: new Map(distances),
+          previousNodes: new Map(
+            Array.from(previous.entries()).map(([k, v]) => [k, v.nodeId]),
+          ),
+          finalPath: null,
+          isComplete: true,
+          exploredEdges: new Set(exploredEdges),
+          relaxedEdge: null,
+          previousEdges: new Map(previousEdges),
+        });
+      }
       return {
         success: false,
         path: [],
@@ -313,12 +336,16 @@ export async function dijkstra(
 
       if (weight === null) continue; // Edge not usable for this mode
 
+      exploredEdges.add(edge.id);
+
       const newDistance = (distances.get(currentNode) ?? Infinity) + weight;
       const currentDistance = distances.get(neighbor) ?? Infinity;
 
       if (newDistance < currentDistance) {
         distances.set(neighbor, newDistance);
         previous.set(neighbor, { nodeId: currentNode, edge });
+        previousEdges.set(neighbor, edge.id);
+        relaxedEdge = edge.id;
       }
     }
   }
@@ -331,7 +358,22 @@ export async function dijkstra(
   while (current !== startNodeId) {
     const prev = previous.get(current);
     if (!prev) {
-      await updateState(null, true);
+      if (onStateChange) {
+        onStateChange({
+          isRunning: false,
+          visitedNodes: new Set(visited),
+          currentNode: null,
+          tentativeDistances: new Map(distances),
+          previousNodes: new Map(
+            Array.from(previous.entries()).map(([k, v]) => [k, v.nodeId]),
+          ),
+          finalPath: null,
+          isComplete: true,
+          exploredEdges: new Set(exploredEdges),
+          relaxedEdge: null,
+          previousEdges: new Map(previousEdges),
+        });
+      }
       return {
         success: false,
         path: [],
@@ -414,6 +456,9 @@ export async function dijkstra(
       ),
       finalPath: path,
       isComplete: true,
+      exploredEdges: new Set(exploredEdges),
+      relaxedEdge: null,
+      previousEdges: new Map(previousEdges),
     });
   }
 

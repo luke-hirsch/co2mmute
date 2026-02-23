@@ -15,13 +15,14 @@ interface EditorToolbarProps {
   ptLineCreating: "bus" | "train" | null;
   onStartPtLine: (type: "bus" | "train") => void;
   onCancelPtLine: () => void;
+  versionDiffStep?: 1 | 2;
 }
 
 const modes: { key: EditorMode; label: string }[] = [
   { key: "image", label: "Background Image" },
   { key: "graph", label: "Graph" },
   { key: "pt-lines", label: "PT Lines" },
-  { key: "version-diff", label: "Version Diff" },
+  { key: "version-diff", label: "Versions" },
 ];
 
 const graphTools: { key: GraphTool; label: string }[] = [
@@ -42,6 +43,7 @@ const EditorToolbar = ({
   ptLineCreating,
   onStartPtLine,
   onCancelPtLine,
+  versionDiffStep,
 }: EditorToolbarProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadMutation = useUploadBackgroundImage(mapId);
@@ -169,6 +171,18 @@ const EditorToolbar = ({
             Cancel
           </button>
         </>
+      )}
+
+      {/* Version mode step indicator */}
+      {mode === "version-diff" && versionDiffStep === 1 && (
+        <span className="text-sm text-muted dark:text-darkmutedtext">
+          Step 1: Define version details
+        </span>
+      )}
+      {mode === "version-diff" && versionDiffStep === 2 && (
+        <span className="text-sm text-amber-600 dark:text-amber-400">
+          Step 2: Select edges to modify
+        </span>
       )}
     </div>
   );

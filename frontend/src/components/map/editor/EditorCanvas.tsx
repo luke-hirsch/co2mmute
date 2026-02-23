@@ -78,6 +78,8 @@ const EditorCanvas = ({
   const isDragMode = state.mode === "graph" && state.graphTool === "select";
   const isAddNodeMode = state.mode === "graph" && state.graphTool === "add-node";
   const isAddEdgeMode = state.mode === "graph" && state.graphTool === "add-edge";
+  const isVersionDiffMode = state.mode === "version-diff";
+  const edgesClickable = !isVersionDiffMode || state.versionDiffStep === 2;
 
   const handlePointerDown = useCallback(
     (nodeId: number, e: React.PointerEvent) => {
@@ -214,7 +216,7 @@ const EditorCanvas = ({
               width={img.imgW}
               height={img.imgH}
               opacity={0.5}
-              preserveAspectRatio="none"
+              preserveAspectRatio="xMinYMin meet"
               clipPath={img.hasCrop ? "url(#bg-img-clip)" : undefined}
             />
           )}
@@ -232,12 +234,26 @@ const EditorCanvas = ({
     );
   }
 
-  // Calculate SVG dimensions
+  // Calculate SVG dimensions — always include map bounds so background image stays visible
   const padding = 60;
-  const minX = Math.min(...mapGraph.nodes.map((n) => n.x_position * 100)) - padding;
-  const minY = Math.min(...mapGraph.nodes.map((n) => n.y_position * 100)) - padding;
-  const maxX = Math.max(...mapGraph.nodes.map((n) => n.x_position * 100)) + padding;
-  const maxY = Math.max(...mapGraph.nodes.map((n) => n.y_position * 100)) + padding;
+  const mapW = gameMap.x_dim * 100;
+  const mapH = gameMap.y_dim * 100;
+  const minX = Math.min(
+    0 - padding,
+    ...mapGraph.nodes.map((n) => n.x_position * 100 - padding)
+  );
+  const minY = Math.min(
+    0 - padding,
+    ...mapGraph.nodes.map((n) => n.y_position * 100 - padding)
+  );
+  const maxX = Math.max(
+    mapW + padding,
+    ...mapGraph.nodes.map((n) => n.x_position * 100 + padding)
+  );
+  const maxY = Math.max(
+    mapH + padding,
+    ...mapGraph.nodes.map((n) => n.y_position * 100 + padding)
+  );
   const width = maxX - minX;
   const height = maxY - minY;
 
@@ -269,11 +285,21 @@ const EditorCanvas = ({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
       >
-        <defs>
-          <pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse">
-            <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#e5e7eb" strokeWidth="0.5" />
-          </pattern>
-        </defs>
+        {(() => {
+          const img = getImageGeometry(mapGraph);
+          return (
+            <defs>
+              <pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse">
+                <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#e5e7eb" strokeWidth="0.5" />
+              </pattern>
+              {img.hasCrop && (
+                <clipPath id="bg-img-clip">
+                  <rect x={img.clipX} y={img.clipY} width={img.clipW} height={img.clipH} />
+                </clipPath>
+              )}
+            </defs>
+          );
+        })()}
         <rect
           x={minX} y={minY} width={width} height={height} fill="url(#grid)"
           onClick={(e) => {
@@ -286,20 +312,21 @@ const EditorCanvas = ({
         />
 
         {/* Background Image */}
-        {mapGraph.background_image_url && (
-          <image
-            href={mapGraph.background_image_url}
-            x={(mapGraph.image_offset_x ?? 0) * 100}
-            y={(mapGraph.image_offset_y ?? 0) * 100}
-            width={(mapGraph.x_dim ?? gameMap.x_dim) * 100 * (mapGraph.image_scale ?? 1)}
-            height={(mapGraph.y_dim ?? gameMap.y_dim) * 100 * (mapGraph.image_scale ?? 1)}
-            opacity={0.5}
-            preserveAspectRatio="none"
-            style={{
-              clipPath: `inset(${mapGraph.image_crop_top ?? 0}% ${mapGraph.image_crop_right ?? 0}% ${mapGraph.image_crop_bottom ?? 0}% ${mapGraph.image_crop_left ?? 0}%)`,
-            }}
-          />
-        )}
+        {mapGraph.background_image_url && (() => {
+          const img = getImageGeometry(mapGraph);
+          return (
+            <image
+              href={mapGraph.background_image_url!}
+              x={img.imgX}
+              y={img.imgY}
+              width={img.imgW}
+              height={img.imgH}
+              opacity={0.5}
+              preserveAspectRatio="xMinYMin meet"
+              clipPath={img.hasCrop ? "url(#bg-img-clip)" : undefined}
+            />
+          );
+        })()}
 
         {/* PT Line Overlay — existing lines */}
         {[...(mapGraph.bus_lines ?? []), ...(mapGraph.train_lines ?? [])].map(
@@ -397,8 +424,9 @@ const EditorCanvas = ({
                 strokeWidth={isSelected ? "3" : "2"}
                 strokeDasharray={strokeDasharray}
                 opacity={isSelected || isInPtRoute ? 1 : 0.6}
-                className="cursor-pointer hover:opacity-100 transition-all"
+                className={`${edgesClickable ? "cursor-pointer hover:opacity-100" : ""} transition-all`}
                 onClick={(e) => {
+                  if (!edgesClickable) return;
                   e.stopPropagation();
                   onEdgeClick(edge.id);
                 }}
@@ -423,12 +451,19 @@ const EditorCanvas = ({
                 fill={getNodeColor(node.node_type)}
                 stroke={isSelected ? "#000" : "none"}
                 strokeWidth={isSelected ? "2" : "0"}
-                className={isDragMode ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}
+                className={
+                  isDragMode
+                    ? "cursor-grab active:cursor-grabbing"
+                    : isVersionDiffMode
+                      ? "cursor-default"
+                      : "cursor-pointer"
+                }
                 style={{ transition: isDragging ? "none" : "all 0.15s" }}
                 onPointerDown={(e) => {
                   if (isDragMode) handlePointerDown(node.id, e);
                 }}
                 onClick={(e) => {
+                  if (isVersionDiffMode) return;
                   if (!isDragMode) {
                     e.stopPropagation();
                     onNodeClick(node.id);

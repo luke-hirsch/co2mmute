@@ -1,5 +1,5 @@
-import { useState } from "react";
-import type { MapGraph } from "../../types/mapTypes";
+import { useState, useMemo } from "react";
+import type { MapGraph, Node } from "../../types/mapTypes";
 import type { RouteSegment, SegmentMode, ExtendedMapGraph } from "../../types/routeTypes";
 
 interface GameMapViewerProps {
@@ -13,6 +13,13 @@ interface GameMapViewerProps {
   highlightedNodes?: Set<number>;
   pathfindingVisited?: Set<number>;
   pathfindingCurrent?: number | null;
+  // Dijkstra visualization props
+  pathfindingExploredEdges?: Set<number>;
+  pathfindingRelaxedEdge?: number | null;
+  pathfindingDistances?: Map<number, number>;
+  pathfindingFinalPath?: number[] | null;
+  pathfindingPreviousEdges?: Map<number, number>;
+  showDijkstraViz?: boolean;
 }
 
 // Colors for different transport modes on route segments
@@ -38,8 +45,21 @@ const GameMapViewer = ({
   highlightedNodes,
   pathfindingVisited,
   pathfindingCurrent,
+  pathfindingExploredEdges,
+  pathfindingRelaxedEdge,
+  pathfindingDistances,
+  pathfindingFinalPath,
+  pathfindingPreviousEdges,
+  showDijkstraViz = false,
 }: GameMapViewerProps) => {
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
+
+  // Build node lookup map for performance
+  const nodeMap = useMemo(() => {
+    const map = new Map<number, Node>();
+    mapGraph?.nodes.forEach((n) => map.set(n.id, n));
+    return map;
+  }, [mapGraph?.nodes]);
 
   /**
    * Determine edge color and style based on edge type and properties
@@ -144,22 +164,56 @@ const GameMapViewer = ({
     destinationNodeId,
   });
 
-  // Calculate SVG dimensions with padding
+  // Calculate SVG dimensions — always include map bounds so background image stays visible
   const padding = 40;
-  const minX =
-    Math.min(...mapGraph.nodes.map((n) => n.x_position * 100)) - padding;
-  const minY =
-    Math.min(...mapGraph.nodes.map((n) => n.y_position * 100)) - padding;
-  const maxX =
-    Math.max(...mapGraph.nodes.map((n) => n.x_position * 100)) + padding;
-  const maxY =
-    Math.max(...mapGraph.nodes.map((n) => n.y_position * 100)) + padding;
+  const mapW = ("x_dim" in mapGraph ? (mapGraph.x_dim ?? 10) : 10) * 100;
+  const mapH = ("y_dim" in mapGraph ? (mapGraph.y_dim ?? 10) : 10) * 100;
+  const minX = Math.min(
+    0 - padding,
+    ...mapGraph.nodes.map((n) => n.x_position * 100 - padding)
+  );
+  const minY = Math.min(
+    0 - padding,
+    ...mapGraph.nodes.map((n) => n.y_position * 100 - padding)
+  );
+  const maxX = Math.max(
+    mapW + padding,
+    ...mapGraph.nodes.map((n) => n.x_position * 100 + padding)
+  );
+  const maxY = Math.max(
+    mapH + padding,
+    ...mapGraph.nodes.map((n) => n.y_position * 100 + padding)
+  );
   const width = maxX - minX;
   const height = maxY - minY;
 
   const selectedNode = selectedNodeId
     ? mapGraph.nodes.find((n) => n.id === selectedNodeId)
     : null;
+
+  // Compute background image geometry and optional SVG clip rect
+  const getImageGeometry = () => {
+    if (!("background_image_url" in mapGraph) || !mapGraph.background_image_url) {
+      return null;
+    }
+    const imgW = (mapGraph.x_dim ?? 10) * 100 * (mapGraph.image_scale ?? 1);
+    const imgH = (mapGraph.y_dim ?? 10) * 100 * (mapGraph.image_scale ?? 1);
+    const imgX = (mapGraph.image_offset_x ?? 0) * 100;
+    const imgY = (mapGraph.image_offset_y ?? 0) * 100;
+    const ct = (mapGraph.image_crop_top ?? 0) / 100;
+    const cr = (mapGraph.image_crop_right ?? 0) / 100;
+    const cb = (mapGraph.image_crop_bottom ?? 0) / 100;
+    const cl = (mapGraph.image_crop_left ?? 0) / 100;
+    const hasCrop = ct > 0 || cr > 0 || cb > 0 || cl > 0;
+    return {
+      imgX, imgY, imgW, imgH, hasCrop,
+      clipX: imgX + imgW * cl,
+      clipY: imgY + imgH * ct,
+      clipW: imgW * (1 - cl - cr),
+      clipH: imgH * (1 - ct - cb),
+    };
+  };
+  const img = getImageGeometry();
 
   return (
     <div className="w-full">
@@ -197,6 +251,20 @@ const GameMapViewer = ({
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
+            {/* Glow filter for relaxed edge flash */}
+            <filter id="relaxFlash" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="4" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            {/* Background image clip */}
+            {img?.hasCrop && (
+              <clipPath id="game-bg-img-clip">
+                <rect x={img.clipX} y={img.clipY} width={img.clipW} height={img.clipH} />
+              </clipPath>
+            )}
           </defs>
           <rect
             x={minX}
@@ -207,25 +275,18 @@ const GameMapViewer = ({
           />
 
           {/* Background Image */}
-          {"background_image_url" in mapGraph &&
-            mapGraph.background_image_url && (
-              <image
-                href={mapGraph.background_image_url}
-                x={(mapGraph.image_offset_x ?? 0) * 100}
-                y={(mapGraph.image_offset_y ?? 0) * 100}
-                width={
-                  (mapGraph.x_dim ?? 10) * 100 * (mapGraph.image_scale ?? 1)
-                }
-                height={
-                  (mapGraph.y_dim ?? 10) * 100 * (mapGraph.image_scale ?? 1)
-                }
-                opacity={0.4}
-                preserveAspectRatio="none"
-                style={{
-                  clipPath: `inset(${mapGraph.image_crop_top ?? 0}% ${mapGraph.image_crop_right ?? 0}% ${mapGraph.image_crop_bottom ?? 0}% ${mapGraph.image_crop_left ?? 0}%)`,
-                }}
-              />
-            )}
+          {img && (
+            <image
+              href={(mapGraph as ExtendedMapGraph).background_image_url!}
+              x={img.imgX}
+              y={img.imgY}
+              width={img.imgW}
+              height={img.imgH}
+              opacity={0.4}
+              preserveAspectRatio="xMinYMin meet"
+              clipPath={img.hasCrop ? "url(#game-bg-img-clip)" : undefined}
+            />
+          )}
 
           {/* Base Edges (non-route) */}
           {mapGraph.edges.map((edge) => {
@@ -259,6 +320,69 @@ const GameMapViewer = ({
               />
             );
           })}
+
+          {/* Dijkstra: Explored edges */}
+          {showDijkstraViz && pathfindingExploredEdges && mapGraph.edges
+            .filter((edge) => pathfindingExploredEdges.has(edge.id))
+            .map((edge) => {
+              const sn = nodeMap.get(edge.start_node);
+              const en = nodeMap.get(edge.end_node);
+              if (!sn || !en) return null;
+
+              const x1 = sn.x_position * 100;
+              const y1 = sn.y_position * 100;
+              const x2 = en.x_position * 100;
+              const y2 = en.y_position * 100;
+              const isRelaxed = pathfindingRelaxedEdge === edge.id;
+              const isOnTree = pathfindingPreviousEdges
+                ? Array.from(pathfindingPreviousEdges.values()).includes(edge.id)
+                : false;
+
+              return (
+                <line
+                  key={`explored-edge-${edge.id}`}
+                  x1={x1} y1={y1} x2={x2} y2={y2}
+                  stroke={isRelaxed ? "#fbbf24" : isOnTree ? "#34d399" : "#93c5fd"}
+                  strokeWidth={isRelaxed ? "5" : "3"}
+                  opacity={isRelaxed ? 1.0 : 0.6}
+                  strokeLinecap="round"
+                  filter={isRelaxed ? "url(#relaxFlash)" : undefined}
+                />
+              );
+            })}
+
+          {/* Dijkstra: Final shortest path highlight */}
+          {showDijkstraViz && pathfindingFinalPath && pathfindingFinalPath.length > 1 &&
+            pathfindingFinalPath.slice(0, -1).map((nId, i) => {
+              const nextId = pathfindingFinalPath[i + 1];
+              const sn = nodeMap.get(nId);
+              const en = nodeMap.get(nextId);
+              if (!sn || !en) return null;
+
+              const x1 = sn.x_position * 100;
+              const y1 = sn.y_position * 100;
+              const x2 = en.x_position * 100;
+              const y2 = en.y_position * 100;
+
+              return (
+                <g key={`final-path-${nId}-${nextId}`}>
+                  <line
+                    x1={x1} y1={y1} x2={x2} y2={y2}
+                    stroke="#f59e0b"
+                    strokeWidth="10"
+                    opacity={0.3}
+                    strokeLinecap="round"
+                  />
+                  <line
+                    x1={x1} y1={y1} x2={x2} y2={y2}
+                    stroke="#f59e0b"
+                    strokeWidth="4"
+                    opacity={1}
+                    strokeLinecap="round"
+                  />
+                </g>
+              );
+            })}
 
           {/* Route Edges (highlighted) */}
           {routeSegments?.map((segment, index) => {
@@ -354,7 +478,7 @@ const GameMapViewer = ({
 
           {/* Pathfinding visualization - visited nodes */}
           {pathfindingVisited && Array.from(pathfindingVisited).map((nodeId) => {
-            const node = mapGraph.nodes.find((n) => n.id === nodeId);
+            const node = nodeMap.get(nodeId);
             if (!node) return null;
             const x = node.x_position * 100;
             const y = node.y_position * 100;
@@ -364,7 +488,7 @@ const GameMapViewer = ({
                 key={`visited-${nodeId}`}
                 cx={x}
                 cy={y}
-                r={14}
+                r={12}
                 fill="none"
                 stroke="#10b981"
                 strokeWidth="2"
@@ -373,9 +497,48 @@ const GameMapViewer = ({
             );
           })}
 
+          {/* Dijkstra: Distance labels on visited nodes */}
+          {showDijkstraViz && pathfindingDistances && pathfindingVisited &&
+            Array.from(pathfindingVisited).map((nodeId) => {
+              const node = nodeMap.get(nodeId);
+              if (!node) return null;
+              const dist = pathfindingDistances.get(nodeId);
+              if (dist === undefined || dist === Infinity) return null;
+
+              const x = node.x_position * 100;
+              const y = node.y_position * 100;
+
+              return (
+                <g key={`dist-label-${nodeId}`}>
+                  <rect
+                    x={x + 10}
+                    y={y - 16}
+                    width={32}
+                    height={14}
+                    rx={3}
+                    fill="white"
+                    stroke="#cbd5e1"
+                    strokeWidth="0.5"
+                    opacity={0.85}
+                  />
+                  <text
+                    x={x + 26}
+                    y={y - 6}
+                    textAnchor="middle"
+                    fontSize="8"
+                    fill="#475569"
+                    fontFamily="monospace"
+                    className="pointer-events-none"
+                  >
+                    {dist < 100 ? dist.toFixed(1) : Math.round(dist)}
+                  </text>
+                </g>
+              );
+            })}
+
           {/* Pathfinding visualization - current node */}
           {pathfindingCurrent && (() => {
-            const node = mapGraph.nodes.find((n) => n.id === pathfindingCurrent);
+            const node = nodeMap.get(pathfindingCurrent);
             if (!node) return null;
             const x = node.x_position * 100;
             const y = node.y_position * 100;

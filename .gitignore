@@ -52,3 +52,5 @@ backend/node_modules/
 .DS_Store
 .vscode/
 .idea/
+.claude
+CLAUDE.MD

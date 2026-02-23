@@ -96,6 +96,8 @@ export default function GamePlay({
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
   const [showCarOptions, setShowCarOptions] = useState<number | null>(null); // agentId showing car options
+  const [animationEnabled, setAnimationEnabled] = useState(true);
+  const [animationSpeed, setAnimationSpeed] = useState(100); // ms per step
 
   // Fetch game details to get map ID and player data
   const hostGameDetails = useGameDetails(gameId, isHost);
@@ -144,7 +146,12 @@ export default function GamePlay({
     clearAgentRoute,
     allRoutesComplete,
     getSubmissionPayload,
-  } = useAgentRoutes(agentAssignments, { scale: (mapGraph as ExtendedMapGraph)?.scale ?? 100 });
+    activePathfindingState,
+  } = useAgentRoutes(agentAssignments, {
+    scale: (mapGraph as ExtendedMapGraph)?.scale ?? 100,
+    enableAnimation: animationEnabled,
+    animationSpeed,
+  });
 
   // Reset submission state when round changes
   useEffect(() => {
@@ -407,41 +414,80 @@ export default function GamePlay({
         </div>
       </div>
 
-      {/* Pathfinding Indicator */}
-      {isAnyPathfinding && (
+      {/* Dijkstra Algorithm Progress */}
+      {isAnyPathfinding && activePathfindingState && animationEnabled && (
+        <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+              Dijkstra's Algorithm
+            </span>
+            <span className="text-xs text-blue-500 dark:text-blue-400 font-mono">
+              {activePathfindingState.visitedNodes.size} nodes visited
+              {" | "}
+              {activePathfindingState.exploredEdges.size} edges explored
+            </span>
+          </div>
+          <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-1.5">
+            <div
+              className="h-1.5 rounded-full bg-blue-500 transition-all duration-150"
+              style={{
+                width: `${Math.min(
+                  (activePathfindingState.visitedNodes.size / (mapGraph?.nodes.length ?? 1)) * 100,
+                  100
+                )}%`,
+              }}
+            />
+          </div>
+        </div>
+      )}
+      {isAnyPathfinding && !animationEnabled && (
         <div className="mb-4 p-3 bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700 rounded-lg flex items-center justify-center gap-3">
           <svg className="animate-spin h-5 w-5 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24">
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-              fill="none"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            />
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
           </svg>
-          <span className="text-blue-700 dark:text-blue-300 font-medium">
-            Finding optimal route...
-          </span>
+          <span className="text-blue-700 dark:text-blue-300 font-medium">Finding optimal route...</span>
         </div>
       )}
 
       {/* Map viewer */}
       <div className="bg-surface dark:bg-darksurface rounded-lg p-4 border border-subtle dark:border-darksubtle mb-6">
-        <h3 className="text-lg font-semibold mb-3">
-          City Map
-          {selectedAgentId && (
-            <span className="ml-2 text-sm font-normal text-muted dark:text-darkmutedtext">
-              — Showing Agent {selectedAgentId} route
-            </span>
-          )}
-        </h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-semibold">
+            City Map
+            {selectedAgentId && (
+              <span className="ml-2 text-sm font-normal text-muted dark:text-darkmutedtext">
+                — Showing Agent {selectedAgentId} route
+              </span>
+            )}
+          </h3>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={animationEnabled}
+                onChange={(e) => setAnimationEnabled(e.target.checked)}
+                className="rounded"
+              />
+              <span className="text-muted dark:text-darkmutedtext">Show Dijkstra</span>
+            </label>
+            {animationEnabled && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted dark:text-darkmutedtext">Fast</span>
+                <input
+                  type="range"
+                  min={20}
+                  max={500}
+                  step={10}
+                  value={animationSpeed}
+                  onChange={(e) => setAnimationSpeed(Number(e.target.value))}
+                  className="w-20 h-1 accent-primary-500"
+                />
+                <span className="text-xs text-muted dark:text-darkmutedtext">Slow</span>
+              </div>
+            )}
+          </div>
+        </div>
         <GameMapViewer
           mapGraph={mapGraph ?? null}
           isLoading={mapLoading || gameDetailsLoading}
@@ -454,6 +500,14 @@ export default function GamePlay({
               ? new Set(selectedAgentRoute.segments.flatMap((s) => [s.startNode, s.endNode]))
               : undefined
           }
+          showDijkstraViz={animationEnabled && !!activePathfindingState}
+          pathfindingVisited={activePathfindingState?.visitedNodes}
+          pathfindingCurrent={activePathfindingState?.currentNode}
+          pathfindingExploredEdges={activePathfindingState?.exploredEdges}
+          pathfindingRelaxedEdge={activePathfindingState?.relaxedEdge}
+          pathfindingDistances={activePathfindingState?.tentativeDistances}
+          pathfindingFinalPath={activePathfindingState?.finalPath}
+          pathfindingPreviousEdges={activePathfindingState?.previousEdges}
         />
       </div>
 

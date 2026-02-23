@@ -6,6 +6,7 @@ import type {
   EditorAction,
   EdgeChange,
   PTLineChange,
+  VersionMetadata,
 } from "../../../types/editorTypes";
 import ImageTransformPanel from "./ImageTransformPanel";
 import EdgePropertyPanel from "./EdgePropertyPanel";
@@ -30,6 +31,8 @@ interface EditorSidebarProps {
   ptLineChanges: PTLineChange[];
   setPtLineChanges: (changes: PTLineChange[]) => void;
   dispatch: Dispatch<EditorAction>;
+  versionMetadata: VersionMetadata;
+  setVersionMetadata: (meta: VersionMetadata) => void;
 }
 
 const EditorSidebar = ({
@@ -49,6 +52,8 @@ const EditorSidebar = ({
   ptLineChanges,
   setPtLineChanges,
   dispatch,
+  versionMetadata,
+  setVersionMetadata,
 }: EditorSidebarProps) => {
   const selectedNode = state.selectedNodeId
     ? mapGraph?.nodes.find((n) => n.id === state.selectedNodeId)
@@ -113,6 +118,9 @@ const EditorSidebar = ({
           setPtLineChanges={setPtLineChanges}
           selectedEdge={selectedEdge ?? undefined}
           dispatch={dispatch}
+          versionDiffStep={state.versionDiffStep}
+          versionMetadata={versionMetadata}
+          setVersionMetadata={setVersionMetadata}
         />
       )}
     </div>

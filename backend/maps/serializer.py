@@ -532,9 +532,7 @@ class VersionDiffInputSerializer(serializers.Serializer):
     source_version_id = serializers.IntegerField()
     version_name = serializers.CharField(max_length=100)
     description = serializers.CharField(required=False, allow_blank=True, default="")
-    poll_text = serializers.CharField(
-        required=False, allow_blank=True, default="Die Karte soll ... "
-    )
+    poll_text = serializers.CharField(required=True)
     revert_poll_text = serializers.CharField(
         required=False, allow_blank=True, default="Die Karte soll ... "
     )

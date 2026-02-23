@@ -8,6 +8,14 @@ export interface EditorState {
   selectedNodeId: number | null;
   edgeSourceNodeId: number | null;
   isDirty: boolean;
+  versionDiffStep: 1 | 2;
+}
+
+export interface VersionMetadata {
+  versionName: string;
+  pollText: string;
+  revertPollText: string;
+  description: string;
 }
 
 export interface ImageTransformValues {
@@ -45,7 +53,7 @@ export interface VersionDiffPayload {
   source_version_id: number;
   version_name: string;
   description?: string;
-  poll_text?: string;
+  poll_text: string;
   revert_poll_text?: string;
   is_base_version?: boolean;
   edge_changes: EdgeChange[];
@@ -63,4 +71,5 @@ export type EditorAction =
   | { type: "TOGGLE_EDGE"; edgeId: number }
   | { type: "CLEAR_SELECTION" }
   | { type: "MARK_DIRTY" }
-  | { type: "MARK_CLEAN" };
+  | { type: "MARK_CLEAN" }
+  | { type: "SET_VERSION_DIFF_STEP"; step: 1 | 2 };

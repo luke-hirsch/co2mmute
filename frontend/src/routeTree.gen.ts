@@ -57,8 +57,8 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/game/$gameId': typeof GameGameIdRoute
   '/maps/$mapId': typeof MapsMapIdRouteWithChildren
-  '/game/': typeof GameIndexRoute
-  '/maps/': typeof MapsIndexRoute
+  '/game': typeof GameIndexRoute
+  '/maps': typeof MapsIndexRoute
   '/maps/$mapId/editor': typeof MapsMapIdEditorRoute
   '/maps/$mapId/': typeof MapsMapIdIndexRoute
 }
@@ -86,8 +86,8 @@ export interface FileRouteTypes {
     | '/'
     | '/game/$gameId'
     | '/maps/$mapId'
-    | '/game/'
-    | '/maps/'
+    | '/game'
+    | '/maps'
     | '/maps/$mapId/editor'
     | '/maps/$mapId/'
   fileRoutesByTo: FileRoutesByTo
@@ -129,14 +129,14 @@ declare module '@tanstack/react-router' {
     '/maps/': {
       id: '/maps/'
       path: '/maps'
-      fullPath: '/maps/'
+      fullPath: '/maps'
       preLoaderRoute: typeof MapsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/game/': {
       id: '/game/'
       path: '/game'
-      fullPath: '/game/'
+      fullPath: '/game'
       preLoaderRoute: typeof GameIndexRouteImport
       parentRoute: typeof rootRouteImport
     }

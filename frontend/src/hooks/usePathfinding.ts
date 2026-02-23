@@ -21,6 +21,7 @@ import { findBestPTRoute } from "../utils/ptRouting";
 interface UsePathfindingOptions {
   animationSpeed?: number; // ms per step, 0 = instant
   scale?: number;
+  enableAnimation?: boolean; // whether to animate Dijkstra (default false)
 }
 
 interface UsePathfindingResult {
@@ -51,6 +52,9 @@ const initialPathfindingState: PathfindingState = {
   previousNodes: new Map(),
   finalPath: null,
   isComplete: false,
+  exploredEdges: new Set(),
+  relaxedEdge: null,
+  previousEdges: new Map(),
 };
 
 export function usePathfinding(
@@ -201,6 +205,7 @@ interface AgentRouteState {
   route: AgentRoute | null;
   isPathfinding: boolean;
   error: string | null;
+  pathfindingState: PathfindingState | null;
 }
 
 interface UseAgentRoutesResult {
@@ -219,13 +224,15 @@ interface UseAgentRoutesResult {
   clearAgentRoute: (agentId: number) => void;
   allRoutesComplete: boolean;
   getSubmissionPayload: () => import("../types/routeTypes").RouteSubmissionPayload | null;
+  activePathfindingState: PathfindingState | null;
+  animatingAgentId: number | null;
 }
 
 export function useAgentRoutes(
   agentAssignments: { id: number; destination_node: number }[],
   options: UsePathfindingOptions = {}
 ): UseAgentRoutesResult {
-  const { scale = 100 } = options;
+  const { scale = 100, enableAnimation = false, animationSpeed = 100 } = options;
 
   const [agents, setAgents] = useState<AgentRouteState[]>([]);
 
@@ -257,6 +264,7 @@ export function useAgentRoutes(
           route: null,
           isPathfinding: false,
           error: null,
+          pathfindingState: null,
         }));
       });
     }
@@ -274,6 +282,7 @@ export function useAgentRoutes(
                 selectedOptimization: optimization,
                 route: null, // Clear route when mode changes
                 error: null,
+                pathfindingState: null,
               }
             : a
         )
@@ -309,7 +318,7 @@ export function useAgentRoutes(
 
       setAgents((prev) =>
         prev.map((a) =>
-          a.agentId === agentId ? { ...a, isPathfinding: true, error: null } : a
+          a.agentId === agentId ? { ...a, isPathfinding: true, error: null, pathfindingState: null } : a
         )
       );
 
@@ -320,18 +329,33 @@ export function useAgentRoutes(
           mode: agent.selectedMode,
           from: homeNode,
           to: agent.destinationNode,
+          animated: enableAnimation,
         });
+
+        // Build animation options when enabled
+        const animOpts = enableAnimation ? {
+          animationDelayMs: animationSpeed,
+          onStateChange: (state: PathfindingState) => {
+            setAgents((prev) =>
+              prev.map((a) =>
+                a.agentId === agentId ? { ...a, pathfindingState: state } : a
+              )
+            );
+          },
+        } : {};
 
         if (agent.selectedMode === "public") {
           const extendedGraph = graph as ExtendedMapGraph;
           result = await findBestPTRoute(extendedGraph, homeNode, agent.destinationNode, {
             scale,
+            ...animOpts,
           });
         } else {
           result = await findPath(graph, homeNode, agent.destinationNode, agent.selectedMode, {
             optimization: agent.selectedOptimization,
             trafficData,
             scale,
+            ...animOpts,
           });
         }
 
@@ -342,7 +366,7 @@ export function useAgentRoutes(
           setAgents((prev) =>
             prev.map((a) =>
               a.agentId === agentId
-                ? { ...a, isPathfinding: false, error: result.error || "No route found" }
+                ? { ...a, isPathfinding: false, error: result.error || "No route found", pathfindingState: null }
                 : a
             )
           );
@@ -388,7 +412,7 @@ export function useAgentRoutes(
 
         setAgents((prev) =>
           prev.map((a) =>
-            a.agentId === agentId ? { ...a, isPathfinding: false, route, error: null } : a
+            a.agentId === agentId ? { ...a, isPathfinding: false, route, error: null, pathfindingState: null } : a
           )
         );
       } catch (err) {
@@ -396,25 +420,30 @@ export function useAgentRoutes(
         const errorMessage = err instanceof Error ? err.message : "Unknown error";
         setAgents((prev) =>
           prev.map((a) =>
-            a.agentId === agentId ? { ...a, isPathfinding: false, error: errorMessage } : a
+            a.agentId === agentId ? { ...a, isPathfinding: false, error: errorMessage, pathfindingState: null } : a
           )
         );
       }
     },
-    [scale] // Using agentsRef to avoid stale closure
+    [scale, enableAnimation, animationSpeed] // Using agentsRef to avoid stale closure
   );
 
   const clearAgentRoute = useCallback((agentId: number) => {
     setAgents((prev) =>
       prev.map((a) =>
         a.agentId === agentId
-          ? { ...a, route: null, selectedMode: null, selectedOptimization: undefined, error: null }
+          ? { ...a, route: null, selectedMode: null, selectedOptimization: undefined, error: null, pathfindingState: null }
           : a
       )
     );
   }, []);
 
   const allRoutesComplete = agents.every((a) => a.route !== null);
+
+  // Find the currently animating agent's pathfinding state
+  const animatingAgent = agents.find((a) => a.isPathfinding && a.pathfindingState);
+  const activePathfindingState = animatingAgent?.pathfindingState ?? null;
+  const animatingAgentId = animatingAgent?.agentId ?? null;
 
   const getSubmissionPayload = useCallback(() => {
     if (!allRoutesComplete) return null;
@@ -446,5 +475,7 @@ export function useAgentRoutes(
     clearAgentRoute,
     allRoutesComplete,
     getSubmissionPayload,
+    activePathfindingState,
+    animatingAgentId,
   };
 }

@@ -20,6 +20,7 @@ import type {
   GraphTool,
   EdgeChange,
   PTLineChange,
+  VersionMetadata,
 } from "../../../types/editorTypes";
 import type { ExtendedMapGraph } from "../../../types/routeTypes";
 import type { MapVersion } from "../../../types/mapTypes";
@@ -31,6 +32,14 @@ const initialState: EditorState = {
   selectedNodeId: null,
   edgeSourceNodeId: null,
   isDirty: false,
+  versionDiffStep: 1,
+};
+
+const initialVersionMetadata: VersionMetadata = {
+  versionName: "",
+  pollText: "",
+  revertPollText: "",
+  description: "",
 };
 
 function editorReducer(state: EditorState, action: EditorAction): EditorState {
@@ -43,6 +52,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         selectedEdgeIds: new Set(),
         selectedNodeId: null,
         edgeSourceNodeId: null,
+        versionDiffStep: 1,
       };
     case "SET_GRAPH_TOOL":
       return {
@@ -83,6 +93,8 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       return { ...state, isDirty: true };
     case "MARK_CLEAN":
       return { ...state, isDirty: false };
+    case "SET_VERSION_DIFF_STEP":
+      return { ...state, versionDiffStep: action.step };
     default:
       return state;
   }
@@ -111,6 +123,7 @@ const MapEditor = () => {
   // Version diff state
   const [edgeChanges, setEdgeChanges] = useState<EdgeChange[]>([]);
   const [ptLineChanges, setPtLineChanges] = useState<PTLineChange[]>([]);
+  const [versionMetadata, setVersionMetadata] = useState<VersionMetadata>(initialVersionMetadata);
 
   const handleModeChange = useCallback((mode: EditorMode) => {
     dispatch({ type: "SET_MODE", mode });
@@ -118,6 +131,7 @@ const MapEditor = () => {
     setPtLineCreating(null);
     setEdgeChanges([]);
     setPtLineChanges([]);
+    setVersionMetadata(initialVersionMetadata);
   }, []);
 
   const handleGraphToolChange = useCallback((tool: GraphTool) => {
@@ -126,6 +140,9 @@ const MapEditor = () => {
 
   const handleEdgeClick = useCallback(
     (edgeId: number) => {
+      // Version-diff step 1: no edge interaction
+      if (state.mode === "version-diff" && state.versionDiffStep === 1) return;
+
       if (state.mode === "pt-lines" && (ptLineCreating || state.selectedNodeId === null)) {
         // Toggle edge in PT line route
         setPtLineEdgeIds((prev) =>
@@ -141,11 +158,14 @@ const MapEditor = () => {
         dispatch({ type: "SELECT_EDGE", edgeId });
       }
     },
-    [state.mode, ptLineCreating, state.selectedNodeId]
+    [state.mode, state.versionDiffStep, ptLineCreating, state.selectedNodeId]
   );
 
   const handleNodeClick = useCallback(
     (nodeId: number) => {
+      // Nodes not interactive in version-diff mode
+      if (state.mode === "version-diff") return;
+
       if (state.mode === "graph" && state.graphTool === "add-edge") {
         if (state.edgeSourceNodeId === null) {
           dispatch({ type: "SET_EDGE_SOURCE", nodeId });
@@ -302,6 +322,7 @@ const MapEditor = () => {
             setPtLineCreating(null);
             setPtLineEdgeIds([]);
           }}
+          versionDiffStep={state.versionDiffStep}
         />
 
         {/* Main content */}
@@ -340,6 +361,8 @@ const MapEditor = () => {
               ptLineChanges={ptLineChanges}
               setPtLineChanges={setPtLineChanges}
               dispatch={dispatch}
+              versionMetadata={versionMetadata}
+              setVersionMetadata={setVersionMetadata}
             />
           </div>
         </div>

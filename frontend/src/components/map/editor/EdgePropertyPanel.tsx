@@ -9,19 +9,25 @@ import {
   useDeleteTrainEdge,
 } from "../../../hooks/mapEditorHooks";
 
+interface EdgeChangeFields {
+  biking: boolean;
+  walking: boolean;
+  max_lanes: number;
+  speed_limit: number;
+  lanes: number;
+  dedicated_bus_lane: boolean;
+}
+
 interface EdgePropertyPanelProps {
   edge: Edge;
   mapId?: string;
   versionId?: number;
   editable?: boolean;
-  onChange?: (changes: Partial<{
-    biking: boolean;
-    walking: boolean;
-    max_lanes: number;
-    speed_limit: number;
-    lanes: number;
-    dedicated_bus_lane: boolean;
-  }>) => void;
+  /** "edit" = default (graph mode), "modify" = version-diff mode with explicit commit */
+  mode?: "edit" | "modify";
+  onChange?: (changes: Partial<EdgeChangeFields>) => void;
+  /** Called after "Modify" is clicked and changes are committed (used to deselect) */
+  onModifyDone?: () => void;
 }
 
 const EdgePropertyPanel = ({
@@ -29,10 +35,15 @@ const EdgePropertyPanel = ({
   mapId,
   versionId,
   editable = false,
+  mode = "edit",
   onChange,
+  onModifyDone,
 }: EdgePropertyPanelProps) => {
   // Direct-edit mode (graph mode with mapId) vs onChange mode (version-diff)
-  const directEdit = editable && !!mapId;
+  const directEdit = editable && !!mapId && mode === "edit";
+  const isModifyMode = mode === "modify";
+  // Modify mode and directEdit both use local state
+  const useLocalState = directEdit || isModifyMode;
 
   const updateEdgeMutation = useUpdateEdge(mapId ?? "");
   const deleteEdgeMutation = useDeleteEdge(mapId ?? "");
@@ -68,6 +79,23 @@ const EdgePropertyPanel = ({
     // Street edge properties are updated separately via StreetEdge PATCH
     // For now we handle this by delete + recreate if street edge exists and changed
     // TODO: add useUpdateStreetEdge if needed
+  };
+
+  const handleModify = () => {
+    // Build diff of changed values
+    const changes: Partial<EdgeChangeFields> = {};
+    if (biking !== (edge.biking ?? true)) changes.biking = biking;
+    if (walking !== (edge.walking ?? true)) changes.walking = walking;
+    if (maxLanes !== (edge.max_lanes ?? 1)) changes.max_lanes = maxLanes;
+    if (edge.street_edge) {
+      if (speedLimit !== edge.street_edge.speed_limit) changes.speed_limit = speedLimit;
+      if (lanes !== edge.street_edge.lanes) changes.lanes = lanes;
+      if (busLane !== edge.street_edge.dedicated_bus_lane) changes.dedicated_bus_lane = busLane;
+    }
+    if (Object.keys(changes).length > 0) {
+      onChange?.(changes);
+    }
+    onModifyDone?.();
   };
 
   const handleDelete = () => {
@@ -116,7 +144,9 @@ const EdgePropertyPanel = ({
 
   return (
     <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle space-y-3">
-      <h3 className="text-lg font-semibold text-main dark:text-darktext">Edge</h3>
+      <h3 className="text-lg font-semibold text-main dark:text-darktext">
+        {isModifyMode ? "Modify Edge" : "Edge"}
+      </h3>
       <div>
         <p className="text-xs text-muted dark:text-darkmutedtext">Name</p>
         <p className="font-semibold text-main dark:text-darktext">
@@ -190,12 +220,12 @@ const EdgePropertyPanel = ({
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted dark:text-darkmutedtext">Biking</span>
-          {editable ? (
+          {editable || isModifyMode ? (
             <input
               type="checkbox"
-              checked={directEdit ? biking : (edge.biking ?? true)}
+              checked={useLocalState ? biking : (edge.biking ?? true)}
               onChange={(e) => {
-                if (directEdit) setBiking(e.target.checked);
+                if (useLocalState) setBiking(e.target.checked);
                 else onChange?.({ biking: e.target.checked });
               }}
               className="rounded"
@@ -208,12 +238,12 @@ const EdgePropertyPanel = ({
         </div>
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted dark:text-darkmutedtext">Walking</span>
-          {editable ? (
+          {editable || isModifyMode ? (
             <input
               type="checkbox"
-              checked={directEdit ? walking : (edge.walking ?? true)}
+              checked={useLocalState ? walking : (edge.walking ?? true)}
               onChange={(e) => {
-                if (directEdit) setWalking(e.target.checked);
+                if (useLocalState) setWalking(e.target.checked);
                 else onChange?.({ walking: e.target.checked });
               }}
               className="rounded"
@@ -226,15 +256,15 @@ const EdgePropertyPanel = ({
         </div>
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted dark:text-darkmutedtext">Max Lanes</span>
-          {editable ? (
+          {editable || isModifyMode ? (
             <input
               type="number"
               min={1}
               max={6}
-              value={directEdit ? maxLanes : (edge.max_lanes ?? 2)}
+              value={useLocalState ? maxLanes : (edge.max_lanes ?? 2)}
               onChange={(e) => {
                 const v = parseInt(e.target.value);
-                if (directEdit) setMaxLanes(v);
+                if (useLocalState) setMaxLanes(v);
                 else onChange?.({ max_lanes: v });
               }}
               className="w-16 text-xs px-2 py-1 rounded border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext"
@@ -248,16 +278,16 @@ const EdgePropertyPanel = ({
           <>
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted dark:text-darkmutedtext">Speed Limit</span>
-              {editable ? (
+              {editable || isModifyMode ? (
                 <input
                   type="number"
                   min={5}
                   max={200}
                   step={5}
-                  value={directEdit ? speedLimit : edge.street_edge.speed_limit}
+                  value={useLocalState ? speedLimit : edge.street_edge.speed_limit}
                   onChange={(e) => {
                     const v = parseInt(e.target.value);
-                    if (directEdit) setSpeedLimit(v);
+                    if (useLocalState) setSpeedLimit(v);
                     else onChange?.({ speed_limit: v });
                   }}
                   className="w-16 text-xs px-2 py-1 rounded border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext"
@@ -270,15 +300,15 @@ const EdgePropertyPanel = ({
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted dark:text-darkmutedtext">Lanes</span>
-              {editable ? (
+              {editable || isModifyMode ? (
                 <input
                   type="number"
                   min={1}
                   max={6}
-                  value={directEdit ? lanes : edge.street_edge.lanes}
+                  value={useLocalState ? lanes : edge.street_edge.lanes}
                   onChange={(e) => {
                     const v = parseInt(e.target.value);
-                    if (directEdit) setLanes(v);
+                    if (useLocalState) setLanes(v);
                     else onChange?.({ lanes: v });
                   }}
                   className="w-16 text-xs px-2 py-1 rounded border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext"
@@ -291,12 +321,12 @@ const EdgePropertyPanel = ({
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted dark:text-darkmutedtext">Bus Lane</span>
-              {editable ? (
+              {editable || isModifyMode ? (
                 <input
                   type="checkbox"
-                  checked={directEdit ? busLane : edge.street_edge.dedicated_bus_lane}
+                  checked={useLocalState ? busLane : edge.street_edge.dedicated_bus_lane}
                   onChange={(e) => {
-                    if (directEdit) setBusLane(e.target.checked);
+                    if (useLocalState) setBusLane(e.target.checked);
                     else onChange?.({ dedicated_bus_lane: e.target.checked });
                   }}
                   className="rounded"
@@ -341,6 +371,18 @@ const EdgePropertyPanel = ({
       )}
       {updateEdgeMutation.isSuccess && (
         <p className="text-xs text-green-600 dark:text-green-400">Saved</p>
+      )}
+
+      {/* Modify button in version-diff mode */}
+      {isModifyMode && (
+        <div className="pt-2">
+          <button
+            onClick={handleModify}
+            className="w-full px-3 py-1.5 text-sm bg-amber-600 text-white rounded-md hover:bg-amber-700"
+          >
+            Modify
+          </button>
+        </div>
       )}
     </div>
   );
