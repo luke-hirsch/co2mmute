@@ -279,6 +279,9 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
             # Mark player as not connected and broadcast
             await self._mark_player_disconnected()
             await self._broadcast_roster()
+            # Re-check between-round completion after player leaves
+            if not self.is_host:
+                await self._check_between_round_completion_after_leave()
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
         finally:
             if hasattr(self, "redis_client"):
@@ -302,6 +305,18 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
 
         if msg_type == "ping":
             await self.send(json.dumps({"type": "pong"}))
+            return
+
+        if msg_type == "player.stats_ack":
+            await self._handle_stats_ack()
+            return
+
+        if msg_type == "vote.open":
+            await self._handle_vote_open()
+            return
+
+        if msg_type == "vote.submit":
+            await self._handle_vote_submit(data)
             return
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -467,6 +482,23 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
                 )
             )
 
+            # Get voteable map versions if in a between-round phase
+            between_round_phase = (
+                current_round.between_round_phase if current_round else "none"
+            )
+            map_versions_data = []
+            if between_round_phase in ("stats", "discussion", "voting"):
+                from maps.models import MapVersion
+
+                if game.game_map and game.map_updates:
+                    versions = MapVersion.objects.filter(
+                        game_map=game.game_map, base_version=False
+                    ).exclude(pk=game.active_map_version_id)
+                    map_versions_data = [
+                        {"id": mv.id, "name": mv.name, "poll_text": mv.poll_text}
+                        for mv in versions
+                    ]
+
             return {
                 "isActive": game.is_active,
                 "currentRound": current_round.round_number if current_round else 0,
@@ -475,6 +507,443 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
                 "maxRounds": game.max_rounds,
                 "startedAt": game.started_at.isoformat() if game.started_at else None,
                 "endedAt": game.ended_at.isoformat() if game.ended_at else None,
+                "betweenRoundPhase": between_round_phase,
+                "activeMapVersionId": game.active_map_version_id,
+                "hasMapVersions": bool(map_versions_data),
+                "mapVersions": map_versions_data,
             }
 
         return await fetch_state()
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Between-round phase handlers (stats → discussion → voting → next round)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    STATS_ACK_KEY_PATTERN = "game:{game_id}:stats_acks"
+
+    def _stats_ack_key(self) -> str:
+        return self.STATS_ACK_KEY_PATTERN.format(game_id=self.game_id)
+
+    async def between_round_event(self, event: dict) -> None:
+        """Handle between-round events (stats ack, voting)."""
+        await self.send_json({
+            "type": event.get("event", ""),
+            "game_id": self.game_id,
+            "data": event.get("data", {}),
+        })
+
+    async def _handle_stats_ack(self) -> None:
+        """Player acknowledged stats view, ready to proceed."""
+        if self.is_host:
+            return
+
+        ack_key = self._stats_ack_key()
+        await self.redis_client.sadd(ack_key, self.player_id)
+        await self.redis_client.expire(ack_key, 3600)
+
+        all_acked = await self._check_all_stats_acked()
+        if all_acked:
+            await self.redis_client.delete(ack_key)
+            await self._advance_from_stats()
+
+    async def _check_all_stats_acked(self) -> bool:
+        """Check if all non-host players have acknowledged stats."""
+        from channels.db import database_sync_to_async
+
+        ack_key = self._stats_ack_key()
+        ack_count = await self.redis_client.scard(ack_key)
+
+        @database_sync_to_async
+        def get_non_host_player_count():
+            from game.models import GameSession, Player
+
+            try:
+                game = GameSession.objects.get(game_id=self.game_id)
+            except GameSession.DoesNotExist:
+                return 0
+            return Player.objects.filter(game=game).exclude(
+                user=game.game_host
+            ).count()
+
+        needed = await get_non_host_player_count()
+        return ack_count >= needed if needed > 0 else False
+
+    async def _advance_from_stats(self) -> None:
+        """After all players acked stats, move to discussion or next round."""
+        has_versions, map_versions_data = await self._get_voteable_versions_async()
+
+        if has_versions:
+            await self._set_round_phase("discussion")
+            await self.channel_layer.group_send(
+                self.group_name,
+                {
+                    "type": "between_round_event",
+                    "event": "stats.all_acked",
+                    "data": {
+                        "next_phase": "discussion",
+                        "map_versions": map_versions_data,
+                    },
+                },
+            )
+        else:
+            await self.channel_layer.group_send(
+                self.group_name,
+                {
+                    "type": "between_round_event",
+                    "event": "stats.all_acked",
+                    "data": {"next_phase": "next_round"},
+                },
+            )
+            await self._start_next_round()
+
+    async def _handle_vote_open(self) -> None:
+        """Host opens voting."""
+        if not self.is_host:
+            await self.send_json({"type": "error", "message": "Only host can open voting"})
+            return
+
+        await self._set_round_phase("voting")
+        await self.channel_layer.group_send(
+            self.group_name,
+            {
+                "type": "between_round_event",
+                "event": "vote.opened",
+                "data": {},
+            },
+        )
+
+    async def _handle_vote_submit(self, data: dict) -> None:
+        """Player submits a vote for a map version."""
+        if self.is_host:
+            return
+
+        version_id = data.get("version_id")  # null/None = "Leave as it is"
+
+        success, vote_count, total_players = await self._record_vote(version_id)
+        if not success:
+            await self.send_json({"type": "error", "message": "Vote failed or already voted"})
+            return
+
+        await self.channel_layer.group_send(
+            self.group_name,
+            {
+                "type": "between_round_event",
+                "event": "vote.recorded",
+                "data": {
+                    "player_id": self.player_id,
+                    "votes_cast": vote_count,
+                    "votes_needed": total_players,
+                },
+            },
+        )
+
+        if vote_count >= total_players:
+            result = await self._tally_votes()
+            await self.channel_layer.group_send(
+                self.group_name,
+                {
+                    "type": "between_round_event",
+                    "event": "vote.result",
+                    "data": result,
+                },
+            )
+            await self._start_next_round()
+
+    async def _check_between_round_completion_after_leave(self) -> None:
+        """Re-check stats ack / vote completion after a player disconnects."""
+        from channels.db import database_sync_to_async
+        from game.models import GameRound
+
+        @database_sync_to_async
+        def get_current_phase():
+            try:
+                game_round = GameRound.objects.filter(
+                    game__game_id=self.game_id
+                ).order_by("-round_number").first()
+                return game_round.between_round_phase if game_round else "none"
+            except Exception:
+                return "none"
+
+        phase = await get_current_phase()
+
+        if phase == "stats":
+            all_acked = await self._check_all_stats_acked()
+            if all_acked:
+                await self.redis_client.delete(self._stats_ack_key())
+                await self._advance_from_stats()
+        elif phase == "voting":
+            vote_count, total_players = await self._get_vote_progress()
+            if total_players > 0 and vote_count >= total_players:
+                result = await self._tally_votes()
+                await self.channel_layer.group_send(
+                    self.group_name,
+                    {
+                        "type": "between_round_event",
+                        "event": "vote.result",
+                        "data": result,
+                    },
+                )
+                await self._start_next_round()
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Between-round helper methods
+    # ─────────────────────────────────────────────────────────────────────────
+
+    async def _get_voteable_versions_async(self) -> tuple[bool, list[dict]]:
+        """Get voteable map versions for the game."""
+        from channels.db import database_sync_to_async
+
+        @database_sync_to_async
+        def fetch():
+            from maps.models import MapVersion
+            from game.models import GameSession
+
+            try:
+                game = GameSession.objects.get(game_id=self.game_id)
+            except GameSession.DoesNotExist:
+                return False, []
+
+            if not game.game_map or not game.map_updates:
+                return False, []
+
+            versions = list(
+                MapVersion.objects.filter(
+                    game_map=game.game_map, base_version=False
+                ).exclude(pk=game.active_map_version_id)
+            )
+            data = [
+                {"id": mv.id, "name": mv.name, "poll_text": mv.poll_text}
+                for mv in versions
+            ]
+            return bool(versions), data
+
+        return await fetch()
+
+    async def _set_round_phase(self, phase: str) -> None:
+        """Update the between_round_phase on the current GameRound."""
+        from channels.db import database_sync_to_async
+        from game.models import GameRound
+
+        @database_sync_to_async
+        def update():
+            game_round = (
+                GameRound.objects.filter(game__game_id=self.game_id)
+                .order_by("-round_number")
+                .first()
+            )
+            if game_round:
+                game_round.between_round_phase = phase
+                game_round.save(update_fields=["between_round_phase", "updated_at"])
+
+        await update()
+
+    async def _record_vote(self, version_id: int | None) -> tuple[bool, int, int]:
+        """Record a player's vote. Returns (success, vote_count, total_players)."""
+        from channels.db import database_sync_to_async
+
+        @database_sync_to_async
+        def do_vote():
+            from game.models import GameRound, MapVersionVote, Player
+            from maps.models import MapVersion
+
+            game_round = (
+                GameRound.objects.filter(game__game_id=self.game_id)
+                .order_by("-round_number")
+                .first()
+            )
+            if not game_round:
+                return False, 0, 0
+
+            player = Player.objects.filter(
+                game__game_id=self.game_id, player_id=self.player_id
+            ).first()
+            if not player:
+                return False, 0, 0
+
+            # Check if already voted
+            if MapVersionVote.objects.filter(
+                game_round=game_round, player=player
+            ).exists():
+                return False, 0, 0
+
+            map_version = None
+            if version_id is not None:
+                try:
+                    map_version = MapVersion.objects.get(pk=version_id)
+                except MapVersion.DoesNotExist:
+                    return False, 0, 0
+
+            MapVersionVote.objects.create(
+                game_round=game_round,
+                player=player,
+                map_version=map_version,
+            )
+
+            vote_count = MapVersionVote.objects.filter(game_round=game_round).count()
+            # Count non-host players
+            game = game_round.game
+            total_players = Player.objects.filter(game=game).exclude(
+                user=game.game_host
+            ).count()
+
+            return True, vote_count, total_players
+
+        return await do_vote()
+
+    async def _get_vote_progress(self) -> tuple[int, int]:
+        """Get current vote count and total players needed."""
+        from channels.db import database_sync_to_async
+
+        @database_sync_to_async
+        def fetch():
+            from game.models import GameRound, MapVersionVote, Player
+
+            game_round = (
+                GameRound.objects.filter(game__game_id=self.game_id)
+                .order_by("-round_number")
+                .first()
+            )
+            if not game_round:
+                return 0, 0
+
+            vote_count = MapVersionVote.objects.filter(game_round=game_round).count()
+            game = game_round.game
+            total_players = Player.objects.filter(game=game).exclude(
+                user=game.game_host
+            ).count()
+            return vote_count, total_players
+
+        return await fetch()
+
+    async def _tally_votes(self) -> dict:
+        """Tally votes, determine winner, update active map version."""
+        from channels.db import database_sync_to_async
+
+        @database_sync_to_async
+        def do_tally():
+            from collections import Counter
+            from game.models import GameRound, GameSession, MapVersionVote
+
+            game_round = (
+                GameRound.objects.filter(game__game_id=self.game_id)
+                .order_by("-round_number")
+                .first()
+            )
+            if not game_round:
+                return {"winning_version_id": None, "winning_version_name": "Leave as it is", "vote_counts": []}
+
+            votes = MapVersionVote.objects.filter(game_round=game_round).select_related("map_version")
+
+            # Count votes per version (None = "leave as it is")
+            counter = Counter()
+            for vote in votes:
+                version_id = vote.map_version_id
+                counter[version_id] += 1
+
+            # Build vote counts list
+            vote_counts = []
+            for version_id, count in counter.items():
+                if version_id is None:
+                    vote_counts.append({
+                        "version_id": None,
+                        "version_name": "Leave as it is",
+                        "count": count,
+                    })
+                else:
+                    vote = votes.filter(map_version_id=version_id).first()
+                    name = vote.map_version.name if vote and vote.map_version else "Unknown"
+                    vote_counts.append({
+                        "version_id": version_id,
+                        "version_name": name,
+                        "count": count,
+                    })
+
+            # Determine winner (ties go to "leave as it is")
+            if not counter:
+                winning_id = None
+            else:
+                max_count = max(counter.values())
+                candidates = [vid for vid, c in counter.items() if c == max_count]
+                # Tie-break: prefer "leave as it is" (None)
+                winning_id = None if None in candidates else candidates[0]
+
+            # Find winning name
+            winning_name = "Leave as it is"
+            if winning_id is not None:
+                for vc in vote_counts:
+                    if vc["version_id"] == winning_id:
+                        winning_name = vc["version_name"]
+                        break
+
+            # Update active map version if a different version won
+            if winning_id is not None:
+                try:
+                    game = GameSession.objects.get(game_id=self.game_id)
+                    game.active_map_version_id = winning_id
+                    game.save(update_fields=["active_map_version"])
+                except GameSession.DoesNotExist:
+                    pass
+
+            return {
+                "winning_version_id": winning_id,
+                "winning_version_name": winning_name,
+                "vote_counts": vote_counts,
+            }
+
+        return await do_tally()
+
+    async def _start_next_round(self) -> None:
+        """Create a new round and broadcast round.started."""
+        from channels.db import database_sync_to_async
+        from co2mmute.utils import send_game_state_message
+
+        @database_sync_to_async
+        def create_round():
+            from django.utils import timezone
+            from game.models import GameRound, GameSession
+
+            try:
+                game = GameSession.objects.get(game_id=self.game_id)
+            except GameSession.DoesNotExist:
+                return None
+
+            # Reset phase on completed round
+            current_round = (
+                GameRound.objects.filter(game=game)
+                .order_by("-round_number")
+                .first()
+            )
+            if current_round:
+                current_round.between_round_phase = "none"
+                current_round.save(update_fields=["between_round_phase", "updated_at"])
+
+            new_round = GameRound.objects.create(
+                game=game,
+                status=GameRound.Status.ACTIVE,
+                started_at=timezone.now(),
+            )
+
+            total_game_emissions = sum(
+                r.total_emissions_g
+                for r in GameRound.objects.filter(
+                    game=game, status=GameRound.Status.COMPLETED
+                )
+            )
+
+            return {
+                "round_number": new_round.round_number,
+                "max_rounds": game.max_rounds,
+                "total_game_emissions_g": total_game_emissions,
+                "max_co2_level_g": game.max_CO2_level * 1000,
+            }
+
+        round_data = await create_round()
+        if round_data:
+            send_game_state_message(
+                self.game_id,
+                "round.started",
+                round_data,
+            )
+            logger.info(
+                f"Round {round_data['round_number']} started for game {self.game_id}"
+            )

@@ -119,14 +119,32 @@ export type WSChatMessage =
 
 // Game State WebSocket Messages (from GameConsumer)
 
+// Per-agent simulation details
+export interface WSAgentDetail {
+  agent_id: number;
+  mode: string;
+  trip_time_min: number;
+  delay_min: number;
+  co2_g: number;
+  cost_eur: number;
+}
+
 // Player stats for a single round
 export interface WSPlayerRoundStats {
   player_id: string;
   player_name: string;
-  action: "car" | "public" | "bike" | "walk";
+  action: string;
   emissions_g: number;
   cost_eur: number;
   time_min: number;
+  agents?: WSAgentDetail[];
+}
+
+// Map version option for voting
+export interface WSMapVersionOption {
+  id: number;
+  name: string;
+  poll_text: string;
 }
 
 // game.started event
@@ -178,6 +196,8 @@ export interface WSRoundCompletedMessage {
     total_game_emissions_g: number;
     max_co2_level_g: number;
     player_stats: WSPlayerRoundStats[];
+    has_map_versions: boolean;
+    map_versions: WSMapVersionOption[];
   };
 }
 
@@ -193,6 +213,56 @@ export interface WSGameStateInitMessage {
     maxRounds: number;
     startedAt: string | null;
     endedAt: string | null;
+    betweenRoundPhase: BetweenRoundPhase;
+    activeMapVersionId: number | null;
+    hasMapVersions: boolean;
+    mapVersions: WSMapVersionOption[];
+  };
+}
+
+// Between-round phase types
+export type BetweenRoundPhase = "none" | "stats" | "discussion" | "voting";
+
+// stats.all_acked event
+export interface WSStatsAllAckedMessage {
+  type: "stats.all_acked";
+  game_id: string;
+  data: {
+    next_phase: "discussion" | "next_round";
+    map_versions?: WSMapVersionOption[];
+  };
+}
+
+// vote.opened event
+export interface WSVoteOpenedMessage {
+  type: "vote.opened";
+  game_id: string;
+  data: Record<string, never>;
+}
+
+// vote.recorded event (progress)
+export interface WSVoteRecordedMessage {
+  type: "vote.recorded";
+  game_id: string;
+  data: {
+    player_id: string;
+    votes_cast: number;
+    votes_needed: number;
+  };
+}
+
+// vote.result event
+export interface WSVoteResultMessage {
+  type: "vote.result";
+  game_id: string;
+  data: {
+    winning_version_id: number | null;
+    winning_version_name: string;
+    vote_counts: {
+      version_id: number | null;
+      version_name: string;
+      count: number;
+    }[];
   };
 }
 
@@ -205,7 +275,11 @@ export type WSGameStateMessage =
   | WSRoundStartedMessage
   | WSRoundCompletedMessage
   | WSRosterUpdateMessage
-  | WSGameStateInitMessage;
+  | WSGameStateInitMessage
+  | WSStatsAllAckedMessage
+  | WSVoteOpenedMessage
+  | WSVoteRecordedMessage
+  | WSVoteResultMessage;
 
 // Combined game state for UI consumption
 export interface WSGameState {
@@ -220,4 +294,9 @@ export interface WSGameState {
   totalEmissionsG: number;
   lastRoundStats: WSPlayerRoundStats[] | null;
   roster: WSRosterPlayer[];
+  betweenRoundPhase: BetweenRoundPhase;
+  hasMapVersions: boolean;
+  mapVersions: WSMapVersionOption[];
+  voteProgress: { cast: number; needed: number } | null;
+  voteResult: WSVoteResultMessage["data"] | null;
 }

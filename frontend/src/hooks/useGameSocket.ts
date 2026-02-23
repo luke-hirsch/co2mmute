@@ -9,6 +9,10 @@ import type {
   WSRoundCompletedMessage,
   WSRosterUpdateMessage,
   WSGameStateInitMessage,
+  WSStatsAllAckedMessage,
+  WSVoteRecordedMessage,
+  WSVoteResultMessage,
+  BetweenRoundPhase,
 } from "../types/wsTypes";
 import { GameWSClient } from "../utils/gameWS";
 
@@ -78,6 +82,14 @@ export function useGameSocket(
       const msg = message as { type: string; game_id?: string; data?: unknown };
       console.debug("Game message received:", msg.type, msg);
 
+      const defaultBetweenRound = {
+        betweenRoundPhase: "none" as BetweenRoundPhase,
+        hasMapVersions: false,
+        mapVersions: [] as WSGameState["mapVersions"],
+        voteProgress: null,
+        voteResult: null,
+      };
+
       switch (msg.type) {
         case "game.started": {
           const data = msg.data as WSGameStartedMessage["data"];
@@ -88,11 +100,12 @@ export function useGameSocket(
             endedAt: null,
             endReason: null,
             maxRounds: data.max_rounds,
-            maxCo2LevelG: data.max_co2_level * 1000, // convert kg to g
+            maxCo2LevelG: data.max_co2_level * 1000,
             currentRound: data.current_round,
             totalEmissionsG: 0,
             lastRoundStats: prev?.lastRoundStats || null,
             roster: prev?.roster || [],
+            ...defaultBetweenRound,
           }));
           callbacksRef.current.onGameStarted?.(data);
           break;
@@ -109,6 +122,7 @@ export function useGameSocket(
               currentRound: data.final_round,
               lastRoundStats: null,
               roster: [],
+              ...defaultBetweenRound,
             }),
             isActive: false,
             endedAt: data.ended_at,
@@ -135,6 +149,9 @@ export function useGameSocket(
             maxRounds: data.max_rounds,
             maxCo2LevelG: data.max_co2_level_g,
             totalEmissionsG: data.total_game_emissions_g,
+            // Reset between-round state
+            ...defaultBetweenRound,
+            lastRoundStats: null,
           }));
           callbacksRef.current.onRoundStarted?.(data);
           break;
@@ -156,8 +173,55 @@ export function useGameSocket(
             totalEmissionsG: data.total_game_emissions_g,
             maxCo2LevelG: data.max_co2_level_g,
             lastRoundStats: data.player_stats,
+            betweenRoundPhase: "stats" as BetweenRoundPhase,
+            hasMapVersions: data.has_map_versions,
+            mapVersions: data.map_versions || [],
+            voteProgress: null,
+            voteResult: null,
           }));
           callbacksRef.current.onRoundCompleted?.(data);
+          break;
+        }
+
+        case "stats.all_acked": {
+          const data = msg.data as WSStatsAllAckedMessage["data"];
+          if (data.next_phase === "discussion") {
+            setGameState((prev) =>
+              prev ? { ...prev, betweenRoundPhase: "discussion" } : prev,
+            );
+          }
+          // If next_phase is "next_round", the round.started message will follow
+          break;
+        }
+
+        case "vote.opened": {
+          setGameState((prev) =>
+            prev ? { ...prev, betweenRoundPhase: "voting" } : prev,
+          );
+          break;
+        }
+
+        case "vote.recorded": {
+          const data = msg.data as WSVoteRecordedMessage["data"];
+          setGameState((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  voteProgress: {
+                    cast: data.votes_cast,
+                    needed: data.votes_needed,
+                  },
+                }
+              : prev,
+          );
+          break;
+        }
+
+        case "vote.result": {
+          const data = msg.data as WSVoteResultMessage["data"];
+          setGameState((prev) =>
+            prev ? { ...prev, voteResult: data } : prev,
+          );
           break;
         }
 
@@ -165,7 +229,6 @@ export function useGameSocket(
           const players = (msg as WSRosterUpdateMessage).players;
           setGameState((prev) => {
             if (!prev) {
-              // Initialize minimal state if none exists
               return {
                 gameId: msg.game_id || gameId,
                 gameName: "",
@@ -178,6 +241,7 @@ export function useGameSocket(
                 totalEmissionsG: 0,
                 lastRoundStats: null,
                 roster: players,
+                ...defaultBetweenRound,
               };
             }
             return {
@@ -189,7 +253,6 @@ export function useGameSocket(
         }
 
         case "game.state": {
-          // Initial state sync on reconnect
           const data = (msg as WSGameStateInitMessage).data;
           setGameState((prev) => ({
             gameId: msg.game_id || gameId,
@@ -203,6 +266,11 @@ export function useGameSocket(
             totalEmissionsG: data.totalEmissionsG,
             lastRoundStats: prev?.lastRoundStats || null,
             roster: prev?.roster || [],
+            betweenRoundPhase: data.betweenRoundPhase || "none",
+            hasMapVersions: data.hasMapVersions || false,
+            mapVersions: data.mapVersions || [],
+            voteProgress: prev?.voteProgress || null,
+            voteResult: prev?.voteResult || null,
           }));
           break;
         }

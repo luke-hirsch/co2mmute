@@ -52,7 +52,7 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
   refetchRef.current = gameData.refetch;
 
   // Connect to game websocket and receive game state updates
-  const { gameState } = useGameSocket({
+  const { gameState, sendMessage } = useGameSocket({
     gameId: id,
     onGameStarted: (data) => {
       console.log("Game started:", data);
@@ -614,6 +614,35 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
               </p>
             </div>
           </div>
+
+          {/* Between-Round Phase Indicator */}
+          {gameState.betweenRoundPhase && gameState.betweenRoundPhase !== "none" && (
+            <div className="mb-4 p-3 rounded bg-white dark:bg-darksurface border border-subtle dark:border-darksubtle">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                  <span className="text-sm font-medium">
+                    {gameState.betweenRoundPhase === "stats" && "Players reviewing stats"}
+                    {gameState.betweenRoundPhase === "discussion" && "Discussion phase"}
+                    {gameState.betweenRoundPhase === "voting" && "Voting in progress"}
+                  </span>
+                  {gameState.betweenRoundPhase === "voting" && gameState.voteProgress && (
+                    <span className="text-xs text-muted dark:text-darkmutedtext">
+                      ({gameState.voteProgress.cast}/{gameState.voteProgress.needed} votes)
+                    </span>
+                  )}
+                </div>
+                {role === "host" && gameState.betweenRoundPhase === "discussion" && (
+                  <button
+                    onClick={() => sendMessage({ type: "vote.open" })}
+                    className="px-4 py-1.5 rounded bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors"
+                  >
+                    Open Voting
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Game End Status */}
           {gameState.endedAt && (

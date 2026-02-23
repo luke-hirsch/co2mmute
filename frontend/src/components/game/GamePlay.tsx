@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useGameSocket } from "../../hooks/useGameSocket";
 import { usePlayerMove } from "../../hooks/usePlayerMove";
 import { useGameDetails, usePlayerGameDetails } from "../../hooks/gameHooks";
@@ -14,7 +14,7 @@ interface GamePlayProps {
   isHost?: boolean;
 }
 
-type GamePhase = "lobby" | "playing" | "waiting" | "round_results";
+type GamePhase = "lobby" | "playing" | "waiting" | "round_results" | "discussion" | "voting";
 
 const TRANSPORT_OPTIONS: {
   id: TransportMode;
@@ -82,6 +82,7 @@ export default function GamePlay({
     isConnected,
     error: gameError,
     gameState,
+    sendMessage,
   } = useGameSocket({ gameId });
 
   const {
@@ -95,9 +96,13 @@ export default function GamePlay({
 
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
-  const [showCarOptions, setShowCarOptions] = useState<number | null>(null); // agentId showing car options
+  const [showCarOptions, setShowCarOptions] = useState<number | null>(null);
   const [animationEnabled, setAnimationEnabled] = useState(true);
-  const [animationSpeed, setAnimationSpeed] = useState(100); // ms per step
+  const [animationSpeed, setAnimationSpeed] = useState(100);
+  const [hasAckedStats, setHasAckedStats] = useState(false);
+  const [hasVoted, setHasVoted] = useState(false);
+  const [selectedVersionId, setSelectedVersionId] = useState<number | null | undefined>(undefined);
+  const mapRef = useRef<HTMLDivElement>(null);
 
   // Fetch game details to get map ID and player data
   const hostGameDetails = useGameDetails(gameId, isHost);
@@ -153,21 +158,27 @@ export default function GamePlay({
     animationSpeed,
   });
 
-  // Reset submission state when round changes
+  // Reset state when a new round starts (betweenRoundPhase goes back to "none")
   useEffect(() => {
-    setIsSubmitted(false);
-    setShowCarOptions(null);
-  }, [gameState?.currentRound]);
+    if (gameState?.betweenRoundPhase === "none") {
+      setIsSubmitted(false);
+      setShowCarOptions(null);
+      setHasAckedStats(false);
+      setHasVoted(false);
+      setSelectedVersionId(undefined);
+    }
+  }, [gameState?.betweenRoundPhase]);
 
-  // Derive phase
+  // Derive phase (between-round phases take priority)
   const phase: GamePhase = useMemo(() => {
     if (!gameState || (!gameState.isActive && !gameState.endedAt)) {
       return "lobby";
     }
     if (gameState.isActive) {
-      if (isSubmitted) {
-        return "waiting";
-      }
+      if (gameState.betweenRoundPhase === "stats") return "round_results";
+      if (gameState.betweenRoundPhase === "discussion") return "discussion";
+      if (gameState.betweenRoundPhase === "voting") return "voting";
+      if (isSubmitted) return "waiting";
       return "playing";
     }
     return "lobby";
@@ -193,6 +204,11 @@ export default function GamePlay({
       return;
     }
 
+    // Scroll map into view so user can watch the animation
+    if (animationEnabled) {
+      mapRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
     const extendedGraph: ExtendedMapGraph = {
       ...mapGraph,
       bus_lines: (mapGraph as ExtendedMapGraph).bus_lines ?? [],
@@ -201,7 +217,7 @@ export default function GamePlay({
     };
 
     await findAgentRoute(agentId, extendedGraph, homeNode);
-  }, [mapGraph, homeNode, findAgentRoute]);
+  }, [mapGraph, homeNode, findAgentRoute, animationEnabled]);
 
   const handleTransportSelect = useCallback((agentId: number, mode: TransportMode) => {
     if (mode === "car") {
@@ -272,6 +288,368 @@ export default function GamePlay({
 
   if (!gameState) {
     return <Loading />;
+  }
+
+  // Render round results phase
+  if (phase === "round_results") {
+    const myStats = gameState.lastRoundStats?.find(
+      (s) => s.player_id === playerId
+    );
+    const myAgents = myStats?.agents ?? [];
+
+    const getModeDisplay = (mode: string) => {
+      switch (mode) {
+        case "car": return { emoji: "🚗", label: "Car" };
+        case "bus": return { emoji: "🚌", label: "Bus" };
+        case "train": return { emoji: "🚆", label: "Train" };
+        case "bike": return { emoji: "🚴", label: "Bike" };
+        case "walk": return { emoji: "🚶", label: "Walk" };
+        default: return { emoji: "❓", label: mode };
+      }
+    };
+
+    return (
+      <div className="w-full max-w-2xl">
+        <div className="text-center mb-6">
+          <h1 className="text-2xl font-bold mb-1">
+            Round {gameState.currentRound} Results
+          </h1>
+          <p className="text-muted dark:text-darkmutedtext">
+            Here's how your agents performed
+          </p>
+        </div>
+
+        {/* Own per-agent details */}
+        {myStats && myAgents.length > 0 && (
+          <div className="bg-surface dark:bg-darksurface rounded-lg p-4 border border-subtle dark:border-darksubtle mb-4">
+            <h3 className="font-semibold mb-3">Your Agents</h3>
+            <div className="space-y-2">
+              {myAgents.map((agent, index) => {
+                const color = AGENT_COLORS[index % AGENT_COLORS.length];
+                const modeInfo = getModeDisplay(agent.mode);
+                return (
+                  <div
+                    key={agent.agent_id}
+                    className="flex items-center justify-between p-3 bg-elevated dark:bg-darkelevated rounded"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`font-bold ${color.text}`}>#{agent.agent_id}</span>
+                      <span className="text-lg">{modeInfo.emoji}</span>
+                      <span className="font-medium">{modeInfo.label}</span>
+                    </div>
+                    <div className="flex items-center gap-4 text-sm">
+                      <span title="Trip time">
+                        {formatTime(agent.trip_time_min)}
+                      </span>
+                      {agent.delay_min > 0 && (
+                        <span className="text-orange-600 dark:text-orange-400" title="Delay">
+                          +{Math.round(agent.delay_min)} min
+                        </span>
+                      )}
+                      <span title="Cost">
+                        {agent.cost_eur.toFixed(2)} EUR
+                      </span>
+                      <span title="CO2 emissions">
+                        {agent.co2_g >= 1000
+                          ? `${(agent.co2_g / 1000).toFixed(1)} kg`
+                          : `${Math.round(agent.co2_g)} g`} CO2
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Own totals */}
+            <div className="mt-3 pt-3 border-t border-subtle dark:border-darksubtle flex justify-between text-sm font-medium">
+              <span>Your Total</span>
+              <div className="flex items-center gap-4">
+                <span>{myStats.cost_eur.toFixed(2)} EUR</span>
+                <span>
+                  {myStats.emissions_g >= 1000
+                    ? `${(myStats.emissions_g / 1000).toFixed(1)} kg`
+                    : `${Math.round(myStats.emissions_g)} g`} CO2
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* All-player summary */}
+        {gameState.lastRoundStats && gameState.lastRoundStats.length > 0 && (
+          <div className="bg-surface dark:bg-darksurface rounded-lg p-4 border border-subtle dark:border-darksubtle mb-6">
+            <h3 className="font-semibold mb-3">All Players</h3>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-muted dark:text-darkmutedtext border-b border-subtle dark:border-darksubtle">
+                  <th className="text-left pb-2">Player</th>
+                  <th className="text-right pb-2">CO2</th>
+                  <th className="text-right pb-2">Cost</th>
+                  <th className="text-right pb-2">Avg Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {gameState.lastRoundStats.map((stat) => {
+                  const isMe = stat.player_id === playerId;
+                  return (
+                    <tr
+                      key={stat.player_id}
+                      className={isMe ? "font-semibold" : ""}
+                    >
+                      <td className="py-1.5">
+                        {stat.player_name}
+                        {isMe && <span className="text-xs text-muted dark:text-darkmutedtext ml-1">(you)</span>}
+                      </td>
+                      <td className="text-right py-1.5">
+                        {stat.emissions_g >= 1000
+                          ? `${(stat.emissions_g / 1000).toFixed(1)} kg`
+                          : `${Math.round(stat.emissions_g)} g`}
+                      </td>
+                      <td className="text-right py-1.5">{stat.cost_eur.toFixed(2)} EUR</td>
+                      <td className="text-right py-1.5">{formatTime(stat.time_min)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* CO2 budget bar */}
+        <div className="mb-6 max-w-md mx-auto">
+          <div className="flex justify-between text-sm mb-1">
+            <span>CO2 Budget</span>
+            <span>
+              {(gameState.totalEmissionsG / 1000).toFixed(1)} /{" "}
+              {(gameState.maxCo2LevelG / 1000).toFixed(0)} kg
+            </span>
+          </div>
+          <div className="w-full bg-gray-300 dark:bg-gray-600 rounded-full h-2">
+            <div
+              className={`h-2 rounded-full transition-all duration-300 ${
+                gameState.totalEmissionsG / gameState.maxCo2LevelG > 0.75
+                  ? "bg-red-500"
+                  : gameState.totalEmissionsG / gameState.maxCo2LevelG > 0.5
+                    ? "bg-yellow-500"
+                    : "bg-green-500"
+              }`}
+              style={{
+                width: `${Math.min((gameState.totalEmissionsG / gameState.maxCo2LevelG) * 100, 100)}%`,
+              }}
+            />
+          </div>
+        </div>
+
+        {/* OK / Waiting */}
+        <div className="text-center">
+          {hasAckedStats ? (
+            <div className="flex flex-col items-center gap-2">
+              <p className="text-muted dark:text-darkmutedtext">Waiting for other players...</p>
+              <div className="flex gap-2">
+                <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" />
+                <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
+                <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => {
+                sendMessage({ type: "player.stats_ack" });
+                setHasAckedStats(true);
+              }}
+              className="px-8 py-3 rounded-lg font-semibold bg-primary-600 text-white hover:bg-primary-700 transition-colors"
+            >
+              OK
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Render discussion phase
+  if (phase === "discussion") {
+    return (
+      <div className="w-full max-w-2xl">
+        <div className="text-center mb-6">
+          <h1 className="text-2xl font-bold mb-1">Discussion</h1>
+          <p className="text-muted dark:text-darkmutedtext">
+            Review proposed map changes before voting
+          </p>
+        </div>
+
+        <div className="space-y-4 mb-6">
+          {gameState.mapVersions.map((version) => (
+            <div
+              key={version.id}
+              className="bg-surface dark:bg-darksurface rounded-lg p-4 border border-subtle dark:border-darksubtle"
+            >
+              <h3 className="font-semibold mb-2">{version.name}</h3>
+              <p className="text-muted dark:text-darkmutedtext">{version.poll_text}</p>
+            </div>
+          ))}
+          <div className="bg-surface dark:bg-darksurface rounded-lg p-4 border border-subtle dark:border-darksubtle">
+            <h3 className="font-semibold mb-2">Leave as it is</h3>
+            <p className="text-muted dark:text-darkmutedtext">
+              Keep the current map without changes.
+            </p>
+          </div>
+        </div>
+
+        <div className="text-center">
+          {isHost ? (
+            <button
+              onClick={() => sendMessage({ type: "vote.open" })}
+              className="px-8 py-3 rounded-lg font-semibold bg-primary-600 text-white hover:bg-primary-700 transition-colors"
+            >
+              Open Voting
+            </button>
+          ) : (
+            <p className="text-muted dark:text-darkmutedtext">
+              Waiting for host to open voting...
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Render voting phase
+  if (phase === "voting") {
+    const hasResult = !!gameState.voteResult;
+
+    // Show vote results
+    if (hasResult) {
+      const result = gameState.voteResult!;
+      return (
+        <div className="w-full max-w-2xl">
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-bold mb-1">Vote Results</h1>
+            <p className="text-muted dark:text-darkmutedtext">
+              {result.winning_version_name} wins!
+            </p>
+          </div>
+
+          <div className="space-y-3 mb-6">
+            {result.vote_counts.map((vc) => {
+              const isWinner = vc.version_id === result.winning_version_id;
+              return (
+                <div
+                  key={vc.version_id ?? "leave"}
+                  className={`p-4 rounded-lg border-2 ${
+                    isWinner
+                      ? "border-primary-500 bg-primary-50 dark:bg-primary-900/20"
+                      : "border-subtle dark:border-darksubtle bg-surface dark:bg-darksurface"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold">{vc.version_name}</span>
+                    <span className={`font-bold ${isWinner ? "text-primary-600 dark:text-primary-400" : ""}`}>
+                      {vc.count} vote{vc.count !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="text-center">
+            <div className="flex justify-center gap-2">
+              <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" />
+              <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
+              <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+            </div>
+            <p className="text-sm text-muted dark:text-darkmutedtext mt-2">
+              Starting next round...
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // Show voting form
+    return (
+      <div className="w-full max-w-2xl">
+        <div className="text-center mb-6">
+          <h1 className="text-2xl font-bold mb-1">Vote</h1>
+          <p className="text-muted dark:text-darkmutedtext">
+            Choose which map version to play next
+          </p>
+        </div>
+
+        <div className="space-y-3 mb-6">
+          {gameState.mapVersions.map((version) => {
+            const isSelected = selectedVersionId === version.id;
+            return (
+              <button
+                key={version.id}
+                onClick={() => !hasVoted && setSelectedVersionId(version.id)}
+                disabled={hasVoted}
+                className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                  isSelected
+                    ? "border-primary-500 ring-2 ring-primary-200 dark:ring-primary-800 bg-primary-50 dark:bg-primary-900/20"
+                    : "border-subtle dark:border-darksubtle bg-surface dark:bg-darksurface"
+                } ${hasVoted ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:border-gray-400"}`}
+              >
+                <h3 className="font-semibold mb-1">{version.name}</h3>
+                <p className="text-sm text-muted dark:text-darkmutedtext">{version.poll_text}</p>
+              </button>
+            );
+          })}
+          {/* "Leave as it is" option */}
+          <button
+            onClick={() => !hasVoted && setSelectedVersionId(null)}
+            disabled={hasVoted}
+            className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+              selectedVersionId === null
+                ? "border-primary-500 ring-2 ring-primary-200 dark:ring-primary-800 bg-primary-50 dark:bg-primary-900/20"
+                : "border-subtle dark:border-darksubtle bg-surface dark:bg-darksurface"
+            } ${hasVoted ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:border-gray-400"}`}
+          >
+            <h3 className="font-semibold mb-1">Leave as it is</h3>
+            <p className="text-sm text-muted dark:text-darkmutedtext">
+              Keep the current map without changes.
+            </p>
+          </button>
+        </div>
+
+        <div className="text-center">
+          {hasVoted ? (
+            <div className="flex flex-col items-center gap-2">
+              <p className="text-muted dark:text-darkmutedtext">
+                Vote submitted! Waiting for others...
+              </p>
+              {gameState.voteProgress && (
+                <p className="text-sm text-muted dark:text-darkmutedtext">
+                  {gameState.voteProgress.cast} / {gameState.voteProgress.needed} votes
+                </p>
+              )}
+              <div className="flex gap-2">
+                <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" />
+                <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
+                <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => {
+                if (selectedVersionId !== undefined) {
+                  sendMessage({ type: "vote.submit", version_id: selectedVersionId });
+                  setHasVoted(true);
+                }
+              }}
+              disabled={selectedVersionId === undefined}
+              className={`px-8 py-3 rounded-lg font-semibold transition-colors ${
+                selectedVersionId !== undefined
+                  ? "bg-primary-600 text-white hover:bg-primary-700 cursor-pointer"
+                  : "bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+              }`}
+            >
+              Submit Vote
+            </button>
+          )}
+        </div>
+      </div>
+    );
   }
 
   // Render lobby phase
@@ -451,7 +829,7 @@ export default function GamePlay({
       )}
 
       {/* Map viewer */}
-      <div className="bg-surface dark:bg-darksurface rounded-lg p-4 border border-subtle dark:border-darksubtle mb-6">
+      <div ref={mapRef} className="bg-surface dark:bg-darksurface rounded-lg p-4 border border-subtle dark:border-darksubtle mb-6">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-lg font-semibold">
             City Map

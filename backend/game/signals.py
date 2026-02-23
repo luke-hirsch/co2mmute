@@ -348,6 +348,13 @@ def handle_round_completed(sender, game_id=None, game_session=None, game_round=N
         for r in GameRound.objects.filter(game=game_session, status=GameRound.Status.COMPLETED)
     )
 
+    # Check game end conditions
+    co2_limit_reached = total_game_emissions >= (game_session.max_CO2_level * 1000)
+    max_rounds_reached = game_round.round_number >= game_session.max_rounds
+
+    # Get voteable map versions (non-base versions for the game's map)
+    voteable_versions = _get_voteable_map_versions(game_session)
+
     # Broadcast round completed stats
     send_game_state_message(
         game_session.game_id,
@@ -360,16 +367,21 @@ def handle_round_completed(sender, game_id=None, game_session=None, game_round=N
             "max_co2_level_g": game_session.max_CO2_level * 1000,
             "player_stats": player_stats,
             "simulation_used": has_routes,
+            "has_map_versions": bool(voteable_versions),
+            "map_versions": [
+                {
+                    "id": mv.id,
+                    "name": mv.name,
+                    "poll_text": mv.poll_text,
+                }
+                for mv in voteable_versions
+            ],
         },
     )
     logger.info(
         f"Round {game_round.round_number} completed for game {game_session.game_id}: "
         f"{round_emissions}g CO2, €{round_cost} (simulation={has_routes})"
     )
-
-    # Check game end conditions
-    co2_limit_reached = total_game_emissions >= (game_session.max_CO2_level * 1000)
-    max_rounds_reached = game_round.round_number >= game_session.max_rounds
 
     if co2_limit_reached or max_rounds_reached:
         # End the game
@@ -383,25 +395,13 @@ def handle_round_completed(sender, game_id=None, game_session=None, game_round=N
         # The game_start signal handler will broadcast game.ended
         return
 
-    # Create new round
-    new_round_obj = GameRound.objects.create(
-        game=game_session,
-        status=GameRound.Status.ACTIVE,
-        started_at=timezone.now(),
+    # Enter between-round stats phase (next round created after stats ack / voting)
+    game_round.between_round_phase = GameRound.BetweenRoundPhase.STATS
+    game_round.save(update_fields=["between_round_phase", "updated_at"])
+    logger.info(
+        f"Game {game_session.game_id} round {game_round.round_number} "
+        f"entering stats phase (has_map_versions={bool(voteable_versions)})"
     )
-
-    # Broadcast new round started
-    send_game_state_message(
-        game_session.game_id,
-        "round.started",
-        {
-            "round_number": new_round_obj.round_number,
-            "max_rounds": game_session.max_rounds,
-            "total_game_emissions_g": total_game_emissions,
-            "max_co2_level_g": game_session.max_CO2_level * 1000,
-        },
-    )
-    logger.info(f"Round {new_round_obj.round_number} started for game {game_session.game_id}")
 
 
 def _run_simulation(game_session, game_round, moves):
@@ -476,6 +476,7 @@ def _run_simulation(game_session, game_round, moves):
                     "trip_time_min": round(agent_result.mean_trip_time_min, 1),
                     "delay_min": round(agent_result.congestion_delay_min, 1),
                     "co2_g": round(agent_result.total_co2_g, 1),
+                    "cost_eur": round(agent_result.mean_cost_eur, 2),
                 })
 
             # Summarize transport modes
@@ -494,7 +495,7 @@ def _run_simulation(game_session, game_round, moves):
 
         return round_emissions, round_cost, player_stats
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.exception(f"Simulation failed for round {game_round.round_number}")
         # Fall back to hardcoded if simulation fails
         send_game_state_message(
@@ -577,3 +578,17 @@ def _calculate_hardcoded_stats(moves):
         })
 
     return round_emissions, round_cost, player_stats
+
+
+def _get_voteable_map_versions(game_session):
+    """Return non-base MapVersions for the game's map, excluding the currently active one."""
+    from maps.models import MapVersion
+
+    if not game_session.game_map or not game_session.map_updates:
+        return []
+    return list(
+        MapVersion.objects.filter(
+            game_map=game_session.game_map,
+            base_version=False,
+        ).exclude(pk=game_session.active_map_version_id)
+    )

@@ -15,6 +15,7 @@ class GameSessionSerializer(serializers.ModelSerializer):
             "game_qr_code",
             "game_map",
             "map_updates",
+            "active_map_version",
             "max_players",
             "agent_per_player",
             "max_rounds",

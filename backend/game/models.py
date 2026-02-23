@@ -22,6 +22,13 @@ class GameSession(models.Model):
         "maps.GameMap", on_delete=models.SET_NULL, null=True, blank=True
     )
     map_updates = models.BooleanField(default=False)
+    active_map_version = models.ForeignKey(
+        "maps.MapVersion",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="active_in_sessions",
+    )
     max_players = models.PositiveIntegerField()
     agent_per_player = models.PositiveIntegerField()
     max_rounds = models.PositiveIntegerField()
@@ -147,6 +154,18 @@ class GameRound(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     total_emissions_g = models.FloatField(default=0.0)  # in grams
     total_cost_eur = models.FloatField(default=0.0)
+
+    class BetweenRoundPhase(models.TextChoices):
+        NONE = "none", "None"
+        STATS = "stats", "Stats Review"
+        DISCUSSION = "discussion", "Discussion"
+        VOTING = "voting", "Voting"
+
+    between_round_phase = models.CharField(
+        max_length=20,
+        choices=BetweenRoundPhase.choices,
+        default=BetweenRoundPhase.NONE,
+    )
 
     class Meta:
         unique_together = (("game", "round_number"),)
@@ -376,3 +395,34 @@ class EdgeTrafficSnapshot(models.Model):
 
     def __str__(self):
         return f"Traffic on edge {self.edge.id} at tick {self.time_tick}"
+
+
+# =============================================================================
+# Voting Models
+# =============================================================================
+
+
+class MapVersionVote(models.Model):
+    """Records a player's vote for a map version between rounds."""
+
+    game_round = models.ForeignKey(
+        GameRound, on_delete=models.CASCADE, related_name="map_votes"
+    )
+    player = models.ForeignKey(
+        Player, on_delete=models.CASCADE, related_name="map_votes"
+    )
+    map_version = models.ForeignKey(
+        "maps.MapVersion",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,  # null = "Leave as it is"
+    )
+    voted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = (("game_round", "player"),)
+        ordering = ("game_round", "voted_at")
+
+    def __str__(self):
+        version_name = self.map_version.name if self.map_version else "Leave as is"
+        return f"Vote by {self.player} in round {self.game_round.round_number}: {version_name}"

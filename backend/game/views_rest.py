@@ -173,6 +173,17 @@ class GameSessionDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIVie
                     defaults={"status": "active", "started_at": timezone.now()},
                 )
 
+                # Set initial active map version to base version
+                if game.game_map:
+                    from maps.models import MapVersion
+
+                    base = MapVersion.objects.filter(
+                        game_map=game.game_map, base_version=True
+                    ).first()
+                    if base:
+                        game.active_map_version = base
+                        game.save(update_fields=["active_map_version"])
+
             # The post_save signal on GameSession will broadcast game.started
             serializer = self.get_serializer(game)
             return Response(serializer.data, status=status.HTTP_200_OK)
