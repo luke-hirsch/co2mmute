@@ -3,6 +3,7 @@ import threading
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Avg, Max
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
@@ -15,7 +16,7 @@ from rest_framework.response import Response
 
 from game.cache import get_cached_game_session
 from game.mixins import GameScopedQuerysetMixin
-from game.models import AgentRoute, GameRound, GameSession, Player, PlayerMove, RouteSegment
+from game.models import AgentRoute, EdgeTrafficSnapshot, GameRound, GameSession, Player, PlayerMove, RouteSegment, SimulationResult
 from game.permissions import CanDeleteOwnPlayer, HasGameAccess, IsPlayerInGame
 from game.serializers import (
     GameSessionSerializer,
@@ -465,3 +466,76 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
             logger.error(f"Game {game_id} not found")
         except Exception as e:
             logger.error(f"Error checking round completion: {e}")
+
+
+class RoundTrafficHeatmapView(GenericAPIView):
+    """Return aggregated traffic congestion data per edge for a completed round."""
+
+    authentication_classes = (SessionAuthentication,)
+    permission_classes = (HasGameAccess,)
+
+    def get(self, request, game_id, round_number):
+        try:
+            game = GameSession.objects.get(game_id=game_id)
+        except GameSession.DoesNotExist:
+            return Response({"error": "Game not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            game_round = GameRound.objects.get(game=game, round_number=round_number)
+        except GameRound.DoesNotExist:
+            return Response({"error": "Round not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            sim_result = game_round.simulation
+        except SimulationResult.DoesNotExist:
+            return Response(
+                {"error": "No simulation for this round"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Aggregate traffic snapshots per edge
+        edge_traffic = (
+            EdgeTrafficSnapshot.objects.filter(simulation=sim_result)
+            .values("edge_id")
+            .annotate(
+                avg_vehicle_count=Avg("vehicle_count"),
+                max_vehicle_count=Max("vehicle_count"),
+                avg_speed_kmh=Avg("speed_kmh"),
+            )
+        )
+
+        # Build lookup for free-flow speeds from StreetEdge
+        from maps.models import StreetEdge
+
+        edge_ids = [et["edge_id"] for et in edge_traffic]
+        default_speed = game.game_map.default_car_speed_kmh if game.game_map else 50
+
+        street_speeds = {}
+        for se in StreetEdge.objects.filter(edge_id__in=edge_ids).select_related("edge"):
+            street_speeds[se.edge_id] = se.speed_limit
+
+        heatmap_data = []
+        for et in edge_traffic:
+            eid = et["edge_id"]
+            free_flow = street_speeds.get(eid, default_speed)
+            avg_speed = et["avg_speed_kmh"]
+            congestion_ratio = (
+                max(0.0, min(1.0, 1.0 - (avg_speed / free_flow)))
+                if free_flow > 0
+                else 0.0
+            )
+
+            heatmap_data.append({
+                "edge_id": eid,
+                "avg_vehicle_count": round(et["avg_vehicle_count"], 1),
+                "max_vehicle_count": et["max_vehicle_count"],
+                "avg_speed_kmh": round(avg_speed, 1),
+                "free_flow_speed_kmh": free_flow,
+                "congestion_ratio": round(congestion_ratio, 3),
+            })
+
+        return Response({
+            "round_number": round_number,
+            "edge_count": len(heatmap_data),
+            "edges": heatmap_data,
+        })

@@ -20,6 +20,8 @@ interface GameMapViewerProps {
   pathfindingFinalPath?: number[] | null;
   pathfindingPreviousEdges?: Map<number, number>;
   showDijkstraViz?: boolean;
+  // Traffic heatmap overlay
+  trafficHeatmap?: { edgeId: number; congestionRatio: number }[];
 }
 
 // Colors for different transport modes on route segments
@@ -30,6 +32,32 @@ const ROUTE_COLORS: Record<SegmentMode, string> = {
   bike: "#10b981", // Green
   walk: "#3b82f6", // Blue
 };
+
+/** Interpolate congestion ratio (0–1) to a green→yellow→orange→red color */
+function getCongestionColor(ratio: number): string {
+  const r = Math.max(0, Math.min(1, ratio));
+  // 4-stop gradient: green(0) → yellow(0.33) → orange(0.66) → red(1)
+  const stops = [
+    { pos: 0, color: [34, 197, 94] },    // #22c55e green
+    { pos: 0.33, color: [234, 179, 8] },  // #eab308 yellow
+    { pos: 0.66, color: [249, 115, 22] }, // #f97316 orange
+    { pos: 1, color: [239, 68, 68] },     // #ef4444 red
+  ];
+  let lo = stops[0], hi = stops[stops.length - 1];
+  for (let i = 0; i < stops.length - 1; i++) {
+    if (r >= stops[i].pos && r <= stops[i + 1].pos) {
+      lo = stops[i]; hi = stops[i + 1]; break;
+    }
+  }
+  const t = lo.pos === hi.pos ? 0 : (r - lo.pos) / (hi.pos - lo.pos);
+  const rgb = lo.color.map((c, i) => Math.round(c + t * (hi.color[i] - c)));
+  return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+}
+
+/** Stroke width scales with congestion: 3px (free flow) → 8px (gridlock) */
+function getCongestionStrokeWidth(ratio: number): number {
+  return 3 + Math.max(0, Math.min(1, ratio)) * 5;
+}
 
 /**
  * Simplified map viewer for gameplay - shows the map with route visualization
@@ -51,6 +79,7 @@ const GameMapViewer = ({
   pathfindingFinalPath,
   pathfindingPreviousEdges,
   showDijkstraViz = false,
+  trafficHeatmap,
 }: GameMapViewerProps) => {
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
 
@@ -60,6 +89,14 @@ const GameMapViewer = ({
     mapGraph?.nodes.forEach((n) => map.set(n.id, n));
     return map;
   }, [mapGraph?.nodes]);
+
+  // Build heatmap lookup map for O(1) access by edge ID
+  const heatmapMap = useMemo(() => {
+    if (!trafficHeatmap) return null;
+    const map = new Map<number, number>();
+    trafficHeatmap.forEach((e) => map.set(e.edgeId, e.congestionRatio));
+    return map;
+  }, [trafficHeatmap]);
 
   /**
    * Determine edge color and style based on edge type and properties
@@ -317,6 +354,30 @@ const GameMapViewer = ({
                 strokeWidth="2"
                 strokeDasharray={strokeDasharray}
                 opacity="0.4"
+              />
+            );
+          })}
+
+          {/* Traffic Heatmap overlay */}
+          {heatmapMap && mapGraph.edges.map((edge) => {
+            const ratio = heatmapMap.get(edge.id);
+            if (ratio === undefined) return null;
+
+            const sn = nodeMap.get(edge.start_node);
+            const en = nodeMap.get(edge.end_node);
+            if (!sn || !en) return null;
+
+            return (
+              <line
+                key={`heatmap-${edge.id}`}
+                x1={sn.x_position * 100}
+                y1={sn.y_position * 100}
+                x2={en.x_position * 100}
+                y2={en.y_position * 100}
+                stroke={getCongestionColor(ratio)}
+                strokeWidth={getCongestionStrokeWidth(ratio)}
+                strokeLinecap="round"
+                opacity={0.8}
               />
             );
           })}
@@ -678,6 +739,23 @@ const GameMapViewer = ({
             })()}
         </svg>
       </div>
+
+      {/* Traffic Heatmap Legend */}
+      {trafficHeatmap && trafficHeatmap.length > 0 && (
+        <div className="mt-3 p-3 bg-subtle dark:bg-darksubtle rounded text-xs border border-gray-200 dark:border-gray-700">
+          <div className="font-semibold mb-2">Traffic Congestion</div>
+          <div className="flex items-center gap-2">
+            <span className="text-muted dark:text-darkmutedtext">Free flow</span>
+            <div
+              className="flex-1 h-2.5 rounded"
+              style={{
+                background: "linear-gradient(to right, #22c55e, #eab308, #f97316, #ef4444)",
+              }}
+            />
+            <span className="text-muted dark:text-darkmutedtext">Gridlock</span>
+          </div>
+        </div>
+      )}
 
       {/* Selected Node Info (compact) */}
       {selectedNode && (

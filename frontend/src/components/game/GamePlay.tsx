@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useGameSocket } from "../../hooks/useGameSocket";
 import { usePlayerMove } from "../../hooks/usePlayerMove";
-import { useGameDetails, usePlayerGameDetails } from "../../hooks/gameHooks";
+import { useGameDetails, usePlayerGameDetails, useRoundTraffic } from "../../hooks/gameHooks";
 import { useMapGraph } from "../../hooks/mapHooks";
 import { useAgentRoutes } from "../../hooks/usePathfinding";
 import Loading from "../Loading";
@@ -124,6 +124,13 @@ export default function GamePlay({
     isLoading: mapLoading,
     error: mapError,
   } = useMapGraph(mapId ?? "", undefined);
+
+  // Fetch traffic heatmap for round results phase
+  const isRoundResults = gameState?.betweenRoundPhase === "stats";
+  const { data: trafficData } = useRoundTraffic(
+    gameId,
+    isRoundResults ? (gameState?.currentRound ?? null) : null
+  );
 
   // Get player's agent assignments
   const playerData = useMemo(() => {
@@ -371,6 +378,22 @@ export default function GamePlay({
                 </span>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Traffic Congestion Map */}
+        {trafficData?.edges && trafficData.edges.length > 0 && (
+          <div className="bg-surface dark:bg-darksurface rounded-lg p-4 border border-subtle dark:border-darksubtle mb-4">
+            <h3 className="font-semibold mb-3">Traffic Congestion Map</h3>
+            <GameMapViewer
+              mapGraph={mapGraph ?? null}
+              isLoading={mapLoading}
+              compact
+              trafficHeatmap={trafficData.edges.map((e) => ({
+                edgeId: e.edge_id,
+                congestionRatio: e.congestion_ratio,
+              }))}
+            />
           </div>
         )}
 

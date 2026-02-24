@@ -49,3 +49,27 @@ export function useGameSessionList() {
     staleTime: 15000,
   });
 }
+
+export interface TrafficEdgeData {
+  edge_id: number;
+  avg_vehicle_count: number;
+  max_vehicle_count: number;
+  avg_speed_kmh: number;
+  free_flow_speed_kmh: number;
+  congestion_ratio: number;
+}
+
+interface TrafficHeatmapResponse {
+  round_number: number;
+  edge_count: number;
+  edges: TrafficEdgeData[];
+}
+
+export function useRoundTraffic(gameId: string, roundNumber: number | null) {
+  return useQuery<TrafficHeatmapResponse>({
+    queryKey: ["roundTraffic", gameId, roundNumber],
+    queryFn: () => apiFetch(`/api/game/${gameId}/round/${roundNumber}/traffic/`),
+    enabled: !!gameId && roundNumber !== null && roundNumber > 0,
+    staleTime: Infinity,
+  });
+}
