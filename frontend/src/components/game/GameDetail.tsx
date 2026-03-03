@@ -21,6 +21,7 @@ interface GameInfo {
   agent_per_player: number;
   max_rounds: number;
   max_CO2_level: number;
+  people_per_agent: number;
   is_active: boolean;
   started_at?: string | null;
   ended_at?: string | null;
@@ -472,6 +473,27 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
               </div>
             </div>
 
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                People per Agent
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={editedGame.people_per_agent ?? game.people_per_agent}
+                onChange={(e) =>
+                  setEditedGame({
+                    ...editedGame,
+                    people_per_agent: parseInt(e.target.value),
+                  })
+                }
+                className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              />
+              <p className="mt-1 text-xs text-muted dark:text-darkmutedtext">
+                How many individuals each agent represents in the simulation.
+              </p>
+            </div>
+
             <button
               onClick={handleSaveSettings}
               disabled={isSavingSettings}
@@ -516,6 +538,15 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
             </h4>
             <p className="text-lg font-bold text-primary-600">
               {game.max_CO2_level} kg
+            </p>
+          </div>
+
+          <div className="p-3 rounded bg-elevated dark:bg-darkelevated">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted dark:text-darkmutedtext mb-1">
+              People per Agent
+            </h4>
+            <p className="text-lg font-bold text-primary-600">
+              {game.people_per_agent}
             </p>
           </div>
 

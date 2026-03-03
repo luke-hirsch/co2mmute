@@ -25,6 +25,7 @@ class GameSessionCreateForm(forms.ModelForm):
             "agent_per_player",
             "max_rounds",
             "max_CO2_level",
+            "people_per_agent",
             "lobby_open",
         ]
         labels = {
@@ -36,6 +37,7 @@ class GameSessionCreateForm(forms.ModelForm):
             "agent_per_player": "Agents per player",
             "max_rounds": "Maximum rounds",
             "max_CO2_level": "Maximum CO₂ level (kg)",
+            "people_per_agent": "People per agent",
             "lobby_open": "Lobby opens at",
         }
         help_texts = {
@@ -45,6 +47,7 @@ class GameSessionCreateForm(forms.ModelForm):
             "agent_per_player": "Number of agents assigned to each player.",
             "max_rounds": "How many rounds the session should run for.",
             "max_CO2_level": "Upper limit before the game ends.",
+            "people_per_agent": "How many individuals each agent represents in the simulation.",
         }
         widgets = {
             "game_name": forms.TextInput(attrs={"autocomplete": "off"}),
@@ -65,6 +68,7 @@ class GameSessionCreateForm(forms.ModelForm):
                 "agent_per_player": 4,
                 "max_rounds": 6,
                 "max_CO2_level": 500,
+                "people_per_agent": 1000,
                 "lobby_open": timezone.localtime(timezone.now()).replace(
                     second=0, microsecond=0
                 ),
@@ -116,6 +120,12 @@ class GameSessionCreateForm(forms.ModelForm):
         if max_co2_level is not None and max_co2_level < 1:
             self.add_error(
                 "max_CO2_level", "Maximum CO₂ level must be at least one kilogram."
+            )
+
+        people_per_agent = cleaned_data.get("people_per_agent")
+        if people_per_agent is not None and people_per_agent < 1:
+            self.add_error(
+                "people_per_agent", "People per agent must be at least one."
             )
 
         return cleaned_data

@@ -20,6 +20,7 @@ class GameSessionSerializer(serializers.ModelSerializer):
             "agent_per_player",
             "max_rounds",
             "max_CO2_level",
+            "people_per_agent",
             "chat_enabled",
             "is_active",
             "created_at",
@@ -66,6 +67,12 @@ class GameSessionSerializer(serializers.ModelSerializer):
 
         if max_co2_level is not None and max_co2_level < 1:
             errors["max_CO2_level"] = "max_CO2_level must be at least 1."
+
+        people_per_agent = attrs.get(
+            "people_per_agent", getattr(self.instance, "people_per_agent", None)
+        )
+        if people_per_agent is not None and people_per_agent < 1:
+            errors["people_per_agent"] = "people_per_agent must be at least 1."
 
         if errors:
             raise serializers.ValidationError(errors)
