@@ -125,6 +125,16 @@ const MapEditor = () => {
   const [ptLineChanges, setPtLineChanges] = useState<PTLineChange[]>([]);
   const [versionMetadata, setVersionMetadata] = useState<VersionMetadata>(initialVersionMetadata);
 
+  // Mutations — declared before callbacks that reference them
+  const updateNodeMutation = useUpdateNodePosition(mapId);
+  const createNodeMutation = useCreateNode(mapId);
+  const deleteNodeMutation = useDeleteNode(mapId);
+  const createEdgeMutation = useCreateEdge(mapId);
+  const deleteEdgeMutation = useDeleteEdge(mapId);
+  const qc = useQueryClient();
+
+  const versionId = selectedVersionId ?? mapGraph?.version_id;
+
   const handleModeChange = useCallback((mode: EditorMode) => {
     dispatch({ type: "SET_MODE", mode });
     setPtLineEdgeIds([]);
@@ -137,75 +147,6 @@ const MapEditor = () => {
   const handleGraphToolChange = useCallback((tool: GraphTool) => {
     dispatch({ type: "SET_GRAPH_TOOL", tool });
   }, []);
-
-  const handleEdgeClick = useCallback(
-    (edgeId: number) => {
-      // Version-diff step 1: no edge interaction
-      if (state.mode === "version-diff" && state.versionDiffStep === 1) return;
-
-      if (state.mode === "pt-lines" && (ptLineCreating || state.selectedNodeId === null)) {
-        // Toggle edge in PT line route
-        setPtLineEdgeIds((prev) =>
-          prev.includes(edgeId)
-            ? prev.filter((id) => id !== edgeId)
-            : [...prev, edgeId]
-        );
-      } else if (state.mode === "version-diff") {
-        dispatch({ type: "SELECT_EDGE", edgeId });
-      } else {
-        // Graph mode: select single edge
-        dispatch({ type: "CLEAR_SELECTION" });
-        dispatch({ type: "SELECT_EDGE", edgeId });
-      }
-    },
-    [state.mode, state.versionDiffStep, ptLineCreating, state.selectedNodeId]
-  );
-
-  const handleNodeClick = useCallback(
-    (nodeId: number) => {
-      // Nodes not interactive in version-diff mode
-      if (state.mode === "version-diff") return;
-
-      if (state.mode === "graph" && state.graphTool === "add-edge") {
-        if (state.edgeSourceNodeId === null) {
-          dispatch({ type: "SET_EDGE_SOURCE", nodeId });
-        } else if (state.edgeSourceNodeId !== nodeId) {
-          // Create edge between source and this node
-          handleCreateEdge(state.edgeSourceNodeId, nodeId);
-          dispatch({ type: "CLEAR_EDGE_SOURCE" });
-        }
-      } else {
-        dispatch({ type: "SELECT_NODE", nodeId });
-      }
-    },
-    [state.mode, state.graphTool, state.edgeSourceNodeId]
-  );
-
-  const handleCanvasClick = useCallback(
-    (x?: number, y?: number) => {
-      if (
-        state.mode === "graph" &&
-        state.graphTool === "add-node" &&
-        x !== undefined &&
-        y !== undefined
-      ) {
-        handleAddNode(x, y);
-      } else {
-        dispatch({ type: "CLEAR_SELECTION" });
-      }
-    },
-    [state.mode, state.graphTool]
-  );
-
-  // Mutations
-  const updateNodeMutation = useUpdateNodePosition(mapId);
-  const createNodeMutation = useCreateNode(mapId);
-  const deleteNodeMutation = useDeleteNode(mapId);
-  const createEdgeMutation = useCreateEdge(mapId);
-  const deleteEdgeMutation = useDeleteEdge(mapId);
-  const qc = useQueryClient();
-
-  const versionId = selectedVersionId ?? mapGraph?.version_id;
 
   const handleNodeDragEnd = useCallback(
     (nodeId: number, x: number, y: number) => {
@@ -253,6 +194,65 @@ const MapEditor = () => {
       });
     },
     [createEdgeMutation, versionId]
+  );
+
+  const handleEdgeClick = useCallback(
+    (edgeId: number) => {
+      // Version-diff step 1: no edge interaction
+      if (state.mode === "version-diff" && state.versionDiffStep === 1) return;
+
+      if (state.mode === "pt-lines" && (ptLineCreating || state.selectedNodeId === null)) {
+        // Toggle edge in PT line route
+        setPtLineEdgeIds((prev) =>
+          prev.includes(edgeId)
+            ? prev.filter((id) => id !== edgeId)
+            : [...prev, edgeId]
+        );
+      } else if (state.mode === "version-diff") {
+        dispatch({ type: "SELECT_EDGE", edgeId });
+      } else {
+        // Graph mode: select single edge
+        dispatch({ type: "CLEAR_SELECTION" });
+        dispatch({ type: "SELECT_EDGE", edgeId });
+      }
+    },
+    [state.mode, state.versionDiffStep, ptLineCreating, state.selectedNodeId]
+  );
+
+  const handleNodeClick = useCallback(
+    (nodeId: number) => {
+      // Nodes not interactive in version-diff mode
+      if (state.mode === "version-diff") return;
+
+      if (state.mode === "graph" && state.graphTool === "add-edge") {
+        if (state.edgeSourceNodeId === null) {
+          dispatch({ type: "SET_EDGE_SOURCE", nodeId });
+        } else if (state.edgeSourceNodeId !== nodeId) {
+          // Create edge between source and this node
+          handleCreateEdge(state.edgeSourceNodeId, nodeId);
+          dispatch({ type: "CLEAR_EDGE_SOURCE" });
+        }
+      } else {
+        dispatch({ type: "SELECT_NODE", nodeId });
+      }
+    },
+    [state.mode, state.graphTool, state.edgeSourceNodeId, handleCreateEdge]
+  );
+
+  const handleCanvasClick = useCallback(
+    (x?: number, y?: number) => {
+      if (
+        state.mode === "graph" &&
+        state.graphTool === "add-node" &&
+        x !== undefined &&
+        y !== undefined
+      ) {
+        handleAddNode(x, y);
+      } else {
+        dispatch({ type: "CLEAR_SELECTION" });
+      }
+    },
+    [state.mode, state.graphTool, handleAddNode]
   );
 
   const handleDeleteSelected = useCallback(() => {
@@ -328,7 +328,7 @@ const MapEditor = () => {
         {/* Main content */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mt-4">
           {/* Canvas */}
-          <div className="lg:col-span-3">
+          <div className="relative z-10 lg:col-span-3">
             <EditorCanvas
               gameMap={gameMap}
               mapGraph={mapGraph as ExtendedMapGraph | undefined}

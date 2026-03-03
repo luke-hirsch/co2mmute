@@ -218,6 +218,7 @@ const EditorCanvas = ({
               opacity={0.5}
               preserveAspectRatio="xMinYMin meet"
               clipPath={img.hasCrop ? "url(#bg-img-clip)" : undefined}
+              pointerEvents="none"
             />
           )}
           <text
@@ -324,6 +325,7 @@ const EditorCanvas = ({
               opacity={0.5}
               preserveAspectRatio="xMinYMin meet"
               clipPath={img.hasCrop ? "url(#bg-img-clip)" : undefined}
+              pointerEvents="none"
             />
           );
         })()}
@@ -333,7 +335,7 @@ const EditorCanvas = ({
           (line, lineIdx) => {
             const color = PT_LINE_COLORS[lineIdx % PT_LINE_COLORS.length];
             return (
-              <g key={`ptline-${line.type}-${line.id}`}>
+              <g key={`ptline-${line.type}-${line.id}`} pointerEvents="none">
                 {line.edges.map((edgeId: number) => {
                   const edge = mapGraph.edges.find((e) => e.id === edgeId);
                   if (!edge) return null;
@@ -369,7 +371,7 @@ const EditorCanvas = ({
           const p1 = getNodePos(sn);
           const p2 = getNodePos(en);
           return (
-            <g key={`ptline-new-${edgeId}`}>
+            <g key={`ptline-new-${edgeId}`} pointerEvents="none">
               <line
                 x1={p1.x} y1={p1.y}
                 x2={p2.x} y2={p2.y}

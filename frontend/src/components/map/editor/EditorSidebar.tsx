@@ -65,7 +65,7 @@ const EditorSidebar = ({
       : null;
 
   return (
-    <div className="sticky top-4 space-y-4">
+    <div className="sticky top-4 z-20 space-y-4">
       {/* Image mode */}
       {state.mode === "image" && (
         <ImageTransformPanel mapId={mapId} gameMap={gameMap} mapGraph={mapGraph} />

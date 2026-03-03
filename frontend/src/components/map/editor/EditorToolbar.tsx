@@ -57,7 +57,7 @@ const EditorToolbar = ({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2 bg-subtle dark:bg-darksubtle rounded-lg p-3 border border-subtle dark:border-darksubtle">
+    <div className="relative z-30 flex flex-wrap items-center gap-2 bg-subtle dark:bg-darksubtle rounded-lg p-3 border border-subtle dark:border-darksubtle">
       {/* Mode tabs */}
       <div className="flex gap-1">
         {modes.map((m) => (
