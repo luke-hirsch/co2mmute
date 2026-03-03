@@ -19,6 +19,7 @@ interface EditorToolbarProps {
 }
 
 const modes: { key: EditorMode; label: string }[] = [
+  { key: "settings", label: "Settings" },
   { key: "image", label: "Background Image" },
   { key: "graph", label: "Graph" },
   { key: "pt-lines", label: "PT Lines" },

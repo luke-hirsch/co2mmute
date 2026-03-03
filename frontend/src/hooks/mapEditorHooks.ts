@@ -65,6 +65,31 @@ export const useUpdateImageTransform = (mapId: string | number) => {
   });
 };
 
+export const useUpdateMapSettings = (mapId: string | number) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (values: {
+      name?: string;
+      x_dim?: number;
+      y_dim?: number;
+      scale?: number;
+      max_player?: number;
+      walk_speed_kmh?: number;
+      bike_speed_kmh?: number;
+      default_car_speed_kmh?: number;
+    }) => {
+      return apiFetch(`${API_BASE_URL}/api/maps/${mapId}/`, {
+        method: "PATCH",
+        body: JSON.stringify(values),
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["map", mapId] });
+      qc.invalidateQueries({ queryKey: ["mapGraph", mapId] });
+    },
+  });
+};
+
 export const useUpdateNodePosition = (mapId: string | number) => {
   const qc = useQueryClient();
   return useMutation({

@@ -47,7 +47,11 @@ export interface GameMap {
   description?: string;
   x_dim: number;
   y_dim: number;
+  scale: number;
   max_player: number;
+  walk_speed_kmh: number;
+  bike_speed_kmh: number;
+  default_car_speed_kmh: number;
   created: string;
   updated: string;
   author: User;

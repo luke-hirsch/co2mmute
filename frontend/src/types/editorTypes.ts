@@ -1,4 +1,4 @@
-export type EditorMode = "image" | "graph" | "pt-lines" | "version-diff";
+export type EditorMode = "settings" | "image" | "graph" | "pt-lines" | "version-diff";
 export type GraphTool = "select" | "add-node" | "add-edge";
 
 export interface EditorState {

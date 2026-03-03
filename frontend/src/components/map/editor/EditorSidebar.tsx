@@ -8,6 +8,7 @@ import type {
   PTLineChange,
   VersionMetadata,
 } from "../../../types/editorTypes";
+import MapSettingsPanel from "./MapSettingsPanel";
 import ImageTransformPanel from "./ImageTransformPanel";
 import EdgePropertyPanel from "./EdgePropertyPanel";
 import NodePropertyPanel from "./NodePropertyPanel";
@@ -66,6 +67,11 @@ const EditorSidebar = ({
 
   return (
     <div className="sticky top-4 z-20 space-y-4">
+      {/* Settings mode */}
+      {state.mode === "settings" && (
+        <MapSettingsPanel key={gameMap.updated} mapId={mapId} gameMap={gameMap} />
+      )}
+
       {/* Image mode */}
       {state.mode === "image" && (
         <ImageTransformPanel mapId={mapId} gameMap={gameMap} mapGraph={mapGraph} />
