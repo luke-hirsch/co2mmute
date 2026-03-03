@@ -4,8 +4,6 @@ from django.views.generic import FormView, ListView, DetailView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib import messages
 from django.db import transaction
-from django.urls import reverse
-
 from maps.forms import MapUploadForm
 from maps.models import (
     GameMap,
@@ -31,7 +29,7 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
 
     def get_success_url(self):
         latest_map = GameMap.objects.latest("created")
-        return reverse("map-detail", kwargs={"pk": latest_map.pk})
+        return f"/app/maps/{latest_map.pk}/"
 
     def test_func(self):
         return self.request.user.is_staff

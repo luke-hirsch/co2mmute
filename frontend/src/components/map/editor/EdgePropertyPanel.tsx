@@ -372,6 +372,21 @@ const EdgePropertyPanel = ({
       {updateEdgeMutation.isSuccess && (
         <p className="text-xs text-green-600 dark:text-green-400">Saved</p>
       )}
+      {(updateEdgeMutation.isError ||
+        deleteEdgeMutation.isError ||
+        createStreetEdgeMutation.isError ||
+        deleteStreetEdgeMutation.isError ||
+        createTrainEdgeMutation.isError ||
+        deleteTrainEdgeMutation.isError) && (
+        <p className="text-xs text-red-600 dark:text-red-400">
+          {(updateEdgeMutation.error ||
+            deleteEdgeMutation.error ||
+            createStreetEdgeMutation.error ||
+            deleteStreetEdgeMutation.error ||
+            createTrainEdgeMutation.error ||
+            deleteTrainEdgeMutation.error)?.message}
+        </p>
+      )}
 
       {/* Modify button in version-diff mode */}
       {isModifyMode && (

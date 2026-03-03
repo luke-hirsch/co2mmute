@@ -120,6 +120,12 @@ const NodePropertyPanel = ({ node, mapId }: NodePropertyPanelProps) => {
       {updateMutation.isSuccess && (
         <p className="text-xs text-green-600 dark:text-green-400">Saved</p>
       )}
+      {updateMutation.isError && (
+        <p className="text-xs text-red-600 dark:text-red-400">{updateMutation.error?.message}</p>
+      )}
+      {deleteMutation.isError && (
+        <p className="text-xs text-red-600 dark:text-red-400">{deleteMutation.error?.message}</p>
+      )}
     </div>
   );
 };

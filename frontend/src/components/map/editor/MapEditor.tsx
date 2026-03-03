@@ -1,7 +1,11 @@
 import { useReducer, useState, useCallback } from "react";
 import { useParams, Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { useGameMap, useMapGraph, useMapVersions } from "../../../hooks/mapHooks";
+import {
+  useGameMap,
+  useMapGraph,
+  useMapVersions,
+} from "../../../hooks/mapHooks";
 import {
   useUpdateNodePosition,
   useCreateNode,
@@ -67,7 +71,11 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
     case "CLEAR_EDGE_SOURCE":
       return { ...state, edgeSourceNodeId: null };
     case "SELECT_NODE":
-      return { ...state, selectedNodeId: action.nodeId, selectedEdgeIds: new Set() };
+      return {
+        ...state,
+        selectedNodeId: action.nodeId,
+        selectedEdgeIds: new Set(),
+      };
     case "SELECT_EDGE": {
       const newSet = new Set(state.selectedEdgeIds);
       newSet.add(action.edgeId);
@@ -88,7 +96,12 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       return { ...state, selectedEdgeIds: newSet };
     }
     case "CLEAR_SELECTION":
-      return { ...state, selectedEdgeIds: new Set(), selectedNodeId: null, edgeSourceNodeId: null };
+      return {
+        ...state,
+        selectedEdgeIds: new Set(),
+        selectedNodeId: null,
+        edgeSourceNodeId: null,
+      };
     case "MARK_DIRTY":
       return { ...state, isDirty: true };
     case "MARK_CLEAN":
@@ -103,27 +116,33 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
 const MapEditor = () => {
   const { mapId } = useParams({ from: "/maps/$mapId/editor" });
   const { data: gameMap, isLoading: mapLoading } = useGameMap(mapId);
-  const { data: versions } = useMapVersions(mapId) as { data: MapVersion[] | undefined };
+  const { data: versions } = useMapVersions(mapId) as {
+    data: MapVersion[] | undefined;
+  };
 
   // Track which version we're viewing/editing
-  const [selectedVersionId, setSelectedVersionId] = useState<number | undefined>(
-    undefined
-  );
+  const [selectedVersionId, setSelectedVersionId] = useState<
+    number | undefined
+  >(undefined);
   const { data: mapGraph, isLoading: graphLoading } = useMapGraph(
     mapId,
-    selectedVersionId
+    selectedVersionId,
   );
 
   const [state, dispatch] = useReducer(editorReducer, initialState);
 
   // PT line creation/editing state
   const [ptLineEdgeIds, setPtLineEdgeIds] = useState<number[]>([]);
-  const [ptLineCreating, setPtLineCreating] = useState<"bus" | "train" | null>(null);
+  const [ptLineCreating, setPtLineCreating] = useState<"bus" | "train" | null>(
+    null,
+  );
 
   // Version diff state
   const [edgeChanges, setEdgeChanges] = useState<EdgeChange[]>([]);
   const [ptLineChanges, setPtLineChanges] = useState<PTLineChange[]>([]);
-  const [versionMetadata, setVersionMetadata] = useState<VersionMetadata>(initialVersionMetadata);
+  const [versionMetadata, setVersionMetadata] = useState<VersionMetadata>(
+    initialVersionMetadata,
+  );
 
   // Mutations — declared before callbacks that reference them
   const updateNodeMutation = useUpdateNodePosition(mapId);
@@ -157,10 +176,10 @@ const MapEditor = () => {
           return {
             ...old,
             nodes: old.nodes.map((n) =>
-              n.id === nodeId ? { ...n, x_position: x, y_position: y } : n
+              n.id === nodeId ? { ...n, x_position: x, y_position: y } : n,
             ),
           };
-        }
+        },
       );
       updateNodeMutation.mutate(
         { nodeId, x_position: x, y_position: y },
@@ -168,10 +187,10 @@ const MapEditor = () => {
           onError: () => {
             qc.invalidateQueries({ queryKey: ["mapGraph", mapId] });
           },
-        }
+        },
       );
     },
-    [mapId, selectedVersionId, qc, updateNodeMutation]
+    [mapId, selectedVersionId, qc, updateNodeMutation],
   );
 
   const handleAddNode = useCallback(
@@ -182,7 +201,7 @@ const MapEditor = () => {
         map_versions: versionId ? [versionId] : [],
       });
     },
-    [createNodeMutation, versionId]
+    [createNodeMutation, versionId],
   );
 
   const handleCreateEdge = useCallback(
@@ -193,7 +212,7 @@ const MapEditor = () => {
         map_versions: versionId ? [versionId] : [],
       });
     },
-    [createEdgeMutation, versionId]
+    [createEdgeMutation, versionId],
   );
 
   const handleEdgeClick = useCallback(
@@ -201,12 +220,15 @@ const MapEditor = () => {
       // Version-diff step 1: no edge interaction
       if (state.mode === "version-diff" && state.versionDiffStep === 1) return;
 
-      if (state.mode === "pt-lines" && (ptLineCreating || state.selectedNodeId === null)) {
+      if (
+        state.mode === "pt-lines" &&
+        (ptLineCreating || state.selectedNodeId === null)
+      ) {
         // Toggle edge in PT line route
         setPtLineEdgeIds((prev) =>
           prev.includes(edgeId)
             ? prev.filter((id) => id !== edgeId)
-            : [...prev, edgeId]
+            : [...prev, edgeId],
         );
       } else if (state.mode === "version-diff") {
         dispatch({ type: "SELECT_EDGE", edgeId });
@@ -216,7 +238,7 @@ const MapEditor = () => {
         dispatch({ type: "SELECT_EDGE", edgeId });
       }
     },
-    [state.mode, state.versionDiffStep, ptLineCreating, state.selectedNodeId]
+    [state.mode, state.versionDiffStep, ptLineCreating, state.selectedNodeId],
   );
 
   const handleNodeClick = useCallback(
@@ -236,7 +258,7 @@ const MapEditor = () => {
         dispatch({ type: "SELECT_NODE", nodeId });
       }
     },
-    [state.mode, state.graphTool, state.edgeSourceNodeId, handleCreateEdge]
+    [state.mode, state.graphTool, state.edgeSourceNodeId, handleCreateEdge],
   );
 
   const handleCanvasClick = useCallback(
@@ -252,7 +274,7 @@ const MapEditor = () => {
         dispatch({ type: "CLEAR_SELECTION" });
       }
     },
-    [state.mode, state.graphTool, handleAddNode]
+    [state.mode, state.graphTool, handleAddNode],
   );
 
   const handleDeleteSelected = useCallback(() => {
@@ -268,13 +290,20 @@ const MapEditor = () => {
         dispatch({ type: "CLEAR_SELECTION" });
       }
     }
-  }, [state.selectedNodeId, state.selectedEdgeIds, deleteNodeMutation, deleteEdgeMutation]);
+  }, [
+    state.selectedNodeId,
+    state.selectedEdgeIds,
+    deleteNodeMutation,
+    deleteEdgeMutation,
+  ]);
 
   if (mapLoading || graphLoading) return <Loading />;
   if (!gameMap) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg text-red-600 dark:text-red-400">Map not found</div>
+        <div className="text-lg text-red-600 dark:text-red-400">
+          Map not found
+        </div>
       </div>
     );
   }
@@ -311,7 +340,9 @@ const MapEditor = () => {
           gameMap={gameMap}
           graphTool={state.graphTool}
           onGraphToolChange={handleGraphToolChange}
-          hasSelection={state.selectedNodeId !== null || state.selectedEdgeIds.size > 0}
+          hasSelection={
+            state.selectedNodeId !== null || state.selectedEdgeIds.size > 0
+          }
           onDeleteSelected={handleDeleteSelected}
           ptLineCreating={ptLineCreating}
           onStartPtLine={(type) => {
@@ -324,6 +355,17 @@ const MapEditor = () => {
           }}
           versionDiffStep={state.versionDiffStep}
         />
+
+        {/* Mutation error banner */}
+        {(createNodeMutation.error ||
+          updateNodeMutation.error ||
+          createEdgeMutation.error) && (
+          <div className="mt-2 px-3 py-2 text-sm bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-md border border-red-300 dark:border-red-700">
+            {(createNodeMutation.error ||
+              updateNodeMutation.error ||
+              createEdgeMutation.error)?.message}
+          </div>
+        )}
 
         {/* Main content */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mt-4">
