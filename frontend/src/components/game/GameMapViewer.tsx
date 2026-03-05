@@ -351,7 +351,7 @@ const GameMapViewer = ({
                 x2={x2}
                 y2={y2}
                 stroke={stroke}
-                strokeWidth="2"
+                strokeWidth="3"
                 strokeDasharray={strokeDasharray}
                 opacity="0.4"
               />

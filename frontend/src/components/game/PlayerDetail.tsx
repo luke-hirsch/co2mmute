@@ -7,6 +7,7 @@ import ConfirmDialog from "../ConfirmDialog";
 interface PlayerDetailProps {
   player: WSPlayer;
   gameId: string;
+  isHost: boolean;
   onClose: () => void;
   onPlayerUpdated?: () => void;
   onPlayerKicked?: () => void;
@@ -15,6 +16,7 @@ interface PlayerDetailProps {
 const PlayerDetail = ({
   player,
   gameId,
+  isHost,
   onClose,
   onPlayerUpdated,
   onPlayerKicked,
@@ -150,7 +152,7 @@ const PlayerDetail = ({
             <label className="text-sm font-semibold text-muted dark:text-darkmutedtext">
               Name
             </label>
-            {!isEditingName && (
+            {isHost && !isEditingName && (
               <button
                 onClick={() => {
                   setIsEditingName(true);
@@ -231,55 +233,62 @@ const PlayerDetail = ({
           </div>
         </div>
 
-        {/* Mute Toggle */}
-        <div className="mb-6">
-          <label className="text-sm font-semibold text-muted dark:text-darkmutedtext mb-2 block">
-            Chat Access
-          </label>
-          <button
-            onClick={handleToggleMute}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              !player.isMuted ? "bg-green-600" : "bg-gray-300 dark:bg-gray-600"
-            }`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                !player.isMuted ? "translate-x-6" : "translate-x-1"
-              }`}
-            />
-          </button>
-          <p className="mt-1 text-xs text-muted dark:text-darkmutedtext">
-            {player.isMuted
-              ? "Player is muted and cannot send chat messages"
-              : "Player can send chat messages"}
-          </p>
-        </div>
+        {/* Host-only controls */}
+        {isHost && (
+          <>
+            {/* Mute Toggle */}
+            <div className="mb-6">
+              <label className="text-sm font-semibold text-muted dark:text-darkmutedtext mb-2 block">
+                Chat Access
+              </label>
+              <button
+                onClick={handleToggleMute}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  !player.isMuted ? "bg-green-600" : "bg-gray-300 dark:bg-gray-600"
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    !player.isMuted ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+              <p className="mt-1 text-xs text-muted dark:text-darkmutedtext">
+                {player.isMuted
+                  ? "Player is muted and cannot send chat messages"
+                  : "Player can send chat messages"}
+              </p>
+            </div>
 
-        {/* Kick Button */}
-        <div className="pt-4 border-t border-subtle dark:border-darksubtle">
-          <button
-            onClick={() => setShowKickConfirm(true)}
-            className="w-full rounded bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700"
-          >
-            Remove from Game
-          </button>
-          <p className="mt-2 text-xs text-muted dark:text-darkmutedtext text-center">
-            This player will not be able to rejoin
-          </p>
-        </div>
+            {/* Kick Button */}
+            <div className="pt-4 border-t border-subtle dark:border-darksubtle">
+              <button
+                onClick={() => setShowKickConfirm(true)}
+                className="w-full rounded bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+              >
+                Remove from Game
+              </button>
+              <p className="mt-2 text-xs text-muted dark:text-darkmutedtext text-center">
+                This player will not be able to rejoin
+              </p>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Kick Confirmation Dialog */}
-      <ConfirmDialog
-        isOpen={showKickConfirm}
-        title="Remove Player"
-        message={`Are you sure you want to remove ${player.name} from the game? They will not be able to rejoin.`}
-        confirmLabel={isKicking ? "Removing..." : "Remove Player"}
-        cancelLabel="Cancel"
-        variant="danger"
-        onConfirm={handleKickPlayer}
-        onCancel={() => setShowKickConfirm(false)}
-      />
+      {isHost && (
+        <ConfirmDialog
+          isOpen={showKickConfirm}
+          title="Remove Player"
+          message={`Are you sure you want to remove ${player.name} from the game? They will not be able to rejoin.`}
+          confirmLabel={isKicking ? "Removing..." : "Remove Player"}
+          cancelLabel="Cancel"
+          variant="danger"
+          onConfirm={handleKickPlayer}
+          onCancel={() => setShowKickConfirm(false)}
+        />
+      )}
     </>
   );
 };

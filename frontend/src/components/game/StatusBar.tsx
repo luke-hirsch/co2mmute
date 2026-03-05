@@ -101,7 +101,14 @@ const StatusBar = ({
   };
 
   const handlePlayerClick = (player: WSRosterPlayer) => {
-    if (auth?.kind === "host" && onPlayerSelect) {
+    if (!onPlayerSelect) return;
+
+    // Host can click any player; players can only click themselves
+    const canClick =
+      auth?.kind === "host" ||
+      (auth?.kind === "player" && auth.player?.playerId === player.player_id);
+
+    if (canClick) {
       if (selectedPlayerId === player.player_id) {
         onPlayerSelect(null);
       } else {
@@ -158,7 +165,7 @@ const StatusBar = ({
                       selectedPlayerId === player.player_id
                         ? "bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-200"
                         : "hover:bg-elevated hover:text-primary-600 dark:hover:bg-darkelevated dark:hover:text-darktext"
-                    } ${auth?.kind === "host" ? "cursor-pointer" : "cursor-default"}`}
+                    } ${auth?.kind === "host" || (auth?.kind === "player" && auth.player?.playerId === player.player_id) ? "cursor-pointer" : "cursor-default"}`}
                   >
                     <div className="flex flex-col min-w-0 flex-1">
                       <span className="truncate font-medium">{player.name}</span>

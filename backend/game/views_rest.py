@@ -16,7 +16,7 @@ from rest_framework.response import Response
 
 from game.cache import get_cached_game_session
 from game.mixins import GameScopedQuerysetMixin
-from game.models import AgentRoute, EdgeTrafficSnapshot, GameRound, GameSession, Player, PlayerMove, RouteSegment, SimulationResult
+from game.models import AgentRoute, AgentSimulationResult, EdgeTrafficSnapshot, GameRound, GameSession, Player, PlayerMove, RouteSegment, SimulationResult
 from game.permissions import CanDeleteOwnPlayer, HasGameAccess, IsPlayerInGame
 from game.serializers import (
     GameSessionSerializer,
@@ -35,6 +35,16 @@ class PlayerDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIView):
     authentication_classes = (SessionAuthentication,)
     permission_classes = (HasGameAccess, CanDeleteOwnPlayer)
     lookup_field = "player_id"
+
+    def update(self, request, *args, **kwargs):
+        game_id = self.kwargs.get("game_id")
+        session = get_cached_game_session(game_id)
+        if not session or not request.user.is_authenticated or session.game_host != request.user:
+            return Response(
+                {"error": "Only the host can edit player details"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
         game_id = self.kwargs.get("game_id")
@@ -538,4 +548,106 @@ class RoundTrafficHeatmapView(GenericAPIView):
             "round_number": round_number,
             "edge_count": len(heatmap_data),
             "edges": heatmap_data,
+        })
+
+
+class GameSummaryView(GenericAPIView):
+    """Return end-of-game summary with per-player stats across all rounds."""
+
+    authentication_classes = (SessionAuthentication,)
+    permission_classes = (HasGameAccess,)
+
+    def get(self, request, game_id):
+        try:
+            game = GameSession.objects.get(game_id=game_id)
+        except GameSession.DoesNotExist:
+            return Response({"error": "Game not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        players = Player.objects.filter(
+            game=game, left_at__isnull=True, controlled_by_host=False
+        )
+        completed_rounds = GameRound.objects.filter(
+            game=game, status=GameRound.Status.COMPLETED
+        ).order_by("round_number")
+
+        total_co2_g = sum(r.total_emissions_g for r in completed_rounds)
+
+        # Build per-player, per-round stats from AgentSimulationResult
+        players_data = []
+        for player in players:
+            moves = PlayerMove.objects.filter(
+                player=player, session_round__in=completed_rounds
+            ).select_related("session_round")
+
+            player_total_co2 = 0.0
+            player_total_cost = 0.0
+            player_total_time = 0.0
+            modes_used = set()
+            rounds_data = []
+
+            for game_round in completed_rounds:
+                round_move = moves.filter(session_round=game_round).first()
+                round_co2 = 0.0
+                round_cost = 0.0
+                round_time = 0.0
+
+                if round_move:
+                    agent_results = AgentSimulationResult.objects.filter(
+                        agent_route__player_move=round_move
+                    ).select_related("agent_route")
+
+                    if agent_results.exists():
+                        for result in agent_results:
+                            round_co2 += result.total_co2_g
+                            round_cost += result.mean_cost_eur
+                            round_time += result.mean_trip_time_min
+                            modes_used.add(result.agent_route.transport_mode)
+                    else:
+                        # Fallback
+                        agent_routes = AgentRoute.objects.filter(player_move=round_move)
+                        fallback_emissions = {
+                            "car": 166.8, "public": 60.0, "bike": 18.0, "walk": 0.0,
+                        }
+                        for route in agent_routes:
+                            dist_km = route.total_distance_m / 1000
+                            round_co2 += fallback_emissions.get(route.transport_mode, 0) * dist_km * game.people_per_agent
+                            round_time += route.estimated_time_min
+                            modes_used.add(route.transport_mode)
+
+                rounds_data.append({
+                    "round_number": game_round.round_number,
+                    "co2_kg": round(round_co2 / 1000, 2),
+                    "cost_eur": round(round_cost, 2),
+                    "time_min": round(round_time, 1),
+                })
+
+                player_total_co2 += round_co2
+                player_total_cost += round_cost
+                player_total_time += round_time
+
+            players_data.append({
+                "player_id": player.player_id,
+                "name": player.name,
+                "total_co2_kg": round(player_total_co2 / 1000, 2),
+                "total_cost_eur": round(player_total_cost, 2),
+                "total_time_min": round(player_total_time, 1),
+                "modes_used": sorted(modes_used),
+                "rounds": rounds_data,
+            })
+
+        # Determine end reason
+        end_reason = None
+        if game.ended_at:
+            co2_limit_reached = total_co2_g >= (game.max_CO2_level * 1000)
+            end_reason = "co2_limit" if co2_limit_reached else "max_rounds"
+
+        return Response({
+            "game_id": game.game_id,
+            "game_name": game.game_name,
+            "end_reason": end_reason,
+            "rounds_played": completed_rounds.count(),
+            "max_rounds": game.max_rounds,
+            "total_co2_kg": round(total_co2_g / 1000, 2),
+            "max_co2_kg": game.max_CO2_level,
+            "players": players_data,
         })

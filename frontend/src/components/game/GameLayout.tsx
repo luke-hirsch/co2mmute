@@ -5,23 +5,33 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/solid";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 import Header from "./../../components/Header";
 import GamePlay from "./../../components/game/GamePlay";
 import GameDetail from "./../../components/game/GameDetail";
+import GameSummary from "./../../components/game/GameSummary";
+import PlayerDetail from "./../../components/game/PlayerDetail";
 import ChatSidebar from "./../../components/ChatSidebar";
 
 import Loading from "./../../components/Loading";
 import { useAuth } from "../../context/AuthContext";
 import { useGameSocket } from "../../hooks/useGameSocket";
-import { useGameDetails, usePlayerGameDetails } from "../../hooks/gameHooks";
+import {
+  useGameDetails,
+  usePlayerGameDetails,
+  usePlayerDetail,
+} from "../../hooks/gameHooks";
 import StatusBar from "../../components/game/StatusBar";
+import { type WSRosterPlayer, type WSPlayer } from "../../types/wsTypes";
 
 const GameLayout = () => {
   const { gameId } = useParams({ from: "/game/$gameId" });
   const [menu, setMenu] = useState(false);
   const [chat, setChat] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState<WSRosterPlayer | null>(
+    null,
+  );
   const { isLoading, isError, isHost, isPlayer, auth } = useAuth();
 
   // Connect to game websocket and receive game state updates
@@ -36,12 +46,44 @@ const GameLayout = () => {
   );
   const restGameData = isHost ? hostGameData.data : playerGameData.data;
 
-  // Redirect to summary when game ends
-  useEffect(() => {
-    if (gameState?.endedAt) {
-      window.location.href = `/game/${gameId}/summary/`;
-    }
-  }, [gameState?.endedAt, gameId]);
+  // Fetch full player details when a player is selected (for isMuted, joinedAt)
+  const playerDetailQuery = usePlayerDetail(
+    gameId,
+    selectedPlayer?.player_id || "",
+    !!selectedPlayer,
+  );
+
+  const gameEnded = !!gameState?.endedAt;
+
+  // Map REST player data + roster data to WSPlayer for PlayerDetail component
+  const selectedWSPlayer: WSPlayer | null =
+    selectedPlayer && playerDetailQuery.data
+      ? {
+          playerId: playerDetailQuery.data.player_id,
+          name: playerDetailQuery.data.name,
+          isMuted: playerDetailQuery.data.is_muted,
+          controlledByHost: playerDetailQuery.data.controlled_by_host,
+          online: selectedPlayer.online,
+          joinedAt: playerDetailQuery.data.joined_at,
+        }
+      : null;
+
+  const handlePlayerSelect = (player: WSRosterPlayer | null) => {
+    setSelectedPlayer(player);
+  };
+
+  const handlePlayerDetailClose = () => {
+    setSelectedPlayer(null);
+  };
+
+  const handlePlayerUpdated = () => {
+    playerDetailQuery.refetch();
+  };
+
+  const handlePlayerKicked = () => {
+    setSelectedPlayer(null);
+  };
+
   return (
     <div className="min-h-svh min-w-full max-w-screen bg-body dark:bg-darkbody dark:text-darktext overflow-hidden">
       <div className="lg:hidden absolute top p-2 w-screen flex justify-between">
@@ -75,7 +117,11 @@ const GameLayout = () => {
               <aside
                 className={`absolute lg:relative min-h-full left-0 top-0 w-60 dark:bg-inherit bg-body flex lg:translate-x-0 ${menu ? "translate-x-0" : "-translate-x-60"} transition-all duration-300 h-full rounded z-50`}
               >
-                <StatusBar gameId={gameId} />
+                <StatusBar
+                  gameId={gameId}
+                  selectedPlayerId={selectedPlayer?.player_id}
+                  onPlayerSelect={handlePlayerSelect}
+                />
               </aside>
             ) : (
               <></>
@@ -92,11 +138,13 @@ const GameLayout = () => {
                   <div className="text-red-600 dark:text-red-400">
                     Error loading game content
                   </div>
-                ) : isHost ? (
-                  <GameDetail
-                    id={gameId}
-                    role="host"
+                ) : gameEnded ? (
+                  <GameSummary
+                    gameId={gameId}
+                    playerId={auth?.player?.playerId}
                   />
+                ) : isHost ? (
+                  <GameDetail id={gameId} role="host" />
                 ) : isPlayer ? (
                   <GamePlay
                     gameId={gameId}
@@ -125,6 +173,28 @@ const GameLayout = () => {
           </div>
         </div>
       </div>
+
+      {/* Player Detail Modal */}
+      {selectedPlayer && selectedWSPlayer && (
+        <div
+          className="fixed inset-0 z-100 flex items-center justify-center bg-black/50"
+          onClick={handlePlayerDetailClose}
+        >
+          <div
+            className="w-full max-w-md mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <PlayerDetail
+              player={selectedWSPlayer}
+              gameId={gameId}
+              isHost={isHost}
+              onClose={handlePlayerDetailClose}
+              onPlayerUpdated={handlePlayerUpdated}
+              onPlayerKicked={handlePlayerKicked}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

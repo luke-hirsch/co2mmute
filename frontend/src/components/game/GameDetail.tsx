@@ -83,16 +83,6 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
     // Host does NOT auto-redirect - they can use the "Go to Game" button
   }, [gameState?.isActive, id, navigate, role]);
 
-  // Redirect players to summary when game ends
-  useEffect(() => {
-    if (!gameState?.endedAt) return;
-
-    if (role === "player") {
-      // Players redirect to summary page when game ends
-      window.location.href = `/game/${id}/summary/`;
-    }
-    // Host stays in lobby - they can use the "View Summary" button
-  }, [gameState?.endedAt, id, role]);
 
   if (gameData.isLoading) return <Loading />;
   if (gameData.isError) return (window.location.href = "/");

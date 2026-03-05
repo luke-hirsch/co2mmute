@@ -164,31 +164,41 @@ const EdgePropertyPanel = ({
 
   const handleAddStreetEdge = () => {
     if (!mapId) return;
-    createStreetEdgeMutation.mutate({
-      edge: edge.id,
+    const payload = {
       speed_limit: 50,
       lanes: 1,
       dedicated_bus_lane: false,
       map_versions: versionId ? [versionId] : [],
-    });
+    };
+    createStreetEdgeMutation.mutate({ edge: edge.id, ...payload });
+    if (reverseEdge && !reverseEdge.street_edge) {
+      createStreetEdgeMutation.mutate({ edge: reverseEdge.id, ...payload });
+    }
   };
 
   const handleRemoveStreetEdge = () => {
     if (!mapId || !edge.street_edge) return;
     deleteStreetEdgeMutation.mutate(edge.street_edge.id);
+    if (reverseEdge?.street_edge) {
+      deleteStreetEdgeMutation.mutate(reverseEdge.street_edge.id);
+    }
   };
 
   const handleAddTrainEdge = () => {
     if (!mapId) return;
-    createTrainEdgeMutation.mutate({
-      edge: edge.id,
-      map_versions: versionId ? [versionId] : [],
-    });
+    const payload = { map_versions: versionId ? [versionId] : [] };
+    createTrainEdgeMutation.mutate({ edge: edge.id, ...payload });
+    if (reverseEdge && !reverseEdge.train_edge) {
+      createTrainEdgeMutation.mutate({ edge: reverseEdge.id, ...payload });
+    }
   };
 
   const handleRemoveTrainEdge = () => {
     if (!mapId || !edge.train_edge) return;
     deleteTrainEdgeMutation.mutate(edge.train_edge.id);
+    if (reverseEdge?.train_edge) {
+      deleteTrainEdgeMutation.mutate(reverseEdge.train_edge.id);
+    }
   };
 
   const isPending =
@@ -279,14 +289,36 @@ const EdgePropertyPanel = ({
               {!isBidirectional && (
                 <button
                   onClick={() => {
-                    createEdgeMutation.mutate({
-                      start_node: edge.end_node,
-                      end_node: edge.start_node,
-                      biking: edge.biking,
-                      walking: edge.walking,
-                      max_lanes: edge.max_lanes,
-                      map_versions: versionId ? [versionId] : [],
-                    });
+                    createEdgeMutation.mutate(
+                      {
+                        start_node: edge.end_node,
+                        end_node: edge.start_node,
+                        biking: edge.biking,
+                        walking: edge.walking,
+                        max_lanes: edge.max_lanes,
+                        map_versions: versionId ? [versionId] : [],
+                      },
+                      {
+                        onSuccess: (newEdge: { id: number }) => {
+                          const versions = versionId ? [versionId] : [];
+                          if (edge.street_edge) {
+                            createStreetEdgeMutation.mutate({
+                              edge: newEdge.id,
+                              speed_limit: edge.street_edge.speed_limit,
+                              lanes: edge.street_edge.lanes,
+                              dedicated_bus_lane: edge.street_edge.dedicated_bus_lane,
+                              map_versions: versions,
+                            });
+                          }
+                          if (edge.train_edge) {
+                            createTrainEdgeMutation.mutate({
+                              edge: newEdge.id,
+                              map_versions: versions,
+                            });
+                          }
+                        },
+                      },
+                    );
                   }}
                   disabled={isPending}
                   className="text-xs px-2 py-1 rounded border border-dashed border-indigo-400 text-muted dark:text-darkmutedtext hover:border-indigo-600 disabled:opacity-50"

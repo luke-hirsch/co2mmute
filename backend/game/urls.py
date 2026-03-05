@@ -7,6 +7,7 @@ from game.views_rest import (
     GameSessionListView,
     PlayerMoveView,
     RoundTrafficHeatmapView,
+    GameSummaryView,
 )
 
 app_name = "game"
@@ -38,5 +39,10 @@ urlpatterns = [
         "<str:game_id>/round/<int:round_number>/traffic/",
         RoundTrafficHeatmapView.as_view(),
         name="round-traffic-heatmap",
+    ),
+    path(
+        "<str:game_id>/summary/",
+        GameSummaryView.as_view(),
+        name="game-summary",
     ),
 ]
