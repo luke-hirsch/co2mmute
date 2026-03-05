@@ -4,6 +4,7 @@ import {
   useUpdateEdge,
   useDeleteEdge,
   useCreateStreetEdge,
+  useUpdateStreetEdge,
   useDeleteStreetEdge,
   useCreateTrainEdge,
   useDeleteTrainEdge,
@@ -48,10 +49,12 @@ const EdgePropertyPanel = ({
   const updateEdgeMutation = useUpdateEdge(mapId ?? "");
   const deleteEdgeMutation = useDeleteEdge(mapId ?? "");
   const createStreetEdgeMutation = useCreateStreetEdge(mapId ?? "");
+  const updateStreetEdgeMutation = useUpdateStreetEdge(mapId ?? "");
   const deleteStreetEdgeMutation = useDeleteStreetEdge(mapId ?? "");
   const createTrainEdgeMutation = useCreateTrainEdge(mapId ?? "");
   const deleteTrainEdgeMutation = useDeleteTrainEdge(mapId ?? "");
 
+  const [edgeName, setEdgeName] = useState(edge.name ?? "");
   const [biking, setBiking] = useState(edge.biking ?? true);
   const [walking, setWalking] = useState(edge.walking ?? true);
   const [maxLanes, setMaxLanes] = useState(edge.max_lanes ?? 1);
@@ -60,13 +63,14 @@ const EdgePropertyPanel = ({
   const [busLane, setBusLane] = useState(edge.street_edge?.dedicated_bus_lane ?? false);
 
   useEffect(() => {
+    setEdgeName(edge.name ?? "");
     setBiking(edge.biking ?? true);
     setWalking(edge.walking ?? true);
     setMaxLanes(edge.max_lanes ?? 1);
     setSpeedLimit(edge.street_edge?.speed_limit ?? 50);
     setLanes(edge.street_edge?.lanes ?? 1);
     setBusLane(edge.street_edge?.dedicated_bus_lane ?? false);
-  }, [edge.id, edge.biking, edge.walking, edge.max_lanes, edge.street_edge]);
+  }, [edge.id, edge.name, edge.biking, edge.walking, edge.max_lanes, edge.street_edge]);
 
   const handleSave = () => {
     if (!mapId) return;
@@ -75,10 +79,16 @@ const EdgePropertyPanel = ({
       biking,
       walking,
       max_lanes: maxLanes,
+      name: edgeName,
     });
-    // Street edge properties are updated separately via StreetEdge PATCH
-    // For now we handle this by delete + recreate if street edge exists and changed
-    // TODO: add useUpdateStreetEdge if needed
+    if (edge.street_edge) {
+      updateStreetEdgeMutation.mutate({
+        streetEdgeId: edge.street_edge.id,
+        speed_limit: speedLimit,
+        lanes,
+        dedicated_bus_lane: busLane,
+      });
+    }
   };
 
   const handleModify = () => {
@@ -136,6 +146,7 @@ const EdgePropertyPanel = ({
 
   const isPending =
     updateEdgeMutation.isPending ||
+    updateStreetEdgeMutation.isPending ||
     deleteEdgeMutation.isPending ||
     createStreetEdgeMutation.isPending ||
     deleteStreetEdgeMutation.isPending ||
@@ -149,9 +160,19 @@ const EdgePropertyPanel = ({
       </h3>
       <div>
         <p className="text-xs text-muted dark:text-darkmutedtext">Name</p>
-        <p className="font-semibold text-main dark:text-darktext">
-          {edge.name || `Edge ${edge.id}`}
-        </p>
+        {directEdit ? (
+          <input
+            type="text"
+            value={edgeName}
+            onChange={(e) => setEdgeName(e.target.value)}
+            placeholder={`Edge ${edge.id}`}
+            className="w-full mt-0.5 px-2 py-1 text-sm font-semibold rounded border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext"
+          />
+        ) : (
+          <p className="font-semibold text-main dark:text-darktext">
+            {edge.name || `Edge ${edge.id}`}
+          </p>
+        )}
       </div>
 
       {/* Edge type badges + toggle buttons */}
@@ -369,10 +390,11 @@ const EdgePropertyPanel = ({
           </button>
         </div>
       )}
-      {updateEdgeMutation.isSuccess && (
+      {updateEdgeMutation.isSuccess && !updateStreetEdgeMutation.isPending && (
         <p className="text-xs text-green-600 dark:text-green-400">Saved</p>
       )}
       {(updateEdgeMutation.isError ||
+        updateStreetEdgeMutation.isError ||
         deleteEdgeMutation.isError ||
         createStreetEdgeMutation.isError ||
         deleteStreetEdgeMutation.isError ||
@@ -380,6 +402,7 @@ const EdgePropertyPanel = ({
         deleteTrainEdgeMutation.isError) && (
         <p className="text-xs text-red-600 dark:text-red-400">
           {(updateEdgeMutation.error ||
+            updateStreetEdgeMutation.error ||
             deleteEdgeMutation.error ||
             createStreetEdgeMutation.error ||
             deleteStreetEdgeMutation.error ||

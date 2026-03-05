@@ -22,7 +22,7 @@ const getEdgeColorAndStyle = (edge: any) => {
     return { stroke: "#ef4444", strokeDasharray: "5,5" };
   if (hasStreetEdge && hasTrainEdge)
     return { stroke: "#f97316", strokeDasharray: "0" };
-  if (hasStreetEdge) return { stroke: "#6b7280", strokeDasharray: "0" };
+  if (hasStreetEdge) return { stroke: "#475569", strokeDasharray: "0" };
   if (edge.biking && !edge.walking)
     return { stroke: "#3b82f6", strokeDasharray: "0" };
   if (edge.walking && !edge.biking)
@@ -415,24 +415,54 @@ const EditorCanvas = ({
                 <line
                   x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
                   stroke="#fbbf24"
-                  strokeWidth="8"
+                  strokeWidth="10"
                   opacity={0.4}
                   strokeLinecap="round"
+                />
+              )}
+              {/* Invisible wide hit target for easier clicking */}
+              {edgesClickable && (
+                <line
+                  x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
+                  stroke="transparent"
+                  strokeWidth="14"
+                  strokeLinecap="round"
+                  className="cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdgeClick(edge.id);
+                  }}
                 />
               )}
               <line
                 x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
                 stroke={stroke}
-                strokeWidth={isSelected ? "3" : "2"}
+                strokeWidth={isSelected ? "5" : "3"}
                 strokeDasharray={strokeDasharray}
-                opacity={isSelected || isInPtRoute ? 1 : 0.6}
+                strokeLinecap="round"
+                opacity={isSelected || isInPtRoute ? 1 : 0.7}
                 className={`${edgesClickable ? "cursor-pointer hover:opacity-100" : ""} transition-all`}
+                pointerEvents={edgesClickable ? "auto" : "none"}
                 onClick={(e) => {
                   if (!edgesClickable) return;
                   e.stopPropagation();
                   onEdgeClick(edge.id);
                 }}
               />
+              {/* Edge label */}
+              {edge.name && (
+                <text
+                  x={(p1.x + p2.x) / 2}
+                  y={(p1.y + p2.y) / 2 - 6}
+                  textAnchor="middle"
+                  fontSize="8"
+                  fill={stroke}
+                  className="pointer-events-none select-none"
+                  opacity={0.8}
+                >
+                  {edge.name}
+                </text>
+              )}
             </g>
           );
         })}

@@ -207,6 +207,7 @@ export const useUpdateEdge = (mapId: string | number) => {
       ...data
     }: {
       edgeId: number;
+      name?: string;
       biking?: boolean;
       walking?: boolean;
       max_lanes?: number;
@@ -252,6 +253,29 @@ export const useCreateStreetEdge = (mapId: string | number) => {
         method: "POST",
         body: JSON.stringify(data),
       });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["mapGraph", mapId] });
+    },
+  });
+};
+
+export const useUpdateStreetEdge = (mapId: string | number) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      streetEdgeId,
+      ...data
+    }: {
+      streetEdgeId: number;
+      speed_limit?: number;
+      lanes?: number;
+      dedicated_bus_lane?: boolean;
+    }) => {
+      return apiFetch(
+        `${API_BASE_URL}/api/maps/${mapId}/street-edges/${streetEdgeId}/`,
+        { method: "PATCH", body: JSON.stringify(data) }
+      );
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["mapGraph", mapId] });
