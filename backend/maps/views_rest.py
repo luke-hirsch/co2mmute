@@ -521,6 +521,166 @@ class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
             )
 
 
+class MapExportView(MapScopedQuerysetMixin, GenericAPIView):
+    """Export a map version as upload-compatible JSON."""
+
+    authentication_classes = (SessionAuthentication,)
+    permission_classes = (IsStaffOrReadOnly,)
+
+    def get(self, request, *args, **kwargs):
+        map_pk = self.get_map_id()
+        version_pk = kwargs.get("version_pk")
+
+        game_map = get_object_or_404(GameMap, pk=map_pk)
+
+        # Resolve version
+        if version_pk:
+            version = get_object_or_404(
+                MapVersion, pk=version_pk, game_map=game_map
+            )
+        else:
+            version = MapVersion.objects.filter(
+                game_map=game_map, base_version=True
+            ).first()
+            if not version:
+                version = MapVersion.objects.filter(game_map=game_map).first()
+            if not version:
+                return Response(
+                    {"error": "No map version found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        # Gather data
+        nodes = Node.objects.filter(
+            game_map=game_map, map_versions=version
+        ).prefetch_related("node_type")
+
+        edges = (
+            Edge.objects.filter(game_map=game_map, map_versions=version)
+            .select_related("start_node", "end_node")
+            .prefetch_related("streetedge_set", "trainedge_set")
+        )
+
+        # Build edge index mapping (edge pk -> index in list)
+        edge_list = list(edges)
+        edge_pk_to_idx = {e.pk: idx for idx, e in enumerate(edge_list)}
+
+        # Pre-fetch street/train edges for this version
+        edge_pks = [e.pk for e in edge_list]
+        street_edges_map = {
+            se.edge_id: se
+            for se in StreetEdge.objects.filter(
+                edge_id__in=edge_pks, map_versions=version
+            )
+        }
+        train_edges_map = {
+            te.edge_id: te
+            for te in TrainEdge.objects.filter(
+                edge_id__in=edge_pks, map_versions=version
+            )
+        }
+
+        # Build node id mapping (node pk -> stable string id)
+        node_id_map = {n.pk: str(n.pk) for n in nodes}
+
+        # Serialize nodes
+        nodes_data = []
+        for node in nodes:
+            node_entry = {
+                "id": str(node.pk),
+                "name": node.name,
+                "x": float(node.x_position),
+                "y": float(node.y_position),
+            }
+            types = [nt.name for nt in node.node_type.all()]
+            if types:
+                node_entry["types"] = types
+            nodes_data.append(node_entry)
+
+        # Serialize edges
+        edges_data = []
+        for edge in edge_list:
+            has_street = edge.pk in street_edges_map
+            has_train = edge.pk in train_edges_map
+
+            if has_street and has_train:
+                edge_type = "both"
+            elif has_train:
+                edge_type = "train"
+            else:
+                edge_type = "street"
+
+            edge_entry = {
+                "start_node": node_id_map[edge.start_node_id],
+                "end_node": node_id_map[edge.end_node_id],
+                "name": edge.name,
+                "type": edge_type,
+                "biking": edge.biking,
+                "walking": edge.walking,
+                "max_lanes": edge.max_lanes,
+            }
+
+            if has_street:
+                se = street_edges_map[edge.pk]
+                edge_entry["speed_limit"] = se.speed_limit
+                edge_entry["lanes"] = se.lanes
+                edge_entry["dedicated_bus_lane"] = se.dedicated_bus_lane
+
+            edges_data.append(edge_entry)
+
+        # Serialize bus lines
+        bus_lines = BusLine.objects.filter(
+            game_map=game_map, map_versions=version
+        )
+        bus_lines_data = []
+        for bl in bus_lines:
+            ble_qs = BusLineEdge.objects.filter(bus_line=bl).order_by("order")
+            edge_indices = []
+            for ble in ble_qs:
+                se = ble.street_edge
+                idx = edge_pk_to_idx.get(se.edge_id)
+                if idx is not None:
+                    edge_indices.append(idx)
+            bus_lines_data.append({
+                "name": bl.name,
+                "interval": bl.intervall,
+                "capacity": bl.bus_capacity,
+                "speed_kmh": bl.bus_speed_kmh,
+                "edges": edge_indices,
+            })
+
+        # Serialize train lines
+        train_lines = TrainLine.objects.filter(
+            game_map=game_map, map_versions=version
+        )
+        train_lines_data = []
+        for tl in train_lines:
+            tle_qs = TrainLineEdge.objects.filter(train_line=tl).order_by("order")
+            edge_indices = []
+            for tle in tle_qs:
+                te = tle.train_edge
+                idx = edge_pk_to_idx.get(te.edge_id)
+                if idx is not None:
+                    edge_indices.append(idx)
+            train_lines_data.append({
+                "name": tl.name,
+                "interval": tl.intervall,
+                "capacity": tl.train_capacity,
+                "speed_kmh": tl.train_speed_kmh,
+                "edges": edge_indices,
+            })
+
+        export_data = {
+            "scale": float(game_map.scale),
+            "nodes": nodes_data,
+            "edges": edges_data,
+            "bus_lines": bus_lines_data,
+            "train_lines": train_lines_data,
+        }
+
+        return Response(export_data, status=status.HTTP_200_OK)
+
+
 def _invalidate_map_cache(map_pk):
     """Invalidate graph cache for all versions of a map."""
     for version in MapVersion.objects.filter(game_map_id=map_pk):

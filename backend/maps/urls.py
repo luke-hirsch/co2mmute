@@ -116,4 +116,15 @@ urlpatterns = [
         views_rest.VersionDiffCreateView.as_view(),
         name="version-diff-create",
     ),
+    # Map export (JSON)
+    path(
+        "<int:pk>/export/",
+        views_rest.MapExportView.as_view(),
+        name="map-export",
+    ),
+    path(
+        "<int:pk>/export/version/<int:version_pk>/",
+        views_rest.MapExportView.as_view(),
+        name="map-export-version",
+    ),
 ]

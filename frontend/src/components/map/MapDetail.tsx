@@ -1,5 +1,7 @@
 import { useParams, Link } from "@tanstack/react-router";
 import { useGameMap, useMapGraph } from "../../hooks/mapHooks";
+import { API_BASE_URL } from "../../config";
+import { apiFetch } from "../../utils/api";
 import MapViewer from "./MapViewer";
 import Loading from "../Loading";
 
@@ -44,6 +46,29 @@ const MapDetail = () => {
             >
               Edit Map
             </Link>
+            <button
+              onClick={async () => {
+                try {
+                  const data = await apiFetch(
+                    `${API_BASE_URL}/api/maps/${mapId}/export/`
+                  );
+                  const blob = new Blob([JSON.stringify(data, null, 2)], {
+                    type: "application/json",
+                  });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `${gameMap.name.replace(/\s+/g, "_")}.json`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                } catch (e) {
+                  console.error("Export failed:", e);
+                }
+              }}
+              className="inline-block px-4 py-2 text-sm bg-emerald-600 text-white rounded-md hover:bg-emerald-700"
+            >
+              Export JSON
+            </button>
           </div>
           <MapViewer
             gameMap={gameMap}
