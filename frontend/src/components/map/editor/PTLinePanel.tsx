@@ -81,12 +81,30 @@ const PTLinePanel = ({
     setPtLineEdgeIds([]);
   };
 
+  const [validationError, setValidationError] = useState<string | null>(null);
+
   const handleSaveEdit = () => {
     if (!editingLine) return;
+    setValidationError(null);
+
+    // Check for incompatible edges
+    const incompatible = ptLineEdgeIds.filter(
+      (id) => !isEdgeCompatible(id, editingLine.type),
+    );
+    if (incompatible.length > 0) {
+      const typeLabel = editingLine.type === "bus" ? "street edge" : "train edge";
+      setValidationError(
+        `${incompatible.length} edge(s) missing a ${typeLabel}. Remove or fix them before saving.`,
+      );
+      return;
+    }
 
     // Resolve edge IDs to StreetEdge/TrainEdge IDs
     const resolvedEdgeIds = resolveEdgeIds(editingLine.type, ptLineEdgeIds);
-    if (resolvedEdgeIds.length === 0) return;
+    if (resolvedEdgeIds.length === 0) {
+      setValidationError("No valid edges in the route.");
+      return;
+    }
 
     if (editingLine.type === "bus") {
       updateBusMutation.mutate(
@@ -143,9 +161,25 @@ const PTLinePanel = ({
 
   const handleSaveCreate = () => {
     if (!ptLineCreating || ptLineEdgeIds.length === 0) return;
+    setValidationError(null);
+
+    // Check for incompatible edges
+    const incompatible = ptLineEdgeIds.filter(
+      (id) => !isEdgeCompatible(id, ptLineCreating),
+    );
+    if (incompatible.length > 0) {
+      const typeLabel = ptLineCreating === "bus" ? "street edge" : "train edge";
+      setValidationError(
+        `${incompatible.length} edge(s) missing a ${typeLabel}. Remove or fix them before saving.`,
+      );
+      return;
+    }
 
     const resolvedEdgeIds = resolveEdgeIds(ptLineCreating, ptLineEdgeIds);
-    if (resolvedEdgeIds.length === 0) return;
+    if (resolvedEdgeIds.length === 0) {
+      setValidationError("No valid edges in the route.");
+      return;
+    }
 
     const versionIds = selectedVersionId
       ? [selectedVersionId]
@@ -200,6 +234,18 @@ const PTLinePanel = ({
     updateBusEdgesMutation.isPending ||
     updateTrainEdgesMutation.isPending;
 
+  // Check if an edge is compatible with the current PT line type
+  const isEdgeCompatible = (
+    edgeId: number,
+    type: "bus" | "train" | null,
+  ): boolean => {
+    if (!type) return true;
+    const edge = mapGraph?.edges.find((e) => e.id === edgeId);
+    if (!edge) return false;
+    if (type === "bus") return !!edge.street_edge;
+    return !!edge.train_edge;
+  };
+
   const getEdgeLabel = (edgeId: number) => {
     const edge = mapGraph?.edges.find((e) => e.id === edgeId);
     if (!edge) return `Edge ${edgeId}`;
@@ -224,6 +270,7 @@ const PTLinePanel = ({
     const updated = [...ptLineEdgeIds];
     updated[idx] = reverseId;
     setPtLineEdgeIds(updated);
+    setValidationError(null);
   };
 
   return (
@@ -366,6 +413,7 @@ const PTLinePanel = ({
                 {ptLineEdgeIds.map((id, idx) => {
                   const isEnd = idx === 0 || idx === ptLineEdgeIds.length - 1;
                   const hasReverse = findReverseEdgeId(id) !== null;
+                  const compatible = isEdgeCompatible(id, editingLine?.type ?? null);
                   return (
                     <div
                       key={`${id}-${idx}`}
@@ -373,9 +421,11 @@ const PTLinePanel = ({
                     >
                       <span
                         className={`text-xs px-1.5 py-0.5 rounded flex-1 ${
-                          isEnd
-                            ? "bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-100 cursor-pointer hover:line-through"
-                            : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                          !compatible
+                            ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300"
+                            : isEnd
+                              ? "bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-100 cursor-pointer hover:line-through"
+                              : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
                         }`}
                         onClick={() => {
                           if (isEnd) {
@@ -384,9 +434,16 @@ const PTLinePanel = ({
                             );
                           }
                         }}
-                        title={isEnd ? "Click to remove" : ""}
+                        title={
+                          !compatible
+                            ? `Missing ${editingLine?.type === "bus" ? "street" : "train"} edge`
+                            : isEnd
+                              ? "Click to remove"
+                              : ""
+                        }
                       >
                         {idx + 1}: {getEdgeLabel(id)}
+                        {!compatible && " !!"}
                       </span>
                       {hasReverse && (
                         <button
@@ -406,6 +463,24 @@ const PTLinePanel = ({
               Click edges on map to extend. Click end edges to remove.
             </p>
           </div>
+
+          {validationError && (
+            <p className="text-xs text-red-600 dark:text-red-400">
+              {validationError}
+            </p>
+          )}
+          {(updateBusMutation.isError ||
+            updateTrainMutation.isError ||
+            updateBusEdgesMutation.isError ||
+            updateTrainEdgesMutation.isError) && (
+            <p className="text-xs text-red-600 dark:text-red-400">
+              {(updateBusMutation.error ||
+                updateTrainMutation.error ||
+                updateBusEdgesMutation.error ||
+                updateTrainEdgesMutation.error)?.message ??
+                "Failed to save changes"}
+            </p>
+          )}
 
           <button
             onClick={handleSaveEdit}
@@ -483,20 +558,31 @@ const PTLinePanel = ({
               <div className="flex flex-col gap-1">
                 {ptLineEdgeIds.map((id, idx) => {
                   const hasReverse = findReverseEdgeId(id) !== null;
+                  const compatible = isEdgeCompatible(id, ptLineCreating);
                   return (
                     <div
                       key={`${id}-${idx}`}
                       className="flex items-center gap-1"
                     >
                       <span
-                        className="text-xs bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-100 px-1.5 py-0.5 rounded cursor-pointer hover:line-through flex-1"
+                        className={`text-xs px-1.5 py-0.5 rounded cursor-pointer hover:line-through flex-1 ${
+                          !compatible
+                            ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300"
+                            : "bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-100"
+                        }`}
                         onClick={() =>
                           setPtLineEdgeIds(
                             ptLineEdgeIds.filter((_, i) => i !== idx)
                           )
                         }
+                        title={
+                          !compatible
+                            ? `Missing ${ptLineCreating === "bus" ? "street" : "train"} edge — click to remove`
+                            : "Click to remove"
+                        }
                       >
                         {idx + 1}: {getEdgeLabel(id)}
+                        {!compatible && " !!"}
                       </span>
                       {hasReverse && (
                         <button
@@ -513,6 +599,18 @@ const PTLinePanel = ({
               </div>
             )}
           </div>
+
+          {validationError && (
+            <p className="text-xs text-red-600 dark:text-red-400">
+              {validationError}
+            </p>
+          )}
+          {(createBusMutation.isError || createTrainMutation.isError) && (
+            <p className="text-xs text-red-600 dark:text-red-400">
+              {(createBusMutation.error || createTrainMutation.error)?.message ??
+                "Failed to create line"}
+            </p>
+          )}
 
           <button
             onClick={handleSaveCreate}
