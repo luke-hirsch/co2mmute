@@ -200,6 +200,32 @@ const PTLinePanel = ({
     updateBusEdgesMutation.isPending ||
     updateTrainEdgesMutation.isPending;
 
+  const getEdgeLabel = (edgeId: number) => {
+    const edge = mapGraph?.edges.find((e) => e.id === edgeId);
+    if (!edge) return `Edge ${edgeId}`;
+    const sn = mapGraph?.nodes.find((n) => n.id === edge.start_node);
+    const en = mapGraph?.nodes.find((n) => n.id === edge.end_node);
+    return `${sn?.name || edge.start_node} → ${en?.name || edge.end_node}`;
+  };
+
+  const findReverseEdgeId = (edgeId: number): number | null => {
+    const edge = mapGraph?.edges.find((e) => e.id === edgeId);
+    if (!edge) return null;
+    const reverse = mapGraph?.edges.find(
+      (e) => e.start_node === edge.end_node && e.end_node === edge.start_node,
+    );
+    return reverse?.id ?? null;
+  };
+
+  const handleFlipEdge = (idx: number) => {
+    const edgeId = ptLineEdgeIds[idx];
+    const reverseId = findReverseEdgeId(edgeId);
+    if (reverseId === null) return;
+    const updated = [...ptLineEdgeIds];
+    updated[idx] = reverseId;
+    setPtLineEdgeIds(updated);
+  };
+
   return (
     <div className="space-y-4">
       {/* Existing lines */}
@@ -336,28 +362,42 @@ const PTLinePanel = ({
                 Click edges on the map to build the route
               </p>
             ) : (
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-col gap-1">
                 {ptLineEdgeIds.map((id, idx) => {
                   const isEnd = idx === 0 || idx === ptLineEdgeIds.length - 1;
+                  const hasReverse = findReverseEdgeId(id) !== null;
                   return (
-                    <span
+                    <div
                       key={`${id}-${idx}`}
-                      className={`text-xs px-1.5 py-0.5 rounded ${
-                        isEnd
-                          ? "bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-100 cursor-pointer hover:line-through"
-                          : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-                      }`}
-                      onClick={() => {
-                        if (isEnd) {
-                          setPtLineEdgeIds(
-                            ptLineEdgeIds.filter((_, i) => i !== idx)
-                          );
-                        }
-                      }}
-                      title={isEnd ? "Click to remove" : ""}
+                      className="flex items-center gap-1"
                     >
-                      {idx + 1}: Edge {id}
-                    </span>
+                      <span
+                        className={`text-xs px-1.5 py-0.5 rounded flex-1 ${
+                          isEnd
+                            ? "bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-100 cursor-pointer hover:line-through"
+                            : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                        }`}
+                        onClick={() => {
+                          if (isEnd) {
+                            setPtLineEdgeIds(
+                              ptLineEdgeIds.filter((_, i) => i !== idx)
+                            );
+                          }
+                        }}
+                        title={isEnd ? "Click to remove" : ""}
+                      >
+                        {idx + 1}: {getEdgeLabel(id)}
+                      </span>
+                      {hasReverse && (
+                        <button
+                          onClick={() => handleFlipEdge(idx)}
+                          className="text-xs px-1 py-0.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 rounded"
+                          title="Flip direction"
+                        >
+                          ↔
+                        </button>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -440,18 +480,36 @@ const PTLinePanel = ({
                 Click edges on the map to build the route
               </p>
             ) : (
-              <div className="flex flex-wrap gap-1">
-                {ptLineEdgeIds.map((id, idx) => (
-                  <span
-                    key={id}
-                    className="text-xs bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-100 px-1.5 py-0.5 rounded cursor-pointer hover:line-through"
-                    onClick={() =>
-                      setPtLineEdgeIds(ptLineEdgeIds.filter((_, i) => i !== idx))
-                    }
-                  >
-                    {idx + 1}: Edge {id}
-                  </span>
-                ))}
+              <div className="flex flex-col gap-1">
+                {ptLineEdgeIds.map((id, idx) => {
+                  const hasReverse = findReverseEdgeId(id) !== null;
+                  return (
+                    <div
+                      key={`${id}-${idx}`}
+                      className="flex items-center gap-1"
+                    >
+                      <span
+                        className="text-xs bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-100 px-1.5 py-0.5 rounded cursor-pointer hover:line-through flex-1"
+                        onClick={() =>
+                          setPtLineEdgeIds(
+                            ptLineEdgeIds.filter((_, i) => i !== idx)
+                          )
+                        }
+                      >
+                        {idx + 1}: {getEdgeLabel(id)}
+                      </span>
+                      {hasReverse && (
+                        <button
+                          onClick={() => handleFlipEdge(idx)}
+                          className="text-xs px-1 py-0.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 rounded"
+                          title="Flip direction"
+                        >
+                          ↔
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
