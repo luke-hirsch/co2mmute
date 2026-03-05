@@ -187,6 +187,7 @@ export const useCreateEdge = (mapId: string | number) => {
       walking?: boolean;
       max_lanes?: number;
       map_versions?: number[];
+      bidirectional?: boolean;
     }) => {
       return apiFetch(`${API_BASE_URL}/api/maps/${mapId}/edges/`, {
         method: "POST",

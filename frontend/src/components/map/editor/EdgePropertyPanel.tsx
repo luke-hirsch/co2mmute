@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import type { Edge } from "../../../types/mapTypes";
+import type { Edge, Node } from "../../../types/mapTypes";
 import {
   useUpdateEdge,
   useDeleteEdge,
+  useCreateEdge,
   useCreateStreetEdge,
   useUpdateStreetEdge,
   useDeleteStreetEdge,
@@ -29,6 +30,12 @@ interface EdgePropertyPanelProps {
   onChange?: (changes: Partial<EdgeChangeFields>) => void;
   /** Called after "Modify" is clicked and changes are committed (used to deselect) */
   onModifyDone?: () => void;
+  /** All edges in the graph, used to detect reverse edges */
+  allEdges?: Edge[];
+  /** All nodes in the graph, used to show node names for direction */
+  allNodes?: Node[];
+  /** Called after deleting an edge (e.g. to clear selection) */
+  onEdgeDeleted?: () => void;
 }
 
 const EdgePropertyPanel = ({
@@ -39,6 +46,9 @@ const EdgePropertyPanel = ({
   mode = "edit",
   onChange,
   onModifyDone,
+  allEdges,
+  allNodes,
+  onEdgeDeleted,
 }: EdgePropertyPanelProps) => {
   // Direct-edit mode (graph mode with mapId) vs onChange mode (version-diff)
   const directEdit = editable && !!mapId && mode === "edit";
@@ -48,11 +58,23 @@ const EdgePropertyPanel = ({
 
   const updateEdgeMutation = useUpdateEdge(mapId ?? "");
   const deleteEdgeMutation = useDeleteEdge(mapId ?? "");
+  const createEdgeMutation = useCreateEdge(mapId ?? "");
   const createStreetEdgeMutation = useCreateStreetEdge(mapId ?? "");
   const updateStreetEdgeMutation = useUpdateStreetEdge(mapId ?? "");
   const deleteStreetEdgeMutation = useDeleteStreetEdge(mapId ?? "");
   const createTrainEdgeMutation = useCreateTrainEdge(mapId ?? "");
   const deleteTrainEdgeMutation = useDeleteTrainEdge(mapId ?? "");
+
+  // Direction info
+  const startNode = allNodes?.find((n) => n.id === edge.start_node);
+  const endNode = allNodes?.find((n) => n.id === edge.end_node);
+  const reverseEdge = allEdges?.find(
+    (e) => e.start_node === edge.end_node && e.end_node === edge.start_node,
+  );
+  const isBidirectional = !!reverseEdge;
+  const [confirmOneWayFor, setConfirmOneWayFor] = useState<number | null>(null);
+  const confirmOneWay = confirmOneWayFor === edge.id;
+  const setConfirmOneWay = (v: boolean) => setConfirmOneWayFor(v ? edge.id : null);
 
   const [edgeName, setEdgeName] = useState(edge.name ?? "");
   const [biking, setBiking] = useState(edge.biking ?? true);
@@ -89,6 +111,24 @@ const EdgePropertyPanel = ({
         dedicated_bus_lane: busLane,
       });
     }
+    // Sync reverse edge properties
+    if (reverseEdge) {
+      updateEdgeMutation.mutate({
+        edgeId: reverseEdge.id,
+        biking,
+        walking,
+        max_lanes: maxLanes,
+        name: edgeName,
+      });
+      if (reverseEdge.street_edge) {
+        updateStreetEdgeMutation.mutate({
+          streetEdgeId: reverseEdge.street_edge.id,
+          speed_limit: speedLimit,
+          lanes,
+          dedicated_bus_lane: busLane,
+        });
+      }
+    }
   };
 
   const handleModify = () => {
@@ -110,8 +150,15 @@ const EdgePropertyPanel = ({
 
   const handleDelete = () => {
     if (!mapId) return;
-    if (confirm("Delete this edge?")) {
+    const msg = reverseEdge
+      ? "Delete this edge and its reverse direction?"
+      : "Delete this edge?";
+    if (confirm(msg)) {
       deleteEdgeMutation.mutate(edge.id);
+      if (reverseEdge) {
+        deleteEdgeMutation.mutate(reverseEdge.id);
+      }
+      onEdgeDeleted?.();
     }
   };
 
@@ -148,6 +195,7 @@ const EdgePropertyPanel = ({
     updateEdgeMutation.isPending ||
     updateStreetEdgeMutation.isPending ||
     deleteEdgeMutation.isPending ||
+    createEdgeMutation.isPending ||
     createStreetEdgeMutation.isPending ||
     deleteStreetEdgeMutation.isPending ||
     createTrainEdgeMutation.isPending ||
@@ -158,6 +206,99 @@ const EdgePropertyPanel = ({
       <h3 className="text-lg font-semibold text-main dark:text-darktext">
         {isModifyMode ? "Modify Edge" : "Edge"}
       </h3>
+
+      {/* Direction info */}
+      {allNodes && (
+        <div>
+          <p className="text-xs text-muted dark:text-darkmutedtext">Direction</p>
+          <p className="text-sm font-medium text-main dark:text-darktext">
+            {startNode?.name || `Node ${edge.start_node}`} → {endNode?.name || `Node ${edge.end_node}`}
+          </p>
+          <div className="flex items-center gap-2 mt-1">
+            <span
+              className={`text-xs px-2 py-0.5 rounded ${
+                isBidirectional
+                  ? "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300"
+                  : "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300"
+              }`}
+            >
+              {isBidirectional ? "↔ Bidirectional" : "→ One-way"}
+            </span>
+          </div>
+          {directEdit && (
+            <div className="mt-2">
+              {isBidirectional && !confirmOneWay && (
+                <button
+                  onClick={() => setConfirmOneWay(true)}
+                  disabled={isPending}
+                  className="text-xs px-2 py-1 rounded border border-dashed border-amber-400 text-muted dark:text-darkmutedtext hover:border-amber-600 disabled:opacity-50"
+                >
+                  Make one-way...
+                </button>
+              )}
+              {isBidirectional && confirmOneWay && reverseEdge && (
+                <div className="space-y-1.5">
+                  <p className="text-xs text-muted dark:text-darkmutedtext">
+                    Which direction to keep?
+                  </p>
+                  <div className="flex flex-col gap-1">
+                    <button
+                      onClick={() => {
+                        deleteEdgeMutation.mutate(reverseEdge.id, {
+                          onSuccess: () => setConfirmOneWay(false),
+                        });
+                      }}
+                      disabled={isPending}
+                      className="text-xs px-2 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 text-left"
+                    >
+                      Keep {startNode?.name || `Node ${edge.start_node}`} → {endNode?.name || `Node ${edge.end_node}`}
+                    </button>
+                    <button
+                      onClick={() => {
+                        deleteEdgeMutation.mutate(edge.id, {
+                          onSuccess: () => {
+                            setConfirmOneWay(false);
+                            onEdgeDeleted?.();
+                          },
+                        });
+                      }}
+                      disabled={isPending}
+                      className="text-xs px-2 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 text-left"
+                    >
+                      Keep {endNode?.name || `Node ${edge.end_node}`} → {startNode?.name || `Node ${edge.start_node}`}
+                    </button>
+                    <button
+                      onClick={() => setConfirmOneWay(false)}
+                      className="text-xs px-2 py-1 text-muted dark:text-darkmutedtext hover:text-main dark:hover:text-darktext"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+              {!isBidirectional && (
+                <button
+                  onClick={() => {
+                    createEdgeMutation.mutate({
+                      start_node: edge.end_node,
+                      end_node: edge.start_node,
+                      biking: edge.biking,
+                      walking: edge.walking,
+                      max_lanes: edge.max_lanes,
+                      map_versions: versionId ? [versionId] : [],
+                    });
+                  }}
+                  disabled={isPending}
+                  className="text-xs px-2 py-1 rounded border border-dashed border-indigo-400 text-muted dark:text-darkmutedtext hover:border-indigo-600 disabled:opacity-50"
+                >
+                  + Make bidirectional
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       <div>
         <p className="text-xs text-muted dark:text-darkmutedtext">Name</p>
         {directEdit ? (
@@ -396,6 +537,7 @@ const EdgePropertyPanel = ({
       {(updateEdgeMutation.isError ||
         updateStreetEdgeMutation.isError ||
         deleteEdgeMutation.isError ||
+        createEdgeMutation.isError ||
         createStreetEdgeMutation.isError ||
         deleteStreetEdgeMutation.isError ||
         createTrainEdgeMutation.isError ||
@@ -404,6 +546,7 @@ const EdgePropertyPanel = ({
           {(updateEdgeMutation.error ||
             updateStreetEdgeMutation.error ||
             deleteEdgeMutation.error ||
+            createEdgeMutation.error ||
             createStreetEdgeMutation.error ||
             deleteStreetEdgeMutation.error ||
             createTrainEdgeMutation.error ||

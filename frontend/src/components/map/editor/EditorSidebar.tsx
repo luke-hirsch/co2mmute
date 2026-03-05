@@ -87,6 +87,9 @@ const EditorSidebar = ({
           mapId={mapId}
           versionId={mapGraph?.version_id}
           editable
+          allEdges={mapGraph?.edges}
+          allNodes={mapGraph?.nodes}
+          onEdgeDeleted={() => dispatch({ type: "CLEAR_SELECTION" })}
         />
       )}
       {state.mode === "graph" && !selectedNode && !selectedEdge && (

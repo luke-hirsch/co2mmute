@@ -159,6 +159,26 @@ class EdgeListView(MapScopedQuerysetMixin, ListCreateAPIView):
         map_id = self.get_map_id()
         return Edge.objects.filter(game_map_id=map_id)
 
+    @transaction.atomic
+    def perform_create(self, serializer):
+        """Create edge, and optionally the reverse edge if bidirectional."""
+        bidirectional = serializer.validated_data.pop("bidirectional", False)
+        edge = serializer.save()
+
+        if bidirectional:
+            reverse_edge = Edge.objects.create(
+                game_map=edge.game_map,
+                name=edge.name,
+                start_node=edge.end_node,
+                end_node=edge.start_node,
+                biking=edge.biking,
+                walking=edge.walking,
+                max_lanes=edge.max_lanes,
+            )
+            reverse_edge.map_versions.set(edge.map_versions.all())
+
+        _invalidate_map_cache(self.kwargs["pk"])
+
 
 class EdgeDetailView(RetrieveUpdateDestroyAPIView):
     """Retrieve, update, or delete a specific edge."""

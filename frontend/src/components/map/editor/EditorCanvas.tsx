@@ -39,6 +39,25 @@ const getNodeColor = (nodeTypes: any[]) => {
   return "#6b7280";
 };
 
+// All edge colors used by getEdgeColorAndStyle
+const EDGE_COLORS = ["#ef4444", "#f97316", "#475569", "#3b82f6", "#10b981", "#8b5cf6"];
+
+const shortenLine = (
+  p1: { x: number; y: number },
+  p2: { x: number; y: number },
+  shortenEnd: number = 12,
+) => {
+  const dx = p2.x - p1.x;
+  const dy = p2.y - p1.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len < shortenEnd * 2) return { x2: p2.x, y2: p2.y };
+  const ratio = shortenEnd / len;
+  return {
+    x2: p2.x - dx * ratio,
+    y2: p2.y - dy * ratio,
+  };
+};
+
 // Color palette for PT lines
 const PT_LINE_COLORS = [
   "#8b5cf6", "#06b6d4", "#f59e0b", "#ec4899",
@@ -298,6 +317,20 @@ const EditorCanvas = ({
                   <rect x={img.clipX} y={img.clipY} width={img.clipW} height={img.clipH} />
                 </clipPath>
               )}
+              {EDGE_COLORS.map((color) => (
+                <marker
+                  key={`arrow-${color}`}
+                  id={`arrowhead-${color.replace("#", "")}`}
+                  markerWidth="8"
+                  markerHeight="6"
+                  refX="7"
+                  refY="3"
+                  orient="auto"
+                  markerUnits="strokeWidth"
+                >
+                  <polygon points="0 0, 8 3, 0 6" fill={color} />
+                </marker>
+              ))}
             </defs>
           );
         })()}
@@ -434,21 +467,27 @@ const EditorCanvas = ({
                   }}
                 />
               )}
-              <line
-                x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
-                stroke={stroke}
-                strokeWidth={isSelected ? "5" : "3"}
-                strokeDasharray={strokeDasharray}
-                strokeLinecap="round"
-                opacity={isSelected || isInPtRoute ? 1 : 0.7}
-                className={`${edgesClickable ? "cursor-pointer hover:opacity-100" : ""} transition-all`}
-                pointerEvents={edgesClickable ? "auto" : "none"}
-                onClick={(e) => {
-                  if (!edgesClickable) return;
-                  e.stopPropagation();
-                  onEdgeClick(edge.id);
-                }}
-              />
+              {(() => {
+                const shortened = shortenLine(p1, p2);
+                return (
+                  <line
+                    x1={p1.x} y1={p1.y} x2={shortened.x2} y2={shortened.y2}
+                    stroke={stroke}
+                    strokeWidth={isSelected ? "5" : "3"}
+                    strokeDasharray={strokeDasharray}
+                    strokeLinecap="round"
+                    opacity={isSelected || isInPtRoute ? 1 : 0.7}
+                    markerEnd={`url(#arrowhead-${stroke.replace("#", "")})`}
+                    className={`${edgesClickable ? "cursor-pointer hover:opacity-100" : ""} transition-all`}
+                    pointerEvents={edgesClickable ? "auto" : "none"}
+                    onClick={(e) => {
+                      if (!edgesClickable) return;
+                      e.stopPropagation();
+                      onEdgeClick(edge.id);
+                    }}
+                  />
+                );
+              })()}
               {/* Edge label */}
               {edge.name && (
                 <text

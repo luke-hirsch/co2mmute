@@ -37,6 +37,7 @@ const initialState: EditorState = {
   edgeSourceNodeId: null,
   isDirty: false,
   versionDiffStep: 1,
+  bidirectional: true,
 };
 
 const initialVersionMetadata: VersionMetadata = {
@@ -108,6 +109,8 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       return { ...state, isDirty: false };
     case "SET_VERSION_DIFF_STEP":
       return { ...state, versionDiffStep: action.step };
+    case "SET_BIDIRECTIONAL":
+      return { ...state, bidirectional: action.value };
     default:
       return state;
   }
@@ -210,9 +213,10 @@ const MapEditor = () => {
         start_node: startNodeId,
         end_node: endNodeId,
         map_versions: versionId ? [versionId] : [],
+        bidirectional: state.bidirectional,
       });
     },
-    [createEdgeMutation, versionId],
+    [createEdgeMutation, versionId, state.bidirectional],
   );
 
   const handleEdgeClick = useCallback(
@@ -285,8 +289,22 @@ const MapEditor = () => {
       }
     } else if (state.selectedEdgeIds.size === 1) {
       const edgeId = [...state.selectedEdgeIds][0];
-      if (confirm("Delete this edge?")) {
+      const edge = mapGraph?.edges.find((e) => e.id === edgeId);
+      const reverseEdge = edge
+        ? mapGraph?.edges.find(
+            (e) =>
+              e.start_node === edge.end_node &&
+              e.end_node === edge.start_node,
+          )
+        : null;
+      const msg = reverseEdge
+        ? "Delete this edge and its reverse direction?"
+        : "Delete this edge?";
+      if (confirm(msg)) {
         deleteEdgeMutation.mutate(edgeId);
+        if (reverseEdge) {
+          deleteEdgeMutation.mutate(reverseEdge.id);
+        }
         dispatch({ type: "CLEAR_SELECTION" });
       }
     }
@@ -295,6 +313,7 @@ const MapEditor = () => {
     state.selectedEdgeIds,
     deleteNodeMutation,
     deleteEdgeMutation,
+    mapGraph?.edges,
   ]);
 
   if (mapLoading || graphLoading) return <Loading />;
@@ -354,6 +373,10 @@ const MapEditor = () => {
             setPtLineEdgeIds([]);
           }}
           versionDiffStep={state.versionDiffStep}
+          bidirectional={state.bidirectional}
+          onBidirectionalChange={(value: boolean) =>
+            dispatch({ type: "SET_BIDIRECTIONAL", value })
+          }
         />
 
         {/* Mutation error banner */}

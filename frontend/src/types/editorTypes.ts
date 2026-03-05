@@ -9,6 +9,7 @@ export interface EditorState {
   edgeSourceNodeId: number | null;
   isDirty: boolean;
   versionDiffStep: 1 | 2;
+  bidirectional: boolean;
 }
 
 export interface VersionMetadata {
@@ -72,4 +73,5 @@ export type EditorAction =
   | { type: "CLEAR_SELECTION" }
   | { type: "MARK_DIRTY" }
   | { type: "MARK_CLEAN" }
-  | { type: "SET_VERSION_DIFF_STEP"; step: 1 | 2 };
+  | { type: "SET_VERSION_DIFF_STEP"; step: 1 | 2 }
+  | { type: "SET_BIDIRECTIONAL"; value: boolean };

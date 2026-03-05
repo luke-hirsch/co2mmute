@@ -16,6 +16,8 @@ interface EditorToolbarProps {
   onStartPtLine: (type: "bus" | "train") => void;
   onCancelPtLine: () => void;
   versionDiffStep?: 1 | 2;
+  bidirectional: boolean;
+  onBidirectionalChange: (value: boolean) => void;
 }
 
 const modes: { key: EditorMode; label: string }[] = [
@@ -45,6 +47,8 @@ const EditorToolbar = ({
   onStartPtLine,
   onCancelPtLine,
   versionDiffStep,
+  bidirectional,
+  onBidirectionalChange,
 }: EditorToolbarProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadMutation = useUploadBackgroundImage(mapId);
@@ -135,9 +139,26 @@ const EditorToolbar = ({
             </span>
           )}
           {graphTool === "add-edge" && (
-            <span className="text-xs text-amber-600 dark:text-amber-400">
-              Click two nodes to connect them
-            </span>
+            <>
+              <span className="text-xs text-amber-600 dark:text-amber-400">
+                Click two nodes to connect them
+              </span>
+              <button
+                onClick={() => onBidirectionalChange(!bidirectional)}
+                className={`px-2.5 py-1 text-xs rounded-md transition-colors border ${
+                  bidirectional
+                    ? "bg-indigo-600 text-white border-indigo-600"
+                    : "text-muted dark:text-darkmutedtext border-subtle dark:border-darksubtle hover:bg-body dark:hover:bg-darkbody"
+                }`}
+                title={
+                  bidirectional
+                    ? "Creating bidirectional edges (A↔B)"
+                    : "Creating one-way edges (A→B)"
+                }
+              >
+                {bidirectional ? "↔ Bidirectional" : "→ One-way"}
+              </button>
+            </>
           )}
         </>
       )}

@@ -157,6 +157,9 @@ class EdgeSerializer(MapVersionsMixin, serializers.ModelSerializer):
     street_edge = serializers.SerializerMethodField()
     train_edge = serializers.SerializerMethodField()
     distance_m = serializers.SerializerMethodField()
+    bidirectional = serializers.BooleanField(
+        required=False, default=False, write_only=True
+    )
 
     class Meta:
         model = mm.Edge
@@ -173,6 +176,7 @@ class EdgeSerializer(MapVersionsMixin, serializers.ModelSerializer):
             "street_edge",
             "train_edge",
             "distance_m",
+            "bidirectional",
         ]
         read_only_fields = ("id", "street_edge", "train_edge", "distance_m")
         extra_kwargs = {
