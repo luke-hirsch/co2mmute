@@ -7,6 +7,9 @@ import type {
   EdgeChange,
   PTLineChange,
   VersionMetadata,
+  PTLineDraftInDiff,
+  VirtualNode,
+  VirtualEdge,
 } from "../../../types/editorTypes";
 import MapSettingsPanel from "./MapSettingsPanel";
 import ImageTransformPanel from "./ImageTransformPanel";
@@ -34,6 +37,18 @@ interface EditorSidebarProps {
   dispatch: Dispatch<EditorAction>;
   versionMetadata: VersionMetadata;
   setVersionMetadata: (meta: VersionMetadata) => void;
+  versionDiffEditingPtLine: PTLineDraftInDiff | null;
+  setVersionDiffEditingPtLine: (draft: PTLineDraftInDiff | null) => void;
+  newNodes: VirtualNode[];
+  setNewNodes: (nodes: VirtualNode[]) => void;
+  newEdges: VirtualEdge[];
+  setNewEdges: (edges: VirtualEdge[]) => void;
+  deletedNodeIds: Set<number>;
+  setDeletedNodeIds: (ids: Set<number>) => void;
+  deletedEdgeIds: Set<number>;
+  setDeletedEdgeIds: (ids: Set<number>) => void;
+  cascadeDeletedEdgeIds: Map<number, Set<number>>;
+  setCascadeDeletedEdgeIds: (m: Map<number, Set<number>>) => void;
 }
 
 const EditorSidebar = ({
@@ -55,6 +70,18 @@ const EditorSidebar = ({
   dispatch,
   versionMetadata,
   setVersionMetadata,
+  versionDiffEditingPtLine,
+  setVersionDiffEditingPtLine,
+  newNodes,
+  setNewNodes,
+  newEdges,
+  setNewEdges,
+  deletedNodeIds,
+  setDeletedNodeIds,
+  deletedEdgeIds,
+  setDeletedEdgeIds,
+  cascadeDeletedEdgeIds,
+  setCascadeDeletedEdgeIds,
 }: EditorSidebarProps) => {
   const selectedNode = state.selectedNodeId
     ? mapGraph?.nodes.find((n) => n.id === state.selectedNodeId)
@@ -130,6 +157,20 @@ const EditorSidebar = ({
           versionDiffStep={state.versionDiffStep}
           versionMetadata={versionMetadata}
           setVersionMetadata={setVersionMetadata}
+          versionDiffEditingPtLine={versionDiffEditingPtLine}
+          setVersionDiffEditingPtLine={setVersionDiffEditingPtLine}
+          ptLineEdgeIds={ptLineEdgeIds}
+          setPtLineEdgeIds={setPtLineEdgeIds}
+          newNodes={newNodes}
+          setNewNodes={setNewNodes}
+          newEdges={newEdges}
+          setNewEdges={setNewEdges}
+          deletedNodeIds={deletedNodeIds}
+          setDeletedNodeIds={setDeletedNodeIds}
+          deletedEdgeIds={deletedEdgeIds}
+          setDeletedEdgeIds={setDeletedEdgeIds}
+          cascadeDeletedEdgeIds={cascadeDeletedEdgeIds}
+          setCascadeDeletedEdgeIds={setCascadeDeletedEdgeIds}
         />
       )}
     </div>

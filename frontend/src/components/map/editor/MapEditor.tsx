@@ -1,4 +1,4 @@
-import { useReducer, useState, useCallback } from "react";
+import { useReducer, useState, useCallback, useRef } from "react";
 import { useParams, Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -25,6 +25,9 @@ import type {
   EdgeChange,
   PTLineChange,
   VersionMetadata,
+  PTLineDraftInDiff,
+  VirtualNode,
+  VirtualEdge,
 } from "../../../types/editorTypes";
 import type { ExtendedMapGraph } from "../../../types/routeTypes";
 import type { MapVersion } from "../../../types/mapTypes";
@@ -147,6 +150,23 @@ const MapEditor = () => {
     initialVersionMetadata,
   );
 
+  // Version diff PT line editing sub-mode
+  const [versionDiffEditingPtLine, setVersionDiffEditingPtLine] =
+    useState<PTLineDraftInDiff | null>(null);
+
+  // Version diff structural changes (Task 3)
+  const [newNodes, setNewNodes] = useState<VirtualNode[]>([]);
+  const [newEdges, setNewEdges] = useState<VirtualEdge[]>([]);
+  const [deletedNodeIds, setDeletedNodeIds] = useState<Set<number>>(new Set());
+  const [deletedEdgeIds, setDeletedEdgeIds] = useState<Set<number>>(new Set());
+  // Tracks which edge deletions were cascade-triggered by a node deletion
+  const [cascadeDeletedEdgeIds, setCascadeDeletedEdgeIds] = useState<
+    Map<number, Set<number>>
+  >(new Map());
+  // Edge source temp ID for virtual nodes in add-edge mode
+  const [edgeSourceTempId, setEdgeSourceTempId] = useState<string | null>(null);
+  const tempIdCounter = useRef(0);
+
   // Mutations — declared before callbacks that reference them
   const updateNodeMutation = useUpdateNodePosition(mapId);
   const createNodeMutation = useCreateNode(mapId);
@@ -164,6 +184,13 @@ const MapEditor = () => {
     setEdgeChanges([]);
     setPtLineChanges([]);
     setVersionMetadata(initialVersionMetadata);
+    setVersionDiffEditingPtLine(null);
+    setNewNodes([]);
+    setNewEdges([]);
+    setDeletedNodeIds(new Set());
+    setDeletedEdgeIds(new Set());
+    setCascadeDeletedEdgeIds(new Map());
+    setEdgeSourceTempId(null);
   }, []);
 
   const handleGraphToolChange = useCallback((tool: GraphTool) => {
@@ -172,6 +199,8 @@ const MapEditor = () => {
 
   const handleNodeDragEnd = useCallback(
     (nodeId: number, x: number, y: number) => {
+      // No dragging in version-diff mode — topology must be preserved
+      if (state.mode === "version-diff") return;
       qc.setQueryData(
         ["mapGraph", mapId, selectedVersionId],
         (old: ExtendedMapGraph | undefined) => {
@@ -193,36 +222,80 @@ const MapEditor = () => {
         },
       );
     },
-    [mapId, selectedVersionId, qc, updateNodeMutation],
+    [mapId, selectedVersionId, qc, updateNodeMutation, state.mode],
   );
 
   const handleAddNode = useCallback(
     (x: number, y: number) => {
+      if (state.mode === "version-diff") {
+        const tempId = `new-node-${tempIdCounter.current++}`;
+        setNewNodes((prev) => [...prev, { tempId, x_position: x, y_position: y }]);
+        return;
+      }
       createNodeMutation.mutate({
         x_position: x,
         y_position: y,
         map_versions: versionId ? [versionId] : [],
       });
     },
-    [createNodeMutation, versionId],
+    [createNodeMutation, versionId, state.mode],
   );
 
   const handleCreateEdge = useCallback(
-    (startNodeId: number, endNodeId: number) => {
+    (startNodeId: number | string, endNodeId: number | string) => {
+      if (state.mode === "version-diff") {
+        const tempId = `new-edge-${tempIdCounter.current++}`;
+        setNewEdges((prev) => [
+          ...prev,
+          {
+            tempId,
+            start_node: startNodeId,
+            end_node: endNodeId,
+            bidirectional: state.bidirectional,
+            biking: false,
+            walking: false,
+            max_lanes: 1,
+          },
+        ]);
+        return;
+      }
       createEdgeMutation.mutate({
-        start_node: startNodeId,
-        end_node: endNodeId,
+        start_node: startNodeId as number,
+        end_node: endNodeId as number,
         map_versions: versionId ? [versionId] : [],
         bidirectional: state.bidirectional,
       });
     },
-    [createEdgeMutation, versionId, state.bidirectional],
+    [createEdgeMutation, versionId, state.bidirectional, state.mode],
   );
 
   const handleEdgeClick = useCallback(
     (edgeId: number) => {
       // Version-diff step 1: no edge interaction
       if (state.mode === "version-diff" && state.versionDiffStep === 1) return;
+
+      // Version-diff: PT line editing sub-mode — toggle edge in route
+      if (state.mode === "version-diff" && versionDiffEditingPtLine !== null) {
+        setPtLineEdgeIds((prev) =>
+          prev.includes(edgeId)
+            ? prev.filter((id) => id !== edgeId)
+            : [...prev, edgeId],
+        );
+        return;
+      }
+
+      // Version-diff: delete tool — mark edge as deleted
+      if (state.mode === "version-diff" && state.graphTool === "delete") {
+        setDeletedEdgeIds((prev) => {
+          const next = new Set(prev);
+          next.add(edgeId);
+          return next;
+        });
+        // Remove from edgeChanges if it was being modified
+        setEdgeChanges((prev) => prev.filter((c) => c.edge_id !== edgeId));
+        dispatch({ type: "CLEAR_SELECTION" });
+        return;
+      }
 
       if (
         state.mode === "pt-lines" &&
@@ -242,13 +315,62 @@ const MapEditor = () => {
         dispatch({ type: "SELECT_EDGE", edgeId });
       }
     },
-    [state.mode, state.versionDiffStep, ptLineCreating, state.selectedNodeId],
+    [
+      state.mode,
+      state.versionDiffStep,
+      state.graphTool,
+      versionDiffEditingPtLine,
+      ptLineCreating,
+      state.selectedNodeId,
+    ],
   );
 
   const handleNodeClick = useCallback(
     (nodeId: number) => {
-      // Nodes not interactive in version-diff mode
-      if (state.mode === "version-diff") return;
+      if (state.mode === "version-diff") {
+        if (state.graphTool === "delete") {
+          // Mark node as deleted and cascade to connected edges
+          setDeletedNodeIds((prev) => {
+            const next = new Set(prev);
+            next.add(nodeId);
+            return next;
+          });
+          const connectedEdgeIds =
+            mapGraph?.edges
+              .filter((e) => e.start_node === nodeId || e.end_node === nodeId)
+              .map((e) => e.id) ?? [];
+          if (connectedEdgeIds.length > 0) {
+            setDeletedEdgeIds((prev) => {
+              const next = new Set(prev);
+              connectedEdgeIds.forEach((id) => next.add(id));
+              return next;
+            });
+            setCascadeDeletedEdgeIds((prev) => {
+              const next = new Map(prev);
+              next.set(nodeId, new Set(connectedEdgeIds));
+              return next;
+            });
+            // Remove any property changes for cascaded edges
+            setEdgeChanges((prev) =>
+              prev.filter((c) => !connectedEdgeIds.includes(c.edge_id)),
+            );
+          }
+          dispatch({ type: "CLEAR_SELECTION" });
+        } else if (state.graphTool === "add-edge") {
+          if (state.edgeSourceNodeId === null && edgeSourceTempId === null) {
+            dispatch({ type: "SET_EDGE_SOURCE", nodeId });
+          } else if (edgeSourceTempId !== null) {
+            // Source was a virtual node, target is real
+            handleCreateEdge(edgeSourceTempId, nodeId);
+            setEdgeSourceTempId(null);
+            dispatch({ type: "CLEAR_EDGE_SOURCE" });
+          } else if (state.edgeSourceNodeId !== null && state.edgeSourceNodeId !== nodeId) {
+            handleCreateEdge(state.edgeSourceNodeId, nodeId);
+            dispatch({ type: "CLEAR_EDGE_SOURCE" });
+          }
+        }
+        return;
+      }
 
       if (state.mode === "graph" && state.graphTool === "add-edge") {
         if (state.edgeSourceNodeId === null) {
@@ -262,13 +384,54 @@ const MapEditor = () => {
         dispatch({ type: "SELECT_NODE", nodeId });
       }
     },
-    [state.mode, state.graphTool, state.edgeSourceNodeId, handleCreateEdge],
+    [
+      state.mode,
+      state.graphTool,
+      state.edgeSourceNodeId,
+      edgeSourceTempId,
+      handleCreateEdge,
+      mapGraph?.edges,
+    ],
+  );
+
+  // Handler for clicking virtual (pending) nodes in version-diff mode
+  const handleVirtualNodeClick = useCallback(
+    (tempId: string) => {
+      if (state.mode !== "version-diff") return;
+      if (state.graphTool === "delete") {
+        setNewNodes((prev) => prev.filter((n) => n.tempId !== tempId));
+        setNewEdges((prev) =>
+          prev.filter((e) => e.start_node !== tempId && e.end_node !== tempId),
+        );
+      } else if (state.graphTool === "add-edge") {
+        if (state.edgeSourceNodeId === null && edgeSourceTempId === null) {
+          setEdgeSourceTempId(tempId);
+        } else {
+          const source =
+            edgeSourceTempId !== null
+              ? edgeSourceTempId
+              : state.edgeSourceNodeId!;
+          if (source !== tempId) {
+            handleCreateEdge(source, tempId);
+          }
+          setEdgeSourceTempId(null);
+          dispatch({ type: "CLEAR_EDGE_SOURCE" });
+        }
+      }
+    },
+    [
+      state.mode,
+      state.graphTool,
+      state.edgeSourceNodeId,
+      edgeSourceTempId,
+      handleCreateEdge,
+    ],
   );
 
   const handleCanvasClick = useCallback(
     (x?: number, y?: number) => {
       if (
-        state.mode === "graph" &&
+        (state.mode === "graph" || state.mode === "version-diff") &&
         state.graphTool === "add-node" &&
         x !== undefined &&
         y !== undefined
@@ -276,6 +439,7 @@ const MapEditor = () => {
         handleAddNode(x, y);
       } else {
         dispatch({ type: "CLEAR_SELECTION" });
+        setEdgeSourceTempId(null);
       }
     },
     [state.mode, state.graphTool, handleAddNode],
@@ -373,6 +537,7 @@ const MapEditor = () => {
             setPtLineEdgeIds([]);
           }}
           versionDiffStep={state.versionDiffStep}
+          versionDiffEditingPtLine={versionDiffEditingPtLine !== null}
           bidirectional={state.bidirectional}
           onBidirectionalChange={(value: boolean) =>
             dispatch({ type: "SET_BIDIRECTIONAL", value })
@@ -404,6 +569,12 @@ const MapEditor = () => {
               onNodeClick={handleNodeClick}
               onCanvasClick={handleCanvasClick}
               onNodeDragEnd={handleNodeDragEnd}
+              newNodes={newNodes}
+              newEdges={newEdges}
+              deletedNodeIds={deletedNodeIds}
+              deletedEdgeIds={deletedEdgeIds}
+              edgeSourceTempId={edgeSourceTempId}
+              onVirtualNodeClick={handleVirtualNodeClick}
             />
           </div>
 
@@ -428,6 +599,18 @@ const MapEditor = () => {
               dispatch={dispatch}
               versionMetadata={versionMetadata}
               setVersionMetadata={setVersionMetadata}
+              versionDiffEditingPtLine={versionDiffEditingPtLine}
+              setVersionDiffEditingPtLine={setVersionDiffEditingPtLine}
+              newNodes={newNodes}
+              setNewNodes={setNewNodes}
+              newEdges={newEdges}
+              setNewEdges={setNewEdges}
+              deletedNodeIds={deletedNodeIds}
+              setDeletedNodeIds={setDeletedNodeIds}
+              deletedEdgeIds={deletedEdgeIds}
+              setDeletedEdgeIds={setDeletedEdgeIds}
+              cascadeDeletedEdgeIds={cascadeDeletedEdgeIds}
+              setCascadeDeletedEdgeIds={setCascadeDeletedEdgeIds}
             />
           </div>
         </div>

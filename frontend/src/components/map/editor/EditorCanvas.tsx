@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import type { GameMap } from "../../../types/mapTypes";
 import type { ExtendedMapGraph } from "../../../types/routeTypes";
-import type { EditorState, EdgeChange } from "../../../types/editorTypes";
+import type { EditorState, EdgeChange, VirtualNode, VirtualEdge } from "../../../types/editorTypes";
 
 interface EditorCanvasProps {
   gameMap: GameMap;
@@ -13,6 +13,12 @@ interface EditorCanvasProps {
   onNodeClick: (nodeId: number) => void;
   onCanvasClick: (x?: number, y?: number) => void;
   onNodeDragEnd?: (nodeId: number, x: number, y: number) => void;
+  newNodes?: VirtualNode[];
+  newEdges?: VirtualEdge[];
+  deletedNodeIds?: Set<number>;
+  deletedEdgeIds?: Set<number>;
+  edgeSourceTempId?: string | null;
+  onVirtualNodeClick?: (tempId: string) => void;
 }
 
 const getEdgeColorAndStyle = (edge: any) => {
@@ -41,6 +47,8 @@ const getNodeColor = (nodeTypes: any[]) => {
 
 // All edge colors used by getEdgeColorAndStyle
 const EDGE_COLORS = ["#ef4444", "#f97316", "#475569", "#3b82f6", "#10b981", "#8b5cf6"];
+// Green color for virtual (proposed) nodes and edges
+const VIRTUAL_COLOR = "#22c55e";
 
 const shortenLine = (
   p1: { x: number; y: number },
@@ -89,14 +97,24 @@ const EditorCanvas = ({
   onNodeClick,
   onCanvasClick,
   onNodeDragEnd,
+  newNodes = [],
+  newEdges = [],
+  deletedNodeIds = new Set(),
+  deletedEdgeIds = new Set(),
+  edgeSourceTempId,
+  onVirtualNodeClick,
 }: EditorCanvasProps) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const dragRef = useRef<DragState | null>(null);
   const [dragOffset, setDragOffset] = useState<{ nodeId: number; dx: number; dy: number } | null>(null);
 
   const isDragMode = state.mode === "graph" && state.graphTool === "select";
-  const isAddNodeMode = state.mode === "graph" && state.graphTool === "add-node";
-  const isAddEdgeMode = state.mode === "graph" && state.graphTool === "add-edge";
+  const isAddNodeMode =
+    (state.mode === "graph" || state.mode === "version-diff") &&
+    state.graphTool === "add-node";
+  const isAddEdgeMode =
+    (state.mode === "graph" || state.mode === "version-diff") &&
+    state.graphTool === "add-edge";
   const isVersionDiffMode = state.mode === "version-diff";
   const edgesClickable = !isVersionDiffMode || state.versionDiffStep === 2;
 
@@ -317,7 +335,7 @@ const EditorCanvas = ({
                   <rect x={img.clipX} y={img.clipY} width={img.clipW} height={img.clipH} />
                 </clipPath>
               )}
-              {EDGE_COLORS.map((color) => (
+              {[...EDGE_COLORS, VIRTUAL_COLOR].map((color) => (
                 <marker
                   key={`arrow-${color}`}
                   id={`arrowhead-${color.replace("#", "")}`}
@@ -428,6 +446,13 @@ const EditorCanvas = ({
           );
         })}
 
+        {/* Virtual node position lookup */}
+        {(() => {
+          // Build a lookup for virtual node positions (used by virtual edges below)
+          // This is rendered as a no-op element; the actual lookup is done inline
+          return null;
+        })()}
+
         {/* Edges */}
         {mapGraph.edges.map((edge) => {
           const startNode = nodeById.get(edge.start_node);
@@ -439,12 +464,13 @@ const EditorCanvas = ({
           const isSelected = state.selectedEdgeIds.has(edge.id);
           const isInPtRoute = ptLineEdgeIds.includes(edge.id);
           const isChanged = changedEdgeIds.has(edge.id);
+          const isDeleted = deletedEdgeIds.has(edge.id);
           const { stroke, strokeDasharray } = getEdgeColorAndStyle(edge);
 
           return (
             <g key={`edge-${edge.id}`}>
-              {/* Diff highlight */}
-              {isChanged && state.mode === "version-diff" && (
+              {/* Diff highlight for modified edges */}
+              {isChanged && state.mode === "version-diff" && !isDeleted && (
                 <line
                   x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
                   stroke="#fbbf24"
@@ -453,8 +479,20 @@ const EditorCanvas = ({
                   strokeLinecap="round"
                 />
               )}
+              {/* Red deletion overlay */}
+              {isDeleted && state.mode === "version-diff" && (
+                <line
+                  x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
+                  stroke="#ef4444"
+                  strokeWidth="8"
+                  opacity={0.5}
+                  strokeLinecap="round"
+                  strokeDasharray="6,4"
+                  pointerEvents="none"
+                />
+              )}
               {/* Invisible wide hit target for easier clicking */}
-              {edgesClickable && (
+              {edgesClickable && !isDeleted && (
                 <line
                   x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
                   stroke="transparent"
@@ -476,12 +514,12 @@ const EditorCanvas = ({
                     strokeWidth={isSelected ? "5" : "3"}
                     strokeDasharray={strokeDasharray}
                     strokeLinecap="round"
-                    opacity={isSelected || isInPtRoute ? 1 : 0.7}
-                    markerEnd={`url(#arrowhead-${stroke.replace("#", "")})`}
-                    className={`${edgesClickable ? "cursor-pointer hover:opacity-100" : ""} transition-all`}
-                    pointerEvents={edgesClickable ? "auto" : "none"}
+                    opacity={isDeleted ? 0.25 : isSelected || isInPtRoute ? 1 : 0.7}
+                    markerEnd={isDeleted ? undefined : `url(#arrowhead-${stroke.replace("#", "")})`}
+                    className={`${edgesClickable && !isDeleted ? "cursor-pointer hover:opacity-100" : ""} transition-all`}
+                    pointerEvents={edgesClickable && !isDeleted ? "auto" : "none"}
                     onClick={(e) => {
-                      if (!edgesClickable) return;
+                      if (!edgesClickable || isDeleted) return;
                       e.stopPropagation();
                       onEdgeClick(edge.id);
                     }}
@@ -489,7 +527,7 @@ const EditorCanvas = ({
                 );
               })()}
               {/* Edge label */}
-              {edge.name && (
+              {edge.name && !isDeleted && (
                 <text
                   x={(p1.x + p2.x) / 2}
                   y={(p1.y + p2.y) / 2 - 6}
@@ -506,11 +544,41 @@ const EditorCanvas = ({
           );
         })}
 
+        {/* Virtual (proposed) edges */}
+        {newEdges.map((ve) => {
+          const resolvePos = (nodeRef: number | string) => {
+            if (typeof nodeRef === "number") {
+              const n = nodeById.get(nodeRef);
+              return n ? getNodePos(n) : null;
+            }
+            const vn = newNodes.find((n) => n.tempId === nodeRef);
+            return vn ? { x: vn.x_position * 100, y: vn.y_position * 100 } : null;
+          };
+          const p1 = resolvePos(ve.start_node);
+          const p2 = resolvePos(ve.end_node);
+          if (!p1 || !p2) return null;
+          const shortened = shortenLine(p1, p2);
+          return (
+            <g key={`virtual-edge-${ve.tempId}`} pointerEvents="none">
+              <line
+                x1={p1.x} y1={p1.y} x2={shortened.x2} y2={shortened.y2}
+                stroke={VIRTUAL_COLOR}
+                strokeWidth="3"
+                strokeDasharray="8,4"
+                strokeLinecap="round"
+                opacity={0.9}
+                markerEnd={`url(#arrowhead-${VIRTUAL_COLOR.replace("#", "")})`}
+              />
+            </g>
+          );
+        })}
+
         {/* Nodes */}
         {mapGraph.nodes.map((node) => {
           const pos = getNodePos(node);
           const isSelected = state.selectedNodeId === node.id;
           const isDragging = dragOffset?.nodeId === node.id;
+          const isDeleted = deletedNodeIds.has(node.id);
           const radius = isSelected ? 14 : 10;
 
           return (
@@ -522,18 +590,28 @@ const EditorCanvas = ({
                 fill={getNodeColor(node.node_type)}
                 stroke={isSelected ? "#000" : "none"}
                 strokeWidth={isSelected ? "2" : "0"}
+                opacity={isDeleted ? 0.25 : 1}
                 className={
                   isDragMode
                     ? "cursor-grab active:cursor-grabbing"
-                    : isVersionDiffMode
-                      ? "cursor-default"
-                      : "cursor-pointer"
+                    : isVersionDiffMode && !isDeleted
+                      ? isAddEdgeMode || state.graphTool === "delete"
+                        ? "cursor-pointer"
+                        : "cursor-default"
+                      : isVersionDiffMode
+                        ? "cursor-default"
+                        : "cursor-pointer"
                 }
                 style={{ transition: isDragging ? "none" : "all 0.15s" }}
                 onPointerDown={(e) => {
                   if (isDragMode) handlePointerDown(node.id, e);
                 }}
                 onClick={(e) => {
+                  if (isVersionDiffMode && !isDeleted) {
+                    e.stopPropagation();
+                    onNodeClick(node.id);
+                    return;
+                  }
                   if (isVersionDiffMode) return;
                   if (!isDragMode) {
                     e.stopPropagation();
@@ -541,6 +619,15 @@ const EditorCanvas = ({
                   }
                 }}
               />
+              {/* Red deletion overlay for deleted nodes */}
+              {isDeleted && isVersionDiffMode && (
+                <circle
+                  cx={pos.x} cy={pos.y} r={radius + 2}
+                  fill="#ef4444"
+                  opacity={0.5}
+                  className="pointer-events-none"
+                />
+              )}
               {/* Edge source highlight */}
               {isAddEdgeMode && state.edgeSourceNodeId === node.id && (
                 <circle
@@ -559,6 +646,39 @@ const EditorCanvas = ({
                 >
                   {node.name}
                 </text>
+              )}
+            </g>
+          );
+        })}
+
+        {/* Virtual (proposed) nodes */}
+        {newNodes.map((vn) => {
+          const x = vn.x_position * 100;
+          const y = vn.y_position * 100;
+          const isEdgeSource = edgeSourceTempId === vn.tempId;
+          return (
+            <g
+              key={`virtual-node-${vn.tempId}`}
+              className="cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                onVirtualNodeClick?.(vn.tempId);
+              }}
+            >
+              <circle
+                cx={x} cy={y} r={10}
+                fill="white"
+                stroke={VIRTUAL_COLOR}
+                strokeWidth="2.5"
+                strokeDasharray="5,3"
+              />
+              {isEdgeSource && (
+                <circle
+                  cx={x} cy={y} r={18}
+                  fill="none" stroke="#f59e0b" strokeWidth="3"
+                  strokeDasharray="6,3"
+                  className="pointer-events-none"
+                />
               )}
             </g>
           );

@@ -2,6 +2,7 @@ import logging
 
 from django.core.cache import cache
 from django.db import transaction
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
@@ -982,7 +983,99 @@ class VersionDiffCreateView(GenericAPIView):
                                 for t in TrainLineEdge.objects.filter(train_line=original).order_by("order")
                             ])
 
-        # 5. Invalidate cache
+        # 5. Apply structural deletions
+        deleted_node_ids = data.get("deleted_node_ids", [])
+        for node_id in deleted_node_ids:
+            node = Node.objects.filter(
+                pk=node_id, game_map=game_map, map_versions=new_version
+            ).first()
+            if not node:
+                continue
+            node.map_versions.remove(new_version)
+            # Cascade: remove all edges connected to this node from the version
+            for edge in Edge.objects.filter(
+                map_versions=new_version
+            ).filter(
+                Q(start_node=node) | Q(end_node=node)
+            ):
+                edge.map_versions.remove(new_version)
+                for se in StreetEdge.objects.filter(edge=edge, map_versions=new_version):
+                    se.map_versions.remove(new_version)
+                for te in TrainEdge.objects.filter(edge=edge, map_versions=new_version):
+                    te.map_versions.remove(new_version)
+
+        deleted_edge_ids = data.get("deleted_edge_ids", [])
+        for edge_id in deleted_edge_ids:
+            edge = Edge.objects.filter(
+                pk=edge_id, game_map=game_map, map_versions=new_version
+            ).first()
+            if not edge:
+                continue
+            edge.map_versions.remove(new_version)
+            for se in StreetEdge.objects.filter(edge=edge, map_versions=new_version):
+                se.map_versions.remove(new_version)
+            for te in TrainEdge.objects.filter(edge=edge, map_versions=new_version):
+                te.map_versions.remove(new_version)
+
+        # 6. Apply structural additions
+        temp_node_map = {}
+        for node_data in data.get("new_nodes", []):
+            new_node = Node.objects.create(
+                game_map=game_map,
+                x_position=node_data["x_position"],
+                y_position=node_data["y_position"],
+            )
+            new_node.map_versions.add(new_version)
+            temp_node_map[node_data["temp_id"]] = new_node
+
+        for edge_data in data.get("new_edges", []):
+            start_raw = edge_data["temp_start_node"]
+            end_raw = edge_data["temp_end_node"]
+
+            # Resolve start node: temp ID or real node ID
+            if start_raw in temp_node_map:
+                start_node = temp_node_map[start_raw]
+            else:
+                try:
+                    start_node = Node.objects.get(pk=int(start_raw), game_map=game_map)
+                except (Node.DoesNotExist, ValueError):
+                    continue
+
+            # Resolve end node: temp ID or real node ID
+            if end_raw in temp_node_map:
+                end_node = temp_node_map[end_raw]
+            else:
+                try:
+                    end_node = Node.objects.get(pk=int(end_raw), game_map=game_map)
+                except (Node.DoesNotExist, ValueError):
+                    continue
+
+            has_street = edge_data.get("speed_limit") is not None or edge_data.get("lanes") is not None
+
+            def _create_directed_edge(s_node, e_node):
+                new_edge = Edge.objects.create(
+                    game_map=game_map,
+                    start_node=s_node,
+                    end_node=e_node,
+                    biking=edge_data.get("biking", False),
+                    walking=edge_data.get("walking", False),
+                    max_lanes=edge_data.get("max_lanes", 1),
+                )
+                new_edge.map_versions.add(new_version)
+                if has_street:
+                    se = StreetEdge.objects.create(
+                        edge=new_edge,
+                        speed_limit=edge_data.get("speed_limit", 50),
+                        lanes=edge_data.get("lanes", 1),
+                        dedicated_bus_lane=False,
+                    )
+                    se.map_versions.add(new_version)
+
+            _create_directed_edge(start_node, end_node)
+            if edge_data.get("bidirectional"):
+                _create_directed_edge(end_node, start_node)
+
+        # 7. Invalidate cache
         _invalidate_map_cache(pk)
 
         return Response(

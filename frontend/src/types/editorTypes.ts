@@ -1,5 +1,5 @@
 export type EditorMode = "settings" | "image" | "graph" | "pt-lines" | "version-diff";
-export type GraphTool = "select" | "add-node" | "add-edge";
+export type GraphTool = "select" | "add-node" | "add-edge" | "delete";
 
 export interface EditorState {
   mode: EditorMode;
@@ -50,6 +50,35 @@ export interface PTLineChange {
   edge_ids?: number[];
 }
 
+export interface PTLineDraftInDiff {
+  tempId: string;
+  action: "add" | "modify";
+  line_type: "bus" | "train";
+  existingLineId?: number;
+  name: string;
+  interval: number;
+  capacity: number;
+  speed_kmh: number;
+}
+
+export interface VirtualNode {
+  tempId: string;
+  x_position: number;
+  y_position: number;
+}
+
+export interface VirtualEdge {
+  tempId: string;
+  start_node: number | string;
+  end_node: number | string;
+  bidirectional: boolean;
+  biking: boolean;
+  walking: boolean;
+  max_lanes: number;
+  speed_limit?: number;
+  lanes?: number;
+}
+
 export interface VersionDiffPayload {
   source_version_id: number;
   version_name: string;
@@ -59,6 +88,19 @@ export interface VersionDiffPayload {
   is_base_version?: boolean;
   edge_changes: EdgeChange[];
   pt_line_changes: PTLineChange[];
+  new_nodes?: Array<{ temp_id: string; x_position: number; y_position: number }>;
+  new_edges?: Array<{
+    temp_start_node: string | number;
+    temp_end_node: string | number;
+    bidirectional: boolean;
+    biking: boolean;
+    walking: boolean;
+    max_lanes: number;
+    speed_limit?: number;
+    lanes?: number;
+  }>;
+  deleted_node_ids?: number[];
+  deleted_edge_ids?: number[];
 }
 
 export type EditorAction =

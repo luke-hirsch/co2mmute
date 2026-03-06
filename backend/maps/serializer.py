@@ -534,6 +534,27 @@ class PTLineChangeSerializer(serializers.Serializer):
     )
 
 
+class NewNodeSerializer(serializers.Serializer):
+    """A new node to add to a version."""
+
+    temp_id = serializers.CharField()
+    x_position = serializers.FloatField()
+    y_position = serializers.FloatField()
+
+
+class NewEdgeSerializer(serializers.Serializer):
+    """A new edge to add to a version. start/end may be real node IDs or temp IDs."""
+
+    temp_start_node = serializers.CharField()
+    temp_end_node = serializers.CharField()
+    bidirectional = serializers.BooleanField(default=False)
+    biking = serializers.BooleanField(default=False)
+    walking = serializers.BooleanField(default=False)
+    max_lanes = serializers.IntegerField(default=1)
+    speed_limit = serializers.IntegerField(required=False)
+    lanes = serializers.IntegerField(required=False)
+
+
 class VersionDiffInputSerializer(serializers.Serializer):
     """Input for creating a new map version from a source version + changeset."""
 
@@ -547,3 +568,11 @@ class VersionDiffInputSerializer(serializers.Serializer):
     is_base_version = serializers.BooleanField(required=False, default=False)
     edge_changes = EdgeChangeSerializer(many=True, required=False, default=[])
     pt_line_changes = PTLineChangeSerializer(many=True, required=False, default=[])
+    new_nodes = NewNodeSerializer(many=True, required=False, default=[])
+    new_edges = NewEdgeSerializer(many=True, required=False, default=[])
+    deleted_node_ids = serializers.ListField(
+        child=serializers.IntegerField(), required=False, default=[]
+    )
+    deleted_edge_ids = serializers.ListField(
+        child=serializers.IntegerField(), required=False, default=[]
+    )

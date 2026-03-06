@@ -16,6 +16,7 @@ interface EditorToolbarProps {
   onStartPtLine: (type: "bus" | "train") => void;
   onCancelPtLine: () => void;
   versionDiffStep?: 1 | 2;
+  versionDiffEditingPtLine?: boolean;
   bidirectional: boolean;
   onBidirectionalChange: (value: boolean) => void;
 }
@@ -32,6 +33,7 @@ const graphTools: { key: GraphTool; label: string }[] = [
   { key: "select", label: "Select" },
   { key: "add-node", label: "+ Node" },
   { key: "add-edge", label: "+ Edge" },
+  { key: "delete", label: "Delete" },
 ];
 
 const EditorToolbar = ({
@@ -47,6 +49,7 @@ const EditorToolbar = ({
   onStartPtLine,
   onCancelPtLine,
   versionDiffStep,
+  versionDiffEditingPtLine,
   bidirectional,
   onBidirectionalChange,
 }: EditorToolbarProps) => {
@@ -111,7 +114,7 @@ const EditorToolbar = ({
       {mode === "graph" && (
         <>
           <div className="flex gap-1">
-            {graphTools.map((t) => (
+            {graphTools.filter((t) => t.key !== "delete").map((t) => (
               <button
                 key={t.key}
                 onClick={() => onGraphToolChange(t.key)}
@@ -201,10 +204,70 @@ const EditorToolbar = ({
           Step 1: Define version details
         </span>
       )}
+
+      {/* Version-diff Step 2: show graph editing tools */}
       {mode === "version-diff" && versionDiffStep === 2 && (
-        <span className="text-sm text-amber-600 dark:text-amber-400">
-          Step 2: Select edges to modify
-        </span>
+        <>
+          <div className="flex gap-1">
+            {graphTools.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => onGraphToolChange(t.key)}
+                className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
+                  graphTool === t.key
+                    ? t.key === "delete"
+                      ? "bg-red-600 text-white"
+                      : "bg-emerald-600 text-white"
+                    : "text-muted dark:text-darkmutedtext hover:bg-body dark:hover:bg-darkbody border border-subtle dark:border-darksubtle"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {versionDiffEditingPtLine && (
+            <span className="text-sm text-amber-600 dark:text-amber-400">
+              Editing PT line route — click edges on map
+            </span>
+          )}
+          {!versionDiffEditingPtLine && graphTool === "select" && (
+            <span className="text-xs text-muted dark:text-darkmutedtext">
+              Click edges to modify properties
+            </span>
+          )}
+          {!versionDiffEditingPtLine && graphTool === "add-node" && (
+            <span className="text-xs text-amber-600 dark:text-amber-400">
+              Click canvas to add a proposed node
+            </span>
+          )}
+          {!versionDiffEditingPtLine && graphTool === "add-edge" && (
+            <>
+              <span className="text-xs text-amber-600 dark:text-amber-400">
+                Click two nodes to propose an edge
+              </span>
+              <button
+                onClick={() => onBidirectionalChange(!bidirectional)}
+                className={`px-2.5 py-1 text-xs rounded-md transition-colors border ${
+                  bidirectional
+                    ? "bg-indigo-600 text-white border-indigo-600"
+                    : "text-muted dark:text-darkmutedtext border-subtle dark:border-darksubtle hover:bg-body dark:hover:bg-darkbody"
+                }`}
+                title={
+                  bidirectional
+                    ? "Creating bidirectional edges (A↔B)"
+                    : "Creating one-way edges (A→B)"
+                }
+              >
+                {bidirectional ? "↔ Bidirectional" : "→ One-way"}
+              </button>
+            </>
+          )}
+          {!versionDiffEditingPtLine && graphTool === "delete" && (
+            <span className="text-xs text-red-600 dark:text-red-400">
+              Click nodes or edges to mark them for deletion
+            </span>
+          )}
+        </>
       )}
     </div>
   );
