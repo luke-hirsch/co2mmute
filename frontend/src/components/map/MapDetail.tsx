@@ -1,4 +1,4 @@
-import { useParams, Link } from "@tanstack/react-router";
+import { useParams, Link, useNavigate } from "@tanstack/react-router";
 import { useGameMap, useMapGraph } from "../../hooks/mapHooks";
 import { API_BASE_URL } from "../../config";
 import { apiFetch } from "../../utils/api";
@@ -7,6 +7,7 @@ import Loading from "../Loading";
 
 const MapDetail = () => {
   const { mapId } = useParams({ from: "/maps/$mapId" });
+  const navigate = useNavigate();
   const {
     data: gameMap,
     isLoading: mapLoading,
@@ -68,6 +69,20 @@ const MapDetail = () => {
               className="inline-block px-4 py-2 text-sm bg-emerald-600 text-white rounded-md hover:bg-emerald-700"
             >
               Export JSON
+            </button>
+            <button
+              onClick={async () => {
+                if (!confirm(`Delete map "${gameMap.name}"? This cannot be undone.`)) return;
+                try {
+                  await apiFetch(`${API_BASE_URL}/api/maps/${mapId}/`, { method: "DELETE" });
+                  navigate({ to: "/maps" });
+                } catch (e) {
+                  console.error("Delete failed:", e);
+                }
+              }}
+              className="inline-block px-4 py-2 text-sm bg-red-600 text-white rounded-md hover:bg-red-700"
+            >
+              Delete Map
             </button>
           </div>
           <MapViewer
