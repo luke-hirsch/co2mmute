@@ -396,13 +396,13 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
                 mode = segment["mode"]
                 edge_id = segment["edge_id"]
 
-                # edge_id = -1 signals a valid walk segment with no dedicated edge
-                # (e.g. start/end node sits directly on a PT stop with no separate
-                # walk edge, or a zero-distance transfer at the same node).
+                # edge_id = -1 signals a segment with no dedicated underlying edge.
+                # Valid for walk (no walk edge between two PT stops) and for
+                # bus/train (PT stop pair with no mapped street/rail edge).
                 if edge_id == -1:
-                    if mode != "walk":
+                    if mode not in ("walk", "bus", "train"):
                         errors.append(
-                            f"Agent {agent_id}: edge -1 is only valid for walk segments, got mode '{mode}'"
+                            f"Agent {agent_id}: edge -1 is only valid for walk/PT segments, got mode '{mode}'"
                         )
                     continue
 
