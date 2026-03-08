@@ -99,54 +99,41 @@ const GameMapViewer = ({
   }, [trafficHeatmap]);
 
   /**
-   * Determine edge color and style based on edge type and properties
+   * Determine edge color and style based on edge type and properties.
+   * Colors use a blue/slate palette to avoid colliding with the traffic
+   * heatmap (green → yellow → orange → red) and route overlays.
    */
-  const getEdgeColorAndStyle = (edge: any) => {
+  const getEdgeColorAndStyle = (edge: any): {
+    stroke: string;
+    strokeDasharray: string;
+    isTrain: boolean;
+  } => {
     const hasStreetEdge = edge.street_edge !== null;
     const hasTrainEdge = edge.train_edge !== null;
 
-    // Train-only edge
+    // Train-only edge — deep blue, long-dash pattern (railroad feel)
     if (hasTrainEdge && !hasStreetEdge) {
-      return {
-        stroke: "#ef4444", // Red
-        strokeDasharray: "5,5",
-      };
+      return { stroke: "#3b82f6", strokeDasharray: "14,7", isTrain: true };
     }
 
-    // Street + Train edge
+    // Street + Train edge — medium blue, solid
     if (hasStreetEdge && hasTrainEdge) {
-      return {
-        stroke: "#f97316", // Orange
-        strokeDasharray: "0",
-      };
+      return { stroke: "#60a5fa", strokeDasharray: "0", isTrain: true };
     }
 
-    // Street-only edge
+    // Street-only edge — slate blue-gray
     if (hasStreetEdge) {
-      return {
-        stroke: "#6b7280", // Gray
-        strokeDasharray: "0",
-      };
+      return { stroke: "#94a3b8", strokeDasharray: "0", isTrain: false };
     }
 
-    // Plain edge (park path) - use biking/walking flags
+    // Plain path — bike or walk or both
     if (edge.biking && !edge.walking) {
-      return {
-        stroke: "#3b82f6", // Blue for bike
-        strokeDasharray: "0",
-      };
+      return { stroke: "#34d399", strokeDasharray: "0", isTrain: false };
     }
     if (edge.walking && !edge.biking) {
-      return {
-        stroke: "#10b981", // Green for walk
-        strokeDasharray: "0",
-      };
+      return { stroke: "#6ee7b7", strokeDasharray: "0", isTrain: false };
     }
-    // Both biking and walking
-    return {
-      stroke: "#8b5cf6", // Purple for both
-      strokeDasharray: "0",
-    };
+    return { stroke: "#a5b4fc", strokeDasharray: "0", isTrain: false }; // indigo-200
   };
 
   const getNodeColor = (nodeTypes: any[]) => {
@@ -154,8 +141,8 @@ const GameMapViewer = ({
     if (typeNames.includes("home")) return "#10b981"; // Green
     if (typeNames.includes("workplace")) return "#3b82f6"; // Blue
     if (typeNames.includes("station")) return "#f59e0b"; // Amber
-    if (typeNames.includes("bus_stop")) return "#ef4444"; // Red
-    return "#6b7280"; // Gray
+    if (typeNames.includes("bus_stop")) return "#a78bfa"; // Violet (was red, conflicts with heatmap)
+    return "#64748b"; // Slate-500
   };
 
   if (isLoading) {
@@ -332,10 +319,8 @@ const GameMapViewer = ({
             // Skip if this edge is part of the route (we'll render it separately)
             if (routeEdgeIds.has(edge.id)) return null;
 
-            const startNode = mapGraph.nodes.find(
-              (n) => n.id === edge.start_node
-            );
-            const endNode = mapGraph.nodes.find((n) => n.id === edge.end_node);
+            const startNode = nodeMap.get(edge.start_node);
+            const endNode = nodeMap.get(edge.end_node);
 
             if (!startNode || !endNode) return null;
 
@@ -343,20 +328,50 @@ const GameMapViewer = ({
             const y1 = startNode.y_position * 100;
             const x2 = endNode.x_position * 100;
             const y2 = endNode.y_position * 100;
-            const { stroke, strokeDasharray } = getEdgeColorAndStyle(edge);
+            const { stroke, strokeDasharray, isTrain } = getEdgeColorAndStyle(edge);
+
+            // For train edges, compute tick positions along the edge
+            const trainTicks: { tx: number; ty: number; angle: number }[] = [];
+            if (isTrain) {
+              const dx = x2 - x1;
+              const dy = y2 - y1;
+              const len = Math.sqrt(dx * dx + dy * dy);
+              const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+              const tickSpacing = 24;
+              const count = Math.floor(len / tickSpacing);
+              for (let t = 1; t < count; t++) {
+                const frac = (t * tickSpacing) / len;
+                trainTicks.push({ tx: x1 + dx * frac, ty: y1 + dy * frac, angle });
+              }
+            }
 
             return (
-              <line
-                key={`edge-${edge.id}`}
-                x1={x1}
-                y1={y1}
-                x2={x2}
-                y2={y2}
-                stroke={stroke}
-                strokeWidth="3"
-                strokeDasharray={strokeDasharray}
-                opacity="0.4"
-              />
+              <g key={`edge-${edge.id}`}>
+                {/* Dark border — slightly wider, rendered first */}
+                <line
+                  x1={x1} y1={y1} x2={x2} y2={y2}
+                  stroke="#0f172a"
+                  strokeWidth="7"
+                  strokeDasharray={strokeDasharray}
+                  strokeLinecap="round"
+                  opacity="0.35"
+                />
+                {/* Coloured main line */}
+                <line
+                  x1={x1} y1={y1} x2={x2} y2={y2}
+                  stroke={stroke}
+                  strokeWidth="4"
+                  strokeDasharray={strokeDasharray}
+                  strokeLinecap="round"
+                  opacity="0.65"
+                />
+                {/* Train tick marks (perpendicular lines = railroad sleepers) */}
+                {trainTicks.map((tk, i) => (
+                  <g key={i} transform={`translate(${tk.tx},${tk.ty}) rotate(${tk.angle + 90})`}>
+                    <line x1="0" y1="-5" x2="0" y2="5" stroke={stroke} strokeWidth="3" opacity="0.8" />
+                  </g>
+                ))}
+              </g>
             );
           })}
 
@@ -470,64 +485,35 @@ const GameMapViewer = ({
 
             return (
               <g key={`route-segment-${index}`}>
-                {/* Outer glow for visibility */}
+                {/* Dark border for contrast against heatmap and base edges */}
                 <line
-                  x1={x1}
-                  y1={y1}
-                  x2={x2}
-                  y2={y2}
+                  x1={x1} y1={y1} x2={x2} y2={y2}
+                  stroke="#0f172a"
+                  strokeWidth="14"
+                  strokeLinecap="round"
+                  opacity="0.45"
+                />
+                {/* Outer glow */}
+                <line
+                  x1={x1} y1={y1} x2={x2} y2={y2}
                   stroke={color}
                   strokeWidth="12"
-                  opacity="0.2"
                   strokeLinecap="round"
-                />
-                {/* Inner glow */}
-                <line
-                  x1={x1}
-                  y1={y1}
-                  x2={x2}
-                  y2={y2}
-                  stroke={color}
-                  strokeWidth="8"
-                  opacity="0.4"
-                  strokeLinecap="round"
+                  opacity="0.25"
                 />
                 {/* Main line */}
                 <line
-                  x1={x1}
-                  y1={y1}
-                  x2={x2}
-                  y2={y2}
+                  x1={x1} y1={y1} x2={x2} y2={y2}
                   stroke={color}
-                  strokeWidth="4"
-                  opacity="1"
+                  strokeWidth="6"
                   strokeLinecap="round"
-                  strokeDasharray={segment.mode === "walk" ? "8,4" : "0"}
-                  className={segment.mode !== "walk" ? "animate-pulse" : ""}
+                  strokeDasharray={segment.mode === "walk" ? "10,5" : "0"}
+                  opacity="1"
                 />
-                {/* Direction arrow at midpoint */}
+                {/* Direction arrow */}
                 <g transform={`translate(${midX}, ${midY}) rotate(${angle})`}>
-                  <polygon
-                    points="0,-4 8,0 0,4"
-                    fill={color}
-                    opacity="0.9"
-                  />
+                  <polygon points="0,-5 10,0 0,5" fill={color} opacity="0.95" />
                 </g>
-                {/* Segment number label */}
-                {routeSegments.length > 1 && (
-                  <g transform={`translate(${midX}, ${midY})`}>
-                    <circle r="8" fill="white" stroke={color} strokeWidth="1.5" />
-                    <text
-                      textAnchor="middle"
-                      dominantBaseline="central"
-                      fontSize="8"
-                      fill={color}
-                      fontWeight="bold"
-                    >
-                      {index + 1}
-                    </text>
-                  </g>
-                )}
               </g>
             );
           })}
@@ -819,8 +805,8 @@ const GameMapViewer = ({
             <span>Station</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-full bg-red-500"></div>
-            <span>Bus</span>
+            <div className="w-3 h-3 rounded-full bg-violet-400"></div>
+            <span>Bus stop</span>
           </div>
         </div>
       )}
