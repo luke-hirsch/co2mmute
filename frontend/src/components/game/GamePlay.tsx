@@ -6,7 +6,23 @@ import { useMapGraph } from "../../hooks/mapHooks";
 import { useAgentRoutes } from "../../hooks/usePathfinding";
 import Loading from "../Loading";
 import GameMapViewer from "./GameMapViewer";
+import { API_BASE_URL } from "../../config";
 import type { ExtendedMapGraph, TransportMode, CarOptimization, PTOptimization, RouteSegment } from "../../types/routeTypes";
+import type { WSMapVersionOption } from "../../types/wsTypes";
+
+function VersionChangeImage({ version }: { version: WSMapVersionOption }) {
+  if (!version.change_img_url) return null;
+  const src = version.change_img_url.startsWith("http")
+    ? version.change_img_url
+    : `${API_BASE_URL}${version.change_img_url}`;
+  return (
+    <img
+      src={src}
+      alt={`Map change preview for ${version.name}`}
+      className="w-full rounded-md object-cover max-h-40 mt-2 border border-subtle dark:border-darksubtle"
+    />
+  );
+}
 
 interface GamePlayProps {
   gameId: string;
@@ -14,7 +30,7 @@ interface GamePlayProps {
   isHost?: boolean;
 }
 
-type GamePhase = "lobby" | "playing" | "waiting" | "round_results" | "discussion" | "voting";
+type GamePhase = "lobby" | "playing" | "waiting" | "round_results" | "discussion" | "voting" | "stalemate";
 
 const TRANSPORT_OPTIONS: {
   id: TransportMode;
@@ -129,6 +145,7 @@ export default function GamePlay({
   const [hasAckedStats, setHasAckedStats] = useState(false);
   const [hasVoted, setHasVoted] = useState(false);
   const [selectedVersionId, setSelectedVersionId] = useState<number | null | undefined>(undefined);
+  const [hasVotedOnStalemate, setHasVotedOnStalemate] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
 
   // Fetch game details to get map ID and player data
@@ -200,8 +217,10 @@ export default function GamePlay({
       setHasAckedStats(false);
       setHasVoted(false);
       setSelectedVersionId(undefined);
+      setHasVotedOnStalemate(false);
     }
   }, [gameState?.betweenRoundPhase]);
+
 
   // Derive phase (between-round phases take priority)
   const phase: GamePhase = useMemo(() => {
@@ -212,6 +231,7 @@ export default function GamePlay({
       if (gameState.betweenRoundPhase === "stats") return "round_results";
       if (gameState.betweenRoundPhase === "discussion") return "discussion";
       if (gameState.betweenRoundPhase === "voting") return "voting";
+      if (gameState.betweenRoundPhase === "stalemate") return "stalemate";
       if (isSubmitted) return "waiting";
       return "playing";
     }
@@ -546,8 +566,16 @@ export default function GamePlay({
               key={version.id}
               className="bg-surface dark:bg-darksurface rounded-lg p-4 border border-subtle dark:border-darksubtle"
             >
-              <h3 className="font-semibold mb-2">{version.name}</h3>
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="font-semibold">{version.name}</h3>
+                {version.is_rollback && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border border-yellow-300 dark:border-yellow-700">
+                    rollback
+                  </span>
+                )}
+              </div>
               <p className="text-muted dark:text-darkmutedtext">{version.poll_text}</p>
+              <VersionChangeImage version={version} />
             </div>
           ))}
           <div className="bg-surface dark:bg-darksurface rounded-lg p-4 border border-subtle dark:border-darksubtle">
@@ -629,7 +657,51 @@ export default function GamePlay({
       );
     }
 
-    // Show voting form
+    // Host sees live vote progress (not the voting form)
+    if (isHost) {
+      return (
+        <div className="w-full max-w-2xl">
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-bold mb-1">Voting in Progress</h1>
+            <p className="text-muted dark:text-darkmutedtext">
+              {gameState.voteProgress
+                ? `${gameState.voteProgress.cast} / ${gameState.voteProgress.needed} votes cast`
+                : "Waiting for votes..."}
+            </p>
+          </div>
+          <div className="space-y-3 mb-6">
+            {gameState.mapVersions.map((version) => (
+              <div
+                key={version.id}
+                className="bg-surface dark:bg-darksurface rounded-lg p-4 border border-subtle dark:border-darksubtle"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="font-semibold">{version.name}</h3>
+                  {version.is_rollback && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border border-yellow-300 dark:border-yellow-700">
+                      rollback
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-muted dark:text-darkmutedtext">{version.poll_text}</p>
+                <VersionChangeImage version={version} />
+              </div>
+            ))}
+            <div className="bg-surface dark:bg-darksurface rounded-lg p-4 border border-subtle dark:border-darksubtle">
+              <h3 className="font-semibold">Leave as it is</h3>
+              <p className="text-sm text-muted dark:text-darkmutedtext">Keep the current map without changes.</p>
+            </div>
+          </div>
+          <div className="flex justify-center gap-2">
+            <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" />
+            <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
+            <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+          </div>
+        </div>
+      );
+    }
+
+    // Show voting form (players)
     return (
       <div className="w-full max-w-2xl">
         <div className="text-center mb-6">
@@ -653,8 +725,16 @@ export default function GamePlay({
                     : "border-subtle dark:border-darksubtle bg-surface dark:bg-darksurface"
                 } ${hasVoted ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:border-gray-400"}`}
               >
-                <h3 className="font-semibold mb-1">{version.name}</h3>
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="font-semibold">{version.name}</h3>
+                  {version.is_rollback && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border border-yellow-300 dark:border-yellow-700">
+                      rollback
+                    </span>
+                  )}
+                </div>
                 <p className="text-sm text-muted dark:text-darkmutedtext">{version.poll_text}</p>
+                <VersionChangeImage version={version} />
               </button>
             );
           })}
@@ -711,6 +791,102 @@ export default function GamePlay({
             </button>
           )}
         </div>
+      </div>
+    );
+  }
+
+  // Render stalemate phase
+  if (phase === "stalemate") {
+    const isSecondStalemate = gameState.stalemateStalemateCount >= 2;
+    const tiedCounts = gameState.stalemateCounts || [];
+
+    if (isSecondStalemate) {
+      return (
+        <div className="w-full max-w-2xl text-center">
+          <h1 className="text-2xl font-bold mb-2">Second Stalemate</h1>
+          <p className="text-muted dark:text-darkmutedtext mb-6">
+            The vote has tied again. Automatically keeping the current map.
+          </p>
+          <div className="flex justify-center gap-2">
+            <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" />
+            <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
+            <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+          </div>
+          <p className="text-sm text-muted dark:text-darkmutedtext mt-2">Starting next round...</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="w-full max-w-2xl">
+        <div className="text-center mb-4">
+          <h1 className="text-2xl font-bold mb-1">It's a Tie!</h1>
+          <p className="text-muted dark:text-darkmutedtext">
+            The vote ended in a stalemate. Discuss and vote again, or leave the map as is.
+          </p>
+        </div>
+
+        {tiedCounts.length > 0 && (
+          <div className="space-y-2 mb-6">
+            {tiedCounts.map((vc) => (
+              <div
+                key={vc.version_id ?? "leave"}
+                className="flex justify-between items-center p-3 rounded-lg bg-surface dark:bg-darksurface border border-subtle dark:border-darksubtle"
+              >
+                <span className="font-medium">{vc.version_name}</span>
+                <span className="text-muted dark:text-darkmutedtext">{vc.count} vote{vc.count !== 1 ? "s" : ""}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {gameState.stalemateProgress && (
+          <p className="text-center text-sm text-muted dark:text-darkmutedtext mb-4">
+            {gameState.stalemateProgress.cast} / {gameState.stalemateProgress.needed} responses
+          </p>
+        )}
+
+        {isHost ? (
+          <div className="text-center">
+            <p className="text-muted dark:text-darkmutedtext mb-4">Waiting for players to respond...</p>
+            <button
+              onClick={() => sendMessage({ type: "stalemate.force_leave" })}
+              className="px-6 py-2 rounded-lg font-semibold bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+            >
+              Force: Leave as is
+            </button>
+          </div>
+        ) : hasVotedOnStalemate ? (
+          <div className="flex flex-col items-center gap-2">
+            <p className="text-muted dark:text-darkmutedtext">Response submitted! Waiting for others...</p>
+            <div className="flex gap-2">
+              <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" />
+              <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
+              <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+            </div>
+          </div>
+        ) : (
+          <div className="flex gap-4 justify-center">
+            <button
+              onClick={() => {
+                sendMessage({ type: "stalemate.vote", want_revote: true });
+                setHasVotedOnStalemate(true);
+              }}
+              className="px-8 py-3 rounded-lg font-semibold bg-primary-600 text-white hover:bg-primary-700 transition-colors"
+            >
+              Revote
+            </button>
+            <button
+              onClick={() => {
+                sendMessage({ type: "stalemate.vote", want_revote: false });
+                setHasVotedOnStalemate(true);
+              }}
+              className="px-8 py-3 rounded-lg font-semibold bg-surface dark:bg-darksurface border-2 border-subtle dark:border-darksubtle hover:border-gray-400 transition-colors"
+            >
+              Leave as is
+            </button>
+          </div>
+        )}
       </div>
     );
   }

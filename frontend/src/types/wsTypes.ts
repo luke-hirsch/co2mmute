@@ -145,6 +145,8 @@ export interface WSMapVersionOption {
   id: number;
   name: string;
   poll_text: string;
+  is_rollback: boolean;
+  change_img_url: string | null;
 }
 
 // game.started event
@@ -221,7 +223,7 @@ export interface WSGameStateInitMessage {
 }
 
 // Between-round phase types
-export type BetweenRoundPhase = "none" | "stats" | "discussion" | "voting";
+export type BetweenRoundPhase = "none" | "stats" | "discussion" | "voting" | "stalemate";
 
 // stats.all_acked event
 export interface WSStatsAllAckedMessage {
@@ -237,7 +239,28 @@ export interface WSStatsAllAckedMessage {
 export interface WSVoteOpenedMessage {
   type: "vote.opened";
   game_id: string;
-  data: Record<string, never>;
+  data: { versions?: WSMapVersionOption[] };
+}
+
+// vote.stalemate event
+export interface WSVoteStalemateMessage {
+  type: "vote.stalemate";
+  game_id: string;
+  data: {
+    stalemate_count: number;
+    vote_counts: {
+      version_id: number | null;
+      version_name: string;
+      count: number;
+    }[];
+  };
+}
+
+// stalemate.progress event
+export interface WSStalemateProgressMessage {
+  type: "stalemate.progress";
+  game_id: string;
+  data: { cast: number; needed: number };
 }
 
 // vote.recorded event (progress)
@@ -279,7 +302,9 @@ export type WSGameStateMessage =
   | WSStatsAllAckedMessage
   | WSVoteOpenedMessage
   | WSVoteRecordedMessage
-  | WSVoteResultMessage;
+  | WSVoteResultMessage
+  | WSVoteStalemateMessage
+  | WSStalemateProgressMessage;
 
 // Combined game state for UI consumption
 export interface WSGameState {
@@ -299,4 +324,7 @@ export interface WSGameState {
   mapVersions: WSMapVersionOption[];
   voteProgress: { cast: number; needed: number } | null;
   voteResult: WSVoteResultMessage["data"] | null;
+  stalemateCounts: WSVoteStalemateMessage["data"]["vote_counts"] | null;
+  stalemateStalemateCount: number;
+  stalemateProgress: { cast: number; needed: number } | null;
 }

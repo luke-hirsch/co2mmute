@@ -12,6 +12,8 @@ import type {
   WSStatsAllAckedMessage,
   WSVoteRecordedMessage,
   WSVoteResultMessage,
+  WSVoteStalemateMessage,
+  WSStalemateProgressMessage,
   BetweenRoundPhase,
 } from "../types/wsTypes";
 import { GameWSClient } from "../utils/gameWS";
@@ -88,6 +90,9 @@ export function useGameSocket(
         mapVersions: [] as WSGameState["mapVersions"],
         voteProgress: null,
         voteResult: null,
+        stalemateCounts: null,
+        stalemateStalemateCount: 0,
+        stalemateProgress: null,
       };
 
       switch (msg.type) {
@@ -178,6 +183,9 @@ export function useGameSocket(
             mapVersions: data.map_versions || [],
             voteProgress: null,
             voteResult: null,
+            stalemateCounts: null,
+            stalemateStalemateCount: 0,
+            stalemateProgress: null,
           }));
           callbacksRef.current.onRoundCompleted?.(data);
           break;
@@ -195,9 +203,20 @@ export function useGameSocket(
         }
 
         case "vote.opened": {
-          setGameState((prev) =>
-            prev ? { ...prev, betweenRoundPhase: "voting" } : prev,
-          );
+          const voteOpenedData = msg.data as { versions?: WSGameState["mapVersions"] };
+          setGameState((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              betweenRoundPhase: "voting" as BetweenRoundPhase,
+              // On revote after stalemate, backend sends updated versions
+              mapVersions: voteOpenedData?.versions || prev.mapVersions,
+              voteProgress: null,
+              stalemateCounts: null,
+              stalemateProgress: null,
+              hasVotedOnStalemate: false,
+            };
+          });
           break;
         }
 
@@ -221,6 +240,33 @@ export function useGameSocket(
           const data = msg.data as WSVoteResultMessage["data"];
           setGameState((prev) =>
             prev ? { ...prev, voteResult: data } : prev,
+          );
+          break;
+        }
+
+        case "vote.stalemate": {
+          const data = msg.data as WSVoteStalemateMessage["data"];
+          setGameState((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  betweenRoundPhase: "stalemate" as BetweenRoundPhase,
+                  stalemateCounts: data.vote_counts,
+                  stalemateStalemateCount: data.stalemate_count,
+                  stalemateProgress: null,
+                  hasVotedOnStalemate: false,
+                }
+              : prev,
+          );
+          break;
+        }
+
+        case "stalemate.progress": {
+          const data = msg.data as WSStalemateProgressMessage["data"];
+          setGameState((prev) =>
+            prev
+              ? { ...prev, stalemateProgress: { cast: data.cast, needed: data.needed } }
+              : prev,
           );
           break;
         }
@@ -271,6 +317,9 @@ export function useGameSocket(
             mapVersions: data.mapVersions || [],
             voteProgress: prev?.voteProgress || null,
             voteResult: prev?.voteResult || null,
+            stalemateCounts: prev?.stalemateCounts || null,
+            stalemateStalemateCount: prev?.stalemateStalemateCount || 0,
+            stalemateProgress: prev?.stalemateProgress || null,
           }));
           break;
         }
