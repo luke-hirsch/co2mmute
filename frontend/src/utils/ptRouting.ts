@@ -613,10 +613,16 @@ export async function findPTRoute(
   const reverseWalkAdj = buildReverseWalkAdjacency(graph.edges, graph.nodes);
   const stopIndex = buildStopIndex(busLines, trainLines);
   const designatedStops = buildDesignatedStopSet(graph.nodes);
-  // Any node that appears on a PT line is a valid boarding/alighting point,
-  // regardless of whether it has a station/bus_stop node type tag.
-  for (const nodeId of stopIndex.keys()) {
-    designatedStops.add(nodeId);
+  // Allow boarding/alighting at any node that appears on 2+ distinct PT lines.
+  // These are transfer points that may not have a station/bus_stop tag, but
+  // must be alightable for transfers to work.
+  // We do NOT add single-line intermediate nodes, to prevent the algorithm
+  // from "teleporting" by alighting mid-route and re-boarding further along.
+  for (const [nodeId, entries] of stopIndex.entries()) {
+    const distinctLines = new Set(entries.map((e) => e.line.id));
+    if (distinctLines.size >= 2) {
+      designatedStops.add(nodeId);
+    }
   }
 
   // Pre-compute 2km walk-reachability sets.
