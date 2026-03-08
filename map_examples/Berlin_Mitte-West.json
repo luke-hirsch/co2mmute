@@ -1,0 +1,2118 @@
+{
+  "scale": 1000,
+  "nodes": [
+    {
+      "id": "201",
+      "name": "Arbeit Brandenburger Tor",
+      "x": 9.028991373556659,
+      "y": 4.173978399400022,
+      "types": [
+        "bus_stop",
+        "intersection",
+        "workplace"
+      ]
+    },
+    {
+      "id": "165",
+      "name": "Arbeit Hegelplatz",
+      "x": 10.435489241561639,
+      "y": 3.7141617887060865,
+      "types": [
+        "workplace"
+      ]
+    },
+    {
+      "id": "166",
+      "name": "Arbeit Justizministerium",
+      "x": 10.665397546908608,
+      "y": 5.0665635848647215,
+      "types": [
+        "workplace"
+      ]
+    },
+    {
+      "id": "198",
+      "name": "Arbeit Kaiserdamm",
+      "x": 1.1985849737981584,
+      "y": 4.70141509990189,
+      "types": [
+        "workplace"
+      ]
+    },
+    {
+      "id": "200",
+      "name": "Arbeit Lützowplatz",
+      "x": 6.310663763277801,
+      "y": 5.715716447020867,
+      "types": [
+        "workplace"
+      ]
+    },
+    {
+      "id": "167",
+      "name": "Arbeit TU Berlin",
+      "x": 4.322633122924607,
+      "y": 4.674367063978718,
+      "types": [
+        "bus_stop",
+        "workplace"
+      ]
+    },
+    {
+      "id": "194",
+      "name": "Augsburger Platz",
+      "x": 5.079978128773442,
+      "y": 6.824685919870948,
+      "types": [
+        "bus_stop",
+        "intersection"
+      ]
+    },
+    {
+      "id": "177",
+      "name": "Bellevue",
+      "x": 7.040960733203463,
+      "y": 3.646541698898155,
+      "types": [
+        "station"
+      ]
+    },
+    {
+      "id": "149",
+      "name": "Bismarckstr.",
+      "x": 2.4427946262641034,
+      "y": 4.877227333402513,
+      "types": [
+        "bus_stop",
+        "intersection",
+        "station"
+      ]
+    },
+    {
+      "id": "202",
+      "name": "Botschaftsviertel",
+      "x": 6.608192158432701,
+      "y": 5.201803764480586,
+      "types": [
+        "bus_stop",
+        "intersection"
+      ]
+    },
+    {
+      "id": "159",
+      "name": "Brandenburger Tor",
+      "x": 8.420410565285271,
+      "y": 4.241598489207954,
+      "types": [
+        "bus_stop",
+        "intersection"
+      ]
+    },
+    {
+      "id": "162",
+      "name": "Bundestag",
+      "x": 8.569174762862723,
+      "y": 3.4707294653975316,
+      "types": [
+        "intersection"
+      ]
+    },
+    {
+      "id": "203",
+      "name": "Checkpoint Charlie",
+      "x": 10.381393169715293,
+      "y": 5.634572339251349,
+      "types": [
+        "bus_stop",
+        "intersection"
+      ]
+    },
+    {
+      "id": "156",
+      "name": "Ernst-Reuter Platz",
+      "x": 3.7951964224227392,
+      "y": 4.741987153786649,
+      "types": [
+        "bus_stop",
+        "intersection",
+        "station"
+      ]
+    },
+    {
+      "id": "188",
+      "name": "Französische Str.",
+      "x": 10.259677008061017,
+      "y": 4.4038867047469905,
+      "types": [
+        "bus_stop",
+        "intersection"
+      ]
+    },
+    {
+      "id": "163",
+      "name": "Friedrichstadtpalast",
+      "x": 10.097388792521983,
+      "y": 2.9838648187804244,
+      "types": [
+        "bus_stop",
+        "intersection"
+      ]
+    },
+    {
+      "id": "158",
+      "name": "Großer Stern",
+      "x": 6.486475996778423,
+      "y": 4.430934740670164,
+      "types": [
+        "bus_stop",
+        "intersection"
+      ]
+    },
+    {
+      "id": "187",
+      "name": "Hansaplatz",
+      "x": 5.593890811313725,
+      "y": 3.795305896475605,
+      "types": [
+        "bus_stop",
+        "intersection"
+      ]
+    },
+    {
+      "id": "176",
+      "name": "Helper Station",
+      "x": 6.243043673469868,
+      "y": 3.5789216090902234,
+      "types": [
+        "station"
+      ]
+    },
+    {
+      "id": "180",
+      "name": "Helper Station",
+      "x": 9.367091822596317,
+      "y": 3.3354892857816685,
+      "types": [
+        "station"
+      ]
+    },
+    {
+      "id": "181",
+      "name": "Helper Station",
+      "x": 8.934323247825553,
+      "y": 2.9027207110109057,
+      "types": [
+        "station"
+      ]
+    },
+    {
+      "id": "182",
+      "name": "Helper Station",
+      "x": 5.864371170545451,
+      "y": 3.605969645013396,
+      "types": [
+        "intersection",
+        "station"
+      ]
+    },
+    {
+      "id": "196",
+      "name": "Lützowpark",
+      "x": 6.702860284163806,
+      "y": 5.8239085907135575,
+      "types": [
+        "bus_stop",
+        "intersection"
+      ]
+    },
+    {
+      "id": "160",
+      "name": "Philarmonie",
+      "x": 8.54212672693955,
+      "y": 4.971895459133616,
+      "types": [
+        "intersection"
+      ]
+    },
+    {
+      "id": "205",
+      "name": "Prinz-Albrecht Palais",
+      "x": 9.975672630867702,
+      "y": 5.702192429059282,
+      "types": [
+        "intersection"
+      ]
+    },
+    {
+      "id": "150",
+      "name": "S / U Charlottenburg",
+      "x": 2.4427946262641034,
+      "y": 5.864480644598317,
+      "types": [
+        "station"
+      ]
+    },
+    {
+      "id": "168",
+      "name": "S / U Zoologischer Garten",
+      "x": 4.741877679733784,
+      "y": 5.796860554790385,
+      "types": [
+        "station"
+      ]
+    },
+    {
+      "id": "179",
+      "name": "S Friedrichstraße",
+      "x": 10.178532900291499,
+      "y": 3.55187357316705,
+      "types": [
+        "bus_stop",
+        "station"
+      ]
+    },
+    {
+      "id": "178",
+      "name": "S Hauptbahnhof",
+      "x": 8.258122349746236,
+      "y": 2.8080525852798006,
+      "types": [
+        "station"
+      ]
+    },
+    {
+      "id": "157",
+      "name": "S Tiergarten",
+      "x": 5.174646254504547,
+      "y": 4.566174920286027,
+      "types": [
+        "bus_stop",
+        "intersection",
+        "station"
+      ]
+    },
+    {
+      "id": "192",
+      "name": "Spichernstr.",
+      "x": 4.6472095540026785,
+      "y": 7.44679074610392,
+      "types": [
+        "bus_stop",
+        "intersection"
+      ]
+    },
+    {
+      "id": "183",
+      "name": "Turmstraße",
+      "x": 5.810275098699106,
+      "y": 2.618716333817592,
+      "types": [
+        "bus_stop",
+        "intersection"
+      ]
+    },
+    {
+      "id": "153",
+      "name": "U Berliner Str.",
+      "x": 4.660733571964266,
+      "y": 8.691000398569866,
+      "types": [
+        "bus_stop",
+        "intersection",
+        "station"
+      ]
+    },
+    {
+      "id": "152",
+      "name": "U Blissestr.",
+      "x": 3.8492924942690845,
+      "y": 8.853288614108902,
+      "types": [
+        "intersection",
+        "station"
+      ]
+    },
+    {
+      "id": "171",
+      "name": "U Bülowstr.",
+      "x": 7.879449846821818,
+      "y": 7.1222143150258495,
+      "types": [
+        "station"
+      ]
+    },
+    {
+      "id": "151",
+      "name": "U Fehrbelliner Platz",
+      "x": 3.0648994524970754,
+      "y": 8.204135751952755,
+      "types": [
+        "intersection",
+        "station"
+      ]
+    },
+    {
+      "id": "173",
+      "name": "U Gleisdreieck",
+      "x": 8.785559050248104,
+      "y": 6.770589848024603,
+      "types": [
+        "station"
+      ]
+    },
+    {
+      "id": "199",
+      "name": "U Kaiserdamm",
+      "x": 1.442017297106713,
+      "y": 4.985419477095204,
+      "types": [
+        "bus_stop",
+        "intersection"
+      ]
+    },
+    {
+      "id": "154",
+      "name": "U Kleistpark",
+      "x": 7.473729307974228,
+      "y": 8.19061173399117,
+      "types": [
+        "station"
+      ]
+    },
+    {
+      "id": "155",
+      "name": "U Mehringdamm",
+      "x": 10.219104954176258,
+      "y": 7.6090789616429575,
+      "types": [
+        "station"
+      ]
+    },
+    {
+      "id": "147",
+      "name": "U Mierrendorfplatz",
+      "x": 2.2669823927634805,
+      "y": 2.6457643697407645,
+      "types": [
+        "station"
+      ]
+    },
+    {
+      "id": "169",
+      "name": "U Nollendorfplatz",
+      "x": 6.79752840989491,
+      "y": 6.7570658300630155,
+      "types": [
+        "station"
+      ]
+    },
+    {
+      "id": "174",
+      "name": "U Potsdamer Platz",
+      "x": 9.218327625018867,
+      "y": 5.215327782442172,
+      "types": [
+        "station"
+      ]
+    },
+    {
+      "id": "148",
+      "name": "U Richard-Wagner Platz",
+      "x": 2.3346024825714125,
+      "y": 3.9846421479378136,
+      "types": [
+        "station"
+      ]
+    },
+    {
+      "id": "161",
+      "name": "U Stadtmitte",
+      "x": 10.313773079907362,
+      "y": 5.0665635848647215,
+      "types": [
+        "bus_stop",
+        "intersection",
+        "station"
+      ]
+    },
+    {
+      "id": "172",
+      "name": "U Wittenbergplatz",
+      "x": 5.796751080737519,
+      "y": 6.418965381023358,
+      "types": [
+        "station"
+      ]
+    },
+    {
+      "id": "164",
+      "name": "Unter den Linden",
+      "x": 10.219104954176258,
+      "y": 4.025214201822573,
+      "types": [
+        "bus_stop",
+        "intersection"
+      ]
+    },
+    {
+      "id": "195",
+      "name": "Urania Berlin",
+      "x": 6.215995637546696,
+      "y": 6.540681542677635,
+      "types": [
+        "bus_stop",
+        "intersection"
+      ]
+    },
+    {
+      "id": "204",
+      "name": "Weltballon",
+      "x": 9.975672630867702,
+      "y": 5.702192429059282,
+      "types": [
+        "intersection"
+      ]
+    },
+    {
+      "id": "184",
+      "name": "Wohnort 1",
+      "x": 6.581144122509528,
+      "y": 3.065008926549942,
+      "types": [
+        "home"
+      ]
+    },
+    {
+      "id": "186",
+      "name": "Wohnort 2",
+      "x": 7.108580823011396,
+      "y": 3.0109128547035953,
+      "types": [
+        "home",
+        "intersection"
+      ]
+    },
+    {
+      "id": "185",
+      "name": "Wohnort 3",
+      "x": 6.919244571549187,
+      "y": 2.7269084775102828,
+      "types": [
+        "home"
+      ]
+    },
+    {
+      "id": "189",
+      "name": "Wohnort 4",
+      "x": 4.255013033116675,
+      "y": 8.501664147107656,
+      "types": [
+        "home"
+      ]
+    },
+    {
+      "id": "190",
+      "name": "Wohnort 5",
+      "x": 4.227964997193502,
+      "y": 9.04262486557111,
+      "types": [
+        "home"
+      ]
+    },
+    {
+      "id": "191",
+      "name": "Wohnort 6",
+      "x": 5.039406074888683,
+      "y": 8.812716560224143,
+      "types": [
+        "home"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "start_node": "185",
+      "end_node": "186",
+      "name": "",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "186",
+      "end_node": "185",
+      "name": "",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "184",
+      "end_node": "186",
+      "name": "",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "186",
+      "end_node": "184",
+      "name": "",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "184",
+      "end_node": "183",
+      "name": "Alt -Moabit",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 50,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "183",
+      "end_node": "184",
+      "name": "Alt -Moabit",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 50,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "186",
+      "end_node": "183",
+      "name": "Alt-Moabit",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 50,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "183",
+      "end_node": "186",
+      "name": "Alt-Moabit",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 50,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "158",
+      "end_node": "187",
+      "name": "Altonaer Str.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "187",
+      "end_node": "158",
+      "name": "Altonaer Str.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "195",
+      "end_node": "196",
+      "name": "An der Urania",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "196",
+      "end_node": "195",
+      "name": "An der Urania",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "191",
+      "end_node": "153",
+      "name": "Babelsberger Str.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "153",
+      "end_node": "191",
+      "name": "Babelsberger Str.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "159",
+      "end_node": "160",
+      "name": "Bremer Weg",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "160",
+      "end_node": "159",
+      "name": "Bremer Weg",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "153",
+      "end_node": "192",
+      "name": "Bundesallee",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "192",
+      "end_node": "153",
+      "name": "Bundesallee",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "192",
+      "end_node": "168",
+      "name": "Bundesallee",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "168",
+      "end_node": "192",
+      "name": "Bundesallee",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "164",
+      "end_node": "165",
+      "name": "Dorotheenstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "165",
+      "end_node": "164",
+      "name": "Dorotheenstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "161",
+      "end_node": "166",
+      "name": "Französische Str.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "166",
+      "end_node": "161",
+      "name": "Französische Str.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "163",
+      "end_node": "179",
+      "name": "Friedrichstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "179",
+      "end_node": "163",
+      "name": "Friedrichstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "179",
+      "end_node": "164",
+      "name": "Friedrichstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "164",
+      "end_node": "179",
+      "name": "Friedrichstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "164",
+      "end_node": "188",
+      "name": "Friedrichstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "188",
+      "end_node": "164",
+      "name": "Friedrichstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "188",
+      "end_node": "161",
+      "name": "Friedrichstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "161",
+      "end_node": "188",
+      "name": "Friedrichstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "161",
+      "end_node": "203",
+      "name": "Friedrichstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 50,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "203",
+      "end_node": "161",
+      "name": "Friedrichstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 50,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "179",
+      "end_node": "165",
+      "name": "Georgenstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "165",
+      "end_node": "179",
+      "name": "Georgenstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "156",
+      "end_node": "168",
+      "name": "Hardenbergstr.",
+      "type": "both",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "168",
+      "end_node": "156",
+      "name": "Hardenbergstr.",
+      "type": "both",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "158",
+      "end_node": "202",
+      "name": "Hofjägerallee",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "202",
+      "end_node": "158",
+      "name": "Hofjägerallee",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "202",
+      "end_node": "196",
+      "name": "Klinghöferstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "196",
+      "end_node": "202",
+      "name": "Klinghöferstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "199",
+      "end_node": "198",
+      "name": "Knobelsdorffstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "198",
+      "end_node": "199",
+      "name": "Knobelsdorffstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "189",
+      "end_node": "153",
+      "name": "Landhausstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "153",
+      "end_node": "189",
+      "name": "Landhausstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "160",
+      "end_node": "188",
+      "name": "Lennestr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 50,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "188",
+      "end_node": "160",
+      "name": "Lennestr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 50,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "187",
+      "end_node": "183",
+      "name": "Lessingstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "183",
+      "end_node": "187",
+      "name": "Lessingstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "194",
+      "end_node": "195",
+      "name": "Lietzenburger Str.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "195",
+      "end_node": "194",
+      "name": "Lietzenburger Str.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "200",
+      "end_node": "196",
+      "name": "Lützowufer",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "196",
+      "end_node": "200",
+      "name": "Lützowufer",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "162",
+      "end_node": "163",
+      "name": "Reinhardstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 50,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "163",
+      "end_node": "162",
+      "name": "Reinhardstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 50,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "203",
+      "end_node": "204",
+      "name": "Rudi-Dutschke-Str.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "204",
+      "end_node": "203",
+      "name": "Rudi-Dutschke-Str.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "192",
+      "end_node": "194",
+      "name": "Spichernstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "194",
+      "end_node": "192",
+      "name": "Spichernstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "150",
+      "end_node": "168",
+      "name": "Stadtbahn",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "168",
+      "end_node": "150",
+      "name": "Stadtbahn",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "168",
+      "end_node": "157",
+      "name": "Stadtbahn",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "157",
+      "end_node": "168",
+      "name": "Stadtbahn",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "157",
+      "end_node": "182",
+      "name": "Stadtbahn",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "182",
+      "end_node": "157",
+      "name": "Stadtbahn",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "182",
+      "end_node": "176",
+      "name": "Stadtbahn",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "176",
+      "end_node": "182",
+      "name": "Stadtbahn",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "176",
+      "end_node": "177",
+      "name": "Stadtbahn",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "177",
+      "end_node": "176",
+      "name": "Stadtbahn",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "177",
+      "end_node": "178",
+      "name": "Stadtbahn",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "178",
+      "end_node": "177",
+      "name": "Stadtbahn",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "178",
+      "end_node": "181",
+      "name": "Stadtbahn",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "181",
+      "end_node": "178",
+      "name": "Stadtbahn",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "181",
+      "end_node": "180",
+      "name": "Stadtbahn",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "180",
+      "end_node": "181",
+      "name": "Stadtbahn",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "180",
+      "end_node": "179",
+      "name": "Stadtbahn",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "179",
+      "end_node": "180",
+      "name": "Stadtbahn",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "159",
+      "end_node": "201",
+      "name": "Str. d. 17 Juni",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "201",
+      "end_node": "159",
+      "name": "Str. d. 17 Juni",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "156",
+      "end_node": "167",
+      "name": "Str. d. 17. Juni",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "167",
+      "end_node": "156",
+      "name": "Str. d. 17. Juni",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "167",
+      "end_node": "157",
+      "name": "Str. d. 17. Juni",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "157",
+      "end_node": "167",
+      "name": "Str. d. 17. Juni",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "157",
+      "end_node": "158",
+      "name": "Str. d. 17. Juni",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "158",
+      "end_node": "157",
+      "name": "Str. d. 17. Juni",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "158",
+      "end_node": "159",
+      "name": "Str. d. 17. Juni",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "159",
+      "end_node": "158",
+      "name": "Str. d. 17. Juni",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "202",
+      "end_node": "160",
+      "name": "Tiergartenstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1,
+      "speed_limit": 0,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "160",
+      "end_node": "202",
+      "name": "Tiergartenstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1,
+      "speed_limit": 0,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "183",
+      "end_node": "185",
+      "name": "Turmstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 50,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "185",
+      "end_node": "183",
+      "name": "Turmstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 50,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "168",
+      "end_node": "172",
+      "name": "U2",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "172",
+      "end_node": "168",
+      "name": "U2",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "171",
+      "end_node": "169",
+      "name": "U2",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "169",
+      "end_node": "171",
+      "name": "U2",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "171",
+      "end_node": "173",
+      "name": "U2",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "173",
+      "end_node": "171",
+      "name": "U2",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "173",
+      "end_node": "174",
+      "name": "U2",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "174",
+      "end_node": "173",
+      "name": "U2",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "174",
+      "end_node": "161",
+      "name": "U2",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "161",
+      "end_node": "174",
+      "name": "U2",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "172",
+      "end_node": "169",
+      "name": "U2",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "169",
+      "end_node": "172",
+      "name": "U2",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "156",
+      "end_node": "149",
+      "name": "U2 / Bismarckstr.",
+      "type": "both",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "149",
+      "end_node": "156",
+      "name": "U2 / Bismarckstr.",
+      "type": "both",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "149",
+      "end_node": "199",
+      "name": "U2 / Kaiserdamm",
+      "type": "both",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "199",
+      "end_node": "149",
+      "name": "U2 / Kaiserdamm",
+      "type": "both",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 2,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "147",
+      "end_node": "148",
+      "name": "U7",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "148",
+      "end_node": "147",
+      "name": "U7",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "148",
+      "end_node": "149",
+      "name": "U7",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "149",
+      "end_node": "148",
+      "name": "U7",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "149",
+      "end_node": "150",
+      "name": "U7",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "150",
+      "end_node": "149",
+      "name": "U7",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "150",
+      "end_node": "151",
+      "name": "U7",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "151",
+      "end_node": "150",
+      "name": "U7",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "151",
+      "end_node": "152",
+      "name": "U7",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "152",
+      "end_node": "151",
+      "name": "U7",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "152",
+      "end_node": "153",
+      "name": "U7",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "153",
+      "end_node": "152",
+      "name": "U7",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "153",
+      "end_node": "154",
+      "name": "U7",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "154",
+      "end_node": "153",
+      "name": "U7",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "154",
+      "end_node": "155",
+      "name": "U7",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "155",
+      "end_node": "154",
+      "name": "U7",
+      "type": "train",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "186",
+      "end_node": "162",
+      "name": "Verlängerung Alt-Moabit",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1,
+      "speed_limit": 0,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "162",
+      "end_node": "186",
+      "name": "Verlängerung Alt-Moabit",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1,
+      "speed_limit": 0,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "190",
+      "end_node": "153",
+      "name": "Wilhelmsaue",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "153",
+      "end_node": "190",
+      "name": "Wilhelmsaue",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "204",
+      "end_node": "155",
+      "name": "Wilhelmstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "155",
+      "end_node": "204",
+      "name": "Wilhelmstr.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 3,
+      "speed_limit": 50,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "159",
+      "end_node": "162",
+      "name": "Yitzak-Rhabin Str.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "162",
+      "end_node": "159",
+      "name": "Yitzak-Rhabin Str.",
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 2,
+      "speed_limit": 30,
+      "lanes": 1,
+      "dedicated_bus_lane": false
+    },
+    {
+      "start_node": "186",
+      "end_node": "177",
+      "name": null,
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "177",
+      "end_node": "186",
+      "name": null,
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "184",
+      "end_node": "177",
+      "name": null,
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "177",
+      "end_node": "184",
+      "name": null,
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "185",
+      "end_node": "177",
+      "name": null,
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "177",
+      "end_node": "185",
+      "name": null,
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "166",
+      "end_node": "203",
+      "name": null,
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    },
+    {
+      "start_node": "203",
+      "end_node": "166",
+      "name": null,
+      "type": "street",
+      "biking": true,
+      "walking": true,
+      "max_lanes": 1
+    }
+  ],
+  "bus_lines": [
+    {
+      "name": "100",
+      "interval": 10,
+      "capacity": 60,
+      "speed_kmh": 30,
+      "edges": []
+    },
+    {
+      "name": "101",
+      "interval": 10,
+      "capacity": 60,
+      "speed_kmh": 30,
+      "edges": []
+    }
+  ],
+  "train_lines": [
+    {
+      "name": "Stadtbahn",
+      "interval": 5,
+      "capacity": 60,
+      "speed_kmh": 50,
+      "edges": [
+        61,
+        63,
+        65,
+        67,
+        69,
+        71,
+        73,
+        75,
+        77
+      ]
+    },
+    {
+      "name": "U2",
+      "interval": 5,
+      "capacity": 60,
+      "speed_kmh": 30,
+      "edges": [
+        37,
+        93,
+        103,
+        95,
+        97,
+        99,
+        101
+      ]
+    },
+    {
+      "name": "U7",
+      "interval": 5,
+      "capacity": 60,
+      "speed_kmh": 40,
+      "edges": [
+        109,
+        111,
+        113,
+        115,
+        117,
+        119,
+        121,
+        123
+      ]
+    }
+  ]
+}

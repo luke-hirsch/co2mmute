@@ -7,6 +7,7 @@ import type { MapGraph } from "../types/mapTypes";
 import type {
   TransportMode,
   CarOptimization,
+  PTOptimization,
   PathfindingState,
   PathfindingResult,
   PTRoutingResult,
@@ -89,7 +90,8 @@ export function usePathfinding(
       endNode: number,
       mode: TransportMode,
       optimization?: CarOptimization,
-      trafficData?: EdgeTrafficData[]
+      trafficData?: EdgeTrafficData[],
+      ptOptimization?: PTOptimization
     ): Promise<AgentRoute | null> => {
       // Reset state
       reset();
@@ -105,6 +107,7 @@ export function usePathfinding(
           const extendedGraph = graph as ExtendedMapGraph;
           pathResult = await findBestPTRoute(extendedGraph, startNode, endNode, {
             scale,
+            ptOptimization,
             animationDelayMs: animationSpeed,
             onStateChange: (state) => {
               if (!cancelledRef.current) {
@@ -202,6 +205,7 @@ interface AgentRouteState {
   destinationNode: number;
   selectedMode: TransportMode | null;
   selectedOptimization?: CarOptimization;
+  selectedPTOptimization?: PTOptimization;
   route: AgentRoute | null;
   isPathfinding: boolean;
   error: string | null;
@@ -213,7 +217,8 @@ interface UseAgentRoutesResult {
   setAgentMode: (
     agentId: number,
     mode: TransportMode,
-    optimization?: CarOptimization
+    optimization?: CarOptimization,
+    ptOptimization?: PTOptimization
   ) => void;
   findAgentRoute: (
     agentId: number,
@@ -271,8 +276,8 @@ export function useAgentRoutes(
   }, [agentAssignments]);
 
   const setAgentMode = useCallback(
-    (agentId: number, mode: TransportMode, optimization?: CarOptimization) => {
-      console.log(`[useAgentRoutes] Setting mode for agent ${agentId}:`, mode, optimization);
+    (agentId: number, mode: TransportMode, optimization?: CarOptimization, ptOptimization?: PTOptimization) => {
+      console.log(`[useAgentRoutes] Setting mode for agent ${agentId}:`, mode, optimization, ptOptimization);
       setAgents((prev) =>
         prev.map((a) =>
           a.agentId === agentId
@@ -280,6 +285,7 @@ export function useAgentRoutes(
                 ...a,
                 selectedMode: mode,
                 selectedOptimization: optimization,
+                selectedPTOptimization: ptOptimization,
                 route: null, // Clear route when mode changes
                 error: null,
                 pathfindingState: null,
@@ -348,6 +354,7 @@ export function useAgentRoutes(
           const extendedGraph = graph as ExtendedMapGraph;
           result = await findBestPTRoute(extendedGraph, homeNode, agent.destinationNode, {
             scale,
+            ptOptimization: agent.selectedPTOptimization,
             ...animOpts,
           });
         } else {

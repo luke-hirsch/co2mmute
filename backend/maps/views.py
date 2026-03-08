@@ -50,11 +50,28 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             description = form.cleaned_data.get("description", "")
             max_players = form.cleaned_data["max_players"]
 
+            logger.info(
+                f"Map upload started: name='{map_name}', "
+                f"has_json={json_file is not None}, has_image={image_file is not None}"
+            )
+
             # Parse JSON if provided
             graph_data = None
             if json_file:
                 json_file.seek(0)
-                graph_data = json.loads(json_file.read().decode("utf-8"))
+                raw = json_file.read().decode("utf-8")
+                logger.info(f"JSON file size: {len(raw)} bytes")
+                graph_data = json.loads(raw)
+
+                node_count = len(graph_data.get("nodes", []))
+                edge_count = len(graph_data.get("edges", []))
+                bus_line_count = len(graph_data.get("bus_lines", []))
+                train_line_count = len(graph_data.get("train_lines", []))
+                logger.info(
+                    f"Parsed JSON: {node_count} nodes, {edge_count} edges, "
+                    f"{bus_line_count} bus lines, {train_line_count} train lines, "
+                    f"scale={graph_data.get('scale')}"
+                )
 
                 # Run validation checks first (dry run)
                 validation_errors = self._validate_graph_data(graph_data)
@@ -63,10 +80,15 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                         [f"• {error}" for error in validation_errors]
                     )
                     logger.warning(
-                        f"Validation errors for map '{map_name}': {validation_errors}"
+                        f"Validation failed for map '{map_name}' "
+                        f"({len(validation_errors)} errors):"
                     )
+                    for i, err in enumerate(validation_errors, 1):
+                        logger.warning(f"  [{i}] {err}")
                     messages.error(self.request, error_message)
                     return self.form_invalid(form)
+
+                logger.info(f"JSON validation passed for map '{map_name}'")
 
             logger.info(f"Starting map creation for '{map_name}'")
 
@@ -152,11 +174,11 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                     )
 
         except Exception as e:
-            logger.error(f"Error processing map upload: {str(e)}", exc_info=True)
+            logger.error(f"Error processing map upload for '{map_name}': {str(e)}", exc_info=True)
             messages.error(self.request, f"Error creating map: {str(e)}")
             return self.form_invalid(form)
 
-        logger.info(f"Redirecting to success_url: {self.success_url}")
+        logger.info(f"Map upload complete for '{map_name}', redirecting to success_url")
         return super().form_valid(form)
 
     def _validate_graph_data(self, graph_data):
@@ -218,51 +240,33 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                         f"Must be 'street', 'train', or 'both'"
                     )
 
-                # Validate that train-only edges don't have biking/walking
-                if edge_type == "train":
-                    if edge.get("biking", False) or edge.get("walking", False):
-                        errors.append(
-                            f"Edge {idx}: train-only edges should not have "
-                            f"biking=true or walking=true"
-                        )
-
         # Validate bus lines
         for bus_line_idx, bus_line in enumerate(bus_lines_data):
             bus_name = bus_line.get("name", f"BusLine {bus_line_idx}")
-            edges = bus_line.get("edges", [])
-
-            if not edges:
-                errors.append(f"Bus line '{bus_name}': no edges specified")
-            else:
-                for edge_idx in edges:
-                    if not isinstance(edge_idx, int) or edge_idx < 0:
-                        errors.append(
-                            f"Bus line '{bus_name}': invalid edge index {edge_idx}"
-                        )
-                    elif edge_idx >= len(edges_data):
-                        errors.append(
-                            f"Bus line '{bus_name}': edge index {edge_idx} not found "
-                            f"(only {len(edges_data)} edges available)"
-                        )
+            for edge_idx in bus_line.get("edges", []):
+                if not isinstance(edge_idx, int) or edge_idx < 0:
+                    errors.append(
+                        f"Bus line '{bus_name}': invalid edge index {edge_idx}"
+                    )
+                elif edge_idx >= len(edges_data):
+                    errors.append(
+                        f"Bus line '{bus_name}': edge index {edge_idx} not found "
+                        f"(only {len(edges_data)} edges available)"
+                    )
 
         # Validate train lines
         for train_line_idx, train_line in enumerate(train_lines_data):
             train_name = train_line.get("name", f"TrainLine {train_line_idx}")
-            edges = train_line.get("edges", [])
-
-            if not edges:
-                errors.append(f"Train line '{train_name}': no edges specified")
-            else:
-                for edge_idx in edges:
-                    if not isinstance(edge_idx, int) or edge_idx < 0:
-                        errors.append(
-                            f"Train line '{train_name}': invalid edge index {edge_idx}"
-                        )
-                    elif edge_idx >= len(edges_data):
-                        errors.append(
-                            f"Train line '{train_name}': edge index {edge_idx} not found "
-                            f"(only {len(edges_data)} edges available)"
-                        )
+            for edge_idx in train_line.get("edges", []):
+                if not isinstance(edge_idx, int) or edge_idx < 0:
+                    errors.append(
+                        f"Train line '{train_name}': invalid edge index {edge_idx}"
+                    )
+                elif edge_idx >= len(edges_data):
+                    errors.append(
+                        f"Train line '{train_name}': edge index {edge_idx} not found "
+                        f"(only {len(edges_data)} edges available)"
+                    )
 
         return errors
 

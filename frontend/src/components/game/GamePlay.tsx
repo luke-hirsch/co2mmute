@@ -6,7 +6,7 @@ import { useMapGraph } from "../../hooks/mapHooks";
 import { useAgentRoutes } from "../../hooks/usePathfinding";
 import Loading from "../Loading";
 import GameMapViewer from "./GameMapViewer";
-import type { ExtendedMapGraph, TransportMode, CarOptimization } from "../../types/routeTypes";
+import type { ExtendedMapGraph, TransportMode, CarOptimization, PTOptimization, RouteSegment } from "../../types/routeTypes";
 
 interface GamePlayProps {
   gameId: string;
@@ -63,6 +63,32 @@ const CAR_OPTIMIZATION_OPTIONS: {
   { id: "co2", label: "Greenest", description: "Lowest emissions" },
 ];
 
+const PT_OPTIMIZATION_OPTIONS: {
+  id: PTOptimization;
+  label: string;
+  description: string;
+}[] = [
+  { id: "fastest", label: "Fastest", description: "Minimize total time" },
+  { id: "fewest_transfers", label: "Fewest Transfers", description: "Prefer direct lines" },
+  { id: "no_bus", label: "No Bus", description: "Train & walk only" },
+];
+
+function buildPTLegs(segments: RouteSegment[]): { mode: "walk" | "bus" | "train"; label: string; emoji: string; distanceM: number }[] {
+  const legs: { mode: "walk" | "bus" | "train"; label: string; emoji: string; distanceM: number }[] = [];
+  for (const seg of segments) {
+    const mode = seg.mode === "bus" ? "bus" : seg.mode === "train" ? "train" : "walk";
+    const label = mode === "bus" ? (seg.ptLineName ?? "Bus") : mode === "train" ? (seg.ptLineName ?? "Train") : "Walk";
+    const emoji = mode === "bus" ? "🚌" : mode === "train" ? "🚆" : "🚶";
+    const last = legs.at(-1);
+    if (last && last.label === label) {
+      last.distanceM += seg.distanceM;
+    } else {
+      legs.push({ mode, label, emoji, distanceM: seg.distanceM });
+    }
+  }
+  return legs;
+}
+
 // Agent colors for visual distinction
 const AGENT_COLORS = [
   { text: "text-blue-600 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-900/20" },
@@ -97,6 +123,7 @@ export default function GamePlay({
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
   const [showCarOptions, setShowCarOptions] = useState<number | null>(null);
+  const [showPTOptions, setShowPTOptions] = useState<number | null>(null);
   const [animationEnabled, setAnimationEnabled] = useState(true);
   const [animationSpeed, setAnimationSpeed] = useState(100);
   const [hasAckedStats, setHasAckedStats] = useState(false);
@@ -229,11 +256,17 @@ export default function GamePlay({
   const handleTransportSelect = useCallback((agentId: number, mode: TransportMode) => {
     if (mode === "car") {
       setShowCarOptions(agentId);
+      setShowPTOptions(null);
       setAgentMode(agentId, mode, "time");
+    } else if (mode === "public") {
+      setShowPTOptions(agentId);
+      setShowCarOptions(null);
+      setAgentMode(agentId, mode, undefined, "fastest");
     } else {
       setShowCarOptions(null);
+      setShowPTOptions(null);
       setAgentMode(agentId, mode);
-      // Auto-find route for non-car modes
+      // Auto-find route for non-car/non-public modes
       setTimeout(() => handleFindRoute(agentId), 100);
     }
     // Select this agent for map visualization
@@ -247,9 +280,16 @@ export default function GamePlay({
     setTimeout(() => handleFindRoute(agentId), 100);
   }, [setAgentMode, handleFindRoute]);
 
+  const handlePTOptimizationSelect = useCallback((agentId: number, ptOptimization: PTOptimization) => {
+    setAgentMode(agentId, "public", undefined, ptOptimization);
+    setShowPTOptions(null);
+    setTimeout(() => handleFindRoute(agentId), 100);
+  }, [setAgentMode, handleFindRoute]);
+
   const handleClearRoute = useCallback((agentId: number) => {
     clearAgentRoute(agentId);
     setShowCarOptions(null);
+    setShowPTOptions(null);
   }, [clearAgentRoute]);
 
   const handleSubmit = async () => {
@@ -919,6 +959,7 @@ export default function GamePlay({
           const isAgentSelected = selectedAgentId === agent.agentId;
           const isDisabled = isSubmitting || isSubmitted;
           const showingCarOptions = showCarOptions === agent.agentId;
+          const showingPTOptions = showPTOptions === agent.agentId;
 
           return (
             <div
@@ -958,7 +999,7 @@ export default function GamePlay({
               </div>
 
               {/* Route result display */}
-              {agent.route && !showingCarOptions && (
+              {agent.route && !showingCarOptions && !showingPTOptions && (
                 <div className="mb-3 p-2 bg-gray-50 dark:bg-gray-800 rounded text-sm">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -971,6 +1012,11 @@ export default function GamePlay({
                       {agent.selectedMode === "car" && agent.selectedOptimization && (
                         <span className="text-xs text-muted dark:text-darkmutedtext">
                           ({CAR_OPTIMIZATION_OPTIONS.find((o) => o.id === agent.selectedOptimization)?.label})
+                        </span>
+                      )}
+                      {agent.selectedMode === "public" && agent.selectedPTOptimization && (
+                        <span className="text-xs text-muted dark:text-darkmutedtext">
+                          ({PT_OPTIMIZATION_OPTIONS.find((o) => o.id === agent.selectedPTOptimization)?.label})
                         </span>
                       )}
                     </div>
@@ -988,6 +1034,21 @@ export default function GamePlay({
                   <div className="text-xs text-muted dark:text-darkmutedtext mt-1">
                     {formatDistance(agent.route.totalDistanceM)} · {formatTime(agent.route.estimatedTimeMin)}
                   </div>
+                  {/* PT leg breakdown */}
+                  {agent.selectedMode === "public" && (
+                    <div className="text-xs text-muted dark:text-darkmutedtext mt-1 flex flex-wrap items-center gap-1">
+                      {buildPTLegs(agent.route.segments).map((leg, i) => (
+                        <span key={i} className="flex items-center gap-1">
+                          {i > 0 && <span className="text-gray-400">→</span>}
+                          <span>
+                            {leg.emoji}{" "}
+                            {leg.mode !== "walk" && <span className="font-medium">{leg.label}: </span>}
+                            {formatDistance(leg.distanceM)}
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -995,6 +1056,41 @@ export default function GamePlay({
               {agent.error && (
                 <div className="mb-3 p-2 bg-red-100 dark:bg-red-900/30 rounded text-sm text-red-700 dark:text-red-300">
                   {agent.error}
+                </div>
+              )}
+
+              {/* PT optimization options */}
+              {showingPTOptions && !agent.route && (
+                <div className="mb-3" onClick={(e) => e.stopPropagation()}>
+                  <p className="text-sm text-muted dark:text-darkmutedtext mb-2">
+                    Choose PT preference:
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {PT_OPTIMIZATION_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.id}
+                        onClick={() => handlePTOptimizationSelect(agent.agentId, opt.id)}
+                        disabled={isDisabled || agent.isPathfinding}
+                        className={`p-2 rounded-lg border-2 transition-all ${
+                          agent.selectedPTOptimization === opt.id
+                            ? "border-yellow-400 bg-yellow-100 dark:bg-yellow-900/30"
+                            : "border-gray-200 dark:border-gray-600 hover:border-yellow-300"
+                        } ${isDisabled || agent.isPathfinding ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                      >
+                        <div className="text-xs font-medium">{opt.label}</div>
+                        <div className="text-[10px] text-muted dark:text-darkmutedtext">{opt.description}</div>
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowPTOptions(null);
+                      handleClearRoute(agent.agentId);
+                    }}
+                    className="text-xs text-gray-500 hover:text-gray-700 mt-2"
+                  >
+                    Back
+                  </button>
                 </div>
               )}
 
@@ -1033,8 +1129,8 @@ export default function GamePlay({
                 </div>
               )}
 
-              {/* Transport options - show when no route and not showing car options */}
-              {!agent.route && !showingCarOptions && (
+              {/* Transport options - show when no route and not showing optimization panels */}
+              {!agent.route && !showingCarOptions && !showingPTOptions && (
                 <div className="grid grid-cols-4 gap-2" onClick={(e) => e.stopPropagation()}>
                   {TRANSPORT_OPTIONS.map((transport) => {
                     const isTransportSelected = agent.selectedMode === transport.id;

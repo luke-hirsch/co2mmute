@@ -1,12 +1,13 @@
 /**
- * Public Transport Routing
+ * Public Transport Routing — Product-Graph Dijkstra
  *
- * Direction-aware multi-modal routing:
- *   walk to station -> PT route (with optional transfer) -> walk to destination
- *
- * Key rule: PT lines only travel FORWARD through their stops array.
- * stops[i] -> stops[j] is only valid when i < j.
- * To go "backwards," use a different line (e.g., S42 instead of S41).
+ * Models the routing state as (nodeId, travelMode) where travelMode is either
+ * "walk" or a specific PT line. This allows Dijkstra to naturally handle:
+ *   - Unlimited transfers
+ *   - Direction constraints (PT lines are directed)
+ *   - Topology-aware walking (no straight-line radius heuristic)
+ *   - 2km walking limit for first/last mile
+ *   - PT optimization options
  */
 
 import type { Node, Edge } from "../types/mapTypes";
@@ -16,63 +17,121 @@ import type {
   PTRoutingResult,
   ExtendedMapGraph,
   PathfindingState,
-  StationLineInfo,
-  PTRouteCandidate,
+  PTOptimization,
 } from "../types/routeTypes";
-import { dijkstra, calculateDistance } from "./pathfinding";
+import {
+  buildAdjacencyList,
+  canUseEdge,
+  calculateDistance,
+  dijkstra,
+} from "./pathfinding";
 
 const WALK_SPEED_KMH = 5;
 const MAX_WALK_DISTANCE_M = 2000;
-const TRANSFER_PENALTY_MIN = 5;
+// Extra penalty per boarding for "fewest_transfers" optimization (minutes)
+const FEWEST_TRANSFERS_PENALTY_MIN = 30;
 
-interface StationWithDistance {
+// ---------------------------------------------------------------------------
+// Internal product-graph types
+// ---------------------------------------------------------------------------
+
+type ProductMode =
+  | { tag: "walk"; hasBoarded: false } // pre-first-boarding walk
+  | { tag: "walk"; hasBoarded: true } // post-alighting / transfer walk
+  | { tag: "pt"; lineId: number; lineType: "bus" | "train" };
+
+interface ProductNode {
   nodeId: number;
-  walkDistanceM: number;
-  walkTimeMin: number;
+  mode: ProductMode;
+}
+
+type StateKey = string;
+
+function stateKey(n: ProductNode): StateKey {
+  const m = n.mode;
+  if (m.tag === "walk") return `w${m.hasBoarded ? "1" : "0"}:${n.nodeId}`;
+  return `pt:${n.nodeId}:${m.lineType}:${m.lineId}`;
+}
+
+interface CameFromEntry {
+  fromState: ProductNode;
+  edgeId: number | null; // null = boarding wait or alighting
+  distanceM: number;
+  costMin: number; // cost of this single step
+}
+
+interface ProductGraphResult {
+  cameFrom: Map<StateKey, CameFromEntry>;
+  finalState: ProductNode;
+  totalCostMin: number;
 }
 
 // ---------------------------------------------------------------------------
-// 1. Find nearby stations within walking distance
+// Min-heap for Dijkstra priority queue
 // ---------------------------------------------------------------------------
 
-function findNearbyStations(
-  fromNode: Node,
-  nodes: Node[],
-  scale: number,
-  maxDistanceM: number = MAX_WALK_DISTANCE_M
-): StationWithDistance[] {
-  const stations: StationWithDistance[] = [];
+interface HeapItem {
+  state: ProductNode;
+  key: StateKey;
+  cost: number;
+}
 
-  for (const node of nodes) {
-    const nodeTypes = node.node_type.map((t) => t.name);
-    if (!nodeTypes.includes("station") && !nodeTypes.includes("bus_stop")) {
-      continue;
+class MinHeap {
+  private data: HeapItem[] = [];
+
+  push(item: HeapItem): void {
+    this.data.push(item);
+    this.bubbleUp(this.data.length - 1);
+  }
+
+  pop(): HeapItem | undefined {
+    if (this.data.length === 0) return undefined;
+    const top = this.data[0];
+    const last = this.data.pop()!;
+    if (this.data.length > 0) {
+      this.data[0] = last;
+      this.sinkDown(0);
     }
+    return top;
+  }
 
-    const distance = calculateDistance(fromNode, node, scale);
-    if (distance <= maxDistanceM) {
-      stations.push({
-        nodeId: node.id,
-        walkDistanceM: distance,
-        walkTimeMin: (distance / 1000 / WALK_SPEED_KMH) * 60,
-      });
+  get size(): number {
+    return this.data.length;
+  }
+
+  private bubbleUp(i: number): void {
+    while (i > 0) {
+      const parent = (i - 1) >> 1;
+      if (this.data[parent].cost <= this.data[i].cost) break;
+      [this.data[parent], this.data[i]] = [this.data[i], this.data[parent]];
+      i = parent;
     }
   }
 
-  stations.sort((a, b) => a.walkDistanceM - b.walkDistanceM);
-  return stations;
+  private sinkDown(i: number): void {
+    const n = this.data.length;
+    while (true) {
+      let smallest = i;
+      const l = 2 * i + 1;
+      const r = 2 * i + 2;
+      if (l < n && this.data[l].cost < this.data[smallest].cost) smallest = l;
+      if (r < n && this.data[r].cost < this.data[smallest].cost) smallest = r;
+      if (smallest === i) break;
+      [this.data[smallest], this.data[i]] = [this.data[i], this.data[smallest]];
+      i = smallest;
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
-// 2. Build station index: Map<nodeId, StationLineInfo[]>
+// Pre-computation helpers
 // ---------------------------------------------------------------------------
 
-function buildStationIndex(
+function buildStopIndex(
   busLines: PTLine[],
   trainLines: PTLine[]
-): Map<number, StationLineInfo[]> {
-  const index = new Map<number, StationLineInfo[]>();
-
+): Map<number, { line: PTLine; stopIndex: number }[]> {
+  const index = new Map<number, { line: PTLine; stopIndex: number }[]>();
   for (const line of [...busLines, ...trainLines]) {
     for (let i = 0; i < line.stops.length; i++) {
       const nodeId = line.stops[i];
@@ -84,212 +143,439 @@ function buildStationIndex(
       entries.push({ line, stopIndex: i });
     }
   }
-
   return index;
 }
 
-// ---------------------------------------------------------------------------
-// 3. Calculate travel time along a PT line (direction-aware)
-// ---------------------------------------------------------------------------
-
-function calculateLegTravelTime(
-  line: PTLine,
-  fromStopIdx: number,
-  toStopIdx: number,
-  edgeMap: Map<number, Edge>,
-  nodeMap: Map<number, Node>,
-  scale: number
-): { timeMin: number; distanceM: number; edgeIds: number[] } {
-  // Direction check: only forward travel
-  if (fromStopIdx >= toStopIdx) {
-    return { timeMin: Infinity, distanceM: Infinity, edgeIds: [] };
-  }
-
-  let totalDistance = 0;
-  const usedEdgeIds: number[] = [];
-
-  // edges[i] connects stops[i] to stops[i+1], so slice [fromStopIdx, toStopIdx)
-  const edgeSlice = line.edges.slice(fromStopIdx, toStopIdx);
-
-  if (edgeSlice.length > 0) {
-    for (const edgeId of edgeSlice) {
-      const edge = edgeMap.get(edgeId);
-      if (edge) {
-        if (edge.distance_m) {
-          totalDistance += edge.distance_m;
-        } else {
-          const start = nodeMap.get(edge.start_node);
-          const end = nodeMap.get(edge.end_node);
-          if (start && end) {
-            totalDistance += calculateDistance(start, end, scale);
-          }
-        }
-        usedEdgeIds.push(edgeId);
-      }
-    }
-  } else {
-    // Fallback: estimate from stop positions
-    for (let i = fromStopIdx; i < toStopIdx; i++) {
-      const from = nodeMap.get(line.stops[i]);
-      const to = nodeMap.get(line.stops[i + 1]);
-      if (from && to) {
-        totalDistance += calculateDistance(from, to, scale);
-      }
+function buildDesignatedStopSet(nodes: Node[]): Set<number> {
+  const set = new Set<number>();
+  for (const node of nodes) {
+    const types = node.node_type.map((t) => t.name);
+    if (types.includes("station") || types.includes("bus_stop")) {
+      set.add(node.id);
     }
   }
-
-  // Use line-type-specific speed
-  const speedKmh = line.type === "train" ? 40 : 30;
-  const timeMin = (totalDistance / 1000 / speedKmh) * 60;
-
-  return { timeMin, distanceM: totalDistance, edgeIds: usedEdgeIds };
+  return set;
 }
 
-// ---------------------------------------------------------------------------
-// 4. Find direct routes (single line, forward direction only)
-// ---------------------------------------------------------------------------
+/**
+ * Build a reverse walk adjacency list (edges point from end_node → start_node).
+ * Used to find which stops can REACH a given node (vs. nodes reachable FROM it).
+ */
+function buildReverseWalkAdjacency(
+  edges: Edge[],
+  nodes: Node[]
+): Map<number, { edge: Edge; neighbor: number }[]> {
+  const adjacency = new Map<number, { edge: Edge; neighbor: number }[]>();
+  for (const node of nodes) adjacency.set(node.id, []);
+  for (const edge of edges) {
+    if (!canUseEdge(edge, "walk")) continue;
+    adjacency.get(edge.end_node)?.push({ edge, neighbor: edge.start_node });
+  }
+  return adjacency;
+}
 
-function findDirectRoutes(
-  fromStationId: number,
-  toStationId: number,
-  stationIndex: Map<number, StationLineInfo[]>
-): { line: PTLine; fromStopIdx: number; toStopIdx: number }[] {
-  const fromEntries = stationIndex.get(fromStationId) ?? [];
-  const toEntries = stationIndex.get(toStationId) ?? [];
-  const routes: { line: PTLine; fromStopIdx: number; toStopIdx: number }[] = [];
+/**
+ * Run a walk-only Dijkstra from a start node, capping at maxDistanceM.
+ * Returns a map of nodeId → walk distance in meters for all reachable nodes.
+ */
+function walkReachabilitySet(
+  startNodeId: number,
+  walkAdj: Map<number, { edge: Edge; neighbor: number }[]>,
+  nodeMap: Map<number, Node>,
+  scale: number,
+  maxDistanceM: number
+): Map<number, number> {
+  const dist = new Map<number, number>();
+  dist.set(startNodeId, 0);
+  const heap = new MinHeap();
+  heap.push({
+    state: { nodeId: startNodeId, mode: { tag: "walk", hasBoarded: false } },
+    key: `wr:${startNodeId}`,
+    cost: 0,
+  });
+  const visited = new Set<number>();
 
-  for (const from of fromEntries) {
-    for (const to of toEntries) {
-      // Same line, same type, AND forward direction
-      if (
-        from.line.id === to.line.id &&
-        from.line.type === to.line.type &&
-        from.stopIndex < to.stopIndex
-      ) {
-        routes.push({
-          line: from.line,
-          fromStopIdx: from.stopIndex,
-          toStopIdx: to.stopIndex,
+  while (heap.size > 0) {
+    const item = heap.pop()!;
+    const { nodeId } = item.state;
+    if (visited.has(nodeId)) continue;
+    visited.add(nodeId);
+
+    const currentDist = dist.get(nodeId) ?? Infinity;
+    if (currentDist > maxDistanceM) continue;
+
+    for (const { edge, neighbor } of walkAdj.get(nodeId) ?? []) {
+      if (!canUseEdge(edge, "walk")) continue;
+      const startNode = nodeMap.get(nodeId);
+      const endNode = nodeMap.get(neighbor);
+      if (!startNode || !endNode) continue;
+      const edgeDist = edge.distance_m ?? calculateDistance(startNode, endNode, scale);
+      const newDist = currentDist + edgeDist;
+      if (newDist <= maxDistanceM && newDist < (dist.get(neighbor) ?? Infinity)) {
+        dist.set(neighbor, newDist);
+        heap.push({
+          state: { nodeId: neighbor, mode: { tag: "walk", hasBoarded: false } },
+          key: `wr:${neighbor}`,
+          cost: newDist,
         });
       }
     }
   }
 
-  return routes;
+  return dist;
 }
 
 // ---------------------------------------------------------------------------
-// 5. Find transfer routes (two lines, one transfer station)
+// Product-graph neighbour expansion
 // ---------------------------------------------------------------------------
 
-function findTransferRoutes(
-  fromStationId: number,
-  toStationId: number,
-  stationIndex: Map<number, StationLineInfo[]>
-): {
-  leg1: { line: PTLine; fromStopIdx: number; toStopIdx: number };
-  leg2: { line: PTLine; fromStopIdx: number; toStopIdx: number };
-  transferStationId: number;
-}[] {
-  const routes: ReturnType<typeof findTransferRoutes> = [];
-
-  // Check every station as a potential transfer point
-  for (const [transferNodeId, transferEntries] of stationIndex) {
-    if (transferNodeId === fromStationId || transferNodeId === toStationId) {
-      continue;
-    }
-
-    // Only consider stations with 2+ lines (actual transfer points)
-    if (transferEntries.length < 2) continue;
-
-    // Find leg1: fromStation -> transferStation (forward)
-    const leg1Options = findDirectRoutes(fromStationId, transferNodeId, stationIndex);
-    if (leg1Options.length === 0) continue;
-
-    // Find leg2: transferStation -> toStation (forward)
-    const leg2Options = findDirectRoutes(transferNodeId, toStationId, stationIndex);
-    if (leg2Options.length === 0) continue;
-
-    for (const leg1 of leg1Options) {
-      for (const leg2 of leg2Options) {
-        // Skip if same line (that's a direct route, not a transfer)
-        if (leg1.line.id === leg2.line.id && leg1.line.type === leg2.line.type) {
-          continue;
-        }
-
-        routes.push({
-          leg1,
-          leg2,
-          transferStationId: transferNodeId,
-        });
-      }
-    }
-  }
-
-  return routes;
+interface Transition {
+  nextState: ProductNode;
+  nextKey: StateKey;
+  costMin: number;
+  edgeId: number | null;
+  distanceM: number;
 }
 
-// ---------------------------------------------------------------------------
-// 6. Build PT segments from edge IDs (trust edge direction)
-// ---------------------------------------------------------------------------
-
-function buildPTSegments(
-  line: PTLine,
-  fromStopIdx: number,
-  toStopIdx: number,
-  edgeMap: Map<number, Edge>,
+function getNeighbours(
+  state: ProductNode,
+  walkAdj: Map<number, { edge: Edge; neighbor: number }[]>,
+  stopIndex: Map<number, { line: PTLine; stopIndex: number }[]>,
+  designatedStops: Set<number>,
+  boardableStops: Set<number>,
   nodeMap: Map<number, Node>,
-  scale: number
-): RouteSegment[] {
-  const segments: RouteSegment[] = [];
-  const edgeSlice = line.edges.slice(fromStopIdx, toStopIdx);
-  const mode = line.type === "bus" ? "bus" : "train";
-  const speedKmh = line.type === "train" ? 40 : 30;
+  scale: number,
+  ptOptimization: PTOptimization
+): Transition[] {
+  const transitions: Transition[] = [];
+  const { nodeId, mode } = state;
 
-  if (edgeSlice.length > 0) {
-    for (const edgeId of edgeSlice) {
-      const edge = edgeMap.get(edgeId);
-      if (!edge) continue;
-
-      let dist = edge.distance_m;
-      if (!dist) {
-        const s = nodeMap.get(edge.start_node);
-        const e = nodeMap.get(edge.end_node);
-        dist = s && e ? calculateDistance(s, e, scale) : 0;
-      }
-
-      segments.push({
+  if (mode.tag === "walk") {
+    // --- Walk edges ---
+    for (const { edge, neighbor } of walkAdj.get(nodeId) ?? []) {
+      if (!canUseEdge(edge, "walk")) continue;
+      const startNode = nodeMap.get(nodeId);
+      const endNode = nodeMap.get(neighbor);
+      if (!startNode || !endNode) continue;
+      const distM = edge.distance_m ?? calculateDistance(startNode, endNode, scale);
+      const costMin = (distM / 1000 / WALK_SPEED_KMH) * 60;
+      const nextMode: ProductMode = { tag: "walk", hasBoarded: mode.hasBoarded };
+      const nextState: ProductNode = { nodeId: neighbor, mode: nextMode };
+      transitions.push({
+        nextState,
+        nextKey: stateKey(nextState),
+        costMin,
         edgeId: edge.id,
-        startNode: edge.start_node,
-        endNode: edge.end_node,
-        mode,
-        ptLineId: line.id,
-        distanceM: dist,
-        estimatedTimeMin: (dist / 1000 / speedKmh) * 60,
+        distanceM: distM,
       });
     }
-  } else {
-    // No edges available — single segment placeholder
-    const fromNode = nodeMap.get(line.stops[fromStopIdx]);
-    const toNode = nodeMap.get(line.stops[toStopIdx]);
-    const dist = fromNode && toNode ? calculateDistance(fromNode, toNode, scale) : 0;
 
-    segments.push({
-      edgeId: -1,
-      startNode: line.stops[fromStopIdx],
-      endNode: line.stops[toStopIdx],
-      mode,
-      ptLineId: line.id,
-      distanceM: dist,
-      estimatedTimeMin: (dist / 1000 / speedKmh) * 60,
-    });
+    // --- Board a PT line ---
+    if (designatedStops.has(nodeId)) {
+      // First boarding: only at stops within 2km of start
+      const canBoard = mode.hasBoarded || boardableStops.has(nodeId);
+      if (canBoard) {
+        for (const { line } of stopIndex.get(nodeId) ?? []) {
+          // Apply "no_bus" optimization
+          if (ptOptimization === "no_bus" && line.type === "bus") continue;
+
+          const waitCost = line.interval / 2;
+          const transferPenalty =
+            ptOptimization === "fewest_transfers" && mode.hasBoarded
+              ? FEWEST_TRANSFERS_PENALTY_MIN
+              : 0;
+          const nextMode: ProductMode = {
+            tag: "pt",
+            lineId: line.id,
+            lineType: line.type,
+          };
+          const nextState: ProductNode = { nodeId, mode: nextMode };
+          transitions.push({
+            nextState,
+            nextKey: stateKey(nextState),
+            costMin: waitCost + transferPenalty,
+            edgeId: null,
+            distanceM: 0,
+          });
+        }
+      }
+    }
+  } else {
+    // mode.tag === "pt"
+    const lineEntries = stopIndex.get(nodeId) ?? [];
+    const lineId = mode.lineId;
+
+    // Find this node's position(s) on the line
+    for (const { line, stopIndex: idx } of lineEntries) {
+      if (line.id !== lineId) continue;
+
+      // --- Ride forward one stop ---
+      if (idx + 1 < line.stops.length) {
+        const nextNodeId = line.stops[idx + 1];
+        const edgeId = line.edges[idx] ?? null;
+        const startNode = nodeMap.get(nodeId);
+        const endNode = nodeMap.get(nextNodeId);
+        let distM = 0;
+        if (edgeId !== null) {
+          // Use edge distance if available via nodeMap lookup — we approximate from nodes
+          if (startNode && endNode) {
+            distM = calculateDistance(startNode, endNode, scale);
+          }
+        } else if (startNode && endNode) {
+          distM = calculateDistance(startNode, endNode, scale);
+        }
+        const costMin = (distM / 1000 / line.speed_kmh) * 60;
+        const nextState: ProductNode = { nodeId: nextNodeId, mode };
+        transitions.push({
+          nextState,
+          nextKey: stateKey(nextState),
+          costMin,
+          edgeId,
+          distanceM: distM,
+        });
+      }
+
+      // --- Alight (at any designated stop; 2km final-walk limit enforced post-hoc) ---
+      if (designatedStops.has(nodeId)) {
+        const nextMode: ProductMode = { tag: "walk", hasBoarded: true };
+        const nextState: ProductNode = { nodeId, mode: nextMode };
+        transitions.push({
+          nextState,
+          nextKey: stateKey(nextState),
+          costMin: 0,
+          edgeId: null,
+          distanceM: 0,
+        });
+      }
+    }
   }
 
-  return segments;
+  return transitions;
 }
 
 // ---------------------------------------------------------------------------
-// 7. Main PT routing function
+// Product-graph Dijkstra
+// ---------------------------------------------------------------------------
+
+function productGraphDijkstra(
+  startNodeId: number,
+  endNodeId: number,
+  walkAdj: Map<number, { edge: Edge; neighbor: number }[]>,
+  stopIndex: Map<number, { line: PTLine; stopIndex: number }[]>,
+  designatedStops: Set<number>,
+  boardableStops: Set<number>,
+  nodeMap: Map<number, Node>,
+  scale: number,
+  ptOptimization: PTOptimization
+): ProductGraphResult | null {
+  const startMode: ProductMode = { tag: "walk", hasBoarded: false };
+  const startState: ProductNode = { nodeId: startNodeId, mode: startMode };
+  const startKey = stateKey(startState);
+
+  const dist = new Map<StateKey, number>();
+  dist.set(startKey, 0);
+
+  const cameFrom = new Map<StateKey, CameFromEntry>();
+  const visited = new Set<StateKey>();
+
+  const heap = new MinHeap();
+  heap.push({ state: startState, key: startKey, cost: 0 });
+
+  while (heap.size > 0) {
+    const item = heap.pop()!;
+    const { state, key, cost } = item;
+
+    if (visited.has(key)) continue;
+    visited.add(key);
+
+    // Check termination: reached end node in post-boarding walk mode
+    if (
+      state.nodeId === endNodeId &&
+      state.mode.tag === "walk" &&
+      state.mode.hasBoarded
+    ) {
+      return { cameFrom, finalState: state, totalCostMin: cost };
+    }
+
+    const neighbours = getNeighbours(
+      state,
+      walkAdj,
+      stopIndex,
+      designatedStops,
+      boardableStops,
+      nodeMap,
+      scale,
+      ptOptimization
+    );
+
+    for (const t of neighbours) {
+      if (visited.has(t.nextKey)) continue;
+      const newCost = cost + t.costMin;
+      if (newCost < (dist.get(t.nextKey) ?? Infinity)) {
+        dist.set(t.nextKey, newCost);
+        cameFrom.set(t.nextKey, {
+          fromState: state,
+          edgeId: t.edgeId,
+          distanceM: t.distanceM,
+          costMin: t.costMin,
+        });
+        heap.push({ state: t.nextState, key: t.nextKey, cost: newCost });
+      }
+    }
+  }
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Path reconstruction
+// ---------------------------------------------------------------------------
+
+interface ReconstructedPath {
+  walkToStation: RouteSegment[];
+  ptSegments: RouteSegment[];
+  walkFromStation: RouteSegment[];
+  totalWaitTimeMin: number;
+}
+
+function reconstructPath(
+  result: ProductGraphResult,
+  startNodeId: number,
+  edgeMap: Map<number, Edge>,
+  stopIndex: Map<number, { line: PTLine; stopIndex: number }[]>
+): ReconstructedPath {
+  // Trace backwards from finalState to start
+  const steps: {
+    fromState: ProductNode;
+    toState: ProductNode;
+    entry: CameFromEntry;
+  }[] = [];
+
+  let current = result.finalState;
+  let currentKey = stateKey(current);
+
+  while (currentKey !== stateKey({ nodeId: startNodeId, mode: { tag: "walk", hasBoarded: false } })) {
+    const entry = result.cameFrom.get(currentKey);
+    if (!entry) break;
+    steps.push({ fromState: entry.fromState, toState: current, entry });
+    current = entry.fromState;
+    currentKey = stateKey(current);
+  }
+  steps.reverse();
+
+  // State machine to categorise steps
+  type Phase = "PRE_BOARD" | "ON_PT" | "POST_ALIGHT";
+  let phase: Phase = "PRE_BOARD";
+
+  const walkToStation: RouteSegment[] = [];
+  const ptSegments: RouteSegment[] = [];
+  const walkFromStation: RouteSegment[] = [];
+  let totalWaitTimeMin = 0;
+
+  // Buffer for walk segments between PT legs (transfer walks or final walk)
+  let pendingWalkSegments: RouteSegment[] = [];
+
+  function buildWalkSegment(
+    edgeId: number | null,
+    fromNodeId: number,
+    toNodeId: number,
+    distM: number,
+    timeMin: number
+  ): RouteSegment {
+    return {
+      edgeId: edgeId ?? -1,
+      // Always use actual travel direction
+      startNode: fromNodeId,
+      endNode: toNodeId,
+      mode: "walk",
+      distanceM: distM,
+      estimatedTimeMin: timeMin,
+    };
+  }
+
+  function findLineForState(state: ProductNode): PTLine | null {
+    if (state.mode.tag !== "pt") return null;
+    const entries = stopIndex.get(state.nodeId) ?? [];
+    for (const { line } of entries) {
+      if (line.id === state.mode.lineId) return line;
+    }
+    return null;
+  }
+
+  for (const { fromState, toState, entry } of steps) {
+    const { edgeId, distanceM, costMin } = entry;
+
+    if (phase === "PRE_BOARD") {
+      if (fromState.mode.tag === "walk" && toState.mode.tag === "walk") {
+        // Walking before first boarding
+        const seg = buildWalkSegment(
+          edgeId,
+          fromState.nodeId,
+          toState.nodeId,
+          distanceM,
+          costMin
+        );
+        walkToStation.push(seg);
+      } else if (fromState.mode.tag === "walk" && toState.mode.tag === "pt") {
+        // Boarding (wait cost)
+        totalWaitTimeMin += costMin;
+        phase = "ON_PT";
+      }
+    } else if (phase === "ON_PT") {
+      if (fromState.mode.tag === "pt" && toState.mode.tag === "pt") {
+        // Riding on PT
+        const line = findLineForState(fromState);
+        const edge = edgeId !== null ? edgeMap.get(edgeId) : null;
+        let actualDist = distanceM;
+        if (edge?.distance_m) actualDist = edge.distance_m;
+
+        const seg: RouteSegment = {
+          edgeId: edgeId ?? -1,
+          // Use actual travel direction (fromState → toState), not the stored edge direction
+          startNode: fromState.nodeId,
+          endNode: toState.nodeId,
+          mode: fromState.mode.lineType === "bus" ? "bus" : "train",
+          ptLineId: fromState.mode.lineId,
+          ptLineName: line?.name,
+          distanceM: actualDist,
+          estimatedTimeMin: costMin,
+        };
+        ptSegments.push(seg);
+      } else if (fromState.mode.tag === "pt" && toState.mode.tag === "walk") {
+        // Alighting (zero cost) — switch to POST_ALIGHT
+        phase = "POST_ALIGHT";
+        pendingWalkSegments = [];
+      }
+    } else {
+      // POST_ALIGHT
+      if (fromState.mode.tag === "walk" && toState.mode.tag === "walk") {
+        // Walking after alighting (transfer walk or final walk)
+        const seg = buildWalkSegment(
+          edgeId,
+          fromState.nodeId,
+          toState.nodeId,
+          distanceM,
+          costMin
+        );
+        pendingWalkSegments.push(seg);
+      } else if (fromState.mode.tag === "walk" && toState.mode.tag === "pt") {
+        // Transfer boarding — flush pending walk into ptSegments, restart ON_PT
+        ptSegments.push(...pendingWalkSegments);
+        pendingWalkSegments = [];
+        totalWaitTimeMin += costMin;
+        phase = "ON_PT";
+      }
+    }
+  }
+
+  // Flush any remaining pending walk segments as the final walk
+  walkFromStation.push(...pendingWalkSegments);
+
+  return { walkToStation, ptSegments, walkFromStation, totalWaitTimeMin };
+}
+
+// ---------------------------------------------------------------------------
+// Main PT routing function
 // ---------------------------------------------------------------------------
 
 export async function findPTRoute(
@@ -298,240 +584,108 @@ export async function findPTRoute(
   endNodeId: number,
   options: {
     scale?: number;
+    ptOptimization?: PTOptimization;
+    maxWalkDistanceM?: number;
     onStateChange?: (state: PathfindingState) => void;
     animationDelayMs?: number;
   } = {}
 ): Promise<PTRoutingResult> {
-  const { scale = 100 } = options;
+  const {
+    scale = 100,
+    ptOptimization = "fastest",
+    maxWalkDistanceM = MAX_WALK_DISTANCE_M,
+  } = options;
 
   const nodeMap = new Map<number, Node>();
-  for (const node of graph.nodes) {
-    nodeMap.set(node.id, node);
-  }
+  for (const node of graph.nodes) nodeMap.set(node.id, node);
 
   const edgeMap = new Map<number, Edge>();
-  for (const edge of graph.edges) {
-    edgeMap.set(edge.id, edge);
-  }
+  for (const edge of graph.edges) edgeMap.set(edge.id, edge);
 
   const startNode = nodeMap.get(startNodeId);
   const endNode = nodeMap.get(endNodeId);
+  if (!startNode || !endNode) return failResult("Start or end node not found");
 
-  if (!startNode || !endNode) {
-    return failResult("Start or end node not found");
-  }
-
-  // 1. Find nearby stations
-  const startStations = findNearbyStations(startNode, graph.nodes, scale);
-  const endStations = findNearbyStations(endNode, graph.nodes, scale);
-
-  if (startStations.length === 0 || endStations.length === 0) {
-    console.log("[ptRouting] No stations within 2km, PT not available");
-    return failResult("No public transport stations within walking distance (2km)");
-  }
-
-  // 2. Build station index
   const busLines = graph.bus_lines ?? [];
   const trainLines = graph.train_lines ?? [];
-  const stationIndex = buildStationIndex(busLines, trainLines);
 
-  // 3. Evaluate all route candidates
-  const candidates: PTRouteCandidate[] = [];
+  const walkAdj = buildAdjacencyList(graph.edges, graph.nodes);
+  const reverseWalkAdj = buildReverseWalkAdjacency(graph.edges, graph.nodes);
+  const stopIndex = buildStopIndex(busLines, trainLines);
+  const designatedStops = buildDesignatedStopSet(graph.nodes);
 
-  for (const startStation of startStations) {
-    for (const endStation of endStations) {
-      if (startStation.nodeId === endStation.nodeId) continue;
+  // Pre-compute 2km walk-reachability sets.
+  // boardableStops: stops reachable FROM start (forward walk from startNodeId).
+  // alightableStops: stops that can REACH endNode (reverse walk from endNodeId).
+  const startReach = walkReachabilitySet(startNodeId, walkAdj, nodeMap, scale, maxWalkDistanceM);
+  const endReach = walkReachabilitySet(endNodeId, reverseWalkAdj, nodeMap, scale, maxWalkDistanceM);
 
-      // 3a. Direct routes
-      const directRoutes = findDirectRoutes(
-        startStation.nodeId,
-        endStation.nodeId,
-        stationIndex
-      );
-
-      for (const route of directRoutes) {
-        const travel = calculateLegTravelTime(
-          route.line,
-          route.fromStopIdx,
-          route.toStopIdx,
-          edgeMap,
-          nodeMap,
-          scale
-        );
-        if (!isFinite(travel.timeMin)) continue;
-
-        const waitTime = route.line.interval / 2;
-        const totalTime =
-          startStation.walkTimeMin + waitTime + travel.timeMin + endStation.walkTimeMin;
-        const totalDist =
-          startStation.walkDistanceM + travel.distanceM + endStation.walkDistanceM;
-
-        candidates.push({
-          type: "direct",
-          startStation: {
-            nodeId: startStation.nodeId,
-            walkTimeMin: startStation.walkTimeMin,
-            walkDistanceM: startStation.walkDistanceM,
-          },
-          endStation: {
-            nodeId: endStation.nodeId,
-            walkTimeMin: endStation.walkTimeMin,
-            walkDistanceM: endStation.walkDistanceM,
-          },
-          legs: [route],
-          totalTimeMin: totalTime,
-          totalDistanceM: totalDist,
-          waitTimeMin: waitTime,
-        });
-      }
-
-      // 3b. Transfer routes
-      const transferRoutes = findTransferRoutes(
-        startStation.nodeId,
-        endStation.nodeId,
-        stationIndex
-      );
-
-      for (const route of transferRoutes) {
-        const travel1 = calculateLegTravelTime(
-          route.leg1.line,
-          route.leg1.fromStopIdx,
-          route.leg1.toStopIdx,
-          edgeMap,
-          nodeMap,
-          scale
-        );
-        const travel2 = calculateLegTravelTime(
-          route.leg2.line,
-          route.leg2.fromStopIdx,
-          route.leg2.toStopIdx,
-          edgeMap,
-          nodeMap,
-          scale
-        );
-        if (!isFinite(travel1.timeMin) || !isFinite(travel2.timeMin)) continue;
-
-        const wait1 = route.leg1.line.interval / 2;
-        const wait2 = route.leg2.line.interval / 2;
-        const totalWait = wait1 + TRANSFER_PENALTY_MIN + wait2;
-
-        const totalTime =
-          startStation.walkTimeMin +
-          wait1 +
-          travel1.timeMin +
-          TRANSFER_PENALTY_MIN +
-          wait2 +
-          travel2.timeMin +
-          endStation.walkTimeMin;
-
-        const totalDist =
-          startStation.walkDistanceM +
-          travel1.distanceM +
-          travel2.distanceM +
-          endStation.walkDistanceM;
-
-        candidates.push({
-          type: "transfer",
-          startStation: {
-            nodeId: startStation.nodeId,
-            walkTimeMin: startStation.walkTimeMin,
-            walkDistanceM: startStation.walkDistanceM,
-          },
-          endStation: {
-            nodeId: endStation.nodeId,
-            walkTimeMin: endStation.walkTimeMin,
-            walkDistanceM: endStation.walkDistanceM,
-          },
-          legs: [route.leg1, route.leg2],
-          totalTimeMin: totalTime,
-          totalDistanceM: totalDist,
-          waitTimeMin: totalWait,
-        });
-      }
-    }
+  const boardableStops = new Set<number>();
+  for (const [nodeId] of startReach) {
+    if (designatedStops.has(nodeId)) boardableStops.add(nodeId);
   }
 
-  // 4. Sort candidates by total time and try each until walking works
-  if (candidates.length === 0) {
+  const alightableStops = new Set<number>();
+  for (const [nodeId] of endReach) {
+    if (designatedStops.has(nodeId)) alightableStops.add(nodeId);
+  }
+
+  console.log(`[ptRouting] boardableStops: ${boardableStops.size} [${[...boardableStops].join(",")}], alightableStops: ${alightableStops.size} [${[...alightableStops].join(",")}], optimization: ${ptOptimization}`);
+
+  if (boardableStops.size === 0 || alightableStops.size === 0) {
+    console.log("[ptRouting] No PT stations within walking distance, falling back to walking");
+    return fallbackToWalking(graph, startNodeId, endNodeId, options);
+  }
+
+  // Run product-graph Dijkstra
+  const result = productGraphDijkstra(
+    startNodeId,
+    endNodeId,
+    walkAdj,
+    stopIndex,
+    designatedStops,
+    boardableStops,
+    nodeMap,
+    scale,
+    ptOptimization
+  );
+
+  if (!result) {
     console.log("[ptRouting] No PT route found, falling back to walking");
     return fallbackToWalking(graph, startNodeId, endNodeId, options);
   }
 
-  candidates.sort((a, b) => a.totalTimeMin - b.totalTimeMin);
+  const { walkToStation, ptSegments, walkFromStation, totalWaitTimeMin } =
+    reconstructPath(result, startNodeId, edgeMap, stopIndex);
 
-  const noWalkResult = { success: true, path: [] as number[], segments: [] as RouteSegment[], totalDistanceM: 0, estimatedTimeMin: 0 };
-
-  for (const candidate of candidates) {
-    console.log("[ptRouting] Trying route:", {
-      type: candidate.type,
-      lines: candidate.legs.map((l) => l.line.name),
-      startStation: candidate.startStation.nodeId,
-      endStation: candidate.endStation.nodeId,
-      totalTime: candidate.totalTimeMin.toFixed(1),
-    });
-
-    // Build walking segments (skip dijkstra if already at the station)
-    const walkToResult = startNodeId === candidate.startStation.nodeId
-      ? noWalkResult
-      : await dijkstra(graph, startNodeId, candidate.startStation.nodeId, "walk", { scale });
-
-    if (!walkToResult.success) {
-      console.log(`[ptRouting] Can't walk to station ${candidate.startStation.nodeId}, trying next`);
-      continue;
-    }
-
-    const walkFromResult = candidate.endStation.nodeId === endNodeId
-      ? noWalkResult
-      : await dijkstra(graph, candidate.endStation.nodeId, endNodeId, "walk", { scale });
-
-    if (!walkFromResult.success) {
-      console.log(`[ptRouting] Can't walk from station ${candidate.endStation.nodeId}, trying next`);
-      continue;
-    }
-
-    // Walking works — build PT segments
-    const ptSegments: RouteSegment[] = [];
-    for (const leg of candidate.legs) {
-      const legSegments = buildPTSegments(
-        leg.line,
-        leg.fromStopIdx,
-        leg.toStopIdx,
-        edgeMap,
-        nodeMap,
-        scale
-      );
-      ptSegments.push(...legSegments);
-    }
-
-    const ptDist = ptSegments.reduce((sum, s) => sum + s.distanceM, 0);
-    const totalDistanceM = walkToResult.totalDistanceM + ptDist + walkFromResult.totalDistanceM;
-
-    // Recompute total time using actual walk distances
-    const walkToTimeMin = walkToResult.estimatedTimeMin;
-    const walkFromTimeMin = walkFromResult.estimatedTimeMin;
-    const ptTimeMin = candidate.totalTimeMin
-      - candidate.startStation.walkTimeMin
-      - candidate.endStation.walkTimeMin;
-    const totalTimeMin = walkToTimeMin + ptTimeMin + walkFromTimeMin;
-
-    return {
-      success: true,
-      walkToStation: walkToResult.segments,
-      ptSegments,
-      walkFromStation: walkFromResult.segments,
-      totalDistanceM,
-      totalTimeMin,
-      waitTimeMin: candidate.waitTimeMin,
-    };
+  // Enforce 2km final-walk limit: the last walk leg (station → destination) must
+  // have come from an alightable stop. If the alight stop is not in alightableStops,
+  // the walk from there exceeds 2km.
+  const finalWalkDistM = walkFromStation.reduce((s, seg) => s + seg.distanceM, 0);
+  if (finalWalkDistM > maxWalkDistanceM) {
+    console.log(`[ptRouting] Final walk ${finalWalkDistM.toFixed(0)}m exceeds ${maxWalkDistanceM}m limit, falling back to walking`);
+    return fallbackToWalking(graph, startNodeId, endNodeId, options);
   }
 
-  // All candidates had unreachable walking segments
-  console.log("[ptRouting] No candidate with walkable stations, falling back to walking");
-  return fallbackToWalking(graph, startNodeId, endNodeId, options);
+  const allSegments = [...walkToStation, ...ptSegments, ...walkFromStation];
+  const totalDistanceM = allSegments.reduce((s, seg) => s + seg.distanceM, 0);
+  const totalTimeMin = allSegments.reduce((s, seg) => s + seg.estimatedTimeMin, 0) + totalWaitTimeMin;
+
+  console.log(`[ptRouting] Route found: ${walkToStation.length} walk-to + ${ptSegments.length} PT + ${walkFromStation.length} walk-from segments, ${totalTimeMin.toFixed(1)} min`);
+
+  return {
+    success: true,
+    walkToStation,
+    ptSegments,
+    walkFromStation,
+    totalDistanceM,
+    totalTimeMin,
+    waitTimeMin: totalWaitTimeMin,
+  };
 }
 
 // ---------------------------------------------------------------------------
-// 8. Compare PT route with direct walking
+// Compare PT route with direct walking
 // ---------------------------------------------------------------------------
 
 export async function findBestPTRoute(
@@ -540,6 +694,8 @@ export async function findBestPTRoute(
   endNodeId: number,
   options: {
     scale?: number;
+    ptOptimization?: PTOptimization;
+    maxWalkDistanceM?: number;
     onStateChange?: (state: PathfindingState) => void;
     animationDelayMs?: number;
   } = {}

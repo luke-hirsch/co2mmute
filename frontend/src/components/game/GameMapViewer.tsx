@@ -189,8 +189,10 @@ const GameMapViewer = ({
     );
   }
 
-  // Build a set of edge IDs that are part of the route
-  const routeEdgeIds = new Set(routeSegments?.map((s) => s.edgeId) ?? []);
+  // Build a set of real edge IDs that are part of the route (skip sentinel -1)
+  const routeEdgeIds = new Set(
+    (routeSegments ?? []).map((s) => s.edgeId).filter((id) => id >= 0)
+  );
 
   console.log("[GameMapViewer] Rendering with:", {
     mapNodes: mapGraph?.nodes.length,
@@ -447,15 +449,8 @@ const GameMapViewer = ({
 
           {/* Route Edges (highlighted) */}
           {routeSegments?.map((segment, index) => {
-            const edge = mapGraph.edges.find((e) => e.id === segment.edgeId);
-            if (!edge) return null;
-
-            const startNode = mapGraph.nodes.find(
-              (n) => n.id === segment.startNode
-            );
-            const endNode = mapGraph.nodes.find(
-              (n) => n.id === segment.endNode
-            );
+            const startNode = nodeMap.get(segment.startNode);
+            const endNode = nodeMap.get(segment.endNode);
 
             if (!startNode || !endNode) return null;
 

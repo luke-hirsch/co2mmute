@@ -6,6 +6,7 @@
 export type TransportMode = "car" | "public" | "bike" | "walk";
 export type SegmentMode = "car" | "bus" | "train" | "bike" | "walk";
 export type CarOptimization = "time" | "distance" | "co2";
+export type PTOptimization = "fastest" | "fewest_transfers" | "no_bus";
 
 // Route segment representing one edge in the path
 export interface RouteSegment {
@@ -14,6 +15,7 @@ export interface RouteSegment {
   endNode: number;
   mode: SegmentMode;
   ptLineId?: number; // For bus/train segments
+  ptLineName?: string; // Display name of the PT line (e.g. "Bus 42")
   distanceM: number;
   estimatedTimeMin: number;
 }
@@ -165,6 +167,7 @@ export interface AgentSelectionState {
   destinationNode: number;
   selectedMode: TransportMode | null;
   selectedOptimization?: CarOptimization;
+  selectedPTOptimization?: PTOptimization;
   route: AgentRoute | null;
   isPathfinding: boolean;
   pathfindingState: PathfindingState | null;

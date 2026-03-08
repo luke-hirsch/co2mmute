@@ -6,7 +6,9 @@ import { useState } from "react";
 import type {
   TransportMode,
   CarOptimization,
+  PTOptimization,
   AgentRoute,
+  RouteSegment,
 } from "../../types/routeTypes";
 
 interface AgentRouteSelectorProps {
@@ -15,10 +17,11 @@ interface AgentRouteSelectorProps {
   destinationNode: number;
   selectedMode: TransportMode | null;
   selectedOptimization?: CarOptimization;
+  selectedPTOptimization?: PTOptimization;
   route: AgentRoute | null;
   isPathfinding: boolean;
   error: string | null;
-  onSelectMode: (mode: TransportMode, optimization?: CarOptimization) => void;
+  onSelectMode: (mode: TransportMode, optimization?: CarOptimization, ptOptimization?: PTOptimization) => void;
   onFindRoute: () => void;
   onClearRoute: () => void;
   disabled?: boolean;
@@ -76,12 +79,71 @@ const CAR_OPTIMIZATION_OPTIONS: {
   { id: "co2", label: "Greenest", description: "Lowest emissions" },
 ];
 
+const PT_OPTIMIZATION_OPTIONS: {
+  id: PTOptimization;
+  label: string;
+  description: string;
+}[] = [
+  { id: "fastest", label: "Fastest", description: "Minimize total time" },
+  { id: "fewest_transfers", label: "Fewest Transfers", description: "Prefer direct lines" },
+  { id: "no_bus", label: "No Bus", description: "Train & walk only" },
+];
+
+function formatTime(minutes: number): string {
+  if (minutes < 60) return `${Math.round(minutes)} min`;
+  const hours = Math.floor(minutes / 60);
+  const mins = Math.round(minutes % 60);
+  return `${hours}h ${mins}m`;
+}
+
+function formatDistance(meters: number): string {
+  if (meters < 1000) return `${Math.round(meters)} m`;
+  return `${(meters / 1000).toFixed(1)} km`;
+}
+
+/** Group consecutive segments into display legs */
+interface RouteLeg {
+  mode: "walk" | "bus" | "train";
+  label: string;
+  distanceM: number;
+}
+
+function buildLegs(segments: RouteSegment[]): RouteLeg[] {
+  if (segments.length === 0) return [];
+
+  const legs: RouteLeg[] = [];
+
+  for (const seg of segments) {
+    const mode = seg.mode === "bus" ? "bus" : seg.mode === "train" ? "train" : "walk";
+    const label =
+      mode === "bus" ? (seg.ptLineName ?? "Bus")
+      : mode === "train" ? (seg.ptLineName ?? "Train")
+      : "Walk";
+
+    const last = legs.at(-1);
+    if (last && last.label === label) {
+      last.distanceM += seg.distanceM;
+    } else {
+      legs.push({ mode, label, distanceM: seg.distanceM });
+    }
+  }
+
+  return legs;
+}
+
+function legEmoji(mode: "walk" | "bus" | "train"): string {
+  if (mode === "bus") return "🚌";
+  if (mode === "train") return "🚆";
+  return "🚶";
+}
+
 export default function AgentRouteSelector({
   agentId: _agentId,
   agentIndex,
   destinationNode,
   selectedMode,
   selectedOptimization,
+  selectedPTOptimization,
   route,
   isPathfinding,
   error,
@@ -94,46 +156,36 @@ export default function AgentRouteSelector({
 
   const handleModeSelect = (mode: TransportMode) => {
     console.log(`[AgentRouteSelector] Mode selected for agent ${_agentId}:`, mode);
-    if (mode === "car") {
+    if (mode === "car" || mode === "public") {
       setShowOptimization(true);
-      onSelectMode(mode, "time"); // Default to time optimization
+      if (mode === "car") {
+        onSelectMode(mode, "time");
+      } else {
+        onSelectMode(mode, undefined, "fastest");
+      }
     } else {
       setShowOptimization(false);
       onSelectMode(mode);
     }
   };
 
-  const handleOptimizationSelect = (optimization: CarOptimization) => {
-    console.log(`[AgentRouteSelector] Car optimization selected for agent ${_agentId}:`, optimization);
+  const handleCarOptimizationSelect = (optimization: CarOptimization) => {
     onSelectMode("car", optimization);
     setShowOptimization(false);
-    // Auto-find route after selecting car optimization
     setTimeout(() => onFindRoute(), 100);
   };
 
-  const formatTime = (minutes: number): string => {
-    if (minutes < 60) {
-      return `${Math.round(minutes)} min`;
-    }
-    const hours = Math.floor(minutes / 60);
-    const mins = Math.round(minutes % 60);
-    return `${hours}h ${mins}m`;
-  };
-
-  const formatDistance = (meters: number): string => {
-    if (meters < 1000) {
-      return `${Math.round(meters)} m`;
-    }
-    return `${(meters / 1000).toFixed(1)} km`;
+  const handlePTOptimizationSelect = (ptOptimization: PTOptimization) => {
+    onSelectMode("public", undefined, ptOptimization);
+    setShowOptimization(false);
+    setTimeout(() => onFindRoute(), 100);
   };
 
   return (
     <div className="border rounded-lg p-4 bg-white dark:bg-gray-800 shadow-sm">
       {/* Agent Header */}
       <div className="flex justify-between items-center mb-3">
-        <h3 className="font-semibold text-lg">
-          Agent {agentIndex + 1}
-        </h3>
+        <h3 className="font-semibold text-lg">Agent {agentIndex + 1}</h3>
         <span className="text-sm text-muted dark:text-darkmutedtext">
           To node {destinationNode}
         </span>
@@ -170,7 +222,7 @@ export default function AgentRouteSelector({
             {CAR_OPTIMIZATION_OPTIONS.map((opt) => (
               <button
                 key={opt.id}
-                onClick={() => handleOptimizationSelect(opt.id)}
+                onClick={() => handleCarOptimizationSelect(opt.id)}
                 disabled={disabled || isPathfinding}
                 className={`p-2 rounded-lg border-2 transition-all duration-200 ${
                   selectedOptimization === opt.id
@@ -186,10 +238,41 @@ export default function AgentRouteSelector({
             ))}
           </div>
           <button
-            onClick={() => {
-              setShowOptimization(false);
-              onClearRoute();
-            }}
+            onClick={() => { setShowOptimization(false); onClearRoute(); }}
+            className="text-sm text-gray-500 hover:text-gray-700 mt-2"
+          >
+            Back
+          </button>
+        </div>
+      )}
+
+      {/* PT Optimization Selection */}
+      {showOptimization && selectedMode === "public" && !route && (
+        <div className="space-y-2">
+          <p className="text-sm text-muted dark:text-darkmutedtext mb-2">
+            Choose PT preference:
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {PT_OPTIMIZATION_OPTIONS.map((opt) => (
+              <button
+                key={opt.id}
+                onClick={() => handlePTOptimizationSelect(opt.id)}
+                disabled={disabled || isPathfinding}
+                className={`p-2 rounded-lg border-2 transition-all duration-200 ${
+                  selectedPTOptimization === opt.id
+                    ? "border-yellow-400 bg-yellow-100 dark:bg-yellow-900/30"
+                    : "border-gray-200 dark:border-gray-600 hover:border-yellow-300"
+                } ${disabled || isPathfinding ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+              >
+                <div className="text-sm font-medium">{opt.label}</div>
+                <div className="text-xs text-muted dark:text-darkmutedtext">
+                  {opt.description}
+                </div>
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => { setShowOptimization(false); onClearRoute(); }}
             className="text-sm text-gray-500 hover:text-gray-700 mt-2"
           >
             Back
@@ -258,6 +341,11 @@ export default function AgentRouteSelector({
                     ({CAR_OPTIMIZATION_OPTIONS.find((o) => o.id === selectedOptimization)?.label})
                   </span>
                 )}
+                {selectedMode === "public" && selectedPTOptimization && (
+                  <span className="text-sm text-muted ml-2">
+                    ({PT_OPTIMIZATION_OPTIONS.find((o) => o.id === selectedPTOptimization)?.label})
+                  </span>
+                )}
               </div>
               <div className="text-sm text-muted dark:text-darkmutedtext">
                 {formatDistance(route.totalDistanceM)} &middot;{" "}
@@ -266,10 +354,28 @@ export default function AgentRouteSelector({
             </div>
           </div>
 
-          {/* Route segments summary */}
-          <div className="text-xs text-muted dark:text-darkmutedtext">
-            {route.segments.length} segment{route.segments.length !== 1 ? "s" : ""}
-          </div>
+          {/* PT route leg breakdown */}
+          {selectedMode === "public" && (
+            <div className="text-xs text-muted dark:text-darkmutedtext flex flex-wrap items-center gap-1">
+              {buildLegs(route.segments).map((leg, i) => (
+                <span key={i} className="flex items-center gap-1">
+                  {i > 0 && <span className="text-gray-400">→</span>}
+                  <span>
+                    {legEmoji(leg.mode)}{" "}
+                    {leg.mode !== "walk" && <span className="font-medium">{leg.label}: </span>}
+                    {formatDistance(leg.distanceM)}
+                  </span>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Non-PT segment count */}
+          {selectedMode !== "public" && (
+            <div className="text-xs text-muted dark:text-darkmutedtext">
+              {route.segments.length} segment{route.segments.length !== 1 ? "s" : ""}
+            </div>
+          )}
 
           <button
             onClick={onClearRoute}
