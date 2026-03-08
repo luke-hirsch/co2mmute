@@ -514,6 +514,21 @@ const GameMapViewer = ({
                 <g transform={`translate(${midX}, ${midY}) rotate(${angle})`}>
                   <polygon points="0,-5 10,0 0,5" fill={color} opacity="0.95" />
                 </g>
+                {/* Segment number label */}
+                {routeSegments.length > 1 && (
+                  <g transform={`translate(${midX}, ${midY})`}>
+                    <circle r="9" fill="white" stroke={color} strokeWidth="2" opacity="0.95" />
+                    <text
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      fontSize="9"
+                      fill={color}
+                      fontWeight="bold"
+                    >
+                      {index + 1}
+                    </text>
+                  </g>
+                )}
               </g>
             );
           })}
