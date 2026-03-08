@@ -75,6 +75,7 @@ class MapVersion(models.Model):
         blank=True,
         related_name="derived_versions",
     )
+    created = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.name} ({'base' if self.base_version else 'version'}) - {self.game_map}"

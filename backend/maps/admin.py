@@ -4,6 +4,7 @@ from .models import (
     BusLine,
     Edge,
     GameMap,
+    MapVersion,
     Node,
     NodeType,
     StreetEdge,
@@ -17,6 +18,20 @@ class GameMapAdmin(admin.ModelAdmin):
     list_display = ("name", "x_dim", "y_dim", "scale", "author", "created")
     search_fields = ("name", "author__username", "author__email")
     list_filter = ("created", "author")
+    ordering = ("name",)
+
+
+@admin.register(MapVersion)
+class MapVersionAdmin(admin.ModelAdmin):
+    list_display = ("name",)
+    search_fields = (
+        "game_map__name",
+        "name",
+        "game_map__author__username",
+        "game_map__author__email",
+    )
+    list_filter = ("created", "game_map__author")
+
     ordering = ("name",)
 
 
