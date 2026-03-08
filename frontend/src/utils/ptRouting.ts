@@ -630,10 +630,32 @@ export async function findPTRoute(
     if (designatedStops.has(nodeId)) alightableStops.add(nodeId);
   }
 
-  console.log(`[ptRouting] boardableStops: ${boardableStops.size} [${[...boardableStops].join(",")}], alightableStops: ${alightableStops.size} [${[...alightableStops].join(",")}], optimization: ${ptOptimization}`);
+  // Check how many boardable stops are actually on a PT line
+  const boardableOnLine = [...boardableStops].filter((id) => stopIndex.has(id));
+  const alightableOnLine = [...alightableStops].filter((id) => stopIndex.has(id));
+
+  console.log(
+    `[ptRouting] start=${startNodeId} end=${endNodeId}` +
+    `\n  boardableStops(${boardableStops.size}): [${[...boardableStops].join(",")}]` +
+    `\n  boardableOnLine(${boardableOnLine.length}): [${boardableOnLine.join(",")}]` +
+    `\n  alightableStops(${alightableStops.size}): [${[...alightableStops].join(",")}]` +
+    `\n  alightableOnLine(${alightableOnLine.length}): [${alightableOnLine.join(",")}]` +
+    `\n  stopIndex covers ${stopIndex.size} nodes, designatedStops: ${designatedStops.size}` +
+    `\n  optimization: ${ptOptimization}`
+  );
 
   if (boardableStops.size === 0 || alightableStops.size === 0) {
-    console.log("[ptRouting] No PT stations within walking distance, falling back to walking");
+    console.log("[ptRouting] FAIL: no designated stops within 2km of start or end");
+    return fallbackToWalking(graph, startNodeId, endNodeId, options);
+  }
+
+  if (boardableOnLine.length === 0) {
+    console.log("[ptRouting] FAIL: boardable stops exist but none are on any PT line");
+    return fallbackToWalking(graph, startNodeId, endNodeId, options);
+  }
+
+  if (alightableOnLine.length === 0) {
+    console.log("[ptRouting] FAIL: alightable stops exist but none are on any PT line");
     return fallbackToWalking(graph, startNodeId, endNodeId, options);
   }
 
@@ -708,6 +730,12 @@ export async function findBestPTRoute(
   });
 
   // If PT failed or walking is faster, return walking
+  if (!ptResult.success) {
+    console.log(`[ptRouting] PT failed (${ptResult.error ?? "no route"}), using walking`);
+  } else if (walkResult.success && walkResult.estimatedTimeMin < ptResult.totalTimeMin) {
+    console.log(`[ptRouting] Walking (${walkResult.estimatedTimeMin.toFixed(1)}min) faster than PT (${ptResult.totalTimeMin.toFixed(1)}min), using walking`);
+  }
+
   if (
     !ptResult.success ||
     (walkResult.success && walkResult.estimatedTimeMin < ptResult.totalTimeMin)

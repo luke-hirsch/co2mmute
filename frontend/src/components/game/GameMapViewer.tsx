@@ -351,7 +351,7 @@ const GameMapViewer = ({
                 <line
                   x1={x1} y1={y1} x2={x2} y2={y2}
                   stroke="#0f172a"
-                  strokeWidth="7"
+                  strokeWidth="11"
                   strokeDasharray={strokeDasharray}
                   strokeLinecap="round"
                   opacity="0.35"
@@ -360,7 +360,7 @@ const GameMapViewer = ({
                 <line
                   x1={x1} y1={y1} x2={x2} y2={y2}
                   stroke={stroke}
-                  strokeWidth="4"
+                  strokeWidth="7"
                   strokeDasharray={strokeDasharray}
                   strokeLinecap="round"
                   opacity="0.65"
@@ -368,7 +368,7 @@ const GameMapViewer = ({
                 {/* Train tick marks (perpendicular lines = railroad sleepers) */}
                 {trainTicks.map((tk, i) => (
                   <g key={i} transform={`translate(${tk.tx},${tk.ty}) rotate(${tk.angle + 90})`}>
-                    <line x1="0" y1="-5" x2="0" y2="5" stroke={stroke} strokeWidth="3" opacity="0.8" />
+                    <line x1="0" y1="-7" x2="0" y2="7" stroke={stroke} strokeWidth="4" opacity="0.8" />
                   </g>
                 ))}
               </g>
