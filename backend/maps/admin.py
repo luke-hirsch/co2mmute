@@ -37,17 +37,25 @@ def _generate_combination_versions(modeladmin, request, queryset):
     # Validate: all on the same map, none are base versions
     game_maps = {v.game_map_id for v in atomic_versions}
     if len(game_maps) != 1:
-        modeladmin.message_user(request, "All selected versions must belong to the same map.", level="error")
+        modeladmin.message_user(
+            request, "All selected versions must belong to the same map.", level="error"
+        )
         return
     if any(v.base_version for v in atomic_versions):
-        modeladmin.message_user(request, "Do not include base versions in the selection.", level="error")
+        modeladmin.message_user(
+            request, "Do not include base versions in the selection.", level="error"
+        )
         return
     if len(atomic_versions) < 2:
-        modeladmin.message_user(request, "Select at least 2 atomic versions.", level="error")
+        modeladmin.message_user(
+            request, "Select at least 2 atomic versions.", level="error"
+        )
         return
 
     game_map = atomic_versions[0].game_map
-    base_version = MapVersion.objects.filter(game_map=game_map, base_version=True).first()
+    base_version = MapVersion.objects.filter(
+        game_map=game_map, base_version=True
+    ).first()
 
     with transaction.atomic():
         # Build a dict: frozenset(version_ids) → MapVersion for all existing + new versions
@@ -84,15 +92,25 @@ def _generate_combination_versions(modeladmin, request, queryset):
             # Copy map_versions memberships: include any element whose version
             # belongs to any member of this subset
             member_versions = [existing[frozenset([pk])] for pk in subset]
-            for node in Node.objects.filter(map_versions__in=member_versions).distinct():
+            for node in Node.objects.filter(
+                map_versions__in=member_versions
+            ).distinct():
                 node.map_versions.add(combo_version)
-            for edge in Edge.objects.filter(map_versions__in=member_versions).distinct():
+            for edge in Edge.objects.filter(
+                map_versions__in=member_versions
+            ).distinct():
                 edge.map_versions.add(combo_version)
-            for street_edge in StreetEdge.objects.filter(map_versions__in=member_versions).distinct():
+            for street_edge in StreetEdge.objects.filter(
+                map_versions__in=member_versions
+            ).distinct():
                 street_edge.map_versions.add(combo_version)
-            for train_edge in TrainEdge.objects.filter(map_versions__in=member_versions).distinct():
+            for train_edge in TrainEdge.objects.filter(
+                map_versions__in=member_versions
+            ).distinct():
                 train_edge.map_versions.add(combo_version)
-            for bus_line in BusLine.objects.filter(map_versions__in=member_versions).distinct():
+            for bus_line in BusLine.objects.filter(
+                map_versions__in=member_versions
+            ).distinct():
                 bus_line.map_versions.add(combo_version)
 
         # Set compatible_versions for all versions in the lattice
@@ -135,7 +153,9 @@ def _generate_combination_versions(modeladmin, request, queryset):
     )
 
 
-_generate_combination_versions.short_description = "Generate combination versions from selected atomics"
+_generate_combination_versions.short_description = (
+    "Generate combination versions from selected atomics"
+)
 
 
 @admin.register(MapVersion)
@@ -147,7 +167,7 @@ class MapVersionAdmin(admin.ModelAdmin):
         "game_map__author__username",
         "game_map__author__email",
     )
-    list_filter = ("created", "game_map__author")
+    list_filter = ("created", "game_map")
     actions = [_generate_combination_versions]
 
     ordering = ("name",)

@@ -646,17 +646,17 @@ export async function findPTRoute(
 
   if (boardableStops.size === 0 || alightableStops.size === 0) {
     console.log("[ptRouting] FAIL: no designated stops within 2km of start or end");
-    return fallbackToWalking(graph, startNodeId, endNodeId, options);
+    return failResult("No public transport stations within 2km of start or destination");
   }
 
   if (boardableOnLine.length === 0) {
     console.log("[ptRouting] FAIL: boardable stops exist but none are on any PT line");
-    return fallbackToWalking(graph, startNodeId, endNodeId, options);
+    return failResult("Nearby stops are not served by any public transport line");
   }
 
   if (alightableOnLine.length === 0) {
     console.log("[ptRouting] FAIL: alightable stops exist but none are on any PT line");
-    return fallbackToWalking(graph, startNodeId, endNodeId, options);
+    return failResult("No public transport stops near the destination");
   }
 
   // Run product-graph Dijkstra
@@ -673,8 +673,8 @@ export async function findPTRoute(
   );
 
   if (!result) {
-    console.log("[ptRouting] No PT route found, falling back to walking");
-    return fallbackToWalking(graph, startNodeId, endNodeId, options);
+    console.log("[ptRouting] No PT route found");
+    return failResult("No public transport connection between these locations");
   }
 
   const { walkToStation, ptSegments, walkFromStation, totalWaitTimeMin } =
@@ -685,8 +685,8 @@ export async function findPTRoute(
   // the walk from there exceeds 2km.
   const finalWalkDistM = walkFromStation.reduce((s, seg) => s + seg.distanceM, 0);
   if (finalWalkDistM > maxWalkDistanceM) {
-    console.log(`[ptRouting] Final walk ${finalWalkDistM.toFixed(0)}m exceeds ${maxWalkDistanceM}m limit, falling back to walking`);
-    return fallbackToWalking(graph, startNodeId, endNodeId, options);
+    console.log(`[ptRouting] Final walk ${finalWalkDistM.toFixed(0)}m exceeds ${maxWalkDistanceM}m limit`);
+    return failResult(`Walk from PT stop to destination is ${(finalWalkDistM / 1000).toFixed(1)}km — exceeds 2km limit`);
   }
 
   const allSegments = [...walkToStation, ...ptSegments, ...walkFromStation];
@@ -729,28 +729,17 @@ export async function findBestPTRoute(
     scale: options.scale,
   });
 
-  // If PT failed or walking is faster, return walking
+  // If no PT route could be found at all, report failure — do not silently
+  // fall back to walking (the player explicitly chose a PT mode).
   if (!ptResult.success) {
-    console.log(`[ptRouting] PT failed (${ptResult.error ?? "no route"}), using walking`);
-  } else if (walkResult.success && walkResult.estimatedTimeMin < ptResult.totalTimeMin) {
-    console.log(`[ptRouting] Walking (${walkResult.estimatedTimeMin.toFixed(1)}min) faster than PT (${ptResult.totalTimeMin.toFixed(1)}min), using walking`);
+    console.log(`[ptRouting] PT failed (${ptResult.error ?? "no route"}), reporting no path found`);
+    return failResult(ptResult.error ?? "No public transport route found");
   }
 
-  if (
-    !ptResult.success ||
-    (walkResult.success && walkResult.estimatedTimeMin < ptResult.totalTimeMin)
-  ) {
-    if (walkResult.success) {
-      return {
-        success: true,
-        walkToStation: [],
-        ptSegments: [],
-        walkFromStation: walkResult.segments,
-        totalDistanceM: walkResult.totalDistanceM,
-        totalTimeMin: walkResult.estimatedTimeMin,
-        waitTimeMin: 0,
-      };
-    }
+  // If walking is faster than the PT route, still prefer PT — the player
+  // explicitly chose a PT mode, so we honour that choice.
+  if (walkResult.success && walkResult.estimatedTimeMin < ptResult.totalTimeMin) {
+    console.log(`[ptRouting] Walking (${walkResult.estimatedTimeMin.toFixed(1)}min) would be faster than PT (${ptResult.totalTimeMin.toFixed(1)}min), but PT was requested — returning PT route`);
   }
 
   return ptResult;
