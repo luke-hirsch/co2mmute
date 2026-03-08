@@ -469,9 +469,14 @@ def serialize_bus_line_for_graph(bus_line, version):
                 # Edge stored in reverse — travel direction is end→start
                 stops.append(edge.start_node_id)
             else:
-                # Disconnected edge (data issue): append both nodes
-                stops.append(edge.start_node_id)
-                stops.append(edge.end_node_id)
+                # Disconnected edge (data issue): truncate route here
+                import logging as _logging
+                _logging.getLogger(__name__).warning(
+                    "Bus line %s (%s): edge %s is disconnected from previous stop %s. "
+                    "Route truncated at this edge.",
+                    bus_line.id, bus_line.name, edge.id, prev,
+                )
+                break
 
     return {
         "id": bus_line.id,
@@ -512,9 +517,14 @@ def serialize_train_line_for_graph(train_line, version):
                 # Edge stored in reverse — travel direction is end→start
                 stops.append(edge.start_node_id)
             else:
-                # Disconnected edge (data issue): append both nodes
-                stops.append(edge.start_node_id)
-                stops.append(edge.end_node_id)
+                # Disconnected edge (data issue): truncate route here
+                import logging as _logging
+                _logging.getLogger(__name__).warning(
+                    "Train line %s (%s): edge %s is disconnected from previous stop %s. "
+                    "Route truncated at this edge.",
+                    train_line.id, train_line.name, edge.id, prev,
+                )
+                break
 
     return {
         "id": train_line.id,
