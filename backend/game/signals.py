@@ -352,8 +352,8 @@ def handle_round_completed(sender, game_id=None, game_session=None, game_round=N
     co2_limit_reached = total_game_emissions >= (game_session.max_CO2_level * 1000)
     max_rounds_reached = game_round.round_number >= game_session.max_rounds
 
-    # Get voteable map versions (non-base versions for the game's map)
-    voteable_versions = _get_voteable_map_versions(game_session)
+    # Get voteable map versions based on active version's compatible_versions
+    has_map_versions, map_versions_data = _get_voteable_map_versions_data(game_session)
 
     # Broadcast round completed stats
     send_game_state_message(
@@ -367,15 +367,8 @@ def handle_round_completed(sender, game_id=None, game_session=None, game_round=N
             "max_co2_level_g": game_session.max_CO2_level * 1000,
             "player_stats": player_stats,
             "simulation_used": has_routes,
-            "has_map_versions": bool(voteable_versions),
-            "map_versions": [
-                {
-                    "id": mv.id,
-                    "name": mv.name,
-                    "poll_text": mv.poll_text,
-                }
-                for mv in voteable_versions
-            ],
+            "has_map_versions": has_map_versions,
+            "map_versions": map_versions_data,
         },
     )
     logger.info(
@@ -580,15 +573,96 @@ def _calculate_hardcoded_stats(moves):
     return round_emissions, round_cost, player_stats
 
 
+def _is_rollback_target(active_version, target_version):
+    """Return True if target_version is an ancestor of active_version (i.e., a rollback)."""
+    if target_version.base_version:
+        return True
+    current = active_version.source_version
+    while current is not None:
+        if current.pk == target_version.pk:
+            return True
+        current = current.source_version
+    return False
+
+
+def _get_delta_img_url(active_version, target_version):
+    """
+    Return the relative URL of the 'change preview' image for a voting option.
+
+    For rollbacks: the active version's image (showing what will be reverted).
+    For forward moves to an atomic version: the target's own image.
+    For forward moves to a combo version (e.g. A→AB): find the 'new' component B
+    by looking at target's compatible_versions that are not an ancestor of active.
+    """
+    if _is_rollback_target(active_version, target_version):
+        if active_version.change_img:
+            return active_version.change_img.url
+        return None
+
+    # Collect active's ancestry (source_version chain)
+    active_ancestor_pks = set()
+    cur = active_version
+    while cur:
+        active_ancestor_pks.add(cur.pk)
+        cur = cur.source_version
+
+    # Only do delta lookup if active is a direct predecessor of target
+    # (active appears in target's compatible_versions)
+    active_is_predecessor = target_version.compatible_versions.filter(
+        pk=active_version.pk
+    ).exists()
+
+    if active_is_predecessor:
+        # Find the delta: a compat of target that is not an ancestor of active and has an image
+        for compat in target_version.compatible_versions.all():
+            if compat.pk in active_ancestor_pks:
+                continue
+            if compat.base_version:
+                continue
+            if compat.change_img:
+                return compat.change_img.url
+
+    # Fallback: target's own image
+    if target_version.change_img:
+        return target_version.change_img.url
+    return None
+
+
+def _build_version_dict(active_version, target_version):
+    """Build the voting option dict for a candidate version."""
+    is_rollback = _is_rollback_target(active_version, target_version)
+    return {
+        "id": target_version.id,
+        "name": target_version.name,
+        "poll_text": active_version.revert_poll_text if is_rollback else target_version.poll_text,
+        "is_rollback": is_rollback,
+        "change_img_url": _get_delta_img_url(active_version, target_version),
+    }
+
+
 def _get_voteable_map_versions(game_session):
-    """Return non-base MapVersions for the game's map, excluding the currently active one."""
-    from maps.models import MapVersion
+    """Return up to 2 compatible MapVersions based on active version's compatible_versions."""
+    import random
 
     if not game_session.game_map or not game_session.map_updates:
         return []
-    return list(
-        MapVersion.objects.filter(
-            game_map=game_session.game_map,
-            base_version=False,
-        ).exclude(pk=game_session.active_map_version_id)
-    )
+
+    active_version = game_session.active_map_version
+    if active_version is None:
+        return []
+
+    candidates = list(active_version.compatible_versions.all())
+    if len(candidates) > 2:
+        candidates = random.sample(candidates, 2)
+
+    return candidates, active_version
+
+
+def _get_voteable_map_versions_data(game_session):
+    """Return (has_versions, version_dicts) for the round.completed broadcast."""
+    result = _get_voteable_map_versions(game_session)
+    if not result:
+        return False, []
+    candidates, active_version = result
+    data = [_build_version_dict(active_version, v) for v in candidates]
+    return bool(data), data

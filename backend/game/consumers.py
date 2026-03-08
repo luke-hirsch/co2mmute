@@ -13,6 +13,58 @@ from game.ws_auth import resolve_player
 logger = logging.getLogger(__name__)
 
 
+def _is_rollback_target(active_version, target_version) -> bool:
+    """Return True if target_version is an ancestor of active_version (i.e., a rollback)."""
+    if target_version.base_version:
+        return True
+    current = active_version.source_version
+    while current is not None:
+        if current.pk == target_version.pk:
+            return True
+        current = current.source_version
+    return False
+
+
+def _get_delta_img_url(active_version, target_version) -> str | None:
+    """
+    Return the relative URL of the 'change preview' image for a voting option.
+
+    Rollback: the active version's image (shows what will be reverted).
+    Forward atomic: the target's own image.
+    Forward combo (e.g. A→AB): finds the 'new' component B by looking at
+    target's compatible_versions that are not an ancestor of active.
+    """
+    if _is_rollback_target(active_version, target_version):
+        if active_version.change_img:
+            return active_version.change_img.url
+        return None
+
+    # Collect active's ancestry (source_version chain)
+    active_ancestor_pks: set[int] = set()
+    cur = active_version
+    while cur:
+        active_ancestor_pks.add(cur.pk)
+        cur = cur.source_version
+
+    # Only do delta lookup if active is a direct predecessor of target
+    active_is_predecessor = target_version.compatible_versions.filter(
+        pk=active_version.pk
+    ).exists()
+
+    if active_is_predecessor:
+        for compat in target_version.compatible_versions.all():
+            if compat.pk in active_ancestor_pks:
+                continue
+            if compat.base_version:
+                continue
+            if compat.change_img:
+                return compat.change_img.url
+
+    if target_version.change_img:
+        return target_version.change_img.url
+    return None
+
+
 class ChatConsumer(AsyncJsonWebsocketConsumer):
     CHAT_MESSAGES_REDIS_KEY_PATTERN = "chat:{game_id}:messages"
     CHAT_MESSAGE_HISTORY_LIMIT = 100
@@ -317,6 +369,14 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
 
         if msg_type == "vote.submit":
             await self._handle_vote_submit(data)
+            return
+
+        if msg_type == "stalemate.vote":
+            await self._handle_stalemate_vote(data)
+            return
+
+        if msg_type == "stalemate.force_leave":
+            await self._handle_stalemate_force_leave()
             return
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -639,15 +699,25 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
 
         if vote_count >= total_players:
             result = await self._tally_votes()
-            await self.channel_layer.group_send(
-                self.group_name,
-                {
-                    "type": "between_round_event",
-                    "event": "vote.result",
-                    "data": result,
-                },
-            )
-            await self._start_next_round()
+            if result.get("stalemate"):
+                await self.channel_layer.group_send(
+                    self.group_name,
+                    {
+                        "type": "between_round_event",
+                        "event": "vote.stalemate",
+                        "data": result,
+                    },
+                )
+            else:
+                await self.channel_layer.group_send(
+                    self.group_name,
+                    {
+                        "type": "between_round_event",
+                        "event": "vote.result",
+                        "data": result,
+                    },
+                )
+                await self._start_next_round()
 
     async def _check_between_round_completion_after_leave(self) -> None:
         """Re-check stats ack / vote completion after a player disconnects."""
@@ -675,27 +745,33 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
             vote_count, total_players = await self._get_vote_progress()
             if total_players > 0 and vote_count >= total_players:
                 result = await self._tally_votes()
-                await self.channel_layer.group_send(
-                    self.group_name,
-                    {
-                        "type": "between_round_event",
-                        "event": "vote.result",
-                        "data": result,
-                    },
-                )
-                await self._start_next_round()
+                if result.get("stalemate"):
+                    await self.channel_layer.group_send(
+                        self.group_name,
+                        {"type": "between_round_event", "event": "vote.stalemate", "data": result},
+                    )
+                else:
+                    await self.channel_layer.group_send(
+                        self.group_name,
+                        {"type": "between_round_event", "event": "vote.result", "data": result},
+                    )
+                    await self._start_next_round()
+        elif phase == "stalemate":
+            stalemate_count, total_players = await self._get_stalemate_vote_progress()
+            if total_players > 0 and stalemate_count >= total_players:
+                await self._resolve_stalemate_votes()
 
     # ─────────────────────────────────────────────────────────────────────────
     # Between-round helper methods
     # ─────────────────────────────────────────────────────────────────────────
 
     async def _get_voteable_versions_async(self) -> tuple[bool, list[dict]]:
-        """Get voteable map versions for the game."""
+        """Get voteable map versions based on active version's compatible_versions (max 2)."""
         from channels.db import database_sync_to_async
 
         @database_sync_to_async
         def fetch():
-            from maps.models import MapVersion
+            import random
             from game.models import GameSession
 
             try:
@@ -706,16 +782,28 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
             if not game.game_map or not game.map_updates:
                 return False, []
 
-            versions = list(
-                MapVersion.objects.filter(
-                    game_map=game.game_map, base_version=False
-                ).exclude(pk=game.active_map_version_id)
-            )
-            data = [
-                {"id": mv.id, "name": mv.name, "poll_text": mv.poll_text}
-                for mv in versions
-            ]
-            return bool(versions), data
+            active_version = game.active_map_version
+            if active_version is None:
+                return False, []
+
+            candidates = list(active_version.compatible_versions.all())
+            if len(candidates) > 2:
+                candidates = random.sample(candidates, 2)
+
+            if not candidates:
+                return False, []
+
+            data = []
+            for target in candidates:
+                is_rollback = _is_rollback_target(active_version, target)
+                data.append({
+                    "id": target.id,
+                    "name": target.name,
+                    "poll_text": active_version.revert_poll_text if is_rollback else target.poll_text,
+                    "is_rollback": is_rollback,
+                    "change_img_url": _get_delta_img_url(active_version, target),
+                })
+            return True, data
 
         return await fetch()
 
@@ -816,7 +904,7 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
         return await fetch()
 
     async def _tally_votes(self) -> dict:
-        """Tally votes, determine winner, update active map version."""
+        """Tally votes, determine winner or stalemate, update active map version."""
         from channels.db import database_sync_to_async
 
         @database_sync_to_async
@@ -830,42 +918,56 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
                 .first()
             )
             if not game_round:
-                return {"winning_version_id": None, "winning_version_name": "Leave as it is", "vote_counts": []}
+                return {"winning_version_id": None, "winning_version_name": "Leave as it is", "vote_counts": [], "stalemate": False}
 
             votes = MapVersionVote.objects.filter(game_round=game_round).select_related("map_version")
 
             # Count votes per version (None = "leave as it is")
             counter = Counter()
             for vote in votes:
-                version_id = vote.map_version_id
-                counter[version_id] += 1
+                counter[vote.map_version_id] += 1
 
             # Build vote counts list
             vote_counts = []
             for version_id, count in counter.items():
                 if version_id is None:
-                    vote_counts.append({
-                        "version_id": None,
-                        "version_name": "Leave as it is",
-                        "count": count,
-                    })
+                    vote_counts.append({"version_id": None, "version_name": "Leave as it is", "count": count})
                 else:
-                    vote = votes.filter(map_version_id=version_id).first()
-                    name = vote.map_version.name if vote and vote.map_version else "Unknown"
-                    vote_counts.append({
-                        "version_id": version_id,
-                        "version_name": name,
-                        "count": count,
-                    })
+                    v = votes.filter(map_version_id=version_id).first()
+                    name = v.map_version.name if v and v.map_version else "Unknown"
+                    vote_counts.append({"version_id": version_id, "version_name": name, "count": count})
 
-            # Determine winner (ties go to "leave as it is")
+            # Detect tie
             if not counter:
                 winning_id = None
+                is_tie = False
             else:
                 max_count = max(counter.values())
-                candidates = [vid for vid, c in counter.items() if c == max_count]
-                # Tie-break: prefer "leave as it is" (None)
-                winning_id = None if None in candidates else candidates[0]
+                tied_candidates = [vid for vid, c in counter.items() if c == max_count]
+                is_tie = len(tied_candidates) > 1
+
+                if is_tie:
+                    # Increment stalemate count — if already at limit, force "leave as is"
+                    game_round.stalemate_count += 1
+                    game_round.save(update_fields=["stalemate_count", "updated_at"])
+
+                    if game_round.stalemate_count < 2:
+                        # First stalemate: enter stalemate phase
+                        game_round.between_round_phase = "stalemate"
+                        game_round.save(update_fields=["between_round_phase", "updated_at"])
+                        return {
+                            "stalemate": True,
+                            "stalemate_count": game_round.stalemate_count,
+                            "vote_counts": vote_counts,
+                            "winning_version_id": None,
+                            "winning_version_name": "Leave as it is",
+                        }
+                    else:
+                        # Second stalemate: automatic "leave as is"
+                        winning_id = None
+                        is_tie = False  # proceed normally below
+                else:
+                    winning_id = None if None in tied_candidates else tied_candidates[0]
 
             # Find winning name
             winning_name = "Leave as it is"
@@ -885,12 +987,173 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
                     pass
 
             return {
+                "stalemate": False,
+                "stalemate_count": game_round.stalemate_count,
                 "winning_version_id": winning_id,
                 "winning_version_name": winning_name,
                 "vote_counts": vote_counts,
             }
 
         return await do_tally()
+
+    async def _handle_stalemate_vote(self, data: dict) -> None:
+        """Player votes on whether to revote after a stalemate."""
+        if self.is_host:
+            return
+
+        want_revote = bool(data.get("want_revote", False))
+
+        from channels.db import database_sync_to_async
+
+        @database_sync_to_async
+        def record_stalemate_vote():
+            from game.models import GameRound, Player, StalemateVote
+
+            game_round = (
+                GameRound.objects.filter(game__game_id=self.game_id)
+                .order_by("-round_number")
+                .first()
+            )
+            if not game_round:
+                return False, 0, 0
+
+            player = Player.objects.filter(
+                game__game_id=self.game_id, player_id=self.player_id
+            ).first()
+            if not player:
+                return False, 0, 0
+
+            if StalemateVote.objects.filter(game_round=game_round, player=player).exists():
+                return False, 0, 0
+
+            StalemateVote.objects.create(game_round=game_round, player=player, want_revote=want_revote)
+
+            cast = StalemateVote.objects.filter(game_round=game_round).count()
+            game = game_round.game
+            needed = Player.objects.filter(game=game).exclude(user=game.game_host).count()
+            return True, cast, needed
+
+        success, cast, needed = await record_stalemate_vote()
+        if not success:
+            return
+
+        await self.channel_layer.group_send(
+            self.group_name,
+            {
+                "type": "between_round_event",
+                "event": "stalemate.progress",
+                "data": {"cast": cast, "needed": needed},
+            },
+        )
+
+        if cast >= needed:
+            await self._resolve_stalemate_votes()
+
+    async def _handle_stalemate_force_leave(self) -> None:
+        """Host forces 'leave as is' outcome in a stalemate."""
+        if not self.is_host:
+            await self.send_json({"type": "error", "message": "Only host can force resolve"})
+            return
+
+        await self._apply_stalemate_leave_as_is()
+
+    async def _resolve_stalemate_votes(self) -> None:
+        """Count stalemate votes and either reopen voting or apply 'leave as is'."""
+        from channels.db import database_sync_to_async
+
+        @database_sync_to_async
+        def tally_stalemate():
+            from game.models import GameRound, StalemateVote
+
+            game_round = (
+                GameRound.objects.filter(game__game_id=self.game_id)
+                .order_by("-round_number")
+                .first()
+            )
+            if not game_round:
+                return False
+
+            revote_count = StalemateVote.objects.filter(game_round=game_round, want_revote=True).count()
+            leave_count = StalemateVote.objects.filter(game_round=game_round, want_revote=False).count()
+            return revote_count > leave_count
+
+        should_revote = await tally_stalemate()
+
+        if should_revote:
+            await self._reopen_voting_after_stalemate()
+        else:
+            await self._apply_stalemate_leave_as_is()
+
+    async def _reopen_voting_after_stalemate(self) -> None:
+        """Clear map version votes and reopen voting with the same options."""
+        from channels.db import database_sync_to_async
+
+        @database_sync_to_async
+        def clear_votes():
+            from game.models import GameRound, MapVersionVote
+
+            game_round = (
+                GameRound.objects.filter(game__game_id=self.game_id)
+                .order_by("-round_number")
+                .first()
+            )
+            if game_round:
+                MapVersionVote.objects.filter(game_round=game_round).delete()
+                game_round.between_round_phase = "voting"
+                game_round.save(update_fields=["between_round_phase", "updated_at"])
+
+        await clear_votes()
+
+        has_versions, versions_data = await self._get_voteable_versions_async()
+        await self.channel_layer.group_send(
+            self.group_name,
+            {
+                "type": "between_round_event",
+                "event": "vote.opened",
+                "data": {"versions": versions_data},
+            },
+        )
+
+    async def _apply_stalemate_leave_as_is(self) -> None:
+        """Apply 'leave as is' result and proceed to next round."""
+        result = {
+            "stalemate": False,
+            "winning_version_id": None,
+            "winning_version_name": "Leave as it is",
+            "vote_counts": [],
+            "forced": True,
+        }
+        await self.channel_layer.group_send(
+            self.group_name,
+            {
+                "type": "between_round_event",
+                "event": "vote.result",
+                "data": result,
+            },
+        )
+        await self._start_next_round()
+
+    async def _get_stalemate_vote_progress(self) -> tuple[int, int]:
+        """Get count of stalemate votes cast and total needed."""
+        from channels.db import database_sync_to_async
+
+        @database_sync_to_async
+        def fetch():
+            from game.models import GameRound, Player, StalemateVote
+
+            game_round = (
+                GameRound.objects.filter(game__game_id=self.game_id)
+                .order_by("-round_number")
+                .first()
+            )
+            if not game_round:
+                return 0, 0
+            cast = StalemateVote.objects.filter(game_round=game_round).count()
+            game = game_round.game
+            needed = Player.objects.filter(game=game).exclude(user=game.game_host).count()
+            return cast, needed
+
+        return await fetch()
 
     async def _start_next_round(self) -> None:
         """Create a new round and broadcast round.started."""

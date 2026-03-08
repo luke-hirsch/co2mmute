@@ -160,12 +160,14 @@ class GameRound(models.Model):
         STATS = "stats", "Stats Review"
         DISCUSSION = "discussion", "Discussion"
         VOTING = "voting", "Voting"
+        STALEMATE = "stalemate", "Stalemate"
 
     between_round_phase = models.CharField(
         max_length=20,
         choices=BetweenRoundPhase.choices,
         default=BetweenRoundPhase.NONE,
     )
+    stalemate_count = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
         unique_together = (("game", "round_number"),)
@@ -426,3 +428,24 @@ class MapVersionVote(models.Model):
     def __str__(self):
         version_name = self.map_version.name if self.map_version else "Leave as is"
         return f"Vote by {self.player} in round {self.game_round.round_number}: {version_name}"
+
+
+class StalemateVote(models.Model):
+    """Records a player's vote on whether to revote after a stalemate."""
+
+    game_round = models.ForeignKey(
+        GameRound, on_delete=models.CASCADE, related_name="stalemate_votes"
+    )
+    player = models.ForeignKey(
+        Player, on_delete=models.CASCADE, related_name="stalemate_votes"
+    )
+    want_revote = models.BooleanField()
+    voted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = (("game_round", "player"),)
+        ordering = ("game_round", "voted_at")
+
+    def __str__(self):
+        choice = "revote" if self.want_revote else "leave as is"
+        return f"Stalemate vote by {self.player} in round {self.game_round.round_number}: {choice}"
