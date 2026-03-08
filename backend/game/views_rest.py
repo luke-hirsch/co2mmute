@@ -399,12 +399,16 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
                     errors.append(f"Agent {agent_id}: edge {segment['edge_id']} does not exist")
                     continue
 
-                # Validate edge matches start/end nodes
-                if edge.start_node_id != segment["start_node"] or edge.end_node_id != segment["end_node"]:
+                # Validate edge matches start/end nodes.
+                # PT edges (bus/train) may be stored in either direction in the DB,
+                # so accept both the forward and reverse orientation.
+                mode = segment["mode"]
+                forward_ok = (edge.start_node_id == segment["start_node"] and edge.end_node_id == segment["end_node"])
+                reverse_ok = (edge.start_node_id == segment["end_node"] and edge.end_node_id == segment["start_node"])
+                if not forward_ok and not (mode in ("bus", "train") and reverse_ok):
                     errors.append(f"Agent {agent_id}: edge {segment['edge_id']} does not connect nodes {segment['start_node']} → {segment['end_node']}")
 
                 # Validate transport mode is allowed on this edge
-                mode = segment["mode"]
                 if mode == "walk" and not edge.walking:
                     errors.append(f"Agent {agent_id}: walking not allowed on edge {segment['edge_id']}")
                 if mode == "bike" and not edge.biking:

@@ -445,21 +445,33 @@ class PTLineGraphSerializer(serializers.Serializer):
 def serialize_bus_line_for_graph(bus_line, version):
     """Serialize a bus line for graph/routing purposes."""
     # Get edges in order and extract underlying edge IDs
-    street_edges = (
+    street_edges = list(
         bus_line.edges.filter(map_versions=version)
         .select_related("edge")
         .order_by("buslineedge__order")
     )
     edge_ids = [se.edge_id for se in street_edges]
 
-    # Extract stops (unique nodes from edges in order)
+    # Build stops in traversal order, respecting edge direction.
+    # An edge may be stored in reverse relative to the travel direction, so
+    # we track the previous node and follow whichever end connects.
     stops = []
     for se in street_edges:
         edge = se.edge
-        if edge.start_node_id not in stops:
+        if not stops:
             stops.append(edge.start_node_id)
-        if edge.end_node_id not in stops:
             stops.append(edge.end_node_id)
+        else:
+            prev = stops[-1]
+            if prev == edge.start_node_id:
+                stops.append(edge.end_node_id)
+            elif prev == edge.end_node_id:
+                # Edge stored in reverse — travel direction is end→start
+                stops.append(edge.start_node_id)
+            else:
+                # Disconnected edge (data issue): append both nodes
+                stops.append(edge.start_node_id)
+                stops.append(edge.end_node_id)
 
     return {
         "id": bus_line.id,
@@ -476,21 +488,33 @@ def serialize_bus_line_for_graph(bus_line, version):
 def serialize_train_line_for_graph(train_line, version):
     """Serialize a train line for graph/routing purposes."""
     # Get edges in order and extract underlying edge IDs
-    train_edges = (
+    train_edges = list(
         train_line.edges.filter(map_versions=version)
         .select_related("edge")
         .order_by("trainlineedge__order")
     )
     edge_ids = [te.edge_id for te in train_edges]
 
-    # Extract stops (unique nodes from edges in order)
+    # Build stops in traversal order, respecting edge direction.
+    # An edge may be stored in reverse relative to the travel direction, so
+    # we track the previous node and follow whichever end connects.
     stops = []
     for te in train_edges:
         edge = te.edge
-        if edge.start_node_id not in stops:
+        if not stops:
             stops.append(edge.start_node_id)
-        if edge.end_node_id not in stops:
             stops.append(edge.end_node_id)
+        else:
+            prev = stops[-1]
+            if prev == edge.start_node_id:
+                stops.append(edge.end_node_id)
+            elif prev == edge.end_node_id:
+                # Edge stored in reverse — travel direction is end→start
+                stops.append(edge.start_node_id)
+            else:
+                # Disconnected edge (data issue): append both nodes
+                stops.append(edge.start_node_id)
+                stops.append(edge.end_node_id)
 
     return {
         "id": train_line.id,
