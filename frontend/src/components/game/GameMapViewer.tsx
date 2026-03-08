@@ -26,11 +26,11 @@ interface GameMapViewerProps {
 
 // Colors for different transport modes on route segments
 const ROUTE_COLORS: Record<SegmentMode, string> = {
-  car: "#ef4444", // Red
-  bus: "#f97316", // Orange
-  train: "#8b5cf6", // Purple
-  bike: "#10b981", // Green
-  walk: "#3b82f6", // Blue
+  car: "#ffb300", // Accent amber
+  bus: "#ffb300", // Accent amber
+  train: "#ffb300", // Accent amber
+  bike: "#ffb300", // Accent amber
+  walk: "#ffb300", // Accent amber
 };
 
 /** Interpolate congestion ratio (0–1) to a green→yellow→orange→red color */
