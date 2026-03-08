@@ -62,6 +62,7 @@ class GameMap(models.Model):
 
 class MapVersion(models.Model):
     game_map = models.ForeignKey(GameMap, on_delete=models.CASCADE)
+    compatible_versions = models.ManyToManyField("self")
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
     base_version = models.BooleanField(default=False)
