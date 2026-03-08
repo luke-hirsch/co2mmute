@@ -762,33 +762,3 @@ function failResult(error: string): PTRoutingResult {
   };
 }
 
-async function fallbackToWalking(
-  graph: ExtendedMapGraph,
-  startNodeId: number,
-  endNodeId: number,
-  options: {
-    scale?: number;
-    onStateChange?: (state: PathfindingState) => void;
-    animationDelayMs?: number;
-  }
-): Promise<PTRoutingResult> {
-  const walkResult = await dijkstra(graph, startNodeId, endNodeId, "walk", {
-    scale: options.scale,
-    onStateChange: options.onStateChange,
-    animationDelayMs: options.animationDelayMs,
-  });
-
-  if (walkResult.success) {
-    return {
-      success: true,
-      walkToStation: [],
-      ptSegments: [],
-      walkFromStation: walkResult.segments,
-      totalDistanceM: walkResult.totalDistanceM,
-      totalTimeMin: walkResult.estimatedTimeMin,
-      waitTimeMin: 0,
-    };
-  }
-
-  return failResult("No public transport or walking route found");
-}
