@@ -18,7 +18,7 @@ import type {
   PTOptimization,
   RouteSegment,
 } from "../../types/routeTypes";
-import type { WSMapVersionOption } from "../../types/wsTypes";
+import type { WSMapVersionOption, WSVoteResultMessage } from "../../types/wsTypes";
 
 function VersionChangeImage({ version }: { version: WSMapVersionOption }) {
   if (!version.change_img_url) return null;
@@ -208,6 +208,7 @@ export default function GamePlay({
     number | null | undefined
   >(undefined);
   const [hasVotedOnStalemate, setHasVotedOnStalemate] = useState(false);
+  const [latchedVoteResult, setLatchedVoteResult] = useState<WSVoteResultMessage["data"] | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
 
   // Fetch game details to get map ID and player data
@@ -285,6 +286,7 @@ export default function GamePlay({
       setHasVoted(false);
       setSelectedVersionId(undefined);
       setHasVotedOnStalemate(false);
+      setLatchedVoteResult(null);
     }
     // Reset vote state when a new voting round opens (e.g. after stalemate revote)
     if (gameState?.betweenRoundPhase === "voting") {
@@ -292,6 +294,12 @@ export default function GamePlay({
       setSelectedVersionId(undefined);
       setHasVotedOnStalemate(false);
     }
+  }
+
+  // Latch the vote result so the overlay persists until the player dismisses it,
+  // even after round.started clears gameState.voteResult.
+  if (gameState?.voteResult && !latchedVoteResult) {
+    setLatchedVoteResult(gameState.voteResult);
   }
 
   // Derive phase (between-round phases take priority)
@@ -730,22 +738,21 @@ export default function GamePlay({
   if (phase === "voting") {
     return (
       <div className="w-full max-w-2xl">
-        {/* Vote result overlay — shown on top of the voting UI once results are in */}
-        {gameState.voteResult && (
+        {/* Vote result overlay — latched locally so it persists until player dismisses */}
+        {latchedVoteResult && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
             <div className="bg-white dark:bg-gray-800 rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl">
               <h2 className="text-2xl font-bold text-center mb-1">
                 Vote Results
               </h2>
               <p className="text-center text-muted dark:text-darkmutedtext mb-6">
-                {gameState.voteResult.winning_version_name} wins!
+                {latchedVoteResult.winning_version_name} wins!
               </p>
-              {gameState.voteResult.vote_counts.length > 0 && (
+              {latchedVoteResult.vote_counts.length > 0 && (
                 <div className="space-y-3 mb-6">
-                  {gameState.voteResult.vote_counts.map((vc) => {
+                  {latchedVoteResult.vote_counts.map((vc) => {
                     const isWinner =
-                      vc.version_id ===
-                      gameState.voteResult!.winning_version_id;
+                      vc.version_id === latchedVoteResult.winning_version_id;
                     return (
                       <div
                         key={vc.version_id ?? "leave"}
@@ -770,20 +777,12 @@ export default function GamePlay({
                   })}
                 </div>
               )}
-              <div className="flex justify-center gap-2">
-                <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" />
-                <div
-                  className="w-2 h-2 bg-primary-500 rounded-full animate-bounce"
-                  style={{ animationDelay: "0.1s" }}
-                />
-                <div
-                  className="w-2 h-2 bg-primary-500 rounded-full animate-bounce"
-                  style={{ animationDelay: "0.2s" }}
-                />
-              </div>
-              <p className="text-center text-sm text-muted dark:text-darkmutedtext mt-2">
-                Starting next round...
-              </p>
+              <button
+                onClick={() => setLatchedVoteResult(null)}
+                className="w-full rounded-lg bg-primary-600 px-6 py-3 font-semibold text-white transition-colors duration-200 hover:bg-primary-500"
+              >
+                OK
+              </button>
             </div>
           </div>
         )}
