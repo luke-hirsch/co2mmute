@@ -647,8 +647,14 @@ def _build_version_dict(active_version, target_version):
 
 
 def _get_voteable_map_versions(game_session):
-    """Return up to 2 compatible MapVersions based on active version's compatible_versions."""
+    """Return up to 2 compatible MapVersions based on active version's compatible_versions.
+
+    The random selection is cached so all clients (including reconnects) see the same
+    options for the duration of a round. Cache is cleared when the next round starts.
+    """
     import random
+    from django.core.cache import cache
+    from maps.models import MapVersion
 
     if not game_session.game_map or not game_session.map_updates:
         return []
@@ -657,9 +663,15 @@ def _get_voteable_map_versions(game_session):
     if active_version is None:
         return []
 
-    candidates = list(active_version.compatible_versions.all())
-    if len(candidates) > 2:
-        candidates = random.sample(candidates, 2)
+    cache_key = f"game:{game_session.game_id}:vote_version_ids"
+    cached_ids = cache.get(cache_key)
+    if cached_ids:
+        candidates = list(MapVersion.objects.filter(pk__in=cached_ids))
+    else:
+        candidates = list(active_version.compatible_versions.all())
+        if len(candidates) > 2:
+            candidates = random.sample(candidates, 2)
+        cache.set(cache_key, [v.pk for v in candidates], 7200)
 
     return candidates, active_version
 

@@ -671,12 +671,13 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
             return
 
         await self._set_round_phase("voting")
+        _, versions_data = await self._get_voteable_versions_async()
         await self.channel_layer.group_send(
             self.group_name,
             {
                 "type": "between_round_event",
                 "event": "vote.opened",
-                "data": {},
+                "data": {"versions": versions_data},
             },
         )
 
@@ -780,7 +781,9 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
         @database_sync_to_async
         def fetch():
             import random
+            from django.core.cache import cache
             from game.models import GameSession
+            from maps.models import MapVersion
 
             try:
                 game = GameSession.objects.get(game_id=self.game_id)
@@ -794,9 +797,15 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
             if active_version is None:
                 return False, []
 
-            candidates = list(active_version.compatible_versions.all())
-            if len(candidates) > 2:
-                candidates = random.sample(candidates, 2)
+            cache_key = f"game:{self.game_id}:vote_version_ids"
+            cached_ids = cache.get(cache_key)
+            if cached_ids:
+                candidates = list(MapVersion.objects.filter(pk__in=cached_ids))
+            else:
+                candidates = list(active_version.compatible_versions.all())
+                if len(candidates) > 2:
+                    candidates = random.sample(candidates, 2)
+                cache.set(cache_key, [v.pk for v in candidates], 7200)
 
             if not candidates:
                 return False, []
@@ -1165,8 +1174,13 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
 
     async def _start_next_round(self) -> None:
         """Create a new round and broadcast round.started."""
+        from asgiref.sync import sync_to_async
         from channels.db import database_sync_to_async
+        from django.core.cache import cache
         from co2mmute.utils import send_game_state_message
+
+        # Clear cached vote version selection so next round gets a fresh random pick
+        await sync_to_async(cache.delete)(f"game:{self.game_id}:vote_version_ids")
 
         @database_sync_to_async
         def create_round():
