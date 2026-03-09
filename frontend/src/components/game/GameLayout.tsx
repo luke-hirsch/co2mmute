@@ -53,7 +53,9 @@ const GameLayout = () => {
     !!selectedPlayer,
   );
 
-  const gameEnded = !!gameState?.endedAt;
+  const gameEnded =
+    !!gameState?.endedAt ||
+    (restGameData != null && !restGameData.is_active);
 
   // Map REST player data + roster data to WSPlayer for PlayerDetail component
   const selectedWSPlayer: WSPlayer | null =
