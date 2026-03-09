@@ -97,8 +97,103 @@ class MapVersionDetailView(RetrieveUpdateDestroyAPIView):
     serializer_class = MapVersionSerializer
     authentication_classes = (SessionAuthentication,)
     permission_classes = (IsStaffOrReadOnly,)
+    parser_classes = (MultiPartParser, FormParser)
     lookup_field = "pk"
     lookup_url_kwarg = "version_pk"
+
+
+class GenerateCombinationsView(GenericAPIView):
+    """Generate combination MapVersions from a list of atomic version IDs."""
+
+    authentication_classes = (SessionAuthentication,)
+    permission_classes = (IsStaffOrReadOnly,)
+
+    @transaction.atomic
+    def post(self, request, pk):
+        from itertools import combinations as _combinations
+
+        game_map = get_object_or_404(GameMap, pk=pk)
+        version_ids = request.data.get("version_ids", [])
+        if len(version_ids) < 2:
+            return Response(
+                {"error": "Provide at least 2 version IDs."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        atomic_versions = list(MapVersion.objects.filter(pk__in=version_ids, game_map=game_map))
+        if len(atomic_versions) != len(version_ids):
+            return Response(
+                {"error": "One or more versions not found for this map."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if any(v.base_version for v in atomic_versions):
+            return Response(
+                {"error": "Do not include base versions."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        base_version = MapVersion.objects.filter(game_map=game_map, base_version=True).first()
+
+        existing: dict = {}
+        for v in atomic_versions:
+            existing[frozenset([v.pk])] = v
+
+        n = len(atomic_versions)
+        all_subsets = []
+        for size in range(2, n + 1):
+            for combo in _combinations(atomic_versions, size):
+                all_subsets.append(frozenset(v.pk for v in combo))
+
+        created_count = 0
+        for subset in all_subsets:
+            if subset in existing:
+                continue
+            members = sorted([v for v in atomic_versions if v.pk in subset], key=lambda v: v.name)
+            combo_name = " + ".join(v.name for v in members)
+            combo_poll_text = "Apply changes: " + ", ".join(v.name for v in members)
+            combo_version = MapVersion.objects.create(
+                game_map=game_map,
+                name=combo_name,
+                poll_text=combo_poll_text,
+                revert_poll_text=f"Revert changes: {combo_name}",
+                base_version=False,
+            )
+            existing[subset] = combo_version
+            created_count += 1
+
+            member_versions = [existing[frozenset([p])] for p in subset]
+            for node in Node.objects.filter(map_versions__in=member_versions).distinct():
+                node.map_versions.add(combo_version)
+            for edge in Edge.objects.filter(map_versions__in=member_versions).distinct():
+                edge.map_versions.add(combo_version)
+            for se in StreetEdge.objects.filter(map_versions__in=member_versions).distinct():
+                se.map_versions.add(combo_version)
+            for te in TrainEdge.objects.filter(map_versions__in=member_versions).distinct():
+                te.map_versions.add(combo_version)
+            for bl in BusLine.objects.filter(map_versions__in=member_versions).distinct():
+                bl.map_versions.add(combo_version)
+
+        all_entries = {**existing}
+        for subset, version in all_entries.items():
+            neighbours = []
+            size = len(subset)
+            for other_subset, other_version in all_entries.items():
+                if len(other_subset) == size + 1 and subset.issubset(other_subset):
+                    neighbours.append(other_version)
+            for other_subset, other_version in all_entries.items():
+                if len(other_subset) == size - 1 and other_subset.issubset(subset):
+                    neighbours.append(other_version)
+            if size == 1 and base_version:
+                neighbours.append(base_version)
+            version.compatible_versions.set(neighbours)
+
+        if base_version:
+            existing_base_compat = list(base_version.compatible_versions.all())
+            new_atomics = [v for v in atomic_versions if v not in existing_base_compat]
+            if new_atomics:
+                base_version.compatible_versions.add(*new_atomics)
+
+        return Response({"created": created_count}, status=status.HTTP_201_CREATED)
 
 
 # NodeType Views

@@ -116,6 +116,12 @@ urlpatterns = [
         views_rest.VersionDiffCreateView.as_view(),
         name="version-diff-create",
     ),
+    # Generate combination versions
+    path(
+        "<int:pk>/versions/generate-combinations/",
+        views_rest.GenerateCombinationsView.as_view(),
+        name="version-generate-combinations",
+    ),
     # Map export (JSON)
     path(
         "<int:pk>/export/",

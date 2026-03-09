@@ -3,6 +3,13 @@ import maps.models as mm
 
 
 class MapVersionSerializer(serializers.ModelSerializer):
+    compatible_versions = serializers.PrimaryKeyRelatedField(
+        queryset=mm.MapVersion.objects.all(),
+        many=True,
+        required=False,
+    )
+    change_img_url = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = mm.MapVersion
         fields = (
@@ -14,8 +21,26 @@ class MapVersionSerializer(serializers.ModelSerializer):
             "poll_text",
             "revert_poll_text",
             "source_version",
+            "compatible_versions",
+            "change_img",
+            "change_img_url",
         )
         read_only_fields = ("id",)
+        extra_kwargs = {
+            "change_img": {"write_only": True, "required": False, "allow_null": True},
+        }
+
+    def get_change_img_url(self, obj):
+        if obj.change_img:
+            return obj.change_img.url
+        return None
+
+    def update(self, instance, validated_data):
+        compatible_versions = validated_data.pop("compatible_versions", None)
+        instance = super().update(instance, validated_data)
+        if compatible_versions is not None:
+            instance.compatible_versions.set(compatible_versions)
+        return instance
 
 
 class MapVersionsMixin:

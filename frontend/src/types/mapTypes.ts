@@ -74,6 +74,8 @@ export interface MapVersion {
   base_version: boolean;
   poll_text: string;
   revert_poll_text: string;
+  compatible_versions: number[];
+  change_img_url: string | null;
 }
 
 export interface MapGraph {

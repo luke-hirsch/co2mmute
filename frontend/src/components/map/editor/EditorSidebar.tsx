@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Dispatch } from "react";
 import type { GameMap, MapVersion } from "../../../types/mapTypes";
 import type { ExtendedMapGraph } from "../../../types/routeTypes";
@@ -17,6 +18,7 @@ import EdgePropertyPanel from "./EdgePropertyPanel";
 import NodePropertyPanel from "./NodePropertyPanel";
 import PTLinePanel from "./PTLinePanel";
 import VersionDiffPanel from "./VersionDiffPanel";
+import VersionManagerPanel from "./VersionManagerPanel";
 
 interface EditorSidebarProps {
   mapId: string;
@@ -83,6 +85,8 @@ const EditorSidebar = ({
   cascadeDeletedEdgeIds,
   setCascadeDeletedEdgeIds,
 }: EditorSidebarProps) => {
+  const [versionTab, setVersionTab] = useState<"create" | "manage">("create");
+
   const selectedNode = state.selectedNodeId
     ? mapGraph?.nodes.find((n) => n.id === state.selectedNodeId)
     : null;
@@ -142,36 +146,70 @@ const EditorSidebar = ({
 
       {/* Version Diff mode */}
       {state.mode === "version-diff" && (
-        <VersionDiffPanel
-          mapId={mapId}
-          mapGraph={mapGraph}
-          versions={versions}
-          selectedVersionId={selectedVersionId}
-          onVersionChange={onVersionChange}
-          edgeChanges={edgeChanges}
-          setEdgeChanges={setEdgeChanges}
-          ptLineChanges={ptLineChanges}
-          setPtLineChanges={setPtLineChanges}
-          selectedEdge={selectedEdge ?? undefined}
-          dispatch={dispatch}
-          versionDiffStep={state.versionDiffStep}
-          versionMetadata={versionMetadata}
-          setVersionMetadata={setVersionMetadata}
-          versionDiffEditingPtLine={versionDiffEditingPtLine}
-          setVersionDiffEditingPtLine={setVersionDiffEditingPtLine}
-          ptLineEdgeIds={ptLineEdgeIds}
-          setPtLineEdgeIds={setPtLineEdgeIds}
-          newNodes={newNodes}
-          setNewNodes={setNewNodes}
-          newEdges={newEdges}
-          setNewEdges={setNewEdges}
-          deletedNodeIds={deletedNodeIds}
-          setDeletedNodeIds={setDeletedNodeIds}
-          deletedEdgeIds={deletedEdgeIds}
-          setDeletedEdgeIds={setDeletedEdgeIds}
-          cascadeDeletedEdgeIds={cascadeDeletedEdgeIds}
-          setCascadeDeletedEdgeIds={setCascadeDeletedEdgeIds}
-        />
+        <>
+          {/* Sub-tab bar */}
+          <div className="flex rounded-lg overflow-hidden border border-subtle dark:border-darksubtle">
+            <button
+              type="button"
+              onClick={() => setVersionTab("create")}
+              className={`flex-1 py-1.5 text-sm font-medium transition-colors ${
+                versionTab === "create"
+                  ? "bg-accent dark:bg-darkaccent text-white"
+                  : "bg-subtle dark:bg-darksubtle text-main dark:text-darktext hover:bg-white dark:hover:bg-darkbg"
+              }`}
+            >
+              Create
+            </button>
+            <button
+              type="button"
+              onClick={() => setVersionTab("manage")}
+              className={`flex-1 py-1.5 text-sm font-medium transition-colors ${
+                versionTab === "manage"
+                  ? "bg-accent dark:bg-darkaccent text-white"
+                  : "bg-subtle dark:bg-darksubtle text-main dark:text-darktext hover:bg-white dark:hover:bg-darkbg"
+              }`}
+            >
+              Manage
+            </button>
+          </div>
+
+          {versionTab === "create" && (
+            <VersionDiffPanel
+              mapId={mapId}
+              mapGraph={mapGraph}
+              versions={versions}
+              selectedVersionId={selectedVersionId}
+              onVersionChange={onVersionChange}
+              edgeChanges={edgeChanges}
+              setEdgeChanges={setEdgeChanges}
+              ptLineChanges={ptLineChanges}
+              setPtLineChanges={setPtLineChanges}
+              selectedEdge={selectedEdge ?? undefined}
+              dispatch={dispatch}
+              versionDiffStep={state.versionDiffStep}
+              versionMetadata={versionMetadata}
+              setVersionMetadata={setVersionMetadata}
+              versionDiffEditingPtLine={versionDiffEditingPtLine}
+              setVersionDiffEditingPtLine={setVersionDiffEditingPtLine}
+              ptLineEdgeIds={ptLineEdgeIds}
+              setPtLineEdgeIds={setPtLineEdgeIds}
+              newNodes={newNodes}
+              setNewNodes={setNewNodes}
+              newEdges={newEdges}
+              setNewEdges={setNewEdges}
+              deletedNodeIds={deletedNodeIds}
+              setDeletedNodeIds={setDeletedNodeIds}
+              deletedEdgeIds={deletedEdgeIds}
+              setDeletedEdgeIds={setDeletedEdgeIds}
+              cascadeDeletedEdgeIds={cascadeDeletedEdgeIds}
+              setCascadeDeletedEdgeIds={setCascadeDeletedEdgeIds}
+            />
+          )}
+
+          {versionTab === "manage" && (
+            <VersionManagerPanel mapId={mapId} />
+          )}
+        </>
       )}
     </div>
   );
