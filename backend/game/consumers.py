@@ -542,22 +542,9 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
                 )
             )
 
-            # Get voteable map versions if in a between-round phase
             between_round_phase = (
                 current_round.between_round_phase if current_round else "none"
             )
-            map_versions_data = []
-            if between_round_phase in ("stats", "discussion", "voting"):
-                from maps.models import MapVersion
-
-                if game.game_map and game.map_updates:
-                    versions = MapVersion.objects.filter(
-                        game_map=game.game_map, base_version=False
-                    ).exclude(pk=game.active_map_version_id)
-                    map_versions_data = [
-                        {"id": mv.id, "name": mv.name, "poll_text": mv.poll_text}
-                        for mv in versions
-                    ]
 
             return {
                 "isActive": game.is_active,
@@ -569,11 +556,30 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
                 "endedAt": game.ended_at.isoformat() if game.ended_at else None,
                 "betweenRoundPhase": between_round_phase,
                 "activeMapVersionId": game.active_map_version_id,
-                "hasMapVersions": bool(map_versions_data),
-                "mapVersions": map_versions_data,
+                "hasMap": bool(game.game_map),
+                "mapUpdates": bool(game.map_updates),
             }
 
-        return await fetch_state()
+        base_state = await fetch_state()
+        if base_state is None:
+            return None
+
+        # Fetch the correct ≤2 compatible voteable versions (same logic used during the
+        # round) instead of querying all non-base versions.
+        map_versions_data = []
+        if base_state["betweenRoundPhase"] in ("stats", "discussion", "voting", "stalemate"):
+            if base_state["hasMap"] and base_state["mapUpdates"]:
+                _, map_versions_data = await self._get_voteable_versions_async()
+
+        # Remove internal flags before returning to the client
+        base_state.pop("hasMap")
+        base_state.pop("mapUpdates")
+
+        return {
+            **base_state,
+            "hasMapVersions": bool(map_versions_data),
+            "mapVersions": map_versions_data,
+        }
 
     # ─────────────────────────────────────────────────────────────────────────
     # Between-round phase handlers (stats → discussion → voting → next round)

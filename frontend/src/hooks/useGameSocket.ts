@@ -106,8 +106,10 @@ export function useGameSocket(
             endReason: null,
             maxRounds: data.max_rounds,
             maxCo2LevelG: data.max_co2_level * 1000,
-            currentRound: data.current_round,
-            totalEmissionsG: 0,
+            // Guard against spurious game.started rebroadcasts (e.g. from mid-game saves):
+            // never go backwards on round number, never wipe CO2 once the game is running.
+            currentRound: Math.max(data.current_round, prev?.currentRound ?? 0),
+            totalEmissionsG: prev?.isActive ? prev.totalEmissionsG : 0,
             lastRoundStats: prev?.lastRoundStats || null,
             roster: prev?.roster || [],
             ...defaultBetweenRound,
@@ -239,7 +241,7 @@ export function useGameSocket(
         case "vote.result": {
           const data = msg.data as WSVoteResultMessage["data"];
           setGameState((prev) =>
-            prev ? { ...prev, voteResult: data } : prev,
+            prev ? { ...prev, voteResult: data, betweenRoundPhase: "voting" } : prev,
           );
           break;
         }

@@ -1,13 +1,14 @@
 from django.urls import path
+
 from game.views_rest import (
-    PlayerListView,
-    PlayerDetailView,
     GameSessionDetailView,
-    GetYourOwnGame,
     GameSessionListView,
+    GameSummaryView,
+    GetYourOwnGame,
+    PlayerDetailView,
+    PlayerListView,
     PlayerMoveView,
     RoundTrafficHeatmapView,
-    GameSummaryView,
 )
 
 app_name = "game"

@@ -1,13 +1,23 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { useGameSocket } from "../../hooks/useGameSocket";
 import { usePlayerMove } from "../../hooks/usePlayerMove";
-import { useGameDetails, usePlayerGameDetails, useRoundTraffic } from "../../hooks/gameHooks";
+import {
+  useGameDetails,
+  usePlayerGameDetails,
+  useRoundTraffic,
+} from "../../hooks/gameHooks";
 import { useMapGraph } from "../../hooks/mapHooks";
 import { useAgentRoutes } from "../../hooks/usePathfinding";
 import Loading from "../Loading";
 import GameMapViewer from "./GameMapViewer";
 import { API_BASE_URL } from "../../config";
-import type { ExtendedMapGraph, TransportMode, CarOptimization, PTOptimization, RouteSegment } from "../../types/routeTypes";
+import type {
+  ExtendedMapGraph,
+  TransportMode,
+  CarOptimization,
+  PTOptimization,
+  RouteSegment,
+} from "../../types/routeTypes";
 import type { WSMapVersionOption } from "../../types/wsTypes";
 
 function VersionChangeImage({ version }: { version: WSMapVersionOption }) {
@@ -30,7 +40,14 @@ interface GamePlayProps {
   isHost?: boolean;
 }
 
-type GamePhase = "lobby" | "playing" | "waiting" | "round_results" | "discussion" | "voting" | "stalemate";
+type GamePhase =
+  | "lobby"
+  | "playing"
+  | "waiting"
+  | "round_results"
+  | "discussion"
+  | "voting"
+  | "stalemate";
 
 const TRANSPORT_OPTIONS: {
   id: TransportMode;
@@ -50,21 +67,24 @@ const TRANSPORT_OPTIONS: {
     id: "public",
     label: "Bus/Train",
     emoji: "🚌",
-    color: "bg-yellow-100 dark:bg-yellow-900/30 border-yellow-300 dark:border-yellow-700",
+    color:
+      "bg-yellow-100 dark:bg-yellow-900/30 border-yellow-300 dark:border-yellow-700",
     description: "Balanced",
   },
   {
     id: "bike",
     label: "Bike",
     emoji: "🚴",
-    color: "bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700",
+    color:
+      "bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700",
     description: "Eco-friendly",
   },
   {
     id: "walk",
     label: "Walk",
     emoji: "🚶",
-    color: "bg-blue-100 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700",
+    color:
+      "bg-blue-100 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700",
     description: "Zero CO2",
   },
 ];
@@ -85,15 +105,37 @@ const PT_OPTIMIZATION_OPTIONS: {
   description: string;
 }[] = [
   { id: "fastest", label: "Fastest", description: "Minimize total time" },
-  { id: "fewest_transfers", label: "Fewest Transfers", description: "Prefer direct lines" },
+  {
+    id: "fewest_transfers",
+    label: "Fewest Transfers",
+    description: "Prefer direct lines",
+  },
   { id: "no_bus", label: "No Bus", description: "Train & walk only" },
 ];
 
-function buildPTLegs(segments: RouteSegment[]): { mode: "walk" | "bus" | "train"; label: string; emoji: string; distanceM: number }[] {
-  const legs: { mode: "walk" | "bus" | "train"; label: string; emoji: string; distanceM: number }[] = [];
+function buildPTLegs(
+  segments: RouteSegment[],
+): {
+  mode: "walk" | "bus" | "train";
+  label: string;
+  emoji: string;
+  distanceM: number;
+}[] {
+  const legs: {
+    mode: "walk" | "bus" | "train";
+    label: string;
+    emoji: string;
+    distanceM: number;
+  }[] = [];
   for (const seg of segments) {
-    const mode = seg.mode === "bus" ? "bus" : seg.mode === "train" ? "train" : "walk";
-    const label = mode === "bus" ? (seg.ptLineName ?? "Bus") : mode === "train" ? (seg.ptLineName ?? "Train") : "Walk";
+    const mode =
+      seg.mode === "bus" ? "bus" : seg.mode === "train" ? "train" : "walk";
+    const label =
+      mode === "bus"
+        ? (seg.ptLineName ?? "Bus")
+        : mode === "train"
+          ? (seg.ptLineName ?? "Train")
+          : "Walk";
     const emoji = mode === "bus" ? "🚌" : mode === "train" ? "🚆" : "🚶";
     const last = legs.at(-1);
     if (last && last.label === label) {
@@ -107,12 +149,30 @@ function buildPTLegs(segments: RouteSegment[]): { mode: "walk" | "bus" | "train"
 
 // Agent colors for visual distinction
 const AGENT_COLORS = [
-  { text: "text-blue-600 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-900/20" },
-  { text: "text-green-600 dark:text-green-400", bg: "bg-green-50 dark:bg-green-900/20" },
-  { text: "text-orange-600 dark:text-orange-400", bg: "bg-orange-50 dark:bg-orange-900/20" },
-  { text: "text-purple-600 dark:text-purple-400", bg: "bg-purple-50 dark:bg-purple-900/20" },
-  { text: "text-pink-600 dark:text-pink-400", bg: "bg-pink-50 dark:bg-pink-900/20" },
-  { text: "text-cyan-600 dark:text-cyan-400", bg: "bg-cyan-50 dark:bg-cyan-900/20" },
+  {
+    text: "text-blue-600 dark:text-blue-400",
+    bg: "bg-blue-50 dark:bg-blue-900/20",
+  },
+  {
+    text: "text-green-600 dark:text-green-400",
+    bg: "bg-green-50 dark:bg-green-900/20",
+  },
+  {
+    text: "text-orange-600 dark:text-orange-400",
+    bg: "bg-orange-50 dark:bg-orange-900/20",
+  },
+  {
+    text: "text-purple-600 dark:text-purple-400",
+    bg: "bg-purple-50 dark:bg-purple-900/20",
+  },
+  {
+    text: "text-pink-600 dark:text-pink-400",
+    bg: "bg-pink-50 dark:bg-pink-900/20",
+  },
+  {
+    text: "text-cyan-600 dark:text-cyan-400",
+    bg: "bg-cyan-50 dark:bg-cyan-900/20",
+  },
 ];
 
 export default function GamePlay({
@@ -144,7 +204,9 @@ export default function GamePlay({
   const [animationSpeed, setAnimationSpeed] = useState(100);
   const [hasAckedStats, setHasAckedStats] = useState(false);
   const [hasVoted, setHasVoted] = useState(false);
-  const [selectedVersionId, setSelectedVersionId] = useState<number | null | undefined>(undefined);
+  const [selectedVersionId, setSelectedVersionId] = useState<
+    number | null | undefined
+  >(undefined);
   const [hasVotedOnStalemate, setHasVotedOnStalemate] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
 
@@ -153,7 +215,7 @@ export default function GamePlay({
   const playerGameDetails = usePlayerGameDetails(
     gameId,
     playerId || "",
-    !isHost && !!playerId
+    !isHost && !!playerId,
   );
 
   const gameDetails = isHost ? hostGameDetails.data : playerGameDetails.data;
@@ -173,7 +235,7 @@ export default function GamePlay({
   const isRoundResults = gameState?.betweenRoundPhase === "stats";
   const { data: trafficData } = useRoundTraffic(
     gameId,
-    isRoundResults ? (gameState?.currentRound ?? null) : null
+    isRoundResults ? (gameState?.currentRound ?? null) : null,
   );
 
   // Get player's agent assignments
@@ -209,8 +271,13 @@ export default function GamePlay({
     animationSpeed,
   });
 
-  // Reset state when a new round starts (betweenRoundPhase goes back to "none")
-  useEffect(() => {
+  // Reset state on between-round phase transitions using the "adjust during rendering"
+  // pattern (React docs recommendation over useEffect for derived state resets).
+  const [prevBetweenRoundPhase, setPrevBetweenRoundPhase] = useState<
+    string | undefined
+  >(gameState?.betweenRoundPhase);
+  if (prevBetweenRoundPhase !== gameState?.betweenRoundPhase) {
+    setPrevBetweenRoundPhase(gameState?.betweenRoundPhase);
     if (gameState?.betweenRoundPhase === "none") {
       setIsSubmitted(false);
       setShowCarOptions(null);
@@ -219,8 +286,13 @@ export default function GamePlay({
       setSelectedVersionId(undefined);
       setHasVotedOnStalemate(false);
     }
-  }, [gameState?.betweenRoundPhase]);
-
+    // Reset vote state when a new voting round opens (e.g. after stalemate revote)
+    if (gameState?.betweenRoundPhase === "voting") {
+      setHasVoted(false);
+      setSelectedVersionId(undefined);
+      setHasVotedOnStalemate(false);
+    }
+  }
 
   // Derive phase (between-round phases take priority)
   const phase: GamePhase = useMemo(() => {
@@ -252,71 +324,90 @@ export default function GamePlay({
     return agent?.destinationNode;
   }, [selectedAgentId, agents]);
 
-  const handleFindRoute = useCallback(async (agentId: number) => {
-    if (!mapGraph || homeNode === undefined) {
-      console.warn("[GamePlay] Cannot find route: missing mapGraph or homeNode");
-      return;
-    }
+  const handleFindRoute = useCallback(
+    async (agentId: number) => {
+      if (!mapGraph || homeNode === undefined) {
+        console.warn(
+          "[GamePlay] Cannot find route: missing mapGraph or homeNode",
+        );
+        return;
+      }
 
-    // Scroll map into view so user can watch the animation
-    if (animationEnabled) {
-      mapRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+      // Scroll map into view so user can watch the animation
+      if (animationEnabled) {
+        mapRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
 
-    const extendedGraph: ExtendedMapGraph = {
-      ...mapGraph,
-      bus_lines: (mapGraph as ExtendedMapGraph).bus_lines ?? [],
-      train_lines: (mapGraph as ExtendedMapGraph).train_lines ?? [],
-      scale: (mapGraph as ExtendedMapGraph).scale ?? 100,
-    };
+      const extendedGraph: ExtendedMapGraph = {
+        ...mapGraph,
+        bus_lines: (mapGraph as ExtendedMapGraph).bus_lines ?? [],
+        train_lines: (mapGraph as ExtendedMapGraph).train_lines ?? [],
+        scale: (mapGraph as ExtendedMapGraph).scale ?? 100,
+      };
 
-    await findAgentRoute(agentId, extendedGraph, homeNode);
-  }, [mapGraph, homeNode, findAgentRoute, animationEnabled]);
+      await findAgentRoute(agentId, extendedGraph, homeNode);
+    },
+    [mapGraph, homeNode, findAgentRoute, animationEnabled],
+  );
 
-  const handleTransportSelect = useCallback((agentId: number, mode: TransportMode) => {
-    if (mode === "car") {
-      setShowCarOptions(agentId);
-      setShowPTOptions(null);
-      setAgentMode(agentId, mode, "time");
-    } else if (mode === "public") {
-      setShowPTOptions(agentId);
+  const handleTransportSelect = useCallback(
+    (agentId: number, mode: TransportMode) => {
+      if (mode === "car") {
+        setShowCarOptions(agentId);
+        setShowPTOptions(null);
+        setAgentMode(agentId, mode, "time");
+      } else if (mode === "public") {
+        setShowPTOptions(agentId);
+        setShowCarOptions(null);
+        setAgentMode(agentId, mode, undefined, "fastest");
+      } else {
+        setShowCarOptions(null);
+        setShowPTOptions(null);
+        setAgentMode(agentId, mode);
+        // Auto-find route for non-car/non-public modes
+        setTimeout(() => handleFindRoute(agentId), 100);
+      }
+      // Select this agent for map visualization
+      setSelectedAgentId(agentId);
+    },
+    [setAgentMode, handleFindRoute],
+  );
+
+  const handleCarOptimizationSelect = useCallback(
+    (agentId: number, optimization: CarOptimization) => {
+      setAgentMode(agentId, "car", optimization);
       setShowCarOptions(null);
-      setAgentMode(agentId, mode, undefined, "fastest");
-    } else {
-      setShowCarOptions(null);
-      setShowPTOptions(null);
-      setAgentMode(agentId, mode);
-      // Auto-find route for non-car/non-public modes
+      // Auto-find route after selecting optimization
       setTimeout(() => handleFindRoute(agentId), 100);
-    }
-    // Select this agent for map visualization
-    setSelectedAgentId(agentId);
-  }, [setAgentMode, handleFindRoute]);
+    },
+    [setAgentMode, handleFindRoute],
+  );
 
-  const handleCarOptimizationSelect = useCallback((agentId: number, optimization: CarOptimization) => {
-    setAgentMode(agentId, "car", optimization);
-    setShowCarOptions(null);
-    // Auto-find route after selecting optimization
-    setTimeout(() => handleFindRoute(agentId), 100);
-  }, [setAgentMode, handleFindRoute]);
+  const handlePTOptimizationSelect = useCallback(
+    (agentId: number, ptOptimization: PTOptimization) => {
+      setAgentMode(agentId, "public", undefined, ptOptimization);
+      setShowPTOptions(null);
+      setTimeout(() => handleFindRoute(agentId), 100);
+    },
+    [setAgentMode, handleFindRoute],
+  );
 
-  const handlePTOptimizationSelect = useCallback((agentId: number, ptOptimization: PTOptimization) => {
-    setAgentMode(agentId, "public", undefined, ptOptimization);
-    setShowPTOptions(null);
-    setTimeout(() => handleFindRoute(agentId), 100);
-  }, [setAgentMode, handleFindRoute]);
-
-  const handleClearRoute = useCallback((agentId: number) => {
-    clearAgentRoute(agentId);
-    setShowCarOptions(null);
-    setShowPTOptions(null);
-  }, [clearAgentRoute]);
+  const handleClearRoute = useCallback(
+    (agentId: number) => {
+      clearAgentRoute(agentId);
+      setShowCarOptions(null);
+      setShowPTOptions(null);
+    },
+    [clearAgentRoute],
+  );
 
   const handleSubmit = async () => {
     const payload = getSubmissionPayload();
     if (!payload) return;
 
-    const success = await submitMove("route_submission", { agents: payload.agents });
+    const success = await submitMove("route_submission", {
+      agents: payload.agents,
+    });
     if (success) {
       setIsSubmitted(true);
     }
@@ -342,7 +433,9 @@ export default function GamePlay({
     return (
       <div className="flex flex-col items-center justify-center gap-4">
         <Loading />
-        <p className="text-muted dark:text-darkmutedtext">Connecting to game...</p>
+        <p className="text-muted dark:text-darkmutedtext">
+          Connecting to game...
+        </p>
       </div>
     );
   }
@@ -360,18 +453,24 @@ export default function GamePlay({
   // Render round results phase
   if (phase === "round_results") {
     const myStats = gameState.lastRoundStats?.find(
-      (s) => s.player_id === playerId
+      (s) => s.player_id === playerId,
     );
     const myAgents = myStats?.agents ?? [];
 
     const getModeDisplay = (mode: string) => {
       switch (mode) {
-        case "car": return { emoji: "🚗", label: "Car" };
-        case "bus": return { emoji: "🚌", label: "Bus" };
-        case "train": return { emoji: "🚆", label: "Train" };
-        case "bike": return { emoji: "🚴", label: "Bike" };
-        case "walk": return { emoji: "🚶", label: "Walk" };
-        default: return { emoji: "❓", label: mode };
+        case "car":
+          return { emoji: "🚗", label: "Car" };
+        case "bus":
+          return { emoji: "🚌", label: "Bus" };
+        case "train":
+          return { emoji: "🚆", label: "Train" };
+        case "bike":
+          return { emoji: "🚴", label: "Bike" };
+        case "walk":
+          return { emoji: "🚶", label: "Walk" };
+        default:
+          return { emoji: "❓", label: mode };
       }
     };
 
@@ -400,7 +499,9 @@ export default function GamePlay({
                     className="flex items-center justify-between p-3 bg-elevated dark:bg-darkelevated rounded"
                   >
                     <div className="flex items-center gap-2">
-                      <span className={`font-bold ${color.text}`}>#{agent.agent_id}</span>
+                      <span className={`font-bold ${color.text}`}>
+                        #{agent.agent_id}
+                      </span>
                       <span className="text-lg">{modeInfo.emoji}</span>
                       <span className="font-medium">{modeInfo.label}</span>
                     </div>
@@ -409,17 +510,19 @@ export default function GamePlay({
                         {formatTime(agent.trip_time_min)}
                       </span>
                       {agent.delay_min > 0 && (
-                        <span className="text-orange-600 dark:text-orange-400" title="Delay">
+                        <span
+                          className="text-orange-600 dark:text-orange-400"
+                          title="Delay"
+                        >
                           +{Math.round(agent.delay_min)} min
                         </span>
                       )}
-                      <span title="Cost">
-                        {agent.cost_eur.toFixed(2)} EUR
-                      </span>
+                      <span title="Cost">{agent.cost_eur.toFixed(2)} EUR</span>
                       <span title="CO2 emissions">
                         {agent.co2_g >= 1000
                           ? `${(agent.co2_g / 1000).toFixed(1)} kg`
-                          : `${Math.round(agent.co2_g)} g`} CO2
+                          : `${Math.round(agent.co2_g)} g`}{" "}
+                        CO2
                       </span>
                     </div>
                   </div>
@@ -434,7 +537,8 @@ export default function GamePlay({
                 <span>
                   {myStats.emissions_g >= 1000
                     ? `${(myStats.emissions_g / 1000).toFixed(1)} kg`
-                    : `${Math.round(myStats.emissions_g)} g`} CO2
+                    : `${Math.round(myStats.emissions_g)} g`}{" "}
+                  CO2
                 </span>
               </div>
             </div>
@@ -480,15 +584,23 @@ export default function GamePlay({
                     >
                       <td className="py-1.5">
                         {stat.player_name}
-                        {isMe && <span className="text-xs text-muted dark:text-darkmutedtext ml-1">(you)</span>}
+                        {isMe && (
+                          <span className="text-xs text-muted dark:text-darkmutedtext ml-1">
+                            (you)
+                          </span>
+                        )}
                       </td>
                       <td className="text-right py-1.5">
                         {stat.emissions_g >= 1000
                           ? `${(stat.emissions_g / 1000).toFixed(1)} kg`
                           : `${Math.round(stat.emissions_g)} g`}
                       </td>
-                      <td className="text-right py-1.5">{stat.cost_eur.toFixed(2)} EUR</td>
-                      <td className="text-right py-1.5">{formatTime(stat.time_min)}</td>
+                      <td className="text-right py-1.5">
+                        {stat.cost_eur.toFixed(2)} EUR
+                      </td>
+                      <td className="text-right py-1.5">
+                        {formatTime(stat.time_min)}
+                      </td>
                     </tr>
                   );
                 })}
@@ -526,11 +638,19 @@ export default function GamePlay({
         <div className="text-center">
           {hasAckedStats ? (
             <div className="flex flex-col items-center gap-2">
-              <p className="text-muted dark:text-darkmutedtext">Waiting for other players...</p>
+              <p className="text-muted dark:text-darkmutedtext">
+                Waiting for other players...
+              </p>
               <div className="flex gap-2">
                 <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" />
-                <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
-                <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+                <div
+                  className="w-2 h-2 bg-primary-500 rounded-full animate-bounce"
+                  style={{ animationDelay: "0.1s" }}
+                />
+                <div
+                  className="w-2 h-2 bg-primary-500 rounded-full animate-bounce"
+                  style={{ animationDelay: "0.2s" }}
+                />
               </div>
             </div>
           ) : (
@@ -574,7 +694,9 @@ export default function GamePlay({
                   </span>
                 )}
               </div>
-              <p className="text-muted dark:text-darkmutedtext">{version.poll_text}</p>
+              <p className="text-muted dark:text-darkmutedtext">
+                {version.poll_text}
+              </p>
               <VersionChangeImage version={version} />
             </div>
           ))}
@@ -606,191 +728,222 @@ export default function GamePlay({
 
   // Render voting phase
   if (phase === "voting") {
-    const hasResult = !!gameState.voteResult;
-
-    // Show vote results
-    if (hasResult) {
-      const result = gameState.voteResult!;
-      return (
-        <div className="w-full max-w-2xl">
-          <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold mb-1">Vote Results</h1>
-            <p className="text-muted dark:text-darkmutedtext">
-              {result.winning_version_name} wins!
-            </p>
-          </div>
-
-          <div className="space-y-3 mb-6">
-            {result.vote_counts.map((vc) => {
-              const isWinner = vc.version_id === result.winning_version_id;
-              return (
-                <div
-                  key={vc.version_id ?? "leave"}
-                  className={`p-4 rounded-lg border-2 ${
-                    isWinner
-                      ? "border-primary-500 bg-primary-50 dark:bg-primary-900/20"
-                      : "border-subtle dark:border-darksubtle bg-surface dark:bg-darksurface"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold">{vc.version_name}</span>
-                    <span className={`font-bold ${isWinner ? "text-primary-600 dark:text-primary-400" : ""}`}>
-                      {vc.count} vote{vc.count !== 1 ? "s" : ""}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="text-center">
-            <div className="flex justify-center gap-2">
-              <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" />
-              <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
-              <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
-            </div>
-            <p className="text-sm text-muted dark:text-darkmutedtext mt-2">
-              Starting next round...
-            </p>
-          </div>
-        </div>
-      );
-    }
-
-    // Host sees live vote progress (not the voting form)
-    if (isHost) {
-      return (
-        <div className="w-full max-w-2xl">
-          <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold mb-1">Voting in Progress</h1>
-            <p className="text-muted dark:text-darkmutedtext">
-              {gameState.voteProgress
-                ? `${gameState.voteProgress.cast} / ${gameState.voteProgress.needed} votes cast`
-                : "Waiting for votes..."}
-            </p>
-          </div>
-          <div className="space-y-3 mb-6">
-            {gameState.mapVersions.map((version) => (
-              <div
-                key={version.id}
-                className="bg-surface dark:bg-darksurface rounded-lg p-4 border border-subtle dark:border-darksubtle"
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <h3 className="font-semibold">{version.name}</h3>
-                  {version.is_rollback && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border border-yellow-300 dark:border-yellow-700">
-                      rollback
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-muted dark:text-darkmutedtext">{version.poll_text}</p>
-                <VersionChangeImage version={version} />
-              </div>
-            ))}
-            <div className="bg-surface dark:bg-darksurface rounded-lg p-4 border border-subtle dark:border-darksubtle">
-              <h3 className="font-semibold">Leave as it is</h3>
-              <p className="text-sm text-muted dark:text-darkmutedtext">Keep the current map without changes.</p>
-            </div>
-          </div>
-          <div className="flex justify-center gap-2">
-            <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" />
-            <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
-            <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
-          </div>
-        </div>
-      );
-    }
-
-    // Show voting form (players)
     return (
       <div className="w-full max-w-2xl">
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold mb-1">Vote</h1>
-          <p className="text-muted dark:text-darkmutedtext">
-            Choose which map version to play next
-          </p>
-        </div>
+        {/* Vote result overlay — shown on top of the voting UI once results are in */}
+        {gameState.voteResult && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl">
+              <h2 className="text-2xl font-bold text-center mb-1">
+                Vote Results
+              </h2>
+              <p className="text-center text-muted dark:text-darkmutedtext mb-6">
+                {gameState.voteResult.winning_version_name} wins!
+              </p>
+              {gameState.voteResult.vote_counts.length > 0 && (
+                <div className="space-y-3 mb-6">
+                  {gameState.voteResult.vote_counts.map((vc) => {
+                    const isWinner =
+                      vc.version_id ===
+                      gameState.voteResult!.winning_version_id;
+                    return (
+                      <div
+                        key={vc.version_id ?? "leave"}
+                        className={`p-4 rounded-lg border-2 ${
+                          isWinner
+                            ? "border-primary-500 bg-primary-50 dark:bg-primary-900/20"
+                            : "border-subtle dark:border-darksubtle bg-surface dark:bg-darksurface"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold">
+                            {vc.version_name}
+                          </span>
+                          <span
+                            className={`font-bold ${isWinner ? "text-primary-600 dark:text-primary-400" : ""}`}
+                          >
+                            {vc.count} vote{vc.count !== 1 ? "s" : ""}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="flex justify-center gap-2">
+                <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" />
+                <div
+                  className="w-2 h-2 bg-primary-500 rounded-full animate-bounce"
+                  style={{ animationDelay: "0.1s" }}
+                />
+                <div
+                  className="w-2 h-2 bg-primary-500 rounded-full animate-bounce"
+                  style={{ animationDelay: "0.2s" }}
+                />
+              </div>
+              <p className="text-center text-sm text-muted dark:text-darkmutedtext mt-2">
+                Starting next round...
+              </p>
+            </div>
+          </div>
+        )}
 
-        <div className="space-y-3 mb-6">
-          {gameState.mapVersions.map((version) => {
-            const isSelected = selectedVersionId === version.id;
-            return (
+        {/* Host sees live vote progress */}
+        {isHost ? (
+          <>
+            <div className="text-center mb-6">
+              <h1 className="text-2xl font-bold mb-1">Voting in Progress</h1>
+              <p className="text-muted dark:text-darkmutedtext">
+                {gameState.voteProgress
+                  ? `${gameState.voteProgress.cast} / ${gameState.voteProgress.needed} votes cast`
+                  : "Waiting for votes..."}
+              </p>
+            </div>
+            <div className="space-y-3 mb-6">
+              {gameState.mapVersions.map((version) => (
+                <div
+                  key={version.id}
+                  className="bg-surface dark:bg-darksurface rounded-lg p-4 border border-subtle dark:border-darksubtle"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-semibold">{version.name}</h3>
+                    {version.is_rollback && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border border-yellow-300 dark:border-yellow-700">
+                        rollback
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted dark:text-darkmutedtext">
+                    {version.poll_text}
+                  </p>
+                  <VersionChangeImage version={version} />
+                </div>
+              ))}
+              <div className="bg-surface dark:bg-darksurface rounded-lg p-4 border border-subtle dark:border-darksubtle">
+                <h3 className="font-semibold">Leave as it is</h3>
+                <p className="text-sm text-muted dark:text-darkmutedtext">
+                  Keep the current map without changes.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-center gap-2">
+              <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" />
+              <div
+                className="w-2 h-2 bg-primary-500 rounded-full animate-bounce"
+                style={{ animationDelay: "0.1s" }}
+              />
+              <div
+                className="w-2 h-2 bg-primary-500 rounded-full animate-bounce"
+                style={{ animationDelay: "0.2s" }}
+              />
+            </div>
+          </>
+        ) : (
+          /* Player voting form */
+          <>
+            <div className="text-center mb-6">
+              <h1 className="text-2xl font-bold mb-1">Vote</h1>
+              <p className="text-muted dark:text-darkmutedtext">
+                Choose which map version to play next
+              </p>
+            </div>
+
+            <div className="space-y-3 mb-6">
+              {gameState.mapVersions.map((version) => {
+                const isSelected = selectedVersionId === version.id;
+                return (
+                  <button
+                    key={version.id}
+                    onClick={() =>
+                      !hasVoted && setSelectedVersionId(version.id)
+                    }
+                    disabled={hasVoted}
+                    className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                      isSelected
+                        ? "border-primary-500 ring-2 ring-primary-200 dark:ring-primary-800 bg-primary-50 dark:bg-primary-900/20"
+                        : "border-subtle dark:border-darksubtle bg-surface dark:bg-darksurface"
+                    } ${hasVoted ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:border-gray-400"}`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-semibold">{version.name}</h3>
+                      {version.is_rollback && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border border-yellow-300 dark:border-yellow-700">
+                          rollback
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted dark:text-darkmutedtext">
+                      {version.poll_text}
+                    </p>
+                    <VersionChangeImage version={version} />
+                  </button>
+                );
+              })}
+              {/* "Leave as it is" option */}
               <button
-                key={version.id}
-                onClick={() => !hasVoted && setSelectedVersionId(version.id)}
+                onClick={() => !hasVoted && setSelectedVersionId(null)}
                 disabled={hasVoted}
                 className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
-                  isSelected
+                  selectedVersionId === null
                     ? "border-primary-500 ring-2 ring-primary-200 dark:ring-primary-800 bg-primary-50 dark:bg-primary-900/20"
                     : "border-subtle dark:border-darksubtle bg-surface dark:bg-darksurface"
                 } ${hasVoted ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:border-gray-400"}`}
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <h3 className="font-semibold">{version.name}</h3>
-                  {version.is_rollback && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border border-yellow-300 dark:border-yellow-700">
-                      rollback
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-muted dark:text-darkmutedtext">{version.poll_text}</p>
-                <VersionChangeImage version={version} />
-              </button>
-            );
-          })}
-          {/* "Leave as it is" option */}
-          <button
-            onClick={() => !hasVoted && setSelectedVersionId(null)}
-            disabled={hasVoted}
-            className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
-              selectedVersionId === null
-                ? "border-primary-500 ring-2 ring-primary-200 dark:ring-primary-800 bg-primary-50 dark:bg-primary-900/20"
-                : "border-subtle dark:border-darksubtle bg-surface dark:bg-darksurface"
-            } ${hasVoted ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:border-gray-400"}`}
-          >
-            <h3 className="font-semibold mb-1">Leave as it is</h3>
-            <p className="text-sm text-muted dark:text-darkmutedtext">
-              Keep the current map without changes.
-            </p>
-          </button>
-        </div>
-
-        <div className="text-center">
-          {hasVoted ? (
-            <div className="flex flex-col items-center gap-2">
-              <p className="text-muted dark:text-darkmutedtext">
-                Vote submitted! Waiting for others...
-              </p>
-              {gameState.voteProgress && (
+                <h3 className="font-semibold mb-1">Leave as it is</h3>
                 <p className="text-sm text-muted dark:text-darkmutedtext">
-                  {gameState.voteProgress.cast} / {gameState.voteProgress.needed} votes
+                  Keep the current map without changes.
                 </p>
-              )}
-              <div className="flex gap-2">
-                <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" />
-                <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
-                <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
-              </div>
+              </button>
             </div>
-          ) : (
-            <button
-              onClick={() => {
-                if (selectedVersionId !== undefined) {
-                  sendMessage({ type: "vote.submit", version_id: selectedVersionId });
-                  setHasVoted(true);
-                }
-              }}
-              disabled={selectedVersionId === undefined}
-              className={`px-8 py-3 rounded-lg font-semibold transition-colors ${
-                selectedVersionId !== undefined
-                  ? "bg-primary-600 text-white hover:bg-primary-700 cursor-pointer"
-                  : "bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
-              }`}
-            >
-              Submit Vote
-            </button>
-          )}
-        </div>
+
+            <div className="text-center">
+              {hasVoted ? (
+                <div className="flex flex-col items-center gap-2">
+                  <p className="text-muted dark:text-darkmutedtext">
+                    Vote submitted! Waiting for others...
+                  </p>
+                  {gameState.voteProgress && (
+                    <p className="text-sm text-muted dark:text-darkmutedtext">
+                      {gameState.voteProgress.cast} /{" "}
+                      {gameState.voteProgress.needed} votes
+                    </p>
+                  )}
+                  <div className="flex gap-2">
+                    <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" />
+                    <div
+                      className="w-2 h-2 bg-primary-500 rounded-full animate-bounce"
+                      style={{ animationDelay: "0.1s" }}
+                    />
+                    <div
+                      className="w-2 h-2 bg-primary-500 rounded-full animate-bounce"
+                      style={{ animationDelay: "0.2s" }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    if (selectedVersionId !== undefined) {
+                      sendMessage({
+                        type: "vote.submit",
+                        version_id: selectedVersionId,
+                      });
+                      setHasVoted(true);
+                    }
+                  }}
+                  disabled={selectedVersionId === undefined}
+                  className={`px-8 py-3 rounded-lg font-semibold transition-colors ${
+                    selectedVersionId !== undefined
+                      ? "bg-primary-600 text-white hover:bg-primary-700 cursor-pointer"
+                      : "bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                  }`}
+                >
+                  Submit Vote
+                </button>
+              )}
+            </div>
+          </>
+        )}
       </div>
     );
   }
@@ -809,10 +962,18 @@ export default function GamePlay({
           </p>
           <div className="flex justify-center gap-2">
             <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" />
-            <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
-            <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+            <div
+              className="w-2 h-2 bg-primary-500 rounded-full animate-bounce"
+              style={{ animationDelay: "0.1s" }}
+            />
+            <div
+              className="w-2 h-2 bg-primary-500 rounded-full animate-bounce"
+              style={{ animationDelay: "0.2s" }}
+            />
           </div>
-          <p className="text-sm text-muted dark:text-darkmutedtext mt-2">Starting next round...</p>
+          <p className="text-sm text-muted dark:text-darkmutedtext mt-2">
+            Starting next round...
+          </p>
         </div>
       );
     }
@@ -822,7 +983,8 @@ export default function GamePlay({
         <div className="text-center mb-4">
           <h1 className="text-2xl font-bold mb-1">It's a Tie!</h1>
           <p className="text-muted dark:text-darkmutedtext">
-            The vote ended in a stalemate. Discuss and vote again, or leave the map as is.
+            The vote ended in a stalemate. Discuss and vote again, or leave the
+            map as is.
           </p>
         </div>
 
@@ -834,7 +996,9 @@ export default function GamePlay({
                 className="flex justify-between items-center p-3 rounded-lg bg-surface dark:bg-darksurface border border-subtle dark:border-darksubtle"
               >
                 <span className="font-medium">{vc.version_name}</span>
-                <span className="text-muted dark:text-darkmutedtext">{vc.count} vote{vc.count !== 1 ? "s" : ""}</span>
+                <span className="text-muted dark:text-darkmutedtext">
+                  {vc.count} vote{vc.count !== 1 ? "s" : ""}
+                </span>
               </div>
             ))}
           </div>
@@ -842,13 +1006,16 @@ export default function GamePlay({
 
         {gameState.stalemateProgress && (
           <p className="text-center text-sm text-muted dark:text-darkmutedtext mb-4">
-            {gameState.stalemateProgress.cast} / {gameState.stalemateProgress.needed} responses
+            {gameState.stalemateProgress.cast} /{" "}
+            {gameState.stalemateProgress.needed} responses
           </p>
         )}
 
         {isHost ? (
           <div className="text-center">
-            <p className="text-muted dark:text-darkmutedtext mb-4">Waiting for players to respond...</p>
+            <p className="text-muted dark:text-darkmutedtext mb-4">
+              Waiting for players to respond...
+            </p>
             <button
               onClick={() => sendMessage({ type: "stalemate.force_leave" })}
               className="px-6 py-2 rounded-lg font-semibold bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
@@ -858,11 +1025,19 @@ export default function GamePlay({
           </div>
         ) : hasVotedOnStalemate ? (
           <div className="flex flex-col items-center gap-2">
-            <p className="text-muted dark:text-darkmutedtext">Response submitted! Waiting for others...</p>
+            <p className="text-muted dark:text-darkmutedtext">
+              Response submitted! Waiting for others...
+            </p>
             <div className="flex gap-2">
               <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" />
-              <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
-              <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
+              <div
+                className="w-2 h-2 bg-primary-500 rounded-full animate-bounce"
+                style={{ animationDelay: "0.1s" }}
+              />
+              <div
+                className="w-2 h-2 bg-primary-500 rounded-full animate-bounce"
+                style={{ animationDelay: "0.2s" }}
+              />
             </div>
           </div>
         ) : (
@@ -906,7 +1081,9 @@ export default function GamePlay({
         </div>
 
         <div className="bg-surface dark:bg-darksurface rounded-lg p-6 border border-subtle dark:border-darksubtle">
-          <h3 className="text-lg font-semibold mb-4">Your Agents ({agentAssignments.length || "..."})</h3>
+          <h3 className="text-lg font-semibold mb-4">
+            Your Agents ({agentAssignments.length || "..."})
+          </h3>
           <div className="grid grid-cols-2 gap-3">
             {agentAssignments.map((agent, index) => {
               const color = AGENT_COLORS[index % AGENT_COLORS.length];
@@ -915,7 +1092,9 @@ export default function GamePlay({
                   key={agent.id}
                   className={`p-3 ${color.bg} rounded-lg flex items-center gap-3`}
                 >
-                  <span className={`text-2xl font-bold ${color.text}`}>#{agent.id}</span>
+                  <span className={`text-2xl font-bold ${color.text}`}>
+                    #{agent.id}
+                  </span>
                   <div className="text-left">
                     <p className="font-medium">Agent {agent.id}</p>
                     <p className="text-sm text-muted dark:text-darkmutedtext">
@@ -951,16 +1130,22 @@ export default function GamePlay({
           <div className="space-y-2">
             {agents.map((agent, index) => {
               const color = AGENT_COLORS[index % AGENT_COLORS.length];
-              const transport = TRANSPORT_OPTIONS.find((t) => t.id === agent.selectedMode);
+              const transport = TRANSPORT_OPTIONS.find(
+                (t) => t.id === agent.selectedMode,
+              );
               return (
                 <div
                   key={agent.agentId}
                   className="flex items-center justify-between p-3 bg-elevated dark:bg-darkelevated rounded"
                 >
                   <div className="flex items-center gap-2">
-                    <span className={`font-bold ${color.text}`}>#{agent.agentId}</span>
+                    <span className={`font-bold ${color.text}`}>
+                      #{agent.agentId}
+                    </span>
                     <span className="font-medium">Agent {agent.agentId}</span>
-                    <span className="text-muted dark:text-darkmutedtext">→ Node {agent.destinationNode}</span>
+                    <span className="text-muted dark:text-darkmutedtext">
+                      → Node {agent.destinationNode}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span>{transport?.emoji}</span>
@@ -981,8 +1166,14 @@ export default function GamePlay({
           <p className="text-lg mb-4">Waiting for other players...</p>
           <div className="flex justify-center gap-2">
             <div className="w-3 h-3 bg-primary-500 rounded-full animate-bounce"></div>
-            <div className="w-3 h-3 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
-            <div className="w-3 h-3 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+            <div
+              className="w-3 h-3 bg-primary-500 rounded-full animate-bounce"
+              style={{ animationDelay: "0.1s" }}
+            ></div>
+            <div
+              className="w-3 h-3 bg-primary-500 rounded-full animate-bounce"
+              style={{ animationDelay: "0.2s" }}
+            ></div>
           </div>
         </div>
 
@@ -1049,8 +1240,10 @@ export default function GamePlay({
               className="h-1.5 rounded-full bg-blue-500 transition-all duration-150"
               style={{
                 width: `${Math.min(
-                  (activePathfindingState.visitedNodes.size / (mapGraph?.nodes.length ?? 1)) * 100,
-                  100
+                  (activePathfindingState.visitedNodes.size /
+                    (mapGraph?.nodes.length ?? 1)) *
+                    100,
+                  100,
                 )}%`,
               }}
             />
@@ -1059,16 +1252,36 @@ export default function GamePlay({
       )}
       {isAnyPathfinding && !animationEnabled && (
         <div className="mb-4 p-3 bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700 rounded-lg flex items-center justify-center gap-3">
-          <svg className="animate-spin h-5 w-5 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          <svg
+            className="animate-spin h-5 w-5 text-blue-600 dark:text-blue-400"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+              fill="none"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            />
           </svg>
-          <span className="text-blue-700 dark:text-blue-300 font-medium">Finding optimal route...</span>
+          <span className="text-blue-700 dark:text-blue-300 font-medium">
+            Finding optimal route...
+          </span>
         </div>
       )}
 
       {/* Map viewer */}
-      <div ref={mapRef} className="bg-surface dark:bg-darksurface rounded-lg p-4 border border-subtle dark:border-darksubtle mb-6">
+      <div
+        ref={mapRef}
+        className="bg-surface dark:bg-darksurface rounded-lg p-4 border border-subtle dark:border-darksubtle mb-6"
+      >
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-lg font-semibold">
             City Map
@@ -1086,11 +1299,15 @@ export default function GamePlay({
                 onChange={(e) => setAnimationEnabled(e.target.checked)}
                 className="rounded"
               />
-              <span className="text-muted dark:text-darkmutedtext">Show Dijkstra</span>
+              <span className="text-muted dark:text-darkmutedtext">
+                Show Dijkstra
+              </span>
             </label>
             {animationEnabled && (
               <div className="flex items-center gap-1.5">
-                <span className="text-xs text-muted dark:text-darkmutedtext">Fast</span>
+                <span className="text-xs text-muted dark:text-darkmutedtext">
+                  Fast
+                </span>
                 <input
                   type="range"
                   min={20}
@@ -1100,7 +1317,9 @@ export default function GamePlay({
                   onChange={(e) => setAnimationSpeed(Number(e.target.value))}
                   className="w-20 h-1 accent-primary-500"
                 />
-                <span className="text-xs text-muted dark:text-darkmutedtext">Slow</span>
+                <span className="text-xs text-muted dark:text-darkmutedtext">
+                  Slow
+                </span>
               </div>
             )}
           </div>
@@ -1114,7 +1333,12 @@ export default function GamePlay({
           routeSegments={selectedAgentRoute?.segments}
           highlightedNodes={
             selectedAgentRoute
-              ? new Set(selectedAgentRoute.segments.flatMap((s) => [s.startNode, s.endNode]))
+              ? new Set(
+                  selectedAgentRoute.segments.flatMap((s) => [
+                    s.startNode,
+                    s.endNode,
+                  ]),
+                )
               : undefined
           }
           showDijkstraViz={animationEnabled && !!activePathfindingState}
@@ -1140,7 +1364,10 @@ export default function GamePlay({
           return (
             <div
               key={agent.agentId}
-              onClick={() => !isDisabled && setSelectedAgentId(isAgentSelected ? null : agent.agentId)}
+              onClick={() =>
+                !isDisabled &&
+                setSelectedAgentId(isAgentSelected ? null : agent.agentId)
+              }
               className={`bg-surface dark:bg-darksurface rounded-lg p-4 border-2 transition-all ${
                 isDisabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"
               } ${
@@ -1151,9 +1378,13 @@ export default function GamePlay({
             >
               {/* Agent header */}
               <div className="flex items-center gap-3 mb-3">
-                <span className={`text-2xl font-bold ${color.text}`}>#{agent.agentId}</span>
+                <span className={`text-2xl font-bold ${color.text}`}>
+                  #{agent.agentId}
+                </span>
                 <div className="flex-1">
-                  <h3 className={`font-semibold ${color.text}`}>Agent {agent.agentId}</h3>
+                  <h3 className={`font-semibold ${color.text}`}>
+                    Agent {agent.agentId}
+                  </h3>
                   <p className="text-xs text-muted dark:text-darkmutedtext">
                     🏠 → Node {agent.destinationNode}
                   </p>
@@ -1161,8 +1392,20 @@ export default function GamePlay({
                 {agent.isPathfinding && (
                   <div className="flex items-center gap-1 text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-2 py-1 rounded">
                     <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                        fill="none"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
                     </svg>
                     Finding...
                   </div>
@@ -1180,21 +1423,43 @@ export default function GamePlay({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="text-xl">
-                        {TRANSPORT_OPTIONS.find((t) => t.id === agent.selectedMode)?.emoji}
+                        {
+                          TRANSPORT_OPTIONS.find(
+                            (t) => t.id === agent.selectedMode,
+                          )?.emoji
+                        }
                       </span>
                       <span className="font-medium">
-                        {TRANSPORT_OPTIONS.find((t) => t.id === agent.selectedMode)?.label}
+                        {
+                          TRANSPORT_OPTIONS.find(
+                            (t) => t.id === agent.selectedMode,
+                          )?.label
+                        }
                       </span>
-                      {agent.selectedMode === "car" && agent.selectedOptimization && (
-                        <span className="text-xs text-muted dark:text-darkmutedtext">
-                          ({CAR_OPTIMIZATION_OPTIONS.find((o) => o.id === agent.selectedOptimization)?.label})
-                        </span>
-                      )}
-                      {agent.selectedMode === "public" && agent.selectedPTOptimization && (
-                        <span className="text-xs text-muted dark:text-darkmutedtext">
-                          ({PT_OPTIMIZATION_OPTIONS.find((o) => o.id === agent.selectedPTOptimization)?.label})
-                        </span>
-                      )}
+                      {agent.selectedMode === "car" &&
+                        agent.selectedOptimization && (
+                          <span className="text-xs text-muted dark:text-darkmutedtext">
+                            (
+                            {
+                              CAR_OPTIMIZATION_OPTIONS.find(
+                                (o) => o.id === agent.selectedOptimization,
+                              )?.label
+                            }
+                            )
+                          </span>
+                        )}
+                      {agent.selectedMode === "public" &&
+                        agent.selectedPTOptimization && (
+                          <span className="text-xs text-muted dark:text-darkmutedtext">
+                            (
+                            {
+                              PT_OPTIMIZATION_OPTIONS.find(
+                                (o) => o.id === agent.selectedPTOptimization,
+                              )?.label
+                            }
+                            )
+                          </span>
+                        )}
                     </div>
                     <button
                       onClick={(e) => {
@@ -1208,7 +1473,8 @@ export default function GamePlay({
                     </button>
                   </div>
                   <div className="text-xs text-muted dark:text-darkmutedtext mt-1">
-                    {formatDistance(agent.route.totalDistanceM)} · {formatTime(agent.route.estimatedTimeMin)}
+                    {formatDistance(agent.route.totalDistanceM)} ·{" "}
+                    {formatTime(agent.route.estimatedTimeMin)}
                   </div>
                   {/* PT leg breakdown */}
                   {agent.selectedMode === "public" && (
@@ -1218,7 +1484,9 @@ export default function GamePlay({
                           {i > 0 && <span className="text-gray-400">→</span>}
                           <span>
                             {leg.emoji}{" "}
-                            {leg.mode !== "walk" && <span className="font-medium">{leg.label}: </span>}
+                            {leg.mode !== "walk" && (
+                              <span className="font-medium">{leg.label}: </span>
+                            )}
                             {formatDistance(leg.distanceM)}
                           </span>
                         </span>
@@ -1245,7 +1513,9 @@ export default function GamePlay({
                     {PT_OPTIMIZATION_OPTIONS.map((opt) => (
                       <button
                         key={opt.id}
-                        onClick={() => handlePTOptimizationSelect(agent.agentId, opt.id)}
+                        onClick={() =>
+                          handlePTOptimizationSelect(agent.agentId, opt.id)
+                        }
                         disabled={isDisabled || agent.isPathfinding}
                         className={`p-2 rounded-lg border-2 transition-all ${
                           agent.selectedPTOptimization === opt.id
@@ -1254,7 +1524,9 @@ export default function GamePlay({
                         } ${isDisabled || agent.isPathfinding ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                       >
                         <div className="text-xs font-medium">{opt.label}</div>
-                        <div className="text-[10px] text-muted dark:text-darkmutedtext">{opt.description}</div>
+                        <div className="text-[10px] text-muted dark:text-darkmutedtext">
+                          {opt.description}
+                        </div>
                       </button>
                     ))}
                   </div>
@@ -1280,7 +1552,9 @@ export default function GamePlay({
                     {CAR_OPTIMIZATION_OPTIONS.map((opt) => (
                       <button
                         key={opt.id}
-                        onClick={() => handleCarOptimizationSelect(agent.agentId, opt.id)}
+                        onClick={() =>
+                          handleCarOptimizationSelect(agent.agentId, opt.id)
+                        }
                         disabled={isDisabled || agent.isPathfinding}
                         className={`p-2 rounded-lg border-2 transition-all ${
                           agent.selectedOptimization === opt.id
@@ -1289,7 +1563,9 @@ export default function GamePlay({
                         } ${isDisabled || agent.isPathfinding ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                       >
                         <div className="text-xs font-medium">{opt.label}</div>
-                        <div className="text-[10px] text-muted dark:text-darkmutedtext">{opt.description}</div>
+                        <div className="text-[10px] text-muted dark:text-darkmutedtext">
+                          {opt.description}
+                        </div>
                       </button>
                     ))}
                   </div>
@@ -1307,13 +1583,19 @@ export default function GamePlay({
 
               {/* Transport options - show when no route and not showing optimization panels */}
               {!agent.route && !showingCarOptions && !showingPTOptions && (
-                <div className="grid grid-cols-4 gap-2" onClick={(e) => e.stopPropagation()}>
+                <div
+                  className="grid grid-cols-4 gap-2"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   {TRANSPORT_OPTIONS.map((transport) => {
-                    const isTransportSelected = agent.selectedMode === transport.id;
+                    const isTransportSelected =
+                      agent.selectedMode === transport.id;
                     return (
                       <button
                         key={transport.id}
-                        onClick={() => handleTransportSelect(agent.agentId, transport.id)}
+                        onClick={() =>
+                          handleTransportSelect(agent.agentId, transport.id)
+                        }
                         disabled={isDisabled || agent.isPathfinding}
                         className={`p-2 rounded-lg border-2 transition-all duration-200 ${transport.color} ${
                           isTransportSelected
@@ -1326,7 +1608,9 @@ export default function GamePlay({
                         }`}
                       >
                         <div className="text-2xl mb-1">{transport.emoji}</div>
-                        <div className="text-xs font-medium">{transport.label}</div>
+                        <div className="text-xs font-medium">
+                          {transport.label}
+                        </div>
                       </button>
                     );
                   })}
@@ -1341,9 +1625,19 @@ export default function GamePlay({
       <div className="text-center">
         <button
           onClick={handleSubmit}
-          disabled={!allRoutesComplete || isSubmitting || isSubmitted || !playerId || isAnyPathfinding}
+          disabled={
+            !allRoutesComplete ||
+            isSubmitting ||
+            isSubmitted ||
+            !playerId ||
+            isAnyPathfinding
+          }
           className={`px-8 py-3 rounded-lg font-semibold text-lg transition-all duration-200 ${
-            allRoutesComplete && !isSubmitting && !isSubmitted && playerId && !isAnyPathfinding
+            allRoutesComplete &&
+            !isSubmitting &&
+            !isSubmitted &&
+            playerId &&
+            !isAnyPathfinding
               ? "bg-primary-600 text-white hover:bg-primary-700 cursor-pointer"
               : "bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
           }`}
@@ -1351,8 +1645,20 @@ export default function GamePlay({
           {isSubmitting ? (
             <span className="flex items-center justify-center gap-2">
               <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  fill="none"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
               </svg>
               Submitting...
             </span>
@@ -1374,13 +1680,25 @@ export default function GamePlay({
             <div className="flex justify-between">
               <span>Total Distance:</span>
               <span>
-                {(agents.reduce((sum, a) => sum + (a.route?.totalDistanceM ?? 0), 0) / 1000).toFixed(1)} km
+                {(
+                  agents.reduce(
+                    (sum, a) => sum + (a.route?.totalDistanceM ?? 0),
+                    0,
+                  ) / 1000
+                ).toFixed(1)}{" "}
+                km
               </span>
             </div>
             <div className="flex justify-between">
               <span>Est. Total Time:</span>
               <span>
-                {Math.round(agents.reduce((sum, a) => sum + (a.route?.estimatedTimeMin ?? 0), 0))} min
+                {Math.round(
+                  agents.reduce(
+                    (sum, a) => sum + (a.route?.estimatedTimeMin ?? 0),
+                    0,
+                  ),
+                )}{" "}
+                min
               </span>
             </div>
           </div>

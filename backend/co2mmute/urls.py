@@ -2,15 +2,12 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path, re_path
-from content.views import PageDetailView
 from game.views import (
     GameSessionCreateView,
     JoinSessionView,
     PlayerCreateView,
     PlayerUpdateView,
-    PostGameView,
     ShareSessionView,
-    SimulationLogDownloadView,
 )
 from maps.views import MapDetailView, MapListView, MapUploadView
 
@@ -38,8 +35,6 @@ urlpatterns = [
     path("legal/cookies/", CookiesView.as_view(), name="cookies"),
     path("game/create/", GameSessionCreateView.as_view(), name="session-create"),
     path("game/<game_id>/share/", ShareSessionView.as_view(), name="session-share"),
-    path("game/<game_id>/summary/", PostGameView.as_view(), name="session-summery"),
-    path("game/<game_id>/simulation-log/", SimulationLogDownloadView.as_view(), name="simulation-log"),
     path("join/", JoinSessionView.as_view(), name="session-join"),
     path("join/<game_id>/", JoinSessionView.as_view(), name="session-join-direct"),
     path(
@@ -55,7 +50,6 @@ urlpatterns = [
     path("map/upload/", MapUploadView.as_view(), name="map-upload"),
     path("map/list/", MapListView.as_view(), name="map-list"),
     path("map/<int:pk>/", MapDetailView.as_view(), name="map-detail"),
-
     path("api/game/", include("game.urls")),
     path("api/whoami/", WhoAmIView.as_view(), name="whoami"),
     path("api/maps/", include("maps.urls")),

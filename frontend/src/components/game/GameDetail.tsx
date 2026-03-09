@@ -779,12 +779,14 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
             </>
           ) : (
             <div className="space-y-3">
-              <a
-                href={`/game/${id}/summary/`}
+              <button
+                onClick={() =>
+                  navigate({ to: "/game/$gameId", params: { gameId: id } })
+                }
                 className="block w-full rounded-lg bg-primary-600 px-6 py-3 font-semibold text-white text-center transition-colors duration-200 hover:bg-primary-500 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-primary-600 dark:bg-primary-600 dark:hover:bg-primary-500"
               >
                 View Summary
-              </a>
+              </button>
               <p className="text-center text-xs text-muted dark:text-darkmutedtext">
                 Game has ended
               </p>

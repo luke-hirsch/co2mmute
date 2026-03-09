@@ -43,6 +43,11 @@ FALLBACK_BIKE_SPEED_KMH = 20
 FALLBACK_DEFAULT_CAR_SPEED_KMH = 50
 FALLBACK_BUS_SPEED_KMH = 30
 FALLBACK_TRAIN_SPEED_KMH = 40
+FALLBACK_BUS_INTERVAL_MIN = 10
+FALLBACK_TRAIN_INTERVAL_MIN = 10
+
+# Departure window: matches the ±60 min clamp in generate_departure_times()
+DEPARTURE_WINDOW_MIN = 120
 
 
 @dataclass
@@ -288,6 +293,13 @@ class TrafficSimulator:
         self.bus_line_speeds: Dict[int, int] = {}
         self.train_line_speeds: Dict[int, int] = {}
 
+        # PT line interval cache: line_id -> intervall_min
+        self.bus_line_intervals: Dict[int, int] = {}
+        self.train_line_intervals: Dict[int, int] = {}
+
+        # Per-route PT wait time (interval/2): route_pk -> wait_min
+        self.route_pt_wait_min: Dict[int, float] = {}
+
         # Vehicle scaling for PT routes: route_pk -> (num_vehicles, passenger_count)
         self.route_vehicle_scaling: Dict[int, Tuple[int, int]] = {}
 
@@ -358,27 +370,51 @@ class TrafficSimulator:
         """Compute how many actual vehicles to spawn per route.
 
         For car/bike/walk: 1 vehicle per person (people_per_agent vehicles).
-        For bus/train: ceil(people_per_agent / PT_capacity) vehicles,
-        each carrying multiple passengers.
+        For bus/train: number of vehicles is determined by BOTH interval and capacity:
+          - num_vehicles = floor(DEPARTURE_WINDOW_MIN / interval_min)  [physical frequency]
+          - passengers_per_vehicle = min(capacity, ceil(people_per_agent / num_vehicles))
+          - If num_vehicles * capacity < people_per_agent, buses are over capacity (logged as warning).
         """
         for route_pk, segments in self.route_segments.items():
-            # Find the minimum PT capacity across all PT segments in this route
+            # Find the minimum PT capacity and interval across all PT segments in this route
             min_pt_capacity = None
+            min_interval = None
             for seg in segments:
                 if seg.mode in ("bus", "train"):
                     cap = self._get_pt_capacity(seg.pt_line_id, seg.mode)
                     if min_pt_capacity is None or cap < min_pt_capacity:
                         min_pt_capacity = cap
+                    interval = self._get_pt_interval(seg.pt_line_id, seg.mode)
+                    if min_interval is None or interval < min_interval:
+                        min_interval = interval
 
             if min_pt_capacity and min_pt_capacity > 1:
-                num_vehicles = math.ceil(self.people_per_agent / min_pt_capacity)
-                passenger_count = math.ceil(self.people_per_agent / num_vehicles)
+                # Number of physical buses/trains in the departure window
+                num_vehicles = max(1, round(DEPARTURE_WINDOW_MIN / min_interval))
+                # Each vehicle carries min(capacity, ceil(people/vehicles)) passengers
+                passenger_count = min(
+                    int(min_pt_capacity),
+                    math.ceil(self.people_per_agent / num_vehicles),
+                )
+                total_seats = num_vehicles * passenger_count
+                overcapacity = total_seats < self.people_per_agent
                 self.route_vehicle_scaling[route_pk] = (num_vehicles, passenger_count)
-                logger.info(
+                self.route_pt_wait_min[route_pk] = min_interval / 2.0
+
+                log_msg = (
                     f"[SIM] Route {route_pk}: PT scaling — "
                     f"{num_vehicles} vehicles × {passenger_count} passengers "
-                    f"(capacity={min_pt_capacity:.0f})"
+                    f"(interval={min_interval}min, capacity={min_pt_capacity:.0f}, "
+                    f"total_seats={total_seats})"
                 )
+                if overcapacity:
+                    log_msg += (
+                        f" — WARNING: overcapacity! "
+                        f"{total_seats} seats < {self.people_per_agent} people"
+                    )
+                    logger.warning(log_msg)
+                else:
+                    logger.info(log_msg)
             else:
                 # Car/bike/walk: 1 person per vehicle
                 self.route_vehicle_scaling[route_pk] = (self.people_per_agent, 1)
@@ -399,19 +435,21 @@ class TrafficSimulator:
                     elif seg.mode == "train":
                         train_line_ids.add(seg.pt_line_id)
 
-        # Load bus line speeds
+        # Load bus line speeds and intervals
         if bus_line_ids:
             bus_lines = BusLine.objects.filter(id__in=bus_line_ids)
             for bus_line in bus_lines:
                 self.bus_line_speeds[bus_line.pk] = bus_line.bus_speed_kmh
-            logger.info(f"[SIM] Loaded {len(self.bus_line_speeds)} bus line speeds")
+                self.bus_line_intervals[bus_line.pk] = bus_line.intervall
+            logger.info(f"[SIM] Loaded {len(self.bus_line_speeds)} bus line speeds/intervals")
 
-        # Load train line speeds
+        # Load train line speeds and intervals
         if train_line_ids:
             train_lines = TrainLine.objects.filter(id__in=train_line_ids)
             for train_line in train_lines:
                 self.train_line_speeds[train_line.pk] = train_line.train_speed_kmh
-            logger.info(f"[SIM] Loaded {len(self.train_line_speeds)} train line speeds")
+                self.train_line_intervals[train_line.pk] = train_line.intervall
+            logger.info(f"[SIM] Loaded {len(self.train_line_speeds)} train line speeds/intervals")
 
     def _initialize_edges(self):
         """Initialize edge states from the map."""
@@ -469,24 +507,54 @@ class TrafficSimulator:
         logger.info(f"[SIM] Initialized {len(self.edge_states)} edge states")
 
     def _generate_departures(self, is_morning: bool = True):
-        """Generate departure times for all agents."""
+        """Generate departure times for all agents.
+
+        Car/bike/walk: random normal distribution around base_hour (existing behaviour).
+        Bus/train: evenly spaced at the line's interval, starting at the beginning of the
+                   departure window (base_hour - 60 min), so that buses are spread across
+                   the full DEPARTURE_WINDOW_MIN period.
+        """
         base_hour = (
             self.morning_departure_hour if is_morning else self.evening_departure_hour
         )
+        # Tick corresponding to (base_hour - 1), i.e. the start of the ±60 min window.
+        # generate_departure_times uses (base_hour-1)*60 as time-zero, so offset=0 is that point.
+        window_start_tick = 0
 
         for route_pk in self.agent_routes:
+            route = self.agent_routes[route_pk]
             num_vehicles, _ = self.route_vehicle_scaling.get(
                 route_pk, (self.people_per_agent, 1)
             )
-            departures = generate_departure_times(
-                num_vehicles,
-                base_hour,
-                self.departure_std_dev_min,
-                self.tick_duration_min,
+
+            # Determine if this route uses public transport
+            segments = self.route_segments.get(route_pk, [])
+            pt_mode = next(
+                (seg.mode for seg in segments if seg.mode in ("bus", "train")), None
             )
-            self.departure_schedule[route_pk] = [
-                (i, tick) for i, tick in enumerate(departures)
-            ]
+
+            if pt_mode:
+                # PT route: evenly spaced departures across the departure window
+                pt_line_id = next(
+                    (seg.pt_line_id for seg in segments if seg.mode == pt_mode), None
+                )
+                interval_min = self._get_pt_interval(pt_line_id, pt_mode)
+                interval_ticks = max(1, round(interval_min / self.tick_duration_min))
+                self.departure_schedule[route_pk] = [
+                    (i, window_start_tick + i * interval_ticks)
+                    for i in range(num_vehicles)
+                ]
+            else:
+                # Car/bike/walk: random normal distribution (unchanged)
+                departures = generate_departure_times(
+                    num_vehicles,
+                    base_hour,
+                    self.departure_std_dev_min,
+                    self.tick_duration_min,
+                )
+                self.departure_schedule[route_pk] = [
+                    (i, tick) for i, tick in enumerate(departures)
+                ]
 
     def _spawn_vehicles(self):
         """Spawn vehicles that should depart at the current tick."""
@@ -672,13 +740,17 @@ class TrafficSimulator:
                         ):
                             next_edge_state.buses_on_dedicated_lane.add(vehicle_id)
 
-        # Record arrival times (each vehicle may represent multiple passengers)
+        # Record arrival times (each vehicle may represent multiple passengers).
+        # For PT routes, add the average wait time (interval/2) to trip time —
+        # passengers arrive at the stop and wait for the next bus/train on average.
         for vehicle_id in arrived_vehicles:
             vehicle = self.vehicles[vehicle_id]
             agent_results = self.agent_results.get(vehicle.route_pk)
             if agent_results:
+                wait_min = self.route_pt_wait_min.get(vehicle.route_pk, 0.0)
+                total_time = vehicle.total_travel_time_min + wait_min
                 for _ in range(vehicle.passenger_count):
-                    agent_results["trip_times"].append(vehicle.total_travel_time_min)
+                    agent_results["trip_times"].append(total_time)
                     agent_results["delays"].append(vehicle.congestion_delay_min)
 
     def _record_edge_traffic(self):
@@ -755,21 +827,42 @@ class TrafficSimulator:
             self.sim_log.header("ROUTES")
             for route_pk, route in self.agent_routes.items():
                 segments = self.route_segments.get(route_pk, [])
-                self.sim_log.write(
+                num_vehicles, passenger_count = self.route_vehicle_scaling.get(
+                    route_pk, (self.people_per_agent, 1)
+                )
+                wait_min = self.route_pt_wait_min.get(route_pk, 0.0)
+                route_line = (
                     f"  {self.sim_log._route_label(route_pk)}: "
                     f"distance={route.total_distance_m:.0f}m, "
                     f"est_time={route.estimated_time_min:.1f}min, "
-                    f"segments={len(segments)}"
+                    f"segments={len(segments)}, "
+                    f"vehicles={num_vehicles}×{passenger_count}pax"
                 )
+                if wait_min:
+                    total_seats = num_vehicles * passenger_count
+                    overcap = total_seats < self.people_per_agent
+                    route_line += (
+                        f", avg_wait={wait_min:.1f}min"
+                        + (
+                            f" [OVERCAPACITY: {total_seats}/{self.people_per_agent} seats]"
+                            if overcap
+                            else ""
+                        )
+                    )
+                self.sim_log.write(route_line)
                 for seg in segments:
                     es = self.edge_states.get(seg.edge_id)
                     if es:
+                        pt_info = ""
+                        if seg.pt_line_id:
+                            interval = self._get_pt_interval(seg.pt_line_id, seg.mode)
+                            pt_info = f" | pt_line={seg.pt_line_id} | interval={interval}min"
                         self.sim_log.write(
                             f"    seg {seg.order}: {self.sim_log._edge_label(seg.edge_id)} | "
                             f"mode={seg.mode} | dist={es.distance_m:.0f}m | "
                             f"free_flow={es.free_flow_speed_kmh:.0f}km/h | "
                             f"capacity={es.capacity} | lanes={es.lanes}"
-                            + (f" | pt_line={seg.pt_line_id}" if seg.pt_line_id else "")
+                            + pt_info
                         )
 
             # Log edges
@@ -798,7 +891,7 @@ class TrafficSimulator:
             self.sim_log.write(
                 f"Total vehicles to spawn: {total_departures} "
                 f"({len(self.departure_schedule)} routes, {self.people_per_agent} people/agent, "
-                f"PT vehicles scaled by capacity)"
+                f"PT vehicles scaled by interval+capacity, car/bike/walk by people_per_agent)"
             )
 
             # Simulation loop
@@ -1133,6 +1226,19 @@ class TrafficSimulator:
             return max(1.0, float(self._train_capacities[pt_line_id]))
 
         return 60.0
+
+    def _get_pt_interval(self, pt_line_id: Optional[int], mode: str) -> int:
+        """Get the interval in minutes for a PT line. Returns a fallback if not found."""
+        if not pt_line_id:
+            return FALLBACK_BUS_INTERVAL_MIN if mode == "bus" else FALLBACK_TRAIN_INTERVAL_MIN
+
+        if mode == "bus":
+            return self.bus_line_intervals.get(pt_line_id, FALLBACK_BUS_INTERVAL_MIN)
+
+        if mode == "train":
+            return self.train_line_intervals.get(pt_line_id, FALLBACK_TRAIN_INTERVAL_MIN)
+
+        return FALLBACK_BUS_INTERVAL_MIN
 
     def _update_street_speeds(self):
         """Update StreetPerRound with average speeds from simulation."""

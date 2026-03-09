@@ -239,8 +239,14 @@ def cleanup_leaving_player(sender, instance: Player, **kwargs):
 
 
 @receiver(post_save, sender=GameSession)
-def game_start(sender, instance: GameSession, created=False, **kwargs):
+def game_start(sender, instance: GameSession, created=False, update_fields=None, **kwargs):
     if not isinstance(instance, GameSession):
+        return
+
+    # Skip if this is a partial save that doesn't touch game lifecycle fields.
+    # Prevents spurious game.started broadcasts when e.g. active_map_version is updated.
+    lifecycle_fields = {"is_active", "started_at", "ended_at", "game_host"}
+    if update_fields is not None and not (set(update_fields) & lifecycle_fields):
         return
 
     if instance.is_active and instance.started_at:
