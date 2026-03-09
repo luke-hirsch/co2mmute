@@ -25,11 +25,6 @@ urlpatterns = [
         GameSessionDetailView.as_view(),
         name="game-session-detail",
     ),
-    path(
-        "<str:game_id>/<str:player_id>/",
-        GetYourOwnGame.as_view(),
-        name="player-game-session-detail",
-    ),
     path("sessions/", GameSessionListView.as_view(), name="game-session-list"),
     path(
         "<str:game_id>/player/<str:player_id>/move/",
@@ -45,5 +40,10 @@ urlpatterns = [
         "<str:game_id>/summary/",
         GameSummaryView.as_view(),
         name="game-summary",
+    ),
+    path(
+        "<str:game_id>/<str:player_id>/",
+        GetYourOwnGame.as_view(),
+        name="player-game-session-detail",
     ),
 ]

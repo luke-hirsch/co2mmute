@@ -327,6 +327,8 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
             })
 
     async def disconnect(self, code: int) -> None:
+        if not hasattr(self, "player_id"):
+            return
         try:
             # Mark player as not connected and broadcast
             await self._mark_player_disconnected()
