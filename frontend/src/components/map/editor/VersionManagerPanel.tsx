@@ -20,6 +20,9 @@ interface EditState {
   newImage: File | null;
 }
 
+const inputCls =
+  "w-full px-2 py-1.5 text-sm rounded-md border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext focus:outline-none focus:ring-1 focus:ring-indigo-400";
+
 function VersionEditor({
   version,
   allVersions,
@@ -48,7 +51,6 @@ function VersionEditor({
     fd.append("description", values.description);
     fd.append("poll_text", values.poll_text);
     fd.append("revert_poll_text", values.revert_poll_text);
-    // Send compatible_versions as repeated form fields
     values.compatible_versions.forEach((id) =>
       fd.append("compatible_versions", String(id))
     );
@@ -83,38 +85,41 @@ function VersionEditor({
           Name
         </label>
         <input
-          className="w-full rounded border border-subtle dark:border-darksubtle bg-white dark:bg-darkbg px-2 py-1 text-sm text-main dark:text-darktext"
+          className={inputCls}
           value={values.name}
           onChange={(e) => setValues({ ...values, name: e.target.value })}
         />
       </div>
+
       <div>
         <label className="block text-xs text-muted dark:text-darkmutedtext mb-1">
           Description
         </label>
         <textarea
           rows={2}
-          className="w-full rounded border border-subtle dark:border-darksubtle bg-white dark:bg-darkbg px-2 py-1 text-sm text-main dark:text-darktext"
+          className={inputCls}
           value={values.description}
           onChange={(e) => setValues({ ...values, description: e.target.value })}
         />
       </div>
+
       <div>
         <label className="block text-xs text-muted dark:text-darkmutedtext mb-1">
           Poll text (forward)
         </label>
         <input
-          className="w-full rounded border border-subtle dark:border-darksubtle bg-white dark:bg-darkbg px-2 py-1 text-sm text-main dark:text-darktext"
+          className={inputCls}
           value={values.poll_text}
           onChange={(e) => setValues({ ...values, poll_text: e.target.value })}
         />
       </div>
+
       <div>
         <label className="block text-xs text-muted dark:text-darkmutedtext mb-1">
           Poll text (revert)
         </label>
         <input
-          className="w-full rounded border border-subtle dark:border-darksubtle bg-white dark:bg-darkbg px-2 py-1 text-sm text-main dark:text-darktext"
+          className={inputCls}
           value={values.revert_poll_text}
           onChange={(e) =>
             setValues({ ...values, revert_poll_text: e.target.value })
@@ -127,17 +132,23 @@ function VersionEditor({
           <label className="block text-xs text-muted dark:text-darkmutedtext mb-1">
             Compatible versions
           </label>
-          <div className="space-y-1 max-h-36 overflow-y-auto">
+          <div className="space-y-1 max-h-36 overflow-y-auto rounded-md border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody px-2 py-1.5">
             {otherVersions.map((v) => (
-              <label key={v.id} className="flex items-center gap-2 text-sm text-main dark:text-darktext cursor-pointer">
+              <label
+                key={v.id}
+                className="flex items-center gap-2 text-sm text-main dark:text-darktext cursor-pointer"
+              >
                 <input
                   type="checkbox"
                   checked={values.compatible_versions.includes(v.id)}
                   onChange={() => toggleCompatible(v.id)}
+                  className="accent-indigo-600"
                 />
-                {v.name}
+                <span className="truncate">{v.name}</span>
                 {v.base_version && (
-                  <span className="text-xs text-muted dark:text-darkmutedtext">(base)</span>
+                  <span className="shrink-0 text-xs text-muted dark:text-darkmutedtext">
+                    (base)
+                  </span>
                 )}
               </label>
             ))}
@@ -153,7 +164,7 @@ function VersionEditor({
           <img
             src={imgUrl}
             alt="change preview"
-            className="w-full max-h-32 object-contain rounded mb-1 border border-subtle dark:border-darksubtle"
+            className="w-full max-h-32 object-contain rounded-md mb-1.5 border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody"
           />
         )}
         <input
@@ -165,18 +176,20 @@ function VersionEditor({
             setValues({ ...values, newImage: e.target.files?.[0] ?? null })
           }
         />
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          className="text-xs px-2 py-1 rounded border border-subtle dark:border-darksubtle text-main dark:text-darktext hover:bg-subtle dark:hover:bg-darksubtle"
-        >
-          {imgUrl ? "Replace image" : "Upload image"}
-        </button>
-        {values.newImage && (
-          <span className="ml-2 text-xs text-muted dark:text-darkmutedtext">
-            {values.newImage.name}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="text-xs px-2 py-1 rounded-md border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext hover:border-indigo-400 dark:hover:border-indigo-500"
+          >
+            {imgUrl ? "Replace image" : "Upload image"}
+          </button>
+          {values.newImage && (
+            <span className="text-xs text-muted dark:text-darkmutedtext truncate">
+              {values.newImage.name}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="flex gap-2 pt-1">
@@ -184,20 +197,21 @@ function VersionEditor({
           type="button"
           onClick={handleSave}
           disabled={updateMutation.isPending}
-          className="flex-1 rounded bg-accent dark:bg-darkaccent text-white text-sm py-1 hover:opacity-80 disabled:opacity-50"
+          className="flex-1 px-3 py-1.5 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
         >
           {updateMutation.isPending ? "Saving..." : "Save"}
         </button>
         <button
           type="button"
           onClick={onDone}
-          className="flex-1 rounded border border-subtle dark:border-darksubtle text-sm py-1 text-main dark:text-darktext hover:bg-subtle dark:hover:bg-darksubtle"
+          className="flex-1 px-3 py-1.5 text-sm rounded-md border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext hover:border-indigo-400 dark:hover:border-indigo-500"
         >
           Cancel
         </button>
       </div>
+
       {updateMutation.isError && (
-        <p className="text-xs text-red-500">
+        <p className="text-xs text-red-500 dark:text-red-400">
           Save failed. {updateMutation.error?.message}
         </p>
       )}
@@ -254,7 +268,7 @@ const VersionManagerPanel = ({ mapId }: VersionManagerPanelProps) => {
         {versionList.map((v) => (
           <div
             key={v.id}
-            className="rounded border border-subtle dark:border-darksubtle bg-white dark:bg-darkbg"
+            className="rounded-md border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody overflow-hidden"
           >
             <div className="flex items-center gap-2 px-3 py-2">
               {!v.base_version && (
@@ -263,14 +277,14 @@ const VersionManagerPanel = ({ mapId }: VersionManagerPanelProps) => {
                   title="Select for combination generation"
                   checked={selectedIds.has(v.id)}
                   onChange={() => toggleSelected(v.id)}
-                  className="shrink-0"
+                  className="shrink-0 accent-indigo-600"
                 />
               )}
               <span className="flex-1 text-sm font-medium text-main dark:text-darktext truncate">
                 {v.name}
               </span>
               {v.base_version && (
-                <span className="text-xs px-1.5 py-0.5 rounded bg-accent/10 dark:bg-darkaccent/10 text-accent dark:text-darkaccent">
+                <span className="text-xs px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300">
                   base
                 </span>
               )}
@@ -279,7 +293,7 @@ const VersionManagerPanel = ({ mapId }: VersionManagerPanelProps) => {
                 onClick={() =>
                   setExpandedId(expandedId === v.id ? null : v.id)
                 }
-                className="text-xs text-accent dark:text-darkaccent hover:underline"
+                className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline shrink-0"
               >
                 {expandedId === v.id ? "Close" : "Edit"}
               </button>
@@ -308,7 +322,7 @@ const VersionManagerPanel = ({ mapId }: VersionManagerPanelProps) => {
             type="button"
             onClick={handleGenerate}
             disabled={selectedIds.size < 2 || generateMutation.isPending}
-            className="w-full rounded bg-accent dark:bg-darkaccent text-white text-sm py-1.5 hover:opacity-80 disabled:opacity-40"
+            className="w-full px-3 py-1.5 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
           >
             {generateMutation.isPending
               ? "Generating..."
@@ -320,7 +334,7 @@ const VersionManagerPanel = ({ mapId }: VersionManagerPanelProps) => {
             </p>
           )}
           {generateMutation.isError && (
-            <p className="text-xs text-red-500">
+            <p className="text-xs text-red-500 dark:text-red-400">
               Failed. {generateMutation.error?.message}
             </p>
           )}
