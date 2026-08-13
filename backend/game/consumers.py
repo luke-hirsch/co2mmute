@@ -311,20 +311,24 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
 
         # Send current roster to the newly connected client
         roster = await self._get_roster()
-        await self.send_json({
-            "type": "roster.update",
-            "game_id": self.game_id,
-            "players": roster,
-        })
+        await self.send_json(
+            {
+                "type": "roster.update",
+                "game_id": self.game_id,
+                "players": roster,
+            }
+        )
 
         # Send current game state to the newly connected client
         game_state = await self._get_current_game_state()
         if game_state:
-            await self.send_json({
-                "type": "game.state",
-                "game_id": self.game_id,
-                "data": game_state,
-            })
+            await self.send_json(
+                {
+                    "type": "game.state",
+                    "game_id": self.game_id,
+                    "data": game_state,
+                }
+            )
 
     async def disconnect(self, code: int) -> None:
         if not hasattr(self, "player_id"):
@@ -399,18 +403,22 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
         status_key = self._player_status_key(self.player_id)
 
         # Store player info in roster hash
-        player_data = json.dumps({
-            "player_id": self.player_id,
-            "name": self.player_name,
-            "is_host": self.is_host,
-            "controlled_by_host": self.controlled_by_host,
-            "online": True,
-        })
+        player_data = json.dumps(
+            {
+                "player_id": self.player_id,
+                "name": self.player_name,
+                "is_host": self.is_host,
+                "controlled_by_host": self.controlled_by_host,
+                "online": True,
+            }
+        )
         await self.redis_client.hset(roster_key, self.player_id, player_data)
         await self.redis_client.expire(roster_key, self.ROSTER_TTL_SECONDS)
 
         # Set player status to ready (will be updated by game events)
-        await self.redis_client.set(status_key, self.STATUS_READY, ex=self.ROSTER_TTL_SECONDS)
+        await self.redis_client.set(
+            status_key, self.STATUS_READY, ex=self.ROSTER_TTL_SECONDS
+        )
 
     async def _mark_player_disconnected(self) -> None:
         """Mark player as disconnected in the roster."""
@@ -422,10 +430,14 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
         if player_data_raw:
             player_data = json.loads(player_data_raw)
             player_data["online"] = False
-            await self.redis_client.hset(roster_key, self.player_id, json.dumps(player_data))
+            await self.redis_client.hset(
+                roster_key, self.player_id, json.dumps(player_data)
+            )
 
         # Update status
-        await self.redis_client.set(status_key, self.STATUS_NOT_CONNECTED, ex=self.ROSTER_TTL_SECONDS)
+        await self.redis_client.set(
+            status_key, self.STATUS_NOT_CONNECTED, ex=self.ROSTER_TTL_SECONDS
+        )
 
     async def _get_roster(self) -> list[dict]:
         """Get current roster with player statuses."""
@@ -438,7 +450,9 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
                 player = json.loads(player_json)
                 # Get player status
                 status_key = self._player_status_key(player_id)
-                status = await self.redis_client.get(status_key) or self.STATUS_NOT_CONNECTED
+                status = (
+                    await self.redis_client.get(status_key) or self.STATUS_NOT_CONNECTED
+                )
                 player["status"] = status
                 players.append(player)
             except Exception as e:
@@ -455,16 +469,18 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
             {
                 "type": "roster_update",
                 "players": roster,
-            }
+            },
         )
 
     async def roster_update(self, event: dict) -> None:
         """Handle roster update broadcast."""
-        await self.send_json({
-            "type": "roster.update",
-            "game_id": self.game_id,
-            "players": event.get("players", []),
-        })
+        await self.send_json(
+            {
+                "type": "roster.update",
+                "game_id": self.game_id,
+                "players": event.get("players", []),
+            }
+        )
 
     # ─────────────────────────────────────────────────────────────────────────
     # Game state events
@@ -493,11 +509,13 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
             await self._set_all_players_status(self.STATUS_READY)
             await self._broadcast_roster()
 
-        await self.send_json({
-            "type": event_type,
-            "game_id": self.game_id,
-            "data": data,
-        })
+        await self.send_json(
+            {
+                "type": event_type,
+                "game_id": self.game_id,
+                "data": data,
+            }
+        )
 
     async def player_status_update(self, event: dict) -> None:
         """Handle player status update (e.g., after submitting a move)."""
@@ -515,12 +533,15 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
         for player in roster:
             if player.get("online") and not player.get("is_host"):
                 status_key = self._player_status_key(player["player_id"])
-                await self.redis_client.set(status_key, status, ex=self.ROSTER_TTL_SECONDS)
+                await self.redis_client.set(
+                    status_key, status, ex=self.ROSTER_TTL_SECONDS
+                )
 
     async def _get_current_game_state(self) -> dict | None:
         """Fetch current game state from database for reconnecting clients."""
         from channels.db import database_sync_to_async
-        from game.models import GameSession, GameRound
+
+        from game.models import GameRound, GameSession
 
         @database_sync_to_async
         def fetch_state():
@@ -531,9 +552,7 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
 
             # Get current/latest round
             current_round = (
-                GameRound.objects.filter(game=game)
-                .order_by("-round_number")
-                .first()
+                GameRound.objects.filter(game=game).order_by("-round_number").first()
             )
 
             # Calculate total emissions across completed rounds
@@ -569,7 +588,12 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
         # Fetch the correct ≤2 compatible voteable versions (same logic used during the
         # round) instead of querying all non-base versions.
         map_versions_data = []
-        if base_state["betweenRoundPhase"] in ("stats", "discussion", "voting", "stalemate"):
+        if base_state["betweenRoundPhase"] in (
+            "stats",
+            "discussion",
+            "voting",
+            "stalemate",
+        ):
             if base_state["hasMap"] and base_state["mapUpdates"]:
                 _, map_versions_data = await self._get_voteable_versions_async()
 
@@ -594,11 +618,13 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
 
     async def between_round_event(self, event: dict) -> None:
         """Handle between-round events (stats ack, voting)."""
-        await self.send_json({
-            "type": event.get("event", ""),
-            "game_id": self.game_id,
-            "data": event.get("data", {}),
-        })
+        await self.send_json(
+            {
+                "type": event.get("event", ""),
+                "game_id": self.game_id,
+                "data": event.get("data", {}),
+            }
+        )
 
     async def _handle_stats_ack(self) -> None:
         """Player acknowledged stats view, ready to proceed."""
@@ -629,9 +655,7 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
                 game = GameSession.objects.get(game_id=self.game_id)
             except GameSession.DoesNotExist:
                 return 0
-            return Player.objects.filter(game=game).exclude(
-                user=game.game_host
-            ).count()
+            return Player.objects.filter(game=game).exclude(user=game.game_host).count()
 
         needed = await get_non_host_player_count()
         return ack_count >= needed if needed > 0 else False
@@ -667,7 +691,9 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
     async def _handle_vote_open(self) -> None:
         """Host opens voting."""
         if not self.is_host:
-            await self.send_json({"type": "error", "message": "Only host can open voting"})
+            await self.send_json(
+                {"type": "error", "message": "Only host can open voting"}
+            )
             return
 
         await self._set_round_phase("voting")
@@ -690,7 +716,9 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
 
         success, vote_count, total_players = await self._record_vote(version_id)
         if not success:
-            await self.send_json({"type": "error", "message": "Vote failed or already voted"})
+            await self.send_json(
+                {"type": "error", "message": "Vote failed or already voted"}
+            )
             return
 
         await self.channel_layer.group_send(
@@ -731,14 +759,17 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
     async def _check_between_round_completion_after_leave(self) -> None:
         """Re-check stats ack / vote completion after a player disconnects."""
         from channels.db import database_sync_to_async
+
         from game.models import GameRound
 
         @database_sync_to_async
         def get_current_phase():
             try:
-                game_round = GameRound.objects.filter(
-                    game__game_id=self.game_id
-                ).order_by("-round_number").first()
+                game_round = (
+                    GameRound.objects.filter(game__game_id=self.game_id)
+                    .order_by("-round_number")
+                    .first()
+                )
                 return game_round.between_round_phase if game_round else "none"
             except Exception:
                 return "none"
@@ -757,12 +788,20 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
                 if result.get("stalemate"):
                     await self.channel_layer.group_send(
                         self.group_name,
-                        {"type": "between_round_event", "event": "vote.stalemate", "data": result},
+                        {
+                            "type": "between_round_event",
+                            "event": "vote.stalemate",
+                            "data": result,
+                        },
                     )
                 else:
                     await self.channel_layer.group_send(
                         self.group_name,
-                        {"type": "between_round_event", "event": "vote.result", "data": result},
+                        {
+                            "type": "between_round_event",
+                            "event": "vote.result",
+                            "data": result,
+                        },
                     )
                     await self._start_next_round()
         elif phase == "stalemate":
@@ -781,9 +820,11 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
         @database_sync_to_async
         def fetch():
             import random
+
             from django.core.cache import cache
-            from game.models import GameSession
             from maps.models import MapVersion
+
+            from game.models import GameSession
 
             try:
                 game = GameSession.objects.get(game_id=self.game_id)
@@ -813,13 +854,17 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
             data = []
             for target in candidates:
                 is_rollback = _is_rollback_target(active_version, target)
-                data.append({
-                    "id": target.id,
-                    "name": target.name,
-                    "poll_text": active_version.revert_poll_text if is_rollback else target.poll_text,
-                    "is_rollback": is_rollback,
-                    "change_img_url": _get_delta_img_url(active_version, target),
-                })
+                data.append(
+                    {
+                        "id": target.id,
+                        "name": target.name,
+                        "poll_text": active_version.revert_poll_text
+                        if is_rollback
+                        else target.poll_text,
+                        "is_rollback": is_rollback,
+                        "change_img_url": _get_delta_img_url(active_version, target),
+                    }
+                )
             return True, data
 
         return await fetch()
@@ -827,6 +872,7 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
     async def _set_round_phase(self, phase: str) -> None:
         """Update the between_round_phase on the current GameRound."""
         from channels.db import database_sync_to_async
+
         from game.models import GameRound
 
         @database_sync_to_async
@@ -848,8 +894,9 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
 
         @database_sync_to_async
         def do_vote():
-            from game.models import GameRound, MapVersionVote, Player
             from maps.models import MapVersion
+
+            from game.models import GameRound, MapVersionVote, Player
 
             game_round = (
                 GameRound.objects.filter(game__game_id=self.game_id)
@@ -887,9 +934,9 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
             vote_count = MapVersionVote.objects.filter(game_round=game_round).count()
             # Count non-host players
             game = game_round.game
-            total_players = Player.objects.filter(game=game).exclude(
-                user=game.game_host
-            ).count()
+            total_players = (
+                Player.objects.filter(game=game).exclude(user=game.game_host).count()
+            )
 
             return True, vote_count, total_players
 
@@ -913,9 +960,9 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
 
             vote_count = MapVersionVote.objects.filter(game_round=game_round).count()
             game = game_round.game
-            total_players = Player.objects.filter(game=game).exclude(
-                user=game.game_host
-            ).count()
+            total_players = (
+                Player.objects.filter(game=game).exclude(user=game.game_host).count()
+            )
             return vote_count, total_players
 
         return await fetch()
@@ -927,6 +974,7 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
         @database_sync_to_async
         def do_tally():
             from collections import Counter
+
             from game.models import GameRound, GameSession, MapVersionVote
 
             game_round = (
@@ -935,9 +983,16 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
                 .first()
             )
             if not game_round:
-                return {"winning_version_id": None, "winning_version_name": "Leave as it is", "vote_counts": [], "stalemate": False}
+                return {
+                    "winning_version_id": None,
+                    "winning_version_name": "Leave as it is",
+                    "vote_counts": [],
+                    "stalemate": False,
+                }
 
-            votes = MapVersionVote.objects.filter(game_round=game_round).select_related("map_version")
+            votes = MapVersionVote.objects.filter(game_round=game_round).select_related(
+                "map_version"
+            )
 
             # Count votes per version (None = "leave as it is")
             counter = Counter()
@@ -948,11 +1003,19 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
             vote_counts = []
             for version_id, count in counter.items():
                 if version_id is None:
-                    vote_counts.append({"version_id": None, "version_name": "Leave as it is", "count": count})
+                    vote_counts.append(
+                        {
+                            "version_id": None,
+                            "version_name": "Leave as it is",
+                            "count": count,
+                        }
+                    )
                 else:
                     v = votes.filter(map_version_id=version_id).first()
                     name = v.map_version.name if v and v.map_version else "Unknown"
-                    vote_counts.append({"version_id": version_id, "version_name": name, "count": count})
+                    vote_counts.append(
+                        {"version_id": version_id, "version_name": name, "count": count}
+                    )
 
             # Detect tie
             if not counter:
@@ -971,7 +1034,9 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
                     if game_round.stalemate_count < 2:
                         # First stalemate: enter stalemate phase
                         game_round.between_round_phase = "stalemate"
-                        game_round.save(update_fields=["between_round_phase", "updated_at"])
+                        game_round.save(
+                            update_fields=["between_round_phase", "updated_at"]
+                        )
                         return {
                             "stalemate": True,
                             "stalemate_count": game_round.stalemate_count,
@@ -1040,14 +1105,20 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
             if not player:
                 return False, 0, 0
 
-            if StalemateVote.objects.filter(game_round=game_round, player=player).exists():
+            if StalemateVote.objects.filter(
+                game_round=game_round, player=player
+            ).exists():
                 return False, 0, 0
 
-            StalemateVote.objects.create(game_round=game_round, player=player, want_revote=want_revote)
+            StalemateVote.objects.create(
+                game_round=game_round, player=player, want_revote=want_revote
+            )
 
             cast = StalemateVote.objects.filter(game_round=game_round).count()
             game = game_round.game
-            needed = Player.objects.filter(game=game).exclude(user=game.game_host).count()
+            needed = (
+                Player.objects.filter(game=game).exclude(user=game.game_host).count()
+            )
             return True, cast, needed
 
         success, cast, needed = await record_stalemate_vote()
@@ -1069,7 +1140,9 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
     async def _handle_stalemate_force_leave(self) -> None:
         """Host forces 'leave as is' outcome in a stalemate."""
         if not self.is_host:
-            await self.send_json({"type": "error", "message": "Only host can force resolve"})
+            await self.send_json(
+                {"type": "error", "message": "Only host can force resolve"}
+            )
             return
 
         await self._apply_stalemate_leave_as_is()
@@ -1090,8 +1163,12 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
             if not game_round:
                 return False
 
-            revote_count = StalemateVote.objects.filter(game_round=game_round, want_revote=True).count()
-            leave_count = StalemateVote.objects.filter(game_round=game_round, want_revote=False).count()
+            revote_count = StalemateVote.objects.filter(
+                game_round=game_round, want_revote=True
+            ).count()
+            leave_count = StalemateVote.objects.filter(
+                game_round=game_round, want_revote=False
+            ).count()
             return revote_count > leave_count
 
         should_revote = await tally_stalemate()
@@ -1167,7 +1244,9 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
                 return 0, 0
             cast = StalemateVote.objects.filter(game_round=game_round).count()
             game = game_round.game
-            needed = Player.objects.filter(game=game).exclude(user=game.game_host).count()
+            needed = (
+                Player.objects.filter(game=game).exclude(user=game.game_host).count()
+            )
             return cast, needed
 
         return await fetch()
@@ -1176,8 +1255,8 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
         """Create a new round and broadcast round.started."""
         from asgiref.sync import sync_to_async
         from channels.db import database_sync_to_async
-        from django.core.cache import cache
         from co2mmute.utils import send_game_state_message
+        from django.core.cache import cache
 
         # Clear cached vote version selection so next round gets a fresh random pick
         await sync_to_async(cache.delete)(f"game:{self.game_id}:vote_version_ids")
@@ -1185,6 +1264,7 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
         @database_sync_to_async
         def create_round():
             from django.utils import timezone
+
             from game.models import GameRound, GameSession
 
             try:
@@ -1194,9 +1274,7 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
 
             # Reset phase on completed round
             current_round = (
-                GameRound.objects.filter(game=game)
-                .order_by("-round_number")
-                .first()
+                GameRound.objects.filter(game=game).order_by("-round_number").first()
             )
             if current_round:
                 current_round.between_round_phase = "none"

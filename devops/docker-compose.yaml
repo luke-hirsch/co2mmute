@@ -37,7 +37,7 @@ services:
       DJANGO_STATIC_ROOT: /var/www/backend-static
       DJANGO_MEDIA_ROOT: /var/www/backend-media
       DJANGO_DB_WAIT_TIMEOUT: ${DJANGO_DB_WAIT_TIMEOUT:-60}
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-insecure-local-key}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set DJANGO_SECRET_KEY in devops/.env}
       DJANGO_BASE_URL: ${DJANGO_BASE_URL:-localhost}
       POSTGRES_DB: ${POSTGRES_DB:-co2mmute}
       POSTGRES_USER: ${POSTGRES_USER:-co2mmute}
@@ -99,6 +99,7 @@ services:
     volumes:
       - backend-static:/var/www/backend-static:ro
       - backend-media:/var/www/backend-media:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
 
 volumes:
   backend-static:

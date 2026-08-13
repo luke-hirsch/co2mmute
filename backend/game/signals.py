@@ -399,7 +399,7 @@ def handle_round_completed(sender, game_id=None, game_session=None, game_round=N
     game_round.save(update_fields=["between_round_phase", "updated_at"])
     logger.info(
         f"Game {game_session.game_id} round {game_round.round_number} "
-        f"entering stats phase (has_map_versions={bool(voteable_versions)})"
+        f"entering stats phase (has_map_versions={has_map_versions})"
     )
 
 

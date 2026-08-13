@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.test import TestCase, override_settings
 
-from .models import GameSession
+from game.models import GameSession
 
 
 class GameSessionModelTests(TestCase):

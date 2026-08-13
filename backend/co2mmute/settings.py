@@ -2,15 +2,17 @@ import hashlib
 import os
 from pathlib import Path
 
+from co2mmute.conf import resolve_secret_key
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 TEMPLATE_DIR = BASE_DIR / "template"
 FRONTEND_DIST_DIR = BASE_DIR.parent / "frontend" / "dist"
 STATIC_DIR = BASE_DIR / "static"
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "django-insecure-placeholder-key")
-
 DEBUG = os.environ.get("DJANGO_DEBUG", "True") == "True"
+
+SECRET_KEY = resolve_secret_key(os.environ.get("DJANGO_SECRET_KEY"), debug=DEBUG)
 
 ALLOWED_HOSTS = [
     host.strip()
