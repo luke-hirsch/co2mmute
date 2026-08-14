@@ -227,11 +227,12 @@ komplette UI auf deutsch, ueber `de.ts`. `LANGUAGE_CODE` auf `de-de`.
 
 #### deploy (14.08.26)
 
-kein staging mehr. die staging-kiste war mein privater vps, der geht an jac,
-die TU stellt keine. `stage` branch + `workflow-stage.yml` sind raus, es bleibt
-`main` -> `prod`.
+kein staging mehr. die staging-kiste war mein privater vps und wird anderweitig
+gebraucht, die TU stellt keine nach. `stage` branch + `workflow-stage.yml` sind
+raus, es bleibt `main` -> `prod`.
 
-- die `STAGING_*` secrets zeigen jetzt auf die jac-kiste. loeschen.
+- die `STAGING_*` secrets zeigen auf eine kiste die nicht mehr zum projekt gehoert.
+  loeschen, sonst deployt ein versehentlicher push dort drueber.
 - `PROD_HOST` / `PROD_KEY` / `PROD_USER` / `PROD_KNOWN_HOSTS` gibt es nicht,
   deshalb ist `workflow-prod.yml` noch nie gelaufen. die live-kiste wird von hand
   deployed. vor der uebergabe entscheiden: secrets setzen und pruefen ob der
@@ -239,6 +240,17 @@ die TU stellt keine. `stage` branch + `workflow-stage.yml` sind raus, es bleibt
   und den manuellen weg sauber dokumentieren. halbfertig darf es nicht bleiben.
 - ohne staging gibt es keine stufe mehr zwischen merge und live. das gate ist dann
   die testsuite, siehe 1.5. deploy nicht waehrend einer laufenden testrunde.
+
+offen aus phase 0, liegt alles nicht im repo:
+
+- cert auf der live-kiste tauschen. der alte private key ist public und liegt da
+  noch. das repo-fix allein rotiert ihn nicht.
+- pruefen wer bei `co2mmute.stsds.tu-berlin.de` TLS terminiert. wenn das self-signed
+  cert nach aussen geht, laeuft public traffic auf einem veroeffentlichten key
+  -> an die TU-admins.
+- pruefen ob die prod `.env` einen key >= 32 zeichen setzt, sonst startet der
+  container nach dem phase-0 fix nicht mehr:
+  `grep -c '^DJANGO_SECRET_KEY=.\{32,\}' devops/.env`
 
 ### automations (wenn zeit bleibt)
 
