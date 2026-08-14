@@ -8,9 +8,12 @@ kein account, kein login, name reicht. das ist absicht und bleibt so.
 
 ## Was Muss?
 
-### phase 0 – sofort, klein, blockiert nichts
+### phase 0 – sofort, klein, blockiert nichts ✅ erledigt 13.08.26
 
 audit 13.08.26. alles hier ist ein paar zeilen, sollte vor der naechsten testrunde drin sein.
+alles unten ist drin, suite von `failures=3, errors=17` auf `failures=1, errors=2`.
+offen bleibt nur was nicht im repo liegt: cert auf der kiste tauschen, prod `.env`
+pruefen, `PROD_*` secrets setzen.
 
 - `game/signals.py:402` benutzt `voteable_versions`, die variable gibt es nicht.
   NameError am ende jeder runde, ausser wenn das spiel in dem zug endet.
@@ -221,6 +224,21 @@ komplette UI auf deutsch, ueber `de.ts`. `LANGUAGE_CODE` auf `de-de`.
   und wie man den map editor bedient.
 - einfaches md reicht. wenn zeit bleibt: generierte api-doku.
 - README aufraeumen, die alte bug-liste raus.
+
+#### deploy (14.08.26)
+
+kein staging mehr. die staging-kiste war mein privater vps, der geht an jac,
+die TU stellt keine. `stage` branch + `workflow-stage.yml` sind raus, es bleibt
+`main` -> `prod`.
+
+- die `STAGING_*` secrets zeigen jetzt auf die jac-kiste. loeschen.
+- `PROD_HOST` / `PROD_KEY` / `PROD_USER` / `PROD_KNOWN_HOSTS` gibt es nicht,
+  deshalb ist `workflow-prod.yml` noch nie gelaufen. die live-kiste wird von hand
+  deployed. vor der uebergabe entscheiden: secrets setzen und pruefen ob der
+  TU-host ssh von github actions ueberhaupt annimmt - oder den workflow rauswerfen
+  und den manuellen weg sauber dokumentieren. halbfertig darf es nicht bleiben.
+- ohne staging gibt es keine stufe mehr zwischen merge und live. das gate ist dann
+  die testsuite, siehe 1.5. deploy nicht waehrend einer laufenden testrunde.
 
 ### automations (wenn zeit bleibt)
 
