@@ -1,0 +1,12 @@
+{
+  // Deliberately NOT referenced from the root tsconfig.json, so `tsc -b` (and
+  // therefore `npm run build`) never type-checks tests. Check them explicitly:
+  //     npm run typecheck:tests
+  "extends": "../tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "../node_modules/.tmp/tsconfig.tests.tsbuildinfo",
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["**/*.ts"]
+}

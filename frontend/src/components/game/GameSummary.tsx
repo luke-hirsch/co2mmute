@@ -115,10 +115,10 @@ export default function GameSummary({ gameId, playerId }: GameSummaryProps) {
       {/* Header */}
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold mb-2">Game Over</h1>
-        <p className="text-muted dark:text-darkmutedtext text-lg">
+        <p className="text-mutedtext dark:text-darkmutedtext text-lg">
           {endReasonText}
         </p>
-        <p className="text-sm text-muted dark:text-darkmutedtext mt-1">
+        <p className="text-sm text-mutedtext dark:text-darkmutedtext mt-1">
           {summary.rounds_played} round{summary.rounds_played !== 1 ? "s" : ""} played
           {" · "}
           {summary.players.length} player{summary.players.length !== 1 ? "s" : ""}
@@ -136,7 +136,7 @@ export default function GameSummary({ gameId, playerId }: GameSummaryProps) {
             className={`flex-1 py-2.5 px-3 rounded-md text-sm font-medium transition-all ${
               activeTab === tab.id
                 ? "bg-white dark:bg-gray-700 shadow-sm text-main dark:text-darktext"
-                : "text-muted dark:text-darkmutedtext hover:text-main dark:hover:text-darktext"
+                : "text-mutedtext dark:text-darkmutedtext hover:text-main dark:hover:text-darktext"
             }`}
           >
             {tab.label}
@@ -145,7 +145,7 @@ export default function GameSummary({ gameId, playerId }: GameSummaryProps) {
       </div>
 
       {/* Tab description */}
-      <p className="text-center text-sm text-muted dark:text-darkmutedtext mb-6">
+      <p className="text-center text-sm text-mutedtext dark:text-darkmutedtext mb-6">
         {TABS.find((t) => t.id === activeTab)?.description}
       </p>
 
@@ -172,7 +172,7 @@ export default function GameSummary({ gameId, playerId }: GameSummaryProps) {
                   className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shrink-0 ${
                     rank <= 3
                       ? `bg-gradient-to-br ${RANK_COLORS[rank - 1]} text-white`
-                      : "bg-gray-200 dark:bg-gray-700 text-muted dark:text-darkmutedtext"
+                      : "bg-gray-200 dark:bg-gray-700 text-mutedtext dark:text-darkmutedtext"
                   }`}
                 >
                   {rank === 1 ? "🏆" : rank}
@@ -244,7 +244,7 @@ export default function GameSummary({ gameId, playerId }: GameSummaryProps) {
                   {player.rounds.map((round) => (
                     <div
                       key={round.round_number}
-                      className="flex-1 text-center text-[10px] text-muted dark:text-darkmutedtext"
+                      className="flex-1 text-center text-[10px] text-mutedtext dark:text-darkmutedtext"
                     >
                       R{round.round_number}
                     </div>
@@ -253,7 +253,7 @@ export default function GameSummary({ gameId, playerId }: GameSummaryProps) {
               </div>
 
               {/* All-stats summary row */}
-              <div className="px-4 pb-3 flex gap-4 text-xs text-muted dark:text-darkmutedtext">
+              <div className="px-4 pb-3 flex gap-4 text-xs text-mutedtext dark:text-darkmutedtext">
                 <span className={activeTab === "time" ? "font-semibold text-main dark:text-darktext" : ""}>
                   {formatTime(player.total_time_min)}
                 </span>
@@ -274,7 +274,7 @@ export default function GameSummary({ gameId, playerId }: GameSummaryProps) {
         <h3 className="font-semibold mb-3 text-center">Round Breakdown</h3>
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-muted dark:text-darkmutedtext border-b border-subtle dark:border-darksubtle">
+            <tr className="text-mutedtext dark:text-darkmutedtext border-b border-subtle dark:border-darksubtle">
               <th className="text-left pb-2">Player</th>
               {Array.from({ length: summary.rounds_played }, (_, i) => (
                 <th key={i + 1} className="text-right pb-2">
@@ -312,7 +312,7 @@ export default function GameSummary({ gameId, playerId }: GameSummaryProps) {
             })}
           </tbody>
           <tfoot>
-            <tr className="border-t border-subtle dark:border-darksubtle text-muted dark:text-darkmutedtext">
+            <tr className="border-t border-subtle dark:border-darksubtle text-mutedtext dark:text-darkmutedtext">
               <td className="pt-1.5 text-xs" colSpan={summary.rounds_played + 2}>
                 Values in {formatUnit(activeTab)}
               </td>

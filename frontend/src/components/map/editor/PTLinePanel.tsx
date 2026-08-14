@@ -281,7 +281,7 @@ const PTLinePanel = ({
           PT Lines ({allLines.length})
         </h3>
         {allLines.length === 0 ? (
-          <p className="text-sm text-muted dark:text-darkmutedtext">
+          <p className="text-sm text-mutedtext dark:text-darkmutedtext">
             No public transport lines yet.
           </p>
         ) : (
@@ -308,7 +308,7 @@ const PTLinePanel = ({
                   <span className="text-sm font-medium text-main dark:text-darktext">
                     {line.name}
                   </span>
-                  <span className="text-xs text-muted dark:text-darkmutedtext ml-2">
+                  <span className="text-xs text-mutedtext dark:text-darkmutedtext ml-2">
                     {line.edges.length} edges, {line.interval}min
                   </span>
                 </div>
@@ -348,14 +348,14 @@ const PTLinePanel = ({
             </h3>
             <button
               onClick={cancelEdit}
-              className="text-xs text-muted dark:text-darkmutedtext hover:text-main dark:hover:text-darktext"
+              className="text-xs text-mutedtext dark:text-darkmutedtext hover:text-main dark:hover:text-darktext"
             >
               Cancel
             </button>
           </div>
 
           <div>
-            <label className="text-xs text-muted dark:text-darkmutedtext">Name</label>
+            <label className="text-xs text-mutedtext dark:text-darkmutedtext">Name</label>
             <input
               type="text"
               value={editName}
@@ -366,7 +366,7 @@ const PTLinePanel = ({
 
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="text-xs text-muted dark:text-darkmutedtext">
+              <label className="text-xs text-mutedtext dark:text-darkmutedtext">
                 Interval
               </label>
               <input
@@ -378,7 +378,7 @@ const PTLinePanel = ({
               />
             </div>
             <div>
-              <label className="text-xs text-muted dark:text-darkmutedtext">Capacity</label>
+              <label className="text-xs text-mutedtext dark:text-darkmutedtext">Capacity</label>
               <input
                 type="number"
                 min={1}
@@ -388,7 +388,7 @@ const PTLinePanel = ({
               />
             </div>
             <div>
-              <label className="text-xs text-muted dark:text-darkmutedtext">Speed</label>
+              <label className="text-xs text-mutedtext dark:text-darkmutedtext">Speed</label>
               <input
                 type="number"
                 min={1}
@@ -401,7 +401,7 @@ const PTLinePanel = ({
 
           {/* Editable edge list */}
           <div>
-            <p className="text-xs text-muted dark:text-darkmutedtext mb-1">
+            <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">
               Route ({ptLineEdgeIds.length} edges)
             </p>
             {ptLineEdgeIds.length === 0 ? (
@@ -459,7 +459,7 @@ const PTLinePanel = ({
                 })}
               </div>
             )}
-            <p className="text-xs text-muted dark:text-darkmutedtext mt-1">
+            <p className="text-xs text-mutedtext dark:text-darkmutedtext mt-1">
               Click edges on map to extend. Click end edges to remove.
             </p>
           </div>
@@ -500,7 +500,7 @@ const PTLinePanel = ({
           </h3>
 
           <div>
-            <label className="text-xs text-muted dark:text-darkmutedtext">Name</label>
+            <label className="text-xs text-mutedtext dark:text-darkmutedtext">Name</label>
             <input
               type="text"
               value={name}
@@ -512,7 +512,7 @@ const PTLinePanel = ({
 
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="text-xs text-muted dark:text-darkmutedtext">
+              <label className="text-xs text-mutedtext dark:text-darkmutedtext">
                 Interval
               </label>
               <input
@@ -524,7 +524,7 @@ const PTLinePanel = ({
               />
             </div>
             <div>
-              <label className="text-xs text-muted dark:text-darkmutedtext">Capacity</label>
+              <label className="text-xs text-mutedtext dark:text-darkmutedtext">Capacity</label>
               <input
                 type="number"
                 min={1}
@@ -534,7 +534,7 @@ const PTLinePanel = ({
               />
             </div>
             <div>
-              <label className="text-xs text-muted dark:text-darkmutedtext">Speed</label>
+              <label className="text-xs text-mutedtext dark:text-darkmutedtext">Speed</label>
               <input
                 type="number"
                 min={1}
@@ -547,7 +547,7 @@ const PTLinePanel = ({
 
           {/* Selected edges */}
           <div>
-            <p className="text-xs text-muted dark:text-darkmutedtext mb-1">
+            <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">
               Route ({ptLineEdgeIds.length} edges selected)
             </p>
             {ptLineEdgeIds.length === 0 ? (

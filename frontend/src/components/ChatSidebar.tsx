@@ -77,13 +77,13 @@ const ChatSidebar = ({ gameId, chatEnabled = true }: ChatSidebarProps) => {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto mb-4">
         {messages.length === 0 && (
-          <div className="text-xs text-muted italic">No messages yet</div>
+          <div className="text-xs text-mutedtext italic">No messages yet</div>
         )}
         {messages.map((message, idx) => {
           if (message.isSystem) {
             return (
               <div key={idx} className="mb-3 flex justify-center">
-                <div className="px-3 py-1 text-xs text-muted italic bg-gray-100 dark:bg-gray-800 rounded-full">
+                <div className="px-3 py-1 text-xs text-mutedtext italic bg-gray-100 dark:bg-gray-800 rounded-full">
                   {message.message}
                 </div>
               </div>
@@ -124,7 +124,7 @@ const ChatSidebar = ({ gameId, chatEnabled = true }: ChatSidebarProps) => {
                       ? "text-darktext opacity-70"
                       : isHostMessage
                         ? "text-amber-600 dark:text-amber-300"
-                        : "text-muted"
+                        : "text-mutedtext"
                   }`}
                 >
                   {new Date(message.ts).toLocaleTimeString()}

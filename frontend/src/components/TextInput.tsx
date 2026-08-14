@@ -42,7 +42,7 @@ export default function TextInput({
           name={name}
           type={type}
           value={value}
-          className={`${margin} ${padding} rounded w-full bg-subtle text-muted ${additionalClasses} ${baseBorder} dark:bg-darkelevated dark:text-darkmutedtext`}
+          className={`${margin} ${padding} rounded w-full bg-subtle text-mutedtext ${additionalClasses} ${baseBorder} dark:bg-darkelevated dark:text-darkmutedtext`}
           disabled
         />
         {label && (
@@ -65,7 +65,7 @@ export default function TextInput({
         name={name}
         type={type}
         value={value}
-        className={`${margin} ${padding} rounded w-full bg-surface text-main placeholder:text-muted transition ease-in-out duration-300 focus:outline-none focus:border-primary-500 focus:ring-0 ${additionalClasses} ${
+        className={`${margin} ${padding} rounded w-full bg-surface text-main placeholder:text-mutedtext transition ease-in-out duration-300 focus:outline-none focus:border-primary-500 focus:ring-0 ${additionalClasses} ${
           error ? errorStyles : baseBorder
         } dark:bg-darkelevated dark:text-darktext dark:placeholder:text-darkmutedtext`}
       />

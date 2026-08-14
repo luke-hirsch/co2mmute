@@ -69,7 +69,7 @@ const ConfirmDialog = ({
         <h2 className="mb-2 text-lg font-semibold text-main dark:text-darktext">
           {title}
         </h2>
-        <p className="mb-6 text-sm text-muted dark:text-darkmutedtext">
+        <p className="mb-6 text-sm text-mutedtext dark:text-darkmutedtext">
           {message}
         </p>
 

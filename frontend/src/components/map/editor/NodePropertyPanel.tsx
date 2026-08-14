@@ -60,7 +60,7 @@ const NodePropertyPanel = ({ node, mapId }: NodePropertyPanelProps) => {
       <h3 className="text-lg font-semibold text-main dark:text-darktext">Node</h3>
 
       <div>
-        <label className="text-xs text-muted dark:text-darkmutedtext">Name</label>
+        <label className="text-xs text-mutedtext dark:text-darkmutedtext">Name</label>
         <input
           type="text"
           value={name}
@@ -71,14 +71,14 @@ const NodePropertyPanel = ({ node, mapId }: NodePropertyPanelProps) => {
       </div>
 
       <div>
-        <p className="text-xs text-muted dark:text-darkmutedtext">Position</p>
+        <p className="text-xs text-mutedtext dark:text-darkmutedtext">Position</p>
         <p className="text-sm text-main dark:text-darktext">
           ({node.x_position.toFixed(2)}, {node.y_position.toFixed(2)})
         </p>
       </div>
 
       <div>
-        <p className="text-xs text-muted dark:text-darkmutedtext mb-1">Types</p>
+        <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">Types</p>
         <div className="flex flex-wrap gap-1">
           {(allNodeTypes ?? []).map((t: NodeType) => (
             <button
@@ -87,14 +87,14 @@ const NodePropertyPanel = ({ node, mapId }: NodePropertyPanelProps) => {
               className={`text-xs px-2 py-0.5 rounded transition-colors ${
                 selectedTypeIds.has(t.id)
                   ? "bg-indigo-600 text-white"
-                  : "bg-body dark:bg-darkbody text-muted dark:text-darkmutedtext border border-subtle dark:border-darksubtle"
+                  : "bg-body dark:bg-darkbody text-mutedtext dark:text-darkmutedtext border border-subtle dark:border-darksubtle"
               }`}
             >
               {t.short} — {t.name}
             </button>
           ))}
           {(!allNodeTypes || allNodeTypes.length === 0) && (
-            <span className="text-xs text-muted dark:text-darkmutedtext">
+            <span className="text-xs text-mutedtext dark:text-darkmutedtext">
               No node types defined
             </span>
           )}

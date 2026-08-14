@@ -440,14 +440,14 @@ const VersionDiffPanel = ({
           <h3 className="text-lg font-semibold text-main dark:text-darktext">
             Create Alternate Version
           </h3>
-          <p className="text-xs text-muted dark:text-darkmutedtext">
+          <p className="text-xs text-mutedtext dark:text-darkmutedtext">
             Define the version that players can vote for. Fill in the details
             below, then proceed to modify edges.
           </p>
 
           {/* Source version selector */}
           <div>
-            <label className="text-xs text-muted dark:text-darkmutedtext">
+            <label className="text-xs text-mutedtext dark:text-darkmutedtext">
               Source Version
             </label>
             <select
@@ -475,7 +475,7 @@ const VersionDiffPanel = ({
 
           {/* Version Name */}
           <div>
-            <label className="text-xs text-muted dark:text-darkmutedtext">
+            <label className="text-xs text-mutedtext dark:text-darkmutedtext">
               Version Name <span className="text-red-500">*</span>
             </label>
             <input
@@ -489,10 +489,10 @@ const VersionDiffPanel = ({
 
           {/* Poll Text */}
           <div>
-            <label className="text-xs text-muted dark:text-darkmutedtext">
+            <label className="text-xs text-mutedtext dark:text-darkmutedtext">
               Poll Text <span className="text-red-500">*</span>
             </label>
-            <p className="text-xs text-muted dark:text-darkmutedtext mt-0.5 mb-1">
+            <p className="text-xs text-mutedtext dark:text-darkmutedtext mt-0.5 mb-1">
               What should players vote on?
             </p>
             <textarea
@@ -506,7 +506,7 @@ const VersionDiffPanel = ({
 
           {/* Revert Poll Text */}
           <div>
-            <label className="text-xs text-muted dark:text-darkmutedtext">
+            <label className="text-xs text-mutedtext dark:text-darkmutedtext">
               Revert Poll Text
             </label>
             <input
@@ -520,7 +520,7 @@ const VersionDiffPanel = ({
 
           {/* Description */}
           <div>
-            <label className="text-xs text-muted dark:text-darkmutedtext">
+            <label className="text-xs text-mutedtext dark:text-darkmutedtext">
               Description
             </label>
             <textarea
@@ -553,7 +553,7 @@ const VersionDiffPanel = ({
             <p className="text-sm font-semibold text-main dark:text-darktext truncate">
               {versionMetadata.versionName}
             </p>
-            <p className="text-xs text-muted dark:text-darkmutedtext mt-0.5 line-clamp-2">
+            <p className="text-xs text-mutedtext dark:text-darkmutedtext mt-0.5 line-clamp-2">
               {versionMetadata.pollText}
             </p>
           </div>
@@ -569,7 +569,7 @@ const VersionDiffPanel = ({
       {/* Instructions when nothing is happening */}
       {!selectedEdge && !versionDiffEditingPtLine && totalChanges === 0 && (
         <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle">
-          <p className="text-sm text-muted dark:text-darkmutedtext">
+          <p className="text-sm text-mutedtext dark:text-darkmutedtext">
             Use the toolbar tools to modify the map. Click edges to change their
             properties, add/delete nodes and edges, or add/modify PT lines below.
           </p>
@@ -602,13 +602,13 @@ const VersionDiffPanel = ({
               </span>
               <button
                 onClick={cancelPtDraft}
-                className="text-xs text-muted dark:text-darkmutedtext hover:text-main dark:hover:text-darktext"
+                className="text-xs text-mutedtext dark:text-darkmutedtext hover:text-main dark:hover:text-darktext"
               >
                 Cancel
               </button>
             </div>
             <div>
-              <label className="text-xs text-muted dark:text-darkmutedtext">Name</label>
+              <label className="text-xs text-mutedtext dark:text-darkmutedtext">Name</label>
               <input
                 type="text"
                 value={ptDraftName}
@@ -618,7 +618,7 @@ const VersionDiffPanel = ({
             </div>
             <div className="grid grid-cols-3 gap-1">
               <div>
-                <label className="text-xs text-muted dark:text-darkmutedtext">Interval</label>
+                <label className="text-xs text-mutedtext dark:text-darkmutedtext">Interval</label>
                 <input
                   type="number"
                   min={1}
@@ -628,7 +628,7 @@ const VersionDiffPanel = ({
                 />
               </div>
               <div>
-                <label className="text-xs text-muted dark:text-darkmutedtext">Capacity</label>
+                <label className="text-xs text-mutedtext dark:text-darkmutedtext">Capacity</label>
                 <input
                   type="number"
                   min={1}
@@ -638,7 +638,7 @@ const VersionDiffPanel = ({
                 />
               </div>
               <div>
-                <label className="text-xs text-muted dark:text-darkmutedtext">Speed</label>
+                <label className="text-xs text-mutedtext dark:text-darkmutedtext">Speed</label>
                 <input
                   type="number"
                   min={1}
@@ -649,7 +649,7 @@ const VersionDiffPanel = ({
               </div>
             </div>
             <div>
-              <p className="text-xs text-muted dark:text-darkmutedtext">
+              <p className="text-xs text-mutedtext dark:text-darkmutedtext">
                 Route ({ptLineEdgeIds.length} edges) — click edges on map
               </p>
               {ptLineEdgeIds.length > 0 && (
@@ -696,7 +696,7 @@ const VersionDiffPanel = ({
         {!versionDiffEditingPtLine && (
           <>
             {allPtLines.length === 0 ? (
-              <p className="text-xs text-muted dark:text-darkmutedtext">
+              <p className="text-xs text-mutedtext dark:text-darkmutedtext">
                 No PT lines in this version.
               </p>
             ) : (
@@ -802,7 +802,7 @@ const VersionDiffPanel = ({
           {/* Edge property changes */}
           {edgeChanges.length > 0 && (
             <div>
-              <p className="text-xs text-muted dark:text-darkmutedtext mb-1">
+              <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">
                 Edge Modifications ({edgeChanges.length})
               </p>
               <div className="space-y-1">
@@ -818,7 +818,7 @@ const VersionDiffPanel = ({
                         <span className="text-xs font-medium text-main dark:text-darktext">
                           {edge?.name || `Edge ${change.edge_id}`}
                         </span>
-                        <span className="text-xs text-muted dark:text-darkmutedtext ml-1">
+                        <span className="text-xs text-mutedtext dark:text-darkmutedtext ml-1">
                           {fields.join(", ")}
                         </span>
                       </div>
@@ -838,7 +838,7 @@ const VersionDiffPanel = ({
           {/* PT line changes */}
           {ptLineChanges.length > 0 && (
             <div>
-              <p className="text-xs text-muted dark:text-darkmutedtext mb-1">
+              <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">
                 PT Line Changes ({ptLineChanges.length})
               </p>
               <div className="space-y-1">
@@ -878,7 +878,7 @@ const VersionDiffPanel = ({
           {/* New nodes */}
           {newNodes.length > 0 && (
             <div>
-              <p className="text-xs text-muted dark:text-darkmutedtext mb-1">
+              <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">
                 New Nodes ({newNodes.length})
               </p>
               <div className="space-y-1">
@@ -905,7 +905,7 @@ const VersionDiffPanel = ({
           {/* New edges */}
           {newEdges.length > 0 && (
             <div>
-              <p className="text-xs text-muted dark:text-darkmutedtext mb-1">
+              <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">
                 New Edges ({newEdges.length})
               </p>
               <div className="space-y-1">
@@ -933,7 +933,7 @@ const VersionDiffPanel = ({
           {/* Deleted nodes */}
           {deletedNodeIds.size > 0 && (
             <div>
-              <p className="text-xs text-muted dark:text-darkmutedtext mb-1">
+              <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">
                 Deleted Nodes ({deletedNodeIds.size})
               </p>
               <div className="space-y-1">
@@ -960,7 +960,7 @@ const VersionDiffPanel = ({
           {/* Deleted edges (non-cascade only in display) */}
           {deletedEdgeIds.size > 0 && (
             <div>
-              <p className="text-xs text-muted dark:text-darkmutedtext mb-1">
+              <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">
                 Deleted Edges ({deletedEdgeIds.size})
               </p>
               <div className="space-y-1">
@@ -976,7 +976,7 @@ const VersionDiffPanel = ({
                       <span className="text-xs text-red-700 dark:text-red-400 line-through">
                         {getEdgeLabel(edgeId)}
                         {isCascade && (
-                          <span className="text-xs text-muted dark:text-darkmutedtext ml-1 no-underline">
+                          <span className="text-xs text-mutedtext dark:text-darkmutedtext ml-1 no-underline">
                             (cascade)
                           </span>
                         )}

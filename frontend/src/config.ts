@@ -9,4 +9,3 @@ const resolveApiBaseUrl = () => {
 
 export const API_BASE_URL = resolveApiBaseUrl();
 
-export const COLOR_MODE_STORAGE_KEY = "colorMode";

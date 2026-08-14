@@ -242,7 +242,7 @@ const Game = ({ gameId, gameState, playerId, isHost, agentCount = 4, mapId, agen
         <div className="mb-8">
           <div className="text-6xl mb-4">🎮</div>
           <h1 className="text-2xl font-bold mb-2">Waiting for game to start</h1>
-          <p className="text-muted dark:text-darkmutedtext">
+          <p className="text-mutedtext dark:text-darkmutedtext">
             {isHost
               ? "Start the game when all players have joined"
               : "The host will start the game soon"}
@@ -261,7 +261,7 @@ const Game = ({ gameId, gameState, playerId, isHost, agentCount = 4, mapId, agen
                 <span className={`text-2xl font-bold ${agent.color}`}>#{agent.id}</span>
                 <div className="text-left">
                   <p className="font-medium">{agent.name}</p>
-                  <p className="text-sm text-muted dark:text-darkmutedtext">
+                  <p className="text-sm text-mutedtext dark:text-darkmutedtext">
                     {agent.destinationNode ? `→ Node ${agent.destinationNode}` : "Awaiting assignment"}
                   </p>
                 </div>
@@ -286,7 +286,7 @@ const Game = ({ gameId, gameState, playerId, isHost, agentCount = 4, mapId, agen
       <div className="w-full max-w-2xl">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold mb-2">Round {completedRound} Complete!</h1>
-          <p className="text-muted dark:text-darkmutedtext">
+          <p className="text-mutedtext dark:text-darkmutedtext">
             Next round starting soon...
           </p>
         </div>
@@ -305,7 +305,7 @@ const Game = ({ gameId, gameState, playerId, isHost, agentCount = 4, mapId, agen
                   </span>
                   <div>
                     <p className="font-medium">{stat.player_name}</p>
-                    <p className="text-sm text-muted dark:text-darkmutedtext">
+                    <p className="text-sm text-mutedtext dark:text-darkmutedtext">
                       {TRANSPORTATION_OPTIONS.find((t) => t.id === stat.action)?.emoji}{" "}
                       {stat.action}
                     </p>
@@ -313,7 +313,7 @@ const Game = ({ gameId, gameState, playerId, isHost, agentCount = 4, mapId, agen
                 </div>
                 <div className="text-right text-sm">
                   <p className="font-medium">{stat.emissions_g}g CO₂</p>
-                  <p className="text-muted dark:text-darkmutedtext">
+                  <p className="text-mutedtext dark:text-darkmutedtext">
                     {stat.time_min} min
                   </p>
                 </div>
@@ -354,7 +354,7 @@ const Game = ({ gameId, gameState, playerId, isHost, agentCount = 4, mapId, agen
                     <span className={`font-bold ${agent.color}`}>#{agent.id}</span>
                     <span className="font-medium">{agent.name}</span>
                     {agent.destinationNode && (
-                      <span className="text-muted dark:text-darkmutedtext">→ Node {agent.destinationNode}</span>
+                      <span className="text-mutedtext dark:text-darkmutedtext">→ Node {agent.destinationNode}</span>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
@@ -377,7 +377,7 @@ const Game = ({ gameId, gameState, playerId, isHost, agentCount = 4, mapId, agen
         </div>
 
         {gameState && (
-          <div className="mt-6 text-sm text-muted dark:text-darkmutedtext">
+          <div className="mt-6 text-sm text-mutedtext dark:text-darkmutedtext">
             Round {gameState.currentRound} of {gameState.maxRounds}
           </div>
         )}
@@ -394,7 +394,7 @@ const Game = ({ gameId, gameState, playerId, isHost, agentCount = 4, mapId, agen
           <h1 className="text-2xl font-bold mb-2">
             Round {gameState.currentRound} of {gameState.maxRounds}
           </h1>
-          <p className="text-muted dark:text-darkmutedtext">
+          <p className="text-mutedtext dark:text-darkmutedtext">
             Choose transportation for each family member
           </p>
 
@@ -431,7 +431,7 @@ const Game = ({ gameId, gameState, playerId, isHost, agentCount = 4, mapId, agen
           <h3 className="text-lg font-semibold mb-3">
             City Map
             {roundState.selectedAgentId && (
-              <span className="ml-2 text-sm font-normal text-muted dark:text-darkmutedtext">
+              <span className="ml-2 text-sm font-normal text-mutedtext dark:text-darkmutedtext">
                 — Showing Agent {roundState.selectedAgentId} route
               </span>
             )}
@@ -476,7 +476,7 @@ const Game = ({ gameId, gameState, playerId, isHost, agentCount = 4, mapId, agen
                 <span className={`text-2xl font-bold ${agent.color}`}>#{agent.id}</span>
                 <div className="flex-1">
                   <h3 className={`font-semibold ${agent.color}`}>{agent.name}</h3>
-                  <p className="text-xs text-muted dark:text-darkmutedtext">
+                  <p className="text-xs text-mutedtext dark:text-darkmutedtext">
                     🏠 → {agent.destinationNode ? `Node ${agent.destinationNode}` : "?"}
                   </p>
                 </div>

@@ -59,7 +59,7 @@ const ImageTransformPanel = ({ mapId, gameMap, mapGraph }: ImageTransformPanelPr
         <h3 className="text-lg font-semibold text-main dark:text-darktext mb-2">
           Background Image
         </h3>
-        <p className="text-sm text-muted dark:text-darkmutedtext">
+        <p className="text-sm text-mutedtext dark:text-darkmutedtext">
           No background image uploaded. Use the "Upload Image" button in the toolbar.
         </p>
       </div>
@@ -90,7 +90,7 @@ const ImageTransformPanel = ({ mapId, gameMap, mapGraph }: ImageTransformPanelPr
 
       {sliders.map(({ field, label, min, max, step }) => (
         <div key={field}>
-          <label className="flex justify-between text-xs text-muted dark:text-darkmutedtext mb-1">
+          <label className="flex justify-between text-xs text-mutedtext dark:text-darkmutedtext mb-1">
             <span>{label}</span>
             <span>{values[field].toFixed(field === "image_scale" ? 2 : 1)}</span>
           </label>
