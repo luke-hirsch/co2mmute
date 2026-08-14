@@ -223,18 +223,6 @@ class GetYourOwnGame(GameScopedQuerysetMixin, GenericAPIView):
         return Response(response_data, status=status.HTTP_200_OK)
 
 
-class GameSessionListView(GameScopedQuerysetMixin, ListModelMixin, GenericAPIView):
-    serializer_class = GameSessionSerializer
-    authentication_classes = (SessionAuthentication,)
-    permission_classes = (HasGameAccess,)
-
-    def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-
 class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
     serializer_class = PlayerSerializer
     authentication_classes = (SessionAuthentication,)

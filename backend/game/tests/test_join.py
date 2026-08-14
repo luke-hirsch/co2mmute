@@ -60,7 +60,8 @@ class SessionLookupTests(TempMediaRootMixin, TestCase):
             self.game = create_game_session(self.host, game_name="Lookup")
 
     def test_unknown_game_returns_404(self):
-        response = self.client.get(lookup_url("NOPE12"))
+        with muted():
+            response = self.client.get(lookup_url("NOPE12"))
         self.assertEqual(response.status_code, 404)
 
     def test_lookup_needs_no_cookie(self):
@@ -308,7 +309,8 @@ class LobbyStateTests(GameCookieMixin, TempMediaRootMixin, TestCase):
             self.player = Player.objects.create(game=self.game, name="Mia")
 
     def test_lobby_requires_the_game_cookie(self):
-        response = self.client.get(lobby_url(self.game.game_id))
+        with muted():
+            response = self.client.get(lobby_url(self.game.game_id))
         self.assertEqual(response.status_code, 403)
 
     def test_lobby_returns_the_roster_and_the_settings(self):
@@ -345,7 +347,8 @@ class LobbyStateTests(GameCookieMixin, TempMediaRootMixin, TestCase):
 
     def test_lobby_of_an_unknown_game_is_not_reachable(self):
         self.give_game_access("NOPE12")
-        response = self.client.get(lobby_url("NOPE12"))
+        with muted():
+            response = self.client.get(lobby_url("NOPE12"))
         self.assertEqual(response.status_code, 404)
 
 
@@ -395,7 +398,8 @@ class SessionsRouteRemovedTests(TempMediaRootMixin, TestCase):
     """
 
     def test_the_sessions_route_no_longer_lists_anything(self):
-        response = self.client.get("/api/game/sessions/")
+        with muted():
+            response = self.client.get("/api/game/sessions/")
         self.assertNotEqual(
             response.status_code,
             200,
