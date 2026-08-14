@@ -35,4 +35,4 @@ jobs:
             -o StrictHostKeyChecking=yes \
             -o PreferredAuthentications=publickey \
             ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} \
-            "cd /srv/commute && git fetch origin && git checkout stage && git pull --ff-only origin stage && docker compose -f devops/docker-compose.yaml up -d --build"
+            "cd /srv/commute && git fetch origin && git checkout prod && git pull --ff-only origin prod && docker compose -f devops/docker-compose.yaml up -d --build"

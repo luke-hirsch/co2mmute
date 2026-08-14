@@ -8,8 +8,8 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 
 
-from .models import GameSession, Player
-from .ws_auth import resolve_player
+from game.models import GameSession, Player
+from game.ws_auth import resolve_player
 
 
 class WsAuthTests(TestCase):
