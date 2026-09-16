@@ -213,6 +213,19 @@ kommt nach 1.5, laeuft also schon hinter dem CI-gate.
   consumer `self.player_id` (`consumers.py:910, 1103`).
 - der host-bildschirm haengt meistens am beamer. ohne verdeckten zwischenschritt
   beim spielerwechsel sieht die ganze klasse jede wahl und jede stimme.
+- der roster im spiel kommt nur aus redis (`GameConsumer`): eintrag beim connect,
+  `online: False` beim disconnect, geloescht wird nie. gefunden beim testen 16.09.26:
+  - host-gesteuerte spieler haben keinen eigenen socket, tauchen da also nie auf.
+  - entfernte spieler bleiben als "offline" stehen. `player.left` wertet niemand aus,
+    weder consumer noch frontend.
+  - deploy/neustart: daphne ruft `disconnect()` dabei nicht auf. wer gerade verbunden
+    war, bleibt `online: True`. wer danach nicht mehr reinkommt, bleibt so haengen.
+
+  -> liste aus den `Player`-zeilen, redis nur noch fuer online + status. fuer das
+  haengende `online`: ttl mit heartbeat oder reset beim start, im guide entscheiden.
+- `PlayerDetailView.destroy` loescht immer die cookies des aufrufers. entfernt der
+  host jemanden, sind seine eigenen weg. faellt heute nicht auf, der host wird ueber
+  die session erkannt. -> nur loeschen wenn es der eigene spieler ist.
 
 #### 1.7 sitzung auf anderes geraet
 
@@ -229,6 +242,10 @@ anderes geraet mitnehmen, ohne account.
   zweiter logout fuer alle. kosten: der redis-roster ist nach `player_id`
   geschluesselt und muss aufgeraeumt werden. moves und votes haengen am FK und
   bleiben.
+- "raus" gilt erst beim naechsten request. der offene websocket von geraet 1 bleibt
+  verbunden und bekommt weiter alles mit. -> consumer schliesst sich selbst (4403),
+  wenn `player.left` oder die neue `player_id` seinen spieler betrifft. das fehlt heute
+  schon beim entfernen durch den host.
 - der code ist ein bearer-token. wer ihn am beamer sieht, uebernimmt den platz.
   deshalb kurz gueltig und nur auf anfrage.
 - gleicher mechanismus fuer 1.6, in beide richtungen: wer spaeter mit handy kommt,
