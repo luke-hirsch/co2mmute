@@ -25,6 +25,16 @@
   --color-text-main: #111827;
   --color-text-muted: #6b7280;
   --color-text-soft: #9ca3af;
+  /* the same neutrals under the names the templates use (text-main, bg-surface,
+     border-subtle). the long names above only generate text-text-main etc. */
+  --color-body: #f3f4f6;
+  --color-surface: #ffffff;
+  --color-elevated: #f9fafb;
+  --color-subtle: #e5e7eb;
+  --color-strong: #d1d5db;
+  --color-main: #111827;
+  --color-muted: #6b7280;
+  --color-soft: #9ca3af;
   /* neutral dark */
   --color-darkbody: #0b1120;
   --color-darksurface: #111827;
