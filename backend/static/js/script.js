@@ -162,7 +162,7 @@ const showCookieBanner = () => {
           <h3 class="font-semibold text-main dark:text-darktext mb-2">Cookie-Einstellungen</h3>
           <p class="text-sm text-muted dark:text-darkmutedtext">
             Wir verwenden notwendige Cookies für Session-Management, Spielfunktionalität und Theme-Einstellungen. 
-            Lesen Sie mehr in unserer <a href="/legal/cookies/" class="text-primary-600 dark:text-primary-400 hover:underline">Cookie-Richtlinie</a>.
+            Mehr dazu findest du in unserer <a href="/legal/cookies/" class="text-primary-600 dark:text-primary-400 hover:underline">Cookie-Richtlinie</a>.
           </p>
         </div>
         <div class="flex gap-3 sm:shrink-0">
@@ -231,7 +231,7 @@ const updateLinksAvailability = () => {
           link.addEventListener("click", (e) => {
             e.preventDefault();
             alert(
-              "Sie müssen den notwendigen Cookies zustimmen, um diese Funktionen zu nutzen."
+              "Du musst den notwendigen Cookies zustimmen, um diese Funktionen zu nutzen."
             );
           });
           link.style.pointerEvents = "none";
