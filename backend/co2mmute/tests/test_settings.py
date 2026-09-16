@@ -81,3 +81,81 @@ class ResolveSecretKeyTests(SimpleTestCase):
             'SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY"' in source,
             msg="settings.py still reads DJANGO_SECRET_KEY with an inline fallback",
         )
+
+
+# ---------------------------------------------------------------------------
+# Roadmap.md 1.5 — test settings and CI
+#
+# co2mmute.settings_test is imported inside the methods below: the module does not
+# exist yet, and a top-level import would take ResolveSecretKeyTests down with it.
+# ---------------------------------------------------------------------------
+
+
+class TestSettingsModuleTests(SimpleTestCase):
+    """A run must be fast, need no Redis, and still speak Postgres."""
+
+    def load(self):
+        import importlib
+
+        return importlib.import_module("co2mmute.settings_test")
+
+    def test_the_module_imports(self):
+        self.assertIsNotNone(self.load())
+
+    def test_the_password_hasher_is_the_fast_one(self):
+        """_helpers.create_host runs in most setUp methods and PBKDF2 is
+        deliberately slow."""
+        settings_test = self.load()
+
+        self.assertEqual(
+            settings_test.PASSWORD_HASHERS,
+            ["django.contrib.auth.hashers.MD5PasswordHasher"],
+        )
+
+    def test_the_channel_layer_needs_no_redis(self):
+        settings_test = self.load()
+
+        self.assertEqual(
+            settings_test.CHANNEL_LAYERS["default"]["BACKEND"],
+            "channels.layers.InMemoryChannelLayer",
+        )
+
+    def test_the_cache_needs_no_redis(self):
+        settings_test = self.load()
+
+        self.assertEqual(
+            settings_test.CACHES["default"]["BACKEND"],
+            "django.core.cache.backends.locmem.LocMemCache",
+        )
+
+    def test_celery_runs_eager_and_propagates(self):
+        """Without EAGER_PROPAGATES a failing task swallows its exception into a
+        result object and looks like a silent no-op."""
+        settings_test = self.load()
+
+        self.assertTrue(settings_test.CELERY_TASK_ALWAYS_EAGER)
+        self.assertTrue(settings_test.CELERY_TASK_EAGER_PROPAGATES)
+
+    def test_the_database_is_postgres_not_sqlite(self):
+        """settings.py falls back to sqlite whenever DEBUG is on, and sqlite
+        treats select_for_update() as a no-op — so the row locks 1.4 and 1.3
+        depend on would go untested while the tests still passed."""
+        settings_test = self.load()
+
+        self.assertEqual(
+            settings_test.DATABASES["default"]["ENGINE"],
+            "django.db.backends.postgresql",
+        )
+
+    def test_media_root_is_outside_the_repo(self):
+        """GameSession.save() renders a QR code on every create."""
+        settings_test = self.load()
+
+        self.assertFalse(
+            str(settings_test.MEDIA_ROOT).startswith(str(BACKEND_ROOT)),
+            msg="test runs must not write QR codes into the repo",
+        )
+
+    def test_debug_is_off(self):
+        self.assertFalse(self.load().DEBUG)
+
