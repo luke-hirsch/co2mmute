@@ -104,6 +104,25 @@ class PlayerSerializer(serializers.ModelSerializer):
         )
 
 
+class JoinRequestSerializer(serializers.Serializer):
+    """Body of POST /api/game/join/<game_id>/.
+
+    `name` is the only identifying thing this project collects from a player —
+    see the data-minimisation note in the DSGVO page. There is no account.
+    """
+
+    name = serializers.CharField(max_length=100, trim_whitespace=True)
+    password = serializers.CharField(
+        max_length=50, required=False, allow_blank=True, default=""
+    )
+
+    def validate_name(self, value):
+        name = value.strip()
+        if not name:
+            raise serializers.ValidationError("Please enter a display name.")
+        return name
+
+
 class GameRoundSerializer(serializers.ModelSerializer):
     class Meta:
         model = gm.GameRound

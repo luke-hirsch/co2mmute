@@ -126,16 +126,31 @@ pruefen, `PROD_*` secrets setzen.
 - offen: braucht die gruppe ein info-blatt fuer schulen/lehrkraefte, was gespeichert
   wird und wie lange? falls ja, faellt es hier mit ab.
 
-#### 1.4 REST fuer join und lobby
+#### 1.4 REST fuer join und lobby ✅ umgesetzt 14.08.26
 
-**blockiert phase 2.** join, lobby und spieler-anlegen sind heute Django-form-views
-(`game/views.py`, `co2mmute/urls.py`), kein REST. die SPA kann sie so nicht uebernehmen.
+liegt auf `backend/rest-join-lobby`, review + merge offen. war der blocker fuer 2.3.
+drei endpoints in `game/views_join.py`, rein additiv - die form-views laufen
+unveraendert weiter, 2.3 loescht sie.
 
-- endpoints fuer: session per game_id aufloesen, beitreten (name + optional passwort),
-  lobby-state lesen. antwortformate + cookie-setzen wie bei den bestehenden views.
-- `GameSessionListView` haengt an `sessions/` ohne `game_id`, ist aber mit
-  `HasGameAccess` geschuetzt, das ohne `game_id` immer `False` liefert.
-  der endpoint gibt also immer 403. richtige permission oder weg damit.
+- `GET api/game/lookup/<game_id>/` - ohne cookie lesbar, das ist der erste call nach
+  dem qr-scan. sagt nur ob es das spiel gibt, ob ein passwort noetig ist und ob noch
+  platz ist. keine namen, kein host, kein passwort im body.
+- `POST api/game/join/<game_id>/` - name + optional passwort rein, spieler und beide
+  signierten cookies raus. ersetzt die zwei form-schritte inkl. `joined_game_ids`.
+- `GET api/game/<game_id>/lobby/` - roster + settings, braucht das game-cookie.
+- `GameSessionListView` geloescht statt repariert. hing an `sessions/` ohne `game_id`,
+  war hinter `<str:game_id>/` sowieso unerreichbar und lieferte auch erreichbar 403.
+
+dabei zwei defekte aus dem gleichen pfad mitgenommen:
+
+- **das lobby-passwort wurde nie geprueft.** der block lag komplett in
+  `if game_session.started_at:`, also genau in dem fall in dem man ohnehin nicht
+  reinkommt. jedes spiel das man wirklich betritt hat ihn uebersprungen.
+- **`max_players` wurde nirgends durchgesetzt.** die lobby nahm beliebig viele spieler.
+  jetzt im REST-pfad, mit `select_for_update` gegen zwei gleichzeitige joins.
+
+offen: der template-pfad prueft `max_players` weiter nicht. dafuer muesste auch
+`PlayerCreateView` angefasst werden, die in 2.3 ohnehin rausfliegt.
 
 #### 1.5 tests
 
@@ -187,10 +202,12 @@ der QR-code zeigt dann direkt auf die SPA-route.
 #### 2.4 bugs (aus den testrunden)
 
 - `usePlayerList` und `useGameSessionList` in `hooks/gameHooks.ts` rufen `useQuery`
-  auf, geben das ergebnis aber nicht zurueck. tote hooks.
+  auf, geben das ergebnis aber nicht zurueck. tote hooks. `useGameSessionList` zeigt
+  ausserdem auf `api/game/sessions/`, den es seit 1.4 nicht mehr gibt - ersatzlos raus.
 - runden counter im frontend nicht richtig
 - daten im frontend nicht persistent
-- maximum player trumpft agents, somehow connected
+- maximum player trumpft agents, somehow connected. backend-haelfte ist mit 1.4
+  erledigt (join gibt 409 `full`), bleibt die anzeige im frontend.
 - karte ueber bildrand, buttons fuer auswahlmoeglichkeiten nicht sichtbar, legende fehlt,
   chat horizontal scroll, edges nicht anklickbar, logout im dark mode nicht lesbar
   (die alte liste aus der README - beim neubau abarbeiten und die README-liste leeren)
