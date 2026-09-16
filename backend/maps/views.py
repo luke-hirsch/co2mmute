@@ -1,20 +1,22 @@
 import json
 import logging
-from django.views.generic import FormView, ListView, DetailView
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+
 from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db import transaction
+from django.views.generic import DetailView, FormView, ListView
+
 from maps.forms import MapUploadForm
 from maps.models import (
+    BusLine,
+    BusLineEdge,
+    Edge,
     GameMap,
     MapVersion,
     Node,
     NodeType,
-    Edge,
     StreetEdge,
     TrainEdge,
-    BusLine,
-    BusLineEdge,
     TrainLine,
     TrainLineEdge,
 )
@@ -96,7 +98,10 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             with transaction.atomic():
                 scale = graph_data.get("scale", 1.0) if graph_data else 1.0
                 game_map = self._create_game_map(
-                    name=map_name, max_players=max_players, author=self.request.user, scale=scale
+                    name=map_name,
+                    max_players=max_players,
+                    author=self.request.user,
+                    scale=scale,
                 )
                 logger.info(f"Created GameMap with pk {game_map.pk}")
 
@@ -155,27 +160,20 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                         edge_mapping=edge_mapping,
                     )
 
-                    messages.success(
-                        self.request,
-                        f"Map '{map_name}' created successfully with "
-                        f"{len(node_mapping)} nodes and {len(graph_data.get('edges', []))} edges!",
-                    )
                     logger.info(
                         f"User {self.request.user.username} created map '{map_name}' "
                         f"with {len(node_mapping)} nodes"
                     )
                 else:
-                    messages.success(
-                        self.request,
-                        f"Blank map '{map_name}' created successfully!",
-                    )
                     logger.info(
                         f"User {self.request.user.username} created blank map '{map_name}'"
                     )
 
         except Exception as e:
-            logger.error(f"Error processing map upload for '{map_name}': {str(e)}", exc_info=True)
-            messages.error(self.request, f"Error creating map: {str(e)}")
+            logger.error(
+                f"Error processing map upload for '{map_name}': {e!s}", exc_info=True
+            )
+            messages.error(self.request, f"Error creating map: {e!s}")
             return self.form_invalid(form)
 
         logger.info(f"Map upload complete for '{map_name}', redirecting to success_url")

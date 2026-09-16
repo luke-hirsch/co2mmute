@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -21,7 +20,7 @@ class GameSessionCreateView(
     template_name = "game/create_session.html"
     form_class = GameSessionCreateForm
     model = GameSession
-    object: Optional[GameSession]
+    object: GameSession | None
 
     def form_valid(self, form):
         form.instance.game_host = self.request.user
@@ -48,10 +47,6 @@ class GameSessionCreateView(
         # Ensure player_id is generated
         if not host_player.player_id:
             host_player.refresh_from_db()
-
-        messages.success(
-            self.request, f"Game Session '{form.instance.game_name}' created."
-        )
 
         # Set both game and player cookies for the host
         response = self.set_game_access_cookie(
@@ -263,10 +258,6 @@ class PlayerCreateView(
             f"Set cookies for player {player.player_id} in game {self.game_session.game_id}"
         )
 
-        messages.success(
-            self.request,
-            f"Welcome to {self.game_session.game_name}, {player.name or 'player'}!",
-        )
         return response
 
     def get_success_url(self):
