@@ -29,12 +29,17 @@ def muted():
     Scoped on purpose — wrap only the calls that are expected to log, so an
     unexpected error somewhere else still shows up in the run. Never disable
     logging for a whole module or class.
+
+    Re-entrant: it restores whatever was active before rather than switching
+    logging fully back on, so a muted() nested inside another one does not
+    un-mute the rest of the outer block.
     """
+    previous = logging.root.manager.disable
     logging.disable(logging.CRITICAL)
     try:
         yield
     finally:
-        logging.disable(logging.NOTSET)
+        logging.disable(previous)
 
 
 class TempMediaRootMixin:

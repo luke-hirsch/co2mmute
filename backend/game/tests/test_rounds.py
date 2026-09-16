@@ -377,9 +377,9 @@ class PlayerMoveOnCommitTests(RoundFixtureMixin, TestCase):
         self.client.cookies[game_name] = sign_value(
             f"{self.game.game_id}:test-token", settings.COOKIE_GAME_SALT
         )
-        # Pre-1.2 format: the bare player_id. 1.2 binds it to the game.
+        # The 1.2 format: the player_id bound to its game inside the signature.
         self.client.cookies[player_name] = sign_value(
-            player.player_id, settings.COOKIE_PLAYER_SALT
+            f"{self.game.game_id}:{player.player_id}", settings.COOKIE_PLAYER_SALT
         )
 
     def post_move(self, player):

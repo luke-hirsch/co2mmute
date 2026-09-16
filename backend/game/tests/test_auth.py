@@ -11,7 +11,12 @@ from django.contrib.auth import get_user_model
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.core import signing
 from django.http import HttpResponse
-from django.test import RequestFactory, TestCase, override_settings
+from django.test import (
+    RequestFactory,
+    TestCase,
+    TransactionTestCase,
+    override_settings,
+)
 from django.utils import timezone
 
 from co2mmute.utils import set_game_access_cookie, set_player_cookie, sign_value
@@ -52,27 +57,35 @@ def request_with_session():
     return request
 
 
-class WsAuthTests(TestCase):
+@override_settings(**TEST_BACKENDS)
+class WsAuthTests(TempMediaRootMixin, TransactionTestCase):
     """The two cases that have been failing since before phase 0.
 
     resolve_player calls channels.auth.get_user unconditionally, and get_user
     needs scope["session"], which a hand-built scope does not have:
     `ValueError: Cannot find session in scope`. 1.2 guards the call.
+
+    TransactionTestCase, not TestCase — for every class here that awaits
+    resolve_player. channels' database_sync_to_async runs
+    close_old_connections() first, and inside TestCase's wrapping transaction
+    that really closes the connection: the next test's setUp then dies with
+    `the connection is closed`.
     """
 
     def setUp(self):
         User = get_user_model()
         self.user = User.objects.create_user(username="host", password="pass")
 
-        self.game = GameSession.objects.create(
-            game_host=self.user,
-            game_name="Test",
-            max_players=4,
-            max_rounds=4,
-            max_CO2_level=100,
-            agent_per_player=1,
-        )
-        self.player = Player.objects.create(game=self.game, name="Tester")
+        with muted():
+            self.game = GameSession.objects.create(
+                game_host=self.user,
+                game_name="Test",
+                max_players=4,
+                max_rounds=4,
+                max_CO2_level=100,
+                agent_per_player=1,
+            )
+            self.player = Player.objects.create(game=self.game, name="Tester")
 
     def _make_scope_with_cookies(self, game_id, player_id):
         return scope_with_cookies(
@@ -159,8 +172,7 @@ class SignedCookieTests(TempMediaRootMixin, TestCase):
             request, HttpResponse(), self.game.game_id, self.player.player_id
         )
 
-        self.assertEqual(list(request.session.keys()), [])
-        self.assertFalse(request.session.modified)
+        self.assertEqual(dict(request.session.items()), {})
 
     @override_settings(COOKIE_AGE=0)
     def test_unsign_value_honours_the_cookie_age(self):
@@ -183,7 +195,7 @@ class SignedCookieTests(TempMediaRootMixin, TestCase):
     def test_an_expired_cookie_reads_as_no_access(self):
         from game.auth import has_game_access
 
-        with override_settings(COOKIE_AGE=0):
+        with override_settings(COOKIE_AGE=0), muted():
             cookies = {
                 f"{settings.COOKIE_GAME_PREFIX}{self.game.game_id}": signed_game_cookie(
                     self.game.game_id
@@ -193,7 +205,7 @@ class SignedCookieTests(TempMediaRootMixin, TestCase):
 
 
 @override_settings(**TEST_BACKENDS)
-class GameBindingTests(TempMediaRootMixin, TestCase):
+class GameBindingTests(TempMediaRootMixin, TransactionTestCase):
     """A cookie minted for one game must be worthless in another.
 
     player_id is four hex characters and unique *per game*
@@ -238,7 +250,8 @@ class GameBindingTests(TempMediaRootMixin, TestCase):
             )
         }
 
-        self.assertIsNone(resolve_player_id(cookies, self.game_b.game_id))
+        with muted():
+            self.assertIsNone(resolve_player_id(cookies, self.game_b.game_id))
 
     def test_the_resolver_accepts_a_cookie_from_its_own_game(self):
         from game.auth import resolve_player_id
@@ -314,7 +327,7 @@ class GameBindingTests(TempMediaRootMixin, TestCase):
 
 
 @override_settings(**TEST_BACKENDS)
-class ResolverParityTests(TempMediaRootMixin, TestCase):
+class ResolverParityTests(TempMediaRootMixin, TransactionTestCase):
     """REST and the websocket must reach the same verdict from the same cookies.
 
     The check used to be written twice, and the two had already drifted:
@@ -543,15 +556,17 @@ class WhoAmITests(TempMediaRootMixin, TestCase):
             response.json()["player"]["playerId"], self.player.player_id
         )
 
-    @override_settings(COOKIE_AGE=0)
     def test_whoami_ignores_an_expired_cookie(self):
         self.client.cookies[
             f"{settings.COOKIE_PLAYER_PREFIX}{self.game.game_id}"
         ] = signed_player_cookie(self.game.game_id, self.player.player_id)
 
-        response = self.whoami(self.game.game_id)
+        fresh = self.whoami(self.game.game_id)
+        with override_settings(COOKIE_AGE=0):
+            expired = self.whoami(self.game.game_id)
 
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(fresh.status_code, 200, msg="control: a fresh cookie passes")
+        self.assertEqual(expired.status_code, 401)
 
     def test_whoami_ignores_a_cookie_from_another_game(self):
         """A guard: a cookie minted for one game, renamed to another."""
