@@ -192,6 +192,9 @@ offen: der template-pfad prueft `max_players` weiter nicht. dafuer muesste auch
 
 #### 1.5 tests
 
+stand 16.09.26: `settings_test.py`, `test.yml` und der test-job in `workflow-prod.yml` sind auf
+`backend/test-settings-ci`, lokal gruen. branch noch nicht gepusht, CI ist also noch nie gelaufen.
+
 - aktuell: `game/tests.py`, `tests_simulation.py`, `tests_ws_auth.py`,
   leere stubs in maps und content. CI laeuft davon nichts, die workflows deployen nur.
 - auf per-app `tests/` packages umstellen, nach thema geschnitten
@@ -316,16 +319,14 @@ der QR-code zeigt dann direkt auf die SPA-route.
 - `usePlayerList` und `useGameSessionList` in `hooks/gameHooks.ts` rufen `useQuery`
   auf, geben das ergebnis aber nicht zurueck. tote hooks. `useGameSessionList` zeigt
   ausserdem auf `api/game/sessions/`, den es seit 1.4 nicht mehr gibt - ersatzlos raus.
-- safari/iOS: host-lobby bleibt nach "spiel erstellen" im ladebildschirm, erst ein
+- ✅ safari/iOS: host-lobby bleibt nach "spiel erstellen" im ladebildschirm, erst ein
   neuer tab (logo) zeigt sie. webkit haengt einen fetch auf, der im selben task wie
   ein neuer websocket losgeht - request kommt nie zurueck (nginx loggt 499).
-  gefixt auf `frontend/rewrite` (socket einen tick spaeter), noch nicht gemergt.
-- erfolgsmeldung vom letzten spiel taucht beim naechsten "spiel erstellen" auf.
+  socket einen tick spaeter, auf main seit 16.09.26.
+- ✅ erfolgsmeldung vom letzten spiel taucht beim naechsten "spiel erstellen" auf.
   `messages.success` vor dem redirect in die SPA, die SPA zeigt django-messages nie
-  an, nur `create_session.html` und `map_upload.html`. drei stellen:
-  `GameSessionCreateView`, `PlayerCreateView` (mit spielername - landet im cookie,
-  bei vielen meldungen in `django_session`) und der map-upload. -> die drei
-  `messages.success` raus (backend).
+  an. die drei stellen sind raus, auf main seit 16.09.26.
+  offen: die `messages.error` in `PlayerCreateView.dispatch` sieht auch niemand.
 - runden counter im frontend nicht richtig
 - daten im frontend nicht persistent
 - maximum player trumpft agents, somehow connected. backend-haelfte ist mit 1.4
@@ -386,21 +387,36 @@ raus, es bleibt `main` -> `prod`.
 
 - die `STAGING_*` secrets zeigen auf eine kiste die nicht mehr zum projekt gehoert.
   loeschen, sonst deployt ein versehentlicher push dort drueber.
-- `PROD_HOST` / `PROD_KEY` / `PROD_USER` / `PROD_KNOWN_HOSTS` gibt es nicht,
-  deshalb ist `workflow-prod.yml` noch nie gelaufen. die live-kiste wird von hand
-  deployed. vor der uebergabe entscheiden: secrets setzen und pruefen ob der
-  TU-host ssh von github actions ueberhaupt annimmt - oder den workflow rauswerfen
-  und den manuellen weg sauber dokumentieren. halbfertig darf es nicht bleiben.
+- `workflow-prod.yml` ist noch nie gelaufen, die live-kiste wird von hand deployed.
+  entschieden 16.09.26: workflow bleibt. nur `PROD_KEY` ist secret, `PROD_HOST`,
+  `PROD_USER` und `PROD_KNOWN_HOSTS` sind variables (secrets werden im log ueberall
+  maskiert, aus "deploying" wird sonst "***ing"). der key darf auf der kiste nur
+  `devops/deploy.sh` ausfuehren (`command=` in authorized_keys), installiert als
+  `/usr/local/bin/co2mmute-deploy`. `workflow_dispatch` als trockenlauf ohne deploy.
+  ob github actions per ssh durchkommt, zeigt erst der trockenlauf.
+- rollback per `git push -f origin <alt>:prod` hat nie funktioniert: `pull --ff-only`
+  sagt dann "Already up to date". das deploy-skript macht `checkout -B`.
 - ohne staging gibt es keine stufe mehr zwischen merge und live. das gate ist dann
   die testsuite, siehe 1.5. deploy nicht waehrend einer laufenden testrunde.
+- kiste (16.09.26): debian 13, checkout unter `/commute` (nicht `/srv/commute`),
+  platte 9.7G zu 81% voll. updates kommen rein (von wem?), rebootet hat keiner -
+  21 tage mit neuerem kernel auf der platte. user `deploy` (docker, kein sudo) ist angelegt.
+- **postgres 18 liegt in einem anonymen volume.** `postgres-data` haengt auf
+  `/var/lib/postgresql/data`, dem pfad von vor 18, und ist leer. die daten liegen in
+  `/var/lib/postgresql/18/docker`, lokal und auf der kiste. restart, reboot und deploy
+  ueberlebt das, `docker compose down` + `up` nicht (leere db, altes volume verwaist).
+  -> volume auf `/var/lib/postgresql` umhaengen, daten per dump/restore umziehen.
+  vor der uebergabe. bis dahin auf der kiste nie `down` oder `volume prune`.
+- backups gibt es keine.
 
 offen aus phase 0, liegt alles nicht im repo:
 
-- cert auf der live-kiste tauschen. der alte private key ist public und liegt da
-  noch. das repo-fix allein rotiert ihn nicht.
-- pruefen wer bei `co2mmute.stsds.tu-berlin.de` TLS terminiert. wenn das self-signed
-  cert nach aussen geht, laeuft public traffic auf einem veroeffentlichten key
-  -> an die TU-admins.
+- cert auf der live-kiste tauschen. geprueft 16.09.26: die kiste terminiert TLS selbst,
+  mit genau dem alten self-signed cert aus dem repo (CN=localhost, laeuft 20.11.26 ab).
+  jeder besucher klickt eine warnung weg, der key ist public.
+  -> beim naechsten deploy neuen key erzeugen. danach ein richtiges zertifikat:
+  lets encrypt ginge technisch (kein CAA, port 80 offen), vorher die TU fragen.
+  HSTS erst danach.
 - pruefen ob die prod `.env` einen key >= 32 zeichen setzt, sonst startet der
   container nach dem phase-0 fix nicht mehr:
   `grep -c '^DJANGO_SECRET_KEY=.\{32,\}' devops/.env`
