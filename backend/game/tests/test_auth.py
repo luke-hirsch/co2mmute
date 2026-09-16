@@ -40,10 +40,11 @@ def scope_with_cookies(**cookies):
 
 
 def request_with_session():
-    """A request that set_game_access_cookie / set_player_cookie can write to.
+    """A request with a real session, like the join views have.
 
-    Both helpers stash a token in request.session, so a bare RequestFactory
-    request is not enough.
+    Before 1.2 both cookie helpers stashed a value in request.session, so a bare
+    RequestFactory request was not enough. After 1.2 they must not touch it —
+    the session is still attached so a test can prove that.
     """
     request = RequestFactory().get("/")
     SessionMiddleware(lambda r: HttpResponse())(request)
@@ -145,6 +146,21 @@ class SignedCookieTests(TempMediaRootMixin, TestCase):
         payload = signing.TimestampSigner(salt=settings.COOKIE_GAME_SALT).unsign(raw)
 
         self.assertTrue(payload.startswith(f"{self.game.game_id}:"))
+
+    def test_the_cookie_helpers_leave_the_session_alone(self):
+        """Both helpers used to write into django_session (player_by_game,
+        game_access_tokens) and nothing ever read it back. For a logged-in user
+        that row linked the account to the player. A join must write nothing
+        server-side beyond the Player row."""
+        request = request_with_session()
+
+        set_game_access_cookie(request, HttpResponse(), self.game.game_id)
+        set_player_cookie(
+            request, HttpResponse(), self.game.game_id, self.player.player_id
+        )
+
+        self.assertEqual(list(request.session.keys()), [])
+        self.assertFalse(request.session.modified)
 
     @override_settings(COOKIE_AGE=0)
     def test_unsign_value_honours_the_cookie_age(self):
@@ -272,6 +288,30 @@ class GameBindingTests(TempMediaRootMixin, TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_your_own_game_view_is_scoped_to_its_game(self):
+        """GetYourOwnGame looked the player up by player_id alone. Both games here
+        hold the same id, so that lookup raised MultipleObjectsReturned -> 500."""
+        Player.objects.filter(pk=self.player_a.pk).update(
+            agent_assignments={"home_node": 1, "agents": []}
+        )
+        Player.objects.filter(pk=self.player_b.pk).update(
+            agent_assignments={"home_node": 2, "agents": []}
+        )
+        self.client.cookies[
+            f"{settings.COOKIE_GAME_PREFIX}{self.game_a.game_id}"
+        ] = signed_game_cookie(self.game_a.game_id)
+        self.client.cookies[
+            f"{settings.COOKIE_PLAYER_PREFIX}{self.game_a.game_id}"
+        ] = signed_player_cookie(self.game_a.game_id, self.player_a.player_id)
+
+        with muted():
+            response = self.client.get(
+                f"/api/game/{self.game_a.game_id}/{self.player_a.player_id}/"
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["agent_assignments"]["home_node"], 1)
+
 
 @override_settings(**TEST_BACKENDS)
 class ResolverParityTests(TempMediaRootMixin, TestCase):
@@ -385,6 +425,44 @@ class RestPermissionTests(TempMediaRootMixin, TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_you_cannot_view_the_game_as_another_player(self):
+        """GetYourOwnGame takes player_id from the URL and hands out that
+        player's agent assignments. The cookie's player and the URL's player
+        must be the same one — every player_id is in the lobby roster."""
+        self.authenticate_as(self.player)
+
+        with muted():
+            own = self.client.get(
+                f"/api/game/{self.game.game_id}/{self.player.player_id}/"
+            )
+            other = self.client.get(
+                f"/api/game/{self.game.game_id}/{self.other.player_id}/"
+            )
+
+        self.assertEqual(own.status_code, 200, msg="control: your own id must pass")
+        self.assertEqual(other.status_code, 403)
+
+    def test_you_cannot_submit_a_move_for_another_player(self):
+        """Same hole on PlayerMoveView. The game is not active, so a request that
+        gets past the permissions ends in 400 — which is how the control case
+        proves the permission let it through."""
+        self.authenticate_as(self.player)
+
+        with muted():
+            own = self.client.post(
+                f"/api/game/{self.game.game_id}/player/{self.player.player_id}/move/",
+                {},
+                content_type="application/json",
+            )
+            other = self.client.post(
+                f"/api/game/{self.game.game_id}/player/{self.other.player_id}/move/",
+                {},
+                content_type="application/json",
+            )
+
+        self.assertEqual(own.status_code, 400, msg="control: your own id must pass")
+        self.assertEqual(other.status_code, 403)
+
     def test_you_cannot_delete_someone_elses_player(self):
         self.authenticate_as(self.player)
 
@@ -415,6 +493,75 @@ class RestPermissionTests(TempMediaRootMixin, TestCase):
             )
 
         self.assertEqual(response.status_code, 204)
+
+
+@override_settings(**TEST_BACKENDS)
+class WhoAmITests(TempMediaRootMixin, TestCase):
+    """The third reader of the player cookie.
+
+    WhoAmIView unsigned the cookie itself instead of asking the resolver. With
+    the game-bound format it would read "<game_id>:<player_id>" as the player id,
+    find nobody, and the SPA would lose its identity on every page load.
+    """
+
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username="host", password="pass")
+        with muted():
+            self.game = GameSession.objects.create(
+                game_host=self.user,
+                game_name="WhoAmI",
+                max_players=4,
+                max_rounds=4,
+                max_CO2_level=100,
+                agent_per_player=1,
+            )
+            self.other_game = GameSession.objects.create(
+                game_host=self.user,
+                game_name="Other",
+                max_players=4,
+                max_rounds=4,
+                max_CO2_level=100,
+                agent_per_player=1,
+            )
+            self.player = Player.objects.create(game=self.game, name="Mia")
+
+    def whoami(self, game_id):
+        with muted():
+            return self.client.get(f"/api/whoami/?game_id={game_id}")
+
+    def test_whoami_reads_the_game_bound_player_cookie(self):
+        self.client.cookies[
+            f"{settings.COOKIE_PLAYER_PREFIX}{self.game.game_id}"
+        ] = signed_player_cookie(self.game.game_id, self.player.player_id)
+
+        response = self.whoami(self.game.game_id)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["kind"], "player")
+        self.assertEqual(
+            response.json()["player"]["playerId"], self.player.player_id
+        )
+
+    @override_settings(COOKIE_AGE=0)
+    def test_whoami_ignores_an_expired_cookie(self):
+        self.client.cookies[
+            f"{settings.COOKIE_PLAYER_PREFIX}{self.game.game_id}"
+        ] = signed_player_cookie(self.game.game_id, self.player.player_id)
+
+        response = self.whoami(self.game.game_id)
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_whoami_ignores_a_cookie_from_another_game(self):
+        """A guard: a cookie minted for one game, renamed to another."""
+        self.client.cookies[
+            f"{settings.COOKIE_PLAYER_PREFIX}{self.other_game.game_id}"
+        ] = signed_player_cookie(self.game.game_id, self.player.player_id)
+
+        response = self.whoami(self.other_game.game_id)
+
+        self.assertEqual(response.status_code, 401)
 
 
 class SettingsHardeningTests(TestCase):
