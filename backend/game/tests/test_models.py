@@ -50,7 +50,8 @@ class GameSessionModelTests(TestCase):
         game = self._create_game_session()
 
         self.assertEqual(len(game.game_id), 6)
-        self.assertTrue(game.game_id.isupper())
+        # Not isupper(): an all-digit hex id is valid and has no cased letters.
+        self.assertEqual(game.game_id, game.game_id.upper())
         self.assertTrue(game.game_qr_code.name.startswith("qr_codes/"))
         self.assertTrue(os.path.exists(game.game_qr_code.path))
 
