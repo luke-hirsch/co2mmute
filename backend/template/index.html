@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% load static %}
 
 {% block title %}CO2MMUTE – Planspiel zu Verkehr und Klima{% endblock %}
 
@@ -14,646 +13,376 @@
 {% block main_class %}{% endblock %}
 
 {% block main %}
-{# icons: lucide (ISC), the same set the game screen uses #}
-
-{# --- hero --- #}
-<section class="relative isolate overflow-hidden">
-  <div
-    aria-hidden="true"
-    class="pointer-events-none absolute inset-0 -z-10 overflow-hidden"
-  >
-    <div
-      class="absolute -top-32 -left-24 size-96 rounded-full bg-primary-200 opacity-40 blur-3xl dark:bg-primary-800 dark:opacity-30"
-    ></div>
-    <div
-      class="absolute top-40 -right-24 size-96 rounded-full bg-accent opacity-15 blur-3xl dark:opacity-10"
-    ></div>
+{# the page reads as one line diagram from home (top) to school (bottom); see .metro in custom.css. icons: lucide (ISC) #}
+<div class="metro relative bg-body dark:bg-darkbody">
+  {% comment %}
+    the lines start at the first terminus: the hero's padding-top + half the label's 1.5rem line.
+    the fan-out on large screens and the final terminus cover them where they should not show.
+  {% endcomment %}
+  <div aria-hidden="true" class="pointer-events-none absolute inset-0 mx-auto max-w-7xl">
+    <span class="metro-lane metro-car top-[3.75rem] sm:top-[4.75rem]"></span>
+    <span class="metro-lane metro-pt top-[3.75rem] sm:top-[4.75rem]"></span>
+    <span class="metro-lane metro-bike top-[3.75rem] sm:top-[4.75rem]"></span>
+    <span class="metro-lane metro-walk top-[3.75rem] sm:top-[4.75rem]"></span>
   </div>
 
-  <div
-    class="mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 px-6 py-16 sm:py-20 lg:grid-cols-2 lg:gap-16 lg:px-8 lg:py-28"
-  >
-    <div>
-      <p
-        class="text-sm font-semibold tracking-wide text-primary-600 uppercase dark:text-primary-300"
-      >
-        Planspiel für Schule und Uni
-      </p>
-      <h1
-        class="mt-4 text-4xl font-semibold tracking-tight text-balance text-main sm:text-5xl lg:text-6xl dark:text-darktext"
-      >
-        {# one sentence per line on phones, never a break inside one #}
-        <span class="inline-block">Eine Stadt.</span>
-        <span class="inline-block">Viele Wege.</span>
-        <span class="inline-block">Ein CO<sub>2</sub>-Budget.</span>
-      </h1>
-      <p
-        class="mt-6 max-w-xl text-lg/8 text-pretty text-muted dark:text-darkmutedtext"
-      >
-        In CO<sub>2</sub>mmute schickt ihr eure Figuren mit Auto, Bus und Bahn,
-        Fahrrad oder zu Fuß durch eine Stadt. Nach jeder Runde seht ihr, was
-        das an CO<sub>2</sub>, Zeit und Geld gekostet hat, und stimmt ab, wie
-        sich die Stadt verändern soll.
-      </p>
+  {# --- start: home --- #}
+  <section>
+    <div class="relative mx-auto max-w-7xl pt-12 pr-6 pb-20 sm:pt-16 lg:pr-8 lg:pb-28">
+      <div class="pl-(--gutter)">
+        <p class="relative text-sm/6 font-semibold tracking-wide text-muted uppercase dark:text-darkmutedtext">
+          <span class="metro-terminus" aria-hidden="true">
+            <svg class="size-5 text-main dark:text-darktext" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>
+          </span>
+          Start: zu Hause
+        </p>
 
-      <div class="mt-10 flex flex-wrap items-center gap-x-6 gap-y-4">
-        <a
-          href="{% url 'session-create' %}"
-          class="rounded-lg bg-primary-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 dark:bg-primary-500 dark:hover:bg-primary-400 dark:focus-visible:outline-primary-400"
-        >
-          Spiel erstellen
-        </a>
-        <a
-          href="#ablauf"
-          class="text-sm/6 font-semibold text-main transition hover:text-primary-600 dark:text-darktext dark:hover:text-primary-300"
-        >
-          So läuft eine Runde <span aria-hidden="true">↓</span>
-        </a>
+        <div class="mt-10 grid grid-cols-1 items-end gap-x-16 gap-y-12 lg:mt-14 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <div>
+            <h1 class="text-[2.5rem]/[1.05] font-bold tracking-tight text-main sm:text-6xl/[1.02] lg:text-7xl/[1.02] dark:text-darktext">
+              {# one sentence per line on phones, never a break inside one #}
+              <span class="inline-block">Eine Stadt.</span>
+              <span class="inline-block">Viele Wege.</span>
+              <span class="inline-block">Ein CO<sub>2</sub>-Budget.</span>
+            </h1>
+            <p class="mt-8 max-w-2xl text-lg/8 text-pretty text-muted dark:text-darkmutedtext">
+              CO<sub>2</sub>mmute ist ein Planspiel für Schule und Uni. Ihr
+              schickt eure Figuren durch eine Stadt, seht nach jeder Runde, was
+              das an CO<sub>2</sub>, Zeit und Geld gekostet hat, und stimmt ab,
+              wie sich die Stadt verändern soll.
+            </p>
+
+            <ul class="mt-8 flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium text-main dark:text-darktext" aria-label="Linien auf dieser Seite">
+              <li class="flex items-center gap-2"><span class="metro-car h-0 w-6 border-t-[5px] border-(--lane-color)"></span>Auto</li>
+              <li class="flex items-center gap-2"><span class="metro-pt h-0 w-6 border-t-[5px] border-(--lane-color)"></span>Bus &amp; Bahn</li>
+              <li class="flex items-center gap-2"><span class="metro-bike h-0 w-6 border-t-[5px] border-(--lane-color)"></span>Fahrrad</li>
+              <li class="flex items-center gap-2"><span class="metro-walk h-0 w-6 border-t-[5px] border-dotted border-(--lane-color)"></span>zu Fuß</li>
+            </ul>
+
+            <div class="mt-10 flex flex-wrap items-center gap-x-6 gap-y-4">
+              <a
+                href="{% url 'session-create' %}"
+                class="rounded-lg bg-primary-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-primary-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 dark:bg-primary-500 dark:hover:bg-primary-400"
+              >
+                Spiel erstellen
+              </a>
+              <a
+                href="#ablauf"
+                class="text-sm/6 font-semibold text-main transition hover:text-primary-600 dark:text-darktext dark:hover:text-primary-300"
+              >
+                So läuft eine Runde <span aria-hidden="true">↓</span>
+              </a>
+            </div>
+          </div>
+
+          {# the join box, dressed as a departure display #}
+          <form
+            id="join-form"
+            action="{% url 'session-join' %}"
+            method="get"
+            class="rounded-xl bg-darkbody p-5 text-accent shadow-[inset_0_0_0_1px_rgb(255_255_255/0.08)] dark:bg-black"
+          >
+            <div class="flex items-center justify-between font-mono text-xs tracking-[0.2em] uppercase">
+              <label for="join-code">Einsteigen</label>
+              <svg class="size-5 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" /><path d="M13 5v2" /><path d="M13 17v2" /><path d="M13 11v2" /></svg>
+            </div>
+            <p class="mt-3 text-sm text-white/70">Spiel-ID von der Spielleitung</p>
+            <div class="mt-4 flex gap-2">
+              <input
+                id="join-code"
+                name="game_id"
+                type="text"
+                autocomplete="off"
+                autocapitalize="characters"
+                spellcheck="false"
+                placeholder="4F2A9C"
+                class="min-w-0 flex-1 rounded-md border border-white/15 bg-white/5 px-3 py-2 font-mono text-xl tracking-[0.3em] text-accent uppercase placeholder:text-accent/30 focus:border-accent focus:outline-none"
+              />
+              <button
+                type="submit"
+                class="shrink-0 rounded-md bg-accent px-4 py-2 text-sm font-bold text-darkbody transition hover:bg-warning-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
+                Los
+              </button>
+            </div>
+            <p class="mt-4 border-t border-white/10 pt-3 text-xs text-white/50">
+              Oder den QR-Code am Beamer scannen.
+            </p>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# --- how a round works: one stop per step --- #}
+  <section id="ablauf" class="scroll-mt-4">
+    <div class="relative mx-auto max-w-7xl py-12 pr-6 lg:py-16 lg:pr-8">
+      <div class="pl-(--gutter)">
+        <h2 class="relative text-3xl/10 font-bold tracking-tight text-main sm:text-4xl/10 dark:text-darktext">
+          <span class="metro-station" aria-hidden="true"></span>
+          So läuft eine Runde
+        </h2>
+        <p class="mt-4 max-w-2xl text-lg/8 text-muted dark:text-darkmutedtext">
+          Jede Figur steht für viele Menschen mit demselben Weg. Was ihr
+          entscheidet, fahren also nicht ein paar Leute, sondern ganze Viertel.
+        </p>
+
+        <ol class="mt-14 space-y-12 lg:space-y-14">
+          <li class="grid gap-x-12 gap-y-2 lg:grid-cols-[16rem_minmax(0,1fr)]">
+            <h3 class="relative text-xl/8 font-bold text-main dark:text-darktext">
+              <span class="metro-stop" aria-hidden="true"></span>
+              <span class="mr-2 font-mono text-base text-soft dark:text-darksofttext">01</span>Beitreten
+            </h3>
+            <p class="max-w-2xl text-base/7 text-muted lg:text-lg/8 dark:text-darkmutedtext">
+              QR-Code scannen, Namen eingeben, fertig. Kein Konto, keine App.
+              Jede Person bekommt einen Wohnort und ein paar Figuren, die zur
+              Arbeit oder zur Schule müssen.
+            </p>
+          </li>
+          <li class="grid gap-x-12 gap-y-2 lg:grid-cols-[16rem_minmax(0,1fr)]">
+            <h3 class="relative text-xl/8 font-bold text-main dark:text-darktext">
+              <span class="metro-stop" aria-hidden="true"></span>
+              <span class="mr-2 font-mono text-base text-soft dark:text-darksofttext">02</span>Wege planen
+            </h3>
+            <p class="max-w-2xl text-base/7 text-muted lg:text-lg/8 dark:text-darkmutedtext">
+              Für jede Figur wählst du ein Verkehrsmittel und eine Route auf der
+              Karte: die schnellste, die kürzeste oder die mit dem wenigsten
+              CO<sub>2</sub>.
+            </p>
+          </li>
+          <li class="grid gap-x-12 gap-y-2 lg:grid-cols-[16rem_minmax(0,1fr)]">
+            <h3 class="relative text-xl/8 font-bold text-main dark:text-darktext">
+              <span class="metro-stop" aria-hidden="true"></span>
+              <span class="mr-2 font-mono text-base text-soft dark:text-darksofttext">03</span>Simulation
+            </h3>
+            <p class="max-w-2xl text-base/7 text-muted lg:text-lg/8 dark:text-darkmutedtext">
+              Alle fahren gleichzeitig los. Wo zu viele Autos unterwegs sind,
+              wird es langsam, auch für den Bus ohne eigene Spur. Danach seht
+              ihr CO<sub>2</sub>, Fahrzeit und Kosten.
+            </p>
+          </li>
+          <li class="grid gap-x-12 gap-y-2 lg:grid-cols-[16rem_minmax(0,1fr)]">
+            <h3 class="relative text-xl/8 font-bold text-main dark:text-darktext">
+              <span class="metro-stop" aria-hidden="true"></span>
+              <span class="mr-2 font-mono text-base text-soft dark:text-darksofttext">04</span>Abstimmen
+            </h3>
+            <div class="max-w-2xl">
+              <p class="text-base/7 text-muted lg:text-lg/8 dark:text-darkmutedtext">
+                Ihr sprecht über die Ergebnisse und stimmt über eine Änderung
+                ab, etwa eine Busspur oder eine neue Bahnverbindung. Die nächste
+                Runde läuft auf der neuen Karte.
+              </p>
+              {# styled like a notice on a platform #}
+              <p class="mt-6 flex gap-3 rounded-md bg-accent px-4 py-3 text-sm/6 font-medium text-darkbody">
+                <svg class="mt-0.5 size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2 9 3-3 3 3" /><path d="M13 18H7a2 2 0 0 1-2-2V6" /><path d="m22 15-3 3-3-3" /><path d="M11 6h6a2 2 0 0 1 2 2v10" /></svg>
+                <span>
+                  Weiter mit der nächsten Runde, bis das gemeinsame
+                  CO<sub>2</sub>-Budget aufgebraucht oder die letzte Runde
+                  gespielt ist.
+                </span>
+              </p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  {# --- the four modes: the lines leave the gutter and each gets its own column --- #}
+  <section>
+    <div class="relative mx-auto max-w-7xl pt-12 pr-6 lg:pt-16 lg:pr-8">
+      <div class="relative pb-10 lg:pb-12">
+        <div class="pl-(--gutter)">
+          <h2 class="relative text-3xl/10 font-bold tracking-tight text-main sm:text-4xl/10 dark:text-darktext">
+            <span class="metro-station" aria-hidden="true"></span>
+            Vier Wege zum Ziel
+          </h2>
+          <p class="mt-4 max-w-2xl text-lg/8 text-muted dark:text-darkmutedtext">
+            Kein Verkehrsmittel gewinnt immer. Was sich lohnt, hängt davon ab,
+            was alle anderen machen.
+          </p>
+        </div>
       </div>
 
-      <form
-        id="join-form"
-        action="{% url 'session-join' %}"
-        method="get"
-        class="mt-10 max-w-md rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-subtle dark:bg-darksurface dark:ring-darkstrong"
-      >
-        <label
-          for="join-code"
-          class="block text-sm font-semibold text-main dark:text-darktext"
-        >
-          Du hast eine Spiel-ID?
-        </label>
-        <div class="mt-3 flex gap-2">
-          <input
-            id="join-code"
-            name="game_id"
-            type="text"
-            inputmode="text"
-            autocomplete="off"
-            autocapitalize="characters"
-            spellcheck="false"
-            placeholder="z. B. 4F2A9C"
-            class="min-w-0 flex-1 rounded-lg border border-strong bg-elevated px-3 py-2 font-mono text-base tracking-widest text-main uppercase placeholder:font-sans placeholder:tracking-normal placeholder:text-soft placeholder:normal-case focus:border-primary-500 focus:ring-2 focus:ring-primary-500/30 focus:outline-none dark:border-darkstrong dark:bg-darkelevated dark:text-darktext dark:placeholder:text-darksofttext"
-          />
-          <button
-            type="submit"
-            class="shrink-0 rounded-lg bg-main px-4 py-2 text-sm font-semibold text-white transition hover:opacity-85 dark:bg-darktext dark:text-darkbody"
-          >
-            Beitreten
-          </button>
-        </div>
-        <p class="mt-2 text-xs text-muted dark:text-darkmutedtext">
-          Oder einfach den QR-Code scannen, den die Spielleitung zeigt.
-        </p>
-      </form>
-    </div>
+      <div class="relative lg:bg-body dark:lg:bg-darkbody">
+      <div class="metro-fan hidden lg:block" aria-hidden="true">
+        <span class="metro-bend-out metro-car"></span><span class="metro-bend-down metro-car"></span>
+        <span class="metro-bend-out metro-pt"></span><span class="metro-bend-down metro-pt"></span>
+        <span class="metro-bend-out metro-bike"></span><span class="metro-bend-down metro-bike"></span>
+        <span class="metro-bend-out metro-walk"></span><span class="metro-bend-down metro-walk"></span>
+      </div>
 
-    {# stylised game map. no screenshot on purpose: the game screen is being rebuilt #}
-    <figure
-      class="rounded-3xl bg-surface p-3 shadow-xl ring-1 ring-subtle sm:p-4 dark:bg-darksurface dark:shadow-none dark:ring-darkstrong"
-    >
-      <svg
-        viewBox="0 0 560 400"
-        role="img"
-        aria-labelledby="map-title"
-        class="block h-auto w-full"
-      >
-        <title id="map-title">
-          Stilisierte Spielkarte: Von drei Wohnorten führen Bahn, Fahrrad,
-          Auto und Bus zur Schule. Auf der Straße staut es sich, zur Abstimmung
-          steht eine Busspur.
-        </title>
-        <defs>
-          <pattern
-            id="map-dots"
-            width="20"
-            height="20"
-            patternUnits="userSpaceOnUse"
-          >
-            <circle
-              cx="10"
-              cy="10"
-              r="1.2"
-              class="fill-subtle dark:fill-darkstrong"
-            />
-          </pattern>
-        </defs>
-        <rect
-          width="560"
-          height="400"
-          rx="20"
-          class="fill-elevated dark:fill-darkelevated"
-        />
-        <rect width="560" height="400" rx="20" fill="url(#map-dots)" />
-
-        {# road: two homes feed into one street #}
-        <g
-          fill="none"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="stroke-strong dark:stroke-darkstrong"
-          stroke-width="14"
-        >
-          <path d="M70 210 L125 265 H470" />
-          <path d="M70 330 H190 L255 265" />
-        </g>
-        {# congestion on the shared stretch #}
-        <path
-          d="M125 265 H255"
-          fill="none"
-          stroke-linecap="round"
-          stroke-width="14"
-          class="stroke-danger-500"
-          opacity="0.45"
-        />
-
-        {# bus line on the same street #}
-        <path
-          d="M70 330 H190 L255 265 H470"
-          fill="none"
-          stroke-width="4"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="stroke-accent"
-        />
-        {# proposed bus lane, up for the vote #}
-        <path
-          d="M290 282 H440"
-          fill="none"
-          stroke-width="4"
-          stroke-dasharray="10 8"
-          stroke-linecap="round"
-          class="stroke-accent"
-        />
-
-        {# rail #}
-        <path
-          d="M70 90 H240 L350 200 H470"
-          fill="none"
-          stroke-width="9"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="stroke-primary-500"
-        />
-        <path
-          d="M70 90 H240 L350 200 H470"
-          fill="none"
-          stroke-width="2"
-          stroke-dasharray="3 9"
-          class="stroke-white dark:stroke-darkelevated"
-        />
-
-        {# bike path #}
-        <path
-          d="M70 210 L140 140 H255 L345 230 H470"
-          fill="none"
-          stroke-width="4"
-          stroke-dasharray="0.1 9"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="stroke-success-500"
-        />
-
-        {# cars in the jam #}
-        <g class="fill-main dark:fill-darktext">
-          <rect x="140" y="259" width="18" height="12" rx="4" />
-          <rect x="166" y="259" width="18" height="12" rx="4" />
-          <rect x="192" y="259" width="18" height="12" rx="4" />
-          <rect x="218" y="259" width="18" height="12" rx="4" />
-          <rect x="360" y="259" width="18" height="12" rx="4" />
-        </g>
-
-        {# bus #}
-        <g transform="translate(290 256)">
-          <rect width="34" height="18" rx="5" class="fill-accent" />
-          <rect x="5" y="4" width="7" height="6" rx="1.5" class="fill-white" />
-          <rect x="14" y="4" width="7" height="6" rx="1.5" class="fill-white" />
-          <rect x="23" y="4" width="7" height="6" rx="1.5" class="fill-white" />
-        </g>
-
-        {# train #}
-        <g transform="translate(130 81)">
-          <rect width="56" height="18" rx="9" class="fill-primary-600" />
-          <rect x="9" y="5" width="9" height="7" rx="1.5" class="fill-white" />
-          <rect x="23" y="5" width="9" height="7" rx="1.5" class="fill-white" />
-          <rect x="37" y="5" width="9" height="7" rx="1.5" class="fill-white" />
-        </g>
-
-        {# bike #}
-        <g
-          transform="translate(186 128)"
-          fill="none"
-          stroke-width="2.4"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="stroke-success-700 dark:stroke-success-500"
-        >
-          <circle cx="4" cy="16" r="5" />
-          <circle cx="24" cy="16" r="5" />
-          <path d="M4 16 L10 6 H19 L24 16 M10 6 L14 16 H4 M17 2 H21" />
-        </g>
-
-        {# homes #}
-        <g
-          stroke-width="3"
-          stroke-linejoin="round"
-          class="fill-surface stroke-main dark:fill-darksurface dark:stroke-darktext"
-        >
-          <path d="M52 98 L70 80 L88 98 V112 H52 Z" transform="translate(0 -12)" />
-          <path d="M52 218 L70 200 L88 218 V232 H52 Z" transform="translate(0 -12)" />
-          <path d="M52 338 L70 320 L88 338 V352 H52 Z" transform="translate(0 -12)" />
-        </g>
-
-        {# school: every line ends here #}
-        <g transform="translate(470 150)">
-          <rect
-            width="64"
-            height="140"
-            rx="12"
-            stroke-width="3"
-            class="fill-surface stroke-main dark:fill-darksurface dark:stroke-darktext"
-          />
-          <g class="fill-primary-200 dark:fill-primary-800">
-            <rect x="12" y="16" width="14" height="14" rx="2" />
-            <rect x="38" y="16" width="14" height="14" rx="2" />
-            <rect x="12" y="42" width="14" height="14" rx="2" />
-            <rect x="38" y="42" width="14" height="14" rx="2" />
-            <rect x="12" y="68" width="14" height="14" rx="2" />
-            <rect x="38" y="68" width="14" height="14" rx="2" />
-          </g>
-          <rect
-            x="22"
-            y="104"
-            width="20"
-            height="36"
-            rx="3"
-            class="fill-main dark:fill-darktext"
-          />
-        </g>
-
-        {# vote chip #}
-        <g transform="translate(290 300)">
-          <rect
-            width="170"
-            height="40"
-            rx="20"
-            stroke-width="2"
-            class="fill-surface stroke-accent dark:fill-darksurface"
-          />
-          <g
-            transform="translate(12 8)"
-            fill="none"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="stroke-main dark:stroke-darktext"
-          >
-            <path d="m9 12 2 2 4-4" />
-            <path d="M5 7c0-1.1.9-2 2-2h10a2 2 0 0 1 2 2v12H5V7Z" />
-            <path d="M22 19H2" />
-          </g>
-          <text
-            x="46"
-            y="26"
-            font-size="16"
-            font-weight="600"
-            class="fill-main dark:fill-darktext"
-          >
-            Busspur hier?
-          </text>
-        </g>
-      </svg>
-
-      <figcaption
-        class="flex flex-col gap-4 px-2 pt-4 pb-1 sm:flex-row sm:items-center sm:justify-between"
-      >
-        <ul
-          class="flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium text-muted dark:text-darkmutedtext"
-        >
-          <li class="flex items-center gap-1.5">
-            <span class="h-1.5 w-4 rounded-full bg-primary-500"></span>Bahn
+      <div class="relative">
+        <ul class="metro-modes">
+          <li class="metro-mode metro-car pb-10 lg:pt-6 lg:pb-8">
+            <h3 class="relative flex items-center gap-3 text-xl/8 font-bold text-main dark:text-darktext">
+              <span class="metro-dot" aria-hidden="true"></span>
+              <span class="flex size-8 items-center justify-center rounded-md bg-(--lane-color) text-darkbody" aria-hidden="true">
+                <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 8-2 2-1.5-3.7A2 2 0 0 0 15.646 5H8.4a2 2 0 0 0-1.903 1.257L5 10 3 8" /><path d="M7 14h.01" /><path d="M17 14h.01" /><rect width="18" height="8" x="3" y="10" rx="2" /><path d="M5 18v2" /><path d="M19 18v2" /></svg>
+              </span>
+              Auto
+            </h3>
+            <p class="mt-3 text-base/7 text-muted dark:text-darkmutedtext">
+              Schnell, solange die Straße frei ist. Fahren alle Auto, steht bald
+              alles.
+            </p>
           </li>
-          <li class="flex items-center gap-1.5">
-            <span class="h-1.5 w-4 rounded-full bg-accent"></span>Bus
+          <li class="metro-mode metro-pt pb-10 lg:pt-6 lg:pb-8">
+            <h3 class="relative flex items-center gap-3 text-xl/8 font-bold text-main dark:text-darktext">
+              <span class="metro-dot" aria-hidden="true"></span>
+              <span class="flex size-8 items-center justify-center rounded-md bg-(--lane-color) text-white" aria-hidden="true">
+                <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6 2 7" /><path d="M10 6h4" /><path d="m22 7-2-1" /><rect width="16" height="16" x="4" y="3" rx="2" /><path d="M4 11h16" /><path d="M8 15h.01" /><path d="M16 15h.01" /><path d="M6 19v2" /><path d="M18 21v-2" /></svg>
+              </span>
+              Bus &amp; Bahn
+            </h3>
+            <p class="mt-3 text-base/7 text-muted dark:text-darkmutedtext">
+              Viele Menschen in einem Fahrzeug. Die Bahn fährt am Stau vorbei,
+              der Bus nur mit eigener Spur.
+            </p>
           </li>
-          <li class="flex items-center gap-1.5">
-            <span class="h-1.5 w-4 rounded-full bg-success-500"></span>Rad
+          <li class="metro-mode metro-bike pb-10 lg:pt-6 lg:pb-8">
+            <h3 class="relative flex items-center gap-3 text-xl/8 font-bold text-main dark:text-darktext">
+              <span class="metro-dot" aria-hidden="true"></span>
+              <span class="flex size-8 items-center justify-center rounded-md bg-(--lane-color) text-white" aria-hidden="true">
+                <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5" /><circle cx="5.5" cy="17.5" r="3.5" /><circle cx="15" cy="5" r="1" /><path d="M12 17.5V14l-3-3 4-3 2 3h2" /></svg>
+              </span>
+              Fahrrad
+            </h3>
+            <p class="mt-3 text-base/7 text-muted dark:text-darkmutedtext">
+              Kein CO<sub>2</sub>, keine Kosten und nie im Stau. Auf langen
+              Wegen aber langsam.
+            </p>
           </li>
-          <li class="flex items-center gap-1.5">
-            <span class="h-1.5 w-4 rounded-full bg-strong dark:bg-darkstrong"></span>Straße
-          </li>
-          <li class="flex items-center gap-1.5">
-            <span class="h-1.5 w-4 rounded-full bg-danger-500/50"></span>Stau
+          <li class="metro-mode metro-walk pb-10 lg:pt-6 lg:pb-8">
+            <h3 class="relative flex items-center gap-3 text-xl/8 font-bold text-main dark:text-darktext">
+              <span class="metro-dot" aria-hidden="true"></span>
+              <span class="flex size-8 items-center justify-center rounded-md border-2 border-dotted border-(--lane-color) text-main dark:text-darktext" aria-hidden="true">
+                <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z" /><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z" /><path d="M16 17h4" /><path d="M4 13h4" /></svg>
+              </span>
+              zu Fuß
+            </h3>
+            <p class="mt-3 text-base/7 text-muted dark:text-darkmutedtext">
+              Kein CO<sub>2</sub>, keine Kosten. Taugt aber nur für kurze Wege.
+            </p>
           </li>
         </ul>
-        <div class="w-full sm:w-44">
-          <div
-            class="flex justify-between text-xs font-medium text-muted dark:text-darkmutedtext"
-          >
-            <span>CO<sub>2</sub>-Budget</span><span>Runde 3</span>
-          </div>
-          <div
-            class="mt-1.5 h-2 overflow-hidden rounded-full bg-subtle dark:bg-darkstrong"
-          >
-            <div
-              class="h-full w-3/5 rounded-full bg-linear-to-r from-success-500 via-warning-500 to-danger-500"
-            ></div>
-          </div>
-        </div>
-      </figcaption>
-    </figure>
-  </div>
-</section>
-
-{# --- how a round works --- #}
-<section
-  id="ablauf"
-  class="scroll-mt-8 border-y border-subtle bg-surface dark:border-darksubtle dark:bg-darksurface"
->
-  <div class="mx-auto max-w-7xl px-6 py-16 sm:py-24 lg:px-8">
-    <div class="max-w-2xl">
-      <h2
-        class="text-3xl font-semibold tracking-tight text-balance text-main sm:text-4xl dark:text-darktext"
-      >
-        So läuft eine Runde
-      </h2>
-      <p class="mt-4 text-lg/8 text-muted dark:text-darkmutedtext">
-        Jede Figur steht für viele Menschen mit demselben Weg. Was ihr
-        entscheidet, fahren also nicht ein paar Leute, sondern ganze Viertel.
-      </p>
-    </div>
-
-    <ol class="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-      <li
-        class="relative rounded-2xl bg-elevated p-6 ring-1 ring-subtle dark:bg-darkelevated dark:ring-darksubtle"
-      >
-        <div class="flex items-center justify-between">
-          <span
-            class="flex size-11 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-900 dark:text-primary-300"
-          >
-            <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="5" height="5" x="3" y="3" rx="1" /><rect width="5" height="5" x="16" y="3" rx="1" /><rect width="5" height="5" x="3" y="16" rx="1" /><path d="M21 16h-3a2 2 0 0 0-2 2v3" /><path d="M21 21v.01" /><path d="M12 7v3a2 2 0 0 1-2 2H7" /><path d="M3 12h.01" /><path d="M12 3h.01" /><path d="M12 16v.01" /><path d="M16 12h1" /><path d="M21 12v.01" /><path d="M12 21v-1" /></svg>
-          </span>
-          <span class="text-sm font-semibold text-soft dark:text-darksofttext">1</span>
-        </div>
-        <h3 class="mt-5 font-semibold text-main dark:text-darktext">Beitreten</h3>
-        <p class="mt-2 text-sm/6 text-muted dark:text-darkmutedtext">
-          QR-Code scannen, Namen eingeben, fertig. Jede Person bekommt einen
-          Wohnort und ein paar Figuren, die zur Arbeit oder zur Schule müssen.
-        </p>
-      </li>
-
-      <li
-        class="relative rounded-2xl bg-elevated p-6 ring-1 ring-subtle dark:bg-darkelevated dark:ring-darksubtle"
-      >
-        <div class="flex items-center justify-between">
-          <span
-            class="flex size-11 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-900 dark:text-primary-300"
-          >
-            <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="19" r="3" /><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15" /><circle cx="18" cy="5" r="3" /></svg>
-          </span>
-          <span class="text-sm font-semibold text-soft dark:text-darksofttext">2</span>
-        </div>
-        <h3 class="mt-5 font-semibold text-main dark:text-darktext">Wege planen</h3>
-        <p class="mt-2 text-sm/6 text-muted dark:text-darkmutedtext">
-          Für jede Figur wählst du ein Verkehrsmittel und eine Route auf der
-          Karte: die schnellste, die kürzeste oder die mit dem wenigsten
-          CO<sub>2</sub>.
-        </p>
-      </li>
-
-      <li
-        class="relative rounded-2xl bg-elevated p-6 ring-1 ring-subtle dark:bg-darkelevated dark:ring-darksubtle"
-      >
-        <div class="flex items-center justify-between">
-          <span
-            class="flex size-11 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-900 dark:text-primary-300"
-          >
-            <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16" /><path d="M18 17V9" /><path d="M13 17V5" /><path d="M8 17v-3" /></svg>
-          </span>
-          <span class="text-sm font-semibold text-soft dark:text-darksofttext">3</span>
-        </div>
-        <h3 class="mt-5 font-semibold text-main dark:text-darktext">Simulation</h3>
-        <p class="mt-2 text-sm/6 text-muted dark:text-darkmutedtext">
-          Alle fahren gleichzeitig los. Wo zu viele Autos unterwegs sind, wird
-          es langsam, auch für den Bus ohne eigene Spur. Danach seht ihr
-          CO<sub>2</sub>, Fahrzeit und Kosten.
-        </p>
-      </li>
-
-      <li
-        class="relative rounded-2xl bg-elevated p-6 ring-1 ring-subtle dark:bg-darkelevated dark:ring-darksubtle"
-      >
-        <div class="flex items-center justify-between">
-          <span
-            class="flex size-11 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-900 dark:text-primary-300"
-          >
-            <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 12 2 2 4-4" /><path d="M5 7c0-1.1.9-2 2-2h10a2 2 0 0 1 2 2v12H5V7Z" /><path d="M22 19H2" /></svg>
-          </span>
-          <span class="text-sm font-semibold text-soft dark:text-darksofttext">4</span>
-        </div>
-        <h3 class="mt-5 font-semibold text-main dark:text-darktext">Abstimmen</h3>
-        <p class="mt-2 text-sm/6 text-muted dark:text-darkmutedtext">
-          Ihr sprecht über die Ergebnisse und stimmt über eine Änderung ab,
-          etwa eine Busspur oder eine neue Bahnverbindung. Die nächste Runde
-          läuft auf der neuen Karte.
-        </p>
-      </li>
-    </ol>
-
-    <p
-      class="mt-8 rounded-xl bg-accent/10 px-5 py-4 text-sm/6 text-main ring-1 ring-accent/30 dark:text-darktext"
-    >
-      <span class="font-semibold">Das Spiel endet,</span> wenn das gemeinsame
-      CO<sub>2</sub>-Budget aufgebraucht oder die letzte Runde gespielt ist.
-    </p>
-  </div>
-</section>
-
-{# --- transport modes --- #}
-<section>
-  <div class="mx-auto max-w-7xl px-6 py-16 sm:py-24 lg:px-8">
-    <div class="max-w-2xl">
-      <h2
-        class="text-3xl font-semibold tracking-tight text-balance text-main sm:text-4xl dark:text-darktext"
-      >
-        Vier Wege zum Ziel
-      </h2>
-      <p class="mt-4 text-lg/8 text-muted dark:text-darkmutedtext">
-        Kein Verkehrsmittel gewinnt immer. Was sich lohnt, hängt davon ab, was
-        alle anderen machen.
-      </p>
-    </div>
-
-    <ul class="mt-12 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
-      <li class="flex gap-4">
-        <span
-          class="flex size-10 shrink-0 items-center justify-center rounded-full bg-subtle text-main dark:bg-darkstrong dark:text-darktext"
-        >
-          <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 8-2 2-1.5-3.7A2 2 0 0 0 15.646 5H8.4a2 2 0 0 0-1.903 1.257L5 10 3 8" /><path d="M7 14h.01" /><path d="M17 14h.01" /><rect width="18" height="8" x="3" y="10" rx="2" /><path d="M5 18v2" /><path d="M19 18v2" /></svg>
-        </span>
-        <div>
-          <h3 class="font-semibold text-main dark:text-darktext">Auto</h3>
-          <p class="mt-1 text-sm/6 text-muted dark:text-darkmutedtext">
-            Schnell, solange die Straße frei ist. Fahren alle Auto, steht
-            bald alles.
-          </p>
-        </div>
-      </li>
-      <li class="flex gap-4">
-        <span
-          class="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent/20 text-warning-700 dark:text-accent"
-        >
-          <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6 2 7" /><path d="M10 6h4" /><path d="m22 7-2-1" /><rect width="16" height="16" x="4" y="3" rx="2" /><path d="M4 11h16" /><path d="M8 15h.01" /><path d="M16 15h.01" /><path d="M6 19v2" /><path d="M18 21v-2" /></svg>
-        </span>
-        <div>
-          <h3 class="font-semibold text-main dark:text-darktext">Bus &amp; Bahn</h3>
-          <p class="mt-1 text-sm/6 text-muted dark:text-darkmutedtext">
-            Viele Menschen in einem Fahrzeug. Die Bahn fährt am Stau vorbei,
-            der Bus nur mit eigener Spur.
-          </p>
-        </div>
-      </li>
-      <li class="flex gap-4">
-        <span
-          class="flex size-10 shrink-0 items-center justify-center rounded-full bg-success-100 text-success-700 dark:bg-success-700/30 dark:text-success-500"
-        >
-          <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18.5" cy="17.5" r="3.5" /><circle cx="5.5" cy="17.5" r="3.5" /><circle cx="15" cy="5" r="1" /><path d="M12 17.5V14l-3-3 4-3 2 3h2" /></svg>
-        </span>
-        <div>
-          <h3 class="font-semibold text-main dark:text-darktext">Fahrrad</h3>
-          <p class="mt-1 text-sm/6 text-muted dark:text-darkmutedtext">
-            Kein CO<sub>2</sub>, keine Kosten und nie im Stau. Auf langen
-            Wegen aber langsam.
-          </p>
-        </div>
-      </li>
-      <li class="flex gap-4">
-        <span
-          class="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-600 dark:bg-primary-900 dark:text-primary-300"
-        >
-          <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z" /><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z" /><path d="M16 17h4" /><path d="M4 13h4" /></svg>
-        </span>
-        <div>
-          <h3 class="font-semibold text-main dark:text-darktext">Zu Fuß</h3>
-          <p class="mt-1 text-sm/6 text-muted dark:text-darkmutedtext">
-            Kein CO<sub>2</sub>, keine Kosten. Taugt aber nur für kurze Wege.
-          </p>
-        </div>
-      </li>
-    </ul>
-  </div>
-</section>
-
-{# --- for teachers --- #}
-<section
-  class="border-y border-subtle bg-surface dark:border-darksubtle dark:bg-darksurface"
->
-  <div
-    class="mx-auto grid max-w-7xl grid-cols-1 gap-12 px-6 py-16 sm:py-24 lg:grid-cols-3 lg:px-8"
-  >
-    <div>
-      <h2
-        class="text-3xl font-semibold tracking-tight text-balance text-main sm:text-4xl dark:text-darktext"
-      >
-        Für den Unterricht gebaut
-      </h2>
-      <p class="mt-4 text-lg/8 text-muted dark:text-darkmutedtext">
-        Ein Konto braucht nur, wer ein Spiel leitet. Alle anderen spielen ohne
-        Anmeldung mit.
-      </p>
-    </div>
-
-    <dl class="grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:col-span-2">
-      <div>
-        <dt class="flex items-center gap-3 font-semibold text-main dark:text-darktext">
-          <svg class="size-5 text-primary-600 dark:text-primary-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="20" x="5" y="2" rx="2" ry="2" /><path d="M12 18h.01" /></svg>
-          Läuft im Browser
-        </dt>
-        <dd class="mt-2 text-sm/6 text-muted dark:text-darkmutedtext">
-          Auf Handy, Tablet oder Laptop. Nichts zu installieren, der QR-Code am
-          Beamer reicht.
-        </dd>
       </div>
-      <div>
-        <dt class="flex items-center gap-3 font-semibold text-main dark:text-darktext">
-          <svg class="size-5 text-primary-600 dark:text-primary-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 21a8 8 0 0 1 11.873-7" /><circle cx="10" cy="8" r="5" /><path d="m17 17 5 5" /><path d="m22 17-5 5" /></svg>
-          Kein Konto, nur ein Name
-        </dt>
-        <dd class="mt-2 text-sm/6 text-muted dark:text-darkmutedtext">
-          Wer mitspielt, gibt nur einen Anzeigenamen ein. Nach Spielende wird
-          er automatisch durch „Spieler 1“, „Spieler 2“ … ersetzt.
+
+      <div class="metro-merge hidden lg:block" aria-hidden="true">
+        <span class="metro-bend-back metro-car"></span><span class="metro-bend-in metro-car"></span>
+        <span class="metro-bend-back metro-pt"></span><span class="metro-bend-in metro-pt"></span>
+        <span class="metro-bend-back metro-bike"></span><span class="metro-bend-in metro-bike"></span>
+        <span class="metro-bend-back metro-walk"></span><span class="metro-bend-in metro-walk"></span>
+      </div>
+      </div>
+    </div>
+  </section>
+
+  {# --- for teachers --- #}
+  <section>
+    <div class="relative mx-auto max-w-7xl py-12 pr-6 lg:py-16 lg:pr-8">
+      <div class="pl-(--gutter)">
+        <h2 class="relative text-3xl/10 font-bold tracking-tight text-main sm:text-4xl/10 dark:text-darktext">
+          <span class="metro-station" aria-hidden="true"></span>
+          Für den Unterricht
+        </h2>
+        <p class="mt-4 max-w-2xl text-lg/8 text-muted dark:text-darkmutedtext">
+          Ein Konto braucht nur, wer ein Spiel leitet. Alle anderen spielen ohne
+          Anmeldung mit.
+        </p>
+
+        <dl class="mt-12 grid gap-x-12 gap-y-10 sm:grid-cols-2">
+          <div class="border-t-2 border-main pt-5 dark:border-darktext">
+            <dt class="flex items-center gap-3 text-lg font-bold text-main dark:text-darktext">
+              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="20" x="5" y="2" rx="2" ry="2" /><path d="M12 18h.01" /></svg>
+              Läuft im Browser
+            </dt>
+            <dd class="mt-2 text-base/7 text-muted dark:text-darkmutedtext">
+              Auf Handy, Tablet oder Laptop. Nichts zu installieren, der QR-Code
+              am Beamer reicht.
+            </dd>
+          </div>
+          <div class="border-t-2 border-main pt-5 dark:border-darktext">
+            <dt class="flex items-center gap-3 text-lg font-bold text-main dark:text-darktext">
+              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 21a8 8 0 0 1 11.873-7" /><circle cx="10" cy="8" r="5" /><path d="m17 17 5 5" /><path d="m22 17-5 5" /></svg>
+              Kein Konto, nur ein Name
+            </dt>
+            <dd class="mt-2 text-base/7 text-muted dark:text-darkmutedtext">
+              Wer mitspielt, gibt nur einen Anzeigenamen ein. Nach Spielende wird
+              er automatisch durch „Spieler 1“, „Spieler 2“ … ersetzt.
+              <a
+                href="{% url 'dsgvo' %}"
+                class="font-medium text-primary-600 underline decoration-primary-600/30 underline-offset-4 hover:decoration-primary-600 dark:text-primary-300 dark:decoration-primary-300/30"
+                >Mehr zum Datenschutz</a
+              >
+            </dd>
+          </div>
+          <div class="border-t-2 border-main pt-5 dark:border-darktext">
+            <dt class="flex items-center gap-3 text-lg font-bold text-main dark:text-darktext">
+              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 5H3" /><path d="M12 19H3" /><path d="M14 3v4" /><path d="M16 17v4" /><path d="M21 12h-9" /><path d="M21 19h-5" /><path d="M21 5h-7" /><path d="M8 10v4" /><path d="M8 12H3" /></svg>
+              Rahmen selbst festlegen
+            </dt>
+            <dd class="mt-2 text-base/7 text-muted dark:text-darkmutedtext">
+              Karte, Rundenzahl, CO<sub>2</sub>-Budget, Figuren pro Person und
+              ein Passwort für die Lobby stellt die Spielleitung beim Erstellen
+              ein.
+            </dd>
+          </div>
+          <div class="border-t-2 border-main pt-5 dark:border-darktext">
+            <dt class="flex items-center gap-3 text-lg font-bold text-main dark:text-darktext">
+              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 10a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 14.286V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /><path d="M20 9a2 2 0 0 1 2 2v10.286a.71.71 0 0 1-1.212.502l-2.202-2.202A2 2 0 0 0 17.172 19H10a2 2 0 0 1-2-2v-1" /></svg>
+              Zeit zum Reden
+            </dt>
+            <dd class="mt-2 text-base/7 text-muted dark:text-darkmutedtext">
+              Zwischen den Runden gibt es erst die Auswertung, dann eine
+              Diskussionsphase und dann die Abstimmung.
+            </dd>
+          </div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  {# --- end of the line: school --- #}
+  <section>
+    <div class="relative mx-auto max-w-7xl pt-12 pr-6 pb-20 sm:pt-16 lg:pr-8 lg:pb-28">
+      {# the lines end here: cover them from the terminus down #}
+      <div aria-hidden="true" class="absolute bottom-0 left-0 top-[3.75rem] w-(--gutter) bg-body sm:top-[4.75rem] dark:bg-darkbody"></div>
+
+      <div class="pl-(--gutter)">
+        <p class="relative text-sm/6 font-semibold tracking-wide text-muted uppercase dark:text-darkmutedtext">
+          <span class="metro-terminus" aria-hidden="true">
+            <svg class="size-5 text-main dark:text-darktext" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M14 21v-3a2 2 0 0 0-4 0v3" /><path d="M18 4.933V21" /><path d="m4 6 7.106-3.79a2 2 0 0 1 1.788 0L20 6" /><path d="m6 11-3.52 2.147a1 1 0 0 0-.48.854V19a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5a1 1 0 0 0-.48-.853L18 11" /><path d="M6 4.933V21" /><circle cx="12" cy="9" r="2" /></svg>
+          </span>
+          Ziel: Schule
+        </p>
+        <h2 class="mt-6 max-w-3xl text-4xl/[1.05] font-bold tracking-tight text-balance text-main sm:text-5xl/[1.05] dark:text-darktext">
+          Bereit für die erste Runde?
+        </h2>
+        <p class="mt-6 max-w-2xl text-lg/8 text-muted dark:text-darkmutedtext">
+          CO<sub>2</sub>mmute entsteht an der TU Berlin im Rahmen einer
+          Masterarbeit über agentenbasierte Modelle des Pendelverkehrs.
+        </p>
+        <div class="mt-10 flex flex-wrap items-center gap-x-6 gap-y-4">
           <a
-            href="{% url 'dsgvo' %}"
-            class="font-medium text-primary-600 hover:underline dark:text-primary-300"
-            >Mehr zum Datenschutz</a
+            href="{% url 'session-create' %}"
+            class="rounded-lg bg-primary-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-primary-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 dark:bg-primary-500 dark:hover:bg-primary-400"
           >
-        </dd>
-      </div>
-      <div>
-        <dt class="flex items-center gap-3 font-semibold text-main dark:text-darktext">
-          <svg class="size-5 text-primary-600 dark:text-primary-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 5H3" /><path d="M12 19H3" /><path d="M14 3v4" /><path d="M16 17v4" /><path d="M21 12h-9" /><path d="M21 19h-5" /><path d="M21 5h-7" /><path d="M8 10v4" /><path d="M8 12H3" /></svg>
-          Rahmen selbst festlegen
-        </dt>
-        <dd class="mt-2 text-sm/6 text-muted dark:text-darkmutedtext">
-          Karte, Rundenzahl, CO<sub>2</sub>-Budget, Figuren pro Person und ein
-          Passwort für die Lobby stellt die Spielleitung beim Erstellen ein.
-        </dd>
-      </div>
-      <div>
-        <dt class="flex items-center gap-3 font-semibold text-main dark:text-darktext">
-          <svg class="size-5 text-primary-600 dark:text-primary-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 10a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 14.286V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /><path d="M20 9a2 2 0 0 1 2 2v10.286a.71.71 0 0 1-1.212.502l-2.202-2.202A2 2 0 0 0 17.172 19H10a2 2 0 0 1-2-2v-1" /></svg>
-          Zeit zum Reden
-        </dt>
-        <dd class="mt-2 text-sm/6 text-muted dark:text-darkmutedtext">
-          Zwischen den Runden gibt es erst die Auswertung, dann eine
-          Diskussionsphase und dann die Abstimmung.
-        </dd>
-      </div>
-    </dl>
-  </div>
-</section>
-
-{# --- closing call to action --- #}
-<section>
-  <div class="mx-auto max-w-7xl px-6 pt-16 sm:pt-24 lg:px-8">
-    <div
-      class="relative isolate overflow-hidden rounded-3xl bg-primary-700 px-6 py-14 text-center sm:px-16 dark:bg-primary-900"
-    >
-      <div
-        aria-hidden="true"
-        class="absolute -top-24 left-1/2 -z-10 size-96 -translate-x-1/2 rounded-full bg-primary-400 opacity-30 blur-3xl"
-      ></div>
-      <p class="text-sm font-semibold tracking-wide text-primary-200 uppercase">
-        Aus der Forschung
-      </p>
-      <h2
-        class="mx-auto mt-3 max-w-2xl text-3xl font-semibold tracking-tight text-balance text-white sm:text-4xl"
-      >
-        Bereit für die erste Runde?
-      </h2>
-      <p class="mx-auto mt-4 max-w-2xl text-base/7 text-pretty text-primary-100">
-        CO<sub>2</sub>mmute entsteht an der TU Berlin im Rahmen einer
-        Masterarbeit über agentenbasierte Modelle des Pendelverkehrs.
-      </p>
-      <div class="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-4">
-        <a
-          href="{% url 'session-create' %}"
-          class="rounded-lg bg-white px-5 py-3 text-sm font-semibold text-primary-700 shadow-sm transition hover:bg-primary-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-        >
-          Spiel erstellen
-        </a>
-        {% if not request.user.is_authenticated %}
-        <a
-          href="{% url 'signup' %}"
-          class="text-sm/6 font-semibold text-white transition hover:text-primary-100"
-        >
-          Konto für die Spielleitung anlegen <span aria-hidden="true">→</span>
-        </a>
-        {% endif %}
+            Spiel erstellen
+          </a>
+          {% if not request.user.is_authenticated %}
+          <a
+            href="{% url 'signup' %}"
+            class="text-sm/6 font-semibold text-main transition hover:text-primary-600 dark:text-darktext dark:hover:text-primary-300"
+          >
+            Konto für die Spielleitung anlegen <span aria-hidden="true">→</span>
+          </a>
+          {% endif %}
+        </div>
       </div>
     </div>
-  </div>
-</section>
+  </section>
+</div>
 
 <script>
   // the join view takes the id from the path, not the query string

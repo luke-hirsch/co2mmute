@@ -62,3 +62,217 @@
   --color-danger-500: #ef4444;
   --color-danger-700: #b91c1c;
 }
+
+/*
+ * landing page: four lines run down the page like a transit line diagram, and
+ * every section hangs off a station on them. lane 0 car, 1 public transport,
+ * 2 bike, 3 walking.
+ *
+ * everything is positioned from the left edge of the centred max-w-7xl box
+ * (.metro-lane, the fan/merge bends) or from the left edge of the content
+ * column, which sits --gutter further right (the station markers).
+ */
+@layer components {
+  .metro {
+    --lane-w: 5px; /* stroke */
+    --lane-gap: 9px; /* pitch between two parallel lines */
+    --track-x: 18px; /* left edge of lane 0 */
+    --gutter: 68px; /* where the content column starts */
+    --pill-pad: 6px; /* how far a station sticks out past the outer lines */
+    --dot: calc(var(--lane-w) + 11px);
+    --r0: 16px; /* radius of the tightest bend */
+    --rb: 16px; /* radius of the bend into a mode column */
+    --col-gap: 2rem;
+    --col-pad: calc(var(--lane-w) + 1.25rem);
+  }
+  @media (min-width: 40rem) {
+    .metro {
+      --lane-w: 6px;
+      --lane-gap: 10px;
+      --track-x: 28px;
+      --gutter: 96px;
+      --pill-pad: 7px;
+    }
+  }
+  @media (min-width: 64rem) {
+    .metro {
+      --lane-w: 7px;
+      --lane-gap: 12px;
+      --track-x: 40px;
+      --gutter: 132px;
+      --pill-pad: 8px;
+      --r0: 24px;
+      --rb: 24px;
+      --col-gap: 2.5rem;
+    }
+  }
+
+  /* lane colours, shared by every piece that draws a line */
+  .metro-car {
+    --i: 0;
+    --lane-color: var(--color-accent);
+  }
+  .metro-pt {
+    --i: 1;
+    --lane-color: var(--color-primary-500);
+  }
+  .metro-bike {
+    --i: 2;
+    --lane-color: var(--color-success-500);
+  }
+  .metro-walk {
+    --i: 3;
+    --lane-color: var(--color-main);
+    --lane-style: dotted;
+    @variant dark {
+      --lane-color: var(--color-darktext);
+    }
+  }
+
+  /* a straight line in the gutter, full height of its container */
+  .metro-lane {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(var(--track-x) + var(--i) * var(--lane-gap));
+    border-left: var(--lane-w) var(--lane-style, solid) var(--lane-color);
+  }
+
+  /* markers. they live inside a heading (position: relative) in the content
+     column and centre on its first line */
+  .metro-station,
+  .metro-stop,
+  .metro-terminus,
+  .metro-dot {
+    position: absolute;
+    top: 0.5lh;
+    translate: 0 -50%;
+    border: 3px solid var(--color-main);
+    background: var(--color-surface);
+    @variant dark {
+      border-color: var(--color-darktext);
+      background: var(--color-darkbody);
+    }
+  }
+  .metro-station,
+  .metro-stop,
+  .metro-terminus {
+    left: calc(var(--track-x) - var(--pill-pad) - var(--gutter));
+    width: calc(3 * var(--lane-gap) + var(--lane-w) + 2 * var(--pill-pad));
+    border-radius: 999px;
+  }
+  .metro-station {
+    height: 1.75rem;
+  }
+  .metro-stop {
+    height: 1.125rem;
+    border-width: 2.5px;
+  }
+  .metro-terminus {
+    height: 2.5rem;
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  /* a station on one line only */
+  .metro-dot {
+    width: var(--dot);
+    height: var(--dot);
+    border-radius: 999px;
+    left: calc(
+      var(--track-x) + var(--i) * var(--lane-gap) + var(--lane-w) / 2 -
+        var(--dot) / 2 - var(--gutter)
+    );
+  }
+
+  /* the four transport modes: stacked rows on the lines in the gutter on
+     small screens, four columns with the lines fanned out on large ones */
+  .metro-mode {
+    position: relative;
+    padding-left: var(--gutter);
+  }
+  @media (min-width: 64rem) {
+    .metro-modes {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      column-gap: var(--col-gap);
+      padding-left: var(--gutter);
+    }
+    .metro-mode {
+      padding-left: var(--col-pad);
+    }
+    .metro-mode::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      border-left: var(--lane-w) var(--lane-style, solid) var(--lane-color);
+    }
+    .metro-mode .metro-dot {
+      left: calc(var(--lane-w) / 2 - var(--dot) / 2 - var(--col-pad));
+    }
+  }
+
+  /* bends between the gutter and the mode columns. --x is where a lane sits in
+     the gutter, --c where it runs down its column, --r the gutter-side radius
+     (grows outwards, so the four bends stay parallel) */
+  .metro-fan,
+  .metro-merge {
+    position: relative;
+    height: calc(var(--r0) + 3 * var(--lane-gap) + var(--rb) + 1rem);
+  }
+  .metro-fan > *,
+  .metro-merge > * {
+    --x: calc(var(--track-x) + var(--i) * var(--lane-gap));
+    --c: calc(
+      var(--gutter) + var(--i) * (100% - var(--gutter) + var(--col-gap)) / 4
+    );
+    --r: calc(var(--r0) + (3 - var(--i)) * var(--lane-gap));
+    position: absolute;
+    border: 0 var(--lane-style, solid) var(--lane-color);
+  }
+  /* down out of the gutter, then right */
+  .metro-fan > .metro-bend-out {
+    top: 0;
+    left: var(--x);
+    width: calc(var(--c) - var(--rb) - var(--x));
+    height: var(--r);
+    border-left-width: var(--lane-w);
+    border-bottom-width: var(--lane-w);
+    border-bottom-left-radius: var(--r);
+  }
+  /* right, then down into the column */
+  .metro-fan > .metro-bend-down {
+    top: calc(var(--r) - var(--lane-w));
+    bottom: 0;
+    left: calc(var(--c) - var(--rb));
+    width: calc(var(--rb) + var(--lane-w));
+    border-top-width: var(--lane-w);
+    border-right-width: var(--lane-w);
+    border-top-right-radius: var(--rb);
+  }
+  /* out of the column, then left */
+  .metro-merge > .metro-bend-back {
+    --k: calc(var(--rb) + 3 * var(--lane-gap) + var(--r0) - var(--r));
+    top: 0;
+    left: calc(var(--c) - var(--rb));
+    width: calc(var(--rb) + var(--lane-w));
+    height: calc(var(--k) + var(--lane-w));
+    border-right-width: var(--lane-w);
+    border-bottom-width: var(--lane-w);
+    border-bottom-right-radius: var(--rb);
+  }
+  /* left, then down into the gutter again */
+  .metro-merge > .metro-bend-in {
+    --k: calc(var(--rb) + 3 * var(--lane-gap) + var(--r0) - var(--r));
+    top: var(--k);
+    bottom: 0;
+    left: var(--x);
+    width: calc(var(--c) - var(--rb) - var(--x));
+    border-top-width: var(--lane-w);
+    border-left-width: var(--lane-w);
+    border-top-left-radius: var(--r);
+  }
+}
