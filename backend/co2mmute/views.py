@@ -1,20 +1,23 @@
+from datetime import timedelta
+
+import jwt
 from django.conf import settings
 from django.contrib.auth import login
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LogoutView as DjangoLogoutView
-from django.core import signing
 from django.shortcuts import redirect, resolve_url
 from django.urls import NoReverseMatch
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.timezone import now
 from django.views.generic import CreateView, TemplateView
-import jwt
-from datetime import datetime, timedelta
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from .forms import SignupForm
+from game.auth import resolve_player_id
 from game.cache import get_cached_game_session
 from game.models import GameSession, Player
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from .forms import SignupForm
 
 
 class IndexView(TemplateView):
@@ -139,7 +142,7 @@ class WhoAmIView(APIView):
                     getattr(settings, "JWT_EXPIRATION_SECONDS", 300)
                 )
                 algorithm = getattr(settings, "JWT_ALGORITHM", "HS256")
-                exp = datetime.now() + timedelta(seconds=expiration_seconds)
+                exp = now() + timedelta(seconds=expiration_seconds)
                 payload = {"user_id": user.id, "username": user.username, "exp": exp}
                 token = jwt.encode(payload, settings.SECRET_KEY, algorithm=algorithm)
                 if isinstance(token, bytes):
@@ -192,21 +195,12 @@ class WhoAmIView(APIView):
         )
 
     def _get_player_from_cookie(self, request, game_id):
-        cookie_name = f"{settings.COOKIE_PLAYER_PREFIX}{game_id}"
-        raw = request.COOKIES.get(cookie_name)
-        if not raw:
+        player_id = resolve_player_id(request.COOKIES, game_id)
+        if not player_id:
             return None
-
-        try:
-            signer = signing.TimestampSigner(salt=settings.COOKIE_PLAYER_SALT)
-            player_id = signer.unsign(raw, max_age=None)
-        except signing.BadSignature:
-            return None
-
-        player = Player.objects.filter(
-            game__game_id=game_id, player_id=player_id
+        return Player.objects.filter(
+            game__game_id=game_id, player_id=player_id, left_at__isnull=True
         ).first()
-        return player
 
     def _get_kind_for_authenticated_user(self, user, game_id, player):
         if not game_id:

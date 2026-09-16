@@ -1,14 +1,19 @@
 import logging
 
-from co2mmute.utils import unsign_value
-from django.conf import settings
-from django.core import signing
 from rest_framework.permissions import BasePermission
 
+from .auth import has_game_access, resolve_player_id
 from .cache import get_cached_game_session
 from .models import Player
 
 logger = logging.getLogger(__name__)
+
+
+def _is_host(request, game_id: str) -> bool:
+    if not request.user.is_authenticated:
+        return False
+    session = get_cached_game_session(game_id)
+    return bool(session and session.game_host == request.user)
 
 
 class HasGameAccess(BasePermission):
@@ -18,36 +23,20 @@ class HasGameAccess(BasePermission):
         game_id = view.kwargs.get("game_id")
         if not game_id:
             return False
-
-        if request.user.is_authenticated:
-            session = get_cached_game_session(game_id)
-            if session and session.game_host == request.user:
-                return True
-
-        cookie_name = f"{settings.COOKIE_GAME_PREFIX}{game_id}"
-        try:
-            raw_cookie = request.COOKIES.get(cookie_name)
-            if not raw_cookie:
-                logger.warning(f"Game access cookie not found: {cookie_name}")
-                return False
-
-            cookie_value = unsign_value(raw_cookie, settings.COOKIE_GAME_SALT)
-
-            if ":" not in cookie_value:
-                logger.warning(f"Malformed game cookie for {game_id}")
-                return False
-            cookie_game_id, _ = cookie_value.split(":", 1)
-            has_access = cookie_game_id == game_id
-            return has_access
-        except signing.BadSignature as e:
-            logger.warning(f"Game cookie signature failed for {cookie_name}: {e}")
-            return False
-        except (KeyError, ValueError) as e:
-            logger.warning(f"Game cookie check failed for {cookie_name}: {e}")
-            return False
+        if _is_host(request, game_id):
+            return True
+        return has_game_access(request.COOKIES, game_id)
 
 
 class IsPlayerInGame(BasePermission):
+    """The cookie's player is in this game — and, where the URL names a player,
+    it is that player.
+
+    PlayerMoveView and GetYourOwnGame take player_id from the URL. Without the
+    comparison any player could act as any other player in the same game, and
+    every player_id is in the lobby roster.
+    """
+
     message = "You are not a player in this game session."
 
     def has_permission(self, request, view):
@@ -55,24 +44,16 @@ class IsPlayerInGame(BasePermission):
         if not game_id:
             return False
 
-        cookie_name = f"{settings.COOKIE_PLAYER_PREFIX}{game_id}"
-
-        try:
-            raw_cookie = request.COOKIES.get(cookie_name)
-            if not raw_cookie:
-                logger.warning(f"Player cookie not found: {cookie_name}")
-                return False
-
-            player_id = unsign_value(raw_cookie, settings.COOKIE_PLAYER_SALT)
-        except signing.BadSignature as e:
-            logger.warning(f"Player cookie signature failed for {cookie_name}: {e}")
+        player_id = resolve_player_id(request.COOKIES, game_id)
+        if not player_id:
             return False
-        except (KeyError, ValueError) as e:
-            logger.warning(f"Player cookie check failed for {cookie_name}: {e}")
+
+        url_player_id = view.kwargs.get("player_id")
+        if url_player_id and url_player_id != player_id:
             return False
 
         return Player.objects.filter(
-            game__game_id=game_id, player_id=player_id
+            game__game_id=game_id, player_id=player_id, left_at__isnull=True
         ).exists()
 
 
@@ -86,33 +67,12 @@ class CanDeleteOwnPlayer(BasePermission):
         game_id = view.kwargs.get("game_id")
         player_id = view.kwargs.get("player_id")
         if not game_id or not player_id:
-            logger.warning(
-                f"Missing game_id or player_id: game_id={game_id}, player_id={player_id}"
-            )
             return False
 
-        if request.user.is_authenticated:
-            session = get_cached_game_session(game_id)
-            if session and session.game_host == request.user:
-                return True
+        if _is_host(request, game_id):
+            return True
 
-        cookie_name = f"{settings.COOKIE_PLAYER_PREFIX}{game_id}"
-        try:
-            raw_cookie = request.COOKIES.get(cookie_name)
-            if not raw_cookie:
-                logger.warning(f"Player cookie not found: {cookie_name}")
-                return False
-
-            cookie_player_id = unsign_value(raw_cookie, settings.COOKIE_PLAYER_SALT)
-            match = cookie_player_id == player_id
-
-            return match
-        except signing.BadSignature as e:
-            logger.warning(f"Player cookie signature failed for {cookie_name}: {e}")
-            return False
-        except (KeyError, ValueError) as e:
-            logger.warning(f"Player cookie check failed for {cookie_name}: {e}")
-            return False
+        return resolve_player_id(request.COOKIES, game_id) == player_id
 
 
 class IsGameHost(BasePermission):
@@ -120,12 +80,6 @@ class IsGameHost(BasePermission):
 
     def has_permission(self, request, view):
         game_id = view.kwargs.get("game_id")
-        if not game_id or not request.user.is_authenticated:
+        if not game_id:
             return False
-
-        session = get_cached_game_session(game_id)
-        if session and session.game_host == request.user:
-            return True
-
-        logger.warning(f"User {request.user} is not host of game {game_id}")
-        return False
+        return _is_host(request, game_id)

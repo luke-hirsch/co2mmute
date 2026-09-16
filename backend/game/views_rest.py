@@ -221,9 +221,15 @@ class GetYourOwnGame(GameScopedQuerysetMixin, GenericAPIView):
     permission_classes = (HasGameAccess, IsPlayerInGame)
 
     def get(self, request, *args, **kwargs):
+        game_id = self.kwargs.get("game_id")
         player_id = self.kwargs.get("player_id")
-        player = get_object_or_404(Player, player_id=player_id)
-        game = get_cached_game_session(player.game.game_id)
+        if not game_id or not player_id:
+            return Response(
+                {"detail": "game_id and player_id are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        player = get_object_or_404(Player, game__game_id=game_id, player_id=player_id)
+        game = get_cached_game_session(game_id)
         if not game:
             return Response(
                 {"detail": "Game session not found."},

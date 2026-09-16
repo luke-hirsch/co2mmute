@@ -1,4 +1,5 @@
 import logging
+import uuid
 from http import cookies
 
 import redis
@@ -76,11 +77,19 @@ def sign_value(value, salt: str) -> str:
     return signer.sign(str(value))
 
 
-def unsign_value(signed_value: str, salt: str):
+def unsign_value(signed_value: str, salt: str, max_age: int | None = None):
+    """Verify and unwrap a signed cookie value.
+
+    max_age defaults to settings.COOKIE_AGE — the same TTL the cookie is written
+    with.
+
+    Raises signing.SignatureExpired (a subclass of BadSignature) once expired, so
+    existing `except signing.BadSignature` handlers keep working.
+    """
+    if max_age is None:
+        max_age = settings.COOKIE_AGE
     signer = signing.TimestampSigner(salt=salt)
-    result = signer.unsign(signed_value, max_age=None)
-    logger.debug(f"Unsigned value with salt {salt}: {signed_value} -> {result}")
-    return result
+    return signer.unsign(signed_value, max_age=max_age)
 
 
 def get_cookie_from_scope(scope, name: str) -> str | None:
@@ -116,21 +125,13 @@ def set_signed_cookie(
 
 
 def set_game_access_cookie(request, response, game_id: str):
-    token_store = request.session.setdefault("game_access_tokens", {})
-    import uuid
-
-    token = token_store.get(game_id)
-    if not token:
-        token = uuid.uuid4().hex
-        token_store[game_id] = token
-        request.session.modified = True
 
     secure_flag = (
         getattr(settings, "SESSION_COOKIE_SECURE", False) or request.is_secure()
     )
 
     # Embed game_id into cookie value for validation in ws_auth
-    cookie_value = f"{game_id}:{token}"
+    cookie_value = f"{game_id}:{uuid.uuid4().hex}"
 
     return set_signed_cookie(
         response,
@@ -145,18 +146,16 @@ def set_game_access_cookie(request, response, game_id: str):
 
 
 def set_player_cookie(request, response, game_id: str, player_id: str):
-    store = request.session.setdefault("player_by_game", {})
-    store[game_id] = player_id
-    request.session.modified = True
 
     secure_flag = (
         getattr(settings, "SESSION_COOKIE_SECURE", False) or request.is_secure()
     )
+    cookie_value = f"{game_id}:{player_id}"
 
     return set_signed_cookie(
         response,
         f"{settings.COOKIE_PLAYER_PREFIX}{game_id}",
-        player_id,
+        cookie_value,
         salt=settings.COOKIE_PLAYER_SALT,
         httponly=True,
         secure=secure_flag,
