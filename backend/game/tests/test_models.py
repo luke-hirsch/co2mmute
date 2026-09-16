@@ -6,7 +6,15 @@ from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.test import TestCase, override_settings
 
-from game.models import GameSession
+from game.models import GameSession, Player
+
+from ._helpers import (
+    TEST_BACKENDS,
+    TempMediaRootMixin,
+    create_game_session,
+    create_host,
+    muted,
+)
 
 
 class GameSessionModelTests(TestCase):
@@ -88,3 +96,54 @@ class GameSessionModelTests(TestCase):
         game.refresh_from_db()
 
         self.assertEqual(game.game_qr_code.name, original_name)
+
+
+@override_settings(**TEST_BACKENDS)
+class PlayerHostRowTests(TempMediaRootMixin, TestCase):
+    """Player.objects.host_rows() / without_host_rows().
+
+    GameSessionCreateView gives the host a Player row of their own. What marks it
+    is the account link (user == game.game_host), not controlled_by_host:
+    Roadmap.md 1.6 gives controlled_by_host its literal meaning — a student
+    playing on the host machine — and those rows are players like any other.
+    """
+
+    def setUp(self):
+        self.host = create_host()
+        self.other_host = create_host(username="other-host")
+        with muted():
+            self.game = create_game_session(self.host)
+            self.other_game = create_game_session(self.other_host)
+            self.host_row = Player.objects.create(
+                game=self.game,
+                user=self.host,
+                name="Host",
+                controlled_by_host=True,
+            )
+            self.player = Player.objects.create(game=self.game, name="Mia")
+            self.at_the_host_machine = Player.objects.create(
+                game=self.game, name="Ohne Handy", controlled_by_host=True
+            )
+
+    def test_host_rows_finds_exactly_the_hosts_own_row(self):
+        self.assertEqual(
+            list(Player.objects.filter(game=self.game).host_rows()), [self.host_row]
+        )
+
+    def test_without_host_rows_keeps_players_and_host_controlled_players(self):
+        self.assertCountEqual(
+            Player.objects.filter(game=self.game).without_host_rows(),
+            [self.player, self.at_the_host_machine],
+        )
+
+    def test_a_host_account_is_only_the_host_in_its_own_game(self):
+        """A host account holding a row in someone else's game is a player
+        there. Nothing sets Player.user on a join today — this pins the rule to
+        the game's host rather than to "has an account"."""
+        with muted():
+            visiting = Player.objects.create(
+                game=self.other_game, user=self.host, name="Zu Besuch"
+            )
+
+        self.assertNotIn(visiting, Player.objects.host_rows())
+        self.assertIn(visiting, Player.objects.without_host_rows())

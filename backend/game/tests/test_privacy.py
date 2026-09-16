@@ -11,6 +11,7 @@ therefore about what must *survive*.
 """
 
 import os
+from io import StringIO
 
 from django.core.management import call_command
 from django.test import TestCase, override_settings
@@ -177,6 +178,67 @@ class AnonymiseGameTests(PlayedGameMixin, TestCase):
 
 
 @override_settings(**TEST_BACKENDS)
+class HostRowAnonymisationTests(TempMediaRootMixin, TestCase):
+    """The host's own Player row, and players who play at the host machine.
+
+    GameSessionCreateView names the host row after the account —
+    "Erika Muster (Host)". That full name has to go as well. The row is not a
+    student, though, so it becomes "Host" and takes no "Spieler N" number.
+
+    Roadmap.md 1.6 lets the host add players who play on the host machine
+    (controlled_by_host=True, no account). Those are students and are numbered
+    like everyone else, which is why the rule keys on the host account.
+    """
+
+    def setUp(self):
+        self.host = create_host(first_name="Erika", last_name="Muster")
+        with muted():
+            self.game = create_game_session(self.host, game_name="Mit Host")
+            self.host_row = Player.objects.create(
+                game=self.game,
+                user=self.host,
+                name="Erika Muster (Host)",
+                controlled_by_host=True,
+            )
+            self.player = Player.objects.create(game=self.game, name="Mia")
+            self.at_the_host_machine = Player.objects.create(
+                game=self.game, name="Ohne Handy", controlled_by_host=True
+            )
+        GameSession.objects.filter(pk=self.game.pk).update(
+            ended_at=timezone.now(), is_active=False
+        )
+        self.game.refresh_from_db()
+
+    def anonymise(self):
+        from game.anonymise import anonymise_game
+
+        with muted():
+            return anonymise_game(self.game)
+
+    def test_the_host_row_becomes_host(self):
+        self.anonymise()
+
+        self.host_row.refresh_from_db()
+        self.assertEqual(self.host_row.name, "Host")
+
+    def test_the_host_row_takes_no_number(self):
+        self.anonymise()
+
+        self.player.refresh_from_db()
+        self.assertEqual(self.player.name, "Spieler 1")
+
+    def test_a_host_controlled_player_is_numbered_like_everyone_else(self):
+        self.anonymise()
+
+        self.at_the_host_machine.refresh_from_db()
+        self.assertEqual(self.at_the_host_machine.name, "Spieler 2")
+
+    def test_the_host_row_counts_as_renamed_once(self):
+        self.assertEqual(self.anonymise(), 3)
+        self.assertEqual(self.anonymise(), 0)
+
+
+@override_settings(**TEST_BACKENDS)
 class GamesDueTests(PlayedGameMixin, TestCase):
     """The grace period exists so the post-game summary still reads properly
     while the class is standing in front of it."""
@@ -307,13 +369,16 @@ class ManagementCommandTests(PlayedGameMixin, TestCase):
 
     Beat only ever catches games that end from now on, and whoever inherits this
     needs a way to answer "please remove that name" without a shell.
+
+    stdout goes to a StringIO: verbosity=0 does not silence self.stdout.write,
+    and the run has to stay a wall of dots.
     """
 
     def test_dry_run_changes_nothing(self):
         self.end_the_game(hours_ago=48)
 
         with muted():
-            call_command("anonymise_games", "--dry-run", verbosity=0)
+            call_command("anonymise_games", "--dry-run", verbosity=0, stdout=StringIO())
 
         self.first.refresh_from_db()
         self.assertEqual(self.first.name, "Mia")
@@ -323,7 +388,7 @@ class ManagementCommandTests(PlayedGameMixin, TestCase):
         self.end_the_game(hours_ago=1)
 
         with muted():
-            call_command("anonymise_games", verbosity=0)
+            call_command("anonymise_games", verbosity=0, stdout=StringIO())
 
         self.first.refresh_from_db()
         self.assertEqual(self.first.name, "Mia")
@@ -333,17 +398,48 @@ class ManagementCommandTests(PlayedGameMixin, TestCase):
         self.end_the_game(hours_ago=1)
 
         with muted():
-            call_command("anonymise_games", "--all", verbosity=0)
+            call_command("anonymise_games", "--all", verbosity=0, stdout=StringIO())
 
         self.first.refresh_from_db()
         self.assertEqual(self.first.name, "Spieler 1")
 
     def test_a_running_game_is_never_touched_even_with_all(self):
         with muted():
-            call_command("anonymise_games", "--all", verbosity=0)
+            call_command("anonymise_games", "--all", verbosity=0, stdout=StringIO())
 
         self.first.refresh_from_db()
         self.assertEqual(self.first.name, "Mia")
+
+
+class ExpiredSessionTests(TestCase):
+    """Django never deletes expired django_session rows by itself — the DB
+    backend needs clearsessions, and nothing ran it. Before 1.2 every join wrote
+    the player id into the session, and for a logged-in user that row links the
+    account to the player."""
+
+    def test_the_task_deletes_expired_sessions_only(self):
+        from django.contrib.sessions.models import Session
+
+        from game.tasks import clear_expired_sessions
+
+        now = timezone.now()
+        Session.objects.create(
+            session_key="expired".ljust(32, "0"),
+            session_data="",
+            expire_date=now - timezone.timedelta(days=1),
+        )
+        Session.objects.create(
+            session_key="current".ljust(32, "0"),
+            session_data="",
+            expire_date=now + timezone.timedelta(days=1),
+        )
+
+        clear_expired_sessions()
+
+        self.assertEqual(
+            list(Session.objects.values_list("session_key", flat=True)),
+            ["current".ljust(32, "0")],
+        )
 
 
 class RetentionSettingsTests(TestCase):
@@ -359,6 +455,13 @@ class RetentionSettingsTests(TestCase):
         schedule = getattr(django_settings, "CELERY_BEAT_SCHEDULE", {})
         tasks = {entry["task"] for entry in schedule.values()}
         self.assertIn("game.tasks.anonymise_finished_games", tasks)
+
+    def test_the_beat_schedule_clears_expired_sessions(self):
+        from django.conf import settings as django_settings
+
+        schedule = getattr(django_settings, "CELERY_BEAT_SCHEDULE", {})
+        tasks = {entry["task"] for entry in schedule.values()}
+        self.assertIn("game.tasks.clear_expired_sessions", tasks)
 
     def test_cleanup_old_simulations_stays_unscheduled(self):
         """It deletes EdgeTrafficSnapshot rows — research data. Anonymising
