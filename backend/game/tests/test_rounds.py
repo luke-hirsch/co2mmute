@@ -327,13 +327,17 @@ class LeavingPlayerCompletesRoundTests(RoundFixtureMixin, TestCase):
     cleanup_leaving_player keeps its post_delete hook but stops deciding for
     itself: it counted every Player row, and it gated on a round-number
     comparison that is false in exactly the common case.
+
+    The receiver schedules the check with transaction.on_commit, and TestCase
+    never commits — without captureOnCommitCallbacks(execute=True) the check
+    never runs, and the negative case below would pass for the wrong reason.
     """
 
     def test_deleting_the_last_outstanding_player_completes_the_round(self):
         self.submit_move(self.player)
 
         with patch("game.tasks.run_simulation_task.delay") as delay:
-            with muted():
+            with muted(), self.captureOnCommitCallbacks(execute=True):
                 self.other_player.delete()
 
         self.round.refresh_from_db()
@@ -346,7 +350,7 @@ class LeavingPlayerCompletesRoundTests(RoundFixtureMixin, TestCase):
         self.submit_move(self.player)
 
         with patch("game.tasks.run_simulation_task.delay") as delay:
-            with muted():
+            with muted(), self.captureOnCommitCallbacks(execute=True):
                 third.delete()
 
         self.round.refresh_from_db()
@@ -406,8 +410,10 @@ class PlayerMoveOnCommitTests(RoundFixtureMixin, TestCase):
         self.submit_move(self.player)
         self.authenticate_as(self.other_player)
 
+        # muted() wraps the capture, not the other way round: the callbacks run
+        # when the capture block exits, and they log the dispatch.
         with patch("game.tasks.run_simulation_task.delay") as delay:
-            with self.captureOnCommitCallbacks(execute=True):
+            with muted(), self.captureOnCommitCallbacks(execute=True):
                 response = self.post_move(self.other_player)
 
         self.assertEqual(response.status_code, 200)
