@@ -58,30 +58,48 @@ services:
       - backend-media:/var/www/backend-media
       - backend-logs:/app/logs
 
-  # celery-worker:
-  #   image: co2mmute-backend
-  #   environment: *backend-env
-  #   command: ["celery", "-A", "co2mmute", "worker", "-l", "${CELERY_WORKER_LOG_LEVEL:-info}"]
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #   restart: unless-stopped
+  celery-worker:
+    image: co2mmute-backend
+    entrypoint: []
+    environment: *backend-env
+    command:
+      [
+        "celery",
+        "-A",
+        "co2mmute",
+        "worker",
+        "-l",
+        "${CELERY_WORKER_LOG_LEVEL:-info}",
+      ]
+    volumes:
+      - backend-logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
 
-  # celery-beat:
-  #   image: co2mmute-backend
-  #   environment: *backend-env
-  #   command: ["celery", "-A", "co2mmute", "beat", "-l", "${CELERY_BEAT_LOG_LEVEL:-info}"]
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #   restart: unless-stopped
+  celery-beat:
+    image: co2mmute-backend
+    entrypoint: []
+    environment: *backend-env
+    command:
+      [
+        "celery",
+        "-A",
+        "co2mmute",
+        "beat",
+        "-l",
+        "${CELERY_BEAT_LOG_LEVEL:-info}",
+      ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
 
-
-  
   nginx:
     build:
       context: ..
