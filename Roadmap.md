@@ -138,6 +138,14 @@ zuruecknehmen. nach dem deploy einmal `clearsessions` von hand, prod hat alles s
 dem start liegen.
 durchgespielt: die endkarte zeigt die namen noch, wie gewollt.
 offen: beat-log nach einer stunde, rechtstexte im browser (hell/dunkel).
+17.09.26: dsgvo + cookies bleiben, die tu-seiten kennen unsere cookies nicht. die
+rechtstexte duzen jetzt, wie der rest der seite.
+**impressum:** ist noch die firmen-vorlage mit platzhaltern (adresse, handelsregister,
+ust-id, TMG) und seit 17.09. im footer jeder seite verlinkt. das team sagt, als
+subdomain brauchen wir keins. das tu-impressum gilt laut eigenem text aber nur fuer
+`www.tu.berlin` und `redaktion.tu.berlin`, und die dsgvo-seite verweist fuer
+verantwortlichen und kontakt aufs impressum. vor dem deploy klaeren: verantwortliche
+stelle + kontakt von der gruppe.
 
 - die dsgvo-seite sagt spieldaten werden geloescht "wenn das spiel geloescht wird".
   es loescht aber nie jemand ein spiel. `cleanup_old_simulations(days_old=30)` gibt es,
@@ -192,8 +200,10 @@ offen: der template-pfad prueft `max_players` weiter nicht. dafuer muesste auch
 
 #### 1.5 tests
 
-stand 16.09.26: `settings_test.py`, `test.yml` und der test-job in `workflow-prod.yml` sind auf
-`backend/test-settings-ci`, lokal gruen. branch noch nicht gepusht, CI ist also noch nie gelaufen.
+stand 17.09.26: `settings_test.py`, `test.yml` und der test-job in `workflow-prod.yml` sind auf
+main gemergt (lokal, noch nicht gepusht), branch geloescht, lokal gruen. CI ist noch nie
+gelaufen - der erste push von main ist der erste lauf. danach einen test absichtlich kaputt
+machen und schauen ob es rot wird.
 
 - aktuell: `game/tests.py`, `tests_simulation.py`, `tests_ws_auth.py`,
   leere stubs in maps und content. CI laeuft davon nichts, die workflows deployen nur.
@@ -353,6 +363,11 @@ frontend-haelfte von 1.6 und 1.7.
 #### 2.6 ui / ux
 
 - design einmal durchziehen, dark/light sauber.
+- ✅ landing neu (17.09.26): liniennetz statt platzhalterbild. vier linien (auto,
+  bus & bahn, rad, zu fuss) laufen von "zu hause" bis "schule", jeder abschnitt haengt
+  an einer station. impressum/datenschutz/cookies fest im footer. im hellen modus
+  hatten alle django-seiten keine farben (`text-main`, `bg-surface` usw. gab es nie
+  als klasse), repariert. ueberall duzen.
 - map editor: **nur portieren**, kein redesign. cytoscape-logik bleibt wie sie ist,
   kommt in die neue struktur und an den `@/` alias, shadcn-huellen nur wo es
   billig ist. der editor ist deliverable, aber die bedienung wird in phase 4
@@ -388,14 +403,14 @@ raus, es bleibt `main` -> `prod`.
 - die `STAGING_*` secrets zeigen auf eine kiste die nicht mehr zum projekt gehoert.
   loeschen, sonst deployt ein versehentlicher push dort drueber.
 - `workflow-prod.yml` ist noch nie gelaufen, die live-kiste wird von hand deployed.
-  entschieden 16.09.26: workflow bleibt. nur `PROD_KEY` ist secret, `PROD_HOST`,
-  `PROD_USER` und `PROD_KNOWN_HOSTS` sind variables (secrets werden im log ueberall
-  maskiert, aus "deploying" wird sonst "***ing"). der key darf auf der kiste nur
-  `devops/deploy.sh` ausfuehren (`command=` in authorized_keys), installiert als
-  `/usr/local/bin/co2mmute-deploy`. `workflow_dispatch` als trockenlauf ohne deploy.
-  ob github actions per ssh durchkommt, zeigt erst der trockenlauf.
-- rollback per `git push -f origin <alt>:prod` hat nie funktioniert: `pull --ff-only`
-  sagt dann "Already up to date". das deploy-skript macht `checkout -B`.
+  entschieden 16.09.26: workflow bleibt wie beim alten staging. vier secrets
+  (`PROD_HOST`, `PROD_USER`, `PROD_KEY`, `PROD_KNOWN_HOSTS`), ein normaler key fuer
+  den user `deploy`, kein deploy-skript. ob github actions per ssh durchkommt, zeigt
+  erst der erste lauf.
+- die deploy-zeile auf main ist noch die alte (`/srv/commute`, `pull --ff-only`).
+  rollback per `git push -f origin <alt>:prod` hat damit nie funktioniert,
+  `pull --ff-only` sagt dann "Already up to date". neue zeile mit `/commute` und
+  `checkout -B`, schritt 1 im deploy-guide.
 - ohne staging gibt es keine stufe mehr zwischen merge und live. das gate ist dann
   die testsuite, siehe 1.5. deploy nicht waehrend einer laufenden testrunde.
 - kiste (16.09.26): debian 13, checkout unter `/commute` (nicht `/srv/commute`),
