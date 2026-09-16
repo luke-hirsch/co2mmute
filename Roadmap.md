@@ -92,7 +92,12 @@ pruefen, `PROD_*` secrets setzen.
   entschieden wird), dann der split - andersrum verschiebt man den gleichen fehler
   nur in eine neue datei.
 
-#### 1.2 spieler-auth (kein account, nur haerten)
+#### 1.2 spieler-auth (kein account, nur haerten) ✅ erledigt 16.09.26
+
+auf main 16.09.26. alles unten ist drin, REST, websocket und whoami laufen ueber
+`game/auth.py`. volle suite: nur noch der qr-code test offen (1.3).
+**das player-cookie hat ein neues format, alle alten cookies sind ungueltig.** der
+naechste prod-deploy wirft jeden laufenden spieler raus -> nur zwischen testrunden.
 
 - das player-cookie ist nicht ans spiel gebunden, die signatur deckt nur die player_id.
   nur der cookie-_name_ enthaelt die game_id. game_id mit in den signierten wert,
@@ -129,8 +134,8 @@ pruefen, `PROD_*` secrets setzen.
   -> **anonymisieren bei spielende**: `Player.name` auf "Spieler N" setzen, qr code
   loeschen. moves, routen und ergebnisse bleiben unveraendert und weiter zuordenbar,
   nur der identifizierende string faellt weg. als celery-beat job (haengt an 1.1).
-- `ws_auth.py:100` loggt spielernamen (`logger.debug(f"Players in game ...")`).
-  greift nur bei DEBUG log level, aber raus damit.
+- ~~`ws_auth.py:100` loggt spielernamen (`logger.debug(f"Players in game ...")`).
+  greift nur bei DEBUG log level, aber raus damit.~~ mit 1.2 rausgeflogen.
 - die host-zeile (`GameSessionCreateView` legt fuer den host einen Player an) heisst
   "Vorname Nachname (Host)". beim anonymisieren wird sie "Host" und bekommt keine
   nummer. erkannt wird sie am account (`user = game.game_host`), nicht an
