@@ -41,12 +41,15 @@ class GameSession(models.Model):
     tick_duration_min = models.PositiveSmallIntegerField(default=5)
     morning_departure_hour = models.PositiveSmallIntegerField(default=9)  # 9:00 AM
     evening_departure_hour = models.PositiveSmallIntegerField(default=17)  # 5:00 PM
-    departure_std_dev_min = models.PositiveSmallIntegerField(default=10)  # Standard deviation for departure times
+    departure_std_dev_min = models.PositiveSmallIntegerField(
+        default=10
+    )  # Standard deviation for departure times
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     started_at = models.DateTimeField(null=True, blank=True)
     ended_at = models.DateTimeField(null=True, blank=True)
+    anonymised_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ("-created_at", "-pk")
@@ -95,6 +98,22 @@ class GameSession(models.Model):
         return f"{self.game_id}.png", ContentFile(buffer.read())
 
 
+class PlayerQuerySet(models.QuerySet):
+    """Which Player row is the host's own.
+
+    GameSessionCreateView gives the host a Player row linked to their account.
+    That link — not controlled_by_host — is what marks it: Roadmap.md 1.6 gives
+    controlled_by_host its literal meaning (a student playing at the host
+    machine), and those rows are players like any other.
+    """
+
+    def host_rows(self):
+        return self.filter(user=models.F("game__game_host"))
+
+    def without_host_rows(self):
+        return self.exclude(user=models.F("game__game_host"))
+
+
 class Player(models.Model):
     name = models.CharField(max_length=100, null=True, blank=True)
     game = models.ForeignKey(GameSession, on_delete=models.CASCADE)
@@ -108,6 +127,8 @@ class Player(models.Model):
     controlled_by_host = models.BooleanField(default=False)
     # Agent assignments: {"home_node": int, "agents": [{"id": 1, "destination_node": int}, ...]}
     agent_assignments = models.JSONField(blank=True, null=True)
+
+    managers = PlayerQuerySet.as_manager()
 
     class Meta:
         ordering = ("game", "name", "joined_at")
@@ -283,9 +304,7 @@ class AgentRoute(models.Model):
         PlayerMove, on_delete=models.CASCADE, related_name="routes"
     )
     agent_id = models.PositiveSmallIntegerField()
-    transport_mode = models.CharField(
-        max_length=20, choices=TransportMode.choices
-    )
+    transport_mode = models.CharField(max_length=20, choices=TransportMode.choices)
     optimization = models.CharField(
         max_length=20, choices=Optimization.choices, null=True, blank=True
     )
@@ -316,7 +335,9 @@ class RouteSegment(models.Model):
     order = models.PositiveSmallIntegerField()
     edge = models.ForeignKey("maps.Edge", on_delete=models.CASCADE)
     mode = models.CharField(max_length=20, choices=SegmentMode.choices)
-    pt_line_id = models.PositiveIntegerField(null=True, blank=True)  # BusLine or TrainLine ID
+    pt_line_id = models.PositiveIntegerField(
+        null=True, blank=True
+    )  # BusLine or TrainLine ID
 
     class Meta:
         ordering = ("agent_route", "order")

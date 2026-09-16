@@ -80,3 +80,30 @@ def cleanup_old_simulations(days_old: int = 30):
     logger.info(f"Cleaned up {deleted_count} old traffic snapshots")
 
     return deleted_count
+
+
+@shared_task
+def anonymise_finished_games():
+    """Sweep games whose grace period has run out. Roadmap.md 1.3.
+
+    Runs on a schedule rather than on game end so the post-game summary still
+    shows real names while the class is looking at it.
+    """
+    from django.conf import settings
+
+    from game.anon import anonymise_game, games_due_for_anonymisation
+
+    grace_hours = settings.ANONYMISE_GRACE_HOURS
+    due = games_due_for_anonymisation(grace_hours)
+
+    total = 0
+    for game in due:
+        try:
+            total += anonymise_game(game)
+        except Exception:
+            # One bad game must not stop the sweep.
+            logger.exception(f"Anonymisation failed for game {game.game_id}")
+
+    if total:
+        logger.info(f"Anonymised {total} players across {due.count()} games")
+    return total

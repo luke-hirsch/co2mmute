@@ -46,6 +46,17 @@ def clear_session_cache(sender, instance: GameSession, **kwargs):
     invalidate_game_session(instance.game_id)
 
 
+@receiver(post_delete, sender=GameSession)
+def delete_qr_code_file(sender, instance: GameSession, **kwargs):
+    """Django deletes the row, not the file it points at.
+
+    Without this, every deleted game leaves its PNG in MEDIA_ROOT forever —
+    which is what test_delete_game_removes_record_and_qr_code has been failing on.
+    """
+    if instance.game_qr_code:
+        instance.game_qr_code.delete(save=False)
+
+
 @receiver(post_save, sender=Player)
 def set_up_player(sender, instance: Player, created: bool, **kwargs):
     if created:
