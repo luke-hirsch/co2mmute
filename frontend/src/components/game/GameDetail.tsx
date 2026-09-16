@@ -248,7 +248,7 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
       {/* Header */}
       <div>
         <h1 className="mb-2 text-3xl font-bold">{game.game_name}</h1>
-        <p className="text-sm text-muted dark:text-darkmutedtext">
+        <p className="text-sm text-mutedtext dark:text-darkmutedtext">
           {role === "host" ? "Hosting this game" : "You are a player"}
         </p>
       </div>
@@ -278,7 +278,7 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
               onClick={() => setZoomQR(!zoomQR)}
               className=" flex flex-col items-center gap-3 lg:w-1/3 cursor-pointer"
             >
-              <h3 className="text-sm font-semibold text-muted dark:text-darkmutedtext">
+              <h3 className="text-sm font-semibold text-mutedtext dark:text-darkmutedtext">
                 Share this code with players
               </h3>
               <img
@@ -292,7 +292,7 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
             <div className="flex flex-col gap-6 lg:w-2/3 lg:border-l lg:border-subtle lg:pl-6 dark:lg:border-darksubtle">
               {/* Game ID */}
               <div className="flex flex-col items-center lg:items-start gap-2">
-                <p className="text-xs font-semibold text-muted dark:text-darkmutedtext">
+                <p className="text-xs font-semibold text-mutedtext dark:text-darkmutedtext">
                   GAME ID
                 </p>
                 <code className="rounded bg-surface px-4 py-2 text-2xl font-mono font-bold text-primary-600 dark:bg-darksurface">
@@ -479,7 +479,7 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
                 }
                 className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               />
-              <p className="mt-1 text-xs text-muted dark:text-darkmutedtext">
+              <p className="mt-1 text-xs text-mutedtext dark:text-darkmutedtext">
                 How many individuals each agent represents in the simulation.
               </p>
             </div>
@@ -496,7 +496,7 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
           <div className="p-3 rounded bg-elevated dark:bg-darkelevated">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted dark:text-darkmutedtext mb-1">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-mutedtext dark:text-darkmutedtext mb-1">
               Max Players
             </h4>
             <p className="text-lg font-bold text-primary-600">
@@ -505,7 +505,7 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
           </div>
 
           <div className="p-3 rounded bg-elevated dark:bg-darkelevated">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted dark:text-darkmutedtext mb-1">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-mutedtext dark:text-darkmutedtext mb-1">
               Agents per Player
             </h4>
             <p className="text-lg font-bold text-primary-600">
@@ -514,7 +514,7 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
           </div>
 
           <div className="p-3 rounded bg-elevated dark:bg-darkelevated">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted dark:text-darkmutedtext mb-1">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-mutedtext dark:text-darkmutedtext mb-1">
               Max Rounds
             </h4>
             <p className="text-lg font-bold text-primary-600">
@@ -523,7 +523,7 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
           </div>
 
           <div className="p-3 rounded bg-elevated dark:bg-darkelevated">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted dark:text-darkmutedtext mb-1">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-mutedtext dark:text-darkmutedtext mb-1">
               CO₂ Limit
             </h4>
             <p className="text-lg font-bold text-primary-600">
@@ -532,7 +532,7 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
           </div>
 
           <div className="p-3 rounded bg-elevated dark:bg-darkelevated">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted dark:text-darkmutedtext mb-1">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-mutedtext dark:text-darkmutedtext mb-1">
               People per Agent
             </h4>
             <p className="text-lg font-bold text-primary-600">
@@ -541,7 +541,7 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
           </div>
 
           <div className="p-3 rounded bg-elevated dark:bg-darkelevated">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted dark:text-darkmutedtext mb-1">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-mutedtext dark:text-darkmutedtext mb-1">
               Chat
             </h4>
             <div className="flex items-center gap-2">
@@ -602,7 +602,7 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
           {/* Round Progress */}
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div className="p-3 rounded bg-white dark:bg-darksurface">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted dark:text-darkmutedtext mb-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-mutedtext dark:text-darkmutedtext mb-1">
                 Current Round
               </p>
               <p className="text-2xl font-bold text-primary-600">
@@ -610,7 +610,7 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
               </p>
             </div>
             <div className="p-3 rounded bg-white dark:bg-darksurface">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted dark:text-darkmutedtext mb-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-mutedtext dark:text-darkmutedtext mb-1">
                 Total CO₂
               </p>
               <p className="text-2xl font-bold text-primary-600">
@@ -630,7 +630,7 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
                   }}
                 />
               </div>
-              <p className="text-xs text-muted dark:text-darkmutedtext mt-1">
+              <p className="text-xs text-mutedtext dark:text-darkmutedtext mt-1">
                 Limit: {(gameState.maxCo2LevelG / 1000).toFixed(0)} kg
               </p>
             </div>
@@ -648,7 +648,7 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
                     {gameState.betweenRoundPhase === "voting" && "Voting in progress"}
                   </span>
                   {gameState.betweenRoundPhase === "voting" && gameState.voteProgress && (
-                    <span className="text-xs text-muted dark:text-darkmutedtext">
+                    <span className="text-xs text-mutedtext dark:text-darkmutedtext">
                       ({gameState.voteProgress.cast}/{gameState.voteProgress.needed} votes)
                     </span>
                   )}
@@ -691,7 +691,7 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
           {/* Last Round Stats */}
           {gameState.lastRoundStats && gameState.lastRoundStats.length > 0 && (
             <div>
-              <h4 className="text-sm font-semibold mb-2 text-muted dark:text-darkmutedtext">
+              <h4 className="text-sm font-semibold mb-2 text-mutedtext dark:text-darkmutedtext">
                 Last Round Results
               </h4>
               <div className="space-y-2">
@@ -715,13 +715,13 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
                       >
                         {stat.action}
                       </span>
-                      <span className="text-muted dark:text-darkmutedtext">
+                      <span className="text-mutedtext dark:text-darkmutedtext">
                         {stat.emissions_g}g CO₂
                       </span>
-                      <span className="text-muted dark:text-darkmutedtext">
+                      <span className="text-mutedtext dark:text-darkmutedtext">
                         €{stat.cost_eur.toFixed(2)}
                       </span>
-                      <span className="text-muted dark:text-darkmutedtext">
+                      <span className="text-mutedtext dark:text-darkmutedtext">
                         {stat.time_min}min
                       </span>
                     </div>
@@ -771,7 +771,7 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
                   {isStartingGame ? "Starting Game..." : "Start Game"}
                 </button>
               )}
-              <p className="text-center text-xs text-muted dark:text-darkmutedtext">
+              <p className="text-center text-xs text-mutedtext dark:text-darkmutedtext">
                 {game.is_active
                   ? "All players are in the game room"
                   : "Make sure all players have joined the lobby"}
@@ -779,7 +779,7 @@ export default function GameDetail({ id, role, playerId }: GameDetailProps) {
             </>
           ) : (
             <div className="space-y-3">
-              <p className="text-center text-sm text-muted dark:text-darkmutedtext">
+              <p className="text-center text-sm text-mutedtext dark:text-darkmutedtext">
                 Game has ended
               </p>
             </div>

@@ -81,7 +81,7 @@ function VersionEditor({
   return (
     <div className="space-y-3 pt-2">
       <div>
-        <label className="block text-xs text-muted dark:text-darkmutedtext mb-1">
+        <label className="block text-xs text-mutedtext dark:text-darkmutedtext mb-1">
           Name
         </label>
         <input
@@ -92,7 +92,7 @@ function VersionEditor({
       </div>
 
       <div>
-        <label className="block text-xs text-muted dark:text-darkmutedtext mb-1">
+        <label className="block text-xs text-mutedtext dark:text-darkmutedtext mb-1">
           Description
         </label>
         <textarea
@@ -104,7 +104,7 @@ function VersionEditor({
       </div>
 
       <div>
-        <label className="block text-xs text-muted dark:text-darkmutedtext mb-1">
+        <label className="block text-xs text-mutedtext dark:text-darkmutedtext mb-1">
           Poll text (forward)
         </label>
         <input
@@ -115,7 +115,7 @@ function VersionEditor({
       </div>
 
       <div>
-        <label className="block text-xs text-muted dark:text-darkmutedtext mb-1">
+        <label className="block text-xs text-mutedtext dark:text-darkmutedtext mb-1">
           Poll text (revert)
         </label>
         <input
@@ -129,7 +129,7 @@ function VersionEditor({
 
       {otherVersions.length > 0 && (
         <div>
-          <label className="block text-xs text-muted dark:text-darkmutedtext mb-1">
+          <label className="block text-xs text-mutedtext dark:text-darkmutedtext mb-1">
             Compatible versions
           </label>
           <div className="space-y-1 max-h-36 overflow-y-auto rounded-md border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody px-2 py-1.5">
@@ -146,7 +146,7 @@ function VersionEditor({
                 />
                 <span className="truncate">{v.name}</span>
                 {v.base_version && (
-                  <span className="shrink-0 text-xs text-muted dark:text-darkmutedtext">
+                  <span className="shrink-0 text-xs text-mutedtext dark:text-darkmutedtext">
                     (base)
                   </span>
                 )}
@@ -157,7 +157,7 @@ function VersionEditor({
       )}
 
       <div>
-        <label className="block text-xs text-muted dark:text-darkmutedtext mb-1">
+        <label className="block text-xs text-mutedtext dark:text-darkmutedtext mb-1">
           Change image
         </label>
         {imgUrl && (
@@ -185,7 +185,7 @@ function VersionEditor({
             {imgUrl ? "Replace image" : "Upload image"}
           </button>
           {values.newImage && (
-            <span className="text-xs text-muted dark:text-darkmutedtext truncate">
+            <span className="text-xs text-mutedtext dark:text-darkmutedtext truncate">
               {values.newImage.name}
             </span>
           )}
@@ -246,7 +246,7 @@ const VersionManagerPanel = ({ mapId }: VersionManagerPanelProps) => {
   if (isLoading) {
     return (
       <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle">
-        <p className="text-sm text-muted dark:text-darkmutedtext">Loading versions...</p>
+        <p className="text-sm text-mutedtext dark:text-darkmutedtext">Loading versions...</p>
       </div>
     );
   }
@@ -261,7 +261,7 @@ const VersionManagerPanel = ({ mapId }: VersionManagerPanelProps) => {
       </h3>
 
       {versionList.length === 0 && (
-        <p className="text-sm text-muted dark:text-darkmutedtext">No versions yet.</p>
+        <p className="text-sm text-mutedtext dark:text-darkmutedtext">No versions yet.</p>
       )}
 
       <div className="space-y-2">
@@ -315,7 +315,7 @@ const VersionManagerPanel = ({ mapId }: VersionManagerPanelProps) => {
 
       {nonBase.length >= 2 && (
         <div className="pt-2 border-t border-subtle dark:border-darksubtle space-y-2">
-          <p className="text-xs text-muted dark:text-darkmutedtext">
+          <p className="text-xs text-mutedtext dark:text-darkmutedtext">
             Select 2+ non-base versions above to generate all combination versions.
           </p>
           <button

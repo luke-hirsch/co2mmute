@@ -75,7 +75,7 @@ const EditorToolbar = ({
             className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
               mode === m.key
                 ? "bg-indigo-600 text-white"
-                : "text-muted dark:text-darkmutedtext hover:bg-body dark:hover:bg-darkbody"
+                : "text-mutedtext dark:text-darkmutedtext hover:bg-body dark:hover:bg-darkbody"
             }`}
           >
             {m.label}
@@ -121,7 +121,7 @@ const EditorToolbar = ({
                 className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
                   graphTool === t.key
                     ? "bg-emerald-600 text-white"
-                    : "text-muted dark:text-darkmutedtext hover:bg-body dark:hover:bg-darkbody border border-subtle dark:border-darksubtle"
+                    : "text-mutedtext dark:text-darkmutedtext hover:bg-body dark:hover:bg-darkbody border border-subtle dark:border-darksubtle"
                 }`}
               >
                 {t.label}
@@ -151,7 +151,7 @@ const EditorToolbar = ({
                 className={`px-2.5 py-1 text-xs rounded-md transition-colors border ${
                   bidirectional
                     ? "bg-indigo-600 text-white border-indigo-600"
-                    : "text-muted dark:text-darkmutedtext border-subtle dark:border-darksubtle hover:bg-body dark:hover:bg-darkbody"
+                    : "text-mutedtext dark:text-darkmutedtext border-subtle dark:border-darksubtle hover:bg-body dark:hover:bg-darkbody"
                 }`}
                 title={
                   bidirectional
@@ -200,7 +200,7 @@ const EditorToolbar = ({
 
       {/* Version mode step indicator */}
       {mode === "version-diff" && versionDiffStep === 1 && (
-        <span className="text-sm text-muted dark:text-darkmutedtext">
+        <span className="text-sm text-mutedtext dark:text-darkmutedtext">
           Step 1: Define version details
         </span>
       )}
@@ -218,7 +218,7 @@ const EditorToolbar = ({
                     ? t.key === "delete"
                       ? "bg-red-600 text-white"
                       : "bg-emerald-600 text-white"
-                    : "text-muted dark:text-darkmutedtext hover:bg-body dark:hover:bg-darkbody border border-subtle dark:border-darksubtle"
+                    : "text-mutedtext dark:text-darkmutedtext hover:bg-body dark:hover:bg-darkbody border border-subtle dark:border-darksubtle"
                 }`}
               >
                 {t.label}
@@ -231,7 +231,7 @@ const EditorToolbar = ({
             </span>
           )}
           {!versionDiffEditingPtLine && graphTool === "select" && (
-            <span className="text-xs text-muted dark:text-darkmutedtext">
+            <span className="text-xs text-mutedtext dark:text-darkmutedtext">
               Click edges to modify properties
             </span>
           )}
@@ -250,7 +250,7 @@ const EditorToolbar = ({
                 className={`px-2.5 py-1 text-xs rounded-md transition-colors border ${
                   bidirectional
                     ? "bg-indigo-600 text-white border-indigo-600"
-                    : "text-muted dark:text-darkmutedtext border-subtle dark:border-darksubtle hover:bg-body dark:hover:bg-darkbody"
+                    : "text-mutedtext dark:text-darkmutedtext border-subtle dark:border-darksubtle hover:bg-body dark:hover:bg-darkbody"
                 }`}
                 title={
                   bidirectional

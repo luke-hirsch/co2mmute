@@ -150,7 +150,7 @@ const GameMapViewer = ({
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-2"></div>
-          <p className="text-sm text-muted dark:text-darkmutedtext">
+          <p className="text-sm text-mutedtext dark:text-darkmutedtext">
             Loading map...
           </p>
         </div>
@@ -169,7 +169,7 @@ const GameMapViewer = ({
   if (!mapGraph) {
     return (
       <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle">
-        <p className="text-sm text-muted dark:text-darkmutedtext">
+        <p className="text-sm text-mutedtext dark:text-darkmutedtext">
           No map data available
         </p>
       </div>
@@ -741,14 +741,14 @@ const GameMapViewer = ({
         <div className="mt-3 p-3 bg-subtle dark:bg-darksubtle rounded text-xs border border-gray-200 dark:border-gray-700">
           <div className="font-semibold mb-2">Traffic Congestion</div>
           <div className="flex items-center gap-2">
-            <span className="text-muted dark:text-darkmutedtext">Free flow</span>
+            <span className="text-mutedtext dark:text-darkmutedtext">Free flow</span>
             <div
               className="flex-1 h-2.5 rounded"
               style={{
                 background: "linear-gradient(to right, #22c55e, #eab308, #f97316, #ef4444)",
               }}
             />
-            <span className="text-muted dark:text-darkmutedtext">Gridlock</span>
+            <span className="text-mutedtext dark:text-darkmutedtext">Gridlock</span>
           </div>
         </div>
       )}
@@ -777,7 +777,7 @@ const GameMapViewer = ({
         <div className="mt-3 p-3 bg-subtle dark:bg-darksubtle rounded text-xs border border-gray-200 dark:border-gray-700">
           <div className="font-semibold mb-2 flex items-center justify-between">
             <span>Route ({routeSegments.length} segments)</span>
-            <span className="text-muted dark:text-darkmutedtext font-normal">
+            <span className="text-mutedtext dark:text-darkmutedtext font-normal">
               {(routeSegments.reduce((sum, s) => sum + s.distanceM, 0) / 1000).toFixed(1)} km
               {" | "}
               {Math.round(routeSegments.reduce((sum, s) => sum + s.estimatedTimeMin, 0))} min
@@ -794,7 +794,7 @@ const GameMapViewer = ({
                     style={{ backgroundColor: ROUTE_COLORS[mode] }}
                   ></div>
                   <span className="capitalize font-medium">{mode}</span>
-                  <span className="text-muted dark:text-darkmutedtext">
+                  <span className="text-mutedtext dark:text-darkmutedtext">
                     ({(modeDistance / 1000).toFixed(1)}km)
                   </span>
                 </div>
@@ -806,7 +806,7 @@ const GameMapViewer = ({
 
       {/* Compact Legend */}
       {!compact && !routeSegments && (
-        <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted dark:text-darkmutedtext">
+        <div className="mt-3 flex flex-wrap gap-3 text-xs text-mutedtext dark:text-darkmutedtext">
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded-full bg-green-500"></div>
             <span>Home</span>

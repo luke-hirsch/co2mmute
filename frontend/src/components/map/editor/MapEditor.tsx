@@ -500,7 +500,7 @@ const MapEditor = () => {
             <Link
               to="/maps/$mapId"
               params={{ mapId }}
-              className="text-sm text-muted dark:text-darkmutedtext hover:text-main dark:hover:text-darktext"
+              className="text-sm text-mutedtext dark:text-darkmutedtext hover:text-main dark:hover:text-darktext"
             >
               &larr; Back to map
             </Link>

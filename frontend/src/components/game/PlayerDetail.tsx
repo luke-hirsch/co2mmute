@@ -122,7 +122,7 @@ const PlayerDetail = ({
           </h2>
           <button
             onClick={onClose}
-            className="text-muted hover:text-main dark:text-darkmutedtext dark:hover:text-darktext"
+            className="text-mutedtext hover:text-main dark:text-darkmutedtext dark:hover:text-darktext"
           >
             <svg
               className="w-5 h-5"
@@ -149,7 +149,7 @@ const PlayerDetail = ({
         {/* Player Name */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
-            <label className="text-sm font-semibold text-muted dark:text-darkmutedtext">
+            <label className="text-sm font-semibold text-mutedtext dark:text-darkmutedtext">
               Name
             </label>
             {isHost && !isEditingName && (
@@ -200,7 +200,7 @@ const PlayerDetail = ({
 
         {/* Player ID */}
         <div className="mb-6">
-          <label className="text-sm font-semibold text-muted dark:text-darkmutedtext mb-2 block">
+          <label className="text-sm font-semibold text-mutedtext dark:text-darkmutedtext mb-2 block">
             Player ID
           </label>
           <code className="text-sm font-mono text-primary-600">
@@ -210,7 +210,7 @@ const PlayerDetail = ({
 
         {/* Joined At */}
         <div className="mb-6">
-          <label className="text-sm font-semibold text-muted dark:text-darkmutedtext mb-2 block">
+          <label className="text-sm font-semibold text-mutedtext dark:text-darkmutedtext mb-2 block">
             Joined
           </label>
           <p className="text-sm text-main dark:text-darktext">
@@ -220,7 +220,7 @@ const PlayerDetail = ({
 
         {/* Online Status */}
         <div className="mb-6">
-          <label className="text-sm font-semibold text-muted dark:text-darkmutedtext mb-2 block">
+          <label className="text-sm font-semibold text-mutedtext dark:text-darkmutedtext mb-2 block">
             Status
           </label>
           <div className="flex items-center gap-2">
@@ -238,7 +238,7 @@ const PlayerDetail = ({
           <>
             {/* Mute Toggle */}
             <div className="mb-6">
-              <label className="text-sm font-semibold text-muted dark:text-darkmutedtext mb-2 block">
+              <label className="text-sm font-semibold text-mutedtext dark:text-darkmutedtext mb-2 block">
                 Chat Access
               </label>
               <button
@@ -253,7 +253,7 @@ const PlayerDetail = ({
                   }`}
                 />
               </button>
-              <p className="mt-1 text-xs text-muted dark:text-darkmutedtext">
+              <p className="mt-1 text-xs text-mutedtext dark:text-darkmutedtext">
                 {player.isMuted
                   ? "Player is muted and cannot send chat messages"
                   : "Player can send chat messages"}
@@ -268,7 +268,7 @@ const PlayerDetail = ({
               >
                 Remove from Game
               </button>
-              <p className="mt-2 text-xs text-muted dark:text-darkmutedtext text-center">
+              <p className="mt-2 text-xs text-mutedtext dark:text-darkmutedtext text-center">
                 This player will not be able to rejoin
               </p>
             </div>

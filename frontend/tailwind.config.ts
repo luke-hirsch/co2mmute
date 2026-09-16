@@ -1,5 +1,15 @@
 import type { Config } from "tailwindcss";
 
+/**
+ * Legacy theme, kept alive only until the last pre-rewrite component is gone.
+ * The shadcn tokens live as CSS variables in src/main.css instead — see the
+ * comment there. Delete this file, the `@config` line and the `.dark body` rule
+ * together at the end of phase 2.
+ *
+ * `muted` and `accent` were renamed to `mutedtext` / `brandaccent` because
+ * shadcn owns those two names now and a colliding key would silently repaint
+ * ~240 call sites.
+ */
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   darkMode: "class",
@@ -18,14 +28,14 @@ export default {
           800: "#092f6b",
           900: "#041c3d",
         },
-        accent: "#ffb300",
+        brandaccent: "#ffb300",
         body: "#f3f4f6",
         surface: "#ffffff",
         elevated: "#f9fafb",
         subtle: "#e5e7eb",
         strong: "#d1d5db",
         main: "#111827",
-        muted: "#6b7280",
+        mutedtext: "#6b7280",
         soft: "#9ca3af",
         darkbody: "#0b1120",
         darksurface: "#111827",

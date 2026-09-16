@@ -59,7 +59,7 @@ const MapSettingsPanel = ({ mapId, gameMap }: MapSettingsPanelProps) => {
       </h3>
 
       <div>
-        <label className="block text-xs text-muted dark:text-darkmutedtext mb-1">
+        <label className="block text-xs text-mutedtext dark:text-darkmutedtext mb-1">
           Name
         </label>
         <input
@@ -72,7 +72,7 @@ const MapSettingsPanel = ({ mapId, gameMap }: MapSettingsPanelProps) => {
 
       {numberFields.map(({ field, label, min, max, step }) => (
         <div key={field}>
-          <label className="flex justify-between text-xs text-muted dark:text-darkmutedtext mb-1">
+          <label className="flex justify-between text-xs text-mutedtext dark:text-darkmutedtext mb-1">
             <span>{label}</span>
             <span>{values[field]}</span>
           </label>

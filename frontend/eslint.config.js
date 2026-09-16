@@ -20,4 +20,14 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // shadcn primitives are generated and re-added by the CLI, so they are not
+    // hand-edited. They export a cva() variants object next to the component,
+    // which react-refresh objects to; the cost is a full reload of that one file
+    // during dev and nothing at all in a build.
+    files: ['src/components/ui/**/*.tsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ])

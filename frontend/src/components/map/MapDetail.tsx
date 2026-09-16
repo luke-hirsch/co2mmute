@@ -36,7 +36,7 @@ const MapDetail = () => {
           <div className="max-w-[1600px] mx-auto px-4 pt-4 flex items-center gap-4">
             <Link
               to="/maps"
-              className="text-sm text-muted dark:text-darkmutedtext hover:text-main dark:hover:text-darktext"
+              className="text-sm text-mutedtext dark:text-darkmutedtext hover:text-main dark:hover:text-darktext"
             >
               &larr; All maps
             </Link>

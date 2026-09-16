@@ -220,7 +220,7 @@ const EdgePropertyPanel = ({
       {/* Direction info */}
       {allNodes && (
         <div>
-          <p className="text-xs text-muted dark:text-darkmutedtext">Direction</p>
+          <p className="text-xs text-mutedtext dark:text-darkmutedtext">Direction</p>
           <p className="text-sm font-medium text-main dark:text-darktext">
             {startNode?.name || `Node ${edge.start_node}`} → {endNode?.name || `Node ${edge.end_node}`}
           </p>
@@ -241,14 +241,14 @@ const EdgePropertyPanel = ({
                 <button
                   onClick={() => setConfirmOneWay(true)}
                   disabled={isPending}
-                  className="text-xs px-2 py-1 rounded border border-dashed border-amber-400 text-muted dark:text-darkmutedtext hover:border-amber-600 disabled:opacity-50"
+                  className="text-xs px-2 py-1 rounded border border-dashed border-amber-400 text-mutedtext dark:text-darkmutedtext hover:border-amber-600 disabled:opacity-50"
                 >
                   Make one-way...
                 </button>
               )}
               {isBidirectional && confirmOneWay && reverseEdge && (
                 <div className="space-y-1.5">
-                  <p className="text-xs text-muted dark:text-darkmutedtext">
+                  <p className="text-xs text-mutedtext dark:text-darkmutedtext">
                     Which direction to keep?
                   </p>
                   <div className="flex flex-col gap-1">
@@ -279,7 +279,7 @@ const EdgePropertyPanel = ({
                     </button>
                     <button
                       onClick={() => setConfirmOneWay(false)}
-                      className="text-xs px-2 py-1 text-muted dark:text-darkmutedtext hover:text-main dark:hover:text-darktext"
+                      className="text-xs px-2 py-1 text-mutedtext dark:text-darkmutedtext hover:text-main dark:hover:text-darktext"
                     >
                       Cancel
                     </button>
@@ -321,7 +321,7 @@ const EdgePropertyPanel = ({
                     );
                   }}
                   disabled={isPending}
-                  className="text-xs px-2 py-1 rounded border border-dashed border-indigo-400 text-muted dark:text-darkmutedtext hover:border-indigo-600 disabled:opacity-50"
+                  className="text-xs px-2 py-1 rounded border border-dashed border-indigo-400 text-mutedtext dark:text-darkmutedtext hover:border-indigo-600 disabled:opacity-50"
                 >
                   + Make bidirectional
                 </button>
@@ -332,7 +332,7 @@ const EdgePropertyPanel = ({
       )}
 
       <div>
-        <p className="text-xs text-muted dark:text-darkmutedtext">Name</p>
+        <p className="text-xs text-mutedtext dark:text-darkmutedtext">Name</p>
         {directEdit ? (
           <input
             type="text"
@@ -350,7 +350,7 @@ const EdgePropertyPanel = ({
 
       {/* Edge type badges + toggle buttons */}
       <div>
-        <p className="text-xs text-muted dark:text-darkmutedtext mb-1">Type</p>
+        <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">Type</p>
         <div className="flex flex-col gap-1">
           {edge.street_edge ? (
             <div className="flex items-center gap-1">
@@ -372,7 +372,7 @@ const EdgePropertyPanel = ({
             directEdit && (
               <button
                 onClick={handleAddStreetEdge}
-                className="text-xs px-2 py-1 rounded border border-dashed border-gray-400 text-muted dark:text-darkmutedtext hover:border-gray-600"
+                className="text-xs px-2 py-1 rounded border border-dashed border-gray-400 text-mutedtext dark:text-darkmutedtext hover:border-gray-600"
               >
                 + Make Street
               </button>
@@ -396,7 +396,7 @@ const EdgePropertyPanel = ({
             directEdit && (
               <button
                 onClick={handleAddTrainEdge}
-                className="text-xs px-2 py-1 rounded border border-dashed border-red-400 text-muted dark:text-darkmutedtext hover:border-red-600"
+                className="text-xs px-2 py-1 rounded border border-dashed border-red-400 text-mutedtext dark:text-darkmutedtext hover:border-red-600"
               >
                 + Make Train
               </button>
@@ -413,7 +413,7 @@ const EdgePropertyPanel = ({
       {/* Properties */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-xs text-muted dark:text-darkmutedtext">Biking</span>
+          <span className="text-xs text-mutedtext dark:text-darkmutedtext">Biking</span>
           {editable || isModifyMode ? (
             <input
               type="checkbox"
@@ -431,7 +431,7 @@ const EdgePropertyPanel = ({
           )}
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-xs text-muted dark:text-darkmutedtext">Walking</span>
+          <span className="text-xs text-mutedtext dark:text-darkmutedtext">Walking</span>
           {editable || isModifyMode ? (
             <input
               type="checkbox"
@@ -449,7 +449,7 @@ const EdgePropertyPanel = ({
           )}
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-xs text-muted dark:text-darkmutedtext">Max Lanes</span>
+          <span className="text-xs text-mutedtext dark:text-darkmutedtext">Max Lanes</span>
           {editable || isModifyMode ? (
             <input
               type="number"
@@ -471,7 +471,7 @@ const EdgePropertyPanel = ({
         {edge.street_edge && (
           <>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted dark:text-darkmutedtext">Speed Limit</span>
+              <span className="text-xs text-mutedtext dark:text-darkmutedtext">Speed Limit</span>
               {editable || isModifyMode ? (
                 <input
                   type="number"
@@ -493,7 +493,7 @@ const EdgePropertyPanel = ({
               )}
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted dark:text-darkmutedtext">Lanes</span>
+              <span className="text-xs text-mutedtext dark:text-darkmutedtext">Lanes</span>
               {editable || isModifyMode ? (
                 <input
                   type="number"
@@ -514,7 +514,7 @@ const EdgePropertyPanel = ({
               )}
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted dark:text-darkmutedtext">Bus Lane</span>
+              <span className="text-xs text-mutedtext dark:text-darkmutedtext">Bus Lane</span>
               {editable || isModifyMode ? (
                 <input
                   type="checkbox"
@@ -537,7 +537,7 @@ const EdgePropertyPanel = ({
 
       {edge.distance_m != null && (
         <div>
-          <p className="text-xs text-muted dark:text-darkmutedtext">Distance</p>
+          <p className="text-xs text-mutedtext dark:text-darkmutedtext">Distance</p>
           <p className="text-sm text-main dark:text-darktext">
             {edge.distance_m.toFixed(0)} m
           </p>

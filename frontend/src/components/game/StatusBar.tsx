@@ -151,7 +151,7 @@ const StatusBar = ({
         {/* Player List */}
         <ul className="space-y-2 mb-6">
           {players.length === 0 ? (
-            <li className="text-xs text-muted dark:text-darkmutedtext p-2">
+            <li className="text-xs text-mutedtext dark:text-darkmutedtext p-2">
               No players yet...
             </li>
           ) : (
@@ -169,7 +169,7 @@ const StatusBar = ({
                   >
                     <div className="flex flex-col min-w-0 flex-1">
                       <span className="truncate font-medium">{player.name}</span>
-                      <span className={`text-xs ${player.online ? 'text-muted dark:text-darkmutedtext' : 'text-red-500'}`}>
+                      <span className={`text-xs ${player.online ? 'text-mutedtext dark:text-darkmutedtext' : 'text-red-500'}`}>
                         {statusDisplay.label}
                       </span>
                     </div>
@@ -200,7 +200,7 @@ const StatusBar = ({
               {/* Round Info */}
               <div className="mb-4 p-3 rounded bg-elevated dark:bg-darkelevated">
                 <div className="flex justify-between mb-2">
-                  <span className="text-xs text-muted dark:text-darkmutedtext">
+                  <span className="text-xs text-mutedtext dark:text-darkmutedtext">
                     Round
                   </span>
                   <span className="font-semibold text-sm">
@@ -212,7 +212,7 @@ const StatusBar = ({
               {/* CO2 Summary */}
               <div className="mb-4 p-3 rounded bg-elevated dark:bg-darkelevated">
                 <div className="flex justify-between mb-2">
-                  <span className="text-xs text-muted dark:text-darkmutedtext">
+                  <span className="text-xs text-mutedtext dark:text-darkmutedtext">
                     Total CO₂
                   </span>
                   <span className="font-semibold text-sm">
@@ -220,7 +220,7 @@ const StatusBar = ({
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-xs text-muted dark:text-darkmutedtext">
+                  <span className="text-xs text-mutedtext dark:text-darkmutedtext">
                     Limit
                   </span>
                   <span className="text-xs">
@@ -241,7 +241,7 @@ const StatusBar = ({
                     }}
                   />
                 </div>
-                <div className="mt-1 text-right text-xs text-muted dark:text-darkmutedtext">
+                <div className="mt-1 text-right text-xs text-mutedtext dark:text-darkmutedtext">
                   {co2Percentage.toFixed(1)}%
                 </div>
               </div>
@@ -250,7 +250,7 @@ const StatusBar = ({
               {gameState.lastRoundStats &&
                 gameState.lastRoundStats.length > 0 && (
                   <div>
-                    <h4 className="text-xs font-semibold mb-2 text-muted dark:text-darkmutedtext">
+                    <h4 className="text-xs font-semibold mb-2 text-mutedtext dark:text-darkmutedtext">
                       Last Round
                     </h4>
                     <ul className="space-y-2">
@@ -266,7 +266,7 @@ const StatusBar = ({
                             <p className="text-xs font-semibold truncate text-main dark:text-darktext">
                               {stat.player_name}
                             </p>
-                            <p className="text-xs text-muted dark:text-darkmutedtext">
+                            <p className="text-xs text-mutedtext dark:text-darkmutedtext">
                               {stat.action} · {stat.emissions_g}g CO₂
                             </p>
                           </div>
@@ -278,7 +278,7 @@ const StatusBar = ({
             </>
           ) : (
             <div className="p-3 rounded bg-elevated dark:bg-darkelevated">
-              <p className="text-xs text-muted dark:text-darkmutedtext">
+              <p className="text-xs text-mutedtext dark:text-darkmutedtext">
                 {gameState?.isActive === false && !gameState?.endedAt
                   ? "Waiting for game to start..."
                   : "Connecting..."}

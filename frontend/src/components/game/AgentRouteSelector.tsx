@@ -186,7 +186,7 @@ export default function AgentRouteSelector({
       {/* Agent Header */}
       <div className="flex justify-between items-center mb-3">
         <h3 className="font-semibold text-lg">Agent {agentIndex + 1}</h3>
-        <span className="text-sm text-muted dark:text-darkmutedtext">
+        <span className="text-sm text-mutedtext dark:text-darkmutedtext">
           To node {destinationNode}
         </span>
       </div>
@@ -215,7 +215,7 @@ export default function AgentRouteSelector({
       {/* Car Optimization Selection */}
       {showOptimization && selectedMode === "car" && !route && (
         <div className="space-y-2">
-          <p className="text-sm text-muted dark:text-darkmutedtext mb-2">
+          <p className="text-sm text-mutedtext dark:text-darkmutedtext mb-2">
             Choose route optimization:
           </p>
           <div className="grid grid-cols-3 gap-2">
@@ -231,7 +231,7 @@ export default function AgentRouteSelector({
                 } ${disabled || isPathfinding ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
               >
                 <div className="text-sm font-medium">{opt.label}</div>
-                <div className="text-xs text-muted dark:text-darkmutedtext">
+                <div className="text-xs text-mutedtext dark:text-darkmutedtext">
                   {opt.description}
                 </div>
               </button>
@@ -249,7 +249,7 @@ export default function AgentRouteSelector({
       {/* PT Optimization Selection */}
       {showOptimization && selectedMode === "public" && !route && (
         <div className="space-y-2">
-          <p className="text-sm text-muted dark:text-darkmutedtext mb-2">
+          <p className="text-sm text-mutedtext dark:text-darkmutedtext mb-2">
             Choose PT preference:
           </p>
           <div className="grid grid-cols-3 gap-2">
@@ -265,7 +265,7 @@ export default function AgentRouteSelector({
                 } ${disabled || isPathfinding ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
               >
                 <div className="text-sm font-medium">{opt.label}</div>
-                <div className="text-xs text-muted dark:text-darkmutedtext">
+                <div className="text-xs text-mutedtext dark:text-darkmutedtext">
                   {opt.description}
                 </div>
               </button>
@@ -337,17 +337,17 @@ export default function AgentRouteSelector({
               <div className="font-medium">
                 {TRANSPORT_OPTIONS.find((t) => t.id === selectedMode)?.label}
                 {selectedMode === "car" && selectedOptimization && (
-                  <span className="text-sm text-muted ml-2">
+                  <span className="text-sm text-mutedtext ml-2">
                     ({CAR_OPTIMIZATION_OPTIONS.find((o) => o.id === selectedOptimization)?.label})
                   </span>
                 )}
                 {selectedMode === "public" && selectedPTOptimization && (
-                  <span className="text-sm text-muted ml-2">
+                  <span className="text-sm text-mutedtext ml-2">
                     ({PT_OPTIMIZATION_OPTIONS.find((o) => o.id === selectedPTOptimization)?.label})
                   </span>
                 )}
               </div>
-              <div className="text-sm text-muted dark:text-darkmutedtext">
+              <div className="text-sm text-mutedtext dark:text-darkmutedtext">
                 {formatDistance(route.totalDistanceM)} &middot;{" "}
                 {formatTime(route.estimatedTimeMin)}
               </div>
@@ -356,7 +356,7 @@ export default function AgentRouteSelector({
 
           {/* PT route leg breakdown */}
           {selectedMode === "public" && (
-            <div className="text-xs text-muted dark:text-darkmutedtext flex flex-wrap items-center gap-1">
+            <div className="text-xs text-mutedtext dark:text-darkmutedtext flex flex-wrap items-center gap-1">
               {buildLegs(route.segments).map((leg, i) => (
                 <span key={i} className="flex items-center gap-1">
                   {i > 0 && <span className="text-gray-400">→</span>}
@@ -372,7 +372,7 @@ export default function AgentRouteSelector({
 
           {/* Non-PT segment count */}
           {selectedMode !== "public" && (
-            <div className="text-xs text-muted dark:text-darkmutedtext">
+            <div className="text-xs text-mutedtext dark:text-darkmutedtext">
               {route.segments.length} segment{route.segments.length !== 1 ? "s" : ""}
             </div>
           )}
