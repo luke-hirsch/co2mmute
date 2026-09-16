@@ -107,3 +107,16 @@ def anonymise_finished_games():
     if total:
         logger.info(f"Anonymised {total} players across {due.count()} games")
     return total
+
+
+@shared_task
+def clear_expired_sessions():
+    """Delete expired django_session rows. Roadmap.md 1.3.
+
+    The DB session backend never does this on its own. Before 1.2 every join
+    wrote the player id into the session, and for a logged-in user that row
+    links the account to the player.
+    """
+    from django.core.management import call_command
+
+    call_command("clearsessions")

@@ -2,6 +2,8 @@ import hashlib
 import os
 from pathlib import Path
 
+from celery.schedules import crontab
+
 from co2mmute.conf import resolve_secret_key
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -209,13 +211,29 @@ CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes max per task
 CELERY_TASK_ALWAYS_EAGER = os.environ.get("CELERY_TASK_ALWAYS_EAGER", "False") == "True"
 CELERY_TASK_EAGER_PROPAGATES = CELERY_TASK_ALWAYS_EAGER
 
+# How long a finished game keeps real player names, so the post-game summary
+# still reads properly during the debrief. Roadmap.md 1.3.
+ANONYMISE_GRACE_HOURS = int(os.environ.get("DJANGO_ANONYMISE_GRACE_HOURS", "24"))
+
+CELERY_BEAT_SCHEDULE = {
+    "anonymise-finished-games": {
+        "task": "game.tasks.anonymise_finished_games",
+        "schedule": 60 * 60,  # hourly; the grace period does the real gating
+    },
+    "clear-expired-sessions": {
+        "task": "game.tasks.clear_expired_sessions",
+        # A fixed time, not a 24h interval: beat keeps its last-run state in a
+        # file inside the container, so every rebuild restarts an interval.
+        "schedule": crontab(hour=3, minute=0),
+    },
+}
+
 GAME_SESSION_CACHE_TIMEOUT = int(os.environ.get("GAME_SESSION_CACHE_TIMEOUT", 15 * 60))
 # OPEN MAPS SHIT
 # OVERPASS_API_URL = os.environ.get(
 #     "OVERPASS_API_URL",
 #     "http://overpass-api:80/api/interpreter",
 # )
-
 
 # Password validation
 

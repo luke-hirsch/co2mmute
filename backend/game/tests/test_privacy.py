@@ -77,7 +77,7 @@ class AnonymiseGameTests(PlayedGameMixin, TestCase):
     """What anonymise_game strips, and — mostly — what it must not touch."""
 
     def anonymise(self):
-        from game.anonymise import anonymise_game
+        from game.anon import anonymise_game
 
         with muted():
             return anonymise_game(self.game)
@@ -210,7 +210,7 @@ class HostRowAnonymisationTests(TempMediaRootMixin, TestCase):
         self.game.refresh_from_db()
 
     def anonymise(self):
-        from game.anonymise import anonymise_game
+        from game.anon import anonymise_game
 
         with muted():
             return anonymise_game(self.game)
@@ -244,7 +244,7 @@ class GamesDueTests(PlayedGameMixin, TestCase):
     while the class is standing in front of it."""
 
     def due(self, grace_hours=24):
-        from game.anonymise import games_due_for_anonymisation
+        from game.anon import games_due_for_anonymisation
 
         return list(games_due_for_anonymisation(grace_hours))
 
@@ -261,9 +261,7 @@ class GamesDueTests(PlayedGameMixin, TestCase):
 
     def test_an_already_anonymised_game_is_not_due_again(self):
         self.end_the_game(hours_ago=48)
-        GameSession.objects.filter(pk=self.game.pk).update(
-            anonymised_at=timezone.now()
-        )
+        GameSession.objects.filter(pk=self.game.pk).update(anonymised_at=timezone.now())
 
         self.assertNotIn(self.game, self.due())
 
@@ -312,7 +310,7 @@ class AnonymiseTaskTests(PlayedGameMixin, TestCase):
         )
 
         real_anonymise = __import__(
-            "game.anonymise", fromlist=["anonymise_game"]
+            "game.anon", fromlist=["anonymise_game"]
         ).anonymise_game
         calls = {"n": 0}
 
@@ -322,9 +320,8 @@ class AnonymiseTaskTests(PlayedGameMixin, TestCase):
                 raise RuntimeError("boom")
             return real_anonymise(game)
 
-        with patch("game.anonymise.anonymise_game", side_effect=flaky):
-            with muted():
-                anonymise_finished_games()
+        with patch("game.anon.anonymise_game", side_effect=flaky), muted():
+            anonymise_finished_games()
 
         self.assertEqual(
             calls["n"], 2, msg="the sweep must continue past a failing game"

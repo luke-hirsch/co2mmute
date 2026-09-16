@@ -77,9 +77,29 @@
             <li>Spielstand und Spielverlauf</li>
           </ul>
           <p class="text-muted dark:text-darkmutedtext mt-3">
-            Diese Daten sind spielbezogen und werden gelöscht, wenn das Spiel
-            gelöscht wird.
+            Spielzüge, Routen und Ergebnisse bleiben dauerhaft für die
+            wissenschaftliche Auswertung gespeichert. Sie enthalten keine
+            personenbezogenen Daten mehr, sobald die Anonymisierung nach
+            Spielende gelaufen ist (siehe Abschnitt 6).
           </p>
+        </div>
+        <div>
+          <h3 class="text-xl font-semibold text-main dark:text-darktext mb-3">
+            2.4 Chat
+          </h3>
+          <p class="text-muted dark:text-darkmutedtext mb-3">
+            Während einer Spielsitzung können Spielerinnen und Spieler
+            Textnachrichten austauschen. Diese Nachrichten werden ausschließlich
+            flüchtig in einem Zwischenspeicher (Redis) gehalten, nicht in der
+            Datenbank:
+          </p>
+          <ul
+            class="list-disc list-inside space-y-2 text-muted dark:text-darkmutedtext"
+          >
+            <li>maximal 100 Nachrichten pro Spiel</li>
+            <li>automatische Löschung nach 2 Stunden</li>
+            <li>sofortige Löschung, wenn der Chat vom Host deaktiviert wird</li>
+          </ul>
         </div>
       </div>
     </section>
@@ -149,9 +169,20 @@
         6. Datenspeicherdauer
       </h2>
       <p class="text-muted dark:text-darkmutedtext">
-        Personenbezogene Daten werden so lange gespeichert, wie es zur Erfüllung
-        der angegebenen Zwecke erforderlich ist. Benutzerkonten und deren Daten
-        werden gelöscht, wenn der Benutzer sein Konto löscht.
+        Benutzerkonten von Game Hosts und deren Daten werden gelöscht, wenn der
+        Benutzer sein Konto löscht.
+      </p>
+      <p class="text-muted dark:text-darkmutedtext mt-3">
+        Spielernamen werden nach Spielende automatisch anonymisiert: der
+        selbstgewählte Anzeigename wird durch eine neutrale Bezeichnung
+        ("Spieler 1", "Spieler 2", …) ersetzt und der QR-Code der Sitzung wird
+        gelöscht. Danach lassen sich die gespeicherten Spieldaten keiner Person
+        mehr zuordnen. Die Anonymisierung läuft automatisch, spätestens 25
+        Stunden nach Spielende.
+      </p>
+      <p class="text-muted dark:text-darkmutedtext mt-3">
+        Chatnachrichten werden nach spätestens 2 Stunden automatisch gelöscht
+        (siehe Abschnitt 2.4).
       </p>
     </section>
 
@@ -182,6 +213,12 @@
           class="text-primary-600 dark:text-primary-400 hover:underline"
           >Cookie-Richtlinie</a
         >.
+      </p>
+      <p class="text-muted dark:text-darkmutedtext mt-3">
+        Für die Teilnahme an einem Spiel werden zwei technisch notwendige
+        Cookies gesetzt, die die Sitzung und die Spielfigur zuordnen. Sie
+        enthalten keinen Namen, nur zufällige Kennungen, und laufen nach 14
+        Tagen ab.
       </p>
     </section>
   </div>

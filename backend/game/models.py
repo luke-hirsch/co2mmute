@@ -128,7 +128,7 @@ class Player(models.Model):
     # Agent assignments: {"home_node": int, "agents": [{"id": 1, "destination_node": int}, ...]}
     agent_assignments = models.JSONField(blank=True, null=True)
 
-    managers = PlayerQuerySet.as_manager()
+    objects = PlayerQuerySet.as_manager()
 
     class Meta:
         ordering = ("game", "name", "joined_at")

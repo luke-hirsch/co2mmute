@@ -33,12 +33,14 @@
             2.1 Session Cookies
           </h3>
           <p class="text-muted dark:text-darkmutedtext mb-2">
+            <strong>Name:</strong> <code>sessionid</code>
+          </p>
+          <p class="text-muted dark:text-darkmutedtext mb-2">
             <strong>Zweck:</strong> Verwaltung Ihrer Benutzersitzung und
             Authentifizierung
           </p>
           <p class="text-muted dark:text-darkmutedtext mb-2">
-            <strong>Dauer:</strong> Session-basiert (werden gelöscht, wenn Sie
-            sich abmelden oder den Browser schließen)
+            <strong>Dauer:</strong> bis zur Abmeldung, höchstens 14 Tage
           </p>
           <p class="text-muted dark:text-darkmutedtext mb-2">
             <strong>Notwendigkeit:</strong> Erforderlich für die Funktionalität
@@ -55,18 +57,21 @@
             2.2 Game Session Cookies
           </h3>
           <p class="text-muted dark:text-darkmutedtext mb-2">
-            <strong>Zweck:</strong> Speicherung der Spielsessions-ID für
-            laufende Spiele
+            <strong>Name:</strong> <code>game_access_&lt;Spiel-ID&gt;</code>
           </p>
           <p class="text-muted dark:text-darkmutedtext mb-2">
-            <strong>Dauer:</strong> Während des aktiven Spiels
+            <strong>Zweck:</strong> Belegt, dass dieses Gerät der Spielsitzung
+            beigetreten ist
+          </p>
+          <p class="text-muted dark:text-darkmutedtext mb-2">
+            <strong>Dauer:</strong> 14 Tage
           </p>
           <p class="text-muted dark:text-darkmutedtext mb-2">
             <strong>Notwendigkeit:</strong> Erforderlich für die Spielfunktion
           </p>
           <p class="text-muted dark:text-darkmutedtext">
-            Diese Cookies ermöglichen es uns, Ihr Spiel zu verfolgen und Ihren
-            Fortschritt zu speichern.
+            Der Cookie ist signiert und enthält die Kennung des Spiels und einen
+            Zufallswert, keinen Namen.
           </p>
         </div>
 
@@ -75,18 +80,45 @@
             2.3 Player Cookies
           </h3>
           <p class="text-muted dark:text-darkmutedtext mb-2">
-            <strong>Zweck:</strong> Speicherung der Spieler-ID und
-            Spielereinstellungen
+            <strong>Name:</strong> <code>player_&lt;Spiel-ID&gt;</code>
           </p>
           <p class="text-muted dark:text-darkmutedtext mb-2">
-            <strong>Dauer:</strong> Während des aktiven Spiels
+            <strong>Zweck:</strong> Ordnet dem Gerät seine Spielfigur zu, damit
+            ein Neuladen der Seite die Spielfigur nicht verliert
+          </p>
+          <p class="text-muted dark:text-darkmutedtext mb-2">
+            <strong>Dauer:</strong> 14 Tage
           </p>
           <p class="text-muted dark:text-darkmutedtext mb-2">
             <strong>Notwendigkeit:</strong> Erforderlich für die Spielfunktion
           </p>
           <p class="text-muted dark:text-darkmutedtext">
-            Diese Cookies werden verwendet, um Ihre Spieleridentität und
-            -einstellungen zu speichern.
+            Der Cookie ist signiert und enthält die Kennung des Spiels und eine
+            zufällige Spieler-ID, keinen Namen.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="text-xl font-semibold text-main dark:text-darktext mb-3">
+            2.4 CSRF-Schutz
+          </h3>
+          <p class="text-muted dark:text-darkmutedtext mb-2">
+            <strong>Name:</strong> <code>csrftoken</code>
+          </p>
+          <p class="text-muted dark:text-darkmutedtext mb-2">
+            <strong>Zweck:</strong> Schutz von Formularen (z. B. Beitreten,
+            Anmelden) vor gefälschten Anfragen fremder Webseiten
+          </p>
+          <p class="text-muted dark:text-darkmutedtext mb-2">
+            <strong>Dauer:</strong> 1 Jahr
+          </p>
+          <p class="text-muted dark:text-darkmutedtext mb-2">
+            <strong>Notwendigkeit:</strong> Erforderlich für die Sicherheit der
+            Formulare
+          </p>
+          <p class="text-muted dark:text-darkmutedtext">
+            Der Cookie enthält einen Zufallswert und keine Angaben zu Ihrer
+            Person.
           </p>
         </div>
       </div>
@@ -143,9 +175,9 @@
         Spiels. Es werden keine Tracking- oder Marketing-Cookies verwendet.
       </p>
       <p class="text-muted dark:text-darkmutedtext">
-        Ohne Ihre Zustimmung zu diesen notwendigen Cookies können wir keine
-        Funktionalität zum Anmelden, Spielen oder Persönliche Einstellungen
-        speichern bieten.
+        Für technisch notwendige Cookies ist nach § 25 Abs. 2 Nr. 2 TDDDG keine
+        Einwilligung erforderlich. Ohne sie können wir keine Funktionalität zum
+        Anmelden, Spielen oder Speichern persönlicher Einstellungen bieten.
       </p>
     </section>
 
