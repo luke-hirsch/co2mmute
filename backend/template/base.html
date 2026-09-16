@@ -19,7 +19,7 @@
     ></script>
     {% block extra_head %}{% endblock %}
   </head>
-  <body class="bg-body dark:bg-darkbody text-main dark:darktext">
+  <body class="flex min-h-dvh flex-col bg-body dark:bg-darkbody text-main dark:text-darktext">
     <header
       class="bg-surface dark:bg-darksurface border-b border-subtle dark:border-darksubtle"
     >
@@ -274,13 +274,13 @@
           <a
             href="{% url 'logout' %}"
             class="text-sm/6 font-semibold text-main transition hover:text-primary-600 dark:text-darktext dark:hover:text-primary-300"
-            >Log out <span aria-hidden="true">&rarr;</span></a
+            >Abmelden <span aria-hidden="true">&rarr;</span></a
           >
           {% else %}
           <a
             href="{% url 'login' %}"
             class="text-sm/6 font-semibold text-main transition hover:text-primary-600 dark:text-darktext dark:hover:text-primary-300"
-            >Log in <span aria-hidden="true">&rarr;</span></a
+            >Anmelden <span aria-hidden="true">&rarr;</span></a
           >
           {% endif %}
         </div>
@@ -419,13 +419,13 @@
                     <a
                       href="{% url 'logout' %}"
                       class="-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
-                      >Log out</a
+                      >Abmelden</a
                     >
                     {% else %}
                     <a
                       href="{% url 'login' %}"
                       class="-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
-                      >Log in</a
+                      >Anmelden</a
                     >
 
                     {% endif %}
@@ -438,38 +438,46 @@
       </el-dialog>
     </header>
 
-    <main class="p-5">{% block main %}{% endblock %}</main>
+    <main class="flex-1 {% block main_class %}p-5{% endblock %}">{% block main %}{% endblock %}</main>
 
     <footer
       class="bg-surface dark:bg-darksurface border-t border-subtle dark:border-darksubtle mt-12"
     >
-      <div class="mx-auto max-w-7xl px-6 py-8 sm:py-12 lg:px-8">
-        <div
-          class="flex flex-col items-center justify-between gap-8 sm:flex-row"
-        >
-          <p class="text-sm text-muted dark:text-darkmutedtext">
-            &copy; {% now 'Y' %} CO<sub>2</sub>mmute. All rights reserved.
-          </p>
-          <div class="flex gap-6">
-  {% with navigation_items.footer as footer_items %}
-    {% for item in footer_items %}
-      {% if item.page_key %}
-        <a
-          href="{% url 'content:static-page' key=item.page_key %}"
-          class="text-sm text-muted dark:text-darkmutedtext transition hover:text-main dark:hover:text-darktext"
-        >
-          {{ item.label }}
-        </a>
-      {% else %}
-        <span class="text-sm text-muted dark:text-darkmutedtext">
-          {{ item.label }}
-        </span>
-      {% endif %}
-    {% endfor %}
-  {% endwith %}
-
-          </div>
-        </div>
+      <div
+        class="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8 sm:flex-row sm:items-center sm:justify-between sm:py-10 lg:px-8"
+      >
+        <p class="text-sm text-muted dark:text-darkmutedtext">
+          &copy; {% now 'Y' %} CO<sub>2</sub>mmute
+        </p>
+        {# the legal pages are fixed links: they must always be reachable, whatever the CMS holds #}
+        <nav aria-label="Rechtliches" class="flex flex-wrap gap-x-6 gap-y-2">
+          <a
+            href="{% url 'impressum' %}"
+            class="text-sm text-muted dark:text-darkmutedtext transition hover:text-main dark:hover:text-darktext"
+            >Impressum</a
+          >
+          <a
+            href="{% url 'dsgvo' %}"
+            class="text-sm text-muted dark:text-darkmutedtext transition hover:text-main dark:hover:text-darktext"
+            >Datenschutz</a
+          >
+          <a
+            href="{% url 'cookies' %}"
+            class="text-sm text-muted dark:text-darkmutedtext transition hover:text-main dark:hover:text-darktext"
+            >Cookies</a
+          >
+          {% for item in navigation_items.footer %}
+            {% if item.page_key %}
+          <a
+            href="{% url 'content:static-page' key=item.page_key %}"
+            class="text-sm text-muted dark:text-darkmutedtext transition hover:text-main dark:hover:text-darktext"
+            >{{ item.label }}</a
+          >
+            {% else %}
+          <span class="text-sm text-muted dark:text-darkmutedtext">{{ item.label }}</span>
+            {% endif %}
+          {% endfor %}
+        </nav>
       </div>
     </footer>
 
