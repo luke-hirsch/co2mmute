@@ -72,6 +72,23 @@ export abstract class BaseWSClient {
 
     this.setStatus("connecting");
 
+    // Open the socket one task later. WebKit (Safari, and every browser on iOS)
+    // can stall a fetch sent in the same task as a new WebSocket: the request
+    // never settles, so the host lobby sat on its loading screen after
+    // creating a game. The socket and the first REST call are both started
+    // from the same React commit.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // disconnect() ran while we waited, or another connect() got there first.
+    if (this.manuallyClosed) return;
+    if (
+      this.ws &&
+      (this.ws.readyState === WebSocket.OPEN ||
+        this.ws.readyState === WebSocket.CONNECTING)
+    ) {
+      return;
+    }
+
     try {
       this.ws = new WebSocket(this.url);
 
