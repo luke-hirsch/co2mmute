@@ -125,7 +125,19 @@ naechste prod-deploy wirft jeden laufenden spieler raus -> nur zwischen testrund
 - host-accounts bleiben erstmal auf `django.contrib.auth`. MFA/allauth waere nur
   fuer hosts relevant und loest keins der obigen probleme. steht unter "Was geht?".
 
-#### 1.3 datenschutz
+#### 1.3 datenschutz ✅ erledigt 16.09.26
+
+auf main 16.09.26. anonymisierung in `game/anon.py`, beat job stuendlich, greift 24h
+nach spielende (`DJANGO_ANONYMISE_GRACE_HOURS`). `./manage.py anonymise_games` fuer
+hand und backfill. `clearsessions` naechtlich 03:00 als crontab - beat merkt sich
+seine laufzeiten in einer datei im container, jeder rebuild setzt ein 24h-intervall
+zurueck. volle suite gruen, zum ersten mal.
+**dsgvo.html und cookies.html sind auf main, aber noch nicht freigegeben.** vor dem
+naechsten prod-deploy freigeben lassen oder die zwei dateien fuer den deploy
+zuruecknehmen. nach dem deploy einmal `clearsessions` von hand, prod hat alles seit
+dem start liegen.
+durchgespielt: die endkarte zeigt die namen noch, wie gewollt.
+offen: beat-log nach einer stunde, rechtstexte im browser (hell/dunkel).
 
 - die dsgvo-seite sagt spieldaten werden geloescht "wenn das spiel geloescht wird".
   es loescht aber nie jemand ein spiel. `cleanup_old_simulations(days_old=30)` gibt es,
@@ -289,6 +301,9 @@ gegen stale closures. drei mechanismen die sich gegenseitig ueberschreiben.
 -> eine quelle. websocket ist die wahrheit, REST liefert nur den startzustand.
 ein reducer pro spiel (snapshot rein, ws-events drauf), kein polling mehr.
 das loest die runden-counter- und persistenz-bugs an der wurzel statt einzeln.
+ein socket pro spiel, nicht einer pro komponente (heute drei game-sockets auf
+einer seite). und nie einen websocket im selben task aufmachen wie einen
+REST-call, safari haengt den fetch dann auf (siehe 2.4).
 
 #### 2.3 routen
 
@@ -301,6 +316,16 @@ der QR-code zeigt dann direkt auf die SPA-route.
 - `usePlayerList` und `useGameSessionList` in `hooks/gameHooks.ts` rufen `useQuery`
   auf, geben das ergebnis aber nicht zurueck. tote hooks. `useGameSessionList` zeigt
   ausserdem auf `api/game/sessions/`, den es seit 1.4 nicht mehr gibt - ersatzlos raus.
+- safari/iOS: host-lobby bleibt nach "spiel erstellen" im ladebildschirm, erst ein
+  neuer tab (logo) zeigt sie. webkit haengt einen fetch auf, der im selben task wie
+  ein neuer websocket losgeht - request kommt nie zurueck (nginx loggt 499).
+  gefixt auf `frontend/rewrite` (socket einen tick spaeter), noch nicht gemergt.
+- erfolgsmeldung vom letzten spiel taucht beim naechsten "spiel erstellen" auf.
+  `messages.success` vor dem redirect in die SPA, die SPA zeigt django-messages nie
+  an, nur `create_session.html` und `map_upload.html`. drei stellen:
+  `GameSessionCreateView`, `PlayerCreateView` (mit spielername - landet im cookie,
+  bei vielen meldungen in `django_session`) und der map-upload. -> die drei
+  `messages.success` raus (backend).
 - runden counter im frontend nicht richtig
 - daten im frontend nicht persistent
 - maximum player trumpft agents, somehow connected. backend-haelfte ist mit 1.4
