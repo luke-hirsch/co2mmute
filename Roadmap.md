@@ -126,9 +126,9 @@ pruefen, `PROD_*` secrets setzen.
 - offen: braucht die gruppe ein info-blatt fuer schulen/lehrkraefte, was gespeichert
   wird und wie lange? falls ja, faellt es hier mit ab.
 
-#### 1.4 REST fuer join und lobby ✅ umgesetzt 14.08.26
+#### 1.4 REST fuer join und lobby ✅ erledigt 14.08.26
 
-liegt auf `backend/rest-join-lobby`, review + merge offen. war der blocker fuer 2.3.
+gemergt 16.09.26. war der blocker fuer 2.3.
 drei endpoints in `game/views_join.py`, rein additiv - die form-views laufen
 unveraendert weiter, 2.3 loescht sie.
 
@@ -170,7 +170,12 @@ offen: der template-pfad prueft `max_players` weiter nicht. dafuer muesste auch
 nicht aufhuebschen, neu bauen. struktur, tests und design nach dem gleichen muster
 wie im anderen projekt (jac).
 
-#### 2.1 fundament
+#### 2.1 fundament ✅ erledigt 14.08.26
+
+gemergt 16.09.26. rein additiv, die alten screens laufen unveraendert weiter.
+alte theme-variablen und die von shadcn liegen bis ende phase 2 nebeneinander,
+die alten heissen deshalb `brandaccent` und `mutedtext`. der dev-proxy ist noch
+nie gegen ein echtes backend gelaufen, erster echter test ist 2.3.
 
 - struktur: `src/lib/` (pure logik), `src/lib/queries/` (react-query, ohne toasts),
   `src/components/ui/` (shadcn), `src/components/<feature>/`, `src/routes/`.
@@ -236,7 +241,8 @@ komplette UI auf deutsch, ueber `de.ts`. `LANGUAGE_CODE` auf `de-de`.
 ### phase 4 – doku und uebergabe
 
 - `docs/backend` und `docs/frontend` sind leer.
-- was rein muss: setup lokal, deploy, die env-variablen, das datenmodell,
+- was rein muss: setup lokal (inkl. self-signed cert fuer nginx, liegt nicht im repo),
+  deploy, die env-variablen, das datenmodell,
   wie die simulation rechnet, wie map-versionen und voting zusammenhaengen,
   und wie man den map editor bedient.
 - einfaches md reicht. wenn zeit bleibt: generierte api-doku.
