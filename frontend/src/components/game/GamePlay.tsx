@@ -441,7 +441,7 @@ export default function GamePlay({
     return (
       <div className="flex flex-col items-center justify-center gap-4">
         <Loading />
-        <p className="text-muted dark:text-darkmutedtext">
+        <p className="text-mutedtext dark:text-darkmutedtext">
           Connecting to game...
         </p>
       </div>
@@ -488,7 +488,7 @@ export default function GamePlay({
           <h1 className="text-2xl font-bold mb-1">
             Round {gameState.currentRound} Results
           </h1>
-          <p className="text-muted dark:text-darkmutedtext">
+          <p className="text-mutedtext dark:text-darkmutedtext">
             Here's how your agents performed
           </p>
         </div>
@@ -575,7 +575,7 @@ export default function GamePlay({
             <h3 className="font-semibold mb-3">All Players</h3>
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-muted dark:text-darkmutedtext border-b border-subtle dark:border-darksubtle">
+                <tr className="text-mutedtext dark:text-darkmutedtext border-b border-subtle dark:border-darksubtle">
                   <th className="text-left pb-2">Player</th>
                   <th className="text-right pb-2">CO2</th>
                   <th className="text-right pb-2">Cost</th>
@@ -593,7 +593,7 @@ export default function GamePlay({
                       <td className="py-1.5">
                         {stat.player_name}
                         {isMe && (
-                          <span className="text-xs text-muted dark:text-darkmutedtext ml-1">
+                          <span className="text-xs text-mutedtext dark:text-darkmutedtext ml-1">
                             (you)
                           </span>
                         )}
@@ -646,7 +646,7 @@ export default function GamePlay({
         <div className="text-center">
           {hasAckedStats ? (
             <div className="flex flex-col items-center gap-2">
-              <p className="text-muted dark:text-darkmutedtext">
+              <p className="text-mutedtext dark:text-darkmutedtext">
                 Waiting for other players...
               </p>
               <div className="flex gap-2">
@@ -683,7 +683,7 @@ export default function GamePlay({
       <div className="w-full max-w-2xl">
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold mb-1">Discussion</h1>
-          <p className="text-muted dark:text-darkmutedtext">
+          <p className="text-mutedtext dark:text-darkmutedtext">
             Review proposed map changes before voting
           </p>
         </div>
@@ -702,7 +702,7 @@ export default function GamePlay({
                   </span>
                 )}
               </div>
-              <p className="text-muted dark:text-darkmutedtext">
+              <p className="text-mutedtext dark:text-darkmutedtext">
                 {version.poll_text}
               </p>
               <VersionChangeImage version={version} />
@@ -710,7 +710,7 @@ export default function GamePlay({
           ))}
           <div className="bg-surface dark:bg-darksurface rounded-lg p-4 border border-subtle dark:border-darksubtle">
             <h3 className="font-semibold mb-2">Leave as it is</h3>
-            <p className="text-muted dark:text-darkmutedtext">
+            <p className="text-mutedtext dark:text-darkmutedtext">
               Keep the current map without changes.
             </p>
           </div>
@@ -725,7 +725,7 @@ export default function GamePlay({
               Open Voting
             </button>
           ) : (
-            <p className="text-muted dark:text-darkmutedtext">
+            <p className="text-mutedtext dark:text-darkmutedtext">
               Waiting for host to open voting...
             </p>
           )}
@@ -745,7 +745,7 @@ export default function GamePlay({
               <h2 className="text-2xl font-bold text-center mb-1">
                 Vote Results
               </h2>
-              <p className="text-center text-muted dark:text-darkmutedtext mb-6">
+              <p className="text-center text-mutedtext dark:text-darkmutedtext mb-6">
                 {latchedVoteResult.winning_version_name} wins!
               </p>
               {latchedVoteResult.vote_counts.length > 0 && (
@@ -792,7 +792,7 @@ export default function GamePlay({
           <>
             <div className="text-center mb-6">
               <h1 className="text-2xl font-bold mb-1">Voting in Progress</h1>
-              <p className="text-muted dark:text-darkmutedtext">
+              <p className="text-mutedtext dark:text-darkmutedtext">
                 {gameState.voteProgress
                   ? `${gameState.voteProgress.cast} / ${gameState.voteProgress.needed} votes cast`
                   : "Waiting for votes..."}
@@ -812,7 +812,7 @@ export default function GamePlay({
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-muted dark:text-darkmutedtext">
+                  <p className="text-sm text-mutedtext dark:text-darkmutedtext">
                     {version.poll_text}
                   </p>
                   <VersionChangeImage version={version} />
@@ -820,7 +820,7 @@ export default function GamePlay({
               ))}
               <div className="bg-surface dark:bg-darksurface rounded-lg p-4 border border-subtle dark:border-darksubtle">
                 <h3 className="font-semibold">Leave as it is</h3>
-                <p className="text-sm text-muted dark:text-darkmutedtext">
+                <p className="text-sm text-mutedtext dark:text-darkmutedtext">
                   Keep the current map without changes.
                 </p>
               </div>
@@ -842,7 +842,7 @@ export default function GamePlay({
           <>
             <div className="text-center mb-6">
               <h1 className="text-2xl font-bold mb-1">Vote</h1>
-              <p className="text-muted dark:text-darkmutedtext">
+              <p className="text-mutedtext dark:text-darkmutedtext">
                 Choose which map version to play next
               </p>
             </div>
@@ -871,7 +871,7 @@ export default function GamePlay({
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-muted dark:text-darkmutedtext">
+                    <p className="text-sm text-mutedtext dark:text-darkmutedtext">
                       {version.poll_text}
                     </p>
                     <VersionChangeImage version={version} />
@@ -889,7 +889,7 @@ export default function GamePlay({
                 } ${hasVoted ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:border-gray-400"}`}
               >
                 <h3 className="font-semibold mb-1">Leave as it is</h3>
-                <p className="text-sm text-muted dark:text-darkmutedtext">
+                <p className="text-sm text-mutedtext dark:text-darkmutedtext">
                   Keep the current map without changes.
                 </p>
               </button>
@@ -898,11 +898,11 @@ export default function GamePlay({
             <div className="text-center">
               {hasVoted ? (
                 <div className="flex flex-col items-center gap-2">
-                  <p className="text-muted dark:text-darkmutedtext">
+                  <p className="text-mutedtext dark:text-darkmutedtext">
                     Vote submitted! Waiting for others...
                   </p>
                   {gameState.voteProgress && (
-                    <p className="text-sm text-muted dark:text-darkmutedtext">
+                    <p className="text-sm text-mutedtext dark:text-darkmutedtext">
                       {gameState.voteProgress.cast} /{" "}
                       {gameState.voteProgress.needed} votes
                     </p>
@@ -956,7 +956,7 @@ export default function GamePlay({
       return (
         <div className="w-full max-w-2xl text-center">
           <h1 className="text-2xl font-bold mb-2">Second Stalemate</h1>
-          <p className="text-muted dark:text-darkmutedtext mb-6">
+          <p className="text-mutedtext dark:text-darkmutedtext mb-6">
             The vote has tied again. Automatically keeping the current map.
           </p>
           <div className="flex justify-center gap-2">
@@ -970,7 +970,7 @@ export default function GamePlay({
               style={{ animationDelay: "0.2s" }}
             />
           </div>
-          <p className="text-sm text-muted dark:text-darkmutedtext mt-2">
+          <p className="text-sm text-mutedtext dark:text-darkmutedtext mt-2">
             Starting next round...
           </p>
         </div>
@@ -981,7 +981,7 @@ export default function GamePlay({
       <div className="w-full max-w-2xl">
         <div className="text-center mb-4">
           <h1 className="text-2xl font-bold mb-1">It's a Tie!</h1>
-          <p className="text-muted dark:text-darkmutedtext">
+          <p className="text-mutedtext dark:text-darkmutedtext">
             The vote ended in a stalemate. Discuss and vote again, or leave the
             map as is.
           </p>
@@ -995,7 +995,7 @@ export default function GamePlay({
                 className="flex justify-between items-center p-3 rounded-lg bg-surface dark:bg-darksurface border border-subtle dark:border-darksubtle"
               >
                 <span className="font-medium">{vc.version_name}</span>
-                <span className="text-muted dark:text-darkmutedtext">
+                <span className="text-mutedtext dark:text-darkmutedtext">
                   {vc.count} vote{vc.count !== 1 ? "s" : ""}
                 </span>
               </div>
@@ -1004,7 +1004,7 @@ export default function GamePlay({
         )}
 
         {gameState.stalemateProgress && (
-          <p className="text-center text-sm text-muted dark:text-darkmutedtext mb-4">
+          <p className="text-center text-sm text-mutedtext dark:text-darkmutedtext mb-4">
             {gameState.stalemateProgress.cast} /{" "}
             {gameState.stalemateProgress.needed} responses
           </p>
@@ -1012,7 +1012,7 @@ export default function GamePlay({
 
         {isHost ? (
           <div className="text-center">
-            <p className="text-muted dark:text-darkmutedtext mb-4">
+            <p className="text-mutedtext dark:text-darkmutedtext mb-4">
               Waiting for players to respond...
             </p>
             <button
@@ -1024,7 +1024,7 @@ export default function GamePlay({
           </div>
         ) : hasVotedOnStalemate ? (
           <div className="flex flex-col items-center gap-2">
-            <p className="text-muted dark:text-darkmutedtext">
+            <p className="text-mutedtext dark:text-darkmutedtext">
               Response submitted! Waiting for others...
             </p>
             <div className="flex gap-2">
@@ -1072,7 +1072,7 @@ export default function GamePlay({
         <div className="mb-8">
           <div className="text-6xl mb-4">🎮</div>
           <h1 className="text-2xl font-bold mb-2">Waiting for game to start</h1>
-          <p className="text-muted dark:text-darkmutedtext">
+          <p className="text-mutedtext dark:text-darkmutedtext">
             {isHost
               ? "Start the game when all players have joined"
               : "The host will start the game soon"}
@@ -1096,7 +1096,7 @@ export default function GamePlay({
                   </span>
                   <div className="text-left">
                     <p className="font-medium">Agent {agent.id}</p>
-                    <p className="text-sm text-muted dark:text-darkmutedtext">
+                    <p className="text-sm text-mutedtext dark:text-darkmutedtext">
                       → Node {agent.destination_node}
                     </p>
                   </div>
@@ -1142,7 +1142,7 @@ export default function GamePlay({
                       #{agent.agentId}
                     </span>
                     <span className="font-medium">Agent {agent.agentId}</span>
-                    <span className="text-muted dark:text-darkmutedtext">
+                    <span className="text-mutedtext dark:text-darkmutedtext">
                       → Node {agent.destinationNode}
                     </span>
                   </div>
@@ -1150,7 +1150,7 @@ export default function GamePlay({
                     <span>{transport?.emoji}</span>
                     <span>{transport?.label}</span>
                     {agent.route && (
-                      <span className="text-xs text-muted dark:text-darkmutedtext">
+                      <span className="text-xs text-mutedtext dark:text-darkmutedtext">
                         ({formatDistance(agent.route.totalDistanceM)})
                       </span>
                     )}
@@ -1176,7 +1176,7 @@ export default function GamePlay({
           </div>
         </div>
 
-        <div className="mt-6 text-sm text-muted dark:text-darkmutedtext">
+        <div className="mt-6 text-sm text-mutedtext dark:text-darkmutedtext">
           Round {gameState.currentRound} of {gameState.maxRounds}
         </div>
       </div>
@@ -1191,7 +1191,7 @@ export default function GamePlay({
         <h1 className="text-2xl font-bold mb-2">
           Round {gameState.currentRound} of {gameState.maxRounds}
         </h1>
-        <p className="text-muted dark:text-darkmutedtext">
+        <p className="text-mutedtext dark:text-darkmutedtext">
           Choose transportation for each agent
         </p>
 
@@ -1285,7 +1285,7 @@ export default function GamePlay({
           <h3 className="text-lg font-semibold">
             City Map
             {selectedAgentId && (
-              <span className="ml-2 text-sm font-normal text-muted dark:text-darkmutedtext">
+              <span className="ml-2 text-sm font-normal text-mutedtext dark:text-darkmutedtext">
                 — Showing Agent {selectedAgentId} route
               </span>
             )}
@@ -1298,13 +1298,13 @@ export default function GamePlay({
                 onChange={(e) => setAnimationEnabled(e.target.checked)}
                 className="rounded"
               />
-              <span className="text-muted dark:text-darkmutedtext">
+              <span className="text-mutedtext dark:text-darkmutedtext">
                 Show Dijkstra
               </span>
             </label>
             {animationEnabled && (
               <div className="flex items-center gap-1.5">
-                <span className="text-xs text-muted dark:text-darkmutedtext">
+                <span className="text-xs text-mutedtext dark:text-darkmutedtext">
                   Fast
                 </span>
                 <input
@@ -1316,7 +1316,7 @@ export default function GamePlay({
                   onChange={(e) => setAnimationSpeed(Number(e.target.value))}
                   className="w-20 h-1 accent-primary-500"
                 />
-                <span className="text-xs text-muted dark:text-darkmutedtext">
+                <span className="text-xs text-mutedtext dark:text-darkmutedtext">
                   Slow
                 </span>
               </div>
@@ -1384,7 +1384,7 @@ export default function GamePlay({
                   <h3 className={`font-semibold ${color.text}`}>
                     Agent {agent.agentId}
                   </h3>
-                  <p className="text-xs text-muted dark:text-darkmutedtext">
+                  <p className="text-xs text-mutedtext dark:text-darkmutedtext">
                     🏠 → Node {agent.destinationNode}
                   </p>
                 </div>
@@ -1437,7 +1437,7 @@ export default function GamePlay({
                       </span>
                       {agent.selectedMode === "car" &&
                         agent.selectedOptimization && (
-                          <span className="text-xs text-muted dark:text-darkmutedtext">
+                          <span className="text-xs text-mutedtext dark:text-darkmutedtext">
                             (
                             {
                               CAR_OPTIMIZATION_OPTIONS.find(
@@ -1449,7 +1449,7 @@ export default function GamePlay({
                         )}
                       {agent.selectedMode === "public" &&
                         agent.selectedPTOptimization && (
-                          <span className="text-xs text-muted dark:text-darkmutedtext">
+                          <span className="text-xs text-mutedtext dark:text-darkmutedtext">
                             (
                             {
                               PT_OPTIMIZATION_OPTIONS.find(
@@ -1471,13 +1471,13 @@ export default function GamePlay({
                       Change
                     </button>
                   </div>
-                  <div className="text-xs text-muted dark:text-darkmutedtext mt-1">
+                  <div className="text-xs text-mutedtext dark:text-darkmutedtext mt-1">
                     {formatDistance(agent.route.totalDistanceM)} ·{" "}
                     {formatTime(agent.route.estimatedTimeMin)}
                   </div>
                   {/* PT leg breakdown */}
                   {agent.selectedMode === "public" && (
-                    <div className="text-xs text-muted dark:text-darkmutedtext mt-1 flex flex-wrap items-center gap-1">
+                    <div className="text-xs text-mutedtext dark:text-darkmutedtext mt-1 flex flex-wrap items-center gap-1">
                       {buildPTLegs(agent.route.segments).map((leg, i) => (
                         <span key={i} className="flex items-center gap-1">
                           {i > 0 && <span className="text-gray-400">→</span>}
@@ -1505,7 +1505,7 @@ export default function GamePlay({
               {/* PT optimization options */}
               {showingPTOptions && !agent.route && (
                 <div className="mb-3" onClick={(e) => e.stopPropagation()}>
-                  <p className="text-sm text-muted dark:text-darkmutedtext mb-2">
+                  <p className="text-sm text-mutedtext dark:text-darkmutedtext mb-2">
                     Choose PT preference:
                   </p>
                   <div className="grid grid-cols-3 gap-2">
@@ -1523,7 +1523,7 @@ export default function GamePlay({
                         } ${isDisabled || agent.isPathfinding ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                       >
                         <div className="text-xs font-medium">{opt.label}</div>
-                        <div className="text-[10px] text-muted dark:text-darkmutedtext">
+                        <div className="text-[10px] text-mutedtext dark:text-darkmutedtext">
                           {opt.description}
                         </div>
                       </button>
@@ -1544,7 +1544,7 @@ export default function GamePlay({
               {/* Car optimization options */}
               {showingCarOptions && !agent.route && (
                 <div className="mb-3" onClick={(e) => e.stopPropagation()}>
-                  <p className="text-sm text-muted dark:text-darkmutedtext mb-2">
+                  <p className="text-sm text-mutedtext dark:text-darkmutedtext mb-2">
                     Choose route optimization:
                   </p>
                   <div className="grid grid-cols-3 gap-2">
@@ -1562,7 +1562,7 @@ export default function GamePlay({
                         } ${isDisabled || agent.isPathfinding ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                       >
                         <div className="text-xs font-medium">{opt.label}</div>
-                        <div className="text-[10px] text-muted dark:text-darkmutedtext">
+                        <div className="text-[10px] text-mutedtext dark:text-darkmutedtext">
                           {opt.description}
                         </div>
                       </button>

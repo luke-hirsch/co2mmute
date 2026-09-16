@@ -125,7 +125,7 @@ const EditorSidebar = ({
       )}
       {state.mode === "graph" && !selectedNode && !selectedEdge && (
         <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle">
-          <p className="text-sm text-muted dark:text-darkmutedtext">
+          <p className="text-sm text-mutedtext dark:text-darkmutedtext">
             Click a node or edge to view and edit its properties.
           </p>
         </div>
@@ -154,7 +154,7 @@ const EditorSidebar = ({
               onClick={() => setVersionTab("create")}
               className={`flex-1 py-1.5 text-sm font-medium transition-colors ${
                 versionTab === "create"
-                  ? "bg-accent dark:bg-darkaccent text-white"
+                  ? "bg-brandaccent dark:bg-darkaccent text-white"
                   : "bg-subtle dark:bg-darksubtle text-main dark:text-darktext hover:bg-white dark:hover:bg-darkbg"
               }`}
             >
@@ -165,7 +165,7 @@ const EditorSidebar = ({
               onClick={() => setVersionTab("manage")}
               className={`flex-1 py-1.5 text-sm font-medium transition-colors ${
                 versionTab === "manage"
-                  ? "bg-accent dark:bg-darkaccent text-white"
+                  ? "bg-brandaccent dark:bg-darkaccent text-white"
                   : "bg-subtle dark:bg-darksubtle text-main dark:text-darktext hover:bg-white dark:hover:bg-darkbg"
               }`}
             >

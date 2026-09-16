@@ -26,7 +26,7 @@ export default function Header({
           alt="Logo"
         />
       </a>
-      <h2 className=" text-xl font-light text-muted transition-colors duration-300 md:text-2xl dark:text-darkmutedtext">
+      <h2 className=" text-xl font-light text-mutedtext transition-colors duration-300 md:text-2xl dark:text-darkmutedtext">
         {title}
       </h2>
     </div>

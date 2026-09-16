@@ -5,25 +5,25 @@ Celery tasks for game-related async operations.
 import logging
 
 from celery import shared_task
-from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
+from co2mmute.utils import send_game_state_message
 
-from game.models import GameRound, SimulationResult
+from game.models import GameRound
 
 logger = logging.getLogger(__name__)
 
 
 @shared_task(bind=True, max_retries=3)
 def run_simulation_task(self, game_round_id: int):
-    """
-    Run traffic simulation for a game round asynchronously.
+    """Run the round-end work off the request thread.
 
-    Args:
-        game_round_id: ID of the GameRound to simulate
-
-    Returns:
-        Simulation result ID on success
+    Deliberately thin. handle_round_completed is the single definition of what
+    finishing a round means — simulate, write totals, check the end conditions,
+    broadcast, enter the STATS phase — and it already broadcasts progress to the
+    group GameConsumer actually joins (gamestate_<game_id>, via
+    send_game_state_message). This task only decides *where* that runs.
     """
+    from game.signals import round_completed
+
     try:
         game_round = GameRound.objects.select_related("game", "game__game_map").get(
             id=game_round_id
@@ -32,93 +32,28 @@ def run_simulation_task(self, game_round_id: int):
         logger.error(f"GameRound {game_round_id} not found")
         return None
 
-    game = game_round.game
-    channel_layer = get_channel_layer()
-
-    def broadcast_progress(tick: int, total_ticks: int):
-        """Broadcast simulation progress to game group."""
-        async_to_sync(channel_layer.group_send)(
-            f"game_{game.pk}",
-            {
-                "type": "simulation.progress",
-                "data": {
-                    "round_number": game_round.round_number,
-                    "status": "running",
-                    "tick": tick,
-                    "total_ticks": total_ticks,
-                    "progress_percent": int((tick / total_ticks) * 100),
-                },
-            },
-        )
-
     try:
-        # Import here to avoid circular imports
-        from game.simulation import TrafficSimulator
-
-        # Get scale from game map
-        scale = game.game_map.scale if game.game_map else 100.0
-
-        # Broadcast simulation starting
-        async_to_sync(channel_layer.group_send)(
-            f"game_{game.pk}",
+        round_completed.send(
+            sender=GameRound,
+            game_session=game_round.game,
+            game_round=game_round,
+        )
+    except Exception as exc:
+        logger.exception(
+            f"Round completion failed for round {game_round.round_number} "
+            f"of game {game_round.game.game_id}"
+        )
+        send_game_state_message(
+            game_round.game.game_id,
+            "simulation.failed",
             {
-                "type": "simulation.progress",
-                "data": {
-                    "round_number": game_round.round_number,
-                    "status": "starting",
-                    "tick": 0,
-                    "total_ticks": 200,
-                    "progress_percent": 0,
-                },
+                "round_number": game_round.round_number,
+                "error": str(exc),
             },
         )
+        raise self.retry(exc=exc, countdown=5)
 
-        # Run simulation
-        simulator = TrafficSimulator(game_round, scale=scale)
-        result = simulator.run_simulation(
-            max_ticks=200,
-            on_progress=broadcast_progress,
-        )
-
-        # Broadcast completion
-        async_to_sync(channel_layer.group_send)(
-            f"game_{game.pk}",
-            {
-                "type": "round.completed",
-                "data": {
-                    "round_number": game_round.round_number,
-                    "simulation_id": result.id,
-                    "status": "completed",
-                    "total_co2_g": result.total_co2_g,
-                    "total_cost_eur": result.total_cost_eur,
-                },
-            },
-        )
-
-        logger.info(
-            f"Simulation completed for round {game_round.round_number} "
-            f"of game {game.pk}: CO2={result.total_co2_g}g"
-        )
-
-        return result.id
-
-    except Exception as e:
-        logger.exception(f"Simulation failed for round {game_round.round_number}")
-
-        # Broadcast failure
-        async_to_sync(channel_layer.group_send)(
-            f"game_{game.pk}",
-            {
-                "type": "simulation.failed",
-                "data": {
-                    "round_number": game_round.round_number,
-                    "error": str(e),
-                },
-            },
-        )
-
-        # Retry if not max retries
-        raise self.retry(exc=e, countdown=5)
+    return game_round_id
 
 
 @shared_task
@@ -130,7 +65,9 @@ def cleanup_old_simulations(days_old: int = 30):
         days_old: Number of days after which to clean up data
     """
     from datetime import timedelta
+
     from django.utils import timezone
+
     from game.models import EdgeTrafficSnapshot
 
     cutoff_date = timezone.now() - timedelta(days=days_old)

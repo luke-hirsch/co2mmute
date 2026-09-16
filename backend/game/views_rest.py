@@ -1,11 +1,12 @@
 import logging
-import threading
 
+from co2mmute.utils import send_player_status_update
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Avg, Max
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from maps.models import Edge
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.exceptions import ValidationError
@@ -16,16 +17,24 @@ from rest_framework.response import Response
 
 from game.cache import get_cached_game_session
 from game.mixins import GameScopedQuerysetMixin
-from game.models import AgentRoute, AgentSimulationResult, EdgeTrafficSnapshot, GameRound, GameSession, Player, PlayerMove, RouteSegment, SimulationResult
+from game.models import (
+    AgentRoute,
+    AgentSimulationResult,
+    EdgeTrafficSnapshot,
+    GameRound,
+    GameSession,
+    Player,
+    PlayerMove,
+    RouteSegment,
+    SimulationResult,
+)
 from game.permissions import CanDeleteOwnPlayer, HasGameAccess, IsPlayerInGame
+from game.rounds import schedule_round_completion_check
 from game.serializers import (
     GameSessionSerializer,
-    PlayerSerializer,
     PlayerMoveWithRoutesInputSerializer,
+    PlayerSerializer,
 )
-from co2mmute.utils import send_player_status_update
-from game.signals import round_completed
-from maps.models import Edge
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +47,12 @@ class PlayerDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIView):
 
     def update(self, request, *args, **kwargs):
         game_id = self.kwargs.get("game_id")
-        session = get_cached_game_session(game_id)
-        if not session or not request.user.is_authenticated or session.game_host != request.user:
+        session = get_cached_game_session(game_id)  # type: ignore
+        if (
+            not session
+            or not request.user.is_authenticated
+            or session.game_host != request.user
+        ):
             return Response(
                 {"error": "Only the host can edit player details"},
                 status=status.HTTP_403_FORBIDDEN,
@@ -223,18 +236,6 @@ class GetYourOwnGame(GameScopedQuerysetMixin, GenericAPIView):
         return Response(response_data, status=status.HTTP_200_OK)
 
 
-class GameSessionListView(GameScopedQuerysetMixin, ListModelMixin, GenericAPIView):
-    serializer_class = GameSessionSerializer
-    authentication_classes = (SessionAuthentication,)
-    permission_classes = (HasGameAccess,)
-
-    def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-
 class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
     serializer_class = PlayerSerializer
     authentication_classes = (SessionAuthentication,)
@@ -265,8 +266,10 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
             valid_actions = ["car", "public", "bike", "walk"]
 
             # Check if this is a route submission (new format) or legacy format
-            has_routes = payload and "agents" in payload and any(
-                "route" in agent for agent in payload.get("agents", [])
+            has_routes = (
+                payload
+                and "agents" in payload
+                and any("route" in agent for agent in payload.get("agents", []))
             )
 
             if has_routes:
@@ -274,13 +277,16 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
                 route_serializer = PlayerMoveWithRoutesInputSerializer(data=payload)
                 if not route_serializer.is_valid():
                     return Response(
-                        {"error": "Invalid route data", "details": route_serializer.errors},
+                        {
+                            "error": "Invalid route data",
+                            "details": route_serializer.errors,
+                        },
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
                 # Validate routes: check edge connectivity and permissions
                 validation_errors = self._validate_routes(
-                    route_serializer.validated_data["agents"],
+                    route_serializer.validated_data["agents"],  # type: ignore
                     player,
                     game,
                 )
@@ -305,12 +311,14 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
                     for agent_choice in payload["agents"]:
                         if agent_choice.get("action") not in valid_actions:
                             return Response(
-                                {"error": f"Invalid agent action. Must be one of {valid_actions}"},
+                                {
+                                    "error": f"Invalid agent action. Must be one of {valid_actions}"
+                                },
                                 status=status.HTTP_400_BAD_REQUEST,
                             )
 
             with transaction.atomic():
-                move, created = PlayerMove.objects.update_or_create(
+                move, _created = PlayerMove.objects.update_or_create(
                     session_round=current_round,
                     player=player,
                     defaults={"action": action, "payload": payload or {}},
@@ -321,17 +329,11 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
                     # Delete any existing routes for this move (in case of update)
                     AgentRoute.objects.filter(player_move=move).delete()
 
-                    self._store_routes(move, route_serializer.validated_data["agents"])
+                    self._store_routes(move, route_serializer.validated_data["agents"])  # type: ignore
 
             # Notify clients that this player has made their move
             send_player_status_update(game_id, player_id, "waiting")
-
-            thread = threading.Thread(
-                target=self._check_round_completion,
-                args=(game_id,),
-                daemon=True,
-            )
-            thread.start()
+            schedule_round_completion_check(game_id)
 
             serializer = self.get_serializer(player)
             return Response(
@@ -383,13 +385,17 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
             # Validate first segment starts from home
             first_segment = segments[0]
             if first_segment["start_node"] != home_node:
-                errors.append(f"Agent {agent_id} route must start from home node {home_node}")
+                errors.append(
+                    f"Agent {agent_id} route must start from home node {home_node}"
+                )
 
             # Validate last segment ends at destination
             destination = assigned_agents[agent_id]["destination_node"]
             last_segment = segments[-1]
             if last_segment["end_node"] != destination:
-                errors.append(f"Agent {agent_id} route must end at destination {destination}")
+                errors.append(
+                    f"Agent {agent_id} route must end at destination {destination}"
+                )
 
             # Validate segment connectivity and edge existence
             for i, segment in enumerate(segments):
@@ -418,19 +424,36 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
                 # strict routing, and may be stored in either direction or differ
                 # slightly from the traversed stop pair.
                 if mode not in ("bus", "train"):
-                    forward_ok = (edge.start_node_id == segment["start_node"] and edge.end_node_id == segment["end_node"])
-                    reverse_ok = (edge.start_node_id == segment["end_node"] and edge.end_node_id == segment["start_node"])
+                    forward_ok = (
+                        edge.start_node_id == segment["start_node"]  # type: ignore
+                        and edge.end_node_id == segment["end_node"]  # type: ignore
+                    )
+                    reverse_ok = (
+                        edge.start_node_id == segment["end_node"]  # type: ignore
+                        and edge.end_node_id == segment["start_node"]  # type: ignore
+                    )
                     if not forward_ok and not reverse_ok:
-                        errors.append(f"Agent {agent_id}: edge {edge_id} does not connect nodes {segment['start_node']} → {segment['end_node']}")
+                        errors.append(
+                            f"Agent {agent_id}: edge {edge_id} does not connect nodes {segment['start_node']} → {segment['end_node']}"
+                        )
 
                 # Validate transport mode is allowed on this edge
                 if mode == "walk" and not edge.walking:
-                    errors.append(f"Agent {agent_id}: walking not allowed on edge {edge_id}")
+                    errors.append(
+                        f"Agent {agent_id}: walking not allowed on edge {edge_id}"
+                    )
                 if mode == "bike" and not edge.biking:
-                    errors.append(f"Agent {agent_id}: biking not allowed on edge {edge_id}")
-                if mode == "car" and not hasattr(edge, "streetedge_set"):
-                    if not edge.streetedge_set.exists():
-                        errors.append(f"Agent {agent_id}: cars not allowed on edge {edge_id}")
+                    errors.append(
+                        f"Agent {agent_id}: biking not allowed on edge {edge_id}"
+                    )
+                if (
+                    mode == "car"
+                    and not hasattr(edge, "streetedge_set")
+                    and not edge.streetedge_set.exists()  # type: ignore
+                ):  # type: ignore
+                    errors.append(
+                        f"Agent {agent_id}: cars not allowed on edge {edge_id}"
+                    )
                 if mode in ("bus", "train"):
                     pass
 
@@ -438,7 +461,9 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
                 if i > 0:
                     prev_segment = segments[i - 1]
                     if prev_segment["end_node"] != segment["start_node"]:
-                        errors.append(f"Agent {agent_id}: route discontinuity at segment {i}: {prev_segment['end_node']} != {segment['start_node']}")
+                        errors.append(
+                            f"Agent {agent_id}: route discontinuity at segment {i}: {prev_segment['end_node']} != {segment['start_node']}"
+                        )
 
         return errors if errors else None
 
@@ -465,37 +490,6 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
                     pt_line_id=segment_data.get("pt_line_id"),
                 )
 
-    @staticmethod
-    def _check_round_completion(game_id: str):
-        try:
-            game = GameSession.objects.get(game_id=game_id)
-            current_round = (
-                GameRound.objects.filter(game=game).order_by("-round_number").first()
-            )
-
-            if not current_round or current_round.status != "active":
-                return
-
-            active_players = Player.objects.filter(
-                game=game,
-                left_at__isnull=True,
-                controlled_by_host=False,
-            ).count()
-
-            moves_count = PlayerMove.objects.filter(
-                session_round=current_round,
-                player__controlled_by_host=False,
-            ).count()
-
-            if active_players > 0 and moves_count >= active_players:
-                logger.info(f"All players moved in round {current_round.round_number}")
-                round_completed.send(sender=GameRound, game_id=game_id)
-
-        except GameSession.DoesNotExist:
-            logger.error(f"Game {game_id} not found")
-        except Exception as e:
-            logger.error(f"Error checking round completion: {e}")
-
 
 class RoundTrafficHeatmapView(GenericAPIView):
     """Return aggregated traffic congestion data per edge for a completed round."""
@@ -507,15 +501,19 @@ class RoundTrafficHeatmapView(GenericAPIView):
         try:
             game = GameSession.objects.get(game_id=game_id)
         except GameSession.DoesNotExist:
-            return Response({"error": "Game not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Game not found"}, status=status.HTTP_404_NOT_FOUND
+            )
 
         try:
             game_round = GameRound.objects.get(game=game, round_number=round_number)
         except GameRound.DoesNotExist:
-            return Response({"error": "Round not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Round not found"}, status=status.HTTP_404_NOT_FOUND
+            )
 
         try:
-            sim_result = game_round.simulation
+            sim_result = game_round.simulation  # type: ignore
         except SimulationResult.DoesNotExist:
             return Response(
                 {"error": "No simulation for this round"},
@@ -540,8 +538,10 @@ class RoundTrafficHeatmapView(GenericAPIView):
         default_speed = game.game_map.default_car_speed_kmh if game.game_map else 50
 
         street_speeds = {}
-        for se in StreetEdge.objects.filter(edge_id__in=edge_ids).select_related("edge"):
-            street_speeds[se.edge_id] = se.speed_limit
+        for se in StreetEdge.objects.filter(edge_id__in=edge_ids).select_related(
+            "edge"
+        ):
+            street_speeds[se.edge_id] = se.speed_limit  # type: ignore
 
         heatmap_data = []
         for et in edge_traffic:
@@ -554,20 +554,24 @@ class RoundTrafficHeatmapView(GenericAPIView):
                 else 0.0
             )
 
-            heatmap_data.append({
-                "edge_id": eid,
-                "avg_vehicle_count": round(et["avg_vehicle_count"], 1),
-                "max_vehicle_count": et["max_vehicle_count"],
-                "avg_speed_kmh": round(avg_speed, 1),
-                "free_flow_speed_kmh": free_flow,
-                "congestion_ratio": round(congestion_ratio, 3),
-            })
+            heatmap_data.append(
+                {
+                    "edge_id": eid,
+                    "avg_vehicle_count": round(et["avg_vehicle_count"], 1),
+                    "max_vehicle_count": et["max_vehicle_count"],
+                    "avg_speed_kmh": round(avg_speed, 1),
+                    "free_flow_speed_kmh": free_flow,
+                    "congestion_ratio": round(congestion_ratio, 3),
+                }
+            )
 
-        return Response({
-            "round_number": round_number,
-            "edge_count": len(heatmap_data),
-            "edges": heatmap_data,
-        })
+        return Response(
+            {
+                "round_number": round_number,
+                "edge_count": len(heatmap_data),
+                "edges": heatmap_data,
+            }
+        )
 
 
 class GameSummaryView(GenericAPIView):
@@ -580,7 +584,9 @@ class GameSummaryView(GenericAPIView):
         try:
             game = GameSession.objects.get(game_id=game_id)
         except GameSession.DoesNotExist:
-            return Response({"error": "Game not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Game not found"}, status=status.HTTP_404_NOT_FOUND
+            )
 
         players = Player.objects.filter(
             game=game, left_at__isnull=True, controlled_by_host=False
@@ -625,34 +631,45 @@ class GameSummaryView(GenericAPIView):
                         # Fallback
                         agent_routes = AgentRoute.objects.filter(player_move=round_move)
                         fallback_emissions = {
-                            "car": 166.8, "public": 60.0, "bike": 18.0, "walk": 0.0,
+                            "car": 166.8,
+                            "public": 60.0,
+                            "bike": 18.0,
+                            "walk": 0.0,
                         }
                         for route in agent_routes:
                             dist_km = route.total_distance_m / 1000
-                            round_co2 += fallback_emissions.get(route.transport_mode, 0) * dist_km * game.people_per_agent
+                            round_co2 += (
+                                fallback_emissions.get(route.transport_mode, 0)
+                                * dist_km
+                                * game.people_per_agent
+                            )
                             round_time += route.estimated_time_min
                             modes_used.add(route.transport_mode)
 
-                rounds_data.append({
-                    "round_number": game_round.round_number,
-                    "co2_kg": round(round_co2 / 1000, 2),
-                    "cost_eur": round(round_cost, 2),
-                    "time_min": round(round_time, 1),
-                })
+                rounds_data.append(
+                    {
+                        "round_number": game_round.round_number,
+                        "co2_kg": round(round_co2 / 1000, 2),
+                        "cost_eur": round(round_cost, 2),
+                        "time_min": round(round_time, 1),
+                    }
+                )
 
                 player_total_co2 += round_co2
                 player_total_cost += round_cost
                 player_total_time += round_time
 
-            players_data.append({
-                "player_id": player.player_id,
-                "name": player.name,
-                "total_co2_kg": round(player_total_co2 / 1000, 2),
-                "total_cost_eur": round(player_total_cost, 2),
-                "total_time_min": round(player_total_time, 1),
-                "modes_used": sorted(modes_used),
-                "rounds": rounds_data,
-            })
+            players_data.append(
+                {
+                    "player_id": player.player_id,
+                    "name": player.name,
+                    "total_co2_kg": round(player_total_co2 / 1000, 2),
+                    "total_cost_eur": round(player_total_cost, 2),
+                    "total_time_min": round(player_total_time, 1),
+                    "modes_used": sorted(modes_used),
+                    "rounds": rounds_data,
+                }
+            )
 
         # Determine end reason
         end_reason = None
@@ -660,13 +677,15 @@ class GameSummaryView(GenericAPIView):
             co2_limit_reached = total_co2_g >= (game.max_CO2_level * 1000)
             end_reason = "co2_limit" if co2_limit_reached else "max_rounds"
 
-        return Response({
-            "game_id": game.game_id,
-            "game_name": game.game_name,
-            "end_reason": end_reason,
-            "rounds_played": completed_rounds.count(),
-            "max_rounds": game.max_rounds,
-            "total_co2_kg": round(total_co2_g / 1000, 2),
-            "max_co2_kg": game.max_CO2_level,
-            "players": players_data,
-        })
+        return Response(
+            {
+                "game_id": game.game_id,
+                "game_name": game.game_name,
+                "end_reason": end_reason,
+                "rounds_played": completed_rounds.count(),
+                "max_rounds": game.max_rounds,
+                "total_co2_kg": round(total_co2_g / 1000, 2),
+                "max_co2_kg": game.max_CO2_level,
+                "players": players_data,
+            }
+        )

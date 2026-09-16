@@ -5,6 +5,8 @@ sortiert, nicht nach wichtigkeit. phase 0 zuerst, der rest laeuft teilweise para
 
 grundsatz spielerdaten: spieler sind schueler, teils minderjaehrig. datensparsam bleiben.
 kein account, kein login, name reicht. das ist absicht und bleibt so.
+gespielt wird bisher vor allem von der forschungsgruppe und studis, die haetten mit
+einem account kein problem. entworfen wird trotzdem fuer die klasse.
 
 ## Was Muss?
 
@@ -104,6 +106,17 @@ pruefen, `PROD_*` secrets setzen.
   `game/ws_auth.py` fuer websocket. auf einen resolver zusammenziehen, beide rufen den auf.
 - `corsheaders` ist in INSTALLED_APPS, die middleware fehlt. entweder richtig
   einhaengen oder rauswerfen.
+- `PlayerMoveView` und `GetYourOwnGame` nehmen die `player_id` aus der url,
+  `IsPlayerInGame` vergleicht sie nicht mit dem cookie. jeder spieler kann fuer
+  jeden anderen im gleichen spiel abschicken, die ids stehen im lobby-roster.
+  `GetYourOwnGame` sucht ausserdem ohne spiel-filter, `player_id` ist nur pro spiel
+  eindeutig -> 500 sobald zwei spiele die gleiche id haben.
+- `WhoAmIView` liest das player-cookie selbst, dritte kopie der pruefung. mit dem
+  neuen cookie-format findet es den spieler nicht mehr und das frontend verliert
+  seine identitaet. -> auch auf den resolver.
+- beide cookie-helper schreiben in die django-session (`player_by_game`,
+  `game_access_tokens`), gelesen wird das nie. bei eingeloggten usern verknuepft
+  `django_session` damit account und spieler. -> raus.
 - host-accounts bleiben erstmal auf `django.contrib.auth`. MFA/allauth waere nur
   fuer hosts relevant und loest keins der obigen probleme. steht unter "Was geht?".
 
@@ -118,24 +131,47 @@ pruefen, `PROD_*` secrets setzen.
   nur der identifizierende string faellt weg. als celery-beat job (haengt an 1.1).
 - `ws_auth.py:100` loggt spielernamen (`logger.debug(f"Players in game ...")`).
   greift nur bei DEBUG log level, aber raus damit.
+- die host-zeile (`GameSessionCreateView` legt fuer den host einen Player an) heisst
+  "Vorname Nachname (Host)". beim anonymisieren wird sie "Host" und bekommt keine
+  nummer. erkannt wird sie am account (`user = game.game_host`), nicht an
+  `controlled_by_host` - das braucht 1.6.
+- `clearsessions` laeuft nie, abgelaufene zeilen in `django_session` bleiben fuer
+  immer liegen. -> als beat job.
 - chat kommt in der dsgvo-seite gar nicht vor. technisch ist er schon sparsam
   (redis, 100 nachrichten, 2h TTL) - das gehoert nur aufgeschrieben.
 - dsgvo.html ergaenzen: chat + aufbewahrung, die anonymisierungsregel oben,
   und der spieler-cookie. cookies.html: spieler-cookie ist technisch notwendig.
+  cookies.html 2.1 sagt ausserdem, session-cookies sind beim schliessen des browsers
+  weg. django default sind 14 tage.
   **entwurf, die gruppe muss das freigeben bevor es live geht.**
 - offen: braucht die gruppe ein info-blatt fuer schulen/lehrkraefte, was gespeichert
   wird und wie lange? falls ja, faellt es hier mit ab.
 
-#### 1.4 REST fuer join und lobby
+#### 1.4 REST fuer join und lobby ✅ erledigt 14.08.26
 
-**blockiert phase 2.** join, lobby und spieler-anlegen sind heute Django-form-views
-(`game/views.py`, `co2mmute/urls.py`), kein REST. die SPA kann sie so nicht uebernehmen.
+gemergt 16.09.26. war der blocker fuer 2.3.
+drei endpoints in `game/views_join.py`, rein additiv - die form-views laufen
+unveraendert weiter, 2.3 loescht sie.
 
-- endpoints fuer: session per game_id aufloesen, beitreten (name + optional passwort),
-  lobby-state lesen. antwortformate + cookie-setzen wie bei den bestehenden views.
-- `GameSessionListView` haengt an `sessions/` ohne `game_id`, ist aber mit
-  `HasGameAccess` geschuetzt, das ohne `game_id` immer `False` liefert.
-  der endpoint gibt also immer 403. richtige permission oder weg damit.
+- `GET api/game/lookup/<game_id>/` - ohne cookie lesbar, das ist der erste call nach
+  dem qr-scan. sagt nur ob es das spiel gibt, ob ein passwort noetig ist und ob noch
+  platz ist. keine namen, kein host, kein passwort im body.
+- `POST api/game/join/<game_id>/` - name + optional passwort rein, spieler und beide
+  signierten cookies raus. ersetzt die zwei form-schritte inkl. `joined_game_ids`.
+- `GET api/game/<game_id>/lobby/` - roster + settings, braucht das game-cookie.
+- `GameSessionListView` geloescht statt repariert. hing an `sessions/` ohne `game_id`,
+  war hinter `<str:game_id>/` sowieso unerreichbar und lieferte auch erreichbar 403.
+
+dabei zwei defekte aus dem gleichen pfad mitgenommen:
+
+- **das lobby-passwort wurde nie geprueft.** der block lag komplett in
+  `if game_session.started_at:`, also genau in dem fall in dem man ohnehin nicht
+  reinkommt. jedes spiel das man wirklich betritt hat ihn uebersprungen.
+- **`max_players` wurde nirgends durchgesetzt.** die lobby nahm beliebig viele spieler.
+  jetzt im REST-pfad, mit `select_for_update` gegen zwei gleichzeitige joins.
+
+offen: der template-pfad prueft `max_players` weiter nicht. dafuer muesste auch
+`PlayerCreateView` angefasst werden, die in 2.3 ohnehin rausfliegt.
 
 #### 1.5 tests
 
@@ -150,12 +186,66 @@ pruefen, `PROD_*` secrets setzen.
 - CI: workflow der bei push auf jeden branch die suite laufen laesst.
   deploy erst wenn gruen.
 
+#### 1.6 host-gesteuerte spieler
+
+wunsch der forschungsgruppe. nicht jede klasse hat fuer jede person ein handy.
+der host legt in der lobby zusaetzliche spieler an, die am host-rechner reihum
+spielen. im extremfall laeuft das ganze spiel auf einem geraet.
+kommt nach 1.5, laeuft also schon hinter dem CI-gate.
+
+- `controlled_by_host` heisst heute "das ist die zeile des hosts". die zaehlregel
+  aus 1.1 schliesst genau diese zeilen aus - host-gesteuerte spieler wuerden also
+  nie abgewartet und zaehlen nicht gegen `max_players`.
+  -> host-zeile am account erkennen (`Player.objects.host_rows()`, kommt mit 1.3),
+  `controlled_by_host` heisst danach nur noch "spielt am host-rechner".
+  datenmigration setzt es bei bestehenden host-zeilen auf False,
+  `GameSessionCreateView` setzt es nicht mehr.
+- die zaehlregel steht neunmal da, in zwei varianten: `rounds.py`, `views_join.py`,
+  `views_rest.py` ueber `controlled_by_host`, `consumers.py` 5x ueber `user`.
+  -> eine stelle (`without_host_rows()` + aktiv), alle rufen die auf.
+- anlegen und entfernen: host-only endpoint in der lobby, zaehlt gegen
+  `max_players`. den namen tippt der host, anonymisiert wird wie bei allen (1.3).
+- handeln: der host schickt moves ueber die `player_id` des host-gesteuerten
+  spielers in der url. `IsPlayerInGame` bekommt dafuer einen zweiten zweig, die
+  stelle legt 1.2 an: host + spieler gehoert zum spiel + `controlled_by_host`.
+- websocket: ein host-socket spricht fuer mehrere spieler. votes und
+  stalemate-votes brauchen eine `player_id` in der nachricht, heute nimmt der
+  consumer `self.player_id` (`consumers.py:910, 1103`).
+- der host-bildschirm haengt meistens am beamer. ohne verdeckten zwischenschritt
+  beim spielerwechsel sieht die ganze klasse jede wahl und jede stimme.
+
+#### 1.7 sitzung auf anderes geraet
+
+die sitzung haengt am cookie, also an einem browser. mit einem kurzen code auf ein
+anderes geraet mitnehmen, ohne account.
+
+- geraet 1 zeigt auf anfrage code + qr (`/app/join/<game_id>?code=...`).
+  scannen fuehrt direkt weiter, abtippen geht ueber "sitzung fortsetzen" im join.
+- der code liegt nur in redis: `code -> (game_id, player_id)`, 2 min ttl.
+  einloesen ueber `cache.delete()`, das gibt nur einmal True -> nur einmal gueltig.
+  keine tabelle, nichts zu anonymisieren.
+- beim einloesen bekommt der spieler eine neue `player_id`. das alte cookie zeigt
+  dann ins leere, geraet 1 ist raus. das cookie-format aus 1.2 bleibt, kein
+  zweiter logout fuer alle. kosten: der redis-roster ist nach `player_id`
+  geschluesselt und muss aufgeraeumt werden. moves und votes haengen am FK und
+  bleiben.
+- der code ist ein bearer-token. wer ihn am beamer sieht, uebernimmt den platz.
+  deshalb kurz gueltig und nur auf anfrage.
+- gleicher mechanismus fuer 1.6, in beide richtungen: wer spaeter mit handy kommt,
+  scannt den code eines host-gesteuerten spielers und uebernimmt. handy leer ->
+  host uebernimmt zurueck (`controlled_by_host` umschalten + neue `player_id`).
+
 ### phase 2 – frontend neu
 
 nicht aufhuebschen, neu bauen. struktur, tests und design nach dem gleichen muster
 wie im anderen projekt (jac).
 
-#### 2.1 fundament
+#### 2.1 fundament ✅ erledigt 14.08.26
+
+gemergt 16.09.26. rein additiv, die alten screens laufen unveraendert weiter.
+alte theme-variablen und die von shadcn liegen bis ende phase 2 nebeneinander,
+die alten heissen deshalb `brandaccent` und `mutedtext`. der dev-proxy ist noch
+nie gegen ein echtes backend gelaufen, erster echter test ist 2.3.
 
 - struktur: `src/lib/` (pure logik), `src/lib/queries/` (react-query, ohne toasts),
   `src/components/ui/` (shadcn), `src/components/<feature>/`, `src/routes/`.
@@ -187,10 +277,12 @@ der QR-code zeigt dann direkt auf die SPA-route.
 #### 2.4 bugs (aus den testrunden)
 
 - `usePlayerList` und `useGameSessionList` in `hooks/gameHooks.ts` rufen `useQuery`
-  auf, geben das ergebnis aber nicht zurueck. tote hooks.
+  auf, geben das ergebnis aber nicht zurueck. tote hooks. `useGameSessionList` zeigt
+  ausserdem auf `api/game/sessions/`, den es seit 1.4 nicht mehr gibt - ersatzlos raus.
 - runden counter im frontend nicht richtig
 - daten im frontend nicht persistent
-- maximum player trumpft agents, somehow connected
+- maximum player trumpft agents, somehow connected. backend-haelfte ist mit 1.4
+  erledigt (join gibt 409 `full`), bleibt die anzeige im frontend.
 - karte ueber bildrand, buttons fuer auswahlmoeglichkeiten nicht sichtbar, legende fehlt,
   chat horizontal scroll, edges nicht anklickbar, logout im dark mode nicht lesbar
   (die alte liste aus der README - beim neubau abarbeiten und die README-liste leeren)
@@ -198,6 +290,17 @@ der QR-code zeigt dann direkt auf die SPA-route.
 #### 2.5 deutsch
 
 komplette UI auf deutsch, ueber `de.ts`. `LANGUAGE_CODE` auf `de-de`.
+
+#### 2.7 host-gesteuerte spieler und geraetewechsel
+
+frontend-haelfte von 1.6 und 1.7.
+
+- lobby: host legt spieler an und entfernt sie.
+- spielscreen am host: spielerwechsel reihum, mit verdecktem zwischenschritt
+  (beamer). "x von y abgeschickt" zaehlt die host-gesteuerten mit.
+- join: zwei wege, spiel-id oder "sitzung fortsetzen" mit code.
+- spielscreen am handy: "auf anderes geraet" zeigt code + qr.
+- host kann einen spieler uebernehmen und wieder abgeben (qr fuer den platz).
 
 #### 2.6 ui / ux
 
@@ -214,12 +317,15 @@ komplette UI auf deutsch, ueber `de.ts`. `LANGUAGE_CODE` auf `de-de`.
 - ein kompletter spieldurchlauf: session anlegen, zwei spieler beitreten, runde spielen,
   simulation, voting, naechste runde, spielende, auswertung.
 - websocket-pfade mit dazu, das ist wo es bisher bricht.
+- ein spiel komplett am host-rechner, nur host-gesteuerte spieler (1.6).
+- geraetewechsel mitten in der runde, altes geraet fliegt raus (1.7).
 - laeuft in CI.
 
 ### phase 4 – doku und uebergabe
 
 - `docs/backend` und `docs/frontend` sind leer.
-- was rein muss: setup lokal, deploy, die env-variablen, das datenmodell,
+- was rein muss: setup lokal (inkl. self-signed cert fuer nginx, liegt nicht im repo),
+  deploy, die env-variablen, das datenmodell,
   wie die simulation rechnet, wie map-versionen und voting zusammenhaengen,
   und wie man den map editor bedient.
 - einfaches md reicht. wenn zeit bleibt: generierte api-doku.

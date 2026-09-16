@@ -83,7 +83,7 @@ const MapViewer = ({
         <div className="flex items-center justify-center h-96">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-main mx-auto mb-4"></div>
-            <p className="text-muted dark:text-darkmutedtext">Loading map...</p>
+            <p className="text-mutedtext dark:text-darkmutedtext">Loading map...</p>
           </div>
         </div>
       </div>
@@ -107,7 +107,7 @@ const MapViewer = ({
     return (
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         <div className="bg-subtle dark:bg-darksubtle rounded-lg p-6 border border-subtle dark:border-darksubtle">
-          <p className="text-muted dark:text-darkmutedtext">
+          <p className="text-mutedtext dark:text-darkmutedtext">
             No graph data available
           </p>
         </div>
@@ -154,7 +154,7 @@ const MapViewer = ({
           {gameMap.name}
         </h1>
         {gameMap.description && (
-          <p className="text-muted dark:text-darkmutedtext">
+          <p className="text-mutedtext dark:text-darkmutedtext">
             {gameMap.description}
           </p>
         )}
@@ -164,7 +164,7 @@ const MapViewer = ({
       <div className="bg-subtle dark:bg-darksubtle rounded-lg p-6 mb-8 border border-subtle dark:border-darksubtle">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
-            <p className="text-sm text-muted dark:text-darkmutedtext">
+            <p className="text-sm text-mutedtext dark:text-darkmutedtext">
               Max Players
             </p>
             <p className="text-2xl font-bold text-main dark:text-darktext">
@@ -172,7 +172,7 @@ const MapViewer = ({
             </p>
           </div>
           <div>
-            <p className="text-sm text-muted dark:text-darkmutedtext">
+            <p className="text-sm text-mutedtext dark:text-darkmutedtext">
               Dimensions
             </p>
             <p className="text-2xl font-bold text-main dark:text-darktext">
@@ -180,13 +180,13 @@ const MapViewer = ({
             </p>
           </div>
           <div>
-            <p className="text-sm text-muted dark:text-darkmutedtext">Author</p>
+            <p className="text-sm text-mutedtext dark:text-darkmutedtext">Author</p>
             <p className="text-lg font-semibold text-main dark:text-darktext">
               {gameMap.author.username}
             </p>
           </div>
           <div>
-            <p className="text-sm text-muted dark:text-darkmutedtext">
+            <p className="text-sm text-mutedtext dark:text-darkmutedtext">
               Created
             </p>
             <p className="text-lg font-semibold text-main dark:text-darktext">
@@ -200,19 +200,19 @@ const MapViewer = ({
       <div className="bg-subtle dark:bg-darksubtle rounded-lg p-6 mb-8 border border-subtle dark:border-darksubtle">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <div>
-            <p className="text-sm text-muted dark:text-darkmutedtext">Nodes</p>
+            <p className="text-sm text-mutedtext dark:text-darkmutedtext">Nodes</p>
             <p className="text-2xl font-bold text-main dark:text-darktext">
               {mapGraph.node_count}
             </p>
           </div>
           <div>
-            <p className="text-sm text-muted dark:text-darkmutedtext">Edges</p>
+            <p className="text-sm text-mutedtext dark:text-darkmutedtext">Edges</p>
             <p className="text-2xl font-bold text-main dark:text-darktext">
               {mapGraph.edge_count}
             </p>
           </div>
           <div>
-            <p className="text-sm text-muted dark:text-darkmutedtext">
+            <p className="text-sm text-mutedtext dark:text-darkmutedtext">
               Version
             </p>
             <p className="text-lg font-semibold text-main dark:text-darktext">
@@ -340,7 +340,7 @@ const MapViewer = ({
             {selectedNode ? (
               <div className="space-y-4">
                 <div>
-                  <p className="text-xs text-muted dark:text-darkmutedtext">
+                  <p className="text-xs text-mutedtext dark:text-darkmutedtext">
                     Node
                   </p>
                   <p className="font-semibold text-main dark:text-darktext">
@@ -348,7 +348,7 @@ const MapViewer = ({
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted dark:text-darkmutedtext">
+                  <p className="text-xs text-mutedtext dark:text-darkmutedtext">
                     Position
                   </p>
                   <p className="text-sm text-main dark:text-darktext">
@@ -356,7 +356,7 @@ const MapViewer = ({
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted dark:text-darkmutedtext">
+                  <p className="text-xs text-mutedtext dark:text-darkmutedtext">
                     Types
                   </p>
                   <div className="flex flex-wrap gap-1 mt-1">
@@ -380,7 +380,7 @@ const MapViewer = ({
             ) : selectedEdge ? (
               <div className="space-y-4">
                 <div>
-                  <p className="text-xs text-muted dark:text-darkmutedtext">
+                  <p className="text-xs text-mutedtext dark:text-darkmutedtext">
                     Edge
                   </p>
                   <p className="font-semibold text-main dark:text-darktext">
@@ -388,7 +388,7 @@ const MapViewer = ({
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted dark:text-darkmutedtext">
+                  <p className="text-xs text-mutedtext dark:text-darkmutedtext">
                     Edge Type
                   </p>
                   <div className="flex flex-col gap-2 mt-1">
@@ -416,7 +416,7 @@ const MapViewer = ({
                 </div>
                 {(selectedEdge.biking || selectedEdge.walking) && (
                   <div>
-                    <p className="text-xs text-muted dark:text-darkmutedtext">
+                    <p className="text-xs text-mutedtext dark:text-darkmutedtext">
                       Accessible By
                     </p>
                     <div className="flex gap-2 mt-1">
@@ -434,7 +434,7 @@ const MapViewer = ({
                   </div>
                 )}
                 <div>
-                  <p className="text-xs text-muted dark:text-darkmutedtext">
+                  <p className="text-xs text-mutedtext dark:text-darkmutedtext">
                     Max Lanes
                   </p>
                   <p className="text-sm text-main dark:text-darktext">
@@ -449,7 +449,7 @@ const MapViewer = ({
                 </button>
               </div>
             ) : (
-              <p className="text-sm text-muted dark:text-darkmutedtext">
+              <p className="text-sm text-mutedtext dark:text-darkmutedtext">
                 Click on a node or edge to view details
               </p>
             )}
@@ -470,23 +470,23 @@ const MapViewer = ({
             <ul className="space-y-2 text-sm">
               <li className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded-full bg-green-500"></div>
-                <span className="text-muted dark:text-darkmutedtext">Home</span>
+                <span className="text-mutedtext dark:text-darkmutedtext">Home</span>
               </li>
               <li className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded-full bg-blue-500"></div>
-                <span className="text-muted dark:text-darkmutedtext">
+                <span className="text-mutedtext dark:text-darkmutedtext">
                   Workplace
                 </span>
               </li>
               <li className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded-full bg-amber-500"></div>
-                <span className="text-muted dark:text-darkmutedtext">
+                <span className="text-mutedtext dark:text-darkmutedtext">
                   Station
                 </span>
               </li>
               <li className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded-full bg-red-500"></div>
-                <span className="text-muted dark:text-darkmutedtext">
+                <span className="text-mutedtext dark:text-darkmutedtext">
                   Bus Stop
                 </span>
               </li>
@@ -499,25 +499,25 @@ const MapViewer = ({
             <ul className="space-y-2 text-sm">
               <li className="flex items-center gap-2">
                 <div className="w-8 h-0.5 bg-green-500"></div>
-                <span className="text-muted dark:text-darkmutedtext">
+                <span className="text-mutedtext dark:text-darkmutedtext">
                   Walking Path
                 </span>
               </li>
               <li className="flex items-center gap-2">
                 <div className="w-8 h-0.5 bg-blue-500"></div>
-                <span className="text-muted dark:text-darkmutedtext">
+                <span className="text-mutedtext dark:text-darkmutedtext">
                   Biking Path
                 </span>
               </li>
               <li className="flex items-center gap-2">
                 <div className="w-8 h-0.5 bg-purple-500"></div>
-                <span className="text-muted dark:text-darkmutedtext">
+                <span className="text-mutedtext dark:text-darkmutedtext">
                   Walking & Biking
                 </span>
               </li>
               <li className="flex items-center gap-2">
                 <div className="w-8 h-0.5 bg-gray-500"></div>
-                <span className="text-muted dark:text-darkmutedtext">
+                <span className="text-mutedtext dark:text-darkmutedtext">
                   Street
                 </span>
               </li>
@@ -526,13 +526,13 @@ const MapViewer = ({
                   className="w-8 h-0.5 bg-red-500"
                   style={{ strokeDasharray: "5,5" }}
                 ></div>
-                <span className="text-muted dark:text-darkmutedtext">
+                <span className="text-mutedtext dark:text-darkmutedtext">
                   Train Line
                 </span>
               </li>
               <li className="flex items-center gap-2">
                 <div className="w-8 h-0.5 bg-orange-500"></div>
-                <span className="text-muted dark:text-darkmutedtext">
+                <span className="text-mutedtext dark:text-darkmutedtext">
                   Street + Train
                 </span>
               </li>

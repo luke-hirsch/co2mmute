@@ -3,7 +3,6 @@ import random
 
 from co2mmute.utils import (
     clear_chat_messages,
-    round_complete,
     send_chat_system_message,
     send_game_state_message,
 )
@@ -13,6 +12,7 @@ from django.utils import timezone
 
 from game.cache import cache_game_session, invalidate_game_session
 from game.models import GameRound, GameSession, Player, PlayerMove
+from game.rounds import schedule_round_completion_check
 
 logger = logging.getLogger(__name__)
 
@@ -44,27 +44,6 @@ def cache_session_when_live(sender, instance: GameSession, **kwargs):
 @receiver(post_delete, sender=GameSession)
 def clear_session_cache(sender, instance: GameSession, **kwargs):
     invalidate_game_session(instance.game_id)
-
-
-@receiver(post_save, sender=PlayerMove, dispatch_uid="check_round_completion")
-def check_round_completion(sender, instance: PlayerMove, **kwargs):
-    game_session = instance.session_round.game
-    total_players = Player.objects.filter(game=game_session).count()
-    completed_moves = PlayerMove.objects.filter(
-        session_round=instance.session_round
-    ).count()
-    if round_complete(
-        completed_moves,
-        total_players,
-    ):
-        logger.info(
-            f"Round {instance.session_round.round_number} complete for GameSession {game_session.game_id}"
-        )
-        round_completed.send(
-            sender=GameSession,
-            game_session=game_session,
-            game_round=instance.session_round,
-        )
 
 
 @receiver(post_save, sender=Player)
@@ -118,7 +97,9 @@ def assign_agent_nodes(game_session: GameSession, player: Player) -> dict | None
         return None
 
     # Get base version of the map
-    base_version = MapVersion.objects.filter(game_map=game_map, base_version=True).first()
+    base_version = MapVersion.objects.filter(
+        game_map=game_map, base_version=True
+    ).first()
     if not base_version:
         logger.warning(f"No base version found for map {game_map.pk}")
         return None
@@ -153,7 +134,10 @@ def assign_agent_nodes(game_session: GameSession, player: Player) -> dict | None
     other_players = Player.objects.filter(game=game_session).exclude(pk=player.pk)
     used_home_nodes = set()
     for other_player in other_players:
-        if other_player.agent_assignments and "home_node" in other_player.agent_assignments:
+        if (
+            other_player.agent_assignments
+            and "home_node" in other_player.agent_assignments
+        ):
             used_home_nodes.add(other_player.agent_assignments["home_node"])
 
     # Pick from available (unused) home nodes
@@ -176,10 +160,12 @@ def assign_agent_nodes(game_session: GameSession, player: Player) -> dict | None
     for i in range(agent_count):
         # Cycle through destinations if we have fewer than agent_count
         dest_node_id = shuffled_destinations[i % len(shuffled_destinations)]
-        agents.append({
-            "id": i + 1,
-            "destination_node": dest_node_id,
-        })
+        agents.append(
+            {
+                "id": i + 1,
+                "destination_node": dest_node_id,
+            }
+        )
 
     return {
         "home_node": home_node_id,
@@ -211,35 +197,14 @@ def cleanup_leaving_player(sender, instance: Player, **kwargs):
         },
     )
 
-    last_move = (
-        PlayerMove.objects.filter(player=instance).order_by("-session_round").first()
-    )
-    last_round = (
-        GameRound.objects.filter(game=game_session).order_by("-round_number").first()
-    )
-    if (
-        last_move
-        and last_round
-        and last_round.round_number != last_move.session_round.round_number
-        and game_session.is_active
-    ):
-        total_players = Player.objects.filter(game=game_session).count()
-        completed_moves = PlayerMove.objects.filter(
-            session_round=last_round
-        ).count()
-        if round_complete(completed_moves, total_players):
-            logger.info(
-                f"Round {last_round.round_number} complete for GameSession {game_session.game_id} after Player {instance.player_id} deletion"
-            )
-            round_completed.send(
-                sender=GameSession,
-                game_session=game_session,
-                game_round=last_round,
-            )
+    if game_session.is_active:
+        schedule_round_completion_check(game_session.game_id)
 
 
 @receiver(post_save, sender=GameSession)
-def game_start(sender, instance: GameSession, created=False, update_fields=None, **kwargs):
+def game_start(
+    sender, instance: GameSession, created=False, update_fields=None, **kwargs
+):
     if not isinstance(instance, GameSession):
         return
 
@@ -263,7 +228,9 @@ def game_start(sender, instance: GameSession, created=False, update_fields=None,
                 "max_rounds": instance.max_rounds,
                 "max_co2_level": instance.max_CO2_level,
                 "current_round": round_number,
-                "started_at": instance.started_at.isoformat() if instance.started_at else None,
+                "started_at": instance.started_at.isoformat()
+                if instance.started_at
+                else None,
             },
         )
         logger.info(f"Game {instance.game_id} started, notified players")
@@ -286,14 +253,18 @@ def game_start(sender, instance: GameSession, created=False, update_fields=None,
                 "final_round": final_round.round_number if final_round else 0,
                 "total_emissions_g": total_emissions,
                 "max_co2_level_g": instance.max_CO2_level * 1000,
-                "ended_at": instance.ended_at.isoformat() if instance.ended_at else None,
+                "ended_at": instance.ended_at.isoformat()
+                if instance.ended_at
+                else None,
             },
         )
         logger.info(f"Game {instance.game_id} ended, notified players")
 
 
 @receiver(round_completed)
-def handle_round_completed(sender, game_id=None, game_session=None, game_round=None, **kwargs):
+def handle_round_completed(
+    sender, game_id=None, game_session=None, game_round=None, **kwargs
+):
     """
     Handle round completion: run simulation, calculate stats, check end conditions, create new round or end game.
 
@@ -351,7 +322,9 @@ def handle_round_completed(sender, game_id=None, game_session=None, game_round=N
     # Calculate cumulative emissions across all rounds
     total_game_emissions = sum(
         r.total_emissions_g
-        for r in GameRound.objects.filter(game=game_session, status=GameRound.Status.COMPLETED)
+        for r in GameRound.objects.filter(
+            game=game_session, status=GameRound.Status.COMPLETED
+        )
     )
 
     # Check game end conditions
@@ -469,32 +442,38 @@ def _run_simulation(game_session, game_round, moves):
                 player_emissions += agent_result.total_co2_g
                 player_cost += agent_result.mean_cost_eur
                 player_time += agent_result.mean_trip_time_min
-                agent_details.append({
-                    "agent_id": agent_result.agent_route.agent_id,
-                    "mode": agent_result.agent_route.transport_mode,
-                    "trip_time_min": round(agent_result.mean_trip_time_min, 1),
-                    "delay_min": round(agent_result.congestion_delay_min, 1),
-                    "co2_g": round(agent_result.total_co2_g, 1),
-                    "cost_eur": round(agent_result.mean_cost_eur, 2),
-                })
+                agent_details.append(
+                    {
+                        "agent_id": agent_result.agent_route.agent_id,
+                        "mode": agent_result.agent_route.transport_mode,
+                        "trip_time_min": round(agent_result.mean_trip_time_min, 1),
+                        "delay_min": round(agent_result.congestion_delay_min, 1),
+                        "co2_g": round(agent_result.total_co2_g, 1),
+                        "cost_eur": round(agent_result.mean_cost_eur, 2),
+                    }
+                )
 
             # Summarize transport modes
             modes_used = list(set(a["mode"] for a in agent_details))
             action_summary = ", ".join(modes_used) if modes_used else "unknown"
 
-            player_stats.append({
-                "player_id": move.player.player_id,
-                "player_name": move.player.name or "Player",
-                "action": action_summary,
-                "emissions_g": round(player_emissions, 1),
-                "cost_eur": round(player_cost, 2),
-                "time_min": round(player_time / len(agent_details), 1) if agent_details else 0,
-                "agents": agent_details,
-            })
+            player_stats.append(
+                {
+                    "player_id": move.player.player_id,
+                    "player_name": move.player.name or "Player",
+                    "action": action_summary,
+                    "emissions_g": round(player_emissions, 1),
+                    "cost_eur": round(player_cost, 2),
+                    "time_min": round(player_time / len(agent_details), 1)
+                    if agent_details
+                    else 0,
+                    "agents": agent_details,
+                }
+            )
 
         return round_emissions, round_cost, player_stats
 
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         logger.exception(f"Simulation failed for round {game_round.round_number}")
         # Fall back to hardcoded if simulation fails
         send_game_state_message(
@@ -556,7 +535,13 @@ def _calculate_hardcoded_stats(moves):
                 player_time += HARDCODED_TIME.get(agent_action, 0)
                 actions_used.append(agent_action)
 
-            action_summary = ", ".join(set(actions_used)) if len(set(actions_used)) > 1 else actions_used[0] if actions_used else move.action
+            action_summary = (
+                ", ".join(set(actions_used))
+                if len(set(actions_used)) > 1
+                else actions_used[0]
+                if actions_used
+                else move.action
+            )
         else:
             action = move.action
             player_emissions = HARDCODED_EMISSIONS.get(action, 0.0)
@@ -567,14 +552,16 @@ def _calculate_hardcoded_stats(moves):
         round_emissions += player_emissions
         round_cost += player_cost
 
-        player_stats.append({
-            "player_id": move.player.player_id,
-            "player_name": move.player.name or "Player",
-            "action": action_summary,
-            "emissions_g": player_emissions,
-            "cost_eur": player_cost,
-            "time_min": player_time,
-        })
+        player_stats.append(
+            {
+                "player_id": move.player.player_id,
+                "player_name": move.player.name or "Player",
+                "action": action_summary,
+                "emissions_g": player_emissions,
+                "cost_eur": player_cost,
+                "time_min": player_time,
+            }
+        )
 
     return round_emissions, round_cost, player_stats
 
@@ -640,7 +627,9 @@ def _build_version_dict(active_version, target_version):
     return {
         "id": target_version.id,
         "name": target_version.name,
-        "poll_text": active_version.revert_poll_text if is_rollback else target_version.poll_text,
+        "poll_text": active_version.revert_poll_text
+        if is_rollback
+        else target_version.poll_text,
         "is_rollback": is_rollback,
         "change_img_url": _get_delta_img_url(active_version, target_version),
     }
@@ -653,6 +642,7 @@ def _get_voteable_map_versions(game_session):
     options for the duration of a round. Cache is cleared when the next round starts.
     """
     import random
+
     from django.core.cache import cache
     from maps.models import MapVersion
 

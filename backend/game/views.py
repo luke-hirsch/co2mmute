@@ -150,13 +150,14 @@ class JoinSessionView(GameAccessCookieMixin, TemplateView):
                         "game_id",
                         "Game is already in progress. Please join a different game.",
                     )
-                    show_password = bool(game_session.game_password)
-                    if show_password:
-                        password = form.cleaned_data.get("game_password")
-                        if not password:
-                            awaiting_password = True
-                        elif password != game_session.game_password:
-                            form.add_error("game_password", "Incorrect password.")
+
+                show_password = bool(game_session.game_password)
+                if show_password:
+                    password = form.cleaned_data.get("game_password")
+                    if not password:
+                        awaiting_password = True
+                    elif password != game_session.game_password:
+                        form.add_error("game_password", "Incorrect password.")
 
             if not form.errors and not awaiting_password and game_session:
                 self._mark_joined(request, game_session)
