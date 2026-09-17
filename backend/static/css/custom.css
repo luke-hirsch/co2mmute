@@ -39,13 +39,21 @@
 
   /* the four transport lines. this is the identity of the app: every screen
      that shows a mode, a route or a legend uses these and nothing else.
-     each one has a real referent rather than a UI convention --
-     motorway signs are blue, the BVG is yellow, cycle paths are green,
-     and a footpath is not a line at all, so it is drawn dotted.
+
+     Two colours carry all four: the primary for the car, the accent for public
+     transport, a muted primary for the bike, ink for walking. Two blues cannot
+     be told apart by hue at stroke width -- measured, a pale muted blue and the
+     accent land within 1.01 of each other on the dark ground -- so pattern does
+     the work colour cannot: the car is solid, the bike dashed, walking dotted.
+     That is also how a transit map does it, and it survives colour blindness.
+
+     Bike and walk each carry a second value for the dark theme, because a line
+     that reads on #e9ebef is invisible on #0b1120 and the other way round.
      lane 0 car, 1 public transport, 2 bike, 3 walking. */
   --color-line-car: #1e88e5;
   --color-line-pt: #ffb300;
-  --color-line-bike: #10b981;
+  --color-line-bike: #35566e;
+  --color-line-bike-dark: #8fb2cc;
   --color-line-walk: #111827;
   --color-line-walk-dark: #f9fafb;
 
@@ -170,6 +178,12 @@
   .metro-bike {
     --i: 2;
     --lane-color: var(--color-line-bike);
+    /* dashed, because it is the second blue: at 5px two blues read as one
+       line, and the pattern is what tells them apart */
+    --lane-style: dashed;
+    @variant dark {
+      --lane-color: var(--color-line-bike-dark);
+    }
   }
   .metro-walk {
     --i: 3;

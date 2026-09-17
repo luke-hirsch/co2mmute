@@ -90,7 +90,7 @@ function Section({
         className={cn(
           "border-t-[5px] pt-5",
           style.border,
-          style.dotted && "border-dotted",
+          style.stroke,
         )}
       >
         <h2 className="text-2xl/9 sm:text-3xl/10">{title}</h2>
@@ -169,7 +169,7 @@ function Styleguide() {
         <Section
           title="Linien"
           line="car"
-          note="Vier Linien, vier Farben, jede mit einem echten Vorbild: Autobahnschilder sind blau, die BVG ist gelb, Radwege sind grün. Zu Fuß ist keine Linie, deshalb gepunktet — und wechselt mit dem Modus die Farbe."
+          note="Zwei Farben tragen alle vier Linien: Primary fürs Auto, Akzent für Bus &amp; Bahn, ein gedämpftes Primary fürs Rad, Tinte für zu Fuß. Zwei Blautöne lassen sich in Strichstärke nicht an der Farbe unterscheiden — deshalb macht das Muster die Arbeit: durchgezogen, gestrichelt, gepunktet."
         >
           <LineLegend className="gap-x-10" />
           <div className="mt-10 flex flex-wrap gap-4">

@@ -4,8 +4,8 @@ import { modeOrder, modeStyle } from "./mode";
 
 /**
  * A short piece of line in a mode's colour. The same stroke the landing page
- * uses in its legend: a top border rather than a filled box, so a dotted line
- * reads as dotted.
+ * uses in its legend: a top border rather than a filled box, so a dashed or
+ * dotted line actually reads as one.
  */
 export function LineSwatch({
   mode,
@@ -21,7 +21,7 @@ export function LineSwatch({
       className={cn(
         "inline-block h-0 w-6 shrink-0 border-t-[5px]",
         style.border,
-        style.dotted && "border-dotted",
+        style.stroke,
         className,
       )}
     />
@@ -61,7 +61,7 @@ export function ModeBadge({
       className={cn(
         "inline-flex w-fit items-center gap-2 rounded-full border-2 py-1 pr-3 pl-2.5 text-xs font-medium",
         style.border,
-        style.dotted && "border-dotted",
+        style.stroke,
         className,
       )}
     >

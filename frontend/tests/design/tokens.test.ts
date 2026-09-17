@@ -64,10 +64,10 @@ describe("design tokens are shared between the SPA and the Django templates", ()
   });
 
   it("carries the four transport lines, which are the app's identity", () => {
-    // Motorway signs are blue, the BVG is yellow, cycle paths are green.
     expect(spa.get("--color-line-car")).toBe("#1e88e5");
     expect(spa.get("--color-line-pt")).toBe("#ffb300");
-    expect(spa.get("--color-line-bike")).toBe("#10b981");
+    expect(spa.get("--color-line-bike")).toBe("#35566e");
+    expect(spa.get("--color-line-bike-dark")).toBe("#8fb2cc");
     expect(spa.get("--color-line-walk")).toBe("#111827");
     expect(spa.get("--color-line-walk-dark")).toBe("#f9fafb");
   });
