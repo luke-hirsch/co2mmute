@@ -653,3 +653,136 @@ class LeavingFinishesAPhaseTests(BetweenRoundsMixin, TestCase):
     def test_a_recheck_for_an_unknown_game_is_survivable(self):
         with muted():
             phases().recheck("NOPE12")
+
+
+@override_settings(**TEST_BACKENDS)
+class HostSeatsBetweenRoundsTests(BetweenRoundsMixin, TestCase):
+    """The host acks and votes for the seats played at the host machine.
+    Roadmap.md 1.6.
+
+    A host socket speaks for several seats. Acks cover all of them at once
+    (they share one screen); votes name the seat. Only seats played at the
+    host machine: a student's seat is the student's.
+    """
+
+    def setUp(self):
+        super().setUp()
+        with muted():
+            self.cem = Player.objects.create(
+                game=self.game, name="Cem", controlled_by_host=True
+            )
+            self.dana = Player.objects.create(
+                game=self.game, name="Dana", controlled_by_host=True
+            )
+
+    def ack_for_host_seats(self):
+        with muted():
+            return phases().ack_host_seats(self.game.game_id)
+
+    def vote_by_host(self, player, version):
+        with muted():
+            return phases().submit_vote(
+                self.game.game_id,
+                player.player_id,
+                version.pk if version else None,
+                by_host=True,
+            )
+
+    def answer_by_host(self, player, want_revote):
+        with muted():
+            return phases().submit_stalemate_vote(
+                self.game.game_id, player.player_id, want_revote, by_host=True
+            )
+
+    def open_voting(self):
+        _, (option_1, option_2) = self.add_ballot()
+        self.set_round(
+            between_round_phase=Phase.VOTING,
+            vote_option_ids=[option_1.pk, option_2.pk],
+        )
+        return option_1, option_2
+
+    def test_the_host_acks_for_every_seat_at_the_host_machine(self):
+        self.assertTrue(self.ack_for_host_seats())
+
+        acked = set(
+            stats_acks().filter(game_round=self.round).values_list("player", flat=True)
+        )
+        self.assertEqual(acked, {self.cem.pk, self.dana.pk})
+
+    def test_the_host_ack_can_be_the_last_one(self):
+        self.ack(self.anna)
+        self.ack(self.ben)
+
+        self.ack_for_host_seats()
+
+        self.assertEqual(self.round_count(), 2)
+
+    def test_the_host_ack_is_refused_outside_the_stats_phase(self):
+        self.set_round(between_round_phase=Phase.DISCUSSION)
+
+        self.assertFalse(self.ack_for_host_seats())
+        self.assertFalse(stats_acks().exists())
+
+    def test_the_host_ack_is_refused_without_seats_at_the_host_machine(self):
+        Player.objects.filter(pk__in=[self.cem.pk, self.dana.pk]).update(
+            left_at=timezone.now()
+        )
+
+        self.assertFalse(self.ack_for_host_seats())
+
+    def test_the_seats_still_count_one_by_one(self):
+        """Cem and Dana are two seats, not one host."""
+        self.ack(self.anna)
+        self.ack_for_host_seats()
+
+        self.assertEqual(self.phase_now(), Phase.STATS)
+
+    def test_the_host_votes_for_a_seat_at_the_host_machine(self):
+        option_1, _ = self.open_voting()
+
+        self.assertTrue(self.vote_by_host(self.cem, option_1))
+
+        self.assertEqual(
+            MapVersionVote.objects.get(
+                game_round=self.round, player=self.cem
+            ).map_version,
+            option_1,
+        )
+
+    def test_the_host_may_not_vote_for_a_student(self):
+        option_1, _ = self.open_voting()
+
+        self.assertFalse(self.vote_by_host(self.anna, option_1))
+        self.assertFalse(MapVersionVote.objects.filter(player=self.anna).exists())
+
+    def test_the_host_may_not_vote_as_the_host_row(self):
+        option_1, _ = self.open_voting()
+
+        self.assertFalse(self.vote_by_host(self.host_row, option_1))
+
+    def test_each_seat_votes_once(self):
+        option_1, option_2 = self.open_voting()
+        self.vote_by_host(self.cem, option_1)
+
+        self.assertFalse(self.vote_by_host(self.cem, option_2))
+        self.assertTrue(self.vote_by_host(self.dana, option_2))
+
+    def test_host_votes_can_decide_the_round(self):
+        option_1, _ = self.open_voting()
+        self.vote(self.anna, option_1)
+        self.vote(self.ben, None)
+        self.vote_by_host(self.cem, option_1)
+
+        self.vote_by_host(self.dana, option_1)
+
+        self.game.refresh_from_db()
+        self.assertEqual(self.game.active_map_version, option_1)
+        self.assertEqual(self.round_count(), 2)
+
+    def test_the_host_answers_a_stalemate_for_a_seat(self):
+        option_1, option_2 = self.open_voting()
+        self.set_round(between_round_phase=Phase.STALEMATE, stalemate_count=1)
+
+        self.assertTrue(self.answer_by_host(self.cem, True))
+        self.assertFalse(self.answer_by_host(self.anna, True))

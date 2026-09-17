@@ -470,3 +470,42 @@ class JoinSessionFormPasswordTests(TempMediaRootMixin, TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertIn(self.game.game_id, self.client.session["joined_game_ids"])
+
+
+@override_settings(**TEST_BACKENDS)
+class LobbyHostRowTests(GameCookieMixin, TempMediaRootMixin, TestCase):
+    """The lobby tells the host's own row apart. Roadmap.md 1.6.
+
+    controlled_by_host used to mark it. From 1.6 on that flag means "played
+    at the host machine", and the host row is found by its account.
+    """
+
+    def setUp(self):
+        self.host = create_host()
+        with muted():
+            self.game = create_game_session(self.host, game_name="Lobby")
+            self.host_row = Player.objects.create(
+                game=self.game, name="Host", user=self.host
+            )
+            self.seat = Player.objects.create(
+                game=self.game, name="Ohne Handy", controlled_by_host=True
+            )
+            self.player = Player.objects.create(game=self.game, name="Mia")
+        self.give_game_access(self.game.game_id)
+
+    def players(self):
+        payload = self.client.get(lobby_url(self.game.game_id)).json()
+        return {p["name"]: p for p in payload["players"]}
+
+    def test_the_host_row_is_flagged(self):
+        players = self.players()
+
+        self.assertTrue(players["Host"]["is_host"])
+        self.assertFalse(players["Ohne Handy"]["is_host"])
+        self.assertFalse(players["Mia"]["is_host"])
+
+    def test_a_seat_at_the_host_machine_says_so(self):
+        players = self.players()
+
+        self.assertTrue(players["Ohne Handy"]["controlled_by_host"])
+        self.assertFalse(players["Host"]["controlled_by_host"])

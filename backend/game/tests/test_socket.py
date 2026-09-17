@@ -40,10 +40,17 @@ from django.utils import timezone
 
 from co2mmute.utils import sign_value
 from game.consumers import GameConsumer
-from game.models import GameRound, GameSession, Player, PlayerMove
+from game.models import (
+    GameRound,
+    GameSession,
+    MapVersionVote,
+    Player,
+    PlayerMove,
+    StatsAck,
+)
 from game.routing import websocket_urlpatterns
 from game.signals import round_completed
-from maps.models import GameMap
+from maps.models import GameMap, MapVersion
 
 from ._helpers import (
     TEST_BACKENDS,
@@ -653,6 +660,130 @@ class SocketTests(GameWithSeatsMixin, TransactionTestCase):
             await host.disconnect()
 
         self.run_async(scenario)
+
+
+@override_settings(**TEST_BACKENDS, **NO_REDIS)
+class HostSocketSpeaksForSeatsTests(GameWithSeatsMixin, TransactionTestCase):
+    """A host socket acks and votes for the seats played at the host machine.
+    Roadmap.md 1.6. It used to drop every ack and vote the host sent.
+
+    A player's socket still only ever votes for its own seat, whatever
+    player_id the message carries.
+    """
+
+    def setUp(self):
+        super().setUp()
+        with muted():
+            self.cem = Player.objects.create(
+                game=self.game, name="Cem", controlled_by_host=True
+            )
+        game_map = GameMap.objects.create(name="Testkarte")
+        base = MapVersion.objects.create(
+            game_map=game_map, name="Basis", base_version=True
+        )
+        self.option = MapVersion.objects.create(
+            game_map=game_map, name="Option", source_version=base
+        )
+        base.compatible_versions.add(self.option)
+        GameSession.objects.filter(pk=self.game.pk).update(
+            game_map=game_map, map_updates=True, active_map_version=base
+        )
+        self.round = GameRound.objects.create(
+            game=self.game,
+            round_number=1,
+            status=GameRound.Status.COMPLETED,
+            between_round_phase=GameRound.BetweenRoundPhase.VOTING,
+            vote_option_ids=[self.option.pk],
+        )
+
+    def socket(self, cookies):
+        return WebsocketCommunicator(
+            AuthMiddlewareStack(URLRouter(websocket_urlpatterns)),
+            f"/ws/game/{self.game.game_id}/",
+            headers=[(b"cookie", cookie_header(cookies))],
+        )
+
+    def host_cookies(self):
+        self.client.force_login(self.host)
+        session = self.client.cookies[settings.SESSION_COOKIE_NAME].value
+        return {settings.SESSION_COOKIE_NAME: session}
+
+    def send_and_read(self, cookies, message, until):
+        """Connect, send one message, read until `until`, hang up."""
+
+        async def scenario():
+            communicator = self.socket(cookies)
+            connected, _ = await communicator.connect()
+            self.assertTrue(connected)
+            await communicator.send_json_to(message)
+            seen = await read_until(communicator, until)
+            await communicator.disconnect()
+            return seen
+
+        with muted():
+            return async_to_sync(scenario)()
+
+    def test_the_host_votes_for_a_seat_at_the_host_machine(self):
+        seen = self.send_and_read(
+            self.host_cookies(),
+            {
+                "type": "vote.submit",
+                "version_id": self.option.pk,
+                "player_id": self.cem.player_id,
+            },
+            is_type("vote.recorded"),
+        )
+
+        self.assertEqual(seen[-1]["data"]["player_id"], self.cem.player_id)
+        self.assertTrue(
+            MapVersionVote.objects.filter(
+                player=self.cem, map_version=self.option
+            ).exists()
+        )
+
+    def test_the_host_cannot_vote_for_a_student(self):
+        seen = self.send_and_read(
+            self.host_cookies(),
+            {
+                "type": "vote.submit",
+                "version_id": self.option.pk,
+                "player_id": self.anna.player_id,
+            },
+            is_type("error"),
+        )
+
+        self.assertTrue(seen)
+        self.assertFalse(MapVersionVote.objects.exists())
+
+    def test_a_player_votes_for_themselves_whatever_the_message_says(self):
+        """A guard, green from the start."""
+        seen = self.send_and_read(
+            player_cookies(self.game.game_id, self.anna.player_id),
+            {
+                "type": "vote.submit",
+                "version_id": self.option.pk,
+                "player_id": self.cem.player_id,
+            },
+            is_type("vote.recorded"),
+        )
+
+        self.assertEqual(seen[-1]["data"]["player_id"], self.anna.player_id)
+        self.assertFalse(MapVersionVote.objects.filter(player=self.cem).exists())
+
+    def test_the_host_ack_covers_the_seats_at_the_host_machine(self):
+        GameRound.objects.filter(pk=self.round.pk).update(
+            between_round_phase=GameRound.BetweenRoundPhase.STATS
+        )
+        StatsAck.objects.create(game_round=self.round, player=self.anna)
+        StatsAck.objects.create(game_round=self.round, player=self.ben)
+
+        self.send_and_read(
+            self.host_cookies(),
+            {"type": "player.stats_ack"},
+            is_type("stats.all_acked"),
+        )
+
+        self.assertTrue(StatsAck.objects.filter(player=self.cem).exists())
 
 
 @override_settings(**TEST_BACKENDS, **NO_REDIS)

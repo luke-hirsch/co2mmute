@@ -1,9 +1,14 @@
+import importlib
 import os
 import shutil
 import tempfile
+import uuid
+from unittest.mock import patch
 
+from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
+from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
@@ -12,6 +17,7 @@ from game.models import GameSession, Player
 from ._helpers import (
     TEST_BACKENDS,
     TempMediaRootMixin,
+    create_form_data,
     create_game_session,
     create_host,
     muted,
@@ -156,6 +162,21 @@ class PlayerHostRowTests(TempMediaRootMixin, TestCase):
         self.assertNotIn(elsewhere, Player.objects.filter(game=self.game).playing())
         self.assertIn(elsewhere, Player.objects.playing())
 
+    def test_the_create_view_makes_a_host_row_that_is_not_host_controlled(self):
+        """From 1.6 on, controlled_by_host means "played at the host machine".
+        The host's own row is found by its account."""
+        self.client.force_login(self.host)
+
+        with muted():
+            response = self.client.post(
+                "/game/create/", create_form_data(game_name="Frisch")
+            )
+
+        self.assertEqual(response.status_code, 302)
+        game = GameSession.objects.get(game_name="Frisch")
+        host_row = Player.objects.filter(game=game).host_rows().get()
+        self.assertFalse(host_row.controlled_by_host)
+
     def test_a_host_account_is_only_the_host_in_its_own_game(self):
         """A host account holding a row in someone else's game is a player
         there. Nothing sets Player.user on a join today — this pins the rule to
@@ -167,3 +188,128 @@ class PlayerHostRowTests(TempMediaRootMixin, TestCase):
 
         self.assertNotIn(visiting, Player.objects.host_rows())
         self.assertIn(visiting, Player.objects.without_host_rows())
+
+
+def uuid_draws(*prefixes):
+    """A uuid4 stand-in: these hex prefixes first, then real ones."""
+    real_uuid4 = uuid.uuid4
+    queue = [uuid.UUID(prefix.ljust(32, "0")) for prefix in prefixes]
+    return lambda: queue.pop(0) if queue else real_uuid4()
+
+
+@override_settings(**TEST_BACKENDS)
+class PlayerIdTests(TempMediaRootMixin, TestCase):
+    """player_id is what the player cookie names, so it must name one row.
+    Roadmap.md 1.6; 1.7 hands out new ids and relies on it."""
+
+    def setUp(self):
+        self.host = create_host()
+        with muted():
+            self.game = create_game_session(self.host)
+            self.other_game = create_game_session(self.host, game_name="Anderes")
+            self.mia = Player.objects.create(game=self.game, name="Mia")
+        Player.objects.filter(pk=self.mia.pk).update(player_id="P-ABCD")
+        self.mia.refresh_from_db()
+
+    def test_a_new_id_is_p_and_four_hex_characters(self):
+        with muted():
+            jan = Player.objects.create(game=self.game, name="Jan")
+
+        self.assertRegex(jan.player_id, r"^P-[0-9A-F]{4}$")
+
+    def test_the_generator_skips_an_id_the_game_already_has(self):
+        """It compared "ABCD" with the stored "P-ABCD" and never saw a
+        collision."""
+        seat = Player(game=self.game, name="Neu")
+
+        with patch("game.models.uuid.uuid4", side_effect=uuid_draws("abcd", "beef")):
+            self.assertEqual(seat.generate_unique_player_id(), "P-BEEF")
+
+    def test_a_new_player_never_gets_a_taken_id(self):
+        with patch(
+            "game.models.uuid.uuid4", side_effect=uuid_draws("abcd", "beef")
+        ), muted():
+            seat = Player.objects.create(game=self.game, name="Neu")
+
+        self.assertEqual(seat.player_id, "P-BEEF")
+
+    def test_an_id_taken_in_another_game_is_fine(self):
+        """Ids are unique per game, not overall."""
+        seat = Player(game=self.other_game, name="Anderswo")
+
+        with patch("game.models.uuid.uuid4", side_effect=uuid_draws("abcd")):
+            self.assertEqual(seat.generate_unique_player_id(), "P-ABCD")
+
+    def test_the_database_refuses_an_id_twice_in_one_game(self):
+        with muted():
+            jan = Player.objects.create(game=self.game, name="Jan")
+
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Player.objects.filter(pk=jan.pk).update(player_id="P-ABCD")
+
+    def test_the_database_allows_the_same_id_in_two_games(self):
+        """A guard, green from the start."""
+        with muted():
+            elsewhere = Player.objects.create(game=self.other_game, name="Jan")
+
+        Player.objects.filter(pk=elsewhere.pk).update(player_id="P-ABCD")
+
+
+HOST_ROW_MIGRATION = "game.migrations.0008_host_rows_and_unique_player_ids"
+
+
+@override_settings(**TEST_BACKENDS)
+class HostRowMigrationTests(TempMediaRootMixin, TestCase):
+    """0008 turns controlled_by_host off on the host rows that already exist.
+
+    Its functions are called directly with the app registry. They only use
+    apps.get_model(), so the real models stand in for the historical ones.
+    """
+
+    def setUp(self):
+        self.host = create_host()
+        with muted():
+            self.game = create_game_session(self.host)
+            # A host row the way GameSessionCreateView made it before 1.6.
+            self.host_row = Player.objects.create(
+                game=self.game, name="Host", user=self.host, controlled_by_host=True
+            )
+            self.seat = Player.objects.create(
+                game=self.game, name="Ohne Handy", controlled_by_host=True
+            )
+            self.student = Player.objects.create(game=self.game, name="Mia")
+
+    def migration(self):
+        return importlib.import_module(HOST_ROW_MIGRATION)
+
+    def test_host_rows_lose_the_flag(self):
+        self.migration().host_rows_are_not_host_controlled(apps, None)
+
+        self.host_row.refresh_from_db()
+        self.assertFalse(self.host_row.controlled_by_host)
+
+    def test_other_rows_keep_theirs(self):
+        self.migration().host_rows_are_not_host_controlled(apps, None)
+
+        self.seat.refresh_from_db()
+        self.student.refresh_from_db()
+        self.assertTrue(self.seat.controlled_by_host)
+        self.assertFalse(self.student.controlled_by_host)
+
+    def test_it_can_be_reversed(self):
+        module = self.migration()
+        module.host_rows_are_not_host_controlled(apps, None)
+
+        module.host_rows_are_host_controlled(apps, None)
+
+        self.host_row.refresh_from_db()
+        self.seat.refresh_from_db()
+        self.assertTrue(self.host_row.controlled_by_host)
+        self.assertTrue(self.seat.controlled_by_host)
+
+    def test_the_duplicate_fix_leaves_unique_ids_alone(self):
+        ids_before = set(Player.objects.values_list("pk", "player_id"))
+
+        self.migration().give_duplicate_player_ids_a_new_one(apps, None)
+
+        self.assertEqual(set(Player.objects.values_list("pk", "player_id")), ids_before)

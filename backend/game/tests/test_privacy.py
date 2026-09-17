@@ -239,6 +239,34 @@ class HostRowAnonymisationTests(TempMediaRootMixin, TestCase):
 
 
 @override_settings(**TEST_BACKENDS)
+class RemovedSeatAnonymisationTests(PlayedGameMixin, TestCase):
+    """A seat removed after the start keeps its row (Roadmap.md 1.6), and with
+    it the name. At game end it is renamed like every other row."""
+
+    def test_a_seat_removed_after_the_start_is_anonymised_too(self):
+        from game.anon import anonymise_game
+
+        GameSession.objects.filter(pk=self.game.pk).update(
+            is_active=True, started_at=timezone.now()
+        )
+        self.client.force_login(self.host)
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            response = self.client.delete(
+                f"/api/game/{self.game.game_id}/player/{self.second.player_id}/"
+            )
+        self.assertEqual(response.status_code, 204)
+        self.end_the_game()
+
+        with muted():
+            anonymise_game(self.game)
+
+        self.second.refresh_from_db()
+        self.assertIsNotNone(self.second.left_at)
+        self.assertEqual(self.second.name, "Spieler 2")
+        self.assertTrue(PlayerMove.objects.filter(player=self.second).exists())
+
+
+@override_settings(**TEST_BACKENDS)
 class GamesDueTests(PlayedGameMixin, TestCase):
     """The grace period exists so the post-game summary still reads properly
     while the class is standing in front of it."""

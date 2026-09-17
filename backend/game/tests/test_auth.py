@@ -509,6 +509,117 @@ class RestPermissionTests(TempMediaRootMixin, TestCase):
 
 
 @override_settings(**TEST_BACKENDS)
+class HostActsForSeatTests(TempMediaRootMixin, TestCase):
+    """IsPlayerInGame's second branch. Roadmap.md 1.6.
+
+    The host plays seats at the host machine and sends their moves under the
+    seat's player_id in the URL. The host is recognised by the session, not by
+    a cookie for that seat, and only for a seat played at the host machine.
+
+    The game is not active, so a request that gets past the permissions ends
+    in 400 on the move view. That is how a test tells "let through" from 403.
+    """
+
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username="host", password="pass")
+        self.other_host = User.objects.create_user(username="other", password="pass")
+        with muted():
+            self.game = GameSession.objects.create(
+                game_host=self.user,
+                game_name="Am Host",
+                max_players=4,
+                max_rounds=4,
+                max_CO2_level=100,
+                agent_per_player=1,
+            )
+            self.host_row = Player.objects.create(
+                game=self.game, name="Host", user=self.user
+            )
+            self.seat = Player.objects.create(
+                game=self.game, name="Ohne Handy", controlled_by_host=True
+            )
+            self.student = Player.objects.create(game=self.game, name="Mia")
+
+    def move(self, player):
+        with muted():
+            return self.client.post(
+                f"/api/game/{self.game.game_id}/player/{player.player_id}/move/",
+                {},
+                content_type="application/json",
+            )
+
+    def as_host_with_own_cookies(self):
+        """The host as GameSessionCreateView leaves them: logged in, and both
+        cookies for the host's own row."""
+        self.client.force_login(self.user)
+        self.client.cookies[
+            f"{settings.COOKIE_GAME_PREFIX}{self.game.game_id}"
+        ] = signed_game_cookie(self.game.game_id)
+        self.client.cookies[
+            f"{settings.COOKIE_PLAYER_PREFIX}{self.game.game_id}"
+        ] = signed_player_cookie(self.game.game_id, self.host_row.player_id)
+
+    def test_the_host_may_move_for_a_seat_at_the_host_machine(self):
+        self.as_host_with_own_cookies()
+
+        self.assertEqual(self.move(self.seat).status_code, 400)
+
+    def test_the_host_needs_no_cookie_for_it(self):
+        self.client.force_login(self.user)
+
+        self.assertEqual(self.move(self.seat).status_code, 400)
+
+    def test_the_host_may_read_the_seats_game_view(self):
+        """GetYourOwnGame hands out the seat's agent assignments."""
+        Player.objects.filter(pk=self.seat.pk).update(
+            agent_assignments={"home_node": 7, "agents": []}
+        )
+        self.client.force_login(self.user)
+
+        with muted():
+            response = self.client.get(
+                f"/api/game/{self.game.game_id}/{self.seat.player_id}/"
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["agent_assignments"]["home_node"], 7)
+
+    def test_the_host_may_not_move_for_a_students_seat(self):
+        self.as_host_with_own_cookies()
+
+        self.assertEqual(self.move(self.student).status_code, 403)
+
+    def test_the_host_may_not_move_for_a_seat_that_left(self):
+        Player.objects.filter(pk=self.seat.pk).update(left_at=timezone.now())
+        self.client.force_login(self.user)
+
+        self.assertEqual(self.move(self.seat).status_code, 403)
+
+    def test_another_games_host_may_not_move_for_the_seat(self):
+        self.client.force_login(self.other_host)
+
+        self.assertEqual(self.move(self.seat).status_code, 403)
+
+    def test_a_student_may_not_move_for_a_seat_at_the_host_machine(self):
+        self.client.cookies[
+            f"{settings.COOKIE_GAME_PREFIX}{self.game.game_id}"
+        ] = signed_game_cookie(self.game.game_id)
+        self.client.cookies[
+            f"{settings.COOKIE_PLAYER_PREFIX}{self.game.game_id}"
+        ] = signed_player_cookie(self.game.game_id, self.student.player_id)
+
+        self.assertEqual(self.move(self.seat).status_code, 403)
+
+    def test_the_host_still_reaches_their_own_row_by_cookie(self):
+        """A guard, green from the start: the host row is not host-controlled,
+        so the new branch does not cover it. The cookie still does."""
+        self.as_host_with_own_cookies()
+
+        self.assertEqual(self.move(self.host_row).status_code, 400)
+
+
+@override_settings(**TEST_BACKENDS)
 class WhoAmITests(TempMediaRootMixin, TestCase):
     """The third reader of the player cookie.
 

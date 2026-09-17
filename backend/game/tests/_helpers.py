@@ -11,10 +11,11 @@ import tempfile
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import override_settings
 
-from co2mmute.utils import sanitize_group_name
+from co2mmute.utils import sanitize_group_name, sign_value
 from game.models import GameSession
 
 # Creating a GameSession renders a QR code to MEDIA_ROOT, the signals broadcast
@@ -89,6 +90,33 @@ def create_game_session(host, **overrides):
     }
     defaults.update(overrides)
     return GameSession.objects.create(**defaults)
+
+
+def log_in_as_player(client, game_id, player_id):
+    """Give a test client both player cookies, in the 1.2 format."""
+    client.cookies[f"{settings.COOKIE_GAME_PREFIX}{game_id}"] = sign_value(
+        f"{game_id}:test-token", settings.COOKIE_GAME_SALT
+    )
+    client.cookies[f"{settings.COOKIE_PLAYER_PREFIX}{game_id}"] = sign_value(
+        f"{game_id}:{player_id}", settings.COOKIE_PLAYER_SALT
+    )
+
+
+def create_form_data(**overrides):
+    """A valid POST body for GameSessionCreateView (game/create/)."""
+    data = {
+        "game_name": "Neues Spiel",
+        "game_password": "",
+        "game_map": "",
+        "max_players": 4,
+        "agent_per_player": 1,
+        "max_rounds": 3,
+        "max_CO2_level": 100,
+        "people_per_agent": 1000,
+        "lobby_open": "",
+    }
+    data.update(overrides)
+    return data
 
 
 class GroupListener:
