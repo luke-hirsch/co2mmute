@@ -116,10 +116,8 @@
     </script>
   </head>
   <body>
-    <div
-      class="bg-body text-main dark:bg-darkbody dark:text-darktext"
-      id="root"
-    ></div>
+    <!-- page chrome lives on `body` in main.css, so this stays a bare mount -->
+    <div id="root"></div>
     <script>
       setColorScheme(storeSystemColorScheme("colorMode"));
     </script>

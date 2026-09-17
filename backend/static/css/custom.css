@@ -2,7 +2,24 @@
 
 @source "../template/**/*.html";
 
-@theme {
+/* ---------------------------------------------------------------------------
+ * The token block below is shared verbatim with frontend/src/main.css, so the
+ * Django pages and the SPA paint from the same values. The two Tailwind builds
+ * are separate (@tailwindcss/cli here, @tailwindcss/vite there) and their
+ * Docker images copy only their own directory, so a shared file would break
+ * both. frontend/tests/design/tokens.test.ts compares the two blocks instead —
+ * if you change a value here, change it there.
+ *
+ * `dark:` on this half is still prefers-color-scheme (Tailwind's default), not
+ * the `.dark` class head_script.js writes. Deliberate: the script's init call
+ * sits at the bottom of base.html, so class-based dark would paint light first
+ * and flip after parse. Moving that call into <head> is the prerequisite for
+ * switching, and that is worth doing when a theme switch actually exists.
+ * ------------------------------------------------------------------------- */
+
+@theme static {
+  /* >>> shared tokens — keep identical to frontend/src/main.css <<< */
+
   /* primary */
   --color-primary-50: #e3f2fd;
   --color-primary-100: #bbdefb;
@@ -14,28 +31,26 @@
   --color-primary-700: #0d47a1;
   --color-primary-800: #092f6b;
   --color-primary-900: #041c3d;
-  /* accent */
-  --color-accent: #ffb300;
+
+  /* the four transport lines. this is the identity of the app: every screen
+     that shows a mode, a route or a legend uses these and nothing else.
+     lane 0 car, 1 public transport, 2 bike, 3 walking (drawn dotted). */
+  --color-line-car: #ffb300;
+  --color-line-pt: #1e88e5;
+  --color-line-bike: #10b981;
+  --color-line-walk: #111827;
+  --color-line-walk-dark: #f9fafb;
+
   /* neutrals light */
-  --color-bg-body: #f3f4f6;
-  --color-bg-surface: #ffffff;
-  --color-bg-elevated: #f9fafb;
-  --color-border-subtle: #e5e7eb;
-  --color-border-strong: #d1d5db;
-  --color-text-main: #111827;
-  --color-text-muted: #6b7280;
-  --color-text-soft: #9ca3af;
-  /* the same neutrals under the names the templates use (text-main, bg-surface,
-     border-subtle). the long names above only generate text-text-main etc. */
   --color-body: #f3f4f6;
   --color-surface: #ffffff;
   --color-elevated: #f9fafb;
   --color-subtle: #e5e7eb;
   --color-strong: #d1d5db;
   --color-main: #111827;
-  --color-muted: #6b7280;
   --color-soft: #9ca3af;
-  /* neutral dark */
+
+  /* neutrals dark */
   --color-darkbody: #0b1120;
   --color-darksurface: #111827;
   --color-darkelevated: #1f2933;
@@ -45,22 +60,55 @@
   --color-darkmutedtext: #9ca3af;
   --color-darksofttext: #6b7280;
 
-  /*  Success */
+  /* success */
   --color-success-100: #d1fae5;
   --color-success-500: #10b981;
   --color-success-700: #047857;
 
-  /* Warning */
-
+  /* warning */
   --color-warning-100: #fef3c7;
   --color-warning-500: #f59e0b;
   --color-warning-700: #b45309;
 
-  /* Danger */
-
+  /* danger */
   --color-danger-100: #fee2e2;
   --color-danger-500: #ef4444;
   --color-danger-700: #b91c1c;
+
+  /* type. no webfont on purpose: a third-party font sends every visitor's IP to
+     its host, and the players are school students under a data-minimisation
+     design. mono is reserved for ids, codes and numerals — game ids, the
+     six-character seat code, step numbers. */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  /* measure: how wide a column of text may get before it is hard to read.
+     use as max-w-(--measure-body). */
+  --measure-lead: 46ch;
+  --measure-body: 62ch;
+  --measure-prose: 70ch;
+
+  /* <<< end shared tokens >>> */
+
+  /* Django-only aliases. The SPA calls these brandaccent / mutedtext, because
+     shadcn owns `accent` and `muted` over there. */
+  --color-accent: #ffb300;
+  --color-muted: #6b7280;
+
+  /* long-form neutral names. a few templates still use bg-bg-surface and
+     text-text-main; the short names above are what everything else uses. */
+  --color-bg-body: #f3f4f6;
+  --color-bg-surface: #ffffff;
+  --color-bg-elevated: #f9fafb;
+  --color-border-subtle: #e5e7eb;
+  --color-border-strong: #d1d5db;
+  --color-text-main: #111827;
+  --color-text-muted: #6b7280;
+  --color-text-soft: #9ca3af;
 }
 
 /*
@@ -110,22 +158,22 @@
   /* lane colours, shared by every piece that draws a line */
   .metro-car {
     --i: 0;
-    --lane-color: var(--color-accent);
+    --lane-color: var(--color-line-car);
   }
   .metro-pt {
     --i: 1;
-    --lane-color: var(--color-primary-500);
+    --lane-color: var(--color-line-pt);
   }
   .metro-bike {
     --i: 2;
-    --lane-color: var(--color-success-500);
+    --lane-color: var(--color-line-bike);
   }
   .metro-walk {
     --i: 3;
-    --lane-color: var(--color-main);
+    --lane-color: var(--color-line-walk);
     --lane-style: dotted;
     @variant dark {
-      --lane-color: var(--color-darktext);
+      --lane-color: var(--color-line-walk-dark);
     }
   }
 
