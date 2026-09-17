@@ -736,7 +736,7 @@ class RedeemCodeTests(HandoverMixin, TestCase):
 
     def test_someone_elses_host_account_can_redeem(self):
         """A researcher logged into their own host account, joining this game
-        as a player (CLAUDE.md, "players are minors")."""
+        as a player. That login plays no part in the player path."""
         self.client.force_login(create_host(username="forscherin"))
 
         self.assertEqual(self.redeem(self.issue(self.cem)).status_code, 200)

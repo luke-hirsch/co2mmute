@@ -1,8 +1,8 @@
 """Player identity: the two signed cookies, and the one resolver behind them.
 
-Players have no account and never will (CLAUDE.md, "players are minors"). All the
-identity there is lives in `game_access_<game_id>` and `player_<game_id>`, so this
-file is where the hardening in Roadmap.md 1.2 is pinned down.
+Players have no account and never will (Roadmap.md, "grundsatz spielerdaten"). All
+the identity there is lives in `game_access_<game_id>` and `player_<game_id>`, so
+this file is where the hardening in Roadmap.md 1.2 is pinned down.
 """
 
 import time

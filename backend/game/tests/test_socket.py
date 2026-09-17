@@ -6,8 +6,7 @@ Two kinds of tests:
   TestCase classes that call it directly and listen on the in-memory layer.
 - The socket goes through WebsocketCommunicator under TransactionTestCase: the
   consumer awaits database_sync_to_async, and that closes the connection
-  TestCase's wrapping transaction lives on (CLAUDE.md, backend test
-  conventions).
+  TestCase's wrapping transaction lives on.
 
 NO_REDIS points REDIS_URL at a port nothing listens on. CI has no Redis, and
 the game socket must not need one: presence goes through the Django cache,

@@ -155,6 +155,17 @@ class StatsAckTests(BetweenRoundsMixin, TestCase):
         self.assertEqual(self.phase_now(), Phase.STATS)
         self.assertEqual(self.round_count(), 1)
 
+    def test_the_ack_that_ends_the_phase_is_reported_as_taken(self):
+        """ack_stats says True for every ack it stores, the last one included.
+
+        The 1.6 commit left the old body in front of `return _ack(...)`: the
+        first pass ended the phase, so the second found none and said False.
+        """
+        self.ack(self.anna)
+
+        self.assertTrue(self.ack(self.ben))
+        self.assertEqual(self.round_count(), 2)
+
     def test_the_last_ack_starts_the_next_round_when_there_is_no_ballot(self):
         listener = GroupListener(self.game.game_id)
 
