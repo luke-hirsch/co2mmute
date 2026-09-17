@@ -415,6 +415,22 @@ class UrlRoutingTests(TestCase):
         self.assertEqual(resume.func.view_class.__name__, "GameResumeView")
         self.assertEqual(pause.kwargs["game_id"], "ABC123")
 
+    def test_the_seat_code_resolves_to_its_view(self):
+        """Roadmap.md 1.7. Two segments: undeclared, `seat/<code>/` lands in
+        GetYourOwnGame as game "seat", player <code>."""
+        match = resolve("/api/game/seat/K7P2QX/")
+
+        self.assertEqual(match.func.view_class.__name__, "SeatCodeView")
+        self.assertEqual(match.kwargs["code"], "K7P2QX")
+
+    def test_the_seat_actions_resolve_to_their_views(self):
+        code = resolve("/api/game/ABC123/player/P-01/code/")
+        takeover = resolve("/api/game/ABC123/player/P-01/takeover/")
+
+        self.assertEqual(code.func.view_class.__name__, "SeatCodeIssueView")
+        self.assertEqual(takeover.func.view_class.__name__, "SeatTakeoverView")
+        self.assertEqual(takeover.kwargs["player_id"], "P-01")
+
     def test_the_existing_player_routes_still_resolve(self):
         self.assertEqual(
             resolve("/api/game/ABC123/player/").func.view_class.__name__,

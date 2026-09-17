@@ -16,6 +16,7 @@ from django.conf import settings
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
+from co2mmute.utils import unsign_value
 from game.models import GameRound, GameSession, Player, PlayerMove
 
 from ._helpers import (
@@ -408,3 +409,550 @@ class RemoveSeatTests(SeatsMixin, TestCase):
             GameRound.objects.filter(game=self.game, round_number=2).exists()
         )
         self.assertTrue(Player.objects.filter(pk=self.ben.pk).exists())
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Roadmap.md 1.7: a seat moves to another device
+#
+# game.seats' new names are imported inside the tests: they don't exist before
+# the seat-handover guide.
+# ─────────────────────────────────────────────────────────────────────────────
+
+CODE_PATTERN = r"^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$"
+
+
+def code_url(game_id, player_id):
+    return f"/api/game/{game_id}/player/{player_id}/code/"
+
+
+def takeover_url(game_id, player_id):
+    return f"/api/game/{game_id}/player/{player_id}/takeover/"
+
+
+def seat_code_url(code):
+    return f"/api/game/seat/{code}/"
+
+
+class HandoverMixin(SeatsMixin):
+    """A running game with an open round. Cem plays at the host machine."""
+
+    def setUp(self):
+        super().setUp()
+        with muted():
+            self.cem = Player.objects.create(
+                game=self.game, name="Cem", controlled_by_host=True
+            )
+        self.start()
+        self.round = self.open_round()
+
+    def issue(self, player):
+        """A code for the seat, straight from game.seats."""
+        from game.seats import issue_code
+
+        return issue_code(player)
+
+    def request_code(self, player):
+        with muted():
+            return self.client.post(code_url(self.game.game_id, player.player_id))
+
+    def take_over(self, player):
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            return self.client.post(takeover_url(self.game.game_id, player.player_id))
+
+    def peek(self, code):
+        with muted():
+            return self.client.get(seat_code_url(code))
+
+    def redeem(self, code):
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            return self.client.post(seat_code_url(code))
+
+    def fresh_client(self):
+        """Another browser: no session, no cookies."""
+        self.client = self.client_class()
+
+    def post_move(self, player_id):
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            return self.client.post(
+                f"/api/game/{self.game.game_id}/player/{player_id}/move/",
+                {"action": "car", "payload": {}},
+                content_type="application/json",
+            )
+
+    def seat_listener(self, player):
+        from game import roster
+
+        return GroupListener(group=roster.player_group(player.pk))
+
+    def revocations(self, listener):
+        return [
+            message["reason"]
+            for message in listener.messages()
+            if message.get("type") == "player_revoked"
+        ]
+
+
+@override_settings(**TEST_BACKENDS)
+class IssueCodeTests(HandoverMixin, TestCase):
+    """POST /api/game/<game_id>/player/<player_id>/code/."""
+
+    def test_a_player_gets_a_code_for_their_own_seat(self):
+        self.as_player(self.anna)
+
+        response = self.request_code(self.anna)
+
+        self.assertEqual(response.status_code, 201)
+        self.assertRegex(response.json()["code"], CODE_PATTERN)
+        self.assertEqual(response.json()["expires_in"], 300)
+
+    def test_the_host_gets_a_code_for_a_seat_at_the_host_machine(self):
+        self.as_host()
+
+        response = self.request_code(self.cem)
+
+        self.assertEqual(response.status_code, 201)
+
+    def test_the_host_gets_no_code_for_a_students_seat(self):
+        """Take it over first. A student's seat is the student's."""
+        self.as_host()
+
+        self.assertEqual(self.request_code(self.anna).status_code, 403)
+
+    def test_a_player_gets_no_code_for_another_seat(self):
+        self.as_player(self.anna)
+
+        self.assertEqual(self.request_code(self.ben).status_code, 403)
+        self.assertEqual(self.request_code(self.cem).status_code, 403)
+
+    def test_there_is_no_code_for_the_host_row(self):
+        self.as_host()
+        log_in_as_player(self.client, self.game.game_id, self.host_row.player_id)
+
+        response = self.request_code(self.host_row)
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["reason"], "host")
+
+    def test_there_is_no_code_in_an_ended_game(self):
+        GameSession.objects.filter(pk=self.game.pk).update(
+            is_active=False, ended_at=timezone.now()
+        )
+        self.as_player(self.anna)
+
+        response = self.request_code(self.anna)
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["reason"], "ended")
+
+    def test_a_new_code_kills_the_old_one(self):
+        self.as_player(self.anna)
+        old = self.request_code(self.anna).json()["code"]
+
+        new = self.request_code(self.anna).json()["code"]
+
+        self.assertEqual(self.peek(old).status_code, 404)
+        self.assertEqual(self.peek(new).status_code, 200)
+
+    def test_a_code_can_be_made_during_the_pause(self):
+        GameSession.objects.filter(pk=self.game.pk).update(paused_at=timezone.now())
+        self.as_host()
+
+        self.assertEqual(self.request_code(self.cem).status_code, 201)
+
+
+@override_settings(**TEST_BACKENDS)
+class PeekCodeTests(HandoverMixin, TestCase):
+    """GET /api/game/seat/<code>/ — "Du übernimmst Cem?" before anything happens."""
+
+    def test_it_names_the_game_and_the_seat_without_any_cookie(self):
+        code = self.issue(self.cem)
+
+        response = self.peek(code)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "game_id": self.game.game_id,
+                "game_name": "Plaetze",
+                "player_name": "Cem",
+            },
+        )
+
+    def test_looking_does_not_use_the_code_up(self):
+        code = self.issue(self.cem)
+
+        self.peek(code)
+        self.peek(code)
+
+        self.assertEqual(self.redeem(code).status_code, 200)
+
+    def test_lower_case_is_fine(self):
+        code = self.issue(self.cem)
+
+        self.assertEqual(self.peek(code.lower()).status_code, 200)
+
+    def test_an_unknown_code_is_a_404(self):
+        self.assertEqual(self.peek("ZZZZZZ").status_code, 404)
+
+    def test_a_code_runs_out(self):
+        with patch("game.seats.CODE_TTL", 0):
+            code = self.issue(self.cem)
+
+        self.assertEqual(self.peek(code).status_code, 404)
+
+    def test_the_code_of_a_seat_that_left_is_dead(self):
+        code = self.issue(self.cem)
+        Player.objects.filter(pk=self.cem.pk).update(left_at=timezone.now())
+
+        self.assertEqual(self.peek(code).status_code, 404)
+
+    def test_the_code_of_an_ended_game_is_refused(self):
+        code = self.issue(self.cem)
+        GameSession.objects.filter(pk=self.game.pk).update(
+            is_active=False, ended_at=timezone.now()
+        )
+
+        response = self.peek(code)
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["reason"], "ended")
+
+
+@override_settings(**TEST_BACKENDS)
+class RedeemCodeTests(HandoverMixin, TestCase):
+    """POST /api/game/seat/<code>/ — the phone takes the seat."""
+
+    def test_the_new_device_gets_the_seat_under_a_new_id(self):
+        code = self.issue(self.cem)
+        old_id = self.cem.player_id
+
+        response = self.redeem(code)
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.cem.refresh_from_db()
+        self.assertNotEqual(self.cem.player_id, old_id)
+        self.assertEqual(payload["player_id"], self.cem.player_id)
+        self.assertEqual(payload["name"], "Cem")
+        self.assertEqual(payload["game_id"], self.game.game_id)
+        self.assertIn("agent_assignments", payload)
+
+    def test_the_seat_is_no_longer_played_at_the_host_machine(self):
+        self.redeem(self.issue(self.cem))
+
+        self.cem.refresh_from_db()
+        self.assertFalse(self.cem.controlled_by_host)
+
+    def test_the_new_device_gets_both_cookies_for_the_new_id(self):
+        response = self.redeem(self.issue(self.cem))
+
+        self.cem.refresh_from_db()
+        player_cookie = response.cookies[
+            f"{settings.COOKIE_PLAYER_PREFIX}{self.game.game_id}"
+        ]
+        self.assertIn(
+            f"{settings.COOKIE_GAME_PREFIX}{self.game.game_id}", response.cookies
+        )
+        self.assertEqual(
+            unsign_value(player_cookie.value, settings.COOKIE_PLAYER_SALT),
+            f"{self.game.game_id}:{self.cem.player_id}",
+        )
+
+    def test_the_new_device_can_play(self):
+        self.redeem(self.issue(self.cem))
+        self.cem.refresh_from_db()
+
+        response = self.post_move(self.cem.player_id)
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_a_code_works_once(self):
+        code = self.issue(self.cem)
+        self.redeem(code)
+        self.fresh_client()
+
+        self.assertEqual(self.redeem(code).status_code, 404)
+
+    def test_the_old_device_is_out(self):
+        """A student's own code ("auf anderes Gerät"): the first phone's
+        cookie names an id that no longer exists."""
+        self.as_player(self.anna)
+        code = self.request_code(self.anna).json()["code"]
+        old_id = self.anna.player_id
+        old_browser = self.client
+        self.fresh_client()
+
+        self.redeem(code)
+
+        self.client = old_browser
+        self.assertEqual(self.post_move(old_id).status_code, 403)
+
+    def test_the_old_device_is_revoked(self):
+        listener = self.seat_listener(self.anna)
+        code = self.issue(self.anna)
+
+        self.redeem(code)
+
+        self.assertEqual(self.revocations(listener), ["handed_over"])
+
+    def test_the_game_hears_about_the_new_id(self):
+        old_id = self.cem.player_id
+        listener = GroupListener(self.game.game_id)
+
+        self.redeem(self.issue(self.cem))
+
+        self.cem.refresh_from_db()
+        self.assertEqual(
+            listener.data("player.handed_over"),
+            {"old_player_id": old_id, "new_player_id": self.cem.player_id},
+        )
+        self.assertIsNotNone(entry(listener.rosters()[-1], self.cem))
+
+    def test_moves_votes_and_acks_stay_with_the_seat(self):
+        from game.models import StatsAck
+
+        move = self.move(self.round, self.cem)
+        StatsAck.objects.create(game_round=self.round, player=self.cem)
+
+        self.redeem(self.issue(self.cem))
+
+        move.refresh_from_db()
+        self.assertEqual(move.player_id, self.cem.pk)
+        self.assertTrue(StatsAck.objects.filter(player=self.cem).exists())
+
+    def test_the_host_cannot_redeem_in_their_own_game(self):
+        """The host is the session. A seat cookie in the host's browser would
+        be a seat without a device."""
+        code = self.issue(self.cem)
+        self.as_host()
+
+        response = self.redeem(code)
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["reason"], "host")
+        self.fresh_client()
+        self.assertEqual(self.redeem(code).status_code, 200, msg="code still live")
+
+    def test_someone_elses_host_account_can_redeem(self):
+        """A researcher logged into their own host account, joining this game
+        as a player (CLAUDE.md, "players are minors")."""
+        self.client.force_login(create_host(username="forscherin"))
+
+        self.assertEqual(self.redeem(self.issue(self.cem)).status_code, 200)
+
+    def test_a_browser_with_another_seat_here_is_refused(self):
+        code = self.issue(self.cem)
+        self.as_player(self.anna)
+
+        response = self.redeem(code)
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["reason"], "seated")
+        self.fresh_client()
+        self.assertEqual(self.redeem(code).status_code, 200, msg="code still live")
+
+    def test_a_browser_whose_seat_left_may_take_another(self):
+        code = self.issue(self.cem)
+        self.as_player(self.anna)
+        Player.objects.filter(pk=self.anna.pk).update(left_at=timezone.now())
+
+        self.assertEqual(self.redeem(code).status_code, 200)
+
+    def test_the_seats_own_browser_may_redeem_its_code(self):
+        self.as_player(self.anna)
+        code = self.request_code(self.anna).json()["code"]
+
+        self.assertEqual(self.redeem(code).status_code, 200)
+
+    def test_an_ended_game_refuses(self):
+        code = self.issue(self.cem)
+        GameSession.objects.filter(pk=self.game.pk).update(
+            is_active=False, ended_at=timezone.now()
+        )
+
+        response = self.redeem(code)
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["reason"], "ended")
+
+    def test_a_seat_changes_hands_during_the_pause(self):
+        GameSession.objects.filter(pk=self.game.pk).update(paused_at=timezone.now())
+
+        self.assertEqual(self.redeem(self.issue(self.cem)).status_code, 200)
+
+    def test_redeem_code_is_single_use_at_the_source(self):
+        """cache.delete() says True to one caller only."""
+        from game.seats import SeatRefused, redeem_code
+
+        code = self.issue(self.cem)
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            redeem_code(code)
+
+        with self.assertRaises(SeatRefused):
+            redeem_code(code)
+
+
+@override_settings(**TEST_BACKENDS)
+class TakeoverTests(HandoverMixin, TestCase):
+    """POST /api/game/<game_id>/player/<player_id>/takeover/ — the host plays
+    a student's seat from now on."""
+
+    def test_the_host_takes_a_seat_over(self):
+        old_id = self.anna.player_id
+        self.as_host()
+
+        response = self.take_over(self.anna)
+
+        self.assertEqual(response.status_code, 200)
+        self.anna.refresh_from_db()
+        self.assertTrue(self.anna.controlled_by_host)
+        self.assertNotEqual(self.anna.player_id, old_id)
+        self.assertEqual(response.json()["player_id"], self.anna.player_id)
+
+    def test_the_host_plays_the_seat_afterwards(self):
+        self.as_host()
+        self.take_over(self.anna)
+        self.anna.refresh_from_db()
+
+        self.assertEqual(self.post_move(self.anna.player_id).status_code, 200)
+
+    def test_the_students_device_is_out(self):
+        old_id = self.anna.player_id
+        self.as_host()
+        self.take_over(self.anna)
+        self.fresh_client()
+        log_in_as_player(self.client, self.game.game_id, old_id)
+
+        self.assertEqual(self.post_move(old_id).status_code, 403)
+
+    def test_the_students_sockets_are_revoked(self):
+        listener = self.seat_listener(self.anna)
+        self.as_host()
+
+        self.take_over(self.anna)
+
+        self.assertEqual(self.revocations(listener), ["taken_over"])
+
+    def test_the_game_hears_about_it(self):
+        old_id = self.anna.player_id
+        listener = GroupListener(self.game.game_id)
+        self.as_host()
+
+        self.take_over(self.anna)
+
+        self.anna.refresh_from_db()
+        self.assertEqual(
+            listener.data("player.taken_over"),
+            {"old_player_id": old_id, "new_player_id": self.anna.player_id},
+        )
+        anna = entry(listener.rosters()[-1], self.anna)
+        self.assertTrue(anna["controlled_by_host"])
+
+    def test_a_live_code_for_the_seat_dies(self):
+        """Misuse is repaired by taking over, then a new code."""
+        code = self.issue(self.anna)
+        self.as_host()
+
+        self.take_over(self.anna)
+
+        self.assertEqual(self.peek(code).status_code, 404)
+
+    def test_the_moves_stay(self):
+        move = self.move(self.round, self.anna)
+        self.as_host()
+
+        self.assertEqual(self.take_over(self.anna).status_code, 200)
+
+        move.refresh_from_db()
+        self.assertEqual(move.player_id, self.anna.pk)
+
+    def test_a_seat_at_the_host_machine_is_refused(self):
+        self.as_host()
+
+        response = self.take_over(self.cem)
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["reason"], "controlled")
+
+    def test_the_host_row_is_refused(self):
+        self.as_host()
+
+        response = self.take_over(self.host_row)
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["reason"], "host")
+
+    def test_an_ended_game_refuses(self):
+        GameSession.objects.filter(pk=self.game.pk).update(
+            is_active=False, ended_at=timezone.now()
+        )
+        self.as_host()
+
+        response = self.take_over(self.anna)
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["reason"], "ended")
+
+    def test_a_removed_seat_is_a_404(self):
+        """Passes before the guide too, because the route is missing then;
+        test_join pins the route."""
+        Player.objects.filter(pk=self.anna.pk).update(left_at=timezone.now())
+        self.as_host()
+
+        self.assertEqual(self.take_over(self.anna).status_code, 404)
+
+    def test_a_player_cannot_take_over(self):
+        self.as_player(self.ben)
+
+        self.assertEqual(self.take_over(self.anna).status_code, 403)
+        self.anna.refresh_from_db()
+        self.assertFalse(self.anna.controlled_by_host)
+
+    def test_the_host_takes_over_during_the_pause(self):
+        GameSession.objects.filter(pk=self.game.pk).update(paused_at=timezone.now())
+        self.as_host()
+
+        self.assertEqual(self.take_over(self.anna).status_code, 200)
+
+
+@override_settings(**TEST_BACKENDS)
+class ClassroomScenarioTests(HandoverMixin, TestCase):
+    """The whole 1.6 + 1.7 story, as the plan tells it.
+
+    The bell pauses the game. Next lesson Anna is missing, and the host takes
+    her seat over. She comes back, the host shows a code, her phone takes the
+    seat back, and the game goes on.
+    """
+
+    def test_a_seat_goes_to_the_host_and_back(self):
+        from game.pause import pause_game, resume_game
+
+        annas_phone = self.client
+        self.as_player(self.anna)
+        self.assertEqual(self.post_move(self.anna.player_id).status_code, 200)
+
+        host_screen = self.client_class()
+        host_screen.force_login(self.host)
+        self.client = host_screen
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            pause_game(self.game.game_id)
+        self.take_over(self.anna)
+        self.anna.refresh_from_db()
+        code = self.request_code(self.anna).json()["code"]
+
+        self.client = annas_phone
+        self.assertEqual(self.peek(code).json()["player_name"], "Anna")
+        self.assertEqual(self.redeem(code).status_code, 200)
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            resume_game(self.game.game_id)
+
+        self.anna.refresh_from_db()
+        self.assertFalse(self.anna.controlled_by_host)
+        self.assertEqual(self.post_move(self.anna.player_id).status_code, 200)
+        self.assertEqual(
+            PlayerMove.objects.filter(
+                player=self.anna, session_round=self.round
+            ).count(),
+            1,
+        )

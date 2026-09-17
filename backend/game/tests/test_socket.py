@@ -808,6 +808,106 @@ class HostSocketSpeaksForSeatsTests(GameWithSeatsMixin, TransactionTestCase):
 
 
 @override_settings(**TEST_BACKENDS, **NO_REDIS)
+class HandoverSocketTests(GameWithSeatsMixin, TransactionTestCase):
+    """Roadmap.md 1.7: when a seat moves, the old device's socket is told and
+    closed. Taking over and handing on both give the seat a new player_id,
+    so the old cookie can't come back either.
+
+    game.seats is imported inside the tests; the handover part of it doesn't
+    exist before the seat-handover guide.
+    """
+
+    def socket(self, cookies):
+        return WebsocketCommunicator(
+            AuthMiddlewareStack(URLRouter(websocket_urlpatterns)),
+            f"/ws/game/{self.game.game_id}/",
+            headers=[(b"cookie", cookie_header(cookies))],
+        )
+
+    def player_socket(self, player_id):
+        return self.socket(player_cookies(self.game.game_id, player_id))
+
+    def run_async(self, scenario):
+        with muted():
+            async_to_sync(scenario)()
+
+    async def assert_revoked(self, communicator, reason):
+        seen = await read_until(communicator, is_type("websocket.close"))
+        revoked = [m for m in seen if m.get("type") == "player.revoked"]
+        self.assertEqual(revoked[0]["data"], {"reason": reason})
+        self.assertEqual(seen[-1]["code"], 4403)
+
+    def test_taking_a_seat_over_closes_the_students_socket(self):
+        from game.seats import take_over
+
+        async def scenario():
+            anna = self.player_socket(self.anna.player_id)
+            await anna.connect()
+            await read_until(anna, is_type("roster.update"))
+
+            await database_sync_to_async(take_over)(self.anna)
+
+            await self.assert_revoked(anna, "taken_over")
+            await anna.disconnect()
+
+        self.run_async(scenario)
+
+    def test_a_handed_on_seat_moves_to_the_new_device(self):
+        from game.seats import issue_code, redeem_code
+
+        async def scenario():
+            old_phone = self.player_socket(self.anna.player_id)
+            await old_phone.connect()
+            await read_until(old_phone, is_type("roster.update"))
+
+            code = await database_sync_to_async(issue_code)(self.anna)
+            seat, _old_id = await database_sync_to_async(redeem_code)(code)
+
+            await self.assert_revoked(old_phone, "handed_over")
+            new_phone = self.player_socket(seat.player_id)
+            connected, _ = await new_phone.connect()
+            self.assertTrue(connected)
+            await read_until(new_phone, is_roster_where(seat, online=True))
+
+            await old_phone.disconnect()
+            await new_phone.disconnect()
+
+        self.run_async(scenario)
+
+    def test_the_old_cookie_no_longer_connects(self):
+        from game.seats import take_over
+
+        old_id = self.anna.player_id
+        with muted():
+            take_over(self.anna)
+
+        async def scenario():
+            old_phone = self.player_socket(old_id)
+            connected, code = await old_phone.connect()
+            self.assertFalse(connected)
+            self.assertEqual(code, 4403)
+
+        self.run_async(scenario)
+
+    def test_the_other_players_stay(self):
+        from game.seats import take_over
+
+        async def scenario():
+            ben = self.player_socket(self.ben.player_id)
+            await ben.connect()
+            await read_until(ben, is_type("roster.update"))
+
+            await database_sync_to_async(take_over)(self.anna)
+
+            await read_until(ben, is_type("player.taken_over"))
+            await ben.send_json_to({"type": "ping"})
+            await read_until(ben, is_type("pong"))
+            await ben.disconnect()
+
+        self.run_async(scenario)
+
+
+@override_settings(**TEST_BACKENDS, **NO_REDIS)
 class RoundStartedReachesTheSocketTests(TempMediaRootMixin, TransactionTestCase):
     """round.started never reached the players (fixed by the phase-module guide).
 
