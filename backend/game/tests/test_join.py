@@ -126,10 +126,11 @@ class SessionLookupTests(TempMediaRootMixin, TestCase):
         self.assertEqual(payload["player_count"], 1)
         self.assertEqual(payload["max_players"], 1)
 
-    def test_host_controlled_row_does_not_take_a_seat(self):
-        """GameSessionCreateView makes a controlled_by_host Player for the host.
+    def test_the_hosts_own_row_does_not_take_a_seat(self):
+        """GameSessionCreateView makes a Player row for the host.
 
-        It is not a participant and must not count against max_players.
+        It is not a participant and must not count against max_players. It is
+        recognised by its account, not by controlled_by_host.
         """
         with muted():
             game = create_game_session(self.host, game_name="Host row", max_players=1)
@@ -141,6 +142,18 @@ class SessionLookupTests(TempMediaRootMixin, TestCase):
 
         self.assertEqual(payload["player_count"], 0)
         self.assertTrue(payload["joinable"])
+
+    def test_a_seat_played_at_the_host_machine_takes_a_place(self):
+        """A student at the host machine (Roadmap.md 1.6) is a player and
+        counts against max_players like everyone else."""
+        with muted():
+            game = create_game_session(self.host, game_name="Am Host", max_players=1)
+            Player.objects.create(game=game, name="Ohne Handy", controlled_by_host=True)
+
+        payload = self.client.get(lookup_url(game.game_id)).json()
+
+        self.assertEqual(payload["player_count"], 1)
+        self.assertEqual(payload["reason"], "full")
 
 
 @override_settings(**TEST_BACKENDS)

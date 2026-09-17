@@ -168,9 +168,9 @@ class CompleteRoundIfReadyTests(RoundFixtureMixin, TestCase):
     """The single decision point: is this round over?
 
     Counting rule, applied on both sides of the comparison: active
-    (left_at__isnull=True) and not host-controlled. The post_save receiver this
-    replaces counted every Player row, so a game anyone had left could never
-    complete.
+    (left_at__isnull=True) and not the host's own row, i.e.
+    PlayerQuerySet.playing(). The post_save receiver this replaces counted every
+    Player row, so a game anyone had left could never complete.
     """
 
     def test_returns_false_while_a_player_is_outstanding(self):
@@ -201,7 +201,7 @@ class CompleteRoundIfReadyTests(RoundFixtureMixin, TestCase):
         with patch("game.tasks.run_simulation_task.delay"):
             self.assertTrue(self.complete_round_if_ready())
 
-    def test_a_host_controlled_row_is_not_waited_for(self):
+    def test_the_hosts_own_row_is_not_waited_for(self):
         with muted():
             Player.objects.create(
                 game=self.game,
@@ -211,6 +211,28 @@ class CompleteRoundIfReadyTests(RoundFixtureMixin, TestCase):
             )
         self.submit_move(self.player)
         self.submit_move(self.other_player)
+
+        with patch("game.tasks.run_simulation_task.delay"):
+            self.assertTrue(self.complete_round_if_ready())
+
+    def test_a_seat_played_at_the_host_machine_is_waited_for(self):
+        """controlled_by_host no longer means "the host's row" (Roadmap.md 1.6).
+
+        A student playing at the host machine is a player like any other, and
+        the round waits for their move too. Only the host's own row, found by
+        account, is left out.
+        """
+        with muted():
+            seat = Player.objects.create(
+                game=self.game, name="Ohne Handy", controlled_by_host=True
+            )
+        self.submit_move(self.player)
+        self.submit_move(self.other_player)
+
+        with patch("game.tasks.run_simulation_task.delay"):
+            self.assertFalse(self.complete_round_if_ready())
+
+        self.submit_move(seat)
 
         with patch("game.tasks.run_simulation_task.delay"):
             self.assertTrue(self.complete_round_if_ready())

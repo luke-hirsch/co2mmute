@@ -5,6 +5,7 @@ import tempfile
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.test import TestCase, override_settings
+from django.utils import timezone
 
 from game.models import GameSession, Player
 
@@ -101,7 +102,7 @@ class GameSessionModelTests(TestCase):
 
 @override_settings(**TEST_BACKENDS)
 class PlayerHostRowTests(TempMediaRootMixin, TestCase):
-    """Player.objects.host_rows() / without_host_rows().
+    """Player.objects.host_rows() / without_host_rows() / playing().
 
     GameSessionCreateView gives the host a Player row of their own. What marks it
     is the account link (user == game.game_host), not controlled_by_host:
@@ -136,6 +137,24 @@ class PlayerHostRowTests(TempMediaRootMixin, TestCase):
             Player.objects.filter(game=self.game).without_host_rows(),
             [self.player, self.at_the_host_machine],
         )
+
+    def test_playing_leaves_out_the_host_row_and_players_who_left(self):
+        """The one counting rule. Rounds, votes, stats acks and the lobby's
+        max_players all wait for, or count, exactly these seats."""
+        with muted():
+            Player.objects.create(game=self.game, name="Weg", left_at=timezone.now())
+
+        self.assertCountEqual(
+            Player.objects.filter(game=self.game).playing(),
+            [self.player, self.at_the_host_machine],
+        )
+
+    def test_playing_is_scoped_by_the_filter_before_it(self):
+        with muted():
+            elsewhere = Player.objects.create(game=self.other_game, name="Anderswo")
+
+        self.assertNotIn(elsewhere, Player.objects.filter(game=self.game).playing())
+        self.assertIn(elsewhere, Player.objects.playing())
 
     def test_a_host_account_is_only_the_host_in_its_own_game(self):
         """A host account holding a row in someone else's game is a player
