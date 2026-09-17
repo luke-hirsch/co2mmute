@@ -26,6 +26,7 @@ urlpatterns = [
     # Literal prefixes first — the dynamic patterns below would swallow them.
     path("lookup/<str:game_id>/", SessionLookupView.as_view(), name="session-lookup"),
     path("join/<str:game_id>/", JoinSessionAPIView.as_view(), name="session-join-api"),
+    path("seat/<str:code>/", SeatCodeView.as_view(), name="seat-code"),
     path("<str:game_id>/lobby/", LobbyStateView.as_view(), name="lobby-state"),
     path("<str:game_id>/pause/", GamePauseView.as_view(), name="game-pause"),
     path("<str:game_id>/resume/", GameResumeView.as_view(), name="game-resume"),
@@ -46,6 +47,16 @@ urlpatterns = [
         name="player-move",
     ),
     path(
+        "<str:game_id>/player/<str:player_id>/code/",
+        SeatCodeIssueView.as_view(),
+        name="seat-code-issue",
+    ),
+    path(
+        "<str:game_id>/player/<str:player_id>/takeover/",
+        SeatTakeoverView.as_view(),
+        name="seat-takeover",
+    ),
+    path(
         "<str:game_id>/round/<int:round_number>/traffic/",
         RoundTrafficHeatmapView.as_view(),
         name="round-traffic-heatmap",
@@ -60,16 +71,5 @@ urlpatterns = [
         "<str:game_id>/<str:player_id>/",
         GetYourOwnGame.as_view(),
         name="player-game-session-detail",
-    ),
-    path("seat/<str:code>/", SeatCodeView.as_view(), name="seat-code"),
-    path(
-        "<str:game_id>/player/<str:player_id>/code/",
-        SeatCodeIssueView.as_view(),
-        name="seat-code-issue",
-    ),
-    path(
-        "<str:game_id>/player/<str:player_id>/takeover/",
-        SeatTakeoverView.as_view(),
-        name="seat-takeover",
     ),
 ]
