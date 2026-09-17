@@ -128,7 +128,10 @@
 
   --primary: var(--color-primary-600);
   --primary-foreground: var(--color-surface);
-  --secondary: var(--color-elevated);
+  /* `elevated` is only one step off the body colour, which makes a secondary
+     button all but invisible on it. `subtle` is the first neutral that reads as
+     a surface of its own. */
+  --secondary: var(--color-subtle);
   --secondary-foreground: var(--color-main);
 
   /* shadcn's `muted` and `accent` are surfaces, not the brand colours */
@@ -143,6 +146,16 @@
   --border: var(--color-subtle);
   --input: var(--color-subtle);
   --ring: var(--color-primary-500);
+
+  /* The line a mode is drawn in, resolved for the current theme. Walking is ink
+     on light and near-white on dark; the other three hold. Components use the
+     utilities these generate (bg-mode-car, border-mode-walk, ...) rather than
+     the raw tokens, so a mode keeps its colour without a dark: variant at every
+     call site. */
+  --line-car: var(--color-line-car);
+  --line-pt: var(--color-line-pt);
+  --line-bike: var(--color-line-bike);
+  --line-walk: var(--color-line-walk);
 
   /* charts lead with the four transport lines, so a mode keeps its colour
      wherever it appears */
@@ -179,6 +192,7 @@
   --input: var(--color-darkstrong);
   --ring: var(--color-primary-400);
 
+  --line-walk: var(--color-line-walk-dark);
   --chart-4: var(--color-line-walk-dark);
 }
 
@@ -207,6 +221,11 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  --color-mode-car: var(--line-car);
+  --color-mode-pt: var(--line-pt);
+  --color-mode-bike: var(--line-bike);
+  --color-mode-walk: var(--line-walk);
 
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);

@@ -13,11 +13,32 @@ export type JoinBlockedReason = "started" | "ended" | "full";
 /**
  * Typed as a Record on purpose: when the backend grows a fourth reason, adding
  * it to JoinBlockedReason breaks the build here instead of rendering nothing.
+ * Same trick for the two below.
  */
 const joinBlocked: Record<JoinBlockedReason, string> = {
   started: "Das Spiel läuft schon.",
   ended: "Das Spiel ist zu Ende.",
   full: "Das Spiel ist voll.",
+};
+
+/** `AgentRoute.transport_mode`. The four lines the whole design is built on. */
+export type TransportMode = "car" | "public" | "bike" | "walk";
+
+const modeLabels: Record<TransportMode, string> = {
+  car: "Auto",
+  public: "Bus & Bahn",
+  bike: "Fahrrad",
+  walk: "zu Fuß",
+};
+
+/** `status` on a roster row, from `roster.update`. Backend contract. */
+export type SeatStatus = "ready" | "making_move" | "waiting" | "not_connected";
+
+const seatStatus: Record<SeatStatus, string> = {
+  ready: "bereit",
+  making_move: "wählt noch",
+  waiting: "abgeschickt",
+  not_connected: "nicht verbunden",
 };
 
 export const de = {
@@ -83,5 +104,45 @@ export const de = {
     co2Kg: (kg: number) => `${kg} kg`,
     roundsCount: (rounds: number) =>
       rounds === 1 ? "1 Runde" : `${rounds} Runden`,
+  },
+
+  modes: modeLabels,
+
+  seat: {
+    status: seatStatus,
+    /** 1.6: the seat is played at the host machine, not on the student's phone. */
+    atHostMachine: "am Lehrerrechner",
+    offline: "nicht verbunden",
+  },
+
+  /** 1.6: the bell rang, the host stopped the clock. */
+  pause: {
+    title: "Pause",
+    body: "Die Spielleitung hat das Spiel angehalten. Lass die Seite offen, es geht gleich weiter.",
+    resumed: "Weiter geht's.",
+  },
+
+  /** Game ids and the 1.7 seat-handover code. Both are read off a projector. */
+  code: {
+    boarding: "Einsteigen",
+    gameId: "Spiel-ID",
+    seatCode: "Platz-Code",
+    placeholder: "4F2A9C",
+    scanHint: "Oder den QR-Code am Beamer scannen.",
+    expiresIn: (seconds: number) =>
+      seconds <= 60
+        ? "läuft gleich ab"
+        : `noch ${Math.ceil(seconds / 60)} Minuten gültig`,
+  },
+
+  co2: {
+    label: "CO₂-Budget",
+    used: (usedKg: number, maxKg: number) => `${usedKg} von ${maxKg} kg`,
+    exceeded: "Budget überschritten",
+  },
+
+  round: {
+    label: (n: number) => `Runde ${n}`,
+    of: (n: number, total: number) => `Runde ${n} von ${total}`,
   },
 };

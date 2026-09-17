@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as StyleguideRouteImport } from './routes/styleguide'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MapsIndexRouteImport } from './routes/maps/index'
 import { Route as GameIndexRouteImport } from './routes/game/index'
@@ -17,6 +18,11 @@ import { Route as GameGameIdRouteImport } from './routes/game/$gameId'
 import { Route as MapsMapIdIndexRouteImport } from './routes/maps/$mapId.index'
 import { Route as MapsMapIdEditorRouteImport } from './routes/maps/$mapId.editor'
 
+const StyleguideRoute = StyleguideRouteImport.update({
+  id: '/styleguide',
+  path: '/styleguide',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -55,6 +61,7 @@ const MapsMapIdEditorRoute = MapsMapIdEditorRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/styleguide': typeof StyleguideRoute
   '/game/$gameId': typeof GameGameIdRoute
   '/maps/$mapId': typeof MapsMapIdRouteWithChildren
   '/game': typeof GameIndexRoute
@@ -64,6 +71,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/styleguide': typeof StyleguideRoute
   '/game/$gameId': typeof GameGameIdRoute
   '/game': typeof GameIndexRoute
   '/maps': typeof MapsIndexRoute
@@ -73,6 +81,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/styleguide': typeof StyleguideRoute
   '/game/$gameId': typeof GameGameIdRoute
   '/maps/$mapId': typeof MapsMapIdRouteWithChildren
   '/game/': typeof GameIndexRoute
@@ -84,6 +93,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/styleguide'
     | '/game/$gameId'
     | '/maps/$mapId'
     | '/game'
@@ -93,6 +103,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/styleguide'
     | '/game/$gameId'
     | '/game'
     | '/maps'
@@ -101,6 +112,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/styleguide'
     | '/game/$gameId'
     | '/maps/$mapId'
     | '/game/'
@@ -111,6 +123,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  StyleguideRoute: typeof StyleguideRoute
   GameGameIdRoute: typeof GameGameIdRoute
   MapsMapIdRoute: typeof MapsMapIdRouteWithChildren
   GameIndexRoute: typeof GameIndexRoute
@@ -119,6 +132,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/styleguide': {
+      id: '/styleguide'
+      path: '/styleguide'
+      fullPath: '/styleguide'
+      preLoaderRoute: typeof StyleguideRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -187,6 +207,7 @@ const MapsMapIdRouteWithChildren = MapsMapIdRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  StyleguideRoute: StyleguideRoute,
   GameGameIdRoute: GameGameIdRoute,
   MapsMapIdRoute: MapsMapIdRouteWithChildren,
   GameIndexRoute: GameIndexRoute,

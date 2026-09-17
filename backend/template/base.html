@@ -68,7 +68,7 @@
   <div class="relative">
     <button
       popovertarget="desktop-menu-game"
-      class="flex items-center gap-x-1 text-sm/6 font-semibold text-main dark:text-darktext"
+      class="flex items-center gap-x-1 text-sm/6 font-medium text-main dark:text-darktext"
     >
       Spielen
       <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
@@ -137,7 +137,7 @@
     <div class="relative">
       <button
         popovertarget="desktop-menu-maps"
-        class="flex items-center gap-x-1 text-sm/6 font-semibold text-main dark:text-darktext"
+        class="flex items-center gap-x-1 text-sm/6 font-medium text-main dark:text-darktext"
       >
         Karten
         <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
@@ -209,7 +209,7 @@
         <div class="relative">
           <button
             popovertarget="nav-{{ item.id }}"
-            class="flex items-center gap-x-1 text-sm/6 font-semibold text-main dark:text-darktext"
+            class="flex items-center gap-x-1 text-sm/6 font-medium text-main dark:text-darktext"
           >
             {{ item.label }}
             <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
@@ -251,11 +251,11 @@
       {% else %}
         {% if item.page_key %}
           <a href="{% url 'content:static-page' key=item.page_key %}"
-             class="text-sm/6 font-semibold text-main dark:text-darktext">
+             class="text-sm/6 font-medium text-main dark:text-darktext">
             {{ item.label }}
           </a>
         {% else %}
-          <span class="text-sm/6 font-semibold text-main dark:text-darktext">
+          <span class="text-sm/6 font-medium text-main dark:text-darktext">
             {{ item.label }}
           </span>
         {% endif %}
@@ -273,13 +273,13 @@
           </a>
           <a
             href="{% url 'logout' %}"
-            class="text-sm/6 font-semibold text-main transition hover:text-primary-600 dark:text-darktext dark:hover:text-primary-300"
+            class="text-sm/6 font-medium text-main transition hover:text-primary-600 dark:text-darktext dark:hover:text-primary-300"
             >Abmelden <span aria-hidden="true">&rarr;</span></a
           >
           {% else %}
           <a
             href="{% url 'login' %}"
-            class="text-sm/6 font-semibold text-main transition hover:text-primary-600 dark:text-darktext dark:hover:text-primary-300"
+            class="text-sm/6 font-medium text-main transition hover:text-primary-600 dark:text-darktext dark:hover:text-primary-300"
             >Anmelden <span aria-hidden="true">&rarr;</span></a
           >
           {% endif %}
