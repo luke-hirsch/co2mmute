@@ -5,6 +5,9 @@ identity there is lives in `game_access_<game_id>` and `player_<game_id>`, so th
 file is where the hardening in Roadmap.md 1.2 is pinned down.
 """
 
+import time
+from unittest.mock import patch
+
 from asgiref.sync import async_to_sync
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -688,6 +691,130 @@ class WhoAmITests(TempMediaRootMixin, TestCase):
         response = self.whoami(self.other_game.game_id)
 
         self.assertEqual(response.status_code, 401)
+
+
+@override_settings(**TEST_BACKENDS)
+class SlidingCookieTests(TempMediaRootMixin, TestCase):
+    """Every visit renews both cookies. Roadmap.md 1.6, the pause.
+
+    A class that stops at the bell and comes back next week must still hold
+    its seats. The cookies used to live COOKIE_AGE from the join, however
+    often the player came back. whoami is the call the SPA makes on every page
+    load, so it re-issues them there. Same format, fresh timestamp: nobody is
+    logged out by the change.
+    """
+
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username="host", password="pass")
+        with muted():
+            self.game = GameSession.objects.create(
+                game_host=self.user,
+                game_name="Nach der Pause",
+                max_players=4,
+                max_rounds=4,
+                max_CO2_level=100,
+                agent_per_player=1,
+            )
+            self.player = Player.objects.create(game=self.game, name="Mia")
+
+    def old_player_cookie(self, days_ago):
+        signed_at = time.time() - days_ago * 24 * 60 * 60
+        with patch("django.core.signing.time.time", return_value=signed_at):
+            return signed_player_cookie(self.game.game_id, self.player.player_id)
+
+    def whoami(self):
+        with muted():
+            return self.client.get(f"/api/whoami/?game_id={self.game.game_id}")
+
+    def renewed(self, response, prefix):
+        return response.cookies.get(f"{prefix}{self.game.game_id}")
+
+    def test_whoami_renews_both_cookies(self):
+        self.client.cookies[
+            f"{settings.COOKIE_PLAYER_PREFIX}{self.game.game_id}"
+        ] = self.old_player_cookie(days_ago=13)
+
+        response = self.whoami()
+
+        self.assertEqual(response.status_code, 200)
+        for prefix in (settings.COOKIE_PLAYER_PREFIX, settings.COOKIE_GAME_PREFIX):
+            cookie = self.renewed(response, prefix)
+            self.assertIsNotNone(cookie, msg=f"{prefix} cookie was not renewed")
+            self.assertEqual(cookie["max-age"], settings.COOKIE_AGE)
+            self.assertTrue(cookie["httponly"])
+
+    def test_the_renewed_player_cookie_is_fresh_and_keeps_its_format(self):
+        self.client.cookies[
+            f"{settings.COOKIE_PLAYER_PREFIX}{self.game.game_id}"
+        ] = self.old_player_cookie(days_ago=13)
+
+        cookie = self.renewed(self.whoami(), settings.COOKIE_PLAYER_PREFIX)
+
+        # Signed within the last minute; the one sent was 13 days old.
+        payload = signing.TimestampSigner(salt=settings.COOKIE_PLAYER_SALT).unsign(
+            cookie.value, max_age=60
+        )
+        self.assertEqual(payload, f"{self.game.game_id}:{self.player.player_id}")
+
+    def test_the_renewed_game_cookie_names_its_game(self):
+        from game.auth import has_game_access
+
+        self.client.cookies[
+            f"{settings.COOKIE_PLAYER_PREFIX}{self.game.game_id}"
+        ] = signed_player_cookie(self.game.game_id, self.player.player_id)
+
+        cookie = self.renewed(self.whoami(), settings.COOKIE_GAME_PREFIX)
+
+        self.assertIsNotNone(cookie)
+        self.assertTrue(
+            has_game_access(
+                {f"{settings.COOKIE_GAME_PREFIX}{self.game.game_id}": cookie.value},
+                self.game.game_id,
+            )
+        )
+
+    def test_a_host_holding_a_seat_cookie_gets_it_renewed_too(self):
+        self.client.force_login(self.user)
+        self.client.cookies[
+            f"{settings.COOKIE_PLAYER_PREFIX}{self.game.game_id}"
+        ] = signed_player_cookie(self.game.game_id, self.player.player_id)
+
+        response = self.whoami()
+
+        self.assertEqual(response.json()["kind"], "host")
+        self.assertIsNotNone(self.renewed(response, settings.COOKIE_PLAYER_PREFIX))
+
+    def test_nothing_is_renewed_without_a_player(self):
+        """A guard, green from the start."""
+        response = self.whoami()
+
+        self.assertEqual(response.status_code, 401)
+        self.assertIsNone(self.renewed(response, settings.COOKIE_PLAYER_PREFIX))
+        self.assertIsNone(self.renewed(response, settings.COOKIE_GAME_PREFIX))
+
+    def test_an_expired_cookie_is_not_renewed(self):
+        """A guard, green from the start. Renewal extends a live cookie; it
+        doesn't bring a dead one back."""
+        self.client.cookies[
+            f"{settings.COOKIE_PLAYER_PREFIX}{self.game.game_id}"
+        ] = self.old_player_cookie(days_ago=15)
+
+        response = self.whoami()
+
+        self.assertEqual(response.status_code, 401)
+        self.assertIsNone(self.renewed(response, settings.COOKIE_PLAYER_PREFIX))
+
+    def test_a_player_who_left_gets_nothing(self):
+        """A guard, green from the start."""
+        Player.objects.filter(pk=self.player.pk).update(left_at=timezone.now())
+        self.client.cookies[
+            f"{settings.COOKIE_PLAYER_PREFIX}{self.game.game_id}"
+        ] = signed_player_cookie(self.game.game_id, self.player.player_id)
+
+        response = self.whoami()
+
+        self.assertIsNone(self.renewed(response, settings.COOKIE_PLAYER_PREFIX))
 
 
 class SettingsHardeningTests(TestCase):

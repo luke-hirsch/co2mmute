@@ -580,6 +580,27 @@ class SocketTests(GameWithSeatsMixin, TransactionTestCase):
 
         self.run_async(scenario)
 
+    def game_state(self):
+        async def scenario():
+            anna = self.player_socket(self.anna)
+            await anna.connect()
+            seen = await read_until(anna, is_type("game.state"))
+            await anna.disconnect()
+            return seen[-1]["data"]
+
+        with muted():
+            return async_to_sync(scenario)()
+
+    def test_the_game_state_of_a_running_game_is_not_paused(self):
+        """Roadmap.md 1.6: a client that connects during the break must know."""
+        self.assertIsNone(self.game_state()["pausedAt"])
+
+    def test_the_game_state_says_the_game_is_paused(self):
+        paused_at = timezone.now()
+        GameSession.objects.filter(pk=self.game.pk).update(paused_at=paused_at)
+
+        self.assertEqual(self.game_state()["pausedAt"], paused_at.isoformat())
+
     def kick(self, player):
         player._was_kicked = True
         player.delete()

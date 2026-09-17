@@ -17,7 +17,8 @@ from django.urls import resolve, reverse
 from django.utils import timezone
 
 from co2mmute.utils import sign_value
-from game.models import Player
+from game.cache import invalidate_game_session
+from game.models import GameSession, Player
 
 from ._helpers import (
     TEST_BACKENDS,
@@ -358,6 +359,20 @@ class LobbyStateTests(GameCookieMixin, TempMediaRootMixin, TestCase):
         self.assertIsNone(payload["ended_at"])
         self.assertTrue(payload["joinable"])
 
+    def test_lobby_reports_the_pause(self):
+        """Roadmap.md 1.6: the lobby payload is the REST snapshot the SPA
+        seeds its state from."""
+        self.give_game_access(self.game.game_id)
+        before = self.client.get(lobby_url(self.game.game_id)).json()
+        paused_at = timezone.now()
+        GameSession.objects.filter(pk=self.game.pk).update(paused_at=paused_at)
+        invalidate_game_session(self.game.game_id)
+
+        after = self.client.get(lobby_url(self.game.game_id)).json()
+
+        self.assertIsNone(before["paused_at"])
+        self.assertEqual(after["paused_at"], paused_at.isoformat())
+
     def test_lobby_of_an_unknown_game_is_not_reachable(self):
         self.give_game_access("NOPE12")
         with muted():
@@ -389,6 +404,16 @@ class UrlRoutingTests(TestCase):
         match = resolve(lobby_url("ABC123"))
         self.assertEqual(match.func.view_class.__name__, "LobbyStateView")
         self.assertEqual(match.kwargs["game_id"], "ABC123")
+
+    def test_pause_and_resume_resolve_to_their_views(self):
+        """Roadmap.md 1.6. Two segments each: undeclared, they land in
+        GetYourOwnGame with player_id="pause"."""
+        pause = resolve("/api/game/ABC123/pause/")
+        resume = resolve("/api/game/ABC123/resume/")
+
+        self.assertEqual(pause.func.view_class.__name__, "GamePauseView")
+        self.assertEqual(resume.func.view_class.__name__, "GameResumeView")
+        self.assertEqual(pause.kwargs["game_id"], "ABC123")
 
     def test_the_existing_player_routes_still_resolve(self):
         self.assertEqual(

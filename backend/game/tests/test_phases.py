@@ -786,3 +786,94 @@ class HostSeatsBetweenRoundsTests(BetweenRoundsMixin, TestCase):
 
         self.assertTrue(self.answer_by_host(self.cem, True))
         self.assertFalse(self.answer_by_host(self.anna, True))
+
+
+@override_settings(**TEST_BACKENDS)
+class PausedPhaseTests(BetweenRoundsMixin, TestCase):
+    """While the game is paused nothing between rounds moves. Roadmap.md 1.6.
+
+    One check in phases._load covers every entry point, including the recheck
+    a leaving seat schedules. Resuming runs that recheck.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.base, (self.option_1, self.option_2) = self.add_ballot()
+        self.set_round(vote_option_ids=[self.option_1.pk, self.option_2.pk])
+
+    def set_paused(self):
+        GameSession.objects.filter(pk=self.game.pk).update(paused_at=timezone.now())
+
+    def resume(self):
+        from game.pause import resume_game
+
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            resume_game(self.game.game_id)
+
+    def test_acks_are_refused(self):
+        self.set_paused()
+
+        self.assertFalse(self.ack(self.anna))
+        self.assertFalse(stats_acks().exists())
+
+    def test_host_acks_are_refused(self):
+        with muted():
+            Player.objects.create(game=self.game, name="Cem", controlled_by_host=True)
+        self.set_paused()
+
+        with muted():
+            self.assertFalse(phases().ack_host_seats(self.game.game_id))
+
+    def test_the_vote_cannot_be_opened(self):
+        self.set_round(between_round_phase=Phase.DISCUSSION)
+        self.set_paused()
+
+        with muted():
+            self.assertFalse(phases().open_vote(self.game.game_id))
+        self.assertEqual(self.phase_now(), Phase.DISCUSSION)
+
+    def test_votes_are_refused(self):
+        self.set_round(between_round_phase=Phase.VOTING)
+        self.set_paused()
+
+        self.assertFalse(self.vote(self.anna, self.option_1))
+        self.assertFalse(MapVersionVote.objects.exists())
+
+    def test_stalemate_answers_are_refused(self):
+        self.set_round(between_round_phase=Phase.STALEMATE, stalemate_count=1)
+        self.set_paused()
+
+        self.assertFalse(self.answer(self.anna, True))
+
+    def test_the_host_cannot_cut_a_stalemate_short(self):
+        self.set_round(between_round_phase=Phase.STALEMATE, stalemate_count=1)
+        self.set_paused()
+
+        with muted():
+            self.assertFalse(phases().force_leave_as_is(self.game.game_id))
+        self.assertEqual(self.round_count(), 1)
+
+    def test_a_seat_leaving_during_the_pause_finishes_nothing(self):
+        self.ack(self.anna)
+        self.set_paused()
+
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            self.ben.delete()
+
+        self.assertEqual(self.phase_now(), Phase.STATS)
+
+    def test_resuming_finishes_what_the_pause_held_back(self):
+        self.ack(self.anna)
+        self.set_paused()
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            self.ben.delete()
+
+        self.resume()
+
+        self.assertEqual(self.phase_now(), Phase.DISCUSSION)
+
+    def test_after_resuming_acks_count_again(self):
+        self.set_paused()
+        self.resume()
+
+        self.assertTrue(self.ack(self.anna))

@@ -12,6 +12,7 @@ therefore about what must *survive*.
 
 import os
 from io import StringIO
+from unittest.mock import patch
 
 from django.core.management import call_command
 from django.test import TestCase, override_settings
@@ -27,7 +28,9 @@ from game.models import (
 
 from ._helpers import (
     TEST_BACKENDS,
+    GroupListener,
     TempMediaRootMixin,
+    create_form_data,
     create_game_session,
     create_host,
     muted,
@@ -496,3 +499,265 @@ class RetentionSettingsTests(TestCase):
         schedule = getattr(django_settings, "CELERY_BEAT_SCHEDULE", {})
         tasks = {entry["task"] for entry in schedule.values()}
         self.assertNotIn("game.tasks.cleanup_old_simulations", tasks)
+
+
+# ---------------------------------------------------------------------------
+# Roadmap.md 1.6 — idle games end by themselves
+#
+# A paused game can wait for a class that never comes back, and a lobby nobody
+# starts waits forever. Both kept their names indefinitely. Each game now ends
+# after its own idle_end_days, and the normal anonymisation takes it from
+# there. game.idle is imported inside the tests; it doesn't exist before the
+# pause guide.
+# ---------------------------------------------------------------------------
+
+
+def days_ago(days):
+    return timezone.now() - timezone.timedelta(days=days)
+
+
+class IdleGameMixin(TempMediaRootMixin):
+    """A lobby with one player, everything in it dated `idle_days` back."""
+
+    def setUp(self):
+        self.host = create_host()
+        with muted():
+            self.game = create_game_session(self.host, game_name="Vergessen")
+            self.player = Player.objects.create(game=self.game, name="Mia")
+
+    def age(self, game, days):
+        GameSession.objects.filter(pk=game.pk).update(updated_at=days_ago(days))
+        Player.objects.filter(game=game).update(joined_at=days_ago(days))
+        game.refresh_from_db()
+
+    def due(self):
+        from game.idle import games_due_for_idle_end
+
+        return games_due_for_idle_end()
+
+
+@override_settings(**TEST_BACKENDS)
+class IdleEndTests(IdleGameMixin, TestCase):
+    def test_a_lobby_idle_past_its_limit_is_due(self):
+        self.age(self.game, 31)
+
+        self.assertIn(self.game, self.due())
+
+    def test_a_lobby_inside_its_limit_is_not(self):
+        self.age(self.game, 29)
+
+        self.assertNotIn(self.game, self.due())
+
+    def test_each_game_has_its_own_limit(self):
+        with muted():
+            short = create_game_session(self.host, game_name="Kurz", idle_end_days=1)
+        self.age(self.game, 2)
+        self.age(short, 2)
+
+        due = self.due()
+
+        self.assertIn(short, due)
+        self.assertNotIn(self.game, due)
+
+    def test_a_recent_move_keeps_a_game_alive(self):
+        game_round = GameRound.objects.create(
+            game=self.game, round_number=1, status=GameRound.Status.ACTIVE
+        )
+        with muted():
+            move = PlayerMove.objects.create(
+                session_round=game_round, player=self.player, action="car"
+            )
+        self.age(self.game, 40)
+        GameRound.objects.filter(pk=game_round.pk).update(updated_at=days_ago(40))
+        PlayerMove.objects.filter(pk=move.pk).update(moved_at=days_ago(2))
+
+        self.assertNotIn(self.game, self.due())
+
+    def test_a_recent_round_keeps_a_game_alive(self):
+        game_round = GameRound.objects.create(
+            game=self.game, round_number=1, status=GameRound.Status.COMPLETED
+        )
+        self.age(self.game, 40)
+        GameRound.objects.filter(pk=game_round.pk).update(updated_at=days_ago(2))
+
+        self.assertNotIn(self.game, self.due())
+
+    def test_a_recent_join_keeps_a_lobby_alive(self):
+        self.age(self.game, 40)
+        with muted():
+            Player.objects.create(game=self.game, name="Neu")
+
+        self.assertNotIn(self.game, self.due())
+
+    def test_a_paused_game_ends_too(self):
+        GameSession.objects.filter(pk=self.game.pk).update(
+            is_active=True, started_at=days_ago(40), paused_at=days_ago(40)
+        )
+        self.age(self.game, 40)
+
+        self.assertIn(self.game, self.due())
+
+    def test_an_ended_game_is_never_due(self):
+        GameSession.objects.filter(pk=self.game.pk).update(ended_at=days_ago(40))
+        self.age(self.game, 40)
+
+        self.assertNotIn(self.game, self.due())
+
+    def test_ending_an_idle_game_ends_it_like_the_stop_button(self):
+        from game.idle import end_idle_game
+
+        GameSession.objects.filter(pk=self.game.pk).update(
+            is_active=True, started_at=days_ago(40), paused_at=days_ago(40)
+        )
+        self.game.refresh_from_db()
+        listener = GroupListener(self.game.game_id)
+
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            end_idle_game(self.game)
+
+        self.game.refresh_from_db()
+        self.assertIsNotNone(self.game.ended_at)
+        self.assertFalse(self.game.is_active)
+        self.assertIsNone(self.game.paused_at)
+        self.assertIn("game.ended", listener.names())
+
+
+@override_settings(**TEST_BACKENDS)
+class IdleEndTaskTests(IdleGameMixin, TestCase):
+    def run_task(self):
+        from game.tasks import end_idle_games
+
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            return end_idle_games()
+
+    def test_the_task_ends_exactly_the_due_games(self):
+        with muted():
+            fresh = create_game_session(self.host, game_name="Frisch")
+        self.age(self.game, 31)
+
+        self.assertEqual(self.run_task(), 1)
+
+        self.game.refresh_from_db()
+        fresh.refresh_from_db()
+        self.assertIsNotNone(self.game.ended_at)
+        self.assertIsNone(fresh.ended_at)
+
+    @override_settings(ANONYMISE_GRACE_HOURS=0)
+    def test_an_idle_game_is_then_anonymised_as_usual(self):
+        from game.tasks import anonymise_finished_games
+
+        self.age(self.game, 31)
+        self.run_task()
+        GameSession.objects.filter(pk=self.game.pk).update(ended_at=days_ago(1))
+
+        with muted():
+            anonymise_finished_games()
+
+        self.player.refresh_from_db()
+        self.assertEqual(self.player.name, "Spieler 1")
+
+    def test_one_bad_game_does_not_stop_the_sweep(self):
+        from game import idle
+
+        with muted():
+            other = create_game_session(self.host, game_name="Zweites")
+        self.age(self.game, 31)
+        self.age(other, 31)
+
+        real_end = idle.end_idle_game
+        calls = {"n": 0}
+
+        def flaky(game):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise RuntimeError("boom")
+            return real_end(game)
+
+        with patch("game.idle.end_idle_game", side_effect=flaky):
+            ended = self.run_task()
+
+        self.assertEqual(calls["n"], 2)
+        self.assertEqual(ended, 1)
+
+
+@override_settings(**TEST_BACKENDS)
+class IdleEndCommandTests(IdleGameMixin, TestCase):
+    """stdout goes to a StringIO, as in ManagementCommandTests."""
+
+    def test_dry_run_changes_nothing(self):
+        self.age(self.game, 31)
+
+        with muted():
+            call_command("end_idle_games", "--dry-run", stdout=StringIO())
+
+        self.game.refresh_from_db()
+        self.assertIsNone(self.game.ended_at)
+
+    def test_it_ends_the_due_games(self):
+        self.age(self.game, 31)
+
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            call_command("end_idle_games", stdout=StringIO())
+
+        self.game.refresh_from_db()
+        self.assertIsNotNone(self.game.ended_at)
+
+
+@override_settings(**TEST_BACKENDS)
+class IdleEndSettingTests(TempMediaRootMixin, TestCase):
+    """idle_end_days: per game, set by the host in the create form."""
+
+    def setUp(self):
+        self.host = create_host()
+        self.client.force_login(self.host)
+
+    def create(self, **overrides):
+        with muted():
+            return self.client.post("/game/create/", create_form_data(**overrides))
+
+    def test_a_game_without_a_choice_gets_30_days(self):
+        """Also what the migration gives every existing game."""
+        with muted():
+            game = create_game_session(self.host)
+
+        self.assertEqual(game.idle_end_days, 30)
+
+    def test_the_create_form_offers_30_days(self):
+        from game.forms import GameSessionCreateForm
+
+        form = GameSessionCreateForm()
+
+        self.assertIn("idle_end_days", form.fields)
+        self.assertEqual(form.fields["idle_end_days"].initial, 30)
+
+    def test_the_host_sets_it_when_creating_a_game(self):
+        response = self.create(game_name="Kurz", idle_end_days=7)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(GameSession.objects.get(game_name="Kurz").idle_end_days, 7)
+
+    def test_zero_days_is_refused(self):
+        response = self.create(game_name="Null", idle_end_days=0)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(GameSession.objects.filter(game_name="Null").exists())
+
+    def test_more_than_a_year_is_refused(self):
+        response = self.create(game_name="Ewig", idle_end_days=366)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(GameSession.objects.filter(game_name="Ewig").exists())
+
+    def test_the_beat_schedule_ends_idle_games_daily(self):
+        """On a crontab: beat keeps no state across rebuilds, so an interval
+        would restart with every deploy."""
+        from celery.schedules import crontab
+        from django.conf import settings as django_settings
+
+        entries = [
+            entry
+            for entry in django_settings.CELERY_BEAT_SCHEDULE.values()
+            if entry["task"] == "game.tasks.end_idle_games"
+        ]
+        self.assertEqual(len(entries), 1)
+        self.assertIsInstance(entries[0]["schedule"], crontab)

@@ -113,6 +113,7 @@ def create_form_data(**overrides):
         "max_rounds": 3,
         "max_CO2_level": 100,
         "people_per_agent": 1000,
+        "idle_end_days": 30,
         "lobby_open": "",
     }
     data.update(overrides)

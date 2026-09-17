@@ -3,6 +3,7 @@ from unittest.mock import patch
 from django.conf import settings
 from django.test import TestCase, override_settings
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
 from co2mmute.utils import sign_value
 from game.models import GameRound, GameSession, Player, PlayerMove
@@ -10,6 +11,7 @@ from game.signals import round_completed
 
 from ._helpers import (
     TEST_BACKENDS,
+    GroupListener,
     TempMediaRootMixin,
     create_game_session,
     create_host,
@@ -463,3 +465,271 @@ class PlayerMoveOnCommitTests(RoundFixtureMixin, TestCase):
         self.round.refresh_from_db()
         self.assertEqual(self.round.status, GameRound.Status.ACTIVE)
         delay.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Roadmap.md 1.6 — the pause
+#
+# game.pause is imported inside the tests: it doesn't exist before the pause
+# guide.
+# ---------------------------------------------------------------------------
+
+
+def pause_url(game_id):
+    return f"/api/game/{game_id}/pause/"
+
+
+def resume_url(game_id):
+    return f"/api/game/{game_id}/resume/"
+
+
+class PauseMixin(RoundFixtureMixin):
+    def post(self, url):
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            return self.client.post(url, content_type="application/json")
+
+    def pause(self):
+        return self.post(pause_url(self.game.game_id))
+
+    def resume(self):
+        return self.post(resume_url(self.game.game_id))
+
+    def paused_at(self):
+        self.game.refresh_from_db()
+        return self.game.paused_at
+
+
+@override_settings(**TEST_BACKENDS)
+class PauseEndpointTests(PauseMixin, TestCase):
+    """POST api/game/<id>/pause/ and .../resume/ — the host's bell."""
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.host)
+
+    def test_the_host_pauses_a_running_game(self):
+        response = self.pause()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNotNone(self.paused_at())
+        self.assertEqual(response.json()["paused_at"], self.paused_at().isoformat())
+
+    def test_pausing_is_announced(self):
+        listener = GroupListener(self.game.game_id)
+
+        self.pause()
+
+        self.assertEqual(
+            listener.data("game.paused"), {"paused_at": self.paused_at().isoformat()}
+        )
+
+    def test_pausing_counts_as_activity(self):
+        """The idle end reads updated_at, and update() doesn't set it."""
+        old = timezone.now() - timezone.timedelta(days=3)
+        GameSession.objects.filter(pk=self.game.pk).update(updated_at=old)
+
+        self.pause()
+
+        self.game.refresh_from_db()
+        self.assertGreater(self.game.updated_at, old)
+
+    def test_a_paused_game_cannot_be_paused_again(self):
+        self.pause()
+
+        response = self.pause()
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["reason"], "paused")
+
+    def test_a_lobby_cannot_be_paused(self):
+        GameSession.objects.filter(pk=self.game.pk).update(
+            is_active=False, started_at=None
+        )
+
+        response = self.pause()
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["reason"], "not_running")
+        self.assertIsNone(self.paused_at())
+
+    def test_an_ended_game_cannot_be_paused(self):
+        GameSession.objects.filter(pk=self.game.pk).update(
+            is_active=False, ended_at=timezone.now()
+        )
+
+        response = self.pause()
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["reason"], "not_running")
+
+    def test_the_host_resumes(self):
+        self.pause()
+        listener = GroupListener(self.game.game_id)
+
+        response = self.resume()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"paused_at": None})
+        self.assertIsNone(self.paused_at())
+        self.assertEqual(listener.data("game.resumed"), {})
+
+    def test_a_running_game_cannot_be_resumed(self):
+        response = self.resume()
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["reason"], "not_paused")
+
+    def test_a_player_cannot_pause_or_resume(self):
+        self.client.logout()
+        game_name = f"{settings.COOKIE_GAME_PREFIX}{self.game.game_id}"
+        player_name = f"{settings.COOKIE_PLAYER_PREFIX}{self.game.game_id}"
+        self.client.cookies[game_name] = sign_value(
+            f"{self.game.game_id}:test-token", settings.COOKIE_GAME_SALT
+        )
+        self.client.cookies[player_name] = sign_value(
+            f"{self.game.game_id}:{self.player.player_id}", settings.COOKIE_PLAYER_SALT
+        )
+
+        self.assertEqual(self.pause().status_code, 403)
+        GameSession.objects.filter(pk=self.game.pk).update(paused_at=timezone.now())
+        self.assertEqual(self.resume().status_code, 403)
+        self.assertIsNotNone(self.paused_at())
+
+    def test_another_host_cannot_pause(self):
+        self.client.force_login(create_host(username="other-host"))
+
+        self.assertEqual(self.pause().status_code, 403)
+        self.assertIsNone(self.paused_at())
+
+    def test_the_game_view_shows_the_pause(self):
+        """GameSessionDetailView is the host's REST snapshot."""
+        self.pause()
+
+        with muted():
+            payload = self.client.get(f"/api/game/{self.game.game_id}/").json()
+
+        self.assertEqual(parse_datetime(payload["paused_at"]), self.paused_at())
+
+    def test_stopping_a_paused_game_ends_the_pause(self):
+        self.pause()
+
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            response = self.client.patch(
+                f"/api/game/{self.game.game_id}/",
+                {"is_active": False},
+                content_type="application/json",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.game.refresh_from_db()
+        self.assertIsNotNone(self.game.ended_at)
+        self.assertIsNone(self.game.paused_at)
+
+
+@override_settings(**TEST_BACKENDS)
+class PausedRoundTests(PauseMixin, TestCase):
+    """While paused, nobody moves and no round ends. Seats can still change."""
+
+    def move_url(self, player):
+        return f"/api/game/{self.game.game_id}/player/{player.player_id}/move/"
+
+    def authenticate_as(self, player):
+        self.client.cookies[f"{settings.COOKIE_GAME_PREFIX}{self.game.game_id}"] = (
+            sign_value(f"{self.game.game_id}:test-token", settings.COOKIE_GAME_SALT)
+        )
+        self.client.cookies[f"{settings.COOKIE_PLAYER_PREFIX}{self.game.game_id}"] = (
+            sign_value(
+                f"{self.game.game_id}:{player.player_id}", settings.COOKIE_PLAYER_SALT
+            )
+        )
+
+    def set_paused(self):
+        from game.pause import pause_game
+
+        with muted():
+            pause_game(self.game.game_id)
+
+    def test_a_move_while_paused_is_refused(self):
+        self.set_paused()
+        self.authenticate_as(self.player)
+
+        with muted():
+            response = self.client.post(
+                self.move_url(self.player),
+                {"action": "car", "payload": {}},
+                content_type="application/json",
+            )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["reason"], "paused")
+        self.assertFalse(PlayerMove.objects.exists())
+
+    def test_a_paused_round_does_not_complete(self):
+        self.submit_move(self.player)
+        self.submit_move(self.other_player)
+        self.set_paused()
+
+        with patch("game.tasks.run_simulation_task.delay") as delay:
+            self.assertFalse(self.complete_round_if_ready())
+
+        delay.assert_not_called()
+        self.round.refresh_from_db()
+        self.assertEqual(self.round.status, GameRound.Status.ACTIVE)
+
+    def test_a_seat_that_leaves_during_the_pause_completes_the_round_on_resume(self):
+        """The leave schedules the check, the pause stops it, resume runs it."""
+        self.submit_move(self.player)
+        self.set_paused()
+
+        with patch("game.tasks.run_simulation_task.delay") as delay:
+            with muted(), self.captureOnCommitCallbacks(execute=True):
+                self.other_player.delete()
+            delay.assert_not_called()
+
+            self.client.force_login(self.host)
+            self.resume()
+
+        delay.assert_called_once_with(self.round.pk)
+        self.round.refresh_from_db()
+        self.assertEqual(self.round.status, GameRound.Status.COMPLETED)
+
+    def test_a_second_resume_dispatches_nothing(self):
+        self.submit_move(self.player)
+        self.submit_move(self.other_player)
+        self.set_paused()
+        self.client.force_login(self.host)
+
+        with patch("game.tasks.run_simulation_task.delay") as delay:
+            first = self.resume()
+            second = self.resume()
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 409)
+        delay.assert_called_once_with(self.round.pk)
+
+    def test_the_host_can_add_a_seat_while_paused(self):
+        self.set_paused()
+        self.client.force_login(self.host)
+
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                f"/api/game/{self.game.game_id}/player/",
+                {"name": "Nachzuegler"},
+                content_type="application/json",
+            )
+
+        self.assertEqual(response.status_code, 201)
+
+    def test_the_host_can_remove_a_seat_while_paused(self):
+        self.set_paused()
+        self.client.force_login(self.host)
+
+        with patch("game.tasks.run_simulation_task.delay"):
+            with muted(), self.captureOnCommitCallbacks(execute=True):
+                response = self.client.delete(
+                    f"/api/game/{self.game.game_id}/player/{self.player.player_id}/"
+                )
+
+        self.assertEqual(response.status_code, 204)
+        self.player.refresh_from_db()
+        self.assertIsNotNone(self.player.left_at)
