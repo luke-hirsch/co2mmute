@@ -3,14 +3,18 @@
 Named with a leading underscore so the test runner does not collect it.
 """
 
+import asyncio
 import contextlib
 import logging
 import shutil
 import tempfile
 
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from django.contrib.auth import get_user_model
 from django.test import override_settings
 
+from co2mmute.utils import sanitize_group_name
 from game.models import GameSession
 
 # Creating a GameSession renders a QR code to MEDIA_ROOT, the signals broadcast
@@ -85,3 +89,66 @@ def create_game_session(host, **overrides):
     }
     defaults.update(overrides)
     return GameSession.objects.create(**defaults)
+
+
+class GroupListener:
+    """Sits in a channel group, the way a connected GameConsumer does.
+
+    By default the game's group (gamestate_<game_id>); pass group= for another
+    one, e.g. a seat's player_<pk>. Works on the in-memory channel layer from
+    TEST_BACKENDS. Messages are read once, on first access: the layer's queues
+    bind to the event loop that first waits on them, and every async_to_sync
+    call brings a new loop.
+    """
+
+    def __init__(self, game_id=None, group=None):
+        self.layer = get_channel_layer()
+        self.channel = async_to_sync(self.layer.new_channel)()
+        group = group or f"gamestate_{sanitize_group_name(game_id)}"
+        async_to_sync(self.layer.group_add)(group, self.channel)
+        self._messages = None
+
+    def messages(self):
+        """Everything sent to the group, as the raw channel-layer messages."""
+        if self._messages is None:
+
+            async def drain():
+                messages = []
+                while True:
+                    try:
+                        messages.append(
+                            await asyncio.wait_for(
+                                self.layer.receive(self.channel), timeout=0.05
+                            )
+                        )
+                    except asyncio.TimeoutError:
+                        return messages
+
+            self._messages = async_to_sync(drain)()
+        return self._messages
+
+    def events(self):
+        """(event, data) for the game.state / between-round events, in order."""
+        return [
+            (message.get("event"), message.get("data", {}))
+            for message in self.messages()
+            if "event" in message
+        ]
+
+    def names(self):
+        return [name for name, _ in self.events()]
+
+    def data(self, name):
+        """The payload of the last event with this name."""
+        matching = [data for event, data in self.events() if event == name]
+        if not matching:
+            raise AssertionError(f"no {name!r} event, got {self.names()}")
+        return matching[-1]
+
+    def rosters(self):
+        """The player lists of every roster_update, in order."""
+        return [
+            message["players"]
+            for message in self.messages()
+            if message.get("type") == "roster_update"
+        ]

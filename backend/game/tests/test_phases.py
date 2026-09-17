@@ -9,22 +9,19 @@ level. Neither exists before the guide is typed, and a top-level import would
 turn this file into one import error instead of a list of red tests.
 """
 
-import asyncio
 from unittest.mock import patch
 
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
-from co2mmute.utils import sanitize_group_name
 from game.models import GameRound, GameSession, MapVersionVote, Player, PlayerMove
 from game.signals import round_completed
 from maps.models import GameMap, MapVersion
 
 from ._helpers import (
     TEST_BACKENDS,
+    GroupListener,
     TempMediaRootMixin,
     create_game_session,
     create_host,
@@ -44,54 +41,6 @@ def stats_acks():
     from game.models import StatsAck
 
     return StatsAck.objects
-
-
-class GroupListener:
-    """Sits in the game's websocket group, the way a connected GameConsumer does.
-
-    Works on the in-memory channel layer from TEST_BACKENDS. The events are read
-    once, on first access: the layer's queues bind to the event loop that first
-    waits on them, and every async_to_sync call brings a new loop.
-    """
-
-    def __init__(self, game_id):
-        self.layer = get_channel_layer()
-        self.channel = async_to_sync(self.layer.new_channel)()
-        async_to_sync(self.layer.group_add)(
-            f"gamestate_{sanitize_group_name(game_id)}", self.channel
-        )
-        self._events = None
-
-    def events(self):
-        if self._events is None:
-
-            async def drain():
-                messages = []
-                while True:
-                    try:
-                        messages.append(
-                            await asyncio.wait_for(
-                                self.layer.receive(self.channel), timeout=0.05
-                            )
-                        )
-                    except asyncio.TimeoutError:
-                        return messages
-
-            self._events = [
-                (message.get("event"), message.get("data", {}))
-                for message in async_to_sync(drain)()
-            ]
-        return self._events
-
-    def names(self):
-        return [name for name, _ in self.events()]
-
-    def data(self, name):
-        """The payload of the last event with this name."""
-        matching = [data for event, data in self.events() if event == name]
-        if not matching:
-            raise AssertionError(f"no {name!r} event, got {self.names()}")
-        return matching[-1]
 
 
 class BetweenRoundsMixin(TempMediaRootMixin):

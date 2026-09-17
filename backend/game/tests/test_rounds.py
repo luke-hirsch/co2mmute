@@ -456,8 +456,9 @@ class PlayerMoveOnCommitTests(RoundFixtureMixin, TestCase):
             with self.captureOnCommitCallbacks(execute=False) as callbacks:
                 self.post_move(self.other_player)
 
+        # The round check, and (since roster-from-db) the roster broadcast.
         self.assertEqual(
-            len(callbacks), 1, msg="the move view should register exactly one callback"
+            len(callbacks), 2, msg="the move view should register exactly two callbacks"
         )
         self.round.refresh_from_db()
         self.assertEqual(self.round.status, GameRound.Status.ACTIVE)
