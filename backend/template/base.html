@@ -13,6 +13,12 @@
     <link rel="stylesheet" href="{% static 'css/tailwind.css' %}" />
     <link rel="stylesheet" href="{% static 'css/style.css' %}" />
     <script src="{% static 'js/head_script.js' %}"></script>
+    <script>
+      // Must run in <head>, before anything paints: `dark:` is bound to this
+      // class (see @custom-variant in custom.css), so applying it further down
+      // the page would show a light flash on every dark-mode phone.
+      setColorScheme(storeSystemColorScheme());
+    </script>
     <script
       src="https://cdn.jsdelivr.net/npm/@tailwindplus/elements@1"
       type="module"
@@ -481,9 +487,6 @@
       </div>
     </footer>
 
-    <script>
-      setColorScheme(storeSystemColorScheme());
-    </script>
     <script src="{% static 'js/script.js' %}"></script>
   </body>
 </html>

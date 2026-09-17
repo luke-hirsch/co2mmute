@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="">
+<html lang="de" class="">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/apple-touch-icon.png" />
@@ -7,6 +7,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>co2mmute</title>
     <script>
+      // Runs before React mounts, so the page is never painted in the wrong
+      // theme. Kept in step with backend/static/js/head_script.js by hand —
+      // both halves share the `colorMode` key and the `dark` class, and this
+      // one has to be inline (a separate file would load too late to stop a
+      // flash).
+      const COLOR_MODE_STORAGE_KEY = "colorMode";
+
       function getStoredColorMode(storageKey = COLOR_MODE_STORAGE_KEY) {
         try {
           const stored = window.localStorage.getItem(storageKey);
@@ -107,20 +114,12 @@
 
         setColorScheme(effectiveScheme);
       }
-      (() => {
-        console.log("Setting color scheme from inline script");
-        const COLOR_MODE_STORAGE_KEY = "colorMode";
-        const colorScheme = storeSystemColorScheme(COLOR_MODE_STORAGE_KEY);
-        setColorScheme(colorScheme);
-      })();
+      setColorScheme(storeSystemColorScheme());
     </script>
   </head>
   <body>
     <!-- page chrome lives on `body` in main.css, so this stays a bare mount -->
     <div id="root"></div>
-    <script>
-      setColorScheme(storeSystemColorScheme("colorMode"));
-    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

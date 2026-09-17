@@ -10,12 +10,17 @@
  * both. frontend/tests/design/tokens.test.ts compares the two blocks instead —
  * if you change a value here, change it there.
  *
- * `dark:` on this half is still prefers-color-scheme (Tailwind's default), not
- * the `.dark` class head_script.js writes. Deliberate: the script's init call
- * sits at the bottom of base.html, so class-based dark would paint light first
- * and flip after parse. Moving that call into <head> is the prerequisite for
- * switching, and that is worth doing when a theme switch actually exists.
+ * `dark:` is bound to the `.dark` class that head_script.js writes, the same as
+ * in the SPA — both halves are one origin, so they share the `colorMode` entry
+ * in localStorage and a switch on either follows on both. The init call was
+ * moved from the bottom of base.html into <head> to make this safe; applied any
+ * later it would show a light flash before flipping.
+ *
+ * Cost, accepted: with JavaScript off these pages are light-only, where
+ * prefers-color-scheme used to handle them. They stay fully readable.
  * ------------------------------------------------------------------------- */
+
+@custom-variant dark (&:is(.dark *));
 
 @theme static {
   /* >>> shared tokens — keep identical to frontend/src/main.css <<< */
