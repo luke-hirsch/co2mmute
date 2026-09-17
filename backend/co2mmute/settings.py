@@ -226,6 +226,11 @@ CELERY_BEAT_SCHEDULE = {
         # file inside the container, so every rebuild restarts an interval.
         "schedule": crontab(hour=3, minute=0),
     },
+    "end-idle-games": {
+        "task": "game.tasks.end_idle_games",
+        # Daily, on a crontab for the same reason. Roadmap.md 1.6.
+        "schedule": crontab(hour=2, minute=30),
+    },
 }
 
 GAME_SESSION_CACHE_TIMEOUT = int(os.environ.get("GAME_SESSION_CACHE_TIMEOUT", 15 * 60))

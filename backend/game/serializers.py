@@ -23,9 +23,11 @@ class GameSessionSerializer(serializers.ModelSerializer):
             "people_per_agent",
             "chat_enabled",
             "is_active",
+            "idle_end_days",
             "created_at",
             "updated_at",
             "started_at",
+            "paused_at",
             "ended_at",
         )
         read_only_fields = (
@@ -34,6 +36,7 @@ class GameSessionSerializer(serializers.ModelSerializer):
             "game_qr_code",
             "created_at",
             "updated_at",
+            "paused_at",
             "ended_at",
         )
 

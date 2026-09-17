@@ -26,6 +26,7 @@ class GameSessionCreateForm(forms.ModelForm):
             "max_rounds",
             "max_CO2_level",
             "people_per_agent",
+            "idle_end_days",
             "lobby_open",
         ]
         labels = {
@@ -38,6 +39,7 @@ class GameSessionCreateForm(forms.ModelForm):
             "max_rounds": "Maximum rounds",
             "max_CO2_level": "Maximum CO₂ level (kg)",
             "people_per_agent": "People per agent",
+            "idle_end_days": "End after idle days",
             "lobby_open": "Lobby opens at",
         }
         help_texts = {
@@ -48,6 +50,10 @@ class GameSessionCreateForm(forms.ModelForm):
             "max_rounds": "How many rounds the session should run for.",
             "max_CO2_level": "Upper limit before the game ends.",
             "people_per_agent": "How many individuals each agent represents in the simulation.",
+            "idle_end_days": (
+                "A game nobody plays for this many days ends by itself, paused or "
+                "not. Player names are removed a day later."
+            ),
         }
         widgets = {
             "game_name": forms.TextInput(attrs={"autocomplete": "off"}),
@@ -69,6 +75,7 @@ class GameSessionCreateForm(forms.ModelForm):
                 "max_rounds": 6,
                 "max_CO2_level": 500,
                 "people_per_agent": 1000,
+                "idle_end_days": 30,
                 "lobby_open": timezone.localtime(timezone.now()).replace(
                     second=0, microsecond=0
                 ),

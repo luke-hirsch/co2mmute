@@ -354,8 +354,11 @@ def handle_round_completed(
     if co2_limit_reached or max_rounds_reached:
         # End the game
         game_session.is_active = False
+        game_session.paused_at = None
         game_session.ended_at = timezone.now()
-        game_session.save(update_fields=["is_active", "ended_at", "updated_at"])
+        game_session.save(
+            update_fields=["is_active", "paused_at", "ended_at", "updated_at"]
+        )
         logger.info(
             f"Game {game_session.game_id} ended: "
             f"{'CO2 limit reached' if co2_limit_reached else 'max rounds reached'}"

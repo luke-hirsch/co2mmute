@@ -423,6 +423,7 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
                 "maxRounds": game.max_rounds,
                 "startedAt": game.started_at.isoformat() if game.started_at else None,
                 "endedAt": game.ended_at.isoformat() if game.ended_at else None,
+                "pausedAt": game.paused_at.isoformat() if game.paused_at else None,
                 "betweenRoundPhase": between_round_phase,
                 "activeMapVersionId": game.active_map_version_id,  # type: ignore
                 "hasMapVersions": bool(map_versions),

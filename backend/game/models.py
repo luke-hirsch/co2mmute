@@ -7,6 +7,7 @@ from co2mmute.utils import per_passenger
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,10 @@ class GameSession(models.Model):
     max_CO2_level = models.PositiveIntegerField()  # in kg
     chat_enabled = models.BooleanField(default=True)
     is_active = models.BooleanField(default=False)
+    paused_at = models.DateTimeField(null=True, blank=True)
+    idle_end_days = models.PositiveSmallIntegerField(
+        default=30, validators=[MinValueValidator(1), MaxValueValidator(365)]
+    )
 
     # Simulation parameters
     people_per_agent = models.PositiveIntegerField(default=1000)

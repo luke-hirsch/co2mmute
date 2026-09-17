@@ -194,6 +194,7 @@ class LobbyStateView(APIView):
                 "is_active": game.is_active,
                 "started_at": game.started_at.isoformat() if game.started_at else None,
                 "ended_at": game.ended_at.isoformat() if game.ended_at else None,
+                "paused_at": game.paused_at.isoformat() if game.paused_at else None,
                 "joinable": joinable,
                 "reason": reason,
                 "players": [

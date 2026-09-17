@@ -29,6 +29,7 @@ from game.models import (
     RouteSegment,
     SimulationResult,
 )
+from game.pause import PauseRefused, pause_game, resume_game
 from game.permissions import (
     CanDeleteOwnPlayer,
     HasGameAccess,
@@ -201,6 +202,7 @@ class GameSessionDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIVie
             if is_stop_game:
                 with transaction.atomic():
                     game.is_active = False
+                    game.paused_at = None
                     game.ended_at = timezone.now()
                     game.save()
 
@@ -239,6 +241,40 @@ class GameSessionDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIVie
             return Response(serializer.data, status=status.HTTP_200_OK)
         else:
             return super().update(request, *args, **kwargs)
+
+
+class GamePauseView(GenericAPIView):
+    """POST /api/game/<game_id>/pause/ — the bell. Roadmap.md 1.6."""
+
+    authentication_classes = (SessionAuthentication,)
+    permission_classes = (IsGameHost,)
+
+    def post(self, request, game_id):
+        try:
+            paused_at = pause_game(game_id)
+        except PauseRefused as refused:
+            return Response(
+                {"detail": "Cannot pause the game.", "reason": refused.reason},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response({"paused_at": paused_at.isoformat()})
+
+
+class GameResumeView(GenericAPIView):
+    """POST /api/game/<game_id>/resume/ — back to playing."""
+
+    authentication_classes = (SessionAuthentication,)
+    permission_classes = (IsGameHost,)
+
+    def post(self, request, game_id):
+        try:
+            resume_game(game_id)
+        except PauseRefused as refused:
+            return Response(
+                {"detail": "Cannot resume the game.", "reason": refused.reason},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response({"paused_at": None})
 
 
 class GetYourOwnGame(GameScopedQuerysetMixin, GenericAPIView):
@@ -280,6 +316,11 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
                 return Response(
                     {"error": "Game is not active"},
                     status=status.HTTP_400_BAD_REQUEST,
+                )
+            if game.paused_at is not None:
+                return Response(
+                    {"error": "Game is paused", "reason": "paused"},
+                    status=status.HTTP_409_CONFLICT,
                 )
 
             player = Player.objects.get(player_id=player_id, game=game)

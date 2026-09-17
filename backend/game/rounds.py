@@ -44,7 +44,7 @@ def complete_round_if_ready(game_id: str) -> bool:
         logger.error(f"Game {game_id} not found while checking round completion")
         return False
 
-    if not game.is_active:
+    if not game.is_active or game.paused_at is not None:
         return False
 
     game_round = GameRound.objects.filter(game=game).order_by("-round_number").first()

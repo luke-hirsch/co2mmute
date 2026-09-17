@@ -110,6 +110,29 @@ def anonymise_finished_games():
 
 
 @shared_task
+def end_idle_games():
+    """End games idle for longer than their idle_end_days. Roadmap.md 1.6.
+
+    anonymise_finished_games picks them up after the grace period, like any
+    other ended game.
+    """
+    from game.idle import end_idle_game, games_due_for_idle_end
+
+    ended = 0
+    for game in games_due_for_idle_end():
+        try:
+            end_idle_game(game)
+            ended += 1
+        except Exception:
+            # One bad game must not stop the sweep.
+            logger.exception(f"Idle end failed for game {game.game_id}")
+
+    if ended:
+        logger.info(f"Ended {ended} idle games")
+    return ended
+
+
+@shared_task
 def clear_expired_sessions():
     """Delete expired django_session rows. Roadmap.md 1.3.
 

@@ -51,8 +51,12 @@ LEAVE_AS_IS = "Leave as it is"
 
 
 def _load(game_id: str) -> tuple[GameSession | None, GameRound | None]:
-    """The game and its latest round. Between rounds, that is the finished one."""
-    game = GameSession.objects.filter(game_id=game_id).first()
+    """The game and its latest round. Between rounds, that is the finished one.
+
+    (None, None) while the game is paused, so every phase function refuses and
+    no phase ends. pause.resume_game runs recheck() afterwards.
+    """
+    game = GameSession.objects.filter(game_id=game_id, paused_at__isnull=True).first()
     if game is None:
         return None, None
     game_round = GameRound.objects.filter(game=game).order_by("-round_number").first()

@@ -2,6 +2,8 @@ from django.urls import path
 
 from game.views_join import JoinSessionAPIView, LobbyStateView, SessionLookupView
 from game.views_rest import (
+    GamePauseView,
+    GameResumeView,
     GameSessionDetailView,
     GameSummaryView,
     GetYourOwnGame,
@@ -18,6 +20,8 @@ urlpatterns = [
     path("lookup/<str:game_id>/", SessionLookupView.as_view(), name="session-lookup"),
     path("join/<str:game_id>/", JoinSessionAPIView.as_view(), name="session-join-api"),
     path("<str:game_id>/lobby/", LobbyStateView.as_view(), name="lobby-state"),
+    path("<str:game_id>/pause/", GamePauseView.as_view(), name="game-pause"),
+    path("<str:game_id>/resume/", GameResumeView.as_view(), name="game-resume"),
     path("<str:game_id>/player/", PlayerListView.as_view(), name="player-list"),
     path(
         "<str:game_id>/player/<str:player_id>/",

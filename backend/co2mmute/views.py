@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 import jwt
+from co2mmute.utils import set_game_access_cookie, set_player_cookie
 from django.conf import settings
 from django.contrib.auth import login
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -171,10 +172,10 @@ class WhoAmIView(APIView):
                 }
             )
 
-            return Response(user_data)
+            return self._renew_cookies(Response(user_data), game_id, player)
 
         if player:
-            return Response(
+            response = Response(
                 {
                     "kind": "player",
                     "authenticated": False,
@@ -185,6 +186,7 @@ class WhoAmIView(APIView):
                     },
                 }
             )
+            return self._renew_cookies(response, game_id, player)
 
         return Response(
             {
@@ -193,6 +195,16 @@ class WhoAmIView(APIView):
             },
             status=status.HTTP_401_UNAUTHORIZED,
         )
+
+    def _renew_cookies(self, response, game_id, player):
+        """Every visit re-issues both cookies with a fresh timestamp, so a
+        class that comes back within COOKIE_AGE of its last visit finds its
+        seats again. Same format as before: nobody is logged out.
+        Roadmap.md 1.6."""
+        if player is None:
+            return response
+        response = set_game_access_cookie(self.request, response, game_id)
+        return set_player_cookie(self.request, response, game_id, str(player.player_id))
 
     def _get_player_from_cookie(self, request, game_id):
         player_id = resolve_player_id(request.COOKIES, game_id)
