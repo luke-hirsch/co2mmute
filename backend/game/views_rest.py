@@ -3,6 +3,7 @@ import logging
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Avg, Max
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from maps.models import Edge
@@ -14,6 +15,7 @@ from rest_framework.mixins import ListModelMixin
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from game.auth import resolve_player_id
 from game.cache import get_cached_game_session
 from game.mixins import GameScopedQuerysetMixin
 from game.models import (
@@ -27,13 +29,20 @@ from game.models import (
     RouteSegment,
     SimulationResult,
 )
-from game.permissions import CanDeleteOwnPlayer, HasGameAccess, IsPlayerInGame
+from game.permissions import (
+    CanDeleteOwnPlayer,
+    HasGameAccess,
+    IsGameHost,
+    IsPlayerInGame,
+)
 from game.roster import schedule_broadcast
 from game.rounds import schedule_round_completion_check
+from game.seats import SeatRefused, add_seat, remove_seat
 from game.serializers import (
     GameSessionSerializer,
     PlayerMoveWithRoutesInputSerializer,
     PlayerSerializer,
+    SeatRequestSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -60,23 +69,22 @@ class PlayerDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIView):
         return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
-        game_id = self.kwargs.get("game_id")
-        is_kicked = request.query_params.get("kicked", "").lower() == "true"
+        game_id = str(self.kwargs.get("game_id"))
+        seat = self.get_object()
+        if seat.left_at is not None:
+            raise Http404
 
-        instance = self.get_object()
-        # Set a temporary attribute so the signal knows if player was kicked
-        instance._was_kicked = is_kicked
-        instance.delete()
+        # CanDeleteOwnPlayer let the request through: it is the host, or the
+        # player behind this seat. Anyone but the seat's own player removes it.
+        own = resolve_player_id(request.COOKIES, game_id) == seat.player_id
+        remove_seat(seat, kicked=not own)
 
         response = Response({"redirect_url": "/"}, status=status.HTTP_204_NO_CONTENT)
-
-        if game_id:
-            player_cookie_name = f"{settings.COOKIE_PLAYER_PREFIX}{game_id}"
-            game_cookie_name = f"{settings.COOKIE_GAME_PREFIX}{game_id}"
-
-            response.delete_cookie(player_cookie_name, path="/")
-            response.delete_cookie(game_cookie_name, path="/")
-
+        # A player who leaves loses the cookies. A host who removes someone
+        # keeps their own.
+        if own:
+            for prefix in (settings.COOKIE_PLAYER_PREFIX, settings.COOKIE_GAME_PREFIX):
+                response.delete_cookie(f"{prefix}{game_id}", path="/")
         return response
 
 
@@ -85,11 +93,29 @@ class PlayerListView(GameScopedQuerysetMixin, ListModelMixin, GenericAPIView):
     authentication_classes = (SessionAuthentication,)
     permission_classes = (HasGameAccess,)
 
+    def get_permissions(self):
+        # Everyone in the game may list the seats. Only the host adds one.
+        if self.request.method == "POST":
+            return [IsGameHost()]
+        return super().get_permissions()
+
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
 
-    def post(self, request, *args, **kwargs):
-        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
+    def post(self, request, game_id):
+        """The host adds a seat played at the host machine. Roadmap.md 1.6."""
+        body = SeatRequestSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        game = get_object_or_404(GameSession, game_id=game_id)
+
+        try:
+            seat = add_seat(game, body.validated_data["name"])  # type: ignore
+        except SeatRefused as refused:
+            return Response(
+                {"detail": "Cannot add a seat.", "reason": refused.reason},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response(self.get_serializer(seat).data, status=status.HTTP_201_CREATED)
 
 
 class MuteUnmutePlayerView(GameScopedQuerysetMixin, GenericAPIView):

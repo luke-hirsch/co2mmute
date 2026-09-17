@@ -63,13 +63,17 @@ def _playing(game: GameSession):
     return Player.objects.filter(game=game).playing()  # type:ignore
 
 
-def _seat(game: GameSession, player_id: str) -> Player | None:
+def _seat(game: GameSession, player_id: str, by_host: bool = False) -> Player | None:
     """The playing seat behind a player_id.
 
     None for the host's own row, for someone who left and for an id from another
-    game. None of them take part in a phase.
+    game. None of them take part in a phase. by_host: the host is asking, which
+    is only allowed for a seat played at the host machine (Roadmap.md 1.6).
     """
-    return _playing(game).filter(player_id=player_id).first()
+    seats = _playing(game).filter(player_id=player_id)
+    if by_host:
+        seats = seats.filter(controlled_by_host=True)
+    return seats.first()
 
 
 def _progress(model, game: GameSession, game_round: GameRound) -> tuple[int, int]:
@@ -285,6 +289,28 @@ def ack_stats(game_id: str, player_id: str) -> bool:
 
     StatsAck.objects.get_or_create(game_round=game_round, player=player)
     _advance_from_stats(game, game_round)
+    return _ack(game_id, player_id=player_id)
+
+
+def ack_host_seats(game_id: str) -> bool:
+    """The host has read the stats, for every seat played at the host machine.
+    They all look at the same screen. False if there is no such seat."""
+    return _ack(game_id, controlled_by_host=True)
+
+
+def _ack(game_id: str, **seat_filter) -> bool:
+    """Store an ack for every playing seat matching seat_filter, then try to
+    move on."""
+    game, game_round = _load(game_id)
+    if not game or game_round is None or game_round.between_round_phase != Phase.STATS:
+        return False
+    seats = list(_playing(game).filter(**seat_filter))
+    if not seats:
+        return False
+
+    for seat in seats:
+        StatsAck.objects.get_or_create(game_round=game_round, player=seat)
+    _advance_from_stats(game, game_round)
     return True
 
 
@@ -326,15 +352,18 @@ def open_vote(game_id: str) -> bool:
     return True
 
 
-def submit_vote(game_id: str, player_id: str, version_id: int | None) -> bool:
+def submit_vote(
+    game_id: str, player_id: str, version_id: int | None, by_host: bool = False
+) -> bool:
     """One vote per seat per round. None means "leave as it is".
 
-    Only versions on this round's ballot are accepted.
+    Only versions on this round's ballot are accepted. by_host: the host votes
+    for a seat played at the host machine.
     """
     game, game_round = _load(game_id)
     if not game or game_round is None or game_round.between_round_phase != Phase.VOTING:
         return False
-    player = _seat(game, player_id)
+    player = _seat(game, player_id, by_host)
     if player is None:
         return False
     if version_id is not None:
@@ -441,8 +470,12 @@ def _tally_if_complete(game: GameSession, game_round: GameRound) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def submit_stalemate_vote(game_id: str, player_id: str, want_revote: bool) -> bool:
-    """After a tie: vote again (True) or leave the map as it is (False)."""
+def submit_stalemate_vote(
+    game_id: str, player_id: str, want_revote: bool, by_host: bool = False
+) -> bool:
+    """After a tie: vote again (True) or leave the map as it is (False).
+    by_host as in submit_vote."""
+
     game, game_round = _load(game_id)
     if (
         not game
@@ -450,7 +483,7 @@ def submit_stalemate_vote(game_id: str, player_id: str, want_revote: bool) -> bo
         or game_round.between_round_phase != Phase.STALEMATE
     ):
         return False
-    player = _seat(game, player_id)
+    player = _seat(game, player_id, by_host)
     if player is None:
         return False
 

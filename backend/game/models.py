@@ -135,19 +135,31 @@ class Player(models.Model):
 
     class Meta:
         ordering = ("game", "name", "joined_at")
+        constraints = [
+            # The cookie names the player by player_id, so it must point at one
+            # row. 1.7 hands out new ids and relies on this.
+            models.UniqueConstraint(
+                fields=("game", "player_id"), name="unique_player_id_per_game"
+            ),
+        ]
 
     def __str__(self):
         return f"{self.name} in {self.game.game_name}"
 
     def save(self, *args, **kwargs):
         if not self.player_id:
-            self.player_id = "P-" + str(self.generate_unique_player_id())
+            self.player_id = self.generate_unique_player_id()
 
         super().save(*args, **kwargs)
 
-    def generate_unique_player_id(self, max_retries=5):
+    def generate_unique_player_id(self, max_retries=5) -> str:
+        """A "P-XXXX" id no other player in this game has.
+
+        The check compares the whole id. It used to compare "ABCD" against the
+        stored "P-ABCD", so it never saw a collision.
+        """
         for _ in range(1, max_retries + 1):
-            player_id = uuid.uuid4().hex[:4].upper()
+            player_id = f"P-{uuid.uuid4().hex[:4].upper()}"
 
             if not Player.objects.filter(game=self.game, player_id=player_id).exists():
                 return player_id

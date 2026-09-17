@@ -11,6 +11,7 @@ from co2mmute.utils import sanitize_group_name
 from django.conf import settings
 
 from game.phases import (
+    ack_host_seats,
     ack_stats,
     force_leave_as_is,
     open_vote,
@@ -445,9 +446,21 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
             }
         )
 
-    async def _handle_stats_ack(self) -> None:
-        """Player acknowledged stats view, ready to proceed."""
+    def _voter(self, data: dict) -> tuple[str, bool]:
+        """Whose vote a message carries, and whether the host sent it.
+
+        A player always votes for themselves. The host names the seat in
+        player_id; game.phases accepts only one played at the host machine.
+        """
         if self.is_host:
+            return str(data.get("player_id") or ""), True
+        return str(self.player_id), False
+
+    async def _handle_stats_ack(self) -> None:
+        """A player has read the stats. The host's ack counts for every seat
+        played at the host machine."""
+        if self.is_host:
+            await database_sync_to_async(ack_host_seats)(self.game_id)
             return
         await database_sync_to_async(ack_stats)(self.game_id, str(self.player_id))
 
@@ -465,12 +478,11 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
             )
 
     async def _handle_vote_submit(self, data: dict) -> None:
-        """Player submits a vote for a map version."""
-        if self.is_host:
-            return
+        """A vote for a map version, from a player or the host for a seat."""
+        voter, by_host = self._voter(data)
         version_id = data.get("version_id")  # null/None = "Leave as it is"
         recorded = await database_sync_to_async(submit_vote)(
-            self.game_id, str(self.player_id), version_id
+            self.game_id, voter, version_id, by_host=by_host
         )
         if not recorded:
             await self.send_json(
@@ -478,12 +490,11 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
             )
 
     async def _handle_stalemate_vote(self, data: dict) -> None:
-        """Player votes on whether to revote after a stalemate."""
-        if self.is_host:
-            return
+        """Vote again after a tie? From a player, or the host for a seat."""
+        voter, by_host = self._voter(data)
         want_revote = bool(data.get("want_revote", False))
         await database_sync_to_async(submit_stalemate_vote)(
-            self.game_id, str(self.player_id), want_revote
+            self.game_id, voter, want_revote, by_host=by_host
         )
 
     async def _handle_stalemate_force_leave(self) -> None:

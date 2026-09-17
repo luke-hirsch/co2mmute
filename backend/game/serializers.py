@@ -104,23 +104,29 @@ class PlayerSerializer(serializers.ModelSerializer):
         )
 
 
-class JoinRequestSerializer(serializers.Serializer):
-    """Body of POST /api/game/join/<game_id>/.
+class SeatRequestSerializer(serializers.Serializer):
+    """Body of POST /api/game/<game_id>/player/: the host adds a seat (1.6).
 
     `name` is the only identifying thing this project collects from a player —
     see the data-minimisation note in the DSGVO page. There is no account.
     """
 
     name = serializers.CharField(max_length=100, trim_whitespace=True)
-    password = serializers.CharField(
-        max_length=50, required=False, allow_blank=True, default=""
-    )
 
     def validate_name(self, value):
         name = value.strip()
         if not name:
             raise serializers.ValidationError("Please enter a display name.")
         return name
+
+
+class JoinRequestSerializer(SeatRequestSerializer):
+    """Body of POST /api/game/join/<game_id>/: a name, and the password if
+    the game has one."""
+
+    password = serializers.CharField(
+        max_length=50, required=False, allow_blank=True, default=""
+    )
 
 
 class GameRoundSerializer(serializers.ModelSerializer):
@@ -316,7 +322,9 @@ class AgentRouteInputSerializer(serializers.Serializer):
     """Input serializer for per-agent route submission."""
 
     id = serializers.IntegerField()  # agent_id
-    transport_mode = serializers.ChoiceField(choices=gm.AgentRoute.TransportMode.choices)
+    transport_mode = serializers.ChoiceField(
+        choices=gm.AgentRoute.TransportMode.choices
+    )
     optimization = serializers.ChoiceField(
         choices=gm.AgentRoute.Optimization.choices, required=False, allow_null=True
     )

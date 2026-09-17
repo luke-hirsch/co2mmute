@@ -12,9 +12,9 @@ from django.utils import timezone
 
 from game.cache import cache_game_session, invalidate_game_session
 from game.models import GameRound, GameSession, Player, PlayerMove
-from game.phases import schedule_recheck, vote_options
-from game.roster import schedule_broadcast, schedule_revoke, broadcast
-from game.rounds import schedule_round_completion_check
+from game.phases import vote_options
+from game.roster import broadcast, schedule_broadcast
+from game.seats import announce_departure
 
 logger = logging.getLogger(__name__)
 
@@ -189,34 +189,9 @@ def assign_agent_nodes(game_session: GameSession, player: Player) -> dict | None
 
 @receiver(post_delete, sender=Player)
 def cleanup_leaving_player(sender, instance: Player, **kwargs):
-    game_session = instance.game
-    player_name = instance.name or "A player"
-    was_kicked = getattr(instance, "_was_kicked", False)
-
-    if was_kicked:
-        send_chat_system_message(
-            game_session.game_id, f"{player_name} was removed from the game"
-        )
-    else:
-        send_chat_system_message(game_session.game_id, f"{player_name} left the game")
-
-    # Notify game consumer about leaving player
-    send_game_state_message(
-        game_session.game_id,
-        "player.left",
-        {
-            "player_id": instance.player_id,
-            "player_name": player_name,
-            "was_kicked": was_kicked,
-        },
-    )
-    # Close the seat's sockets, and show everyone the roster without it.
-    schedule_revoke(instance.pk, "removed" if was_kicked else "left")
-    schedule_broadcast(game_session.game_id)
-
-    if game_session.is_active:
-        schedule_round_completion_check(game_session.game_id)
-        schedule_recheck(game_session.game_id)
+    """A deleted seat. seats.remove_seat sets _was_kicked when the host did it;
+    a seat removed after the start is not deleted and announced there."""
+    announce_departure(instance, getattr(instance, "_was_kicked", False))
 
 
 @receiver(post_save, sender=GameSession)

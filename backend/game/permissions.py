@@ -30,7 +30,7 @@ class HasGameAccess(BasePermission):
 
 class IsPlayerInGame(BasePermission):
     """The cookie's player is in this game — and, where the URL names a player,
-    it is that player.
+    it is that player. Or the host, for a seat played at the host machine.
 
     PlayerMoveView and GetYourOwnGame take player_id from the URL. Without the
     comparison any player could act as any other player in the same game, and
@@ -44,11 +44,26 @@ class IsPlayerInGame(BasePermission):
         if not game_id:
             return False
 
+        url_player_id = view.kwargs.get("player_id")
+
+        # Roadmap.md 1.6: the host acts for a seat played at the host machine.
+        # Only for such a seat. A student's own seat stays the student's.
+        if (
+            url_player_id
+            and _is_host(request, game_id)
+            and Player.objects.filter(
+                game__game_id=game_id,
+                player_id=url_player_id,
+                controlled_by_host=True,
+                left_at__isnull=True,
+            ).exists()
+        ):
+            return True
+
         player_id = resolve_player_id(request.COOKIES, game_id)
         if not player_id:
             return False
 
-        url_player_id = view.kwargs.get("player_id")
         if url_player_id and url_player_id != player_id:
             return False
 

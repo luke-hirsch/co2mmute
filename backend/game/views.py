@@ -35,13 +35,10 @@ class GameSessionCreateView(
             if full_name.strip():
                 host_name = f"{full_name} (Host)"
 
-        host_player, created = Player.objects.get_or_create(
+        host_player, _created = Player.objects.get_or_create(
             game=form.instance,
             user=self.request.user,
-            defaults={
-                "name": host_name,
-                "controlled_by_host": True,
-            },
+            defaults={"name": host_name},
         )
 
         # Ensure player_id is generated

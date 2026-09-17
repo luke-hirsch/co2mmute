@@ -177,6 +177,9 @@ class LobbyStateView(APIView):
         players = Player.objects.filter(game=game, left_at__isnull=True).order_by(
             "joined_at"
         )
+        host_pks = set(
+            Player.objects.filter(game=game).host_rows().values_list("pk", flat=True)  # type: ignore
+        )
         joinable, reason = _joinable(game)
 
         return Response(
@@ -197,6 +200,7 @@ class LobbyStateView(APIView):
                     {
                         "player_id": p.player_id,
                         "name": p.name,
+                        "is_host": p.pk in host_pks,
                         "controlled_by_host": p.controlled_by_host,
                         "is_muted": p.is_muted,
                     }
