@@ -12,6 +12,7 @@ from django.utils import timezone
 
 from game.cache import cache_game_session, invalidate_game_session
 from game.models import GameRound, GameSession, Player, PlayerMove
+from game.phases import schedule_recheck, vote_options
 from game.rounds import schedule_round_completion_check
 
 logger = logging.getLogger(__name__)
@@ -210,6 +211,7 @@ def cleanup_leaving_player(sender, instance: Player, **kwargs):
 
     if game_session.is_active:
         schedule_round_completion_check(game_session.game_id)
+        schedule_recheck(game_session.game_id)
 
 
 @receiver(post_save, sender=GameSession)
@@ -343,8 +345,8 @@ def handle_round_completed(
     max_rounds_reached = game_round.round_number >= game_session.max_rounds
 
     # Get voteable map versions based on active version's compatible_versions
-    has_map_versions, map_versions_data = _get_voteable_map_versions_data(game_session)
-
+    map_versions_data = vote_options(game_round)
+    has_map_versions = bool(map_versions_data)
     # Broadcast round completed stats
     send_game_state_message(
         game_session.game_id,
@@ -575,113 +577,3 @@ def _calculate_hardcoded_stats(moves):
         )
 
     return round_emissions, round_cost, player_stats
-
-
-def _is_rollback_target(active_version, target_version):
-    """Return True if target_version is an ancestor of active_version (i.e., a rollback)."""
-    if target_version.base_version:
-        return True
-    current = active_version.source_version
-    while current is not None:
-        if current.pk == target_version.pk:
-            return True
-        current = current.source_version
-    return False
-
-
-def _get_delta_img_url(active_version, target_version):
-    """
-    Return the relative URL of the 'change preview' image for a voting option.
-
-    For rollbacks: the active version's image (showing what will be reverted).
-    For forward moves to an atomic version: the target's own image.
-    For forward moves to a combo version (e.g. A→AB): find the 'new' component B
-    by looking at target's compatible_versions that are not an ancestor of active.
-    """
-    if _is_rollback_target(active_version, target_version):
-        if active_version.change_img:
-            return active_version.change_img.url
-        return None
-
-    # Collect active's ancestry (source_version chain)
-    active_ancestor_pks = set()
-    cur = active_version
-    while cur:
-        active_ancestor_pks.add(cur.pk)
-        cur = cur.source_version
-
-    # Only do delta lookup if active is a direct predecessor of target
-    # (active appears in target's compatible_versions)
-    active_is_predecessor = target_version.compatible_versions.filter(
-        pk=active_version.pk
-    ).exists()
-
-    if active_is_predecessor:
-        # Find the delta: a compat of target that is not an ancestor of active and has an image
-        for compat in target_version.compatible_versions.all():
-            if compat.pk in active_ancestor_pks:
-                continue
-            if compat.base_version:
-                continue
-            if compat.change_img:
-                return compat.change_img.url
-
-    # Fallback: target's own image
-    if target_version.change_img:
-        return target_version.change_img.url
-    return None
-
-
-def _build_version_dict(active_version, target_version):
-    """Build the voting option dict for a candidate version."""
-    is_rollback = _is_rollback_target(active_version, target_version)
-    return {
-        "id": target_version.id,
-        "name": target_version.name,
-        "poll_text": active_version.revert_poll_text
-        if is_rollback
-        else target_version.poll_text,
-        "is_rollback": is_rollback,
-        "change_img_url": _get_delta_img_url(active_version, target_version),
-    }
-
-
-def _get_voteable_map_versions(game_session):
-    """Return up to 2 compatible MapVersions based on active version's compatible_versions.
-
-    The random selection is cached so all clients (including reconnects) see the same
-    options for the duration of a round. Cache is cleared when the next round starts.
-    """
-    import random
-
-    from django.core.cache import cache
-    from maps.models import MapVersion
-
-    if not game_session.game_map or not game_session.map_updates:
-        return []
-
-    active_version = game_session.active_map_version
-    if active_version is None:
-        return []
-
-    cache_key = f"game:{game_session.game_id}:vote_version_ids"
-    cached_ids = cache.get(cache_key)
-    if cached_ids:
-        candidates = list(MapVersion.objects.filter(pk__in=cached_ids))
-    else:
-        candidates = list(active_version.compatible_versions.all())
-        if len(candidates) > 2:
-            candidates = random.sample(candidates, 2)
-        cache.set(cache_key, [v.pk for v in candidates], 7200)
-
-    return candidates, active_version
-
-
-def _get_voteable_map_versions_data(game_session):
-    """Return (has_versions, version_dicts) for the round.completed broadcast."""
-    result = _get_voteable_map_versions(game_session)
-    if not result:
-        return False, []
-    candidates, active_version = result
-    data = [_build_version_dict(active_version, v) for v in candidates]
-    return bool(data), data

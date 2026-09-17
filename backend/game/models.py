@@ -113,6 +113,9 @@ class PlayerQuerySet(models.QuerySet):
     def without_host_rows(self):
         return self.exclude(user=models.F("game__game_host"))
 
+    def playing(self):
+        return self.filter(left_at__isnull=True).without_host_rows()
+
 
 class Player(models.Model):
     name = models.CharField(max_length=100, null=True, blank=True)
@@ -189,6 +192,7 @@ class GameRound(models.Model):
         default=BetweenRoundPhase.NONE,
     )
     stalemate_count = models.PositiveSmallIntegerField(default=0)
+    vote_option_ids = models.JSONField(default=list, blank=True)
 
     class Meta:
         unique_together = (("game", "round_number"),)
@@ -423,6 +427,25 @@ class EdgeTrafficSnapshot(models.Model):
 # =============================================================================
 # Voting Models
 # =============================================================================
+
+
+class StatsAck(models.Model):
+    """A player has read the round's stats (between-round STATS phase)."""
+
+    game_round = models.ForeignKey(
+        GameRound, on_delete=models.CASCADE, related_name="stats_acks"
+    )
+    player = models.ForeignKey(
+        Player, on_delete=models.CASCADE, related_name="stats_acks"
+    )
+    acked_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = (("game_round", "player"),)
+        ordering = ("game_round", "acked_at")
+
+    def __str__(self):
+        return f"Stats ack by {self.player} in round {self.game_round.round_number}"
 
 
 class MapVersionVote(models.Model):

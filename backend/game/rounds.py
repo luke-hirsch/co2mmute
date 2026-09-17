@@ -17,16 +17,13 @@ def active_player_count(game: GameSession) -> int:
     receiver counted every Player row, so a game where anyone had left could
     never complete.
     """
-    return Player.objects.filter(
-        game=game, left_at__isnull=True, controlled_by_host=False
-    ).count()
+    return Player.objects.filter(game=game).playing().count()  # type:ignore
 
 
 def submitted_move_count(game_round: GameRound) -> int:
     return PlayerMove.objects.filter(
         session_round=game_round,
-        player__controlled_by_host=False,
-        player__left_at__isnull=True,
+        player__in=Player.objects.filter(game=game_round.game).playing(),  # type:ignore
     ).count()
 
 
