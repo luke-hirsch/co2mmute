@@ -13,6 +13,7 @@ from django.utils import timezone
 from game.cache import cache_game_session, invalidate_game_session
 from game.models import GameRound, GameSession, Player, PlayerMove
 from game.phases import schedule_recheck, vote_options
+from game.roster import schedule_broadcast, schedule_revoke, broadcast
 from game.rounds import schedule_round_completion_check
 
 logger = logging.getLogger(__name__)
@@ -94,6 +95,7 @@ def set_up_player(sender, instance: Player, created: bool, **kwargs):
                 "agent_assignments": agent_assignments,
             },
         )
+        schedule_broadcast(game_session.game_id)
 
 
 def assign_agent_nodes(game_session: GameSession, player: Player) -> dict | None:
@@ -208,6 +210,9 @@ def cleanup_leaving_player(sender, instance: Player, **kwargs):
             "was_kicked": was_kicked,
         },
     )
+    # Close the seat's sockets, and show everyone the roster without it.
+    schedule_revoke(instance.pk, "removed" if was_kicked else "left")
+    schedule_broadcast(game_session.game_id)
 
     if game_session.is_active:
         schedule_round_completion_check(game_session.game_id)
@@ -247,6 +252,7 @@ def game_start(
             },
         )
         logger.info(f"Game {instance.game_id} started, notified players")
+        schedule_broadcast(instance.game_id)
 
     elif instance.ended_at:
         total_emissions = sum(
@@ -272,6 +278,7 @@ def game_start(
             },
         )
         logger.info(f"Game {instance.game_id} ended, notified players")
+        schedule_broadcast(instance.game_id)
 
 
 @receiver(round_completed)
@@ -367,6 +374,7 @@ def handle_round_completed(
         f"Round {game_round.round_number} completed for game {game_session.game_id}: "
         f"{round_emissions}g CO2, €{round_cost} (simulation={has_routes})"
     )
+    broadcast(game_session.game_id)
 
     if co2_limit_reached or max_rounds_reached:
         # End the game

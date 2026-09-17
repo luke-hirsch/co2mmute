@@ -1,6 +1,5 @@
 import logging
 
-from co2mmute.utils import send_player_status_update
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Avg, Max
@@ -29,6 +28,7 @@ from game.models import (
     SimulationResult,
 )
 from game.permissions import CanDeleteOwnPlayer, HasGameAccess, IsPlayerInGame
+from game.roster import schedule_broadcast
 from game.rounds import schedule_round_completion_check
 from game.serializers import (
     GameSessionSerializer,
@@ -338,7 +338,7 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
                     self._store_routes(move, route_serializer.validated_data["agents"])  # type: ignore
 
             # Notify clients that this player has made their move
-            send_player_status_update(game_id, player_id, "waiting")
+            schedule_broadcast(game_id)
             schedule_round_completion_check(game_id)
 
             serializer = self.get_serializer(player)

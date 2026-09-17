@@ -12,10 +12,9 @@ logger = logging.getLogger(__name__)
 def active_player_count(game: GameSession) -> int:
     """Players whose move the round is waiting for.
 
-    The counting rule, applied identically on both sides of the comparison:
-    active (`left_at__isnull=True`) and not host-controlled. The old post_save
-    receiver counted every Player row, so a game where anyone had left could
-    never complete.
+    The counting rule is PlayerQuerySet.playing(), applied identically on both
+    sides of the comparison. The old post_save receiver counted every Player
+    row, so a game where anyone had left could never complete.
     """
     return Player.objects.filter(game=game).playing().count()  # type:ignore
 

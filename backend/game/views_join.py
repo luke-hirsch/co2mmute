@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 
 
 def _active_player_count(game: GameSession) -> int:
-    """Seats taken. Same counting rule as PlayerMoveView._check_round_completion:
-    active players only, host-controlled rows excluded."""
+    """Seats taken: PlayerQuerySet.playing(), the rule the rounds use too.
+    The host's own row is not a seat."""
     return Player.objects.filter(game=game).playing().count()  # type:ignore
 
 
@@ -133,18 +133,8 @@ class JoinSessionAPIView(APIView):
 
             player = Player.objects.create(game=game, name=name)
 
-            # signals.set_up_player assigns the home/destination nodes with a
-            # queryset .update(), which does not write back to this instance.
-            # Without the refresh agent_assignments is always null in the
-            # response, even when the game has a map.
             player.refresh_from_db()
-        if not player and not player.player_id:
-            logger.error(f"Failed to create player for game {game_id}")
-            return Response(
-                {"detail": "Could not create a player."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-        # Never log `name` — see the data-minimisation rule in CLAUDE.md.
+
         logger.info(f"Player {player.player_id} joined game {game.game_id} via REST")
 
         response = Response(

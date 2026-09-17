@@ -18,6 +18,7 @@ from game.phases import (
     submit_vote,
     vote_options,
 )
+from game.roster import connected, disconnected, heartbeat, player_group
 from game.ws_auth import resolve_player
 
 logger = logging.getLogger(__name__)
@@ -223,16 +224,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 
 
 class GameConsumer(AsyncJsonWebsocketConsumer):
-    # Redis key patterns for player tracking
-    ROSTER_KEY_PATTERN = "game:{game_id}:roster"
-    PLAYER_STATUS_KEY_PATTERN = "game:{game_id}:player:{player_id}:status"
-    ROSTER_TTL_SECONDS = 24 * 60 * 60  # 24 hours
-
-    # Player status values
-    STATUS_READY = "ready"
-    STATUS_MAKING_MOVE = "making_move"
-    STATUS_WAITING = "waiting"
-    STATUS_NOT_CONNECTED = "not_connected"
+    CLOSE_CODE_REVOKED = 4403
 
     async def connect(self) -> None:
         route = self.scope.get("url_route")
@@ -255,27 +247,20 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
             return
 
         self.player_id = player.player_id
-        self.player_name = player.name or "Player"
+        # The seat's Player row; for the host, their own row. Presence and the
+        # per-seat group hang on it. None only for a game older than host rows.
+        self.player_pk = player.pk  # type: ignore
         self.is_host = is_host
-        self.controlled_by_host = player.controlled_by_host
-        self.redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
 
         await self.channel_layer.group_add(self.group_name, self.channel_name)
+        if self.player_pk is not None:
+            await self.channel_layer.group_add(
+                player_group(self.player_pk), self.channel_name
+            )
         await self.accept()
 
-        # Register player as online and broadcast roster
-        await self._register_player_online()
-        await self._broadcast_roster()
-
-        # Send current roster to the newly connected client
-        roster = await self._get_roster()
-        await self.send_json(
-            {
-                "type": "roster.update",
-                "game_id": self.game_id,
-                "players": roster,
-            }
-        )
+        # Everyone, this socket included, gets the roster with this seat online.
+        await database_sync_to_async(connected)(self.game_id, self.player_pk)
 
         # Send current game state to the newly connected client
         game_state = await self._get_current_game_state()
@@ -289,18 +274,14 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
             )
 
     async def disconnect(self, code: int) -> None:
-        if not hasattr(self, "player_id"):
+        if not hasattr(self, "player_pk"):
             return
-        try:
-            # Mark player as not connected and broadcast
-            await self._mark_player_disconnected()
-            await self._broadcast_roster()
-            # Re-check between-round completion after player leaves
-
-            await self.channel_layer.group_discard(self.group_name, self.channel_name)
-        finally:
-            if hasattr(self, "redis_client"):
-                await self.redis_client.close()
+        if self.player_pk is not None:
+            await self.channel_layer.group_discard(
+                player_group(self.player_pk), self.channel_name
+            )
+        await self.channel_layer.group_discard(self.group_name, self.channel_name)
+        await database_sync_to_async(disconnected)(self.game_id, self.player_pk)
 
     async def receive(
         self,
@@ -320,6 +301,8 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
 
         if msg_type == "ping":
             await self.send(json.dumps({"type": "pong"}))
+            if self.player_pk is not None:
+                await database_sync_to_async(heartbeat)(self.game_id, self.player_pk)
             return
 
         if msg_type == "player.stats_ack":
@@ -343,94 +326,11 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
             return
 
     # ─────────────────────────────────────────────────────────────────────────
-    # Player roster management
+    # Roster. Built from the Player rows in game/roster.py.
     # ─────────────────────────────────────────────────────────────────────────
 
-    def _roster_key(self) -> str:
-        return self.ROSTER_KEY_PATTERN.format(game_id=self.game_id)
-
-    def _player_status_key(self, player_id: str) -> str:
-        return self.PLAYER_STATUS_KEY_PATTERN.format(
-            game_id=self.game_id, player_id=player_id
-        )
-
-    async def _register_player_online(self) -> None:
-        """Register player in the roster and set initial status."""
-        roster_key = self._roster_key()
-        status_key = self._player_status_key(str(self.player_id))
-
-        # Store player info in roster hash
-        player_data = json.dumps(
-            {
-                "player_id": self.player_id,
-                "name": self.player_name,
-                "is_host": self.is_host,
-                "controlled_by_host": self.controlled_by_host,
-                "online": True,
-            }
-        )
-        await self.redis_client.hset(roster_key, self.player_id, player_data)
-        await self.redis_client.expire(roster_key, self.ROSTER_TTL_SECONDS)
-
-        # Set player status to ready (will be updated by game events)
-        await self.redis_client.set(
-            status_key, self.STATUS_READY, ex=self.ROSTER_TTL_SECONDS
-        )
-
-    async def _mark_player_disconnected(self) -> None:
-        """Mark player as disconnected in the roster."""
-        roster_key = self._roster_key()
-        status_key = self._player_status_key(str(self.player_id))
-
-        # Update player online status
-        player_data_raw = await self.redis_client.hget(roster_key, self.player_id)
-        if player_data_raw:
-            player_data = json.loads(player_data_raw)
-            player_data["online"] = False
-            await self.redis_client.hset(
-                roster_key, self.player_id, json.dumps(player_data)
-            )
-
-        # Update status
-        await self.redis_client.set(
-            status_key, self.STATUS_NOT_CONNECTED, ex=self.ROSTER_TTL_SECONDS
-        )
-
-    async def _get_roster(self) -> list[dict]:
-        """Get current roster with player statuses."""
-        roster_key = self._roster_key()
-        roster_data = await self.redis_client.hgetall(roster_key)
-
-        players = []
-        for player_id, player_json in roster_data.items():
-            try:
-                player = json.loads(player_json)
-                # Get player status
-                status_key = self._player_status_key(player_id)
-                status = (
-                    await self.redis_client.get(status_key) or self.STATUS_NOT_CONNECTED
-                )
-                player["status"] = status
-                players.append(player)
-            except Exception as e:
-                logger.warning(f"Failed to parse player data: {e}")
-                continue
-
-        return players
-
-    async def _broadcast_roster(self) -> None:
-        """Broadcast roster update to all connected clients."""
-        roster = await self._get_roster()
-        await self.channel_layer.group_send(
-            self.group_name,
-            {
-                "type": "roster_update",
-                "players": roster,
-            },
-        )
-
     async def roster_update(self, event: dict) -> None:
-        """Handle roster update broadcast."""
+        """Forward a roster sent by game.roster.broadcast."""
         await self.send_json(
             {
                 "type": "roster.update",
@@ -439,13 +339,24 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
             }
         )
 
+    async def player_revoked(self, event: dict) -> None:
+        """This seat is no longer ours (game.roster.revoke). Say why, hang up."""
+        await self.send_json(
+            {
+                "type": "player.revoked",
+                "game_id": self.game_id,
+                "data": {"reason": event.get("reason", "")},
+            }
+        )
+        await self.close(code=self.CLOSE_CODE_REVOKED)
+
     # ─────────────────────────────────────────────────────────────────────────
     # Game state events
     # ─────────────────────────────────────────────────────────────────────────
 
     async def game_state(self, event: dict) -> None:
         """
-        Handle game state events broadcast from signals.
+        Forward game state events broadcast by send_game_state_message.
 
         Supported events:
         - game.started: Game has started, players move from lobby to game
@@ -454,45 +365,17 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
         - round.completed: Round finished, stats available
         - player.joined: A player joined the game
         - player.left: A player left the game
+
+        The statuses in the roster follow from the game itself; whoever sends
+        one of these events also sends a fresh roster.
         """
-        event_type = event.get("event", "")
-        data = event.get("data", {})
-
-        # Update player statuses based on game events
-        if event_type == "round.started":
-            await self._set_all_players_status(self.STATUS_MAKING_MOVE)
-            await self._broadcast_roster()
-        elif event_type == "round.completed":
-            await self._set_all_players_status(self.STATUS_READY)
-            await self._broadcast_roster()
-
         await self.send_json(
             {
-                "type": event_type,
+                "type": event.get("event", ""),
                 "game_id": self.game_id,
-                "data": data,
+                "data": event.get("data", {}),
             }
         )
-
-    async def player_status_update(self, event: dict) -> None:
-        """Handle player status update (e.g., after submitting a move)."""
-        player_id = event.get("player_id")
-        status = event.get("status")
-
-        if player_id and status:
-            status_key = self._player_status_key(player_id)
-            await self.redis_client.set(status_key, status, ex=self.ROSTER_TTL_SECONDS)
-            await self._broadcast_roster()
-
-    async def _set_all_players_status(self, status: str) -> None:
-        """Set status for all online players."""
-        roster = await self._get_roster()
-        for player in roster:
-            if player.get("online") and not player.get("is_host"):
-                status_key = self._player_status_key(player["player_id"])
-                await self.redis_client.set(
-                    status_key, status, ex=self.ROSTER_TTL_SECONDS
-                )
 
     async def _get_current_game_state(self) -> dict | None:
         """Fetch current game state from database for reconnecting clients."""

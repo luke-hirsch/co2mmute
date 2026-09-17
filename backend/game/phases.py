@@ -32,6 +32,7 @@ from game.models import (
     StalemateVote,
     StatsAck,
 )
+from game.roster import broadcast
 
 logger = logging.getLogger(__name__)
 
@@ -113,6 +114,12 @@ def _broadcast(game_id: str, event: str, data: dict) -> None:
         f"gamestate_{sanitize_group_name(game_id)}",
         {"type": "between_round_event", "event": event, "data": data},
     )
+
+
+def _announce_round(game_id: str, started: dict) -> None:
+    """round.started, then the roster: every seat is choosing again."""
+    send_game_state_message(game_id, "round.started", started)
+    broadcast(game_id)
 
 
 def _start_next_round(
@@ -249,7 +256,7 @@ def vote_options(game_round: GameRound) -> list[dict]:
         GameRound.objects.filter(pk=game_round.pk, vote_option_ids=[]).update(
             vote_option_ids=candidate_ids
         )
-        game_round.refresh_from_db(fields=["vote_option_ids"])
+        game_round.refresh_from_db(fields=["vote_option_ids"])  # type: ignore
 
     versions = MapVersion.objects.filter(pk__in=game_round.vote_option_ids).order_by(
         "pk"
@@ -299,7 +306,7 @@ def _advance_from_stats(game: GameSession, game_round: GameRound) -> None:
     started = _start_next_round(game, game_round, Phase.STATS)
     if started:
         _broadcast(game.game_id, "stats.all_acked", {"next_phase": "next_round"})
-        send_game_state_message(game.game_id, "round.started", started)
+        _announce_round(game.game_id, started)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -426,7 +433,7 @@ def _tally_if_complete(game: GameSession, game_round: GameRound) -> None:
                 "vote_counts": vote_counts,
             },
         )
-        send_game_state_message(game.game_id, "round.started", started)
+        _announce_round(game.game_id, started)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -510,7 +517,7 @@ def _leave_as_is(game: GameSession, game_round: GameRound) -> bool:
             "forced": True,
         },
     )
-    send_game_state_message(game.game_id, "round.started", started)
+    _announce_round(game.game_id, started)
     return True
 
 

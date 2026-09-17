@@ -16,9 +16,14 @@ logger = logging.getLogger(__name__)
 
 
 class HostPlayer:
-    def __init__(self, user_obj, game):
+    """The host on a socket. Not a Player, but it carries the host's own row,
+    so the roster and the per-seat group find the host under that row's pk
+    and player_id. host_row is None for a game older than host rows."""
+
+    def __init__(self, user_obj, game, host_row=None):
         self.user_id = user_obj.pk
-        self.player_id = f"{user_obj.username[0:5]}"
+        self.pk = host_row.pk if host_row else None
+        self.player_id = host_row.player_id if host_row else None
         self.name = f"{user_obj.username} (Host)"
         self.is_muted = False
         self.controlled_by_host = True
@@ -44,7 +49,8 @@ async def resolve_player(scope, game_id: str):
         ).first()
         if not game_session:
             return None
-        return HostPlayer(user_obj, game_session)
+        host_row = Player.objects.filter(game=game_session).host_rows().first()  # type:ignore
+        return HostPlayer(user_obj, game_session, host_row)
 
     host_player = await _get_host_player(user, game_id)
     if host_player:
