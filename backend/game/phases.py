@@ -284,15 +284,6 @@ def ack_stats(game_id: str, player_id: str) -> bool:
     replaces expired after an hour, and would count a player twice once 1.7
     gives them a new id.
     """
-    game, game_round = _load(game_id)
-    if not game or game_round is None or game_round.between_round_phase != Phase.STATS:
-        return False
-    player = _seat(game, player_id)
-    if player is None:
-        return False
-
-    StatsAck.objects.get_or_create(game_round=game_round, player=player)
-    _advance_from_stats(game, game_round)
     return _ack(game_id, player_id=player_id)
 
 

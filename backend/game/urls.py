@@ -1,6 +1,11 @@
 from django.urls import path
 
-from game.views_join import JoinSessionAPIView, LobbyStateView, SessionLookupView
+from game.views_join import (
+    JoinSessionAPIView,
+    LobbyStateView,
+    SeatCodeView,
+    SessionLookupView,
+)
 from game.views_rest import (
     GamePauseView,
     GameResumeView,
@@ -11,6 +16,8 @@ from game.views_rest import (
     PlayerListView,
     PlayerMoveView,
     RoundTrafficHeatmapView,
+    SeatCodeIssueView,
+    SeatTakeoverView,
 )
 
 app_name = "game"
@@ -53,5 +60,16 @@ urlpatterns = [
         "<str:game_id>/<str:player_id>/",
         GetYourOwnGame.as_view(),
         name="player-game-session-detail",
+    ),
+    path("seat/<str:code>/", SeatCodeView.as_view(), name="seat-code"),
+    path(
+        "<str:game_id>/player/<str:player_id>/code/",
+        SeatCodeIssueView.as_view(),
+        name="seat-code-issue",
+    ),
+    path(
+        "<str:game_id>/player/<str:player_id>/takeover/",
+        SeatTakeoverView.as_view(),
+        name="seat-takeover",
     ),
 ]

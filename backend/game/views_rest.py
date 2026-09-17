@@ -38,7 +38,14 @@ from game.permissions import (
 )
 from game.roster import schedule_broadcast
 from game.rounds import schedule_round_completion_check
-from game.seats import SeatRefused, add_seat, remove_seat
+from game.seats import (
+    CODE_TTL,
+    SeatRefused,
+    add_seat,
+    issue_code,
+    remove_seat,
+    take_over,
+)
 from game.serializers import (
     GameSessionSerializer,
     PlayerMoveWithRoutesInputSerializer,
@@ -241,6 +248,57 @@ class GameSessionDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIVie
             return Response(serializer.data, status=status.HTTP_200_OK)
         else:
             return super().update(request, *args, **kwargs)
+
+
+class SeatCodeIssueView(GenericAPIView):
+    """POST /api/game/<game_id>/player/<player_id>/code/ — Roadmap.md 1.7.
+
+    A code that hands the seat to another device. IsPlayerInGame lets in the
+    seat's own player (moving to another device) and the host for a seat
+    played at the host machine (a student who comes back).
+    """
+
+    authentication_classes = (SessionAuthentication,)
+    permission_classes = (HasGameAccess, IsPlayerInGame)
+
+    def post(self, request, game_id, player_id):
+        seat = get_object_or_404(
+            Player, game__game_id=game_id, player_id=player_id, left_at__isnull=True
+        )
+        try:
+            code = issue_code(seat)
+        except SeatRefused as refused:
+            return Response(
+                {"detail": "No code for this seat.", "reason": refused.reason},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response(
+            {"code": code, "expires_in": CODE_TTL}, status=status.HTTP_201_CREATED
+        )
+
+
+class SeatTakeoverView(GenericAPIView):
+    """POST /api/game/<game_id>/player/<player_id>/takeover/ — Roadmap.md 1.7.
+
+    The host plays a student's seat from now on. The student's device is out.
+    """
+
+    serializer_class = PlayerSerializer
+    authentication_classes = (SessionAuthentication,)
+    permission_classes = (IsGameHost,)
+
+    def post(self, request, game_id, player_id):
+        seat = get_object_or_404(
+            Player, game__game_id=game_id, player_id=player_id, left_at__isnull=True
+        )
+        try:
+            seat, _old_player_id = take_over(seat)
+        except SeatRefused as refused:
+            return Response(
+                {"detail": "Cannot take this seat over.", "reason": refused.reason},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response(self.get_serializer(seat).data)
 
 
 class GamePauseView(GenericAPIView):

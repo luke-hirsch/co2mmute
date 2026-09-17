@@ -85,7 +85,6 @@ async def resolve_player(scope, game_id: str):
         )
         if not player:
             # Never log player_id lists here — the names come with them.
-            # CLAUDE.md: player names must not reach logs. Roadmap.md 1.3.
             return None, "player-not-found"
         if player.game.ended_at is not None:
             return None, "game-ended"

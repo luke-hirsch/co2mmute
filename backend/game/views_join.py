@@ -15,9 +15,11 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from game.auth import resolve_player_id
 from game.cache import get_cached_game_session
 from game.models import GameSession, Player
 from game.permissions import HasGameAccess
+from game.seats import SeatRefused, redeem_code, seat_for_code
 from game.serializers import JoinRequestSerializer
 
 logger = logging.getLogger(__name__)
@@ -209,4 +211,89 @@ class LobbyStateView(APIView):
                 ],
             },
             status=status.HTTP_200_OK,
+        )
+
+
+class SeatCodeView(APIView):
+    """GET / POST /api/game/seat/<code>/ — take a seat over by code. Roadmap.md 1.7.
+
+    GET only looks, so the phone can ask "Du übernimmst Anna?" first. POST
+    uses the code up and hands over the seat: a new player_id, both cookies,
+    and the old device is out.
+
+    Needs no cookie, like the join. SessionAuthentication stays on, unlike the
+    join, because the game's own host must be refused: the host is recognised
+    by the session, and a seat cookie in the host's browser would be lost there.
+    A logged-in user then needs the CSRF token, which the SPA sends anyway.
+    """
+
+    authentication_classes = (SessionAuthentication,)
+    permission_classes = (AllowAny,)
+
+    def get(self, request, code):
+        seat = seat_for_code(code)
+        if seat is None:
+            return self._unknown()
+        if seat.game.ended_at is not None:
+            return self._refused("ended")
+        return Response(
+            {
+                "game_id": seat.game.game_id,
+                "game_name": seat.game.game_name,
+                "player_name": seat.name,
+            }
+        )
+
+    def post(self, request, code):
+        seat = seat_for_code(code)
+        if seat is None:
+            return self._unknown()
+        game = seat.game
+
+        # Refusals that don't use the code up.
+        if game.ended_at is not None:
+            return self._refused("ended")
+        if request.user.is_authenticated and game.game_host == request.user:
+            return self._refused("host")
+        held = resolve_player_id(request.COOKIES, game.game_id)
+        if held and held != seat.player_id and self._plays(game, held):
+            return self._refused("seated")
+
+        try:
+            seat, _old_player_id = redeem_code(code)
+        except SeatRefused as refused:
+            if refused.reason == "unknown":
+                return self._unknown()
+            return self._refused(refused.reason)
+
+        # game_id and player_id, never the name.
+        logger.info(f"Seat {seat.player_id} of game {game.game_id} redeemed by code")
+        response = Response(
+            {
+                "game_id": game.game_id,
+                "game_name": game.game_name,
+                "player_id": seat.player_id,
+                "name": seat.name,
+                "agent_assignments": seat.agent_assignments,
+            }
+        )
+        response = set_game_access_cookie(request, response, game.game_id)
+        return set_player_cookie(request, response, game.game_id, str(seat.player_id))
+
+    def _plays(self, game: GameSession, player_id: str) -> bool:
+        """This browser already plays a seat in the game. Taking a second one
+        would leave the first without a device."""
+        seats = Player.objects.filter(game=game, player_id=player_id)
+        return seats.playing().exists()  # type: ignore
+
+    def _unknown(self):
+        return Response(
+            {"detail": "This code is not valid (any more)."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    def _refused(self, reason: str):
+        return Response(
+            {"detail": "This code cannot be used here.", "reason": reason},
+            status=status.HTTP_409_CONFLICT,
         )
