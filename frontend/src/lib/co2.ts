@@ -44,15 +44,24 @@ export function exceededBudget(usedG: number, maxG: number): boolean {
   return usedG > maxG;
 }
 
-/** Bands the budget bar changes colour at. Kept here so the test can see them. */
-export const BUDGET_WARN_AT = 0.6;
-export const BUDGET_DANGER_AT = 0.85;
+/**
+ * The budget has two states, not three.
+ *
+ * A third band would have to distinguish "warning" from "danger", and on this
+ * screen that is a distinction without a difference: either the budget is fine
+ * or it wants your attention. So the bar runs in the primary and flips to the
+ * accent — the primary's complement, which is what makes the flip read as
+ * tension rather than as decoration.
+ *
+ * 0.75 rather than something later: the budget ending the game is the event the
+ * whole round is played against, and players need a round or two to change what
+ * they are doing about it.
+ */
+export const BUDGET_ATTENTION_AT = 0.75;
 
-export type BudgetLevel = "ok" | "warn" | "danger";
+export type BudgetLevel = "ok" | "attention";
 
 export function budgetLevel(usedG: number, maxG: number): BudgetLevel {
-  const share = budgetShare(usedG, maxG);
-  if (exceededBudget(usedG, maxG) || share >= BUDGET_DANGER_AT) return "danger";
-  if (share >= BUDGET_WARN_AT) return "warn";
-  return "ok";
+  if (exceededBudget(usedG, maxG)) return "attention";
+  return budgetShare(usedG, maxG) >= BUDGET_ATTENTION_AT ? "attention" : "ok";
 }

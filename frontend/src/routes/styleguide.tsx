@@ -169,7 +169,7 @@ function Styleguide() {
         <Section
           title="Linien"
           line="car"
-          note="Vier Linien, vier Farben. Jeder Screen, der einen Verkehrsweg zeigt, benutzt diese und keine anderen. Zu Fuß ist gepunktet und wechselt mit dem Modus die Farbe."
+          note="Vier Linien, vier Farben, jede mit einem echten Vorbild: Autobahnschilder sind blau, die BVG ist gelb, Radwege sind grün. Zu Fuß ist keine Linie, deshalb gepunktet — und wechselt mit dem Modus die Farbe."
         >
           <LineLegend className="gap-x-10" />
           <div className="mt-10 flex flex-wrap gap-4">
@@ -187,7 +187,7 @@ function Styleguide() {
         <Section
           title="Farben"
           line="public"
-          note="Neutrale Flächen und die drei Signalfarben. Die Werte stehen wortgleich in backend/static/css/custom.css, ein Test vergleicht beide Dateien."
+          note="Zwei Markenfarben, neutrale Flächen, sonst nichts. Es gibt kein Grün für Erfolg und kein Rot für Gefahr mehr — was Aufmerksamkeit braucht, bekommt den Akzent. Die Werte stehen wortgleich in backend/static/css/custom.css, ein Test vergleicht beide Dateien."
         >
           <Row label="Linien">
             <Swatch token="--color-line-car" name="line-car" />
@@ -210,11 +210,10 @@ function Styleguide() {
             <Swatch token="--ring" name="ring" />
           </Row>
           <Separator />
-          <Row label="Signal">
-            <Swatch token="--color-success-500" name="success-500" />
-            <Swatch token="--color-warning-500" name="warning-500" />
-            <Swatch token="--color-danger-500" name="danger-500" />
-            <Swatch token="--primary" name="primary" />
+          <Row label="Marke">
+            <Swatch token="--primary" name="primary = Auto" />
+            <Swatch token="--color-brandaccent" name="accent = Bus & Bahn" />
+            <Swatch token="--destructive" name="destructive" />
           </Row>
         </Section>
 
@@ -292,9 +291,7 @@ function Styleguide() {
           <div className="mt-8 flex max-w-sm flex-col gap-3">
             <Label htmlFor="sg-bad">Mit Fehler</Label>
             <Input id="sg-bad" aria-invalid defaultValue="Ba" />
-            <p className="text-sm text-danger-700 dark:text-danger-500">
-              {de.join.nameRequired}
-            </p>
+            <p className="text-sm font-medium">{de.join.nameRequired}</p>
           </div>
         </Section>
 
@@ -443,12 +440,15 @@ function Styleguide() {
           </ul>
         </Section>
 
-        <Section title="CO₂-Budget"
-          line="bike">
+        <Section
+          title="CO₂-Budget"
+          line="bike"
+          note="Zwei Zustände statt drei: läuft, oder will Aufmerksamkeit. Der Balken läuft im Primary und kippt bei 75 % auf den Akzent — die Komplementärfarbe, deshalb liest der Wechsel als Spannung."
+        >
           <div className="flex max-w-(--measure-prose) flex-col gap-8">
             <Co2Bar usedG={kgToGrams(18)} maxG={kgToGrams(100)} />
-            <Co2Bar usedG={kgToGrams(68)} maxG={kgToGrams(100)} />
-            <Co2Bar usedG={kgToGrams(91)} maxG={kgToGrams(100)} />
+            <Co2Bar usedG={kgToGrams(74)} maxG={kgToGrams(100)} />
+            <Co2Bar usedG={kgToGrams(76)} maxG={kgToGrams(100)} />
             <Co2Bar usedG={kgToGrams(112)} maxG={kgToGrams(100)} />
           </div>
         </Section>

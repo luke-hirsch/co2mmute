@@ -9,8 +9,11 @@ const alertVariants = cva(
     variants: {
       variant: {
         default: "bg-card text-card-foreground",
+        // Filled rather than amber-on-white: the accent is a bright signage
+        // colour and makes poor text. A filled panel is also how a platform
+        // notice reads at a station, which is the language this borrows.
         destructive:
-          "bg-card text-destructive *:data-[slot=alert-description]:text-destructive/90 [&>svg]:text-current",
+          "border-transparent bg-destructive text-destructive-foreground *:data-[slot=alert-description]:text-destructive-foreground/80 [&>svg]:text-current",
       },
     },
     defaultVariants: {

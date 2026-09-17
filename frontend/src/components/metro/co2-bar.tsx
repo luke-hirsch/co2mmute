@@ -8,9 +8,8 @@ import { de } from "@/lib/de";
 import { cn } from "@/lib/utils";
 
 const fill: Record<ReturnType<typeof budgetLevel>, string> = {
-  ok: "bg-success-500",
-  warn: "bg-warning-500",
-  danger: "bg-danger-500",
+  ok: "bg-primary",
+  attention: "bg-brandaccent",
 };
 
 /**
@@ -39,7 +38,7 @@ export function Co2Bar({
         <span
           className={cn(
             "font-mono text-sm tabular-nums",
-            over ? "text-danger-700 dark:text-danger-500" : "text-muted-foreground",
+            over ? "font-medium text-foreground" : "text-muted-foreground",
           )}
         >
           {over ? de.co2.exceeded : de.co2.used(displayKg(usedG), displayKg(maxG))}

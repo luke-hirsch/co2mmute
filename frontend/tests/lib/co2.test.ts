@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  BUDGET_DANGER_AT,
-  BUDGET_WARN_AT,
+  BUDGET_ATTENTION_AT,
   budgetLevel,
   budgetShare,
   displayKg,
@@ -65,15 +64,20 @@ describe("exceededBudget", () => {
 describe("budgetLevel", () => {
   const max = kgToGrams(100);
 
-  it("walks ok -> warn -> danger at the documented bands", () => {
+  it("is binary: fine, or it wants attention", () => {
+    // Deliberately two states and not three — "warning" versus "danger" is a
+    // distinction this screen cannot act on.
     expect(budgetLevel(kgToGrams(10), max)).toBe("ok");
-    expect(budgetLevel(max * (BUDGET_WARN_AT - 0.01), max)).toBe("ok");
-    expect(budgetLevel(max * BUDGET_WARN_AT, max)).toBe("warn");
-    expect(budgetLevel(max * (BUDGET_DANGER_AT - 0.01), max)).toBe("warn");
-    expect(budgetLevel(max * BUDGET_DANGER_AT, max)).toBe("danger");
+    expect(budgetLevel(max * (BUDGET_ATTENTION_AT - 0.01), max)).toBe("ok");
+    expect(budgetLevel(max * BUDGET_ATTENTION_AT, max)).toBe("attention");
   });
 
-  it("is danger once the budget is blown, which ends the game", () => {
-    expect(budgetLevel(kgToGrams(120), max)).toBe("danger");
+  it("wants attention once the budget is blown, which ends the game", () => {
+    expect(budgetLevel(kgToGrams(120), max)).toBe("attention");
+  });
+
+  it("never reports attention for a game that has not started", () => {
+    expect(budgetLevel(0, max)).toBe("ok");
+    expect(budgetLevel(0, 0)).toBe("ok");
   });
 });

@@ -35,11 +35,16 @@ export function SeatRow({
         className,
       )}
     >
+      {/* Presence is filled vs hollow, not green vs grey — the same language the
+          round track uses for a stop that has been reached. No colour is spent
+          on it, which leaves the accent free to mean "look at this". */}
       <span
         aria-hidden
         className={cn(
-          "size-2.5 shrink-0 rounded-full",
-          online ? "bg-success-500" : "bg-strong dark:bg-darkstrong",
+          "size-2.5 shrink-0 rounded-full border-2",
+          online
+            ? "border-foreground bg-foreground"
+            : "border-strong bg-transparent dark:border-darkstrong",
         )}
       />
 
@@ -57,7 +62,10 @@ export function SeatRow({
             </span>
           ) : null}
           {controlledByHost ? (
-            <span className="rounded-full border-2 border-mode-car px-2 py-0.5 text-xs font-medium">
+            // Outlined in ink rather than a line colour: a seat played at the
+            // host machine is not a transport mode, and the mode colours mean
+            // one thing only.
+            <span className="rounded-full border-2 border-foreground px-2 py-0.5 text-xs font-medium">
               {de.seat.atHostMachine}
             </span>
           ) : null}

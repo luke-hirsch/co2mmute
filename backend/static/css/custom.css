@@ -39,21 +39,25 @@
 
   /* the four transport lines. this is the identity of the app: every screen
      that shows a mode, a route or a legend uses these and nothing else.
-     lane 0 car, 1 public transport, 2 bike, 3 walking (drawn dotted). */
-  --color-line-car: #ffb300;
-  --color-line-pt: #1e88e5;
+     each one has a real referent rather than a UI convention --
+     motorway signs are blue, the BVG is yellow, cycle paths are green,
+     and a footpath is not a line at all, so it is drawn dotted.
+     lane 0 car, 1 public transport, 2 bike, 3 walking. */
+  --color-line-car: #1e88e5;
+  --color-line-pt: #ffb300;
   --color-line-bike: #10b981;
   --color-line-walk: #111827;
   --color-line-walk-dark: #f9fafb;
 
-  /* neutrals light */
-  --color-body: #f3f4f6;
+  /* neutrals light. the steps are wider than the usual gray-50/100 set:
+     with body at #f3f4f6 a white card barely separated from the page. */
+  --color-body: #e9ebef;
   --color-surface: #ffffff;
-  --color-elevated: #f9fafb;
-  --color-subtle: #e5e7eb;
-  --color-strong: #d1d5db;
+  --color-elevated: #f4f5f7;
+  --color-subtle: #d7dbe1;
+  --color-strong: #bcc3cc;
   --color-main: #111827;
-  --color-soft: #9ca3af;
+  --color-soft: #8b93a1;
 
   /* neutrals dark */
   --color-darkbody: #0b1120;
@@ -65,24 +69,18 @@
   --color-darkmutedtext: #9ca3af;
   --color-darksofttext: #6b7280;
 
-  /* success */
-  --color-success-100: #d1fae5;
-  --color-success-500: #10b981;
-  --color-success-700: #047857;
-
-  /* warning */
-  --color-warning-100: #fef3c7;
-  --color-warning-500: #f59e0b;
-  --color-warning-700: #b45309;
-
-  /* danger */
-  --color-danger-100: #fee2e2;
-  --color-danger-500: #ef4444;
-  --color-danger-700: #b91c1c;
+  /* There is deliberately no success / warning / danger ramp.
+     Green was the bike line and the success colour at the same hex, so every
+     confirmation read as "bike"; amber was the car and the warning. Dropping
+     the signal ramps frees green to mean the bike and nothing else.
+     Anything that needs attention -- a filling CO2 budget, a failed request,
+     an irreversible button -- uses the accent, which is the complement of the
+     primary and therefore reads as tension against it. Presence and progress
+     use filled vs hollow markers instead of colour. */
 
   /* type. no webfont on purpose: a third-party font sends every visitor's IP to
      its host, and the players are school students under a data-minimisation
-     design. mono is reserved for ids, codes and numerals — game ids, the
+     design. mono is reserved for ids, codes and numerals -- game ids, the
      six-character seat code, step numbers. */
   --font-sans:
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
@@ -106,14 +104,14 @@
 
   /* long-form neutral names. a few templates still use bg-bg-surface and
      text-text-main; the short names above are what everything else uses. */
-  --color-bg-body: #f3f4f6;
+  --color-bg-body: #e9ebef;
   --color-bg-surface: #ffffff;
-  --color-bg-elevated: #f9fafb;
-  --color-border-subtle: #e5e7eb;
-  --color-border-strong: #d1d5db;
+  --color-bg-elevated: #f4f5f7;
+  --color-border-subtle: #d7dbe1;
+  --color-border-strong: #bcc3cc;
   --color-text-main: #111827;
   --color-text-muted: #6b7280;
-  --color-text-soft: #9ca3af;
+  --color-text-soft: #8b93a1;
 }
 
 /*

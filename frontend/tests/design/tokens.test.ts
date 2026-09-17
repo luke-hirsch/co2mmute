@@ -64,11 +64,28 @@ describe("design tokens are shared between the SPA and the Django templates", ()
   });
 
   it("carries the four transport lines, which are the app's identity", () => {
-    expect(spa.get("--color-line-car")).toBe("#ffb300");
-    expect(spa.get("--color-line-pt")).toBe("#1e88e5");
+    // Motorway signs are blue, the BVG is yellow, cycle paths are green.
+    expect(spa.get("--color-line-car")).toBe("#1e88e5");
+    expect(spa.get("--color-line-pt")).toBe("#ffb300");
     expect(spa.get("--color-line-bike")).toBe("#10b981");
     expect(spa.get("--color-line-walk")).toBe("#111827");
     expect(spa.get("--color-line-walk-dark")).toBe("#f9fafb");
+  });
+
+  it("has no success, warning or danger ramp", () => {
+    // Green was the bike line and the success colour at once, so a confirmation
+    // read as "bike". The ramps are gone; the accent carries attention alone.
+    const signals = [...spa.keys()].filter((name) =>
+      /--color-(success|warning|danger)-/.test(name),
+    );
+    expect(signals).toEqual([]);
+  });
+
+  it("keeps the two line colours that double as brand colours in step", () => {
+    // The car line IS the primary and the PT line IS the accent. If one drifts
+    // the interface quietly grows a fifth and sixth colour.
+    expect(spa.get("--color-line-car")).toBe(spa.get("--color-primary-500"));
+    expect(django.get("--color-line-pt")).toBe("#ffb300");
   });
 
   it("names no third-party font host", () => {
