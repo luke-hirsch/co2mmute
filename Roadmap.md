@@ -87,10 +87,20 @@ pruefen, `PROD_*` secrets setzen.
   -> `.delay()` benutzen, worker + beat anschalten, fortschritt weiter ueber ws.
 - `consumers.py` hat 1312 zeilen und ist die halbe spiellogik (rundenphasen, voting,
   stalemate, roster). aufteilen: consumer nur noch transport, phasenlogik in ein
-  eigenes modul das auch ohne websocket testbar ist. **entschieden 13.08.26: bleibt
-  drin.** reihenfolge: erst die konsolidierung oben (die legt fest wo rundenende
+  eigenes modul das auch ohne websocket testbar ist. ~~entschieden 13.08.26: bleibt
+  drin.~~ **17.09.26: kommt doch, vor 1.6** - 1.6 und 1.7 aendern genau diese regeln.
+  reihenfolge: erst die konsolidierung oben (die legt fest wo rundenende
   entschieden wird), dann der split - andersrum verschiebt man den gleichen fehler
   nur in eine neue datei.
+  - ✅ teil 1 (17.09.26): phasen in `game/phases.py`, sync und ohne socket testbar.
+    jeder phasenwechsel wird atomar beansprucht wie das rundenende. stats-acks sind
+    eine tabelle statt redis-set, die abstimmungsoptionen liegen auf der runde statt
+    2h im cache. zaehlregel steht einmal da (`Player.objects.playing()`).
+    abstimmung oeffnen und "leave as is" erzwingen gehen nur noch aus ihrer phase.
+    nebenbei gefunden: `round.started` kam nie an. der consumer hat `async_to_sync`
+    im event loop aufgerufen, asgiref wirft da, der socket ist jedes mal abgestuerzt.
+    `consumers.py` 1312 -> 613 zeilen.
+  - teil 2: roster aus den `Player`-zeilen, siehe 1.6.
 
 #### 1.2 spieler-auth (kein account, nur haerten) ✅ erledigt 16.09.26
 
@@ -200,6 +210,8 @@ offen: der template-pfad prueft `max_players` weiter nicht. dafuer muesste auch
 
 #### 1.5 tests
 
+17.09.26: verifikation zurueckgestellt, 1.6/1.7 gehen vor.
+
 stand 17.09.26: `settings_test.py`, `test.yml` und der test-job in `workflow-prod.yml` sind auf
 main gemergt (lokal, noch nicht gepusht), branch geloescht, lokal gruen. CI ist noch nie
 gelaufen - der erste push von main ist der erste lauf. danach einen test absichtlich kaputt
@@ -217,6 +229,23 @@ machen und schauen ob es rot wird.
   deploy erst wenn gruen.
 
 #### 1.6 host-gesteuerte spieler
+
+**17.09.26: 1.6 und 1.7 als ein szenario geplant.** die klingel pausiert das spiel.
+naechste stunde fehlen zwei, der host uebernimmt ihre plaetze und spielt sie am
+host-rechner. kommen sie wieder, klickt der host den namen an, das handy scannt
+code/qr und hat den platz zurueck. reihenfolge: split teil 1 + 2, 1.6, pause, 1.7.
+entschieden:
+
+- pause: knopf beim host. keine eingaben mehr, banner ueberall, plaetze umbauen geht
+  weiter.
+- wieder reinkommen: cookie wird bei jedem besuch verlaengert, sonst code vom host.
+- uebernehmen: neue `player_id`, altes geraet fliegt raus. nie automatisch beim
+  disconnect, ein gesperrtes handy trennt auch.
+- entfernen nach spielstart nur ueber `left_at`, die daten bleiben. vorher wird wie
+  bisher geloescht.
+- der host legt plaetze in der lobby und im laufenden spiel an.
+- spiele ohne aktivitaet enden nach n tagen, pausiert oder nicht. n stellt der host
+  beim anlegen ein, standard 30. danach wird normal anonymisiert.
 
 wunsch der forschungsgruppe. nicht jede klasse hat fuer jede person ein handy.
 der host legt in der lobby zusaetzliche spieler an, die am host-rechner reihum
@@ -264,7 +293,8 @@ anderes geraet mitnehmen, ohne account.
 
 - geraet 1 zeigt auf anfrage code + qr (`/app/join/<game_id>?code=...`).
   scannen fuehrt direkt weiter, abtippen geht ueber "sitzung fortsetzen" im join.
-- der code liegt nur in redis: `code -> (game_id, player_id)`, 2 min ttl.
+- der code liegt nur in redis: `code -> (game_id, player_id)`, 5 min ttl (17.09.26).
+  einer pro platz, ein neuer code macht den alten ungueltig.
   einloesen ueber `cache.delete()`, das gibt nur einmal True -> nur einmal gueltig.
   keine tabelle, nichts zu anonymisieren.
 - beim einloesen bekommt der spieler eine neue `player_id`. das alte cookie zeigt
@@ -337,7 +367,8 @@ der QR-code zeigt dann direkt auf die SPA-route.
   `messages.success` vor dem redirect in die SPA, die SPA zeigt django-messages nie
   an. die drei stellen sind raus, auf main seit 16.09.26.
   offen: die `messages.error` in `PlayerCreateView.dispatch` sieht auch niemand.
-- runden counter im frontend nicht richtig
+- runden counter im frontend nicht richtig. vermutlich `round.started`, das nie ankam
+  (1.1 split teil 1). im neuen frontend nochmal pruefen.
 - daten im frontend nicht persistent
 - maximum player trumpft agents, somehow connected. backend-haelfte ist mit 1.4
   erledigt (join gibt 409 `full`), bleibt die anzeige im frontend.
@@ -411,6 +442,7 @@ raus, es bleibt `main` -> `prod`.
   rollback per `git push -f origin <alt>:prod` hat damit nie funktioniert,
   `pull --ff-only` sagt dann "Already up to date". neue zeile mit `/commute` und
   `checkout -B`, schritt 1 im deploy-guide.
+- 17.09.26: deploy-guide zurueckgestellt, 1.6/1.7 gehen vor.
 - ohne staging gibt es keine stufe mehr zwischen merge und live. das gate ist dann
   die testsuite, siehe 1.5. deploy nicht waehrend einer laufenden testrunde.
 - kiste (16.09.26): debian 13, checkout unter `/commute` (nicht `/srv/commute`),
