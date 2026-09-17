@@ -7,6 +7,7 @@ HasGameAccess. Roadmap.md 1.4.
 
 import logging
 
+from co2mmute.utils import set_game_access_cookie, set_player_cookie
 from django.db import transaction
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
@@ -14,7 +15,6 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from co2mmute.utils import set_game_access_cookie, set_player_cookie
 from game.cache import get_cached_game_session
 from game.models import GameSession, Player
 from game.permissions import HasGameAccess
@@ -26,9 +26,7 @@ logger = logging.getLogger(__name__)
 def _active_player_count(game: GameSession) -> int:
     """Seats taken. Same counting rule as PlayerMoveView._check_round_completion:
     active players only, host-controlled rows excluded."""
-    return Player.objects.filter(
-        game=game, left_at__isnull=True, controlled_by_host=False
-    ).count()
+    return Player.objects.filter(game=game).playing().count()  # type:ignore
 
 
 def _joinable(game: GameSession) -> tuple[bool, str | None]:
@@ -99,8 +97,8 @@ class JoinSessionAPIView(APIView):
     def post(self, request, game_id):
         serializer = JoinRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        name = serializer.validated_data["name"]
-        password = serializer.validated_data.get("password", "")
+        name = serializer.validated_data["name"]  # type: ignore
+        password = serializer.validated_data.get("password", "")  # type: ignore
 
         # Bypass the cache here. get_cached_game_session can hand back a stale
         # copy, and this is the one read where a stale started_at or an outdated
@@ -140,7 +138,12 @@ class JoinSessionAPIView(APIView):
             # Without the refresh agent_assignments is always null in the
             # response, even when the game has a map.
             player.refresh_from_db()
-
+        if not player and not player.player_id:
+            logger.error(f"Failed to create player for game {game_id}")
+            return Response(
+                {"detail": "Could not create a player."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
         # Never log `name` — see the data-minimisation rule in CLAUDE.md.
         logger.info(f"Player {player.player_id} joined game {game.game_id} via REST")
 
@@ -155,7 +158,9 @@ class JoinSessionAPIView(APIView):
             status=status.HTTP_201_CREATED,
         )
         response = set_game_access_cookie(request, response, game.game_id)
-        response = set_player_cookie(request, response, game.game_id, player.player_id)
+        response = set_player_cookie(
+            request, response, game.game_id, str(player.player_id)
+        )
         return response
 
 

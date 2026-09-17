@@ -594,9 +594,7 @@ class GameSummaryView(GenericAPIView):
                 {"error": "Game not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
-        players = Player.objects.filter(
-            game=game, left_at__isnull=True, controlled_by_host=False
-        )
+        players = Player.objects.filter(game=game).playing()  # type: ignore
         completed_rounds = GameRound.objects.filter(
             game=game, status=GameRound.Status.COMPLETED
         ).order_by("round_number")
