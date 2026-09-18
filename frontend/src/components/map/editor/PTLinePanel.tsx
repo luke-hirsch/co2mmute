@@ -1,3 +1,4 @@
+import { de } from "@/lib/de";
 import { useState, useEffect } from "react";
 import type { ExtendedMapGraph } from "../../../types/routeTypes";
 import type { PTLine } from "../../../types/routeTypes";
@@ -9,7 +10,7 @@ import {
   useUpdateTrainLine,
   useUpdateBusLineEdges,
   useUpdateTrainLineEdges,
-} from "../../../hooks/mapEditorHooks";
+} from "@/lib/queries/map-editor";
 
 interface PTLinePanelProps {
   mapId: string;
@@ -190,7 +191,7 @@ const PTLinePanel = ({
     if (ptLineCreating === "bus") {
       createBusMutation.mutate(
         {
-          name: name || "New Bus Line",
+          name: name || de.editor.newBusLine,
           intervall: interval,
           bus_capacity: capacity,
           bus_speed_kmh: speed,
@@ -208,7 +209,7 @@ const PTLinePanel = ({
     } else {
       createTrainMutation.mutate(
         {
-          name: name || "New Train Line",
+          name: name || de.editor.newTrainLine,
           intervall: interval,
           train_capacity: capacity,
           train_speed_kmh: speed,
@@ -487,7 +488,7 @@ const PTLinePanel = ({
             disabled={isEditPending || ptLineEdgeIds.length === 0}
             className="w-full px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
           >
-            {isEditPending ? "Saving..." : "Save Changes"}
+            {isEditPending ? "Saving..." : de.editor.saveChanges}
           </button>
         </div>
       )}
@@ -617,7 +618,7 @@ const PTLinePanel = ({
             disabled={isCreatePending || ptLineEdgeIds.length === 0}
             className="w-full px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
           >
-            {isCreatePending ? "Saving..." : "Save Line"}
+            {isCreatePending ? "Saving..." : de.editor.saveLine}
           </button>
         </div>
       )}

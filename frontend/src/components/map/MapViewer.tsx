@@ -1,5 +1,9 @@
 import { useState } from "react";
 import type { GameMap, MapGraph } from "../../types/mapTypes";
+import { imageRect, viewBox, type ImageFields } from "@/lib/map/view-box";
+import { EdgeHitArea } from "@/components/map/edge-hit-area";
+import { MapLegend } from "@/components/map/map-legend";
+import { de } from "@/lib/de";
 
 interface SelectedElement {
   type: "node" | "edge";
@@ -115,18 +119,19 @@ const MapViewer = ({
     );
   }
 
-  // Calculate SVG dimensions with padding
+  // Nodes, the map box and the image's drawn rectangle, from the shared module
+  // (K-02). This viewer used to size itself from the nodes alone, which is why
+  // it never showed the background at all and why an empty map gave it
+  // Infinity.
   const padding = 60;
-  const minX =
-    Math.min(...mapGraph.nodes.map((n) => n.x_position * 100)) - padding;
-  const minY =
-    Math.min(...mapGraph.nodes.map((n) => n.y_position * 100)) - padding;
-  const maxX =
-    Math.max(...mapGraph.nodes.map((n) => n.x_position * 100)) + padding;
-  const maxY =
-    Math.max(...mapGraph.nodes.map((n) => n.y_position * 100)) + padding;
-  const width = maxX - minX;
-  const height = maxY - minY;
+  const bg = imageRect(gameMap as ImageFields);
+  const { minX, minY, width, height } = viewBox({
+    nodes: mapGraph.nodes,
+    mapWidth: (gameMap.x_dim ?? 10) * 100,
+    mapHeight: (gameMap.y_dim ?? 10) * 100,
+    image: bg,
+    padding,
+  });
 
   const getNodeColor = (nodeTypes: any[]) => {
     const typeNames = nodeTypes.map((t) => t.name);
@@ -232,6 +237,21 @@ const MapViewer = ({
               className="w-full"
               style={{ aspectRatio: `${width}/${height}`, minHeight: "500px" }}
             >
+              {/* The background image, under everything. The detail page did
+                  not render it before F7, so a map calibrated in the editor
+                  looked different here than in the game. */}
+              {bg && gameMap.background_image_url ? (
+                <image
+                  href={gameMap.background_image_url}
+                  x={bg.x}
+                  y={bg.y}
+                  width={bg.width}
+                  height={bg.height}
+                  opacity={0.4}
+                  preserveAspectRatio="xMinYMin meet"
+                />
+              ) : null}
+
               {/* Grid background */}
               <defs>
                 <pattern
@@ -248,7 +268,10 @@ const MapViewer = ({
                   />
                 </pattern>
               </defs>
-              <rect width={width} height={height} fill="url(#grid)" />
+              {/* The grid has to start where the view box does: with a
+                  negative minX it used to begin at the origin and leave the
+                  left and top of the map ungridded. */}
+              <rect x={minX} y={minY} width={width} height={height} fill="url(#grid)" />
 
               {/* Edges */}
               {mapGraph.edges.map((edge) => {
@@ -270,6 +293,17 @@ const MapViewer = ({
 
                 return (
                   <g key={`edge-${edge.id}`}>
+                    {/* K-03: the click goes on the wide invisible stroke, not
+                        on the 3-unit line, which was a one-pixel target. */}
+                    <EdgeHitArea
+                      x1={x1}
+                      y1={y1}
+                      x2={x2}
+                      y2={y2}
+                      onClick={() =>
+                        setSelectedElement({ type: "edge", id: edge.id })
+                      }
+                    />
                     <line
                       x1={x1}
                       y1={y1}
@@ -279,10 +313,7 @@ const MapViewer = ({
                       strokeWidth={isSelected ? "5" : "3"}
                       strokeDasharray={strokeDasharray}
                       opacity={isSelected ? "1" : "0.6"}
-                      className="cursor-pointer hover:opacity-100 transition-all"
-                      onClick={() =>
-                        setSelectedElement({ type: "edge", id: edge.id })
-                      }
+                      className="pointer-events-none transition-all"
                     />
                   </g>
                 );
@@ -457,89 +488,28 @@ const MapViewer = ({
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="bg-subtle dark:bg-darksubtle rounded-lg p-6 border border-subtle dark:border-darksubtle">
-        <h2 className="text-lg font-semibold text-main dark:text-darktext mb-4">
-          Legend
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h3 className="font-semibold text-main dark:text-darktext mb-3">
-              Node Types
-            </h3>
-            <ul className="space-y-2 text-sm">
-              <li className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full bg-green-500"></div>
-                <span className="text-mutedtext dark:text-darkmutedtext">Home</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full bg-blue-500"></div>
-                <span className="text-mutedtext dark:text-darkmutedtext">
-                  Workplace
-                </span>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full bg-amber-500"></div>
-                <span className="text-mutedtext dark:text-darkmutedtext">
-                  Station
-                </span>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full bg-red-500"></div>
-                <span className="text-mutedtext dark:text-darkmutedtext">
-                  Bus Stop
-                </span>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="font-semibold text-main dark:text-darktext mb-3">
-              Edge Types
-            </h3>
-            <ul className="space-y-2 text-sm">
-              <li className="flex items-center gap-2">
-                <div className="w-8 h-0.5 bg-green-500"></div>
-                <span className="text-mutedtext dark:text-darkmutedtext">
-                  Walking Path
-                </span>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-8 h-0.5 bg-blue-500"></div>
-                <span className="text-mutedtext dark:text-darkmutedtext">
-                  Biking Path
-                </span>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-8 h-0.5 bg-purple-500"></div>
-                <span className="text-mutedtext dark:text-darkmutedtext">
-                  Walking & Biking
-                </span>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-8 h-0.5 bg-gray-500"></div>
-                <span className="text-mutedtext dark:text-darkmutedtext">
-                  Street
-                </span>
-              </li>
-              <li className="flex items-center gap-2">
-                <div
-                  className="w-8 h-0.5 bg-red-500"
-                  style={{ strokeDasharray: "5,5" }}
-                ></div>
-                <span className="text-mutedtext dark:text-darkmutedtext">
-                  Train Line
-                </span>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-8 h-0.5 bg-orange-500"></div>
-                <span className="text-mutedtext dark:text-darkmutedtext">
-                  Street + Train
-                </span>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
+      {/* The shared legend (F7). This page had its own, in English and with
+          colours hand-written next to the ones the SVG actually uses — the two
+          had already drifted: the legend called a train line red and dashed
+          while the renderer draws a dashed red one only when there is no
+          street on the same edge. Now both come off `getEdgeColorAndStyle`. */}
+      <MapLegend
+        edges={[
+          { color: "#6b7280", label: de.map.legend.street },
+          { color: "#ef4444", label: de.map.legend.train, dash: "5,5" },
+          { color: "#f97316", label: de.map.legend.streetAndTrain },
+          { color: "#3b82f6", label: de.map.legend.bike },
+          { color: "#22c55e", label: de.map.legend.walk },
+          { color: "#a855f7", label: de.map.legend.bikeAndWalk },
+        ]}
+        nodes={[
+          { color: "#22c55e", label: de.map.legend.home },
+          { color: "#3b82f6", label: de.map.legend.workplace },
+          { color: "#f59e0b", label: de.map.legend.station },
+          { color: "#ef4444", label: de.map.legend.busStop },
+        ]}
+        className="rounded-lg border border-subtle bg-subtle p-6 dark:border-darksubtle dark:bg-darksubtle"
+      />
     </div>
   );
 };

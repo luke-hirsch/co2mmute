@@ -168,13 +168,15 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | --- | --- | --- | --- | --- |
 | K-01 | Karte im Spiel | Knoten, Kanten, Linien, Legende | geht | - |
 | K-08 | Hintergrundbild im Spiel | liegt unter dem Graphen, richtig platziert | geht | - |
-| K-02 | Karte auf dem Handy | passt aufs Bild, Auswahl erreichbar (2.4) | offen | - |
-| K-03 | Kante anklicken | reagiert (2.4) | offen | - |
-| K-04 | Editor lädt | Graph erscheint | offen | - |
-| K-05 | Editor: Knoten und Kanten bearbeiten | speichert | offen | - |
-| K-06 | Editor: Version anlegen | taucht in der Abstimmung auf | offen | - |
-| K-07 | Karte importieren / exportieren | JSON rein und raus | kaputt | - |
-| K-09 | Export → Import derselben Karte | Bild, Maße und Platzierung kommen mit | kaputt | - |
+| K-02 | Karte auf dem Handy | passt aufs Bild, Auswahl erreichbar (2.4) | geht | - |
+| K-03 | Kante anklicken | reagiert (2.4) | geht | - |
+| K-04 | Editor lädt | Graph erscheint, auf Deutsch, mit Legende | geht | - |
+| K-05 | Editor: Knoten und Kanten bearbeiten | speichert | geht | - |
+| K-06 | Editor: Version anlegen | taucht in der Abstimmung auf | ungeprüft | - |
+| K-07 | Karte importieren / exportieren | JSON rein und raus | ungeprüft | - |
+| K-09 | Export → Import derselben Karte | Bild, Maße und Platzierung kommen mit | ungeprüft | - |
+| K-10 | Hintergrundbild neben den Graphen geschoben | bleibt ganz sichtbar, wird nicht abgeschnitten | geht | - |
+| K-11 | Kartendetail | Hintergrundbild liegt unter dem Graphen | geht | - |
 
 ## S — sonstiges
 

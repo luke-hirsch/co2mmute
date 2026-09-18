@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import type { MapGraph, Node } from "../../types/mapTypes";
 import type { RouteSegment, SegmentMode, ExtendedMapGraph } from "../../types/routeTypes";
+import { imageRect, viewBox, type ImageFields } from "@/lib/map/view-box";
 
 interface GameMapViewerProps {
   mapGraph: MapGraph | ExtendedMapGraph | null;
@@ -188,37 +189,21 @@ const GameMapViewer = ({
     (routeSegments ?? []).map((s) => s.edgeId).filter((id) => id >= 0)
   );
 
-  console.log("[GameMapViewer] Rendering with:", {
-    mapNodes: mapGraph?.nodes.length,
-    mapEdges: mapGraph?.edges.length,
-    routeSegments: routeSegments?.length ?? 0,
-    routeEdgeIds: Array.from(routeEdgeIds),
-    homeNodeId,
-    destinationNodeId,
-  });
 
-  // Calculate SVG dimensions — always include map bounds so background image stays visible
+  // The view box covers the nodes, the map box AND the image's drawn rectangle
+  // (K-02): the old version floored at the origin and stopped at the nominal
+  // map size, so an image at a negative offset or scaled past 1 was cut off.
+  // Shared with MapViewer and EditorCanvas — see lib/map/view-box.ts.
   const padding = 40;
   const mapW = ("x_dim" in mapGraph ? (mapGraph.x_dim ?? 10) : 10) * 100;
   const mapH = ("y_dim" in mapGraph ? (mapGraph.y_dim ?? 10) : 10) * 100;
-  const minX = Math.min(
-    0 - padding,
-    ...mapGraph.nodes.map((n) => n.x_position * 100 - padding)
-  );
-  const minY = Math.min(
-    0 - padding,
-    ...mapGraph.nodes.map((n) => n.y_position * 100 - padding)
-  );
-  const maxX = Math.max(
-    mapW + padding,
-    ...mapGraph.nodes.map((n) => n.x_position * 100 + padding)
-  );
-  const maxY = Math.max(
-    mapH + padding,
-    ...mapGraph.nodes.map((n) => n.y_position * 100 + padding)
-  );
-  const width = maxX - minX;
-  const height = maxY - minY;
+  const { minX, minY, width, height } = viewBox({
+    nodes: mapGraph.nodes,
+    mapWidth: mapW,
+    mapHeight: mapH,
+    image: imageRect(mapGraph as ImageFields),
+    padding,
+  });
 
   const selectedNode = selectedNodeId
     ? mapGraph.nodes.find((n) => n.id === selectedNodeId)

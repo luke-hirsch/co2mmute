@@ -1,3 +1,4 @@
+import { de } from "@/lib/de";
 import { useState, useEffect, useCallback } from "react";
 import type { GameMap } from "../../../types/mapTypes";
 import type { ExtendedMapGraph } from "../../../types/routeTypes";
@@ -5,7 +6,7 @@ import type { ImageTransformValues } from "../../../types/editorTypes";
 import {
   useUpdateImageTransform,
   useDeleteBackgroundImage,
-} from "../../../hooks/mapEditorHooks";
+} from "@/lib/queries/map-editor";
 
 interface ImageTransformPanelProps {
   mapId: string;
@@ -57,10 +58,10 @@ const ImageTransformPanel = ({ mapId, gameMap, mapGraph }: ImageTransformPanelPr
     return (
       <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle">
         <h3 className="text-lg font-semibold text-main dark:text-darktext mb-2">
-          Background Image
+          {de.editor.image.title}
         </h3>
         <p className="text-sm text-mutedtext dark:text-darkmutedtext">
-          No background image uploaded. Use the "Upload Image" button in the toolbar.
+          {de.editor.image.none}
         </p>
       </div>
     );
@@ -73,20 +74,23 @@ const ImageTransformPanel = ({ mapId, gameMap, mapGraph }: ImageTransformPanelPr
     max: number;
     step: number;
   }[] = [
-    { field: "image_offset_x", label: "Offset X", min: -20, max: 20, step: 0.1 },
-    { field: "image_offset_y", label: "Offset Y", min: -20, max: 20, step: 0.1 },
-    { field: "image_scale", label: "Scale", min: 0.1, max: 5, step: 0.01 },
-    { field: "image_crop_top", label: "Crop Top %", min: 0, max: 50, step: 0.5 },
-    { field: "image_crop_right", label: "Crop Right %", min: 0, max: 50, step: 0.5 },
-    { field: "image_crop_bottom", label: "Crop Bottom %", min: 0, max: 50, step: 0.5 },
-    { field: "image_crop_left", label: "Crop Left %", min: 0, max: 50, step: 0.5 },
+    { field: "image_offset_x", label: de.editor.image.offsetX, min: -20, max: 20, step: 0.1 },
+    { field: "image_offset_y", label: de.editor.image.offsetY, min: -20, max: 20, step: 0.1 },
+    { field: "image_scale", label: de.editor.image.scale, min: 0.1, max: 5, step: 0.01 },
+    { field: "image_crop_top", label: de.editor.image.cropTop, min: 0, max: 50, step: 0.5 },
+    { field: "image_crop_right", label: de.editor.image.cropRight, min: 0, max: 50, step: 0.5 },
+    { field: "image_crop_bottom", label: de.editor.image.cropBottom, min: 0, max: 50, step: 0.5 },
+    { field: "image_crop_left", label: de.editor.image.cropLeft, min: 0, max: 50, step: 0.5 },
   ];
 
   return (
     <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle space-y-3">
       <h3 className="text-lg font-semibold text-main dark:text-darktext">
-        Image Transform
+        {de.editor.image.title}
       </h3>
+      <p className="text-xs text-mutedtext dark:text-darkmutedtext">
+        {de.editor.image.hint}
+      </p>
 
       {sliders.map(({ field, label, min, max, step }) => (
         <div key={field}>
@@ -112,18 +116,18 @@ const ImageTransformPanel = ({ mapId, gameMap, mapGraph }: ImageTransformPanelPr
           disabled={updateMutation.isPending}
           className="flex-1 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
         >
-          {updateMutation.isPending ? "Saving..." : "Save"}
+          {updateMutation.isPending ? de.editor.saving : de.editor.save}
         </button>
         <button
           onClick={() => deleteMutation.mutate()}
           disabled={deleteMutation.isPending}
           className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
         >
-          Remove
+          {de.editor.image.remove}
         </button>
       </div>
       {updateMutation.isSuccess && (
-        <p className="text-xs text-green-600 dark:text-green-400">Saved</p>
+        <p className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.saved}</p>
       )}
     </div>
   );

@@ -1,3 +1,4 @@
+import { de } from "@/lib/de";
 import { useReducer, useState, useCallback, useRef } from "react";
 import { useParams, Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -5,14 +6,14 @@ import {
   useGameMap,
   useMapGraph,
   useMapVersions,
-} from "../../../hooks/mapHooks";
+} from "@/lib/queries/map-graph";
 import {
   useUpdateNodePosition,
   useCreateNode,
   useDeleteNode,
   useCreateEdge,
   useDeleteEdge,
-} from "../../../hooks/mapEditorHooks";
+} from "@/lib/queries/map-editor";
 import Loading from "../../Loading";
 import EditorToolbar from "./EditorToolbar";
 import EditorCanvas from "./EditorCanvas";
@@ -463,7 +464,7 @@ const MapEditor = () => {
         : null;
       const msg = reverseEdge
         ? "Delete this edge and its reverse direction?"
-        : "Delete this edge?";
+        : de.editor.deleteEdgeConfirm;
       if (confirm(msg)) {
         deleteEdgeMutation.mutate(edgeId);
         if (reverseEdge) {
@@ -502,10 +503,10 @@ const MapEditor = () => {
               params={{ mapId }}
               className="text-sm text-mutedtext dark:text-darkmutedtext hover:text-main dark:hover:text-darktext"
             >
-              &larr; Back to map
+              &larr; {de.editor.back}
             </Link>
             <h1 className="text-2xl font-bold text-main dark:text-darktext">
-              Edit: {gameMap.name}
+              {de.editor.title(gameMap.name)}
             </h1>
           </div>
           {state.isDirty && (

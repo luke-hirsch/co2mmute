@@ -2,6 +2,10 @@ import { useRef, useState, useCallback, useEffect } from "react";
 import type { GameMap } from "../../../types/mapTypes";
 import type { ExtendedMapGraph } from "../../../types/routeTypes";
 import type { EditorState, EdgeChange, VirtualNode, VirtualEdge } from "../../../types/editorTypes";
+import { imageRect, viewBox, type ImageFields } from "@/lib/map/view-box";
+import { EdgeHitArea } from "@/components/map/edge-hit-area";
+import { MapLegend, type LegendItem } from "@/components/map/map-legend";
+import { de } from "@/lib/de";
 
 interface EditorCanvasProps {
   gameMap: GameMap;
@@ -47,6 +51,28 @@ const getNodeColor = (nodeTypes: any[]) => {
 
 // All edge colors used by getEdgeColorAndStyle
 const EDGE_COLORS = ["#ef4444", "#f97316", "#475569", "#3b82f6", "#10b981", "#8b5cf6"];
+
+/**
+ * The legend, read straight off the two colour functions above. Kept next to
+ * them on purpose: if a colour changes there, this is the line that has to
+ * change with it, and it is in the same screenful.
+ */
+const LEGEND_EDGES: LegendItem[] = [
+  { color: "#475569", label: de.map.legend.street },
+  { color: "#ef4444", label: de.map.legend.train, dash: "5,5" },
+  { color: "#f97316", label: de.map.legend.streetAndTrain },
+  { color: "#3b82f6", label: de.map.legend.bike },
+  { color: "#10b981", label: de.map.legend.walk },
+  { color: "#8b5cf6", label: de.map.legend.bikeAndWalk },
+];
+
+const LEGEND_NODES: LegendItem[] = [
+  { color: "#10b981", label: de.map.legend.home },
+  { color: "#3b82f6", label: de.map.legend.workplace },
+  { color: "#f59e0b", label: de.map.legend.station },
+  { color: "#ef4444", label: de.map.legend.busStop },
+  { color: "#6b7280", label: de.map.legend.other },
+];
 // Green color for virtual (proposed) nodes and edges
 const VIRTUAL_COLOR = "#22c55e";
 
@@ -272,28 +298,21 @@ const EditorCanvas = ({
     );
   }
 
-  // Calculate SVG dimensions — always include map bounds so background image stays visible
+  // The view box, from the shared module (K-02). The editor is where the image
+  // is placed against the graph, so this is the copy that mattered most: the
+  // old floor at the origin meant an image dragged up or left was clipped
+  // exactly while you were trying to line it up. Only the source of the box
+  // changes here — the drag and save path below is untouched on purpose.
   const padding = 60;
   const mapW = gameMap.x_dim * 100;
   const mapH = gameMap.y_dim * 100;
-  const minX = Math.min(
-    0 - padding,
-    ...mapGraph.nodes.map((n) => n.x_position * 100 - padding)
-  );
-  const minY = Math.min(
-    0 - padding,
-    ...mapGraph.nodes.map((n) => n.y_position * 100 - padding)
-  );
-  const maxX = Math.max(
-    mapW + padding,
-    ...mapGraph.nodes.map((n) => n.x_position * 100 + padding)
-  );
-  const maxY = Math.max(
-    mapH + padding,
-    ...mapGraph.nodes.map((n) => n.y_position * 100 + padding)
-  );
-  const width = maxX - minX;
-  const height = maxY - minY;
+  const { minX, minY, width, height } = viewBox({
+    nodes: mapGraph.nodes,
+    mapWidth: mapW,
+    mapHeight: mapH,
+    image: imageRect(gameMap as ImageFields),
+    padding,
+  });
 
   // Build edge lookup for PT line overlay
   const nodeById = new Map(mapGraph.nodes.map((n) => [n.id, n]));
@@ -491,14 +510,11 @@ const EditorCanvas = ({
                   pointerEvents="none"
                 />
               )}
-              {/* Invisible wide hit target for easier clicking */}
+              {/* The wide invisible hit target, now shared with the map
+                  detail page, which had none at all (K-03). */}
               {edgesClickable && !isDeleted && (
-                <line
+                <EdgeHitArea
                   x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
-                  stroke="transparent"
-                  strokeWidth="14"
-                  strokeLinecap="round"
-                  className="cursor-pointer"
                   onClick={(e) => {
                     e.stopPropagation();
                     onEdgeClick(edge.id);
@@ -684,6 +700,14 @@ const EditorCanvas = ({
           );
         })}
       </svg>
+
+      {/* "Legende fehlt" on the old README list: you draw a map in six colours
+          and nothing says which is a tram track and which is a footpath. */}
+      <MapLegend
+        edges={LEGEND_EDGES}
+        nodes={LEGEND_NODES}
+        className="border-t border-subtle px-5 py-4 dark:border-darksubtle"
+      />
     </div>
   );
 };

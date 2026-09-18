@@ -1,5 +1,5 @@
 import { useParams, Link, useNavigate } from "@tanstack/react-router";
-import { useGameMap, useMapGraph } from "../../hooks/mapHooks";
+import { useGameMap, useMapGraph } from "@/lib/queries/map-graph";
 import { API_BASE_URL } from "../../config";
 import { apiFetch } from "../../utils/api";
 import MapViewer from "./MapViewer";
@@ -17,7 +17,7 @@ const MapDetail = () => {
     data: mapGraph,
     isLoading: graphLoading,
     error: graphError,
-  } = useMapGraph(mapId);
+  } = useMapGraph(mapId, null);
 
   const isLoading = mapLoading || graphLoading;
   const error = mapError || graphError;
