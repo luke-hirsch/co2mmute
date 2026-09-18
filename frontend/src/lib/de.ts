@@ -329,6 +329,16 @@ export const de = {
     start: "Spiel starten",
     starting: "Startet …",
     startBlocked: "Es muss mindestens ein Platz besetzt sein.",
+    /**
+     * A game without a map cannot be started at all: `GameSession.save()` forces
+     * `is_active` back to False when `game_map` is None, so the request comes
+     * back 200 and nothing happens. Say it here rather than let someone press a
+     * button eighteen times.
+     */
+    startNoMap:
+      "Diesem Spiel fehlt die Karte, damit kann es nicht starten. Leg ein neues Spiel an und wähl beim Anlegen eine Karte aus.",
+    startFailed:
+      "Der Start ist nicht durchgegangen — das Spiel steht weiter in der Lobby. Meistens fehlt dem Spiel die Karte.",
     end: "Spiel beenden",
     endConfirm:
       "Danach ist das Spiel vorbei und niemand kann mehr fahren. Die Auswertung bleibt.",

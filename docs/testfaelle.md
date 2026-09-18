@@ -58,6 +58,7 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | L-11 | Host entfernt einen host-gesteuerten Platz | verschwindet, Runde wartet nicht mehr | geht | - |
 | L-12 | „Spiel verlassen" | Platz weg, Cookies weg, zurück zum Start | geht | - |
 | L-13 | Lobby ohne gültiges Cookie | 403 → „neu beitreten" | geht | - |
+| L-14 | Spiel ohne Karte angelegt | Start gesperrt und sagt warum, statt stumm nichts zu tun | geht | - |
 
 ## V — verbindung
 

@@ -32,7 +32,23 @@ export function HostLobbyScreen() {
   const start = useStartGame(state.gameId);
 
   const players = playingSeats(state);
-  const canStart = players.length > 0 && !state.endedAt;
+
+  /**
+   * A game with no map cannot start, and fails silently when you try:
+   * `GameSession.save()` forces `is_active` back to False whenever `game_map`
+   * is None, so `PATCH {is_active: true}` answers 200, sets `started_at`, makes
+   * round 1 — and leaves the game inactive, which means no `game.started` ever
+   * goes out and the screen simply does not move. The create form allows it
+   * (`game_map` is `null=True, blank=True`), so it is a real thing to land in.
+   *
+   * Two guards, because they catch different things: the map is checked up
+   * front so the button explains itself, and the response is checked afterwards
+   * so that *any* other reason the backend declines to activate says something
+   * instead of nothing.
+   */
+  const noMap = game.data ? game.data.game_map === null : false;
+  const startRefused = !!start.data && !start.data.is_active;
+  const canStart = players.length > 0 && !state.endedAt && !noMap;
 
   return (
     <Screen>
@@ -76,9 +92,15 @@ export function HostLobbyScreen() {
         <GameSettings />
       </section>
 
-      {start.error ? (
+      {start.error || startRefused || noMap ? (
         <Alert variant="destructive" className="mb-6">
-          <AlertDescription>{de.host.failedUnknown}</AlertDescription>
+          <AlertDescription>
+            {noMap
+              ? de.host.startNoMap
+              : startRefused
+                ? de.host.startFailed
+                : de.host.failedUnknown}
+          </AlertDescription>
         </Alert>
       ) : null}
 
@@ -90,7 +112,7 @@ export function HostLobbyScreen() {
         >
           {start.isPending ? de.host.starting : de.host.start}
         </Button>
-        {!canStart ? (
+        {!canStart && !noMap ? (
           <p className="text-sm text-muted-foreground">{de.host.startBlocked}</p>
         ) : null}
       </div>

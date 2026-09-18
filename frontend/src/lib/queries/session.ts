@@ -32,6 +32,12 @@ export type HostGame = {
   /** Media URL of the join QR. `GameSession.generate_qr_code()`. */
   game_qr_code: string | null;
   game_password: string | null;
+  /**
+   * Null is allowed (`game_map` is `null=True, blank=True`) and it is fatal:
+   * `GameSession.save()` forces `is_active` back to False when there is no map,
+   * so such a game answers a start with 200 and stays in the lobby for ever.
+   */
+  game_map: number | null;
   max_players: number;
   is_active: boolean;
   started_at: string | null;
