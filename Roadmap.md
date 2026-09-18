@@ -317,6 +317,62 @@ anderes geraet mitnehmen, ohne account.
 nicht aufhuebschen, neu bauen. struktur, tests und design nach dem gleichen muster
 wie im anderen projekt (jac).
 
+#### stand 18.09.26 – frontend gegen backend geprueft
+
+phase 1 ist durch, das frontend kennt davon nichts. was auseinanderlaeuft:
+
+- **die drei 1.4-endpoints ruft niemand auf.** `lookup/`, `join/` und `<id>/lobby/`
+  liegen da, der join laeuft weiter ueber die django-formulare.
+- **von 1.6 und 1.7 ist im frontend nichts da**: `<id>/pause/`, `<id>/resume/`,
+  `POST <id>/player/`, `player/<pid>/code/`, `player/<pid>/takeover/`, `seat/<code>/`.
+- **events die ankommen und niemand liest**: `game.paused`, `game.resumed`,
+  `player.revoked`, `player.left`, `player.taken_over`, `player.handed_over`,
+  `simulation.progress`. `player.revoked` ist der schlimmste - das geraet merkt
+  nicht, dass sein platz weg ist, und zeigt weiter ein spiel das ihm nicht gehoert.
+- `lobby.roster` in `wsTypes.ts` schickt das backend nicht mehr, der roster kommt
+  als `roster.update`.
+- `api/game/sessions/` (toter hook) und `player/<pid>/mute/` laufen beide ins leere.
+  **`mute/` hat keine url**: `MuteUnmutePlayerView` haengt an keinem pfad, der knopf
+  in `PlayerDetail.tsx` bekommt einen 404. entweder route nachziehen oder view raus -
+  `is_muted` liefert die lobby schon mit.
+- `GET api/game/<id>/` verlangt `IsAuthenticated`, spieler bekommen 403. der
+  spielerpfad muss `<id>/<player_id>/` nehmen.
+- **vier `useGameSocket`-aufrufe auf einer seite** (GamePlay, StatusBar, GameLayout,
+  GameDetail), dazu der chat-socket. das ist 2.2.
+- die alten spielscreens sind englisch, mit emoji und rot/gruen/gelb. weder `de.ts`
+  noch die design-tokens kommen darin vor.
+
+eine backend-zeile haengt mit drin: der QR-code zeigt auf `{BASE_URL}/join/<id>/`
+(`game/models.py:94`). zeigt er auf `/app/join/<id>/`, ist der template-join raus.
+alte QR-bilder bleiben auf dem alten pfad, deshalb muss `JoinSessionView` dorthin
+weiterleiten. kleiner guide, blockiert nichts - die SPA-route steht vorher.
+
+#### reihenfolge
+
+sieben schnitte, jeder auf einem eigenen branch off `main`, jeder fuer sich
+reviewbar und lauffaehig. der alte screen bleibt stehen, bis sein ersatz da ist.
+
+- **F1 `frontend/join-lobby`** - join (lookup -> join -> lobby) und lobby gegen 1.4.
+  hier entsteht die 2.2-form (REST-snapshot + ws-reducer) am kleinsten ort.
+- **F2 `frontend/game-core`** - ein socket pro spiel, ein reducer, alle events aus
+  phase 1 drin, identitaet ueber `whoami`, pause-banner, `player.revoked`. das ist 2.2.
+- **F3 `frontend/round-play`** - der zug: agenten, verkehrsmittel, route, absenden,
+  "x von y abgeschickt", simulationsfortschritt. pathfinding bleibt wie es ist.
+  der zug-screen wird ueber den platz parametrisiert, nicht ueber "ich" - F4 setzt
+  genau darauf auf.
+- **F4 `frontend/host-desk`** - der host-screen als leitpult (entschieden 18.09.26):
+  der host spielt nicht selbst mit. plaetze anlegen und entfernen, uebernehmen,
+  reihum spielen mit verdecktem zwischenschritt, pause, code + qr. damit laeuft ein
+  ganzes spiel auf einem rechner. das ist 1.6 + 1.7 + 2.7 zusammen.
+- **F5 `frontend/between-rounds`** - stats -> diskussion -> voting -> patt, auf den
+  phasen-events.
+- **F6 `frontend/summary`** - auswertung am spielende.
+- **F7 `frontend/map-editor`** - editor portieren, kein redesign.
+
+nach F6 steht der prototyp. erst dann der UX-durchgang (2.6), dann phase 3.
+vitest laeuft pro schnitt mit, e2e pro screen sobald er steht, der komplette
+durchlauf am ende.
+
 #### 2.1 fundament ✅ erledigt 14.08.26
 
 gemergt 16.09.26. rein additiv, die alten screens laufen unveraendert weiter.
@@ -382,7 +438,14 @@ komplette UI auf deutsch, ueber `de.ts`. `LANGUAGE_CODE` auf `de-de`.
 
 #### 2.7 host-gesteuerte spieler und geraetewechsel
 
-frontend-haelfte von 1.6 und 1.7.
+frontend-haelfte von 1.6 und 1.7. -> F4.
+
+**18.09.26: der host ist leitpult, kein spieler.** ziel ist, dass ein ganzes spiel
+auf einem rechner laufen kann - die spieler kommen reihum an den host-rechner.
+ob die lehrkraft mitspielt ist dann egal: sie legt sich einen platz an und steuert
+den. die host-eigene `Player`-zeile bleibt stumm (nur cookie-traeger), so wie
+`playing()` sie ohnehin schon behandelt. in der schule spielt die lehrkraft
+nicht von sich aus mit.
 
 - lobby: host legt spieler an und entfernt sie.
 - spielscreen am host: spielerwechsel reihum, mit verdecktem zwischenschritt
