@@ -89,6 +89,39 @@ describe("de", () => {
     ]);
   });
 
+  it("covers exactly the refusals the host's endpoints can send", () => {
+    // `SeatRefused` in backend/game/seats.py (full, ended, host, controlled)
+    // plus `PauseRefused` in backend/game/pause.py (paused, not_running,
+    // not_paused). Every one of them reaches a host as a 409.
+    expect(Object.keys(de.host.failed).sort()).toEqual([
+      "controlled",
+      "ended",
+      "full",
+      "host",
+      "not_paused",
+      "not_running",
+      "paused",
+    ]);
+  });
+
+  it("covers exactly the refusals redeeming a seat code can send", () => {
+    // `SeatCodeView.post` in backend/game/views_join.py. 404 is separate: it
+    // means the code is gone, not that this browser may not use it.
+    expect(Object.keys(de.resumeSeat.refused).sort()).toEqual([
+      "ended",
+      "host",
+      "seated",
+    ]);
+  });
+
+  it("names a seat without naming its player in the desk's own copy", () => {
+    // The desk is the one screen that does say names out loud — it is the
+    // teacher's own screen and the room is looking at it. What it must not do
+    // is put one in a status line that also goes somewhere else.
+    expect(de.host.playingSeat("Ana")).toBe("Platz von Ana");
+    expect(de.host.curtainTitle("Ben")).toBe("Ben ist dran");
+  });
+
   it("interpolates the parameterised strings", () => {
     expect(de.join.seats(3, 8)).toBe("3 von 8 Plätzen belegt");
     expect(de.lobby.co2Kg(120)).toBe("120 kg");

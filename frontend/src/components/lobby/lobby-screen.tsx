@@ -1,9 +1,14 @@
+import { useNavigate } from "@tanstack/react-router";
+
+import { ConfirmAction } from "@/components/layout/confirm-action";
 import { DepartureBoard } from "@/components/metro/departure-board";
+import { GameSettings } from "@/components/lobby/game-settings";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
 import { SeatList } from "@/components/lobby/seat-list";
 import { useGame } from "@/components/game/game-context";
 import { de } from "@/lib/de";
 import { playingSeats } from "@/lib/game/game-state";
+import { useRemoveSeat } from "@/lib/queries/seats";
 
 /**
  * Waiting for the host to start.
@@ -17,11 +22,39 @@ import { playingSeats } from "@/lib/game/game-state";
  * the game from the provider in the layout above it. Everything it used to do
  * about loading, revocation and a dropped socket now happens once, in
  * `GameFrame`, for every screen in the game.
+ *
+ * The host does not see this screen — `HostLobbyScreen` takes its place (F4).
  */
 export function LobbyScreen() {
+  const navigate = useNavigate();
   const { state, seatId } = useGame();
+  const leave = useRemoveSeat(state.gameId);
 
   const players = playingSeats(state);
+
+  /**
+   * L-12. The same `DELETE` the host uses to remove somebody, only aimed at
+   * one's own seat — the backend tells the two apart by the cookie and drops
+   * both cookies on the way out, so there is nothing to clean up here.
+   *
+   * `mutateAsync` in a plain handler rather than `mutate(…, { onSettled })`:
+   * React Query drops those callbacks when the component unmounts first, and
+   * this one always does. Leaving revokes the seat, `player.revoked` comes back
+   * over the socket, and `GameFrame` swaps this screen for the revoked notice
+   * before the request has settled — so the navigation never ran and the player
+   * was left reading "Du hast das Spiel verlassen" with a button to press.
+   */
+  async function leaveGame() {
+    if (!seatId) return;
+    try {
+      await leave.mutateAsync(seatId);
+    } finally {
+      // Either way this browser has no seat any more, so the join screen is
+      // the only honest place to be. A failure that leaves the row in place
+      // still ends with a lobby that 403s, which says the same thing.
+      await navigate({ to: "/join" });
+    }
+  }
 
   return (
     <Screen narrow>
@@ -51,56 +84,25 @@ export function LobbyScreen() {
         <SeatList seats={state.seats} youId={seatId} />
       </section>
 
-      <section>
+      <section className="mb-12">
         <h2 className="mb-4 text-2xl font-semibold">
           {de.lobby.settings.title}
         </h2>
-        <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
-          <Setting
-            label={de.lobby.settings.agentsPerPlayer}
-            value={state.agentPerPlayer}
-          />
-          <Setting
-            label={de.lobby.settings.maxRounds}
-            value={de.lobby.roundsCount(state.maxRounds)}
-          />
-          <Setting
-            label={de.lobby.settings.co2Budget}
-            value={de.lobby.co2Kg(state.maxCo2LevelKg)}
-          />
-          <Setting
-            label={de.lobby.settings.chat}
-            mono={false}
-            value={
-              state.chatEnabled
-                ? de.lobby.settings.chatOn
-                : de.lobby.settings.chatOff
-            }
-          />
-        </dl>
+        <GameSettings />
       </section>
-    </Screen>
-  );
-}
 
-/**
- * `mono` defaults to true because most of these are numbers, and mono is what
- * the rulebook reserves for ids, codes and numerals. A word like "an" is none
- * of those, so it opts out rather than pretending to be a figure.
- */
-function Setting({
-  label,
-  value,
-  mono = true,
-}: {
-  label: string;
-  value: React.ReactNode;
-  mono?: boolean;
-}) {
-  return (
-    <div className="border-t border-border pt-3">
-      <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className={mono ? "mt-1 font-mono" : "mt-1"}>{value}</dd>
-    </div>
+      {seatId ? (
+        <ConfirmAction
+          label={de.lobby.leave}
+          title={de.lobby.leave}
+          description={de.lobby.leaveConfirm}
+          confirmLabel={de.lobby.leave}
+          onConfirm={() => void leaveGame()}
+          variant="ghost"
+          size="default"
+          pending={leave.isPending}
+        />
+      ) : null}
+    </Screen>
   );
 }

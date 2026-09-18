@@ -35,10 +35,10 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | J-09 | kein Name eingegeben | Meldung, gar kein Request | geht | - |
 | J-10 | Spiel füllt sich während des Tippens | erst beim Absenden 409 `full` | offen | - |
 | J-11 | QR-Code scannen | landet direkt auf `/app/join/<ID>` | offen | - |
-| J-12 | „Sitzung fortsetzen" mit Platz-Code (1.7) | Platz übernommen, neue `player_id` | offen | - |
-| J-13 | Code abgelaufen oder schon benutzt | 404, sagt dass der Code weg ist | offen | - |
-| J-14 | Code, aber der Browser hat schon einen Platz | 409 `seated` | offen | - |
-| J-15 | Code, aber man ist der Host des Spiels | 409 `host` | offen | - |
+| J-12 | „Sitzung fortsetzen" mit Platz-Code (1.7) | Platz übernommen, neue `player_id` | geht | - |
+| J-13 | Code abgelaufen oder schon benutzt | 404, sagt dass der Code weg ist | geht | - |
+| J-14 | Code, aber der Browser hat schon einen Platz | 409 `seated` | ungeprüft | - |
+| J-15 | Code, aber man ist der Host des Spiels | 409 `host` | geht | - |
 | J-16 | zweimal aus demselben Browser beitreten | kein zweiter Platz | offen | - |
 
 ## L — lobby
@@ -53,10 +53,10 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | L-06 | Einstellungen | Agenten, Runden, CO₂-Budget, Chat stimmen | geht | - |
 | L-07 | Host entfernt einen Spieler | dessen Gerät: „Dein Platz ist weg", mit Grund | geht | - |
 | L-08 | Platzzahl | die Host-Zeile zählt nicht mit | geht | - |
-| L-09 | Platz am Lehrerrechner (1.6) | ist als solcher markiert | offen | - |
-| L-10 | Host legt einen Platz an (1.6) | erscheint bei allen, zählt gegen `max_players` | offen | - |
-| L-11 | Host entfernt einen host-gesteuerten Platz | verschwindet, Runde wartet nicht mehr | offen | - |
-| L-12 | „Spiel verlassen" | Platz weg, Cookies weg, zurück zum Start | offen | - |
+| L-09 | Platz am Lehrerrechner (1.6) | ist als solcher markiert | geht | - |
+| L-10 | Host legt einen Platz an (1.6) | erscheint bei allen, zählt gegen `max_players` | geht | - |
+| L-11 | Host entfernt einen host-gesteuerten Platz | verschwindet, Runde wartet nicht mehr | geht | - |
+| L-12 | „Spiel verlassen" | Platz weg, Cookies weg, zurück zum Start | geht | - |
 | L-13 | Lobby ohne gültiges Cookie | 403 → „neu beitreten" | geht | - |
 
 ## V — verbindung
@@ -80,7 +80,7 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | P-03 | Zug abschicken während Pause | gar nicht erst möglich: Banner, Auswahl und Knopf gesperrt; die 409-Meldung greift für den Fall, dass die Pause zwischen Klick und Request kommt | geht | - |
 | P-04 | Pause mitten in der Zwischenrunde | Phase bleibt stehen, nichts rutscht weiter | offen | - |
 | P-05 | Pause über eine Schulstunde | Cookies verlängert, Platz danach noch da | offen | - |
-| P-06 | Plätze umbauen während Pause | geht weiter (1.6) | offen | - |
+| P-06 | Plätze umbauen während Pause | geht weiter (1.6) | geht | - |
 
 ## R — die runde
 
@@ -121,7 +121,7 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | ID | Fall | Erwartet | Status | E2E |
 | --- | --- | --- | --- | --- |
 | E-01 | letzte Runde gespielt | Ende mit Grund `max_rounds` | offen | - |
-| E-02 | CO₂-Budget überschritten | Ende mit Grund `co2_limit` | offen | - |
+| E-02 | CO₂-Budget überschritten | Ende mit Grund `co2_limit` | geht | - |
 | E-03 | Auswertung | pro Spieler über alle Runden | offen | - |
 | E-04 | Host beendet von Hand | Ende, alle sehen es | offen | - |
 | E-05 | Spiel endet wegen Inaktivität | meldet heute `max_rounds` — **falsch**, offen im Backend | kaputt | - |
@@ -131,16 +131,16 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 
 | ID | Fall | Erwartet | Status | E2E |
 | --- | --- | --- | --- | --- |
-| H-01 | Host spielt nicht mit | eigene Zeile bleibt stumm, Runde wartet nicht auf sie | offen | - |
-| H-02 | Host legt einen Platz an | wird am Lehrerrechner gespielt | offen | - |
-| H-03 | Host spielt die Plätze reihum | einer nach dem anderen | offen | - |
-| H-04 | Wechsel zwischen zwei Plätzen | verdeckter Zwischenschritt, Beamer zeigt nichts | offen | - |
-| H-05 | Host übernimmt den Platz eines Schülers | dessen Gerät fliegt raus (`taken_over`) | offen | - |
-| H-06 | Host gibt den Platz per Code zurück | Handy scannt/tippt, Platz ist zurück | offen | - |
-| H-07 | Code nach 5 Minuten | abgelaufen | offen | - |
-| H-08 | neuer Code für denselben Platz | macht den alten ungültig | offen | - |
-| H-09 | ganzes Spiel auf einem Rechner | läuft durch, ohne ein einziges Handy | offen | - |
-| H-10 | Pause-Knopf | beim Host, wirkt überall | offen | - |
+| H-01 | Host spielt nicht mit | eigene Zeile bleibt stumm, Runde wartet nicht auf sie | geht | - |
+| H-02 | Host legt einen Platz an | wird am Lehrerrechner gespielt | geht | - |
+| H-03 | Host spielt die Plätze reihum | einer nach dem anderen | geht | - |
+| H-04 | Wechsel zwischen zwei Plätzen | verdeckter Zwischenschritt, Beamer zeigt nichts | geht | - |
+| H-05 | Host übernimmt den Platz eines Schülers | dessen Gerät fliegt raus (`taken_over`) | geht | - |
+| H-06 | Host gibt den Platz per Code zurück | Handy scannt/tippt, Platz ist zurück | geht | - |
+| H-07 | Code nach 5 Minuten | abgelaufen | ungeprüft | - |
+| H-08 | neuer Code für denselben Platz | macht den alten ungültig | geht | - |
+| H-09 | ganzes Spiel auf einem Rechner | läuft durch, ohne ein einziges Handy | geht | - |
+| H-10 | Pause-Knopf | beim Host, wirkt überall | geht | - |
 
 ## C — chat
 

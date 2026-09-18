@@ -78,6 +78,39 @@ const seatStatus: Record<SeatStatus, string> = {
   not_connected: "nicht verbunden",
 };
 
+/**
+ * Every `reason` the host's own endpoints answer 409 with. From
+ * `game/seats.py:SeatRefused` (full, ended, host, controlled) and
+ * `game/pause.py:PauseRefused` (paused, not_running, not_paused).
+ */
+export type HostRefusal =
+  | "full"
+  | "ended"
+  | "host"
+  | "controlled"
+  | "paused"
+  | "not_running"
+  | "not_paused";
+
+const hostRefusal: Record<HostRefusal, string> = {
+  full: "Alle Plätze sind belegt. Entferne erst einen.",
+  ended: "Das Spiel ist vorbei.",
+  host: "Dein eigener Platz lässt sich nicht weitergeben.",
+  controlled: "Dieser Platz läuft schon hier am Rechner.",
+  paused: "Das Spiel ist schon angehalten.",
+  not_running: "Gerade läuft keine Runde.",
+  not_paused: "Das Spiel läuft schon.",
+};
+
+/** The `reason` values `POST api/game/seat/<code>/` refuses with (1.7). */
+export type RedeemRefusal = "host" | "seated" | "ended";
+
+const redeemRefusal: Record<RedeemRefusal, string> = {
+  host: "Du leitest dieses Spiel. Der Platz gehört auf ein anderes Gerät.",
+  seated: "Dieses Gerät hat in dem Spiel schon einen Platz.",
+  ended: "Das Spiel ist vorbei.",
+};
+
 export const de = {
   app: {
     name: "co2mmute",
@@ -266,5 +299,99 @@ export const de = {
     mapHint: "Tippe einen Fahrgast an, um seine Route zu sehen.",
     noAssignment:
       "Für diesen Platz sind keine Fahrgäste hinterlegt. Die Spielleitung muss das Spiel neu anlegen.",
+  },
+
+  /**
+   * 1.6 + 1.7: the host machine runs the game and the host does not play.
+   * "Leitpult" rather than "Host-Screen" — it is the desk at the front of the
+   * room, and everything on it is something you do for somebody else.
+   */
+  host: {
+    title: "Leitpult",
+    lobbyLead:
+      "Die Klasse scannt den Code. Wer kein Handy hat, bekommt von dir einen Platz am Rechner.",
+    deskLead: "Gib den Rechner reihum weiter. Jeder Platz fährt einmal.",
+
+    seats: "Plätze",
+    noSeats: "Noch niemand da.",
+    /** Nothing to play here: everyone is on their own phone. */
+    noDeskSeats: "Kein Platz wird gerade an diesem Rechner gespielt.",
+    allDone: "Alle Plätze an diesem Rechner sind durch.",
+
+    add: "Platz anlegen",
+    addTitle: "Platz am Rechner",
+    addBody:
+      "Für alle ohne eigenes Gerät. Der Platz wird hier am Rechner gespielt und zählt wie jeder andere.",
+    addName: "Name",
+    addSubmit: "Anlegen",
+    adding: "Wird angelegt …",
+
+    start: "Spiel starten",
+    starting: "Startet …",
+    startBlocked: "Es muss mindestens ein Platz besetzt sein.",
+    end: "Spiel beenden",
+    endConfirm:
+      "Danach ist das Spiel vorbei und niemand kann mehr fahren. Die Auswertung bleibt.",
+    pause: "Pause",
+    pausing: "Wird angehalten …",
+    resume: "Weiter",
+    resuming: "Geht weiter …",
+
+    play: "Spielen",
+    next: "Nächster Platz",
+    back: "Zurück zum Pult",
+    playingSeat: (name: string) => `Platz von ${name}`,
+
+    takeOver: "Übernehmen",
+    takeOverConfirm: (name: string) =>
+      `${name} wird ab jetzt hier am Rechner gespielt. Das Gerät von ${name} fliegt dabei aus dem Spiel.`,
+    remove: "Entfernen",
+    removeConfirm: (name: string) =>
+      `${name} ist danach raus. Schon gefahrene Runden bleiben gespeichert.`,
+
+    curtainTitle: (name: string) => `${name} ist dran`,
+    curtainBody: "Gib den Rechner weiter. Erst dann weiter — vorher sieht der Raum alles mit.",
+    curtainGo: "Los",
+
+    failed: hostRefusal,
+    failedUnknown: "Das hat nicht geklappt. Versuch es nochmal.",
+  },
+
+  /** 1.7: a seat moves to another device, by a six-character code. */
+  handover: {
+    title: "Platz auf ein Gerät geben",
+    /** On the host machine, for a student who turns up with a phone. */
+    hostBody:
+      "Der Code gilt fünf Minuten und nur einmal. Wer ihn einlöst, spielt den Platz weiter.",
+    /** On a phone, for somebody moving to another one. */
+    playerBody:
+      "Am anderen Gerät co2mmute öffnen, „Sitzung fortsetzen“ wählen und diesen Code eintippen. Dein jetziges Gerät verlässt den Platz dabei.",
+    issue: "Code erzeugen",
+    issuing: "Code wird erzeugt …",
+    again: "Neuen Code",
+    /** A new code kills the old one — worth saying before someone makes two. */
+    againHint: "Ein neuer Code macht den alten ungültig.",
+    expired: "Der Code ist abgelaufen. Mach einen neuen.",
+    scan: "Oder diesen QR-Code scannen.",
+    failed: "Der Code ließ sich nicht erzeugen.",
+    /** The button on the player's own round screen. */
+    toOtherDevice: "Auf anderes Gerät",
+  },
+
+  /** `/app/seat/<code>`: the device that takes the seat over. */
+  resumeSeat: {
+    title: "Sitzung fortsetzen",
+    lead: "Tippe den Platz-Code ein, der auf dem anderen Gerät steht.",
+    codeRequired: "Bitte gib den Code ein.",
+    submit: "Weiter",
+    checking: "Wird geprüft …",
+    confirm: (player: string, game: string) =>
+      `Du übernimmst den Platz von ${player} in „${game}“.`,
+    take: "Platz übernehmen",
+    taking: "Wird übernommen …",
+    gone: "Diesen Code gibt es nicht mehr. Lass dir einen neuen geben.",
+    refused: redeemRefusal,
+    /** The way in from the join screen. */
+    link: "Du warst schon dabei? Sitzung fortsetzen",
   },
 };
