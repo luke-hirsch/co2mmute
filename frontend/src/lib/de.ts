@@ -34,6 +34,25 @@ const modeLabels: Record<TransportMode, string> = {
 /** `status` on a roster row, from `roster.update`. Backend contract. */
 export type SeatStatus = "ready" | "making_move" | "waiting" | "not_connected";
 
+/**
+ * Why a device lost its seat. `game/roster.py:revoke` sends one of these, and
+ * the screen has to say which — "du bist raus" reads very differently when the
+ * teacher took the seat over on purpose than when someone else scanned your
+ * code.
+ */
+export type RevokedReason =
+  | "removed"
+  | "left"
+  | "taken_over"
+  | "handed_over";
+
+const revoked: Record<RevokedReason, string> = {
+  removed: "Die Spielleitung hat dich aus dem Spiel genommen.",
+  left: "Du hast das Spiel verlassen.",
+  taken_over: "Die Spielleitung spielt deinen Platz jetzt am Lehrerrechner.",
+  handed_over: "Dein Platz läuft jetzt auf einem anderen Gerät.",
+};
+
 const seatStatus: Record<SeatStatus, string> = {
   ready: "bereit",
   making_move: "wählt noch",
@@ -67,6 +86,15 @@ export const de = {
   },
 
   join: {
+    /** The first screen: no game id yet, typed or scanned. */
+    idTitle: "Mitspielen",
+    idSubtitle:
+      "Scanne den QR-Code oder tippe die Spiel-ID ein, die vorne steht.",
+    idLabel: "Spiel-ID",
+    idRequired: "Bitte gib eine Spiel-ID ein.",
+    idSubmit: "Weiter",
+    checking: "Wird geprüft …",
+
     title: "Spiel beitreten",
     subtitle: "Gib deinen Namen ein, dann geht es in die Lobby.",
     nameLabel: "Dein Name",
@@ -98,12 +126,32 @@ export const de = {
       agentsPerPlayer: "Agenten pro Person",
       maxRounds: "Runden",
       co2Budget: "CO₂-Budget",
-      chatOn: "Chat an",
-      chatOff: "Chat aus",
+      chat: "Chat",
+      chatOn: "an",
+      chatOff: "aus",
     },
     co2Kg: (kg: number) => `${kg} kg`,
     roundsCount: (rounds: number) =>
       rounds === 1 ? "1 Runde" : `${rounds} Runden`,
+    seatsTaken: (taken: number, max: number) =>
+      `${taken} von ${max} Plätzen belegt`,
+    /** The host has not started yet; this is what everyone stares at. */
+    hostStarts: "Die Spielleitung startet das Spiel.",
+    started: "Das Spiel läuft.",
+    toGame: "Zum Spiel",
+    ended: "Das Spiel ist zu Ende.",
+    toSummary: "Zur Auswertung",
+    connectionLost: "Verbindung unterbrochen. Wird neu aufgebaut …",
+    /** The snapshot came back 403 — no valid game cookie for this game. */
+    noAccess: "Für dieses Spiel fehlt dir der Zugang.",
+    joinAgain: "Neu beitreten",
+  },
+
+  /** 1.6 + 1.7: this device does not hold the seat any more. */
+  revoked: {
+    title: "Dein Platz ist weg",
+    reason: revoked,
+    back: "Zurück zum Start",
   },
 
   modes: modeLabels,
