@@ -42,6 +42,7 @@ from game.seats import (
     CODE_TTL,
     SeatRefused,
     add_seat,
+    code_qr_data_uri,
     issue_code,
     remove_seat,
     take_over,
@@ -272,9 +273,11 @@ class SeatCodeIssueView(GenericAPIView):
                 {"detail": "No code for this seat.", "reason": refused.reason},
                 status=status.HTTP_409_CONFLICT,
             )
-        return Response(
-            {"code": code, "expires_in": CODE_TTL}, status=status.HTTP_201_CREATED
-        )
+        body = {"code": code, "expires_in": CODE_TTL}
+        qr = code_qr_data_uri(code)
+        if qr:
+            body["qr_url"] = qr
+        return Response(body, status=status.HTTP_201_CREATED)
 
 
 class SeatTakeoverView(GenericAPIView):

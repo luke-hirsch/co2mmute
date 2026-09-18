@@ -17,10 +17,14 @@ stay.
 
 """
 
+import base64
 import logging
 import secrets
+from io import BytesIO
 
+import qrcode
 from co2mmute.utils import send_chat_system_message, send_game_state_message
+from django.conf import settings
 from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
@@ -58,7 +62,7 @@ def add_seat(game: GameSession, name: str) -> Player:
 
         seat = Player.objects.create(game=game, name=name, controlled_by_host=True)
         # set_up_player writes agent_assignments with update(); read them back.
-        seat.refresh_from_db()
+        seat.refresh_from_db()  # type:ignore
 
     # game_id and player_id, never the name.
     logger.info(f"Host added seat {seat.player_id} to game {game.game_id}")
@@ -117,6 +121,35 @@ CODE_TTL = 5 * 60
 # No 0/O and no 1/I/L: the code is read off a screen and typed on a phone.
 CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 CODE_LENGTH = 6
+
+
+def seat_redeem_url(code: str) -> str:
+    """Where a scanned seat code has to land: the SPA screen, not the API.
+
+    That screen asks before it redeems, so a code scanned by accident costs
+    nobody their place.
+    """
+    return f"{settings.BASE_URL}/app/seat/{code}"
+
+
+def code_qr_data_uri(code: str) -> str | None:
+    """The redeem URL as a PNG, inline.
+
+    A data: URI rather than a file: a code lives CODE_TTL seconds and is used
+    once, so a PNG per code would pile up in MEDIA_ROOT with nothing to clean
+    it, and reading it back would be a second request with a second permission
+    question. Returns None if anything goes wrong — the six characters are the
+    real handover, the picture is the convenience.
+    """
+    try:
+        image = qrcode.make(seat_redeem_url(code))
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+        encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+    except Exception:  # noqa: BLE001 - never lose the code over the picture
+        logger.warning("Could not render a QR for a seat code")
+        return None
+    return f"data:image/png;base64,{encoded}"
 
 
 def _code_key(code: str) -> str:

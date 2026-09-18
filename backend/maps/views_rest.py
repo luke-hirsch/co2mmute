@@ -1,4 +1,6 @@
+import base64
 import logging
+import os
 
 from django.core.cache import cache
 from django.db import transaction
@@ -120,7 +122,9 @@ class GenerateCombinationsView(GenericAPIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        atomic_versions = list(MapVersion.objects.filter(pk__in=version_ids, game_map=game_map))
+        atomic_versions = list(
+            MapVersion.objects.filter(pk__in=version_ids, game_map=game_map)
+        )
         if len(atomic_versions) != len(version_ids):
             return Response(
                 {"error": "One or more versions not found for this map."},
@@ -132,7 +136,9 @@ class GenerateCombinationsView(GenericAPIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        base_version = MapVersion.objects.filter(game_map=game_map, base_version=True).first()
+        base_version = MapVersion.objects.filter(
+            game_map=game_map, base_version=True
+        ).first()
 
         existing: dict = {}
         for v in atomic_versions:
@@ -148,7 +154,9 @@ class GenerateCombinationsView(GenericAPIView):
         for subset in all_subsets:
             if subset in existing:
                 continue
-            members = sorted([v for v in atomic_versions if v.pk in subset], key=lambda v: v.name)
+            members = sorted(
+                [v for v in atomic_versions if v.pk in subset], key=lambda v: v.name
+            )
             combo_name = " + ".join(v.name for v in members)
             combo_poll_text = "Apply changes: " + ", ".join(v.name for v in members)
             combo_version = MapVersion.objects.create(
@@ -162,15 +170,25 @@ class GenerateCombinationsView(GenericAPIView):
             created_count += 1
 
             member_versions = [existing[frozenset([p])] for p in subset]
-            for node in Node.objects.filter(map_versions__in=member_versions).distinct():
+            for node in Node.objects.filter(
+                map_versions__in=member_versions
+            ).distinct():
                 node.map_versions.add(combo_version)
-            for edge in Edge.objects.filter(map_versions__in=member_versions).distinct():
+            for edge in Edge.objects.filter(
+                map_versions__in=member_versions
+            ).distinct():
                 edge.map_versions.add(combo_version)
-            for se in StreetEdge.objects.filter(map_versions__in=member_versions).distinct():
+            for se in StreetEdge.objects.filter(
+                map_versions__in=member_versions
+            ).distinct():
                 se.map_versions.add(combo_version)
-            for te in TrainEdge.objects.filter(map_versions__in=member_versions).distinct():
+            for te in TrainEdge.objects.filter(
+                map_versions__in=member_versions
+            ).distinct():
                 te.map_versions.add(combo_version)
-            for bl in BusLine.objects.filter(map_versions__in=member_versions).distinct():
+            for bl in BusLine.objects.filter(
+                map_versions__in=member_versions
+            ).distinct():
                 bl.map_versions.add(combo_version)
 
         all_entries = {**existing}
@@ -329,14 +347,16 @@ class BusLineListView(MapScopedQuerysetMixin, ListCreateAPIView):
 
     def perform_create(self, serializer):
         instance = serializer.save()
-        edge_ids = self.request.data.get("edges", [])
+        edge_ids = self.request.data.get("edges", [])  # type: ignore
         if edge_ids:
             se_by_pk = {se.pk: se for se in StreetEdge.objects.filter(pk__in=edge_ids)}
-            BusLineEdge.objects.bulk_create([
-                BusLineEdge(bus_line=instance, street_edge=se_by_pk[eid], order=idx)
-                for idx, eid in enumerate(edge_ids)
-                if eid in se_by_pk
-            ])
+            BusLineEdge.objects.bulk_create(
+                [
+                    BusLineEdge(bus_line=instance, street_edge=se_by_pk[eid], order=idx)
+                    for idx, eid in enumerate(edge_ids)
+                    if eid in se_by_pk
+                ]
+            )
         _invalidate_map_cache(self.kwargs["pk"])
 
 
@@ -372,11 +392,13 @@ class BusLineEdgesView(GenericAPIView):
         BusLineEdge.objects.filter(bus_line=bus_line).delete()
         if edge_ids:
             se_by_pk = {se.pk: se for se in StreetEdge.objects.filter(pk__in=edge_ids)}
-            BusLineEdge.objects.bulk_create([
-                BusLineEdge(bus_line=bus_line, street_edge=se_by_pk[eid], order=idx)
-                for idx, eid in enumerate(edge_ids)
-                if eid in se_by_pk
-            ])
+            BusLineEdge.objects.bulk_create(
+                [
+                    BusLineEdge(bus_line=bus_line, street_edge=se_by_pk[eid], order=idx)
+                    for idx, eid in enumerate(edge_ids)
+                    if eid in se_by_pk
+                ]
+            )
         _invalidate_map_cache(pk)
         return Response(
             BusLineSerializer(bus_line).data,
@@ -424,14 +446,18 @@ class TrainLineListView(MapScopedQuerysetMixin, ListCreateAPIView):
 
     def perform_create(self, serializer):
         instance = serializer.save()
-        edge_ids = self.request.data.get("edges", [])
+        edge_ids = self.request.data.get("edges", [])  # type: ignore
         if edge_ids:
             te_by_pk = {te.pk: te for te in TrainEdge.objects.filter(pk__in=edge_ids)}
-            TrainLineEdge.objects.bulk_create([
-                TrainLineEdge(train_line=instance, train_edge=te_by_pk[eid], order=idx)
-                for idx, eid in enumerate(edge_ids)
-                if eid in te_by_pk
-            ])
+            TrainLineEdge.objects.bulk_create(
+                [
+                    TrainLineEdge(
+                        train_line=instance, train_edge=te_by_pk[eid], order=idx
+                    )
+                    for idx, eid in enumerate(edge_ids)
+                    if eid in te_by_pk
+                ]
+            )
         _invalidate_map_cache(self.kwargs["pk"])
 
 
@@ -467,11 +493,15 @@ class TrainLineEdgesView(GenericAPIView):
         TrainLineEdge.objects.filter(train_line=train_line).delete()
         if edge_ids:
             te_by_pk = {te.pk: te for te in TrainEdge.objects.filter(pk__in=edge_ids)}
-            TrainLineEdge.objects.bulk_create([
-                TrainLineEdge(train_line=train_line, train_edge=te_by_pk[eid], order=idx)
-                for idx, eid in enumerate(edge_ids)
-                if eid in te_by_pk
-            ])
+            TrainLineEdge.objects.bulk_create(
+                [
+                    TrainLineEdge(
+                        train_line=train_line, train_edge=te_by_pk[eid], order=idx
+                    )
+                    for idx, eid in enumerate(edge_ids)
+                    if eid in te_by_pk
+                ]
+            )
         _invalidate_map_cache(pk)
         return Response(
             TrainLineSerializer(train_line).data,
@@ -609,7 +639,7 @@ class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
 
         except Exception as e:
             logger.exception(
-                f"Error building graph for map {map_pk} version {version_pk}:{str(e)}"
+                f"Error building graph for map {map_pk} version {version_pk}:{e!s}"
             )
             return Response(
                 {"error": "Error building graph"},
@@ -631,9 +661,7 @@ class MapExportView(MapScopedQuerysetMixin, GenericAPIView):
 
         # Resolve version
         if version_pk:
-            version = get_object_or_404(
-                MapVersion, pk=version_pk, game_map=game_map
-            )
+            version = get_object_or_404(MapVersion, pk=version_pk, game_map=game_map)
         else:
             version = MapVersion.objects.filter(
                 game_map=game_map, base_version=True
@@ -664,13 +692,13 @@ class MapExportView(MapScopedQuerysetMixin, GenericAPIView):
         # Pre-fetch street/train edges for this version
         edge_pks = [e.pk for e in edge_list]
         street_edges_map = {
-            se.edge_id: se
+            se.edge_id: se  # type: ignore
             for se in StreetEdge.objects.filter(
                 edge_id__in=edge_pks, map_versions=version
             )
         }
         train_edges_map = {
-            te.edge_id: te
+            te.edge_id: te  # type: ignore
             for te in TrainEdge.objects.filter(
                 edge_id__in=edge_pks, map_versions=version
             )
@@ -707,8 +735,8 @@ class MapExportView(MapScopedQuerysetMixin, GenericAPIView):
                 edge_type = "street"
 
             edge_entry = {
-                "start_node": node_id_map[edge.start_node_id],
-                "end_node": node_id_map[edge.end_node_id],
+                "start_node": node_id_map[edge.start_node_id],  # type: ignore
+                "end_node": node_id_map[edge.end_node_id],  # type: ignore
                 "name": edge.name,
                 "type": edge_type,
                 "biking": edge.biking,
@@ -725,54 +753,88 @@ class MapExportView(MapScopedQuerysetMixin, GenericAPIView):
             edges_data.append(edge_entry)
 
         # Serialize bus lines
-        bus_lines = BusLine.objects.filter(
-            game_map=game_map, map_versions=version
-        )
+        bus_lines = BusLine.objects.filter(game_map=game_map, map_versions=version)
         bus_lines_data = []
         for bl in bus_lines:
             ble_qs = BusLineEdge.objects.filter(bus_line=bl).order_by("order")
             edge_indices = []
             for ble in ble_qs:
                 se = ble.street_edge
-                idx = edge_pk_to_idx.get(se.edge_id)
+                idx = edge_pk_to_idx.get(se.edge_id)  # type: ignore
                 if idx is not None:
                     edge_indices.append(idx)
-            bus_lines_data.append({
-                "name": bl.name,
-                "interval": bl.intervall,
-                "capacity": bl.bus_capacity,
-                "speed_kmh": bl.bus_speed_kmh,
-                "edges": edge_indices,
-            })
+            bus_lines_data.append(
+                {
+                    "name": bl.name,
+                    "interval": bl.intervall,
+                    "capacity": bl.bus_capacity,
+                    "speed_kmh": bl.bus_speed_kmh,
+                    "edges": edge_indices,
+                }
+            )
 
         # Serialize train lines
-        train_lines = TrainLine.objects.filter(
-            game_map=game_map, map_versions=version
-        )
+        train_lines = TrainLine.objects.filter(game_map=game_map, map_versions=version)
         train_lines_data = []
         for tl in train_lines:
             tle_qs = TrainLineEdge.objects.filter(train_line=tl).order_by("order")
             edge_indices = []
             for tle in tle_qs:
                 te = tle.train_edge
-                idx = edge_pk_to_idx.get(te.edge_id)
+                idx = edge_pk_to_idx.get(te.edge_id)  # type: ignore
                 if idx is not None:
                     edge_indices.append(idx)
-            train_lines_data.append({
-                "name": tl.name,
-                "interval": tl.intervall,
-                "capacity": tl.train_capacity,
-                "speed_kmh": tl.train_speed_kmh,
-                "edges": edge_indices,
-            })
+            train_lines_data.append(
+                {
+                    "name": tl.name,
+                    "interval": tl.intervall,
+                    "capacity": tl.train_capacity,
+                    "speed_kmh": tl.train_speed_kmh,
+                    "edges": edge_indices,
+                }
+            )
 
         export_data = {
             "scale": float(game_map.scale),
+            "map": {
+                "name": game_map.name,
+                "x_dim": game_map.x_dim,
+                "y_dim": game_map.y_dim,
+                "max_player": game_map.max_player,
+                "walk_speed_kmh": game_map.walk_speed_kmh,
+                "bike_speed_kmh": game_map.bike_speed_kmh,
+                "default_car_speed_kmh": game_map.default_car_speed_kmh,
+            },
             "nodes": nodes_data,
             "edges": edges_data,
             "bus_lines": bus_lines_data,
             "train_lines": train_lines_data,
         }
+        if game_map.background_image:
+            image_block = {
+                "scale": game_map.image_scale,
+                "offset_x": game_map.image_offset_x,
+                "offset_y": game_map.image_offset_y,
+                "crop_top": game_map.image_crop_top,
+                "crop_right": game_map.image_crop_right,
+                "crop_bottom": game_map.image_crop_bottom,
+                "crop_left": game_map.image_crop_left,
+                "filename": os.path.basename(game_map.background_image.name),
+            }
+            try:
+                with game_map.background_image.open("rb") as fh:
+                    image_block["data"] = base64.b64encode(fh.read()).decode("ascii")
+            except (FileNotFoundError, OSError) as exc:
+                # The placement is worth something anyway: if the image is added by
+                # hand later, at least it sits in the right place.
+                logger.warning(
+                    "Map %s: background image %s could not be read (%s), "
+                    "exporting placement only",
+                    game_map.pk,
+                    game_map.background_image.name,
+                    exc,
+                )
+            export_data["background_image"] = image_block
 
         return Response(export_data, status=status.HTTP_200_OK)
 
@@ -809,7 +871,7 @@ class GameMapImageUploadView(GenericAPIView):
         game_map = get_object_or_404(GameMap, pk=pk)
         if game_map.background_image:
             game_map.background_image.delete(save=False)
-            game_map.background_image = None
+            game_map.background_image = None  # type: ignore
             game_map.updated_by = request.user
             game_map.save()
         _invalidate_map_cache(pk)
@@ -975,11 +1037,15 @@ class VersionDiffCreateView(GenericAPIView):
                             se.pk: se
                             for se in StreetEdge.objects.filter(pk__in=edge_ids)
                         }
-                        BusLineEdge.objects.bulk_create([
-                            BusLineEdge(bus_line=bl, street_edge=se_by_pk[eid], order=idx)
-                            for idx, eid in enumerate(edge_ids)
-                            if eid in se_by_pk
-                        ])
+                        BusLineEdge.objects.bulk_create(
+                            [
+                                BusLineEdge(
+                                    bus_line=bl, street_edge=se_by_pk[eid], order=idx
+                                )
+                                for idx, eid in enumerate(edge_ids)
+                                if eid in se_by_pk
+                            ]
+                        )
                 else:
                     tl = TrainLine.objects.create(
                         game_map=game_map,
@@ -995,11 +1061,15 @@ class VersionDiffCreateView(GenericAPIView):
                             te.pk: te
                             for te in TrainEdge.objects.filter(pk__in=edge_ids)
                         }
-                        TrainLineEdge.objects.bulk_create([
-                            TrainLineEdge(train_line=tl, train_edge=te_by_pk[eid], order=idx)
-                            for idx, eid in enumerate(edge_ids)
-                            if eid in te_by_pk
-                        ])
+                        TrainLineEdge.objects.bulk_create(
+                            [
+                                TrainLineEdge(
+                                    train_line=tl, train_edge=te_by_pk[eid], order=idx
+                                )
+                                for idx, eid in enumerate(edge_ids)
+                                if eid in te_by_pk
+                            ]
+                        )
 
             elif action == "remove" and pt_change.get("id"):
                 if line_type == "bus":
@@ -1035,16 +1105,30 @@ class VersionDiffCreateView(GenericAPIView):
                                 se.pk: se
                                 for se in StreetEdge.objects.filter(pk__in=edge_ids)
                             }
-                            BusLineEdge.objects.bulk_create([
-                                BusLineEdge(bus_line=cloned, street_edge=se_by_pk[eid], order=idx)
-                                for idx, eid in enumerate(edge_ids)
-                                if eid in se_by_pk
-                            ])
+                            BusLineEdge.objects.bulk_create(
+                                [
+                                    BusLineEdge(
+                                        bus_line=cloned,
+                                        street_edge=se_by_pk[eid],
+                                        order=idx,
+                                    )
+                                    for idx, eid in enumerate(edge_ids)
+                                    if eid in se_by_pk
+                                ]
+                            )
                         else:
-                            BusLineEdge.objects.bulk_create([
-                                BusLineEdge(bus_line=cloned, street_edge=t.street_edge, order=t.order)
-                                for t in BusLineEdge.objects.filter(bus_line=original).order_by("order")
-                            ])
+                            BusLineEdge.objects.bulk_create(
+                                [
+                                    BusLineEdge(
+                                        bus_line=cloned,
+                                        street_edge=t.street_edge,
+                                        order=t.order,
+                                    )
+                                    for t in BusLineEdge.objects.filter(
+                                        bus_line=original
+                                    ).order_by("order")
+                                ]
+                            )
                 else:
                     original = TrainLine.objects.filter(pk=pt_change["id"]).first()
                     if original:
@@ -1067,16 +1151,30 @@ class VersionDiffCreateView(GenericAPIView):
                                 te.pk: te
                                 for te in TrainEdge.objects.filter(pk__in=edge_ids)
                             }
-                            TrainLineEdge.objects.bulk_create([
-                                TrainLineEdge(train_line=cloned, train_edge=te_by_pk[eid], order=idx)
-                                for idx, eid in enumerate(edge_ids)
-                                if eid in te_by_pk
-                            ])
+                            TrainLineEdge.objects.bulk_create(
+                                [
+                                    TrainLineEdge(
+                                        train_line=cloned,
+                                        train_edge=te_by_pk[eid],
+                                        order=idx,
+                                    )
+                                    for idx, eid in enumerate(edge_ids)
+                                    if eid in te_by_pk
+                                ]
+                            )
                         else:
-                            TrainLineEdge.objects.bulk_create([
-                                TrainLineEdge(train_line=cloned, train_edge=t.train_edge, order=t.order)
-                                for t in TrainLineEdge.objects.filter(train_line=original).order_by("order")
-                            ])
+                            TrainLineEdge.objects.bulk_create(
+                                [
+                                    TrainLineEdge(
+                                        train_line=cloned,
+                                        train_edge=t.train_edge,
+                                        order=t.order,
+                                    )
+                                    for t in TrainLineEdge.objects.filter(
+                                        train_line=original
+                                    ).order_by("order")
+                                ]
+                            )
 
         # 5. Apply structural deletions
         deleted_node_ids = data.get("deleted_node_ids", [])
@@ -1088,13 +1186,13 @@ class VersionDiffCreateView(GenericAPIView):
                 continue
             node.map_versions.remove(new_version)
             # Cascade: remove all edges connected to this node from the version
-            for edge in Edge.objects.filter(
-                map_versions=new_version
-            ).filter(
+            for edge in Edge.objects.filter(map_versions=new_version).filter(
                 Q(start_node=node) | Q(end_node=node)
             ):
                 edge.map_versions.remove(new_version)
-                for se in StreetEdge.objects.filter(edge=edge, map_versions=new_version):
+                for se in StreetEdge.objects.filter(
+                    edge=edge, map_versions=new_version
+                ):
                     se.map_versions.remove(new_version)
                 for te in TrainEdge.objects.filter(edge=edge, map_versions=new_version):
                     te.map_versions.remove(new_version)
@@ -1145,7 +1243,10 @@ class VersionDiffCreateView(GenericAPIView):
                 except (Node.DoesNotExist, ValueError):
                     continue
 
-            has_street = edge_data.get("speed_limit") is not None or edge_data.get("lanes") is not None
+            has_street = (
+                edge_data.get("speed_limit") is not None
+                or edge_data.get("lanes") is not None
+            )
 
             def _create_directed_edge(s_node, e_node):
                 new_edge = Edge.objects.create(

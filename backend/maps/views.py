@@ -1,8 +1,11 @@
+import base64
+import binascii
 import json
 import logging
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.core.files.base import ContentFile
 from django.db import transaction
 from django.views.generic import DetailView, FormView, ListView
 
@@ -109,6 +112,10 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                 if image_file:
                     game_map.background_image = image_file
                     game_map.save()
+                elif graph_data and graph_data.get("background_image"):
+                    self._apply_background_from_json(
+                        game_map, graph_data["background_image"]
+                    )
 
                 # Create base version
                 base_version = MapVersion.objects.create(
@@ -126,6 +133,11 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                         base_version=base_version,
                         nodes_data=graph_data.get("nodes", []),
                     )
+                    map_meta = (graph_data or {}).get("map", {})
+                    if "x_dim" in map_meta and "y_dim" in map_meta:
+                        game_map.x_dim = int(map_meta["x_dim"])
+                        game_map.y_dim = int(map_meta["y_dim"])
+                        game_map.save(update_fields=["x_dim", "y_dim"])
                     logger.info(f"Created {len(node_mapping)} nodes")
 
                     edge_mapping = self._create_edges(
@@ -178,6 +190,36 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
 
         logger.info(f"Map upload complete for '{map_name}', redirecting to success_url")
         return super().form_valid(form)
+
+    def _apply_background_from_json(self, game_map, block):
+        """Take image and placement from the JSON.
+
+        The placement is set even when no image data comes with it — the image can
+        then be added by hand and still sits in the right place.
+        """
+        game_map.image_scale = block.get("scale", 1.0)
+        game_map.image_offset_x = block.get("offset_x", 0.0)
+        game_map.image_offset_y = block.get("offset_y", 0.0)
+        game_map.image_crop_top = block.get("crop_top", 0.0)
+        game_map.image_crop_right = block.get("crop_right", 0.0)
+        game_map.image_crop_bottom = block.get("crop_bottom", 0.0)
+        game_map.image_crop_left = block.get("crop_left", 0.0)
+
+        data = block.get("data")
+        if data:
+            try:
+                raw = base64.b64decode(data)
+            except (binascii.Error, ValueError) as exc:
+                # A broken image file must not kill the map import — the graph is
+                # the valuable part, the image can be added afterwards.
+                logger.warning(
+                    "Map %s: background image not decodable (%s)", game_map.pk, exc
+                )
+            else:
+                filename = block.get("filename") or "background.png"
+                game_map.background_image.save(filename, ContentFile(raw), save=False)
+
+        game_map.save()
 
     def _validate_graph_data(self, graph_data):
         errors = []
@@ -268,15 +310,19 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
 
         return errors
 
-    def _create_game_map(self, name, max_players, author, scale=1.0):
+    def _create_game_map(self, name, max_players, author, scale=1.0, map_meta=None):
+        meta = map_meta or {}
         game_map = GameMap.objects.create(
             name=name,
-            max_player=max_players,
+            max_player=meta.get("max_player", max_players),
             author=author,
             updated_by=author,
-            x_dim=100,  # Default, can be adjusted
-            y_dim=100,  # Default, can be adjusted
+            x_dim=100,
+            y_dim=100,
             scale=scale,
+            walk_speed_kmh=meta.get("walk_speed_kmh", 5),
+            bike_speed_kmh=meta.get("bike_speed_kmh", 20),
+            default_car_speed_kmh=meta.get("default_car_speed_kmh", 50),
         )
         return game_map
 
