@@ -1,9 +1,10 @@
+import { de } from "@/lib/de";
 import { useRef, useState } from "react";
 import {
   useGenerateCombinations,
   useMapVersions,
   useUpdateMapVersion,
-} from "../../../hooks/mapHooks";
+} from "@/lib/queries/map-graph";
 import { API_BASE_URL } from "../../../config";
 import type { MapVersion } from "../../../types/mapTypes";
 
@@ -199,7 +200,7 @@ function VersionEditor({
           disabled={updateMutation.isPending}
           className="flex-1 px-3 py-1.5 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
         >
-          {updateMutation.isPending ? "Saving..." : "Save"}
+          {updateMutation.isPending ? "Saving..." : de.editor.save}
         </button>
         <button
           type="button"
@@ -274,7 +275,7 @@ const VersionManagerPanel = ({ mapId }: VersionManagerPanelProps) => {
               {!v.base_version && (
                 <input
                   type="checkbox"
-                  title="Select for combination generation"
+                  title={de.editor.selectForCombination}
                   checked={selectedIds.has(v.id)}
                   onChange={() => toggleSelected(v.id)}
                   className="shrink-0 accent-indigo-600"
@@ -295,7 +296,7 @@ const VersionManagerPanel = ({ mapId }: VersionManagerPanelProps) => {
                 }
                 className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline shrink-0"
               >
-                {expandedId === v.id ? "Close" : "Edit"}
+                {expandedId === v.id ? "Close" : de.editor.edit}
               </button>
             </div>
 

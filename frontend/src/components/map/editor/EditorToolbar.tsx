@@ -1,7 +1,8 @@
+import { de } from "@/lib/de";
 import { useRef } from "react";
 import type { EditorMode, GraphTool } from "../../../types/editorTypes";
 import type { GameMap } from "../../../types/mapTypes";
-import { useUploadBackgroundImage } from "../../../hooks/mapEditorHooks";
+import { useUploadBackgroundImage } from "@/lib/queries/map-editor";
 
 interface EditorToolbarProps {
   mode: EditorMode;
@@ -22,18 +23,18 @@ interface EditorToolbarProps {
 }
 
 const modes: { key: EditorMode; label: string }[] = [
-  { key: "settings", label: "Settings" },
-  { key: "image", label: "Background Image" },
-  { key: "graph", label: "Graph" },
-  { key: "pt-lines", label: "PT Lines" },
-  { key: "version-diff", label: "Versions" },
+  { key: "settings", label: de.editor.tabs.settings },
+  { key: "image", label: de.editor.tabs.image },
+  { key: "graph", label: de.editor.tabs.graph },
+  { key: "pt-lines", label: de.editor.tabs.ptLines },
+  { key: "version-diff", label: de.editor.tabs.versions },
 ];
 
 const graphTools: { key: GraphTool; label: string }[] = [
-  { key: "select", label: "Select" },
-  { key: "add-node", label: "+ Node" },
-  { key: "add-edge", label: "+ Edge" },
-  { key: "delete", label: "Delete" },
+  { key: "select", label: de.editor.tools.select },
+  { key: "add-node", label: `+ ${de.editor.tools.addNode}` },
+  { key: "add-edge", label: `+ ${de.editor.tools.addEdge}` },
+  { key: "delete", label: de.editor.tools.delete },
 ];
 
 const EditorToolbar = ({
@@ -100,7 +101,7 @@ const EditorToolbar = ({
             disabled={uploadMutation.isPending}
             className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
           >
-            {uploadMutation.isPending ? "Uploading..." : "Upload Image"}
+            {uploadMutation.isPending ? de.editor.image.uploading : de.editor.image.upload}
           </button>
           {gameMap.background_image_url && (
             <span className="text-xs text-green-600 dark:text-green-400">
@@ -155,11 +156,13 @@ const EditorToolbar = ({
                 }`}
                 title={
                   bidirectional
-                    ? "Creating bidirectional edges (A↔B)"
-                    : "Creating one-way edges (A→B)"
+                    ? de.editor.tools.bidirectionalHint
+                    : de.editor.tools.oneWayHint
                 }
               >
-                {bidirectional ? "↔ Bidirectional" : "→ One-way"}
+                {bidirectional
+                  ? `↔ ${de.editor.tools.bidirectional}`
+                  : `→ ${de.editor.tools.oneWay}`}
               </button>
             </>
           )}
@@ -254,17 +257,19 @@ const EditorToolbar = ({
                 }`}
                 title={
                   bidirectional
-                    ? "Creating bidirectional edges (A↔B)"
-                    : "Creating one-way edges (A→B)"
+                    ? de.editor.tools.bidirectionalHint
+                    : de.editor.tools.oneWayHint
                 }
               >
-                {bidirectional ? "↔ Bidirectional" : "→ One-way"}
+                {bidirectional
+                  ? `↔ ${de.editor.tools.bidirectional}`
+                  : `→ ${de.editor.tools.oneWay}`}
               </button>
             </>
           )}
           {!versionDiffEditingPtLine && graphTool === "delete" && (
             <span className="text-xs text-red-600 dark:text-red-400">
-              Click nodes or edges to mark them for deletion
+              {de.editor.tools.deleteHint}
             </span>
           )}
         </>

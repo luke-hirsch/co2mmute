@@ -1,3 +1,4 @@
+import { de } from "@/lib/de";
 import { useState } from "react";
 import type { Dispatch } from "react";
 import type { MapVersion, Edge } from "../../../types/mapTypes";
@@ -11,7 +12,7 @@ import type {
   VirtualNode,
   VirtualEdge,
 } from "../../../types/editorTypes";
-import { useCreateVersionFromDiff } from "../../../hooks/mapEditorHooks";
+import { useCreateVersionFromDiff } from "@/lib/queries/map-editor";
 import EdgePropertyPanel from "./EdgePropertyPanel";
 
 interface VersionDiffPanelProps {
@@ -463,7 +464,7 @@ const VersionDiffPanel = ({
               className={inputClass}
             >
               <option value="">
-                {mapGraph ? `Current (${mapGraph.version_name})` : "Loading..."}
+                {mapGraph ? `Current (${mapGraph.version_name})` : de.editor.loading}
               </option>
               {versions?.map((v) => (
                 <option key={v.id} value={v.id}>
@@ -597,7 +598,7 @@ const VersionDiffPanel = ({
           <div className="border border-amber-300 dark:border-amber-700 rounded-md p-3 space-y-2 bg-body dark:bg-darkbody">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-main dark:text-darktext">
-                {versionDiffEditingPtLine.action === "add" ? "Add" : "Modify"}{" "}
+                {versionDiffEditingPtLine.action === "add" ? de.editor.add : "Modify"}{" "}
                 {versionDiffEditingPtLine.line_type === "bus" ? "Bus" : "Train"} Line
               </span>
               <button

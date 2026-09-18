@@ -12,19 +12,20 @@
  * the class has voted a bus lane in.
  */
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch, csrfToken } from "@/lib/api";
 import type { ExtendedMapGraph } from "@/types/routeTypes";
+import type { GameMap, MapVersion, NodeType } from "@/types/mapTypes";
 
 export const mapKeys = {
-  graph: (mapId: number | null, versionId: number | null) =>
+  graph: (mapId: string | number | null, versionId: string | number | null) =>
     ["map", mapId, "graph", versionId] as const,
 };
 
 export function useMapGraph(
-  mapId: number | null | undefined,
-  versionId: number | null | undefined,
+  mapId: string | number | null | undefined,
+  versionId: string | number | null | undefined,
 ) {
   // Both with the trailing slash Django's routes carry. Without it every graph
   // fetch costs an APPEND_SLASH 301 first — harmless, and still two round trips
@@ -39,5 +40,88 @@ export function useMapGraph(
     enabled: !!mapId,
     staleTime: Infinity,
     refetchOnWindowFocus: false,
+  });
+}
+
+// ── the rest of the map's reads, moved out of `hooks/mapHooks.ts` (F7) ───────
+//
+// Same queries, same keys, same shapes — only the layer changed: relative URLs
+// through `apiFetch`, so a failure carries its status and nothing depends on
+// `window.location`. The keys stay exactly as they were, because
+// `lib/queries/map-editor.ts` invalidates them by name after every write.
+
+/** Every map, for a list. */
+export function useGameMaps() {
+  return useQuery<GameMap[]>({
+    queryKey: ["maps"],
+    queryFn: () => apiFetch("/api/maps/"),
+  });
+}
+
+/** One map's row — its name, dimensions, speeds and image placement. */
+export function useGameMap(mapId: string | number) {
+  return useQuery<GameMap>({
+    queryKey: ["map", mapId],
+    queryFn: () => apiFetch(`/api/maps/${mapId}/`),
+    enabled: !!mapId,
+  });
+}
+
+/** The node types a node can carry (home, workplace, station, …). */
+export function useNodeTypes() {
+  return useQuery<NodeType[]>({
+    queryKey: ["nodeTypes"],
+    queryFn: () => apiFetch("/api/maps/node-types/"),
+  });
+}
+
+/** Every version of a map — what the class ends up voting between. */
+export function useMapVersions(mapId: string | number) {
+  return useQuery<MapVersion[]>({
+    queryKey: ["mapVersions", mapId],
+    queryFn: () => apiFetch(`/api/maps/${mapId}/versions/`),
+    enabled: !!mapId,
+  });
+}
+
+/**
+ * A version's own row. Multipart, because a version can carry an image of its
+ * own — so this one cannot go through `apiFetch` either (see the upload in
+ * `map-editor.ts` for the same reason).
+ */
+export function useUpdateMapVersion(mapId: string | number, versionId: number) {
+  const qc = useQueryClient();
+  return useMutation<MapVersion, Error, FormData>({
+    mutationFn: async (body: FormData) => {
+      const res = await fetch(`/api/maps/${mapId}/versions/${versionId}/`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "X-CSRFToken": csrfToken() },
+        body,
+      });
+      if (!res.ok) {
+        throw new ApiError(res.status, await res.json().catch(() => null), "Version");
+      }
+      return res.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mapVersions", mapId] }),
+  });
+}
+
+/**
+ * Build the combinations of a set of atomic versions.
+ *
+ * This is what wires `compatible_versions` up, and without it the ballot has
+ * nothing to offer: `vote_options()` walks that M2M from the active version.
+ */
+export function useGenerateCombinations(mapId: string | number) {
+  const qc = useQueryClient();
+  return useMutation<{ created: number }, Error, { version_ids: number[] }>({
+    mutationFn: (data) =>
+      apiFetch(`/api/maps/${mapId}/versions/generate-combinations/`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mapVersions", mapId] }),
   });
 }

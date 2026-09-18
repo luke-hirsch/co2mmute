@@ -1,7 +1,8 @@
+import { de } from "@/lib/de";
 import { useState, useEffect } from "react";
 import type { Node, NodeType } from "../../../types/mapTypes";
-import { useNodeTypes } from "../../../hooks/mapHooks";
-import { useUpdateNode, useDeleteNode } from "../../../hooks/mapEditorHooks";
+import { useNodeTypes } from "@/lib/queries/map-graph";
+import { useUpdateNode, useDeleteNode } from "@/lib/queries/map-editor";
 
 interface NodePropertyPanelProps {
   node: Node;
@@ -107,7 +108,7 @@ const NodePropertyPanel = ({ node, mapId }: NodePropertyPanelProps) => {
           disabled={updateMutation.isPending || !hasChanges}
           className="flex-1 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
         >
-          {updateMutation.isPending ? "Saving..." : "Save"}
+          {updateMutation.isPending ? "Saving..." : de.editor.save}
         </button>
         <button
           onClick={handleDelete}

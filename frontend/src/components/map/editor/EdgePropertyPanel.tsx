@@ -1,3 +1,4 @@
+import { de } from "@/lib/de";
 import { useState, useEffect } from "react";
 import type { Edge, Node } from "../../../types/mapTypes";
 import {
@@ -9,7 +10,7 @@ import {
   useDeleteStreetEdge,
   useCreateTrainEdge,
   useDeleteTrainEdge,
-} from "../../../hooks/mapEditorHooks";
+} from "@/lib/queries/map-editor";
 
 interface EdgeChangeFields {
   biking: boolean;
@@ -152,7 +153,7 @@ const EdgePropertyPanel = ({
     if (!mapId) return;
     const msg = reverseEdge
       ? "Delete this edge and its reverse direction?"
-      : "Delete this edge?";
+      : de.editor.deleteEdgeConfirm;
     if (confirm(msg)) {
       deleteEdgeMutation.mutate(edge.id);
       if (reverseEdge) {
@@ -552,7 +553,7 @@ const EdgePropertyPanel = ({
             disabled={isPending}
             className="flex-1 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
           >
-            {updateEdgeMutation.isPending ? "Saving..." : "Save"}
+            {updateEdgeMutation.isPending ? "Saving..." : de.editor.save}
           </button>
           <button
             onClick={handleDelete}

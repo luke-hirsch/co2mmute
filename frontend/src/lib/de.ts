@@ -591,4 +591,170 @@ export const de = {
     /** The way in from the join screen. */
     link: "Du warst schon dabei? Sitzung fortsetzen",
   },
+  /**
+   * The map itself — what its colours mean. Shared by the editor, the map
+   * detail page and the in-game view; each one supplies its own colours, so
+   * these are only the words (F7).
+   */
+  map: {
+    legend: {
+      title: "Legende",
+      edges: "Kanten",
+      nodes: "Knoten",
+      street: "Straße",
+      train: "Bahn",
+      streetAndTrain: "Straße und Bahn",
+      bike: "Radweg",
+      walk: "Fußweg",
+      bikeAndWalk: "Rad- und Fußweg",
+      home: "Zuhause",
+      workplace: "Arbeit",
+      station: "Bahnhof",
+      busStop: "Bushaltestelle",
+      other: "sonstiger Knoten",
+    },
+  },
+
+  /**
+   * The map editor (F7).
+   *
+   * The one part of the dictionary whose reader is a researcher rather than a
+   * player, so it names things precisely instead of gently: Knoten, Kante,
+   * Version. It still says "du" — the rule holds everywhere.
+   */
+  editor: {
+    title: (name: string) => `Karte bearbeiten: ${name}`,
+    back: "Zurück zur Karte",
+    loading: "Karte wird geladen …",
+    failed: "Die Karte ließ sich nicht laden.",
+
+    /** The tools in the graph tab. */
+    tools: {
+      select: "Auswählen",
+      addNode: "Knoten",
+      addEdge: "Kante",
+      delete: "Löschen",
+      bidirectional: "beide Richtungen",
+      oneWay: "Einbahn",
+      bidirectionalHint: "Neue Kanten gelten in beide Richtungen (A↔B).",
+      oneWayHint: "Neue Kanten gelten nur in eine Richtung (A→B).",
+      deleteHint: "Klick Knoten oder Kanten an, um sie zum Löschen zu markieren.",
+    },
+
+    /** The toolbar's tabs. */
+    tabs: {
+      settings: "Einstellungen",
+      image: "Hintergrundbild",
+      graph: "Graph",
+      ptLines: "Linien",
+      versions: "Versionen",
+    },
+
+    /** Actions that appear on more than one panel. */
+    save: "Speichern",
+    saving: "Wird gespeichert …",
+    saved: "Gespeichert.",
+    cancel: "Abbrechen",
+    delete: "Löschen",
+    deleting: "Wird gelöscht …",
+    create: "Anlegen",
+    creating: "Wird angelegt …",
+    nothingSelected: "Nichts ausgewählt.",
+    edit: "Bearbeiten",
+    saveSettings: "Einstellungen speichern",
+    saveChanges: "Änderungen speichern",
+    newBusLine: "Neue Buslinie",
+    newTrainLine: "Neue Bahnlinie",
+    saveLine: "Linie speichern",
+    add: "Hinzufügen",
+    imageLoaded: "Bild geladen.",
+    selectForCombination: "Für Kombinationen auswählen",
+    deleteEdgeConfirm: "Diese Kante löschen?",
+    saveFailed: "Das Speichern hat nicht geklappt.",
+
+    /** The background image and where it sits against the graph. */
+    image: {
+      title: "Hintergrundbild",
+      none: "Noch kein Hintergrundbild. Lad eins über die Leiste oben hoch.",
+      upload: "Bild hochladen",
+      uploading: "Wird hochgeladen …",
+      remove: "Bild entfernen",
+      offsetX: "Verschiebung X",
+      offsetY: "Verschiebung Y",
+      scale: "Größe",
+      cropTop: "Beschnitt oben",
+      cropRight: "Beschnitt rechts",
+      cropBottom: "Beschnitt unten",
+      cropLeft: "Beschnitt links",
+      hint: "Schieb das Bild so, dass die Knoten auf den richtigen Stellen liegen.",
+    },
+
+    /** A node. */
+    node: {
+      title: "Knoten",
+      name: "Name",
+      types: "Art",
+      position: "Position",
+      add: "Knoten anlegen",
+      removeConfirm: "Der Knoten und alle Kanten daran werden gelöscht.",
+    },
+
+    /** An edge, and the two kinds that hang off it. */
+    edge: {
+      title: "Kante",
+      street: "Straße",
+      train: "Bahn",
+      biking: "für Räder",
+      walking: "für Fußgänger",
+      lanes: "Spuren",
+      speedLimit: "Tempolimit",
+      busLane: "eigene Busspur",
+      bidirectional: "in beide Richtungen",
+      oneWay: "Einbahn",
+      add: "Kante ziehen",
+      removeConfirm: "Die Kante wird gelöscht.",
+    },
+
+    /** Bus and train lines. */
+    ptLine: {
+      title: "Linien",
+      bus: "Buslinie",
+      train: "Bahnlinie",
+      name: "Name",
+      interval: "Takt in Minuten",
+      capacity: "Plätze",
+      speed: "Geschwindigkeit",
+      edges: "Kanten der Linie",
+      pickEdges: "Kanten auf der Karte anklicken.",
+      add: "Linie anlegen",
+      removeConfirm: "Die Linie wird gelöscht. Die Kanten bleiben.",
+    },
+
+    /** Versions: what the class votes on. */
+    version: {
+      title: "Versionen",
+      base: "Grundversion",
+      active: "aktiv",
+      name: "Name",
+      create: "Version anlegen",
+      fromDiff: "Aus den Änderungen eine Version machen",
+      changes: "Änderungen",
+      noChanges: "Keine Änderungen gegenüber der Grundversion.",
+      compatible: "Verträglich mit",
+      generate: "Kombinationen erzeugen",
+      hint: "Eine Version ist ein Filter über einen Graphen, keine Kopie.",
+    },
+
+    /** The map's own settings. */
+    settings: {
+      title: "Einstellungen",
+      name: "Name der Karte",
+      xDim: "Breite",
+      yDim: "Höhe",
+      maxPlayer: "Plätze",
+      walkSpeed: "Tempo zu Fuß",
+      bikeSpeed: "Tempo mit dem Rad",
+      carSpeed: "Tempo mit dem Auto",
+    },
+  },
 };

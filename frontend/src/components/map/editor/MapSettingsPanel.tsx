@@ -1,6 +1,7 @@
+import { de } from "@/lib/de";
 import { useState } from "react";
 import type { GameMap } from "../../../types/mapTypes";
-import { useUpdateMapSettings } from "../../../hooks/mapEditorHooks";
+import { useUpdateMapSettings } from "@/lib/queries/map-editor";
 
 interface MapSettingsPanelProps {
   mapId: string;
@@ -96,7 +97,7 @@ const MapSettingsPanel = ({ mapId, gameMap }: MapSettingsPanelProps) => {
           disabled={updateMutation.isPending}
           className="w-full px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
         >
-          {updateMutation.isPending ? "Saving..." : "Save Settings"}
+          {updateMutation.isPending ? "Saving..." : de.editor.saveSettings}
         </button>
       </div>
       {updateMutation.isSuccess && (
