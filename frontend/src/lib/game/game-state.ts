@@ -117,6 +117,18 @@ export type GameState = {
   maxCo2LevelG: number;
   maxCo2LevelKg: number;
 
+  /**
+   * The map version the game is being played on.
+   *
+   * Read off the socket rather than out of `GET <game_id>/<player_id>/`, which
+   * is `staleTime: Infinity` and does not remount between rounds — so a client
+   * that took the version from there would keep routing round 2 on round 1's
+   * map after a vote. `game.state` carries it on every connect and
+   * `vote.result` carries the winner, so the socket knows it at every moment it
+   * can change, and nothing has to refetch to find out.
+   */
+  activeMapVersionId: number | null;
+
   // ── between rounds ────────────────────────────────────────────────────────
   phase: BetweenRoundPhase;
   voteOptions: VoteOption[];
@@ -162,6 +174,7 @@ export function initialGameState(gameId: string): GameState {
     totalEmissionsG: 0,
     maxCo2LevelG: 0,
     maxCo2LevelKg: 0,
+    activeMapVersionId: null,
 
     phase: "none",
     voteOptions: [],
@@ -264,6 +277,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         endedAt: s.endedAt,
         pausedAt: s.pausedAt,
         phase: s.betweenRoundPhase,
+        activeMapVersionId: s.activeMapVersionId,
         // The ballot is stored on the round, so a reconnect mid-vote gets the
         // same options back rather than a fresh draw.
         voteOptions: s.mapVersions,
@@ -341,12 +355,16 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         maxRounds: event.data.max_rounds,
         totalEmissionsG: event.data.total_game_emissions_g,
         maxCo2LevelG: event.data.max_co2_level_g,
-        // A new round clears everything the last one's aftermath put on screen.
+        // A new round clears everything the last one's aftermath put on screen
+        // — except what the vote decided. `phases._tally_if_complete` sends
+        // `vote.result` and `round.started` back to back, so clearing the
+        // outcome here would wipe it about a frame after it arrived and no
+        // screen could ever have shown it. It stays until the next round is
+        // over, and the round header says what the class voted in (Z-11).
         phase: "none",
         voteOptions: [],
         votes: null,
         stalemate: null,
-        voteOutcome: null,
         simulation: null,
       };
 
@@ -357,6 +375,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         maxCo2LevelG: event.data.max_co2_level_g,
         voteOptions: event.data.map_versions,
         simulation: null,
+        // The last vote has been on screen for a whole round by now; this round
+        // gets its own aftermath.
+        voteOutcome: null,
         // The backend moves the round into the stats phase as it completes.
         phase: "stats",
         lastRound: {
@@ -414,6 +435,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case "vote.result":
       return {
         ...seen,
+        // The winner is the game's new active map version, and this is the only
+        // event that says so. A tie left as it is sends `null` and changes
+        // nothing — so only a real winner may overwrite it.
+        activeMapVersionId:
+          event.data.winning_version_id ?? state.activeMapVersionId,
         voteOutcome: {
           stalemate: false,
           winningVersionId: event.data.winning_version_id,

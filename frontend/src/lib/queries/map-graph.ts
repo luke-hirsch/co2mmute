@@ -26,8 +26,11 @@ export function useMapGraph(
   mapId: number | null | undefined,
   versionId: number | null | undefined,
 ) {
+  // Both with the trailing slash Django's routes carry. Without it every graph
+  // fetch costs an APPEND_SLASH 301 first — harmless, and still two round trips
+  // for the biggest payload in the game, on a school wifi.
   const path = versionId
-    ? `/api/maps/${mapId}/graph/version/${versionId}`
+    ? `/api/maps/${mapId}/graph/version/${versionId}/`
     : `/api/maps/${mapId}/graph/baseversion/`;
 
   return useQuery({
