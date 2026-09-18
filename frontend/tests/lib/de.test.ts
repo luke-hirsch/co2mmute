@@ -122,6 +122,24 @@ describe("de", () => {
     expect(de.host.curtainTitle("Ben")).toBe("Ben ist dran");
   });
 
+  it("heads the summary's three lists with a superlative, not a metric", () => {
+    // F6: the end screen is the same players three times in three orders. The
+    // headings have to say what being at the top of one *means*, because the
+    // order is the only thing that says it — the entries are not numbered.
+    expect(de.summary.cleanest).toBe("Am wenigsten CO₂");
+    expect(de.summary.cheapest).toBe("Am günstigsten");
+    expect(de.summary.fastest).toBe("Am schnellsten");
+  });
+
+  it("crowns nobody at the end of a game", () => {
+    // The research group's position (via Lukas, 2026-09-18): there is no
+    // winner, or who won is what the class argues about afterwards. So the
+    // closing line is a plain string and not a function — there is no way to
+    // pass it a name, which is what would turn it into a verdict.
+    expect(typeof de.summary.noWinner).toBe("string");
+    expect(de.summary.noWinner).not.toMatch(/Sieger|Gewinner|gewonnen|Platz 1/);
+  });
+
   it("interpolates the parameterised strings", () => {
     expect(de.join.seats(3, 8)).toBe("3 von 8 Plätzen belegt");
     expect(de.lobby.co2Kg(120)).toBe("120 kg");

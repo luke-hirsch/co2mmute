@@ -92,8 +92,14 @@ export function GameFrame({ children }: { children: ReactNode }) {
 
       {/* Reconnecting is normal on a school wifi and not worth an alert. It is
           worth saying, because everything on screen stops moving while it
-          happens and the alternative is looking at a game that seems frozen. */}
-      {connection !== "open" ? (
+          happens and the alternative is looking at a game that seems frozen.
+
+          Never once the game is over, though: `ws_auth.resolve_player` refuses
+          a socket for a game with an `ended_at` (4403, "game-ended"), so on the
+          summary there is nothing to reconnect to and the line would sit under
+          a finished game for ever promising otherwise. Nothing on that screen
+          needs a socket — it reads the reducer and one query. */}
+      {connection !== "open" && !state.endedAt ? (
         <p className="px-4 pb-8 text-center text-sm text-muted-foreground sm:px-6">
           {de.lobby.connectionLost}
         </p>
