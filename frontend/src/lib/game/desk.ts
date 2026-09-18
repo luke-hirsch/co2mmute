@@ -31,18 +31,46 @@ export type DeskMode =
 
 export type DeskState = {
   mode: DeskMode;
-  /** The round this belongs to. A new round closes whatever was open. */
-  roundNumber: number;
+  /**
+   * What this desk belongs to. When it changes, whatever was open closes.
+   *
+   * A string rather than the round number, because F5 runs the same carousel
+   * for the map vote, where the thing that has to close an open seat is the
+   * *phase* turning over as well as the round — a revote after a tie must not
+   * leave the previous ballot standing on the projector.
+   */
+  epoch: string;
 };
 
 export type DeskAction =
   | { kind: "pick"; seatId: string }
   | { kind: "ready" }
   | { kind: "leave" }
-  | { kind: "sync"; seats: RosterSeat[]; roundNumber: number };
+  | {
+      kind: "sync";
+      seats: RosterSeat[];
+      /** Seats that are finished with whatever this desk is for. */
+      done: ReadonlySet<string>;
+      epoch: string;
+    };
 
-export function initialDeskState(roundNumber: number): DeskState {
-  return { mode: { kind: "desk" }, roundNumber };
+export function initialDeskState(epoch: string): DeskState {
+  return { mode: { kind: "desk" }, epoch };
+}
+
+/**
+ * The seats the roster says have submitted this round.
+ *
+ * "waiting" is the roster's word for "has moved" (`game/roster.py`), and it is
+ * the one truth for it — the same one the round screen reads (F3). The vote
+ * desk cannot use it: between rounds the roster reports `ready` for everyone,
+ * because there is no open round to have moved in. It builds its own set from
+ * what the device has sent instead.
+ */
+export function seatsDoneMoving(seats: RosterSeat[]): ReadonlySet<string> {
+  return new Set(
+    seats.filter((seat) => seat.status === "waiting").map((seat) => seat.player_id),
+  );
 }
 
 /**
@@ -59,20 +87,23 @@ export function activeSeatId(state: DeskState): string | null {
   return state.mode.kind === "desk" ? null : state.mode.seatId;
 }
 
-/** Whether this seat can still be played at the machine right now. */
-function playable(seats: RosterSeat[], seatId: string): boolean {
+/** Whether this seat still has something to do at the machine right now. */
+function playable(
+  seats: RosterSeat[],
+  seatId: string,
+  done: ReadonlySet<string>,
+): boolean {
   const seat = deskSeats(seats).find((candidate) => candidate.player_id === seatId);
-  // "waiting" is the roster's word for "has submitted this round" — the one
-  // truth for it, the same one the round screen reads (F3).
-  return !!seat && seat.status !== "waiting";
+  return !!seat && !done.has(seatId);
 }
 
 /**
- * The next seat that still owes a move, carrying on after the one just played
- * and wrapping around. Null when every seat at this machine is through.
+ * The next seat that still owes something, carrying on after the one just
+ * played and wrapping around. Null when every seat at this machine is through.
  */
 export function nextDeskSeat(
   seats: RosterSeat[],
+  done: ReadonlySet<string>,
   afterSeatId?: string | null,
 ): RosterSeat | null {
   const playing = deskSeats(seats);
@@ -84,19 +115,22 @@ export function nextDeskSeat(
 
   for (let step = 0; step < playing.length; step += 1) {
     const seat = playing[(from + step) % playing.length];
-    if (seat.status !== "waiting") return seat;
+    if (!done.has(seat.player_id)) return seat;
   }
   return null;
 }
 
 /**
- * Every seat at this machine has submitted. Deliberately false when there is
- * no such seat at all: "all done here" and "nothing to do here" are different
+ * Every seat at this machine is through. Deliberately false when there is no
+ * such seat at all: "all done here" and "nothing to do here" are different
  * sentences, and the desk says a different one for each.
  */
-export function deskDone(seats: RosterSeat[]): boolean {
+export function deskDone(
+  seats: RosterSeat[],
+  done: ReadonlySet<string>,
+): boolean {
   const playing = deskSeats(seats);
-  return playing.length > 0 && playing.every((seat) => seat.status === "waiting");
+  return playing.length > 0 && playing.every((seat) => done.has(seat.player_id));
 }
 
 export function deskReducer(state: DeskState, action: DeskAction): DeskState {
@@ -115,13 +149,14 @@ export function deskReducer(state: DeskState, action: DeskAction): DeskState {
       return { ...state, mode: { kind: "desk" } };
 
     case "sync": {
-      // A new round is the one change that closes a seat no matter what: every
-      // student owes a move again, so the machine goes back to the list.
-      if (action.roundNumber !== state.roundNumber) {
-        return { mode: { kind: "desk" }, roundNumber: action.roundNumber };
+      // A new round — or, for the vote desk, a new phase — is the one change
+      // that closes a seat no matter what: everyone owes something again, so
+      // the machine goes back to the list.
+      if (action.epoch !== state.epoch) {
+        return { mode: { kind: "desk" }, epoch: action.epoch };
       }
       if (state.mode.kind === "desk") return state;
-      if (playable(action.seats, state.mode.seatId)) return state;
+      if (playable(action.seats, state.mode.seatId, action.done)) return state;
       return { ...state, mode: { kind: "desk" } };
     }
   }

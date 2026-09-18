@@ -39,6 +39,41 @@ export function RoundHeader() {
         maxG={state.maxCo2LevelG}
         className="mt-6"
       />
+
+      <VoteApplied />
     </header>
+  );
+}
+
+/**
+ * What the class voted onto the map, on the round it first applies to (Z-11).
+ *
+ * This is the only place the outcome is ever visible. `phases._tally_if_complete`
+ * sends `vote.result` and `round.started` one after the other, so a screen shown
+ * during the voting phase would have it for about a frame — the reducer keeps
+ * the outcome across the round start for exactly this line, and drops it when
+ * the next round completes.
+ *
+ * A tie left as it is says so too. "Nothing changed" is information here: the
+ * class voted and the map stayed, which is not the same as no vote having
+ * happened.
+ */
+function VoteApplied() {
+  const { state } = useGame();
+  if (!state.voteOutcome) return null;
+
+  const { winningVersionId, winningVersionName } = state.voteOutcome;
+
+  return (
+    <p className="mt-6 border-l-[3px] border-brandaccent pl-4 max-w-(--measure-body)">
+      <span className="font-mono text-xs tracking-[0.12em] text-muted-foreground uppercase">
+        {de.vote.appliedTitle}
+      </span>
+      <span className="mt-1 block">
+        {winningVersionId === null
+          ? de.vote.unchanged
+          : de.vote.applied(winningVersionName)}
+      </span>
+    </p>
   );
 }

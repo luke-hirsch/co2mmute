@@ -6,7 +6,7 @@ import { RoundHeader } from "@/components/round/round-header";
 import { RoundScreen } from "@/components/round/round-screen";
 import { Screen } from "@/components/layout/screen";
 import { SeatAdminList } from "@/components/host/seat-admin-list";
-import { useDesk } from "@/hooks/use-desk";
+import { useRoundDesk } from "@/hooks/use-desk";
 import { useGame } from "@/components/game/game-context";
 import { de } from "@/lib/de";
 
@@ -33,7 +33,7 @@ import { de } from "@/lib/de";
  */
 export function HostDeskScreen() {
   const { state } = useGame();
-  const desk = useDesk();
+  const desk = useRoundDesk();
 
   if (desk.mode === "curtain" && desk.openSeat) {
     return (

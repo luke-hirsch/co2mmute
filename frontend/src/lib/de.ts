@@ -111,6 +111,14 @@ const redeemRefusal: Record<RedeemRefusal, string> = {
   ended: "Das Spiel ist vorbei.",
 };
 
+/** Why the game is over. `game/signals.py` sends one of the two. */
+export type GameEndReason = "co2_limit" | "max_rounds";
+
+const endReason: Record<GameEndReason, string> = {
+  co2_limit: "Das CO₂-Budget ist aufgebraucht.",
+  max_rounds: "Alle Runden sind gefahren.",
+};
+
 export const de = {
   app: {
     name: "co2mmute",
@@ -302,6 +310,124 @@ export const de = {
   },
 
   /**
+   * Between two rounds: what the last one cost, and what the class does about
+   * it. The phases are the backend's (`game/phases.py`), and each one is a
+   * screen: stats → discussion → voting → stalemate → next round.
+   */
+  between: {
+    /** Stats. The round is named, because the number is the point. */
+    statsTitle: (n: number) => `Runde ${n} ist gefahren`,
+    statsLead:
+      "So ist die Klasse gependelt. Schau dir an, was deine Wahl gekostet hat.",
+    /** The table. "Zeit" is the average trip, not the sum. */
+    player: "Wer",
+    co2: "CO₂",
+    cost: "Kosten",
+    time: "Zeit",
+    you: "du",
+    roundTotal: "Runde gesamt",
+    /**
+     * Figures, formatted once. Grams below a kilo, kilos above — a round costs
+     * anything from a few hundred grams to tonnes, and "0,4 kg" reads worse
+     * than "400 g" on the low end.
+     */
+    grams: (g: number) =>
+      g >= 1000
+        ? `${(g / 1000).toLocaleString("de-DE", {
+            maximumFractionDigits: 1,
+          })} kg`
+        : `${Math.round(g).toLocaleString("de-DE")} g`,
+    eur: (value: number) =>
+      `${value.toLocaleString("de-DE", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })} €`,
+    /**
+     * The fallback figures, when no routes reached the simulation. It has never
+     * happened since 1.1 fixed the ordering, but the flag is in the payload and
+     * silently showing made-up numbers as real ones would be the worse bug.
+     */
+    noSimulation: "Für diese Runde konnte die Simulation nicht rechnen.",
+
+    ack: "Weiter",
+    acked: "Du bist durch.",
+    ackedBody: "Sobald alle gelesen haben, geht es weiter.",
+    /**
+     * Nothing tells us *who* is missing — no event carries the acks. Naming a
+     * number is honest; naming a name would be made up.
+     */
+    ackWaiting: "Es fehlen noch ein paar.",
+
+    /** Discussion. */
+    discussionTitle: "Was soll sich ändern?",
+    discussionLead:
+      "Redet darüber, bevor abgestimmt wird. Die Spielleitung öffnet die Abstimmung.",
+    discussionWaiting: "Die Abstimmung wird gleich geöffnet.",
+    noOptions: "Diesmal steht keine Änderung zur Wahl. Es geht direkt weiter.",
+  },
+
+  /** The map vote and the tie-break that can follow it. */
+  vote: {
+    title: "Abstimmen",
+    lead: "Eine Stimme pro Platz. Was die Mehrheit will, steht ab der nächsten Runde auf der Karte.",
+    /** A version that takes an earlier change back out. */
+    rollback: "nimmt eine Änderung zurück",
+    pick: "Dafür stimmen",
+    keep: "So lassen",
+    keepHint: "Die Karte bleibt, wie sie ist.",
+    progress: (cast: number, needed: number) =>
+      `${cast} von ${needed} haben abgestimmt`,
+    cast: "Deine Stimme ist da.",
+    castBody: "Sobald alle abgestimmt haben, geht es weiter.",
+    already: "Für diesen Platz ist schon abgestimmt.",
+    failed: "Die Stimme ist nicht durchgegangen. Versuch es nochmal.",
+    open: "Abstimmung öffnen",
+    opening: "Wird geöffnet …",
+
+    /** The tie. */
+    tieTitle: "Unentschieden",
+    tieLead:
+      "Die Stimmen stehen gleich. Wollt ihr nochmal abstimmen, oder bleibt die Karte, wie sie ist?",
+    /** Second tie: there is no third round of this. Say it before they answer. */
+    tieLast:
+      "Das ist die letzte Abstimmung. Bleibt es unentschieden, bleibt die Karte, wie sie ist.",
+    revote: "Nochmal abstimmen",
+    leaveAsIs: "So lassen",
+    tieProgress: (cast: number, needed: number) =>
+      `${cast} von ${needed} haben geantwortet`,
+    tieAnswered: "Deine Antwort ist da.",
+    forceLeave: "Abstimmung beenden",
+    forceLeaveConfirm:
+      "Die Karte bleibt, wie sie ist, und die nächste Runde startet.",
+
+    /** The outcome, carried into the next round's header. */
+    appliedTitle: "Neu auf der Karte",
+    applied: (name: string) => `„${name}“ ist angenommen.`,
+    unchanged: "Die Karte bleibt, wie sie ist.",
+  },
+
+  /** The end of the game. F6 turns this into the full summary. */
+  summary: {
+    title: "Spiel zu Ende",
+    reason: endReason,
+    roundsPlayed: (n: number) =>
+      n === 1 ? "1 Runde gefahren" : `${n} Runden gefahren`,
+    lastRound: (n: number) => `Die letzte Runde (${n})`,
+    total: "CO₂ insgesamt",
+    budget: "Budget",
+    /**
+     * Both headline figures in kilos, whatever their size. `between.grams`
+     * switches to grams below a kilo, which is right in a round's table and
+     * wrong next to a budget in the tonnes — two numbers meant to be compared
+     * must carry the same unit.
+     */
+    kg: (kg: number) => `${kg.toLocaleString("de-DE")} kg`,
+    /** Names stay until anonymisation runs, 24 h after the end (1.3). */
+    lead: "Das war's. Hier steht, was am Ende zusammengekommen ist.",
+    home: "Zurück zum Start",
+  },
+
+  /**
    * 1.6 + 1.7: the host machine runs the game and the host does not play.
    * "Leitpult" rather than "Host-Screen" — it is the desk at the front of the
    * room, and everything on it is something you do for somebody else.
@@ -362,6 +488,25 @@ export const de = {
     curtainTitle: (name: string) => `${name} ist dran`,
     curtainBody: "Gib den Rechner weiter. Erst dann weiter — vorher sieht der Raum alles mit.",
     curtainGo: "Los",
+
+    /**
+     * Between the rounds (F5). The stats ack goes out for every seat at this
+     * machine at once — they are all looking at the same screen — but a vote is
+     * one per seat, so that one goes round the desk like a turn does.
+     */
+    ackAll: "Weiter für alle hier",
+    ackedAll: "Für die Plätze hier ist gelesen.",
+    voteLead: "Jeder Platz an diesem Rechner stimmt einmal ab. Gib den Rechner reihum weiter.",
+    voteSeat: "Abstimmen",
+    votedSeats: "Alle Plätze an diesem Rechner haben abgestimmt.",
+    /** The phase waits for phones, and nothing here can hurry them along. */
+    waitingForPhones: "Es fehlen noch Plätze auf den Handys.",
+    /**
+     * The one escape hatch when a phase hangs: removing a seat runs
+     * `phases.recheck` and the phase completes without it.
+     */
+    stuckHint:
+      "Wenn jemand nicht mehr da ist: entferne den Platz, dann geht es ohne ihn weiter.",
 
     failed: hostRefusal,
     failedUnknown: "Das hat nicht geklappt. Versuch es nochmal.",

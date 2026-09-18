@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { GameEvent, RosterSeat } from "@/lib/game/events";
+import type {
+  GameEvent,
+  GameStateSnapshot,
+  RosterSeat,
+} from "@/lib/game/events";
 import {
   budgetUsed,
   currentScreen,
@@ -77,6 +81,56 @@ const roundStarted = (n: number): GameEvent => ({
     max_rounds: 5,
     total_game_emissions_g: 0,
     max_co2_level_g: 120_000,
+  },
+});
+
+const roundCompleted = (n: number): GameEvent => ({
+  type: "round.completed",
+  game_id: "ABC123",
+  data: {
+    round_number: n,
+    round_emissions_g: 1_000,
+    round_cost_eur: 2,
+    total_game_emissions_g: 1_000 * n,
+    max_co2_level_g: 120_000,
+    player_stats: [],
+    simulation_used: true,
+    has_map_versions: false,
+    map_versions: [],
+  },
+});
+
+/** A vote that resolved. `versionId` null is "so lassen". */
+const voteResult = (versionId: number | null, name: string): GameEvent => ({
+  type: "vote.result",
+  game_id: "ABC123",
+  data: {
+    stalemate: false,
+    winning_version_id: versionId,
+    winning_version_name: name,
+    vote_counts: [],
+  },
+});
+
+const gameStateEvent = (
+  overrides: Partial<GameStateSnapshot> = {},
+): GameEvent => ({
+  type: "game.state",
+  game_id: "ABC123",
+  data: {
+    isActive: true,
+    currentRound: 1,
+    totalEmissionsG: 0,
+    maxCo2LevelG: 120_000,
+    maxRounds: 5,
+    startedAt: "2026-09-18T09:00:00Z",
+    endedAt: null,
+    pausedAt: null,
+    betweenRoundPhase: "none",
+    activeMapVersionId: null,
+    hasMapVersions: false,
+    mapVersions: [],
+    ...overrides,
   },
 });
 
@@ -228,7 +282,56 @@ describe("rounds and phases", () => {
     expect(state.phase).toBe("none");
     expect(state.voteOptions).toEqual([]);
     expect(state.votes).toBeNull();
+  });
+
+  /**
+   * The exception to the rule above, and the reason it is an exception.
+   *
+   * `phases._tally_if_complete` broadcasts `vote.result` and then immediately
+   * starts the next round, so the two events arrive together. An outcome
+   * cleared by `round.started` would therefore never be on screen at all —
+   * which is precisely what happened before F5: the vote decided something and
+   * nothing ever said what.
+   */
+  it("carries the vote's outcome into the round it applies to", () => {
+    const state = apply(start(), roundStarted(1), voteResult(9, "Busspur"), roundStarted(2));
+
+    expect(state.voteOutcome?.winningVersionName).toBe("Busspur");
+    expect(state.currentRound).toBe(2);
+  });
+
+  it("drops the outcome once that round is over", () => {
+    const state = apply(
+      start(),
+      roundStarted(1),
+      voteResult(9, "Busspur"),
+      roundStarted(2),
+      roundCompleted(2),
+    );
+
     expect(state.voteOutcome).toBeNull();
+  });
+
+  it("takes the winning version as the map the game is now on", () => {
+    // Nothing else says so: the seat row is read once and kept, and
+    // `round.started` carries no version. See the field's doc in game-state.ts.
+    const state = apply(start(), roundStarted(1), voteResult(9, "Busspur"));
+
+    expect(state.activeMapVersionId).toBe(9);
+  });
+
+  it("keeps the map when a tie is left as it is", () => {
+    const state = apply(
+      start(),
+      gameStateEvent({ activeMapVersionId: 4 }),
+      roundStarted(1),
+      // `winning_version_id: null` is "so lassen" — the host cut the tie short,
+      // or it tied twice. Either way the map does not move.
+      voteResult(null, "Leave as it is"),
+    );
+
+    expect(state.activeMapVersionId).toBe(4);
+    expect(state.voteOutcome?.winningVersionId).toBeNull();
   });
 
   it("follows a vote through a tie and a revote", () => {
@@ -261,6 +364,87 @@ describe("rounds and phases", () => {
     expect(state.phase).toBe("voting");
     expect(state.stalemate).toBeNull();
     expect(state.votes).toBeNull();
+  });
+
+  /**
+   * The whole between-round machine in one go, in the order `game/phases.py`
+   * actually sends it. Each step is cheap on its own; what this pins is that
+   * they compose — F5's screens are routed by `state.phase` alone, so a phase
+   * the reducer gets wrong is a screen that shows the wrong thing.
+   */
+  it("walks stats → discussion → voting → stalemate → next round", () => {
+    const busspur = {
+      id: 9,
+      name: "Busspur",
+      poll_text: "Neue Busspur?",
+      is_rollback: false,
+      change_img_url: null,
+    };
+
+    let state = apply(start(), roundStarted(1), roundCompleted(1));
+    expect(state.phase).toBe("stats");
+
+    state = apply(state, {
+      type: "stats.all_acked",
+      game_id: "ABC123",
+      data: { next_phase: "discussion", map_versions: [busspur] },
+    });
+    expect(state.phase).toBe("discussion");
+    expect(state.voteOptions).toEqual([busspur]);
+
+    state = apply(state, {
+      type: "vote.opened",
+      game_id: "ABC123",
+      data: { versions: [busspur] },
+    });
+    expect(state.phase).toBe("voting");
+
+    state = apply(state, {
+      type: "vote.recorded",
+      game_id: "ABC123",
+      data: { player_id: "P-1", votes_cast: 1, votes_needed: 2 },
+    });
+    expect(state.votes).toEqual({ cast: 1, needed: 2 });
+
+    state = apply(state, {
+      type: "vote.stalemate",
+      game_id: "ABC123",
+      data: {
+        stalemate: true,
+        stalemate_count: 1,
+        vote_counts: [],
+        winning_version_id: null,
+        winning_version_name: "Leave as it is",
+      },
+    });
+    expect(state.phase).toBe("stalemate");
+
+    // The majority wants another go: same ballot, votes wiped (`_reopen_vote`).
+    state = apply(state, {
+      type: "vote.opened",
+      game_id: "ABC123",
+      data: { versions: [busspur] },
+    });
+    expect(state.phase).toBe("voting");
+    expect(state.votes).toBeNull();
+
+    state = apply(state, voteResult(9, "Busspur"), roundStarted(2));
+    expect(state.phase).toBe("none");
+    expect(state.activeMapVersionId).toBe(9);
+    expect(currentScreen(state)).toBe("playing");
+  });
+
+  it("does not park in discussion when the stats lead straight to a round", () => {
+    // Z-03: no compatible map versions, so `_advance_from_stats` starts the
+    // next round instead of opening a discussion. Leaving the phase on
+    // `discussion` here would show a vote screen for a vote that never happens.
+    const state = apply(start(), roundStarted(1), roundCompleted(1), {
+      type: "stats.all_acked",
+      game_id: "ABC123",
+      data: { next_phase: "next_round" },
+    });
+
+    expect(state.phase).toBe("none");
   });
 
   it("tracks simulation progress and drops it when the round lands", () => {

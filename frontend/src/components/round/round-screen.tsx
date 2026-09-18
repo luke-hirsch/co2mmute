@@ -61,6 +61,7 @@ export function RoundScreen({
     gameId: state.gameId,
     seatId,
     roundNumber: state.currentRound,
+    mapVersionId: state.activeMapVersionId,
   });
   const submit = useSubmitMove(state.gameId, seatId);
 

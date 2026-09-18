@@ -37,13 +37,28 @@ export function useRoundDraft({
   gameId,
   seatId,
   roundNumber,
+  mapVersionId,
 }: {
   gameId: string;
   seatId: string | null;
   roundNumber: number;
+  /**
+   * The version the game is on *now*, from the reducer (F5).
+   *
+   * Not `seat.data.active_map_version`: that row is read once and kept
+   * (`staleTime: Infinity`), and this screen does not remount between rounds —
+   * so after a vote it would still name the map the game started on and round 2
+   * would be routed on round 1's graph. The socket knows better at every moment
+   * the version can change, so it wins; the row is only the fallback for the
+   * first render, before `game.state` has arrived.
+   */
+  mapVersionId: number | null;
 }) {
   const seat = useSeatGame(gameId, seatId);
-  const graph = useMapGraph(seat.data?.game_map, seat.data?.active_map_version);
+  const graph = useMapGraph(
+    seat.data?.game_map,
+    mapVersionId ?? seat.data?.active_map_version,
+  );
   const [draft, dispatch] = useReducer(
     roundDraftReducer,
     undefined,

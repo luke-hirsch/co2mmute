@@ -99,32 +99,35 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | R-10 | Spieler verlässt mitten in der Runde | Runde kann trotzdem fertig werden | offen | - |
 | R-11 | Reconnect mitten in der Runde | schon abgeschickte Wahl ist noch da | geht | - |
 | R-12 | ÖPNV-Route gibt es nicht | sagt es und lässt eine andere Linie wählen | geht | - |
-| R-13 | Chat während der Runde | erreichbar | kaputt | - |
+| R-13 | Chat während der Runde | erreichbar | offen | - |
 
 ## Z — zwischen den runden
 
 | ID | Fall | Erwartet | Status | E2E |
 | --- | --- | --- | --- | --- |
-| Z-01 | Runde fertig | Ergebnis pro Spieler: CO₂, Kosten, Zeit | offen | - |
-| Z-02 | alle haben gelesen | weiter zur Diskussion | offen | - |
-| Z-03 | keine Kartenversionen zur Wahl | direkt die nächste Runde | offen | - |
-| Z-04 | Host öffnet die Abstimmung | nur aus der Diskussion heraus | offen | - |
-| Z-05 | abstimmen | Fortschritt „x von y" | offen | - |
-| Z-06 | Gleichstand | Patt-Runde | offen | - |
-| Z-07 | Patt: Mehrheit will nochmal | gleiche Optionen, Stimmen gelöscht | offen | - |
-| Z-08 | Patt: Mehrheit will nicht | Karte bleibt wie sie ist | offen | - |
-| Z-09 | Host beendet das Patt | „so lassen" | offen | - |
-| Z-10 | Reconnect mitten in der Abstimmung | **dieselben** Optionen, nicht neu gezogen | offen | - |
-| Z-11 | Gewinner wird angewendet | nächste Runde läuft auf der neuen Karte | offen | - |
+| Z-01 | Runde fertig | Ergebnis pro Spieler: CO₂, Kosten, Zeit | geht | - |
+| Z-02 | alle haben gelesen | weiter zur Diskussion | geht | - |
+| Z-03 | keine Kartenversionen zur Wahl | direkt die nächste Runde | geht | - |
+| Z-04 | Host öffnet die Abstimmung | nur aus der Diskussion heraus | geht | - |
+| Z-05 | abstimmen | Fortschritt „x von y" | geht | - |
+| Z-06 | Gleichstand | Patt-Runde | geht | - |
+| Z-07 | Patt: Mehrheit will nochmal | gleiche Optionen, Stimmen gelöscht | ungeprüft | - |
+| Z-08 | Patt: Mehrheit will nicht | Karte bleibt wie sie ist | geht | - |
+| Z-09 | Host beendet das Patt | „so lassen" | ungeprüft | - |
+| Z-10 | Reconnect mitten in der Abstimmung | **dieselben** Optionen, nicht neu gezogen | geht | - |
+| Z-11 | Gewinner wird angewendet | nächste Runde läuft auf der neuen Karte | geht | - |
+| Z-12 | zweimal abstimmen | sagt „schon abgestimmt", statt einen Fehler zu zeigen | geht | - |
+| Z-13 | Pause in einer Phase | Banner da, Phase läuft nicht weiter | geht | - |
+| Z-14 | Host stimmt für seine Plätze ab | einer nach dem anderen, verdeckter Zwischenschritt | geht | - |
 
 ## E — spielende
 
 | ID | Fall | Erwartet | Status | E2E |
 | --- | --- | --- | --- | --- |
-| E-01 | letzte Runde gespielt | Ende mit Grund `max_rounds` | offen | - |
+| E-01 | letzte Runde gespielt | Ende mit Grund `max_rounds` | geht | - |
 | E-02 | CO₂-Budget überschritten | Ende mit Grund `co2_limit` | geht | - |
 | E-03 | Auswertung | pro Spieler über alle Runden | offen | - |
-| E-04 | Host beendet von Hand | Ende, alle sehen es | offen | - |
+| E-04 | Host beendet von Hand | Ende, alle sehen es | geht | - |
 | E-05 | Spiel endet wegen Inaktivität | meldet heute `max_rounds` — **falsch**, offen im Backend | kaputt | - |
 | E-06 | nach dem Ende | Anonymisierung greift nach `ANONYMISE_GRACE_HOURS` | offen | - |
 
@@ -152,6 +155,9 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | C-03 | zu schnell tippen | Rate limit, verständliche Meldung | offen | - |
 | C-04 | Chat ist aus | kein Chat sichtbar | offen | - |
 | C-05 | Chat auf dem neuen Spielscreen | erreichbar wie auf dem alten | offen | - |
+
+> Seit F5 (18.09.26) gibt es im Spiel **gar keinen Chat mehr**: er hing am alten Screen, der mit
+> F5 gelöscht ist. Er kommt als eigener Chunk wieder, gegen `ChatConsumer` neu gebaut.
 
 ## K — karte und editor
 
