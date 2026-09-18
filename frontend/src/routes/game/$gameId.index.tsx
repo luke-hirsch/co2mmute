@@ -1,6 +1,8 @@
 import { createFileRoute, useParams } from "@tanstack/react-router";
 
 import GameLayout from "@/components/game/GameLayout";
+import { HostDeskScreen } from "@/components/host/host-desk-screen";
+import { HostLobbyScreen } from "@/components/host/host-lobby-screen";
 import { LobbyScreen } from "@/components/lobby/lobby-screen";
 import { ProtectedLayout } from "@/components/ProtectedLayout";
 import { RoundScreen } from "@/components/round/round-screen";
@@ -15,19 +17,27 @@ import { currentScreen } from "@/lib/game/game-state";
  * were two URLs and a button ("Zum Spiel") that somebody had to press — and
  * whoever did not press it sat in a lobby for a game already in progress.
  *
+ * **The host takes a different branch** (F4). Not a different route: the game is
+ * in the same state for everyone, and the host is simply not playing it — they
+ * run it. So `lobby` and `playing` each have two screens, and `isHost` from
+ * `whoami` picks. That flag is only trustworthy once identity has resolved,
+ * which is why `GameProvider` counts it as loading; otherwise a host would see
+ * the player's lobby flash first.
+ *
  * `between-rounds` and `ended` still go to the pre-rewrite `GameLayout` until
- * F5 and F6 replace them. That screen brings its own sockets; pause, a revoked
- * seat and a dropped connection are still handled once above, in `GameFrame`,
- * for it as well.
+ * F5 and F6 replace them — for the host too, who keeps the old vote controls
+ * there for one more chunk. That screen brings its own sockets; pause, a
+ * revoked seat and a dropped connection are still handled once above, in
+ * `GameFrame`, for it as well.
  */
 function GameScreenRouter() {
-  const { state } = useGame();
+  const { state, seatId, isHost } = useGame();
 
   switch (currentScreen(state)) {
     case "lobby":
-      return <LobbyScreen />;
+      return isHost ? <HostLobbyScreen /> : <LobbyScreen />;
     case "playing":
-      return <RoundScreen />;
+      return isHost ? <HostDeskScreen /> : <RoundScreen seatId={seatId} />;
     case "between-rounds":
     case "ended":
       return <LegacyGameScreen />;

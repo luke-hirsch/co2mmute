@@ -31,7 +31,9 @@ export function SeatRow({
   return (
     <li
       className={cn(
-        "flex items-center gap-4 border-b border-border py-4 last:border-b-0",
+        // Wrapping matters on a 390px phone: the host's rows carry up to three
+        // controls, and they drop under the name rather than squeezing it.
+        "flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-border py-4 last:border-b-0",
         className,
       )}
     >

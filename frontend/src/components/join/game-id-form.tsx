@@ -61,6 +61,17 @@ export function GameIdForm() {
           {de.join.idSubmit}
         </Button>
       </form>
+
+      {/* The second way in (1.7, J-12): somebody who was already playing and is
+          now at another device. A game id would give them a *new* seat and
+          leave their moves behind, so it is deliberately a separate door. */}
+      <Button
+        variant="link"
+        className="mt-10 px-0"
+        onClick={() => void navigate({ to: "/seat" })}
+      >
+        {de.resumeSeat.link}
+      </Button>
     </Screen>
   );
 }

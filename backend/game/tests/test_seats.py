@@ -956,3 +956,66 @@ class ClassroomScenarioTests(HandoverMixin, TestCase):
             ).count(),
             1,
         )
+
+
+@override_settings(**TEST_BACKENDS)
+class SeatCodeQrTests(HandoverMixin, TestCase):
+    """The scannable half of a seat code. Roadmap.md 2.7, F4.
+
+    The six characters are readable off a projector, but a student with a phone
+    in their hand would rather point it at something. The code endpoint
+    therefore carries a QR of the redeem URL next to the code itself.
+
+    Inline, as a data: URI, rather than a file in MEDIA_ROOT: a code lives five
+    minutes and is used once, so writing a PNG per code would leave a directory
+    that nothing ever cleans up — and a second request, with a second permission
+    question, to read something the first request already knew.
+    """
+
+    def test_the_code_response_carries_a_qr(self):
+        self.as_player(self.anna)
+
+        body = self.request_code(self.anna).json()
+
+        self.assertIn("qr_url", body)
+        self.assertTrue(body["qr_url"].startswith("data:image/png;base64,"))
+
+    def test_the_qr_is_a_png(self):
+        import base64
+
+        self.as_player(self.anna)
+
+        body = self.request_code(self.anna).json()
+        raw = base64.b64decode(body["qr_url"].split(",", 1)[1])
+
+        self.assertEqual(raw[:8], b"\x89PNG\r\n\x1a\n")
+
+    def test_the_qr_points_at_the_redeem_route(self):
+        """The SPA route, not the API one: a phone camera opens a page."""
+        from game.seats import seat_redeem_url
+
+        self.assertEqual(
+            seat_redeem_url("4F2A9C"),
+            f"{settings.BASE_URL}/app/seat/4F2A9C",
+        )
+
+    def test_the_qr_belongs_to_the_code_it_came_with(self):
+        """Two codes, two different images — the obvious way to get this wrong
+        is to render the seat instead of the code."""
+        self.as_player(self.anna)
+
+        first = self.request_code(self.anna).json()
+        second = self.request_code(self.anna).json()
+
+        self.assertNotEqual(first["code"], second["code"])
+        self.assertNotEqual(first["qr_url"], second["qr_url"])
+
+    def test_the_code_still_works_without_a_reachable_base_url(self):
+        """BASE_URL is a setting, not a request header: a misconfigured one must
+        not cost the host the code itself."""
+        with override_settings(BASE_URL=""):
+            self.as_player(self.anna)
+            response = self.request_code(self.anna)
+
+        self.assertEqual(response.status_code, 201)
+        self.assertRegex(response.json()["code"], CODE_PATTERN)

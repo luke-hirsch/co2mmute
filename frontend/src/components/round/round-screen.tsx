@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { AgentRow } from "@/components/round/agent-row";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { HandOverPanel } from "@/components/seat/hand-over-panel";
 import { RoundHeader } from "@/components/round/round-header";
 import { RouteMap } from "@/components/round/route-map";
 import { Screen } from "@/components/layout/screen";
@@ -11,6 +12,7 @@ import { useGame } from "@/components/game/game-context";
 import { useRoundDraft } from "@/hooks/use-round-draft";
 import { useSubmitMove } from "@/lib/queries/move";
 import { ApiError } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { de } from "@/lib/de";
 import { seatById } from "@/lib/game/game-state";
 import type { Node } from "@/types/mapTypes";
@@ -22,14 +24,20 @@ import type { Node } from "@/types/mapTypes";
  * refetch of its own. What it adds is one seat's draft (`useRoundDraft`) and
  * the one request that ends the turn.
  *
- * **Parameterised by seat.** `seatId` comes from `whoami` here, but nothing
- * below cares whose seat it is; F4's desk renders this same screen with a
- * host-controlled seat's `player_id` and the backend already allows it
- * (`IsPlayerInGame`, second branch since 1.6).
+ * **Parameterised by seat.** The player's route passes their own `player_id`
+ * from `whoami`; F4's desk passes a host-controlled seat's, and nothing below
+ * cares which it got. The backend allows both — `IsPlayerInGame` has had the
+ * host branch since 1.6, and it is narrow: only a seat that is actually played
+ * at the host machine.
+ *
+ * `desk` is what tells the two apart on screen. With it the seat belongs to
+ * somebody else and the screen says whose and offers the way back; without it
+ * the seat is this device's own, and it may be moved to another one.
  *
  * Whether this seat has already submitted is **not** state here: it is
  * `seat.status === "waiting"` from the roster. That is what makes a reload
- * mid-round land on the right screen (R-11).
+ * mid-round land on the right screen (R-11), and it is also what takes the desk
+ * back to its list the moment a turn is sent.
  *
  * **No chat on this screen yet.** The chat is `ChatSidebar` + `useChatSocket`,
  * both pre-rewrite: it needs the legacy `AuthProvider`, expects to sit in a
@@ -38,8 +46,15 @@ import type { Node } from "@/types/mapTypes";
  * all three forward, so the chat gets its own small chunk instead. Between
  * rounds the legacy screen still has it.
  */
-export function RoundScreen() {
-  const { state, seatId } = useGame();
+export function RoundScreen({
+  seatId,
+  desk,
+}: {
+  seatId: string | null;
+  /** Set when the host desk plays this seat: whose it is, and the way back. */
+  desk?: { name: string; onLeave: () => void };
+}) {
+  const { state } = useGame();
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
 
   const draft = useRoundDraft({
@@ -87,6 +102,7 @@ export function RoundScreen() {
         <Alert>
           <AlertDescription>{de.round.noAssignment}</AlertDescription>
         </Alert>
+        {desk ? <SeatBar seatName={desk.name} onLeave={desk.onLeave} /> : null}
       </Screen>
     );
   }
@@ -94,6 +110,14 @@ export function RoundScreen() {
   return (
     <Screen>
       <RoundHeader />
+
+      {desk ? (
+        <SeatBar seatName={desk.name} onLeave={desk.onLeave} className="mb-10" />
+      ) : seatId ? (
+        <div className="mb-10 flex justify-end">
+          <HandOverPanel gameId={state.gameId} seatId={seatId} />
+        </div>
+      ) : null}
 
       <div className="mb-12">
         <RouteMap
@@ -165,6 +189,38 @@ export function RoundScreen() {
         </>
       )}
     </Screen>
+  );
+}
+
+/**
+ * Whose turn this is, when it is not the reader's own (F4).
+ *
+ * At the desk the machine is passed around, so the screen has to name the seat
+ * it is playing — and always offer the way out, because a student may sit down
+ * and then not want to submit yet. Without it the only way back to the list
+ * would be finishing somebody else's turn for them.
+ */
+function SeatBar({
+  seatName,
+  onLeave,
+  className,
+}: {
+  seatName: string;
+  onLeave: () => void;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-b border-border pb-4",
+        className,
+      )}
+    >
+      <p className="font-medium">{de.host.playingSeat(seatName)}</p>
+      <Button variant="outline" size="sm" onClick={onLeave}>
+        {de.host.back}
+      </Button>
+    </div>
   );
 }
 

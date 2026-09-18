@@ -360,10 +360,14 @@ reviewbar und lauffaehig. der alte screen bleibt stehen, bis sein ersatz da ist.
   "x von y abgeschickt", simulationsfortschritt. pathfinding bleibt wie es ist.
   der zug-screen wird ueber den platz parametrisiert, nicht ueber "ich" - F4 setzt
   genau darauf auf.
-- **F4 `frontend/host-desk`** - der host-screen als leitpult (entschieden 18.09.26):
+- **F4 `frontend/host-desk`** ✅ 18.09.26 - der host-screen als leitpult:
   der host spielt nicht selbst mit. plaetze anlegen und entfernen, uebernehmen,
-  reihum spielen mit verdecktem zwischenschritt, pause, code + qr. damit laeuft ein
-  ganzes spiel auf einem rechner. das ist 1.6 + 1.7 + 2.7 zusammen.
+  reihum spielen mit verdecktem zwischenschritt, pause, code einloesen. damit laeuft
+  ein ganzes spiel auf einem rechner - einmal so durchgespielt, ohne ein handy.
+  das ist 1.6 + 1.7 + 2.7 zusammen. **dabei repariert: seit F3 konnte der host im
+  browser gar kein spiel starten** - `currentScreen()` schickte ihn in die
+  spieler-lobby, und die hat keinen startknopf. der QR fuer den platz-code fehlt
+  noch, dafuer liegt ein kleiner backend-guide in `to-do/`.
 - **F5 `frontend/between-rounds`** - stats -> diskussion -> voting -> patt, auf den
   phasen-events.
 - **F6 `frontend/summary`** - auswertung am spielende.
@@ -473,7 +477,7 @@ nicht von sich aus mit.
 
 **`docs/testfaelle.md`** (seit 18.09.26) listet alle faelle einzeln, mit status und platz
 fuer den e2e-test. die tests unten werden daraus geschrieben, nicht neu erfunden. stand
-18.09. nach F3: 36 geht, 6 ungeprueft, 4 kaputt, 56 offen.
+18.09. nach F4: 54 geht, 8 ungeprueft, 4 kaputt, 36 offen (von 102).
 
 - ein kompletter spieldurchlauf: session anlegen, zwei spieler beitreten, runde spielen,
   simulation, voting, naechste runde, spielende, auswertung.
