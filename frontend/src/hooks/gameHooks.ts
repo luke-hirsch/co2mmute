@@ -34,22 +34,6 @@ export function usePlayerDetail(gameId: string, playerId: string, enabled: boole
   });
 }
 
-export function usePlayerList(gameId: string) {
-  useQuery({
-    queryKey: ["playerList", gameId],
-    queryFn: () => apiFetch(`/api/game/${gameId}/player/`),
-    staleTime: 15000,
-  });
-}
-
-export function useGameSessionList() {
-  useQuery({
-    queryKey: ["sessions"],
-    queryFn: () => apiFetch(`/api/game/sessions/`),
-    staleTime: 15000,
-  });
-}
-
 export interface TrafficEdgeData {
   edge_id: number;
   avg_vehicle_count: number;

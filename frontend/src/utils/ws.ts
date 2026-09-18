@@ -224,6 +224,22 @@ export abstract class BaseWSClient {
   protected reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   protected manuallyClosed: boolean = false;
 
+  /**
+   * Whether a close with this code is worth retrying.
+   *
+   * The consumers refuse a socket with an application code in the 44xx range:
+   * 4400 (no route), 4401 (no cookie), 4403 (this seat is not yours any more —
+   * the host took it over, someone redeemed a transfer code, or the player was
+   * removed). None of those get better by asking again, so retrying five times
+   * only delays the moment the screen tells the player what happened.
+   *
+   * Everything else — a dropped connection, a backend restart, a phone waking
+   * up — still reconnects, which is the case that matters on a school wifi.
+   */
+  protected shouldReconnect(closeCode: number): boolean {
+    return !(closeCode >= 4400 && closeCode <= 4499);
+  }
+
   protected attemptReconnect(): void {
     if (this.manuallyClosed) return;
 
@@ -319,8 +335,9 @@ export abstract class BaseWSClient {
       }
     };
 
-    this.ws.onclose = () => {
+    this.ws.onclose = (ev?: CloseEvent) => {
       const wasConnecting = this.status === "connecting";
+      const code = ev?.code ?? 0;
 
       this.stopHeartbeat();
       this.setStatus("closed");
@@ -334,7 +351,7 @@ export abstract class BaseWSClient {
 
       this.ws = null;
 
-      if (!this.manuallyClosed) {
+      if (!this.manuallyClosed && this.shouldReconnect(code)) {
         this.attemptReconnect();
       }
     };

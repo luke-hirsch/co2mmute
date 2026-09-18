@@ -1,6 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-import RedirectToJoin from "../../utils/RedirectToJoin";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
+/** `/app/game/` without an id is not a screen. Ask for the id instead. */
 export const Route = createFileRoute("/game/")({
-  component: RedirectToJoin,
+  beforeLoad: () => {
+    throw redirect({ to: "/join" });
+  },
 });

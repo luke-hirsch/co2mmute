@@ -471,6 +471,10 @@ nicht von sich aus mit.
 
 ### phase 3 – integration tests
 
+**`docs/testfaelle.md`** (seit 18.09.26) listet alle faelle einzeln, mit status und platz
+fuer den e2e-test. die tests unten werden daraus geschrieben, nicht neu erfunden. stand
+18.09.: 25 geht, 4 ungeprueft, 1 kaputt, 67 offen.
+
 - ein kompletter spieldurchlauf: session anlegen, zwei spieler beitreten, runde spielen,
   simulation, voting, naechste runde, spielende, auswertung.
 - websocket-pfade mit dazu, das ist wo es bisher bricht.

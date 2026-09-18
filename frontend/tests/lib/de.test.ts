@@ -40,6 +40,16 @@ describe("de", () => {
     ]);
   });
 
+  it("covers exactly the revoke reasons the backend can send", () => {
+    // `revoke()` in backend/game/roster.py, called from game/seats.py.
+    expect(Object.keys(de.revoked.reason).sort()).toEqual([
+      "handed_over",
+      "left",
+      "removed",
+      "taken_over",
+    ]);
+  });
+
   it("covers exactly the roster statuses the backend can send", () => {
     // `_status()` in backend/game/roster.py.
     expect(Object.keys(de.seat.status).sort()).toEqual([
