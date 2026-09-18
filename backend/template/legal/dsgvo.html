@@ -4,7 +4,7 @@
 <!-- comment -->
 {% block main %}
 <div class="max-w-4xl mx-auto py-12 px-4">
-  <h1 class="text-4xl font-bold text-main dark:text-darktext mb-8">
+  <h1 class="text-3xl sm:text-4xl font-bold text-main dark:text-darktext mb-8 hyphens-auto">
     Datenschutzerklärung (DSGVO)
   </h1>
 
@@ -15,9 +15,48 @@
       <h2 class="text-2xl font-semibold text-main dark:text-darktext mt-8 mb-4">
         1. Verantwortlicher
       </h2>
+      <div class="space-y-3 text-muted dark:text-darkmutedtext">
+        <p>
+          Verantwortlich für die Datenverarbeitung auf dieser Website ist die
+        </p>
+        <p>
+          Technische Universität Berlin<br />
+          Straße des 17. Juni 135<br />
+          10623 Berlin
+        </p>
+        <p>
+          gesetzlich vertreten durch die Präsidentin, Prof. Dr. Fatma Deniz.
+        </p>
+        <p>
+          Ansprechpartnerin für co2mmute ist Prof. Dr. Sarah Wolf, Fachgebiet
+          Nachhaltige Verkehrssysteme und Datenwissenschaften,
+          <a
+            href="mailto:sarah.wolf@tu-berlin.de"
+            class="text-primary-600 dark:text-primary-400 hover:underline"
+            >sarah.wolf@tu-berlin.de</a
+          >. Die vollständigen Kontaktdaten stehen im
+          <a
+            href="{% url 'impressum' %}"
+            class="text-primary-600 dark:text-primary-400 hover:underline"
+            >Impressum</a
+          >.
+        </p>
+      </div>
+
+      <h3 class="text-xl font-semibold text-main dark:text-darktext mt-6 mb-3">
+        Datenschutzbeauftragter der TU Berlin
+      </h3>
       <p class="text-muted dark:text-darkmutedtext">
-        Verantwortlicher für die Datenverarbeitung ist: CO2MMUTE (siehe
-        Impressum für Kontaktdaten)
+        Dr. Karsten Kinast<br />
+        KINAST Rechtsanwaltsgesellschaft mbH<br />
+        Nordstraße 17a<br />
+        50733 Köln<br />
+        E-Mail:
+        <a
+          href="mailto:dsb-tuberlin@kinast.eu"
+          class="text-primary-600 dark:text-primary-400 hover:underline"
+          >dsb-tuberlin@kinast.eu</a
+        >
       </p>
     </section>
 
@@ -149,7 +188,20 @@
           <strong>Recht auf Datenportabilität:</strong> Du kannst deine Daten in
           strukturiertem Format erhalten
         </li>
+        <li>
+          <strong>Recht auf Beschwerde:</strong> Du kannst dich bei einer
+          Datenschutz-Aufsichtsbehörde beschweren (Art. 77 DSGVO)
+        </li>
       </ul>
+      <p class="text-muted dark:text-darkmutedtext mt-3">
+        Zuständig für die TU Berlin ist die Berliner Beauftragte für
+        Datenschutz und Informationsfreiheit, Alt-Moabit 59–61, 10555 Berlin,
+        <a
+          href="mailto:mailbox@datenschutz-berlin.de"
+          class="text-primary-600 dark:text-primary-400 hover:underline"
+          >mailbox@datenschutz-berlin.de</a
+        >.
+      </p>
     </section>
 
     <section>
@@ -191,14 +243,9 @@
         7. Kontakt
       </h2>
       <p class="text-muted dark:text-darkmutedtext">
-        Wenn du Fragen zu dieser Datenschutzerklärung oder zur Verarbeitung
-        deiner Daten hast, melde dich unter den im
-        <a
-          href="{% url 'impressum' %}"
-          class="text-primary-600 dark:text-primary-400 hover:underline"
-          >Impressum</a
-        >
-        angegebenen Kontaktdaten.
+        Wenn du Fragen zu dieser Datenschutzerklärung hast oder deine Rechte
+        wahrnehmen willst, melde dich bei der Ansprechpartnerin oder beim
+        Datenschutzbeauftragten der TU Berlin (beide in Abschnitt 1).
       </p>
     </section>
 
