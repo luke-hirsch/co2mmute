@@ -16,7 +16,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { apiFetch } from "@/lib/api";
 import type { JoinBlockedReason } from "@/lib/de";
-import type { LobbySnapshot } from "@/lib/game/lobby-state";
+import type { LobbySnapshot } from "@/lib/game/game-state";
 
 /** `GET api/game/lookup/<game_id>/` — the first call after a QR scan. */
 export type SessionLookup = {

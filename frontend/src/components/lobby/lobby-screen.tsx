@@ -1,83 +1,24 @@
 import { useNavigate } from "@tanstack/react-router";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DepartureBoard } from "@/components/metro/departure-board";
-import { PauseBanner } from "@/components/metro/pause-banner";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
 import { SeatList } from "@/components/lobby/seat-list";
-import { useLobbyChannel } from "@/hooks/use-lobby-channel";
-import { ApiError } from "@/lib/api";
+import { useGame } from "@/components/game/game-context";
 import { de } from "@/lib/de";
-import { playingSeats } from "@/lib/game/lobby-state";
-import { seatId, useIdentity } from "@/lib/queries/identity";
+import { playingSeats } from "@/lib/game/game-state";
 
 /**
  * `/app/game/<ID>/lobby` — waiting for the host to start.
  *
- * The screen itself is thin on purpose. Everything that could go wrong about
- * *state* was decided in `use-lobby-channel` and `lobby-state`; what is left
- * here is which of four situations to render: revoked, ended, started, waiting.
- *
- * The identity call does double duty. It says which row is "du", and asking it
- * at all re-issues both player cookies (`WhoAmIView._renew_cookies`), which is
- * what lets a phone that sat locked through a lesson break come back to its
- * seat instead of to the join screen.
+ * Since F2 this screen holds no connection and no state of its own: it reads
+ * the game from the provider in the layout above it. Everything it used to do
+ * about loading, revocation and a dropped socket now happens once, in
+ * `GameFrame`, for every screen in the game.
  */
-export function LobbyScreen({ gameId }: { gameId: string }) {
+export function LobbyScreen() {
   const navigate = useNavigate();
-  const { state, connection, isLoading, error } = useLobbyChannel(gameId);
-  const identity = useIdentity(gameId);
-  const youId = seatId(identity.data);
-
-  // This device's seat is gone. Nothing below is true any more, and the socket
-  // has already been closed with 4403 — so this is a full stop, not a banner.
-  if (state.revoked) {
-    return (
-      <Screen narrow>
-        <ScreenHeading
-          title={de.revoked.title}
-          lead={de.revoked.reason[state.revoked]}
-        />
-        <Button variant="outline" onClick={() => void navigate({ to: "/join" })}>
-          {de.revoked.back}
-        </Button>
-      </Screen>
-    );
-  }
-
-  // 403 from the snapshot: this browser has no valid game cookie. Sending them
-  // to the join screen is the only useful answer.
-  if (error) {
-    const forbidden = error instanceof ApiError && error.status === 403;
-    return (
-      <Screen narrow>
-        <ScreenHeading title={de.lobby.title} />
-        <Alert variant="destructive">
-          <AlertDescription>
-            {forbidden ? de.lobby.noAccess : de.errors.unknown}
-          </AlertDescription>
-        </Alert>
-        <Button
-          variant="outline"
-          className="mt-8"
-          onClick={() =>
-            void navigate({ to: "/join/$gameId", params: { gameId } })
-          }
-        >
-          {de.lobby.joinAgain}
-        </Button>
-      </Screen>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <Screen narrow>
-        <p className="text-muted-foreground">{de.app.loading}</p>
-      </Screen>
-    );
-  }
+  const { state, seatId } = useGame();
 
   const players = playingSeats(state);
 
@@ -94,15 +35,18 @@ export function LobbyScreen({ gameId }: { gameId: string }) {
         }
       />
 
-      {state.pausedAt ? <PauseBanner className="mb-8" /> : null}
-
-      {/* The game started while this screen was open. F2 turns this into a
-          phase of one route; until then it is an honest link rather than a
-          silent redirect, so nobody loses a half-typed anything. */}
+      {/* The game started while this screen was open. F3 folds this into one
+          route driven by `currentScreen()`; until the round screen exists it is
+          an honest link rather than a silent redirect onto the legacy screen. */}
       {state.isActive && !state.endedAt ? (
         <Button
           className="mb-8 w-full sm:w-auto"
-          onClick={() => void navigate({ to: "/game/$gameId", params: { gameId } })}
+          onClick={() =>
+            void navigate({
+              to: "/game/$gameId",
+              params: { gameId: state.gameId },
+            })
+          }
         >
           {de.lobby.toGame}
         </Button>
@@ -120,7 +64,7 @@ export function LobbyScreen({ gameId }: { gameId: string }) {
 
       <section className="mb-12">
         <h2 className="mb-4 text-2xl font-semibold">{de.lobby.players}</h2>
-        <SeatList seats={state.seats} youId={youId} />
+        <SeatList seats={state.seats} youId={seatId} />
       </section>
 
       <section>
@@ -151,14 +95,6 @@ export function LobbyScreen({ gameId }: { gameId: string }) {
           />
         </dl>
       </section>
-
-      {/* Reconnecting is normal on a school wifi and not worth an alert; it is
-          worth saying, because the roster stops moving while it happens. */}
-      {connection !== "open" && !isLoading ? (
-        <p className="mt-12 text-sm text-muted-foreground">
-          {de.lobby.connectionLost}
-        </p>
-      ) : null}
     </Screen>
   );
 }

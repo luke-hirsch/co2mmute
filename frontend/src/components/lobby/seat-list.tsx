@@ -7,7 +7,7 @@ import type { RosterSeat } from "@/lib/game/events";
  *
  * The host's own row is filtered out here rather than in the reducer, because
  * it is a display decision and F4's host desk wants that row back — it is how
- * the desk knows it is looking at itself. `playingSeats()` in `lobby-state.ts`
+ * the desk knows it is looking at itself. `playingSeats()` in `game-state.ts`
  * is the same filter for the places that need to *count*.
  *
  * Rows are keyed by `player_id`, which changes when a seat moves to another

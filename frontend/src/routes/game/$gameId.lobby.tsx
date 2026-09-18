@@ -1,12 +1,8 @@
-import { createFileRoute, useParams } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 
 import { LobbyScreen } from "@/components/lobby/lobby-screen";
 
-function LobbyRoute() {
-  const { gameId } = useParams({ from: "/game/$gameId/lobby" });
-  return <LobbyScreen gameId={gameId.toUpperCase()} />;
-}
-
+/** The game id comes from the provider in the layout, not from the params. */
 export const Route = createFileRoute("/game/$gameId/lobby")({
-  component: LobbyRoute,
+  component: LobbyScreen,
 });
