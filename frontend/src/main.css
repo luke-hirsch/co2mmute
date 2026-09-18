@@ -1,4 +1,3 @@
-@config "../tailwind.config.ts";
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -9,80 +8,205 @@
 @source "../src/**/*.jsx";
 
 /* ---------------------------------------------------------------------------
- * Two theme layers on purpose, for the length of the phase-2 rewrite.
+ * One theme, two halves of the app.
  *
- *  - `@config` above loads tailwind.config.ts, which still owns the old tokens
- *    (surface / elevated / subtle / main / mutedtext / body / dark*). Every
- *    pre-rewrite component paints itself with those, and they must keep working
- *    while the SPA is replaced screen by screen.
- *  - The CSS variables below are the shadcn set, and they are what new
- *    components use. `dark:` comes from the config's darkMode: "class", so no
- *    @custom-variant is declared here — one definition of dark, not two.
+ * The token block below is copied verbatim from backend/static/css/custom.css,
+ * so the Django pages (landing, legal, admin chrome) and the SPA paint from the
+ * same values. The two builds are separate — @tailwindcss/cli there,
+ * @tailwindcss/vite here — and their Docker images copy only their own
+ * directory, so a shared file would break both. tests/design/tokens.test.ts
+ * compares the two blocks instead.
  *
- * The two sets share no key: `accent` and `muted` were renamed in the config
- * because shadcn owns those names.
+ * Above the shared block sit shadcn's semantic names (--background, --primary,
+ * --border ...). They are not a second palette: each one points at a metro
+ * token, so every shadcn primitive speaks this palette without being rewritten.
  *
- * End of phase 2: delete tailwind.config.ts, drop the `@config` line, add
- * `@custom-variant dark (&:is(.dark *));`, and move `body` onto
- * `bg-background text-foreground`.
+ * `accent` and `muted` belong to shadcn here, so the brand amber and the muted
+ * text colour keep the names they were given in 2.1: brandaccent, mutedtext.
+ * That amber is the public-transport line and the one attention colour at the
+ * same time — there is no separate warning or danger ramp.
+ *
+ * Dark mode is the `.dark` class on <html>, written by the bootstrap script in
+ * index.html before React mounts. @custom-variant below is what makes Tailwind
+ * read it — without that line `dark:` silently falls back to the OS setting.
  * ------------------------------------------------------------------------- */
 
+@custom-variant dark (&:is(.dark *));
+
+@theme static {
+  /* >>> shared tokens — keep identical to backend/static/css/custom.css <<< */
+
+  /* primary */
+  --color-primary-50: #e3f2fd;
+  --color-primary-100: #bbdefb;
+  --color-primary-200: #90caf9;
+  --color-primary-300: #64b5f6;
+  --color-primary-400: #42a5f5;
+  --color-primary-500: #1e88e5;
+  --color-primary-600: #1565c0;
+  --color-primary-700: #0d47a1;
+  --color-primary-800: #092f6b;
+  --color-primary-900: #041c3d;
+
+  /* the four transport lines. this is the identity of the app: every screen
+     that shows a mode, a route or a legend uses these and nothing else.
+
+     Two colours carry all four: the primary for the car, the accent for public
+     transport, a muted primary for the bike, ink for walking. Two blues cannot
+     be told apart by hue at stroke width -- measured, a pale muted blue and the
+     accent land within 1.01 of each other on the dark ground -- so pattern does
+     the work colour cannot: the car is solid, the bike dashed, walking dotted.
+     That is also how a transit map does it, and it survives colour blindness.
+
+     Bike and walk each carry a second value for the dark theme, because a line
+     that reads on #e9ebef is invisible on #0b1120 and the other way round.
+     lane 0 car, 1 public transport, 2 bike, 3 walking. */
+  --color-line-car: #1e88e5;
+  --color-line-pt: #ffb300;
+  --color-line-bike: #35566e;
+  --color-line-bike-dark: #8fb2cc;
+  --color-line-walk: #111827;
+  --color-line-walk-dark: #f9fafb;
+
+  /* neutrals light. the steps are wider than the usual gray-50/100 set:
+     with body at #f3f4f6 a white card barely separated from the page. */
+  --color-body: #e9ebef;
+  --color-surface: #ffffff;
+  --color-elevated: #f4f5f7;
+  --color-subtle: #d7dbe1;
+  --color-strong: #bcc3cc;
+  --color-main: #111827;
+  --color-soft: #8b93a1;
+
+  /* neutrals dark */
+  --color-darkbody: #0b1120;
+  --color-darksurface: #111827;
+  --color-darkelevated: #1f2933;
+  --color-darksubtle: #1f2937;
+  --color-darkstrong: #374151;
+  --color-darktext: #f9fafb;
+  --color-darkmutedtext: #9ca3af;
+  --color-darksofttext: #6b7280;
+
+  /* There is deliberately no success / warning / danger ramp.
+     Green was the bike line and the success colour at the same hex, so every
+     confirmation read as "bike"; amber was the car and the warning. Dropping
+     the signal ramps frees green to mean the bike and nothing else.
+     Anything that needs attention -- a filling CO2 budget, a failed request,
+     an irreversible button -- uses the accent, which is the complement of the
+     primary and therefore reads as tension against it. Presence and progress
+     use filled vs hollow markers instead of colour. */
+
+  /* type. no webfont on purpose: a third-party font sends every visitor's IP to
+     its host, and the players are school students under a data-minimisation
+     design. mono is reserved for ids, codes and numerals -- game ids, the
+     six-character seat code, step numbers. */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  /* measure: how wide a column of text may get before it is hard to read.
+     use as max-w-(--measure-body). */
+  --measure-lead: 46ch;
+  --measure-body: 62ch;
+  --measure-prose: 70ch;
+
+  /* <<< end shared tokens >>> */
+
+  /* SPA-only aliases. shadcn owns `accent` and `muted` below, so these two keep
+     the names from 2.1 and the pre-rewrite screens keep working. */
+  --color-brandaccent: #ffb300;
+  --color-mutedtext: #6b7280;
+}
+
+/* shadcn's semantic names, pointed at the metro tokens above. Nothing here is a
+   new colour — every value is a var() into the shared block. */
 :root {
   --radius: 0.625rem;
 
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
+  --background: var(--color-body);
+  --foreground: var(--color-main);
+  --card: var(--color-surface);
+  --card-foreground: var(--color-main);
+  --popover: var(--color-surface);
+  --popover-foreground: var(--color-main);
 
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  --primary: var(--color-primary-600);
+  --primary-foreground: var(--color-surface);
+  /* `elevated` is only one step off the body colour, which makes a secondary
+     button all but invisible on it. `subtle` is the first neutral that reads as
+     a surface of its own. */
+  --secondary: var(--color-subtle);
+  --secondary-foreground: var(--color-main);
+
+  /* shadcn's `muted` and `accent` are surfaces, not the brand colours */
+  --muted: var(--color-elevated);
+  --muted-foreground: var(--color-mutedtext);
+  --accent: var(--color-subtle);
+  --accent-foreground: var(--color-main);
+
+  /* No red exists. An irreversible action and a failed request both resolve to
+     the accent, which is the complement of the primary and reads as tension
+     against it. Amber is bright, so its label is always ink, never white. */
+  --destructive: var(--color-brandaccent);
+  --destructive-foreground: var(--color-main);
+
+  --border: var(--color-subtle);
+  --input: var(--color-subtle);
+  --ring: var(--color-primary-500);
+
+  /* The line a mode is drawn in, resolved for the current theme. Walking is ink
+     on light and near-white on dark; the other three hold. Components use the
+     utilities these generate (bg-mode-car, border-mode-walk, ...) rather than
+     the raw tokens, so a mode keeps its colour without a dark: variant at every
+     call site. */
+  --line-car: var(--color-line-car);
+  --line-pt: var(--color-line-pt);
+  --line-bike: var(--color-line-bike);
+  --line-walk: var(--color-line-walk);
+
+  /* charts lead with the four transport lines, so a mode keeps its colour
+     wherever it appears */
+  --chart-1: var(--color-line-car);
+  --chart-2: var(--color-line-pt);
+  --chart-3: var(--color-line-bike);
+  --chart-4: var(--color-line-walk);
+  --chart-5: var(--color-primary-700);
 }
 
 .dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
+  --background: var(--color-darkbody);
+  --foreground: var(--color-darktext);
+  --card: var(--color-darksurface);
+  --card-foreground: var(--color-darktext);
+  --popover: var(--color-darkelevated);
+  --popover-foreground: var(--color-darktext);
 
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
+  /* the 600 blue is too dark to sit on #0b1120; step up, and flip the label */
+  --primary: var(--color-primary-400);
+  --primary-foreground: var(--color-primary-900);
+  --secondary: var(--color-darkelevated);
+  --secondary-foreground: var(--color-darktext);
+
+  --muted: var(--color-darkelevated);
+  --muted-foreground: var(--color-darkmutedtext);
+  --accent: var(--color-darksubtle);
+  --accent-foreground: var(--color-darktext);
+
+  --destructive: var(--color-brandaccent);
+  --destructive-foreground: var(--color-main);
+
+  --border: var(--color-darksubtle);
+  --input: var(--color-darkstrong);
+  --ring: var(--color-primary-400);
+
+  --line-bike: var(--color-line-bike-dark);
+  --line-walk: var(--color-line-walk-dark);
+  --chart-3: var(--color-line-bike-dark);
+  --chart-4: var(--color-line-walk-dark);
 }
 
 @theme inline {
@@ -111,6 +235,11 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
+  --color-mode-car: var(--line-car);
+  --color-mode-pt: var(--line-pt);
+  --color-mode-bike: var(--line-bike);
+  --color-mode-walk: var(--line-walk);
+
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -119,16 +248,22 @@
 }
 
 @layer base {
-  /* Legacy page chrome. Swap for `bg-background text-foreground` once the last
-     pre-rewrite screen is gone. */
   body {
-    background-color: theme("colors.body");
-    color: theme("colors.main");
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
   }
 
-  .dark body {
-    background-color: theme("colors.darkbody");
-    color: theme("colors.darktext");
+  /* Headings carry 600 at most. Weight is how this design separates levels
+     least — size and space do the work. See .claude/design/rulebook.md. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-weight: 600;
+    letter-spacing: -0.015em;
   }
 }
 

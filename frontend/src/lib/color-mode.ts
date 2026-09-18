@@ -40,3 +40,19 @@ export function resolveColorMode(
   if (mode === "system") return prefersDark ? "dark" : "light";
   return mode;
 }
+
+declare global {
+  interface Window {
+    /** Defined by the bootstrap script in index.html, before React mounts. */
+    setUserColorMode?: (mode: ColorMode, storageKey?: string) => void;
+  }
+}
+
+/**
+ * Change the colour mode by asking the bootstrap script to do it, rather than
+ * writing the class or the storage key here. It stays the single writer; this
+ * is only the doorbell.
+ */
+export function setColorMode(mode: ColorMode): void {
+  window.setUserColorMode?.(mode);
+}

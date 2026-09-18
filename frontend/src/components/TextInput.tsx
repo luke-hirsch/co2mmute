@@ -31,7 +31,7 @@ export default function TextInput({
 }: TextInputProps) {
   const baseBorder = "border border-subtle dark:border-darksubtle";
   const errorStyles =
-    "border border-danger-500 bg-danger-100 text-danger-700 dark:border-danger-500 dark:bg-darkelevated dark:text-danger-500";
+    "border border-brandaccent bg-brandaccent/10 text-main dark:bg-darkelevated dark:text-darktext";
 
   if (disabled)
     return (
