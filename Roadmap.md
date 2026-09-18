@@ -427,6 +427,11 @@ der QR-code zeigt dann direkt auf die SPA-route.
   `messages.success` vor dem redirect in die SPA, die SPA zeigt django-messages nie
   an. die drei stellen sind raus, auf main seit 16.09.26.
   offen: die `messages.error` in `PlayerCreateView.dispatch` sieht auch niemand.
+- **spiel ohne karte laesst sich anlegen und dann nicht starten.** `game_map` ist
+  optional, `GameSession.save()` setzt `is_active` aber wieder auf False wenn keine
+  karte dranhaengt - der start antwortet 200 und passiert nicht. frontend sagt es
+  jetzt (18.09.26), offen bleibt die backend-haelfte: karte im anlege-formular
+  verpflichtend, oder start mit 409 ablehnen statt 200.
 - runden counter im frontend nicht richtig. vermutlich `round.started`, das nie ankam
   (1.1 split teil 1). im neuen frontend nochmal pruefen.
 - daten im frontend nicht persistent
