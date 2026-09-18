@@ -20,7 +20,6 @@ import { Route as GameGameIdRouteImport } from './routes/game/$gameId'
 import { Route as MapsMapIdIndexRouteImport } from './routes/maps/$mapId.index'
 import { Route as GameGameIdIndexRouteImport } from './routes/game/$gameId.index'
 import { Route as MapsMapIdEditorRouteImport } from './routes/maps/$mapId.editor'
-import { Route as GameGameIdLobbyRouteImport } from './routes/game/$gameId.lobby'
 
 const StyleguideRoute = StyleguideRouteImport.update({
   id: '/styleguide',
@@ -77,11 +76,6 @@ const MapsMapIdEditorRoute = MapsMapIdEditorRouteImport.update({
   path: '/editor',
   getParentRoute: () => MapsMapIdRoute,
 } as any)
-const GameGameIdLobbyRoute = GameGameIdLobbyRouteImport.update({
-  id: '/lobby',
-  path: '/lobby',
-  getParentRoute: () => GameGameIdRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -92,7 +86,6 @@ export interface FileRoutesByFullPath {
   '/game': typeof GameIndexRoute
   '/join': typeof JoinIndexRoute
   '/maps': typeof MapsIndexRoute
-  '/game/$gameId/lobby': typeof GameGameIdLobbyRoute
   '/maps/$mapId/editor': typeof MapsMapIdEditorRoute
   '/game/$gameId/': typeof GameGameIdIndexRoute
   '/maps/$mapId/': typeof MapsMapIdIndexRoute
@@ -104,7 +97,6 @@ export interface FileRoutesByTo {
   '/game': typeof GameIndexRoute
   '/join': typeof JoinIndexRoute
   '/maps': typeof MapsIndexRoute
-  '/game/$gameId/lobby': typeof GameGameIdLobbyRoute
   '/maps/$mapId/editor': typeof MapsMapIdEditorRoute
   '/game/$gameId': typeof GameGameIdIndexRoute
   '/maps/$mapId': typeof MapsMapIdIndexRoute
@@ -119,7 +111,6 @@ export interface FileRoutesById {
   '/game/': typeof GameIndexRoute
   '/join/': typeof JoinIndexRoute
   '/maps/': typeof MapsIndexRoute
-  '/game/$gameId/lobby': typeof GameGameIdLobbyRoute
   '/maps/$mapId/editor': typeof MapsMapIdEditorRoute
   '/game/$gameId/': typeof GameGameIdIndexRoute
   '/maps/$mapId/': typeof MapsMapIdIndexRoute
@@ -135,7 +126,6 @@ export interface FileRouteTypes {
     | '/game'
     | '/join'
     | '/maps'
-    | '/game/$gameId/lobby'
     | '/maps/$mapId/editor'
     | '/game/$gameId/'
     | '/maps/$mapId/'
@@ -147,7 +137,6 @@ export interface FileRouteTypes {
     | '/game'
     | '/join'
     | '/maps'
-    | '/game/$gameId/lobby'
     | '/maps/$mapId/editor'
     | '/game/$gameId'
     | '/maps/$mapId'
@@ -161,7 +150,6 @@ export interface FileRouteTypes {
     | '/game/'
     | '/join/'
     | '/maps/'
-    | '/game/$gameId/lobby'
     | '/maps/$mapId/editor'
     | '/game/$gameId/'
     | '/maps/$mapId/'
@@ -257,23 +245,14 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MapsMapIdEditorRouteImport
       parentRoute: typeof MapsMapIdRoute
     }
-    '/game/$gameId/lobby': {
-      id: '/game/$gameId/lobby'
-      path: '/lobby'
-      fullPath: '/game/$gameId/lobby'
-      preLoaderRoute: typeof GameGameIdLobbyRouteImport
-      parentRoute: typeof GameGameIdRoute
-    }
   }
 }
 
 interface GameGameIdRouteChildren {
-  GameGameIdLobbyRoute: typeof GameGameIdLobbyRoute
   GameGameIdIndexRoute: typeof GameGameIdIndexRoute
 }
 
 const GameGameIdRouteChildren: GameGameIdRouteChildren = {
-  GameGameIdLobbyRoute: GameGameIdLobbyRoute,
   GameGameIdIndexRoute: GameGameIdIndexRoute,
 }
 

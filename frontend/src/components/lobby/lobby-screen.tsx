@@ -1,6 +1,3 @@
-import { useNavigate } from "@tanstack/react-router";
-
-import { Button } from "@/components/ui/button";
 import { DepartureBoard } from "@/components/metro/departure-board";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
 import { SeatList } from "@/components/lobby/seat-list";
@@ -9,7 +6,12 @@ import { de } from "@/lib/de";
 import { playingSeats } from "@/lib/game/game-state";
 
 /**
- * `/app/game/<ID>/lobby` — waiting for the host to start.
+ * Waiting for the host to start.
+ *
+ * Not a route of its own since F3: `/app/game/<ID>` renders whichever screen
+ * `currentScreen()` names, so the lobby turns into the round by itself when
+ * `game.started` arrives — no link to press, and no way to sit in a lobby for
+ * a game that is already running.
  *
  * Since F2 this screen holds no connection and no state of its own: it reads
  * the game from the provider in the layout above it. Everything it used to do
@@ -17,7 +19,6 @@ import { playingSeats } from "@/lib/game/game-state";
  * `GameFrame`, for every screen in the game.
  */
 export function LobbyScreen() {
-  const navigate = useNavigate();
   const { state, seatId } = useGame();
 
   const players = playingSeats(state);
@@ -34,23 +35,6 @@ export function LobbyScreen() {
               : de.lobby.hostStarts
         }
       />
-
-      {/* The game started while this screen was open. F3 folds this into one
-          route driven by `currentScreen()`; until the round screen exists it is
-          an honest link rather than a silent redirect onto the legacy screen. */}
-      {state.isActive && !state.endedAt ? (
-        <Button
-          className="mb-8 w-full sm:w-auto"
-          onClick={() =>
-            void navigate({
-              to: "/game/$gameId",
-              params: { gameId: state.gameId },
-            })
-          }
-        >
-          {de.lobby.toGame}
-        </Button>
-      ) : null}
 
       <DepartureBoard
         label={de.code.gameId}

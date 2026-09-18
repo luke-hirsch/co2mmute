@@ -22,6 +22,12 @@ interface GameMapViewerProps {
   showDijkstraViz?: boolean;
   // Traffic heatmap overlay
   trafficHeatmap?: { edgeId: number; congestionRatio: number }[];
+  /**
+   * The built-in route legend under the map. Off for the rewritten screens:
+   * they show distance and time per passenger themselves, and this one is
+   * English, which nothing player-facing may be any more.
+   */
+  showRouteLegend?: boolean;
 }
 
 // Colors for different transport modes on route segments
@@ -80,6 +86,7 @@ const GameMapViewer = ({
   pathfindingPreviousEdges,
   showDijkstraViz = false,
   trafficHeatmap,
+  showRouteLegend = true,
 }: GameMapViewerProps) => {
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
 
@@ -773,7 +780,7 @@ const GameMapViewer = ({
       )}
 
       {/* Route Legend */}
-      {routeSegments && routeSegments.length > 0 && (
+      {showRouteLegend && routeSegments && routeSegments.length > 0 && (
         <div className="mt-3 p-3 bg-subtle dark:bg-darksubtle rounded text-xs border border-gray-200 dark:border-gray-700">
           <div className="font-semibold mb-2 flex items-center justify-between">
             <span>Route ({routeSegments.length} segments)</span>

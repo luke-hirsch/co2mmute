@@ -50,6 +50,35 @@ describe("de", () => {
     ]);
   });
 
+  it("covers exactly the car optimizations the backend accepts", () => {
+    // `AgentRoute.Optimization` in backend/game/models.py. The serializer's
+    // ChoiceField rejects anything else with a 400, so a missing key here is
+    // a turn that cannot be submitted.
+    expect(Object.keys(de.round.carOptimization).sort()).toEqual([
+      "co2",
+      "distance",
+      "time",
+    ]);
+  });
+
+  it("covers exactly the public-transport optimizations the router offers", () => {
+    // `PTOptimization` in src/types/routeTypes.ts — client-side only, but the
+    // picker renders one label per value.
+    expect(Object.keys(de.round.ptOptimization).sort()).toEqual([
+      "fastest",
+      "fewest_transfers",
+      "no_bus",
+    ]);
+  });
+
+  it("names the turn without naming a player", () => {
+    // Copy rule: a player's name never reaches a log, a toast or an error.
+    // These three are the strings the round screen shows while waiting.
+    expect(de.round.agent(1)).toBe("Fahrgast 1");
+    expect(de.round.submittedOf(3, 5)).toBe("3 von 5 abgeschickt");
+    expect(de.round.chosenOf(1, 2)).toBe("1 von 2 gewählt");
+  });
+
   it("covers exactly the roster statuses the backend can send", () => {
     // `_status()` in backend/game/roster.py.
     expect(Object.keys(de.seat.status).sort()).toEqual([

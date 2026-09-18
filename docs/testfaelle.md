@@ -77,7 +77,7 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | --- | --- | --- | --- | --- |
 | P-01 | Host pausiert | Banner auf allen Screens, ohne Reload | geht | - |
 | P-02 | Host hebt die Pause auf | Banner weg, ohne Reload | geht | - |
-| P-03 | Zug abschicken während Pause | 409 `paused`, Screen sagt warum | offen | - |
+| P-03 | Zug abschicken während Pause | gar nicht erst möglich: Banner, Auswahl und Knopf gesperrt; die 409-Meldung greift für den Fall, dass die Pause zwischen Klick und Request kommt | geht | - |
 | P-04 | Pause mitten in der Zwischenrunde | Phase bleibt stehen, nichts rutscht weiter | offen | - |
 | P-05 | Pause über eine Schulstunde | Cookies verlängert, Platz danach noch da | offen | - |
 | P-06 | Plätze umbauen während Pause | geht weiter (1.6) | offen | - |
@@ -86,17 +86,19 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 
 | ID | Fall | Erwartet | Status | E2E |
 | --- | --- | --- | --- | --- |
-| R-01 | Agenten der Runde | alle mit Start und Ziel sichtbar | offen | - |
-| R-02 | Verkehrsmittel wählen | pro Agent, vier Linien | offen | - |
-| R-03 | Route wählen | Vorschau über das Pathfinding | offen | - |
-| R-04 | abschicken | Platz steht auf „abgeschickt" | offen | - |
-| R-05 | Fortschritt | „x von y abgeschickt", host-gesteuerte zählen mit | offen | - |
-| R-06 | letzter Spieler schickt ab | Runde wird gerechnet | offen | - |
-| R-07 | Simulation läuft | Fortschritt kommt an (`simulation.progress`) | offen | - |
+| R-01 | Agenten der Runde | alle mit Start und Ziel sichtbar | geht | - |
+| R-02 | Verkehrsmittel wählen | pro Agent, vier Linien | geht | - |
+| R-03 | Route wählen | Vorschau über das Pathfinding | geht | - |
+| R-04 | abschicken | Platz steht auf „abgeschickt" | geht | - |
+| R-05 | Fortschritt | „x von y abgeschickt", host-gesteuerte zählen mit | geht | - |
+| R-06 | letzter Spieler schickt ab | Runde wird gerechnet | geht | - |
+| R-07 | Simulation läuft | Fortschritt kommt an (`simulation.progress`) | ungeprüft | - |
 | R-08 | Auto auf einer Kante ohne Straße | wird abgelehnt (heute defekt, s. CLAUDE.md) | offen | - |
-| R-09 | Rundenzähler | zeigt die richtige Runde (2.4-Bug) | offen | - |
+| R-09 | Rundenzähler | zeigt die richtige Runde (2.4-Bug) | ungeprüft | - |
 | R-10 | Spieler verlässt mitten in der Runde | Runde kann trotzdem fertig werden | offen | - |
-| R-11 | Reconnect mitten in der Runde | schon abgeschickte Wahl ist noch da | offen | - |
+| R-11 | Reconnect mitten in der Runde | schon abgeschickte Wahl ist noch da | geht | - |
+| R-12 | ÖPNV-Route gibt es nicht | sagt es und lässt eine andere Linie wählen | geht | - |
+| R-13 | Chat während der Runde | erreichbar | kaputt | - |
 
 ## Z — zwischen den runden
 
@@ -148,18 +150,21 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | C-02 | neu verbinden | Verlauf ist da (100 Nachrichten, 2 h) | offen | - |
 | C-03 | zu schnell tippen | Rate limit, verständliche Meldung | offen | - |
 | C-04 | Chat ist aus | kein Chat sichtbar | offen | - |
+| C-05 | Chat auf dem neuen Spielscreen | erreichbar wie auf dem alten | offen | - |
 
 ## K — karte und editor
 
 | ID | Fall | Erwartet | Status | E2E |
 | --- | --- | --- | --- | --- |
-| K-01 | Karte im Spiel | Knoten, Kanten, Linien, Legende | offen | - |
+| K-01 | Karte im Spiel | Knoten, Kanten, Linien, Legende | geht | - |
+| K-08 | Hintergrundbild im Spiel | liegt unter dem Graphen, richtig platziert | geht | - |
 | K-02 | Karte auf dem Handy | passt aufs Bild, Auswahl erreichbar (2.4) | offen | - |
 | K-03 | Kante anklicken | reagiert (2.4) | offen | - |
 | K-04 | Editor lädt | Graph erscheint | offen | - |
 | K-05 | Editor: Knoten und Kanten bearbeiten | speichert | offen | - |
 | K-06 | Editor: Version anlegen | taucht in der Abstimmung auf | offen | - |
-| K-07 | Karte importieren / exportieren | JSON rein und raus | offen | - |
+| K-07 | Karte importieren / exportieren | JSON rein und raus | kaputt | - |
+| K-09 | Export → Import derselben Karte | Bild, Maße und Platzierung kommen mit | kaputt | - |
 
 ## S — sonstiges
 

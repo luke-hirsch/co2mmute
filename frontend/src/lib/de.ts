@@ -53,6 +53,24 @@ const revoked: Record<RevokedReason, string> = {
   handed_over: "Dein Platz läuft jetzt auf einem anderen Gerät.",
 };
 
+/** `AgentRoute.Optimization` in the backend. The serializer rejects anything else. */
+export type CarOptimization = "time" | "distance" | "co2";
+
+const carOptimization: Record<CarOptimization, string> = {
+  time: "schnellste",
+  distance: "kürzeste",
+  co2: "sparsamste",
+};
+
+/** Client-side only (`src/utils/ptRouting.ts`), but the picker names each one. */
+export type PTOptimization = "fastest" | "fewest_transfers" | "no_bus";
+
+const ptOptimization: Record<PTOptimization, string> = {
+  fastest: "schnellste",
+  fewest_transfers: "wenig umsteigen",
+  no_bus: "ohne Bus",
+};
+
 const seatStatus: Record<SeatStatus, string> = {
   ready: "bereit",
   making_move: "wählt noch",
@@ -192,5 +210,61 @@ export const de = {
   round: {
     label: (n: number) => `Runde ${n}`,
     of: (n: number, total: number) => `Runde ${n} von ${total}`,
+
+    /**
+     * An agent is a *Fahrgast* to the player — transit vocabulary like the rest
+     * of the interface (Platz, Linie, Einsteigen), and it avoids the gendered
+     * "Pendler". "Agent" stays in the code, the backend and the thesis.
+     */
+    agent: (n: number) => `Fahrgast ${n}`,
+    destination: "Ziel",
+    home: "zu Hause",
+
+    /** The list heading. The question below is what one picker asks. */
+    agents: "Deine Fahrgäste",
+    pickMode: "Womit fährt dieser Fahrgast?",
+    carOptimization,
+    ptOptimization,
+    otherRoute: "andere Route",
+    change: "ändern",
+
+    routing: "Route wird gesucht …",
+    noRoute: "Auf diesem Weg kommt der Fahrgast nicht ans Ziel. Nimm eine andere Linie.",
+    routeAgain: "nochmal versuchen",
+    duration: (minutes: number) =>
+      minutes < 60
+        ? `${Math.round(minutes)} min`
+        : `${Math.floor(minutes / 60)} h ${Math.round(minutes % 60)} min`,
+    distance: (meters: number) =>
+      meters < 1000
+        ? `${Math.round(meters)} m`
+        : `${(meters / 1000).toFixed(1)} km`,
+    transfers: (n: number) => (n === 1 ? "1 Umstieg" : `${n} Umstiege`),
+
+    /** How far this seat has got, and how far the game has. Two different counts. */
+    chosenOf: (done: number, total: number) => `${done} von ${total} gewählt`,
+    submittedOf: (done: number, total: number) =>
+      `${done} von ${total} abgeschickt`,
+
+    submit: "Losfahren",
+    submitting: "Wird abgeschickt …",
+    submitBlocked: "Erst wenn jeder Fahrgast eine Route hat.",
+    submitted: "Abgeschickt",
+    submittedBody: "Deine Wahl steht. Sobald alle durch sind, wird die Runde gefahren.",
+    waitingFor: "Es fehlen noch",
+    /** The move was refused. Each one names what to do next, never a player. */
+    failedPaused: "Das Spiel ist angehalten. Sobald es weitergeht, kannst du abschicken.",
+    failedRoundOver: "Diese Runde ist schon durch.",
+    failedSeat: "Dieser Platz gehört dir nicht mehr.",
+    failedUnknown: "Das Abschicken hat nicht geklappt. Versuch es nochmal.",
+    retry: "Nochmal abschicken",
+
+    simulation: "Die Runde wird gefahren …",
+    simulationFailed: "Die Simulation ist steckengeblieben. Die Spielleitung weiß Bescheid.",
+
+    mapTitle: "Karte",
+    mapHint: "Tippe einen Fahrgast an, um seine Route zu sehen.",
+    noAssignment:
+      "Für diesen Platz sind keine Fahrgäste hinterlegt. Die Spielleitung muss das Spiel neu anlegen.",
   },
 };
