@@ -406,7 +406,7 @@ export const de = {
     unchanged: "Die Karte bleibt, wie sie ist.",
   },
 
-  /** The end of the game. F6 turns this into the full summary. */
+  /** The end of the game (F6). */
   summary: {
     title: "Spiel zu Ende",
     reason: endReason,
@@ -415,6 +415,38 @@ export const de = {
     lastRound: (n: number) => `Die letzte Runde (${n})`,
     total: "CO₂ insgesamt",
     budget: "Budget",
+
+    /** The class's arc: one stop per round, the round's CO₂ on it. */
+    arcTitle: "Runde für Runde",
+    arcLead:
+      "So viel hat die Klasse in jeder Runde ausgestoßen. Daran siehst du, was die Änderungen an der Karte gebracht haben.",
+    arcRound: (n: number) => `Runde ${n}`,
+
+    /**
+     * The three lists. Each heading is a superlative rather than a metric
+     * name, because the order is the only thing that says what being at the
+     * top of one means — the entries are deliberately not numbered.
+     */
+    listsTitle: "Wer wie gependelt ist",
+    cleanest: "Am wenigsten CO₂",
+    cheapest: "Am günstigsten",
+    fastest: "Am schnellsten",
+    /**
+     * The closing line, and the point of the whole screen. There is no winner
+     * — or rather, who won is what the class argues about now (the research
+     * group's position, via Lukas 2026-09-18). A plain string on purpose:
+     * nothing can be interpolated into it, so nobody can be named in it.
+     */
+    noWinner:
+      "Drei Listen, drei Reihenfolgen. Wenig CO₂, wenig Geld und wenig Zeit sind selten dasselbe. Wer also hat am besten gespielt? Das entscheidet ihr.",
+    perRound: "Pro Runde",
+    modes: "Womit",
+
+    /** A game that ended before anybody completed a round. */
+    empty:
+      "Es ist keine Runde zu Ende gefahren, also gibt es auch nichts auszuwerten.",
+    failed: "Die Auswertung lässt sich gerade nicht laden.",
+    hostHome: "Neues Spiel anlegen",
     /**
      * Both headline figures in kilos, whatever their size. `between.grams`
      * switches to grams below a kilo, which is right in a round's table and
@@ -422,6 +454,16 @@ export const de = {
      * must carry the same unit.
      */
     kg: (kg: number) => `${kg.toLocaleString("de-DE")} kg`,
+    /**
+     * Kilos with one decimal, for every figure that sits in a column with
+     * another one. Same argument as `kg` above, one level down: `between.grams`
+     * switches to grams below a kilo, which is right in a round's table and
+     * wrong in an ordered list — "0 g" above "4.794 kg" makes the reader do a
+     * unit conversion to see which is bigger, and these lists are nothing but
+     * a comparison.
+     */
+    kgExact: (kg: number) =>
+      `${kg.toLocaleString("de-DE", { maximumFractionDigits: 1 })} kg`,
     /** Names stay until anonymisation runs, 24 h after the end (1.3). */
     lead: "Das war's. Hier steht, was am Ende zusammengekommen ist.",
     home: "Zurück zum Start",

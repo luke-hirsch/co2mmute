@@ -126,10 +126,13 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | --- | --- | --- | --- | --- |
 | E-01 | letzte Runde gespielt | Ende mit Grund `max_rounds` | geht | - |
 | E-02 | CO₂-Budget überschritten | Ende mit Grund `co2_limit` | geht | - |
-| E-03 | Auswertung | pro Spieler über alle Runden | offen | - |
+| E-03 | Auswertung | pro Spieler über alle Runden, drei Reihenfolgen, niemand gekürt | geht | - |
 | E-04 | Host beendet von Hand | Ende, alle sehen es | geht | - |
 | E-05 | Spiel endet wegen Inaktivität | meldet heute `max_rounds` — **falsch**, offen im Backend | kaputt | - |
 | E-06 | nach dem Ende | Anonymisierung greift nach `ANONYMISE_GRACE_HOURS` | offen | - |
+| E-07 | Auswertung Runde für Runde | eine Linie mit einem Halt pro Runde; bei nur einer Runde keine | geht | - |
+| E-08 | Auswertung neu geladen | Zahlen und Grund stehen weiter da, ohne Socket | geht | - |
+| E-09 | Auswertung auf dem Handy | eigener Platz in allen drei Listen mit „du" markiert | geht | - |
 
 ## H — das leitpult (host)
 
