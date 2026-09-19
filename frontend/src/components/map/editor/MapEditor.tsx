@@ -486,7 +486,7 @@ const MapEditor = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-lg text-red-600 dark:text-red-400">
-          Map not found
+          {de.editor.notFound}
         </div>
       </div>
     );
@@ -511,7 +511,7 @@ const MapEditor = () => {
           </div>
           {state.isDirty && (
             <span className="text-sm text-amber-600 dark:text-amber-400">
-              Unsaved changes
+              {de.editor.unsaved}
             </span>
           )}
         </div>

@@ -439,17 +439,16 @@ const VersionDiffPanel = ({
       <div className="space-y-4">
         <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle space-y-3">
           <h3 className="text-lg font-semibold text-main dark:text-darktext">
-            Create Alternate Version
+            {de.editor.version.createTitle}
           </h3>
           <p className="text-xs text-mutedtext dark:text-darkmutedtext">
-            Define the version that players can vote for. Fill in the details
-            below, then proceed to modify edges.
+            {de.editor.version.createLead}
           </p>
 
           {/* Source version selector */}
           <div>
             <label className="text-xs text-mutedtext dark:text-darkmutedtext">
-              Source Version
+              {de.editor.version.sourceVersion}
             </label>
             <select
               value={selectedVersionId ?? ""}
@@ -464,11 +463,13 @@ const VersionDiffPanel = ({
               className={inputClass}
             >
               <option value="">
-                {mapGraph ? `Current (${mapGraph.version_name})` : de.editor.loading}
+                {mapGraph
+                  ? de.editor.version.current(mapGraph.version_name)
+                  : de.editor.loading}
               </option>
               {versions?.map((v) => (
                 <option key={v.id} value={v.id}>
-                  {v.name} {v.base_version ? "(base)" : ""}
+                  {v.name} {v.base_version ? de.editor.version.baseSuffix : ""}
                 </option>
               ))}
             </select>
@@ -477,13 +478,14 @@ const VersionDiffPanel = ({
           {/* Version Name */}
           <div>
             <label className="text-xs text-mutedtext dark:text-darkmutedtext">
-              Version Name <span className="text-red-500">*</span>
+              {de.editor.version.versionName}{" "}
+              <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={versionMetadata.versionName}
               onChange={(e) => updateField("versionName", e.target.value)}
-              placeholder="e.g. Add bus lanes on Main St"
+              placeholder={de.editor.version.namePlaceholder}
               className={inputClass}
             />
           </div>
@@ -491,15 +493,16 @@ const VersionDiffPanel = ({
           {/* Poll Text */}
           <div>
             <label className="text-xs text-mutedtext dark:text-darkmutedtext">
-              Poll Text <span className="text-red-500">*</span>
+              {de.editor.version.pollText}{" "}
+              <span className="text-red-500">*</span>
             </label>
             <p className="text-xs text-mutedtext dark:text-darkmutedtext mt-0.5 mb-1">
-              What should players vote on?
+              {de.editor.version.pollQuestion}
             </p>
             <textarea
               value={versionMetadata.pollText}
               onChange={(e) => updateField("pollText", e.target.value)}
-              placeholder="e.g. Should we add dedicated bus lanes on the main roads?"
+              placeholder={de.editor.version.pollPlaceholder}
               rows={2}
               className={inputClass}
             />
@@ -508,13 +511,13 @@ const VersionDiffPanel = ({
           {/* Revert Poll Text */}
           <div>
             <label className="text-xs text-mutedtext dark:text-darkmutedtext">
-              Revert Poll Text
+              {de.editor.version.pollRevert}
             </label>
             <input
               type="text"
               value={versionMetadata.revertPollText}
               onChange={(e) => updateField("revertPollText", e.target.value)}
-              placeholder="e.g. Remove bus lanes again?"
+              placeholder={de.editor.version.revertPlaceholder}
               className={inputClass}
             />
           </div>
@@ -522,7 +525,7 @@ const VersionDiffPanel = ({
           {/* Description */}
           <div>
             <label className="text-xs text-mutedtext dark:text-darkmutedtext">
-              Description
+              {de.editor.version.description}
             </label>
             <textarea
               value={versionMetadata.description}
@@ -537,7 +540,7 @@ const VersionDiffPanel = ({
             disabled={!canProceed}
             className="w-full px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
           >
-            Start Editing
+            {de.editor.version.startEditing}
           </button>
         </div>
       </div>
@@ -562,7 +565,7 @@ const VersionDiffPanel = ({
             onClick={() => dispatch({ type: "SET_VERSION_DIFF_STEP", step: 1 })}
             className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline ml-2 shrink-0"
           >
-            Edit
+            {de.editor.edit}
           </button>
         </div>
       </div>
@@ -571,8 +574,7 @@ const VersionDiffPanel = ({
       {!selectedEdge && !versionDiffEditingPtLine && totalChanges === 0 && (
         <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle">
           <p className="text-sm text-mutedtext dark:text-darkmutedtext">
-            Use the toolbar tools to modify the map. Click edges to change their
-            properties, add/delete nodes and edges, or add/modify PT lines below.
+            {de.editor.version.diffHint}
           </p>
         </div>
       )}
@@ -590,7 +592,7 @@ const VersionDiffPanel = ({
       {/* ── PT Lines Section ── */}
       <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle space-y-3">
         <h3 className="text-sm font-semibold text-main dark:text-darktext">
-          PT Lines
+          {de.editor.version.ptLines}
         </h3>
 
         {/* PT line draft form */}
@@ -605,11 +607,11 @@ const VersionDiffPanel = ({
                 onClick={cancelPtDraft}
                 className="text-xs text-mutedtext dark:text-darkmutedtext hover:text-main dark:hover:text-darktext"
               >
-                Cancel
+                {de.editor.cancel}
               </button>
             </div>
             <div>
-              <label className="text-xs text-mutedtext dark:text-darkmutedtext">Name</label>
+              <label className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.ptLine.name}</label>
               <input
                 type="text"
                 value={ptDraftName}
@@ -619,7 +621,7 @@ const VersionDiffPanel = ({
             </div>
             <div className="grid grid-cols-3 gap-1">
               <div>
-                <label className="text-xs text-mutedtext dark:text-darkmutedtext">Interval</label>
+                <label className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.ptLine.interval}</label>
                 <input
                   type="number"
                   min={1}
@@ -629,7 +631,7 @@ const VersionDiffPanel = ({
                 />
               </div>
               <div>
-                <label className="text-xs text-mutedtext dark:text-darkmutedtext">Capacity</label>
+                <label className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.ptLine.capacity}</label>
                 <input
                   type="number"
                   min={1}
@@ -639,7 +641,7 @@ const VersionDiffPanel = ({
                 />
               </div>
               <div>
-                <label className="text-xs text-mutedtext dark:text-darkmutedtext">Speed</label>
+                <label className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.ptLine.speed}</label>
                 <input
                   type="number"
                   min={1}
@@ -688,7 +690,7 @@ const VersionDiffPanel = ({
               onClick={savePtDraft}
               className="w-full px-2 py-1 text-xs bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
             >
-              Save PT Line Change
+              {de.editor.version.savePtLine}
             </button>
           </div>
         )}
@@ -698,7 +700,7 @@ const VersionDiffPanel = ({
           <>
             {allPtLines.length === 0 ? (
               <p className="text-xs text-mutedtext dark:text-darkmutedtext">
-                No PT lines in this version.
+                {de.editor.version.noPtLines}
               </p>
             ) : (
               <div className="space-y-1">
@@ -757,13 +759,13 @@ const VersionDiffPanel = ({
                               onClick={() => startModifyPtLine(line)}
                               className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
                             >
-                              Modify
+                              {de.editor.modify}
                             </button>
                             <button
                               onClick={() => addRemovePtLine(line)}
                               className="text-xs text-red-600 dark:text-red-400 hover:underline"
                             >
-                              Remove
+                              {de.editor.remove}
                             </button>
                           </>
                         )}
@@ -780,13 +782,13 @@ const VersionDiffPanel = ({
                 onClick={() => startAddPtLine("bus")}
                 className="flex-1 px-2 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700"
               >
-                + Bus Line
+                {de.editor.ptLine.addBus}
               </button>
               <button
                 onClick={() => startAddPtLine("train")}
                 className="flex-1 px-2 py-1 text-xs bg-red-600 text-white rounded-md hover:bg-red-700"
               >
-                + Train Line
+                {de.editor.ptLine.addTrain}
               </button>
             </div>
           </>
@@ -895,7 +897,7 @@ const VersionDiffPanel = ({
                       onClick={() => removeNewNode(node.tempId)}
                       className="text-xs text-red-600 hover:text-red-800 dark:text-red-400"
                     >
-                      Remove
+                      {de.editor.remove}
                     </button>
                   </div>
                 ))}
@@ -923,7 +925,7 @@ const VersionDiffPanel = ({
                       onClick={() => removeNewEdge(edge.tempId)}
                       className="text-xs text-red-600 hover:text-red-800 dark:text-red-400"
                     >
-                      Remove
+                      {de.editor.remove}
                     </button>
                   </div>
                 ))}
@@ -1013,19 +1015,19 @@ const VersionDiffPanel = ({
 
         {versionDiffEditingPtLine && (
           <p className="text-xs text-amber-600 dark:text-amber-400">
-            Save or cancel the PT line edit first.
+            {de.editor.version.finishPtLineFirst}
           </p>
         )}
 
         {createMutation.isError && (
           <p className="text-xs text-red-600 dark:text-red-400">
-            Failed to create version. Please try again.
+            {de.editor.version.createFailed}
           </p>
         )}
 
         {createMutation.isSuccess && (
           <p className="text-xs text-green-600 dark:text-green-400">
-            Version created successfully!
+            {de.editor.version.created}
           </p>
         )}
       </div>

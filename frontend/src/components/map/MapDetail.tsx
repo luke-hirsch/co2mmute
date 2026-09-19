@@ -1,5 +1,6 @@
 import { useParams, Link, useNavigate } from "@tanstack/react-router";
 import { useGameMap, useMapGraph } from "@/lib/queries/map-graph";
+import { de } from "@/lib/de";
 import { API_BASE_URL } from "../../config";
 import { apiFetch } from "../../utils/api";
 import MapViewer from "./MapViewer";
@@ -45,7 +46,7 @@ const MapDetail = () => {
               params={{ mapId }}
               className="inline-block px-4 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
             >
-              Edit Map
+              {de.editor.editMap}
             </Link>
             <button
               onClick={async () => {
@@ -82,7 +83,7 @@ const MapDetail = () => {
               }}
               className="inline-block px-4 py-2 text-sm bg-red-600 text-white rounded-md hover:bg-red-700"
             >
-              Delete Map
+              {de.editor.deleteMap}
             </button>
           </div>
           <MapViewer
@@ -102,7 +103,7 @@ const MapDetail = () => {
       ) : (
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-lg text-red-600 dark:text-red-400">
-            Map not found
+            {de.editor.notFound}
           </div>
         </div>
       )}

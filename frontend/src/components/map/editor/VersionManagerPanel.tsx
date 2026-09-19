@@ -83,7 +83,7 @@ function VersionEditor({
     <div className="space-y-3 pt-2">
       <div>
         <label className="block text-xs text-mutedtext dark:text-darkmutedtext mb-1">
-          Name
+          {de.editor.version.name}
         </label>
         <input
           className={inputCls}
@@ -94,7 +94,7 @@ function VersionEditor({
 
       <div>
         <label className="block text-xs text-mutedtext dark:text-darkmutedtext mb-1">
-          Description
+          {de.editor.version.description}
         </label>
         <textarea
           rows={2}
@@ -106,7 +106,7 @@ function VersionEditor({
 
       <div>
         <label className="block text-xs text-mutedtext dark:text-darkmutedtext mb-1">
-          Poll text (forward)
+          {de.editor.version.pollForward}
         </label>
         <input
           className={inputCls}
@@ -117,7 +117,7 @@ function VersionEditor({
 
       <div>
         <label className="block text-xs text-mutedtext dark:text-darkmutedtext mb-1">
-          Poll text (revert)
+          {de.editor.version.pollRevert}
         </label>
         <input
           className={inputCls}
@@ -131,7 +131,7 @@ function VersionEditor({
       {otherVersions.length > 0 && (
         <div>
           <label className="block text-xs text-mutedtext dark:text-darkmutedtext mb-1">
-            Compatible versions
+            {de.editor.version.compatible}
           </label>
           <div className="space-y-1 max-h-36 overflow-y-auto rounded-md border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody px-2 py-1.5">
             {otherVersions.map((v) => (
@@ -159,7 +159,7 @@ function VersionEditor({
 
       <div>
         <label className="block text-xs text-mutedtext dark:text-darkmutedtext mb-1">
-          Change image
+          {de.editor.version.changeImage}
         </label>
         {imgUrl && (
           <img
@@ -183,7 +183,9 @@ function VersionEditor({
             onClick={() => fileRef.current?.click()}
             className="text-xs px-2 py-1 rounded-md border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext hover:border-indigo-400 dark:hover:border-indigo-500"
           >
-            {imgUrl ? "Replace image" : "Upload image"}
+            {imgUrl
+              ? de.editor.version.replaceImage
+              : de.editor.version.uploadImage}
           </button>
           {values.newImage && (
             <span className="text-xs text-mutedtext dark:text-darkmutedtext truncate">
@@ -207,7 +209,7 @@ function VersionEditor({
           onClick={onDone}
           className="flex-1 px-3 py-1.5 text-sm rounded-md border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext hover:border-indigo-400 dark:hover:border-indigo-500"
         >
-          Cancel
+          {de.editor.cancel}
         </button>
       </div>
 
@@ -247,7 +249,7 @@ const VersionManagerPanel = ({ mapId }: VersionManagerPanelProps) => {
   if (isLoading) {
     return (
       <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle">
-        <p className="text-sm text-mutedtext dark:text-darkmutedtext">Loading versions...</p>
+        <p className="text-sm text-mutedtext dark:text-darkmutedtext">{de.editor.version.loading}</p>
       </div>
     );
   }
@@ -258,11 +260,11 @@ const VersionManagerPanel = ({ mapId }: VersionManagerPanelProps) => {
   return (
     <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle space-y-3">
       <h3 className="text-lg font-semibold text-main dark:text-darktext">
-        Manage Versions
+        {de.editor.version.manage}
       </h3>
 
       {versionList.length === 0 && (
-        <p className="text-sm text-mutedtext dark:text-darkmutedtext">No versions yet.</p>
+        <p className="text-sm text-mutedtext dark:text-darkmutedtext">{de.editor.version.none}</p>
       )}
 
       <div className="space-y-2">

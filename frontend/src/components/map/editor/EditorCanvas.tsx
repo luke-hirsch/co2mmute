@@ -291,7 +291,7 @@ const EditorCanvas = ({
             fontSize="16"
             fill="#9ca3af"
           >
-            Empty map — add nodes and edges in graph mode
+            {de.editor.emptyMap}
           </text>
         </svg>
       </div>
