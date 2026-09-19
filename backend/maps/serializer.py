@@ -1,5 +1,10 @@
+import logging
+
 from rest_framework import serializers
+
 import maps.models as mm
+
+logger = logging.getLogger(__name__)
 
 
 class MapVersionSerializer(serializers.ModelSerializer):
@@ -467,41 +472,80 @@ class PTLineGraphSerializer(serializers.Serializer):
     stops = serializers.ListField(child=serializers.IntegerField())
 
 
+def _stops_in_travel_order(edges, line_label):
+    """Node ids a line serves, in travel order.
+
+    `edges` is the ordered list of Edge rows the line runs over. An edge may be
+    stored either way round relative to the direction of travel — the map
+    importer does not normalise that, and the shipped examples store every edge
+    of every line reversed — so the chain is followed by matching node ids
+    rather than by trusting start_node/end_node.
+
+    The first edge is the one that needs care: on its own there is nothing to
+    orient it against, so its direction is decided by whichever of its ends the
+    *second* edge touches. Seeding it in stored order instead is what made every
+    line report its first two nodes and stop (2026-09-19).
+
+    Returns [] for no edges, and truncates with a warning if the chain breaks —
+    a line whose edges are not connected is a broken map, not a routing puzzle.
+    """
+    if not edges:
+        return []
+
+    first = edges[0]
+    if len(edges) == 1:
+        return [first.start_node_id, first.end_node_id]
+
+    second = edges[1]
+    second_ends = {second.start_node_id, second.end_node_id}
+
+    # The shared node is where the first edge ends and the second begins.
+    if first.end_node_id in second_ends:
+        stops = [first.start_node_id, first.end_node_id]
+    elif first.start_node_id in second_ends:
+        stops = [first.end_node_id, first.start_node_id]
+    else:
+        logger.warning(
+            "%s: first edge %s (%s → %s) does not connect to the next edge. "
+            "Route truncated at this edge.",
+            line_label,
+            first.pk,
+            first.start_node_id,
+            first.end_node_id,
+        )
+        return [first.start_node_id, first.end_node_id]
+
+    for edge in edges[1:]:
+        prev = stops[-1]
+        if prev == edge.start_node_id:
+            stops.append(edge.end_node_id)
+        elif prev == edge.end_node_id:
+            stops.append(edge.start_node_id)
+        else:
+            logger.warning(
+                "%s: edge %s is disconnected from previous stop %s. "
+                "Route truncated at this edge.",
+                line_label,
+                edge.pk,
+                prev,
+            )
+            break
+
+    return stops
+
+
 def serialize_bus_line_for_graph(bus_line, version):
     """Serialize a bus line for graph/routing purposes."""
-    # Get edges in order and extract underlying edge IDs
     street_edges = list(
         bus_line.edges.filter(map_versions=version)
         .select_related("edge")
         .order_by("buslineedge__order")
     )
     edge_ids = [se.edge_id for se in street_edges]
-
-    # Build stops in traversal order, respecting edge direction.
-    # An edge may be stored in reverse relative to the travel direction, so
-    # we track the previous node and follow whichever end connects.
-    stops = []
-    for se in street_edges:
-        edge = se.edge
-        if not stops:
-            stops.append(edge.start_node_id)
-            stops.append(edge.end_node_id)
-        else:
-            prev = stops[-1]
-            if prev == edge.start_node_id:
-                stops.append(edge.end_node_id)
-            elif prev == edge.end_node_id:
-                # Edge stored in reverse — travel direction is end→start
-                stops.append(edge.start_node_id)
-            else:
-                # Disconnected edge (data issue): truncate route here
-                import logging as _logging
-                _logging.getLogger(__name__).warning(
-                    "Bus line %s (%s): edge %s is disconnected from previous stop %s. "
-                    "Route truncated at this edge.",
-                    bus_line.id, bus_line.name, edge.id, prev,
-                )
-                break
+    stops = _stops_in_travel_order(
+        [se.edge for se in street_edges],
+        f"Bus line {bus_line.id} ({bus_line.name})",
+    )
 
     return {
         "id": bus_line.id,
@@ -544,10 +588,14 @@ def serialize_train_line_for_graph(train_line, version):
             else:
                 # Disconnected edge (data issue): truncate route here
                 import logging as _logging
+
                 _logging.getLogger(__name__).warning(
                     "Train line %s (%s): edge %s is disconnected from previous stop %s. "
                     "Route truncated at this edge.",
-                    train_line.id, train_line.name, edge.id, prev,
+                    train_line.id,
+                    train_line.name,
+                    edge.id,
+                    prev,
                 )
                 break
 
