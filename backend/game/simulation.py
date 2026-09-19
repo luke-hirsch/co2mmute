@@ -4,7 +4,6 @@ import math
 import random
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set, Tuple
 
 from maps.models import BusLine, Edge, StreetPerRound, TrainLine
 
@@ -64,8 +63,10 @@ class Vehicle:
     departed: bool = False
     arrived: bool = False
     waiting_for_pt: bool = False
-    pt_vehicle_id: Optional[int] = None
-    passenger_count: int = 1  # Number of people this vehicle carries (>1 for PT vehicles)
+    pt_vehicle_id: int | None = None
+    passenger_count: int = (
+        1  # Number of people this vehicle carries (>1 for PT vehicles)
+    )
 
 
 @dataclass
@@ -85,15 +86,15 @@ class SimulationLog:
 
     def __init__(self):
         self._buf = io.StringIO()
-        self._edge_names: Dict[int, str] = {}  # edge_id -> name
-        self._route_labels: Dict[int, str] = {}  # route_pk -> "Player/Agent#N (mode)"
+        self._edge_names: dict[int, str] = {}  # edge_id -> name
+        self._route_labels: dict[int, str] = {}  # route_pk -> "Player/Agent#N (mode)"
         # Per-edge per-route sample tracking: (route_pk, edge_id) -> {enter_tick, exit_tick, ...}
-        self._sample_edge_events: Dict[Tuple[int, int], Dict] = {}
+        self._sample_edge_events: dict[tuple[int, int], dict] = {}
 
-    def set_edge_names(self, edge_names: Dict[int, str]):
+    def set_edge_names(self, edge_names: dict[int, str]):
         self._edge_names = edge_names
 
-    def set_route_labels(self, route_labels: Dict[int, str]):
+    def set_route_labels(self, route_labels: dict[int, str]):
         self._route_labels = route_labels
 
     def _edge_label(self, edge_id: int) -> str:
@@ -127,10 +128,10 @@ class EdgeState:
     capacity: int  # Number of cars at optimal flow
     lanes: int = 1
     has_dedicated_bus_lane: bool = False
-    current_vehicles: Set[int] = field(
+    current_vehicles: set[int] = field(
         default_factory=set
     )  # All vehicle IDs on this edge
-    buses_on_dedicated_lane: Set[int] = field(
+    buses_on_dedicated_lane: set[int] = field(
         default_factory=set
     )  # Buses using dedicated lane
 
@@ -207,7 +208,7 @@ def generate_departure_times(
     base_hour: int,
     std_dev_min: float,
     tick_duration_min: int = 5,
-) -> List[int]:
+) -> list[int]:
     """
     Generate departure times using normal distribution.
 
@@ -253,7 +254,7 @@ class TrafficSimulator:
         """
         self.game_round = game_round
         self.scale = scale
-        self.simulation_result: Optional[SimulationResult] = None
+        self.simulation_result: SimulationResult | None = None
 
         # Load simulation parameters from GameSession
         game_session = game_round.game
@@ -276,50 +277,50 @@ class TrafficSimulator:
             self.default_car_speed_kmh = FALLBACK_DEFAULT_CAR_SPEED_KMH
 
         # Edge states indexed by edge_id
-        self.edge_states: Dict[int, EdgeState] = {}
+        self.edge_states: dict[int, EdgeState] = {}
 
         # Vehicles indexed by unique ID
-        self.vehicles: Dict[int, Vehicle] = {}
+        self.vehicles: dict[int, Vehicle] = {}
         self.next_vehicle_id = 0
 
         # PT vehicles
-        self.pt_vehicles: List[PTVehicle] = []
+        self.pt_vehicles: list[PTVehicle] = []
 
         # Route data indexed by route.pk (globally unique)
-        self.agent_routes: Dict[int, AgentRoute] = {}
-        self.route_segments: Dict[int, List[RouteSegment]] = {}
+        self.agent_routes: dict[int, AgentRoute] = {}
+        self.route_segments: dict[int, list[RouteSegment]] = {}
 
         # PT line speed cache: line_id -> speed_kmh
-        self.bus_line_speeds: Dict[int, int] = {}
-        self.train_line_speeds: Dict[int, int] = {}
+        self.bus_line_speeds: dict[int, int] = {}
+        self.train_line_speeds: dict[int, int] = {}
 
         # PT line interval cache: line_id -> intervall_min
-        self.bus_line_intervals: Dict[int, int] = {}
-        self.train_line_intervals: Dict[int, int] = {}
+        self.bus_line_intervals: dict[int, int] = {}
+        self.train_line_intervals: dict[int, int] = {}
 
         # Per-route PT wait time (interval/2): route_pk -> wait_min
-        self.route_pt_wait_min: Dict[int, float] = {}
+        self.route_pt_wait_min: dict[int, float] = {}
 
         # Vehicle scaling for PT routes: route_pk -> (num_vehicles, passenger_count)
-        self.route_vehicle_scaling: Dict[int, Tuple[int, int]] = {}
+        self.route_vehicle_scaling: dict[int, tuple[int, int]] = {}
 
         # Departure schedules: route_pk -> list of (person_index, departure_tick)
-        self.departure_schedule: Dict[int, List[Tuple[int, int]]] = {}
+        self.departure_schedule: dict[int, list[tuple[int, int]]] = {}
 
         # Results tracking
-        self.agent_results: Dict[int, Dict] = {}  # route_pk -> results dict
+        self.agent_results: dict[int, dict] = {}  # route_pk -> results dict
 
         # Current simulation tick
         self.current_tick = 0
 
         # Callback for progress updates
-        self.on_progress: Optional[callable] = None
+        self.on_progress: callable | None = None
 
         # Detailed simulation log
         self.sim_log = SimulationLog()
 
         # Sample vehicle IDs: route_pk -> vehicle_id (person_index=0, for detailed logging)
-        self.sample_vehicles: Dict[int, int] = {}
+        self.sample_vehicles: dict[int, int] = {}
 
         # Load routes and initialize edges during construction
         self._load_routes()
@@ -357,6 +358,7 @@ class TrafficSimulator:
                     "trip_times": [],
                     "delays": [],
                     "mode": route.transport_mode,
+                    "not_arrived": 0,
                 }
 
         self.sim_log.set_route_labels(route_labels)
@@ -441,7 +443,9 @@ class TrafficSimulator:
             for bus_line in bus_lines:
                 self.bus_line_speeds[bus_line.pk] = bus_line.bus_speed_kmh
                 self.bus_line_intervals[bus_line.pk] = bus_line.intervall
-            logger.info(f"[SIM] Loaded {len(self.bus_line_speeds)} bus line speeds/intervals")
+            logger.info(
+                f"[SIM] Loaded {len(self.bus_line_speeds)} bus line speeds/intervals"
+            )
 
         # Load train line speeds and intervals
         if train_line_ids:
@@ -449,7 +453,9 @@ class TrafficSimulator:
             for train_line in train_lines:
                 self.train_line_speeds[train_line.pk] = train_line.train_speed_kmh
                 self.train_line_intervals[train_line.pk] = train_line.intervall
-            logger.info(f"[SIM] Loaded {len(self.train_line_speeds)} train line speeds/intervals")
+            logger.info(
+                f"[SIM] Loaded {len(self.train_line_speeds)} train line speeds/intervals"
+            )
 
     def _initialize_edges(self):
         """Initialize edge states from the map."""
@@ -481,6 +487,17 @@ class TrafficSimulator:
                 speed_limit = self.default_car_speed_kmh
                 lanes = 1
                 has_dedicated_bus_lane = False
+
+            if speed_limit <= 0:
+                logger.warning(
+                    "[SIM] Edge %s (%s) has speed_limit=%s — falling back to the "
+                    "map default of %s km/h. Fix the map.",
+                    edge.pk,
+                    edge.name or "unnamed",
+                    speed_limit,
+                    self.default_car_speed_kmh,
+                )
+                speed_limit = self.default_car_speed_kmh
 
             capacity = calculate_edge_capacity(distance_m, speed_limit, lanes)
             self.edge_states[edge.pk] = EdgeState(
@@ -631,9 +648,11 @@ class TrafficSimulator:
                 # Cars experience full congestion
                 current_speed = edge_state.get_current_speed()
                 base_speed = edge_state.free_flow_speed_kmh
-                delay = self.tick_duration_min * max(
-                    0, 1 - current_speed / base_speed
-                ) if base_speed > 0 else 0
+                delay = (
+                    self.tick_duration_min * max(0, 1 - current_speed / base_speed)
+                    if base_speed > 0
+                    else 0
+                )
             elif vehicle.mode == "bus":
                 # Get bus speed from PT line or use fallback
                 if (
@@ -652,9 +671,11 @@ class TrafficSimulator:
                 else:
                     # No dedicated lane: buses stuck in traffic like cars
                     current_speed = min(bus_speed, edge_state.get_current_speed())
-                    delay = self.tick_duration_min * max(
-                        0, 1 - current_speed / bus_speed
-                    ) if bus_speed > 0 else 0
+                    delay = (
+                        self.tick_duration_min * max(0, 1 - current_speed / bus_speed)
+                        if bus_speed > 0
+                        else 0
+                    )
             elif vehicle.mode == "train":
                 # Get train speed from PT line or use fallback
                 if (
@@ -781,10 +802,44 @@ class TrafficSimulator:
                 return False
         return True
 
+    def _record_non_arrivals(self):
+        """Book the vehicles that were still on the road when time ran out."""
+        stranded_routes = 0
+        for vehicle in self.vehicles.values():
+            if not vehicle.departed or vehicle.arrived:
+                continue
+            agent_results = self.agent_results.get(vehicle.route_pk)
+            if not agent_results:
+                continue
+            wait_min = self.route_pt_wait_min.get(vehicle.route_pk, 0.0)
+            total_time = vehicle.total_travel_time_min + wait_min
+            for _ in range(vehicle.passenger_count):
+                agent_results["trip_times"].append(total_time)
+                agent_results["delays"].append(vehicle.congestion_delay_min)
+                agent_results["not_arrived"] += 1
+
+        for route_pk, results in self.agent_results.items():
+            if results["not_arrived"]:
+                stranded_routes += 1
+                self.sim_log.write(
+                    f"  DID NOT ARRIVE: {self.sim_log._route_label(route_pk)} — "
+                    f"{results['not_arrived']} of "
+                    f"{len(results['trip_times'])} travellers were still under way "
+                    f"when the simulation ended"
+                )
+
+        if stranded_routes:
+            logger.warning(
+                "[SIM] %s route(s) had travellers still under way at tick %s — "
+                "their times are a lower bound",
+                stranded_routes,
+                self.current_tick,
+            )
+
     def run_simulation(
         self,
         max_ticks: int = 200,
-        on_progress: Optional[callable] = None,
+        on_progress: callable | None = None,
     ) -> SimulationResult:
         """
         Run the full simulation.
@@ -841,13 +896,10 @@ class TrafficSimulator:
                 if wait_min:
                     total_seats = num_vehicles * passenger_count
                     overcap = total_seats < self.people_per_agent
-                    route_line += (
-                        f", avg_wait={wait_min:.1f}min"
-                        + (
-                            f" [OVERCAPACITY: {total_seats}/{self.people_per_agent} seats]"
-                            if overcap
-                            else ""
-                        )
+                    route_line += f", avg_wait={wait_min:.1f}min" + (
+                        f" [OVERCAPACITY: {total_seats}/{self.people_per_agent} seats]"
+                        if overcap
+                        else ""
                     )
                 self.sim_log.write(route_line)
                 for seg in segments:
@@ -856,13 +908,14 @@ class TrafficSimulator:
                         pt_info = ""
                         if seg.pt_line_id:
                             interval = self._get_pt_interval(seg.pt_line_id, seg.mode)
-                            pt_info = f" | pt_line={seg.pt_line_id} | interval={interval}min"
+                            pt_info = (
+                                f" | pt_line={seg.pt_line_id} | interval={interval}min"
+                            )
                         self.sim_log.write(
                             f"    seg {seg.order}: {self.sim_log._edge_label(seg.edge_id)} | "
                             f"mode={seg.mode} | dist={es.distance_m:.0f}m | "
                             f"free_flow={es.free_flow_speed_kmh:.0f}km/h | "
-                            f"capacity={es.capacity} | lanes={es.lanes}"
-                            + pt_info
+                            f"capacity={es.capacity} | lanes={es.lanes}" + pt_info
                         )
 
             # Log edges
@@ -972,6 +1025,8 @@ class TrafficSimulator:
 
                 self.current_tick += 1
 
+            # Whatever is still moving when the loop ends has to be counted too.
+            self._record_non_arrivals()
             # Log sample vehicle summaries
             self.sim_log.header("SAMPLE VEHICLE TRIP SUMMARIES")
             for route_pk, vid in self.sample_vehicles.items():
@@ -1027,12 +1082,19 @@ class TrafficSimulator:
             delays = results["delays"]
 
             if not trip_times:
-                logger.warning(f"[SIM] No trip times recorded for route_pk {route_pk}")
-                self.sim_log.write(
-                    f"  WARNING: No trip times for {self.sim_log._route_label(route_pk)} "
-                    f"(0/{self.people_per_agent} vehicles arrived)"
+                # Nothing departed on this route at all — after
+                # _record_non_arrivals() this no longer means "nobody arrived".
+                # There is no measurement to report, so the pathfinding estimate
+                # stands in, and the log says that it is an estimate.
+                logger.warning(
+                    f"[SIM] No vehicles simulated for route_pk {route_pk} — "
+                    f"reporting the pathfinding estimate"
                 )
-                # Use pathfinding estimate as fallback — but still calculate CO2
+                self.sim_log.write(
+                    f"  NOT SIMULATED: {self.sim_log._route_label(route_pk)} — "
+                    f"no vehicle departed; the time below is the pathfinding "
+                    f"estimate, not a measurement"
+                )
                 mean_trip_time = route.estimated_time_min
                 min_trip_time = route.estimated_time_min
                 max_trip_time = route.estimated_time_min
@@ -1141,7 +1203,7 @@ class TrafficSimulator:
         # Update street speeds for next round
         self._update_street_speeds()
 
-    def _calculate_emissions_and_cost(self, route: AgentRoute) -> Tuple[float, float]:
+    def _calculate_emissions_and_cost(self, route: AgentRoute) -> tuple[float, float]:
         """
         Calculate CO2 emissions and cost for an agent's route.
 
@@ -1200,14 +1262,14 @@ class TrafficSimulator:
 
         return total_co2, total_cost
 
-    def _get_pt_capacity(self, pt_line_id: Optional[int], mode: str) -> float:
+    def _get_pt_capacity(self, pt_line_id: int | None, mode: str) -> float:
         """Get the passenger capacity for a PT line. Returns a default if not found."""
         if not pt_line_id:
             return 60.0 if mode == "bus" else 500.0
 
         if mode == "bus":
             if not hasattr(self, "_bus_capacities"):
-                self._bus_capacities: Dict[int, int] = {}
+                self._bus_capacities: dict[int, int] = {}
             if pt_line_id not in self._bus_capacities:
                 bus_line = BusLine.objects.filter(id=pt_line_id).first()
                 self._bus_capacities[pt_line_id] = (
@@ -1217,7 +1279,7 @@ class TrafficSimulator:
 
         if mode == "train":
             if not hasattr(self, "_train_capacities"):
-                self._train_capacities: Dict[int, int] = {}
+                self._train_capacities: dict[int, int] = {}
             if pt_line_id not in self._train_capacities:
                 train_line = TrainLine.objects.filter(id=pt_line_id).first()
                 self._train_capacities[pt_line_id] = (
@@ -1227,23 +1289,29 @@ class TrafficSimulator:
 
         return 60.0
 
-    def _get_pt_interval(self, pt_line_id: Optional[int], mode: str) -> int:
+    def _get_pt_interval(self, pt_line_id: int | None, mode: str) -> int:
         """Get the interval in minutes for a PT line. Returns a fallback if not found."""
         if not pt_line_id:
-            return FALLBACK_BUS_INTERVAL_MIN if mode == "bus" else FALLBACK_TRAIN_INTERVAL_MIN
+            return (
+                FALLBACK_BUS_INTERVAL_MIN
+                if mode == "bus"
+                else FALLBACK_TRAIN_INTERVAL_MIN
+            )
 
         if mode == "bus":
             return self.bus_line_intervals.get(pt_line_id, FALLBACK_BUS_INTERVAL_MIN)
 
         if mode == "train":
-            return self.train_line_intervals.get(pt_line_id, FALLBACK_TRAIN_INTERVAL_MIN)
+            return self.train_line_intervals.get(
+                pt_line_id, FALLBACK_TRAIN_INTERVAL_MIN
+            )
 
         return FALLBACK_BUS_INTERVAL_MIN
 
     def _update_street_speeds(self):
         """Update StreetPerRound with average speeds from simulation."""
         # Calculate average speed per edge
-        edge_speeds: Dict[int, List[float]] = defaultdict(list)
+        edge_speeds: dict[int, list[float]] = defaultdict(list)
 
         for snapshot in EdgeTrafficSnapshot.objects.filter(
             simulation=self.simulation_result
