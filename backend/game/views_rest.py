@@ -756,7 +756,9 @@ class GameSummaryView(GenericAPIView):
                     if agent_results.exists():
                         for result in agent_results:
                             round_co2 += result.total_co2_g
-                            round_cost += result.mean_cost_eur
+                            round_cost += result.mean_cost_eur * (
+                                game.people_per_agent or 1
+                            )
                             round_time += result.mean_trip_time_min
                             modes_used.add(result.agent_route.transport_mode)
                     else:
@@ -768,10 +770,21 @@ class GameSummaryView(GenericAPIView):
                             "bike": 18.0,
                             "walk": 0.0,
                         }
+                        fallback_costs = {
+                            "car": 0.32,
+                            "public": 0.15,
+                            "bike": 0.0,
+                            "walk": 0.0,
+                        }
                         for route in agent_routes:
                             dist_km = route.total_distance_m / 1000
                             round_co2 += (
                                 fallback_emissions.get(route.transport_mode, 0)
+                                * dist_km
+                                * game.people_per_agent
+                            )
+                            round_cost += (
+                                fallback_costs.get(route.transport_mode, 0)
                                 * dist_km
                                 * game.people_per_agent
                             )

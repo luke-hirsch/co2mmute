@@ -436,10 +436,11 @@ def _run_simulation(game_session, game_round, moves):
                 simulation=result,
                 agent_route__player_move=move,
             ).select_related("agent_route")
-
+            people = game_session.people_per_agent or 1
             for agent_result in agent_results:
+                agent_cost = agent_result.mean_cost_eur * people
                 player_emissions += agent_result.total_co2_g
-                player_cost += agent_result.mean_cost_eur
+                player_cost += agent_cost
                 player_time += agent_result.mean_trip_time_min
                 agent_details.append(
                     {
@@ -448,7 +449,7 @@ def _run_simulation(game_session, game_round, moves):
                         "trip_time_min": round(agent_result.mean_trip_time_min, 1),
                         "delay_min": round(agent_result.congestion_delay_min, 1),
                         "co2_g": round(agent_result.total_co2_g, 1),
-                        "cost_eur": round(agent_result.mean_cost_eur, 2),
+                        "cost_eur": round(agent_cost, 2),
                     }
                 )
 
