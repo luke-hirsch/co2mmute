@@ -573,6 +573,7 @@ class BusTrafficIntegrationTests(TestCase):
         self.assertAlmostEqual(edge_state.get_current_speed(), expected_speed, places=2)
 
 
+<<<<<<< HEAD
 class ZeroSpeedLimitEdgeTests(TestCase):
     """A street with speed_limit = 0 must not become a zero-speed edge.
 
@@ -788,3 +789,512 @@ class NonArrivalAccountingTests(TestCase):
         results = simulator.agent_results[self.agent_route.pk]
         self.assertEqual(results["not_arrived"], 0)
         self.assertEqual(results["trip_times"], [])
+=======
+# =============================================================================
+# The link queue model — .claude/plans/to-do/[backend]-sim-link-model.md
+#
+# Names that do not exist yet are imported INSIDE each test on purpose: a
+# module-level import of a missing name would error the whole file and hide
+# the tests above it.
+# =============================================================================
+
+
+def _grid_map(name, node_count, step_units=3.0, scale=100.0):
+    """A straight chain of nodes, `step_units * scale` metres apart."""
+    game_map = GameMap.objects.create(
+        name=name, x_dim=1000, y_dim=1000, scale=scale
+    )
+    version = MapVersion.objects.create(
+        game_map=game_map, name="Base", base_version=True
+    )
+    nodes = []
+    for i in range(node_count):
+        node = Node.objects.create(
+            game_map=game_map, x_position=i * step_units, y_position=0
+        )
+        node.map_versions.add(version)
+        nodes.append(node)
+    return game_map, version, nodes
+
+
+def _street(game_map, version, start, end, speed_limit=50, lanes=1, bus_lane=False):
+    edge = Edge.objects.create(
+        game_map=game_map, start_node=start, end_node=end, max_lanes=lanes
+    )
+    edge.map_versions.add(version)
+    street = StreetEdge.objects.create(
+        edge=edge,
+        speed_limit=speed_limit,
+        lanes=lanes,
+        dedicated_bus_lane=bus_lane,
+    )
+    street.map_versions.add(version)
+    return edge
+
+
+def _session(host, game_map, people_per_agent=10, std_dev=10):
+    return GameSession.objects.create(
+        game_host=host,
+        game_name="Link model",
+        game_map=game_map,
+        max_players=4,
+        agent_per_player=1,
+        max_rounds=3,
+        max_CO2_level=1000000,
+        people_per_agent=people_per_agent,
+        departure_std_dev_min=std_dev,
+    )
+
+
+def _route(game_round, player, edges, mode="car", agent_id=1, distance=None):
+    move, _ = PlayerMove.objects.get_or_create(
+        session_round=game_round, player=player, action="route_submit"
+    )
+    route = AgentRoute.objects.create(
+        player_move=move,
+        agent_id=agent_id,
+        transport_mode=mode,
+        total_distance_m=distance or (300.0 * len(edges)),
+        estimated_time_min=1.0,
+    )
+    for order, edge in enumerate(edges, start=1):
+        RouteSegment.objects.create(
+            agent_route=route, order=order, edge=edge, mode=mode
+        )
+    return route
+
+
+class LinkCapacityTests(TestCase):
+    """Storage and flow capacity are physical numbers, not speed * 15.
+
+    The old calculate_edge_capacity allowed 750 vehicles on a kilometre of one
+    lane — about five times what fits — so an edge only counted as congested
+    in a state that cannot exist.
+    """
+
+    def _state(self, **kwargs):
+        from game.simulation import EdgeState
+
+        defaults = dict(
+            edge_id=1, distance_m=1000.0, free_flow_speed_kmh=50.0, car_lanes=1
+        )
+        defaults.update(kwargs)
+        return EdgeState(**defaults)
+
+    def test_storage_is_jam_density_times_lanes_times_km(self):
+        from game.simulation import JAM_DENSITY_VEH_PER_KM_LANE
+
+        state = self._state(distance_m=1000.0, car_lanes=1)
+
+        self.assertAlmostEqual(
+            state.storage_capacity_pcu, JAM_DENSITY_VEH_PER_KM_LANE, places=2
+        )
+
+    def test_storage_scales_with_lanes_and_length(self):
+        two_lanes = self._state(distance_m=500.0, car_lanes=2)
+        one_lane = self._state(distance_m=500.0, car_lanes=1)
+
+        self.assertAlmostEqual(two_lanes.storage_capacity_pcu, one_lane.storage_capacity_pcu * 2)
+
+    def test_storage_is_never_below_one_vehicle(self):
+        """A very short link must still hold somebody, or nothing can enter."""
+        state = self._state(distance_m=1.0, car_lanes=1)
+
+        self.assertGreaterEqual(state.storage_capacity_pcu, 1.0)
+
+    def test_flow_capacity_is_saturation_flow_per_lane(self):
+        from game.simulation import SATURATION_FLOW_VEH_PER_H_LANE
+
+        state = self._state(car_lanes=1)
+
+        # One hour's worth at a 60 minute tick.
+        self.assertAlmostEqual(
+            state.flow_per_tick(60), SATURATION_FLOW_VEH_PER_H_LANE, places=2
+        )
+
+    def test_flow_capacity_does_not_depend_on_the_speed_limit(self):
+        """A 30 zone discharges like a 50 street; only free-flow time differs.
+
+        The old formula made capacity proportional to the speed limit, so a
+        30 zone held fewer cars than the same street at 50 — backwards.
+        """
+        slow = self._state(free_flow_speed_kmh=30.0)
+        fast = self._state(free_flow_speed_kmh=50.0)
+
+        self.assertAlmostEqual(slow.flow_per_tick(5), fast.flow_per_tick(5))
+        self.assertGreater(slow.free_flow_min, fast.free_flow_min)
+
+    def test_free_flow_minutes_from_length_and_speed(self):
+        state = self._state(distance_m=1000.0, free_flow_speed_kmh=60.0)
+
+        self.assertAlmostEqual(state.free_flow_min, 1.0, places=3)
+
+
+class DedicatedBusLaneTests(TestCase):
+    """A bus lane is one of the street's lanes, not an extra one.
+
+    Today dedicated_bus_lane only removes buses from the volume count, so the
+    lane is a free gift and voting for one is always right at no cost. Every
+    bus-lane edge in the shipped maps has lanes == max_lanes.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="buslane", password="12345")
+        self.game_map, self.version, self.nodes = _grid_map("Bus lane map", 3)
+
+    def _simulator_over(self, edge):
+        session = _session(self.user, self.game_map)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+        player = Player.objects.create(name="Fahrer", game=session)
+        _route(game_round, player, [edge])
+        return TrafficSimulator(game_round, scale=100.0)
+
+    def test_bus_lane_costs_a_car_lane(self):
+        edge = _street(
+            self.game_map, self.version, self.nodes[0], self.nodes[1],
+            lanes=2, bus_lane=True,
+        )
+
+        simulator = self._simulator_over(edge)
+
+        self.assertEqual(simulator.edge_states[edge.pk].car_lanes, 1)
+
+    def test_a_street_without_a_bus_lane_keeps_all_its_lanes(self):
+        edge = _street(
+            self.game_map, self.version, self.nodes[0], self.nodes[1],
+            lanes=2, bus_lane=False,
+        )
+
+        simulator = self._simulator_over(edge)
+
+        self.assertEqual(simulator.edge_states[edge.pk].car_lanes, 2)
+
+    def test_a_single_lane_street_with_a_bus_lane_keeps_one_car_lane(self):
+        """Never zero: a street cars cannot enter at all would deadlock them."""
+        edge = _street(
+            self.game_map, self.version, self.nodes[0], self.nodes[1],
+            lanes=1, bus_lane=True,
+        )
+
+        simulator = self._simulator_over(edge)
+
+        self.assertEqual(simulator.edge_states[edge.pk].car_lanes, 1)
+
+
+class FreeFlowTripTimeTests(TestCase):
+    """A trip on an empty network takes its free-flow time.
+
+    This is the four-times bug. _move_vehicles advances a vehicle once per
+    tick and takes at most ONE segment boundary, adding tick_duration_min to
+    the clock unconditionally — so a trip costs (segments x 5) minutes however
+    fast the road is. Berlin's median street edge is 895 m and a car at
+    50 km/h covers 4167 m in a five-minute tick.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="freeflow", password="12345")
+        self.game_map, self.version, self.nodes = _grid_map("Free flow map", 6)
+        self.edges = [
+            _street(self.game_map, self.version, self.nodes[i], self.nodes[i + 1])
+            for i in range(5)
+        ]
+        self.session = _session(self.user, self.game_map, people_per_agent=5)
+        self.game_round = GameRound.objects.create(game=self.session, round_number=1)
+        self.player = Player.objects.create(name="Fahrer", game=self.session)
+        self.route = _route(self.game_round, self.player, self.edges)
+
+    def _run(self):
+        from game.tests._helpers import muted
+
+        simulator = TrafficSimulator(self.game_round, scale=100.0)
+        with muted():
+            simulator.run_simulation(max_ticks=200)
+        return simulator
+
+    def test_five_short_edges_take_their_free_flow_time(self):
+        """1500 m at 50 km/h is 1.8 min. Today it reports 25.0 — five ticks."""
+        simulator = self._run()
+
+        trip_times = simulator.agent_results[self.route.pk]["trip_times"]
+        mean_trip = sum(trip_times) / len(trip_times)
+
+        self.assertLess(mean_trip, 5.0)
+        self.assertAlmostEqual(mean_trip, 1.8, delta=1.0)
+
+    def test_trip_time_is_not_a_multiple_of_the_tick(self):
+        """Every trip time today ends in 0 or 5, whatever the distance."""
+        simulator = self._run()
+
+        trip_times = simulator.agent_results[self.route.pk]["trip_times"]
+
+        self.assertTrue(
+            any(abs(t % self.session.tick_duration_min) > 0.01 for t in trip_times),
+            f"every trip time is a whole number of ticks: {sorted(set(trip_times))}",
+        )
+
+    def test_an_empty_network_records_no_delay(self):
+        simulator = self._run()
+
+        delays = simulator.agent_results[self.route.pk]["delays"]
+
+        self.assertAlmostEqual(max(delays), 0.0, delta=0.5)
+
+
+class QueueAndSpillbackTests(TestCase):
+    """Congestion is a queue, and a link never holds more than fits on it."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="queue", password="12345")
+        self.game_map, self.version, self.nodes = _grid_map("Queue map", 4)
+        self.edges = [
+            _street(self.game_map, self.version, self.nodes[i], self.nodes[i + 1])
+            for i in range(3)
+        ]
+        # 600 cars over one lane: 1800 veh/h discharges 150 per 5 min tick,
+        # so this cannot clear in under four ticks however fast the road is.
+        self.session = _session(self.user, self.game_map, people_per_agent=600, std_dev=1)
+        self.game_round = GameRound.objects.create(game=self.session, round_number=1)
+        self.player = Player.objects.create(name="Fahrer", game=self.session)
+        self.route = _route(self.game_round, self.player, self.edges)
+
+    def _run(self):
+        from game.tests._helpers import muted
+
+        simulator = TrafficSimulator(self.game_round, scale=100.0)
+        with muted():
+            simulator.run_simulation(max_ticks=200)
+        return simulator
+
+    def test_demand_past_flow_capacity_queues(self):
+        """900 m of free flow is 1.08 min; 600 cars through one lane is not."""
+        simulator = self._run()
+
+        trip_times = simulator.agent_results[self.route.pk]["trip_times"]
+
+        self.assertGreater(max(trip_times), 10.0)
+
+    def test_a_link_never_holds_more_than_its_storage(self):
+        """The invariant the old model had no concept of at all."""
+        simulator = self._run()
+
+        if simulator.forced_releases:
+            self.skipTest("deadlock escape fired; storage is deliberately exceeded")
+        for edge_state in simulator.edge_states.values():
+            self.assertLessEqual(
+                edge_state.peak_occupancy_pcu,
+                edge_state.storage_capacity_pcu,
+                f"edge {edge_state.edge_id} overran its storage",
+            )
+
+    def test_everybody_still_arrives(self):
+        """A queue drains. Nothing may be left standing on an open network."""
+        simulator = self._run()
+
+        results = simulator.agent_results[self.route.pk]
+
+        self.assertEqual(results["not_arrived"], 0)
+        self.assertEqual(len(results["trip_times"]), 600)
+
+    def test_congestion_is_recorded_as_delay(self):
+        simulator = self._run()
+
+        delays = simulator.agent_results[self.route.pk]["delays"]
+
+        self.assertGreater(max(delays), 1.0)
+
+    def test_the_queue_discharges_over_time(self):
+        """The decisive one: a queue serves people at different times.
+
+        Today all 600 cars report the identical trip time — three segments,
+        three ticks, 15 minutes each — because the model has no queue at all
+        and the tick is the only clock. A link that discharges at 150 vehicles
+        per tick cannot deliver 600 people at the same moment.
+        """
+        simulator = self._run()
+
+        trip_times = simulator.agent_results[self.route.pk]["trip_times"]
+        spread = max(trip_times) - min(trip_times)
+
+        self.assertGreater(
+            spread,
+            10.0,
+            f"all 600 travellers arrived within {spread:.1f} min of each other",
+        )
+
+
+class FairDepartureTests(TestCase):
+    """Two players' agents on the same jammed street wait the same time.
+
+    Draining each route's waiting list in turn — the obvious way to write the
+    spawn loop — gave the first route free flow and the last an hour's wait,
+    purely from dict order. In a classroom that is one player's agents always
+    beating another's onto a shared street.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="fair", password="12345")
+        self.game_map, self.version, self.nodes = _grid_map("Fair map", 3)
+        self.edges = [
+            _street(self.game_map, self.version, self.nodes[i], self.nodes[i + 1])
+            for i in range(2)
+        ]
+        self.session = _session(self.user, self.game_map, people_per_agent=400, std_dev=1)
+        self.game_round = GameRound.objects.create(game=self.session, round_number=1)
+        self.anna = Player.objects.create(name="Anna", game=self.session)
+        self.ben = Player.objects.create(name="Ben", game=self.session)
+        self.route_a = _route(self.game_round, self.anna, self.edges, agent_id=1)
+        self.route_b = _route(self.game_round, self.ben, self.edges, agent_id=2)
+
+    def test_both_routes_wait_about_equally(self):
+        from game.tests._helpers import muted
+
+        simulator = TrafficSimulator(self.game_round, scale=100.0)
+        with muted():
+            simulator.run_simulation(max_ticks=200)
+
+        times_a = simulator.agent_results[self.route_a.pk]["trip_times"]
+        times_b = simulator.agent_results[self.route_b.pk]["trip_times"]
+        mean_a = sum(times_a) / len(times_a)
+        mean_b = sum(times_b) / len(times_b)
+
+        self.assertLess(
+            abs(mean_a - mean_b) / max(mean_a, mean_b),
+            0.1,
+            f"one route was served ahead of the other: {mean_a:.1f} vs {mean_b:.1f} min",
+        )
+
+
+class DeadlockEscapeTests(TestCase):
+    """Two routes holding each other's street must still finish.
+
+    A queue model can deadlock where a real city does. The rule is that a
+    junction blocked for DEADLOCK_TICKS consecutive ticks releases its budget
+    anyway, over storage, and counts the release.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="deadlock", password="12345")
+        # Short links so storage is small and they fill immediately.
+        self.game_map, self.version, self.nodes = _grid_map(
+            "Deadlock map", 3, step_units=1.0
+        )
+        self.first = _street(
+            self.game_map, self.version, self.nodes[0], self.nodes[1]
+        )
+        self.second = _street(
+            self.game_map, self.version, self.nodes[1], self.nodes[2]
+        )
+        self.session = _session(self.user, self.game_map, people_per_agent=300, std_dev=1)
+        self.game_round = GameRound.objects.create(game=self.session, round_number=1)
+        self.anna = Player.objects.create(name="Anna", game=self.session)
+        self.ben = Player.objects.create(name="Ben", game=self.session)
+        # Each route needs the link the other one is standing on.
+        self.route_a = _route(
+            self.game_round, self.anna, [self.first, self.second], agent_id=1
+        )
+        self.route_b = _route(
+            self.game_round, self.ben, [self.second, self.first], agent_id=2
+        )
+
+    def test_the_gridlock_resolves(self):
+        from game.tests._helpers import muted
+
+        simulator = TrafficSimulator(self.game_round, scale=100.0)
+        with muted():
+            simulator.run_simulation(max_ticks=300)
+
+        for route in (self.route_a, self.route_b):
+            results = simulator.agent_results[route.pk]
+            self.assertEqual(
+                results["not_arrived"],
+                0,
+                "vehicles were left standing in a deadlock",
+            )
+
+    def test_the_escape_is_counted(self):
+        from game.tests._helpers import muted
+
+        simulator = TrafficSimulator(self.game_round, scale=100.0)
+        with muted():
+            simulator.run_simulation(max_ticks=300)
+
+        self.assertGreater(
+            simulator.forced_releases,
+            0,
+            "the deadlock rule never fired, so the run was not actually locked",
+        )
+
+
+class ObservedEdgeSpeedTests(TestCase):
+    """Per-edge speed is an output of the run, and it is the CAR speed.
+
+    A pedestrian takes 10.7 minutes over an 895 m edge where a car takes 1.07.
+    Letting walkers into this mean would report an empty street as jammed —
+    and this number feeds both the CO2 factor and the players' route preview.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="speeds", password="12345")
+        self.game_map, self.version, self.nodes = _grid_map("Speed map", 3)
+        self.edges = [
+            _street(self.game_map, self.version, self.nodes[i], self.nodes[i + 1])
+            for i in range(2)
+        ]
+        self.session = _session(self.user, self.game_map, people_per_agent=5)
+        self.game_round = GameRound.objects.create(game=self.session, round_number=1)
+        self.player = Player.objects.create(name="Fahrer", game=self.session)
+
+    def test_an_empty_edge_reports_free_flow(self):
+        from game.simulation import EdgeState
+
+        state = EdgeState(
+            edge_id=1, distance_m=900.0, free_flow_speed_kmh=50.0, car_lanes=1
+        )
+
+        self.assertAlmostEqual(state.mean_speed_kmh, 50.0, places=2)
+
+    def test_a_walked_edge_does_not_report_walking_pace(self):
+        from game.tests._helpers import muted
+
+        _route(self.game_round, self.player, self.edges, mode="walk")
+        simulator = TrafficSimulator(self.game_round, scale=100.0)
+        with muted():
+            simulator.run_simulation(max_ticks=300)
+
+        for edge in self.edges:
+            self.assertAlmostEqual(
+                simulator.edge_states[edge.pk].mean_speed_kmh, 50.0, places=1
+            )
+
+
+class DepartureMinuteTests(TestCase):
+    """Departures are minutes, not tick buckets.
+
+    Bucketing quantised every trip to five minutes before the simulation had
+    started. The tick is a simulation step, not a property of when people
+    leave the house.
+    """
+
+    def test_returns_minutes_within_the_window(self):
+        from game.simulation import generate_departure_minutes
+
+        departures = generate_departure_minutes(200, base_hour=9, std_dev_min=10)
+
+        self.assertEqual(len(departures), 200)
+        self.assertTrue(all(0.0 <= d <= 120.0 for d in departures))
+
+    def test_not_every_departure_is_a_whole_tick(self):
+        from game.simulation import generate_departure_minutes
+
+        departures = generate_departure_minutes(200, base_hour=9, std_dev_min=10)
+
+        self.assertTrue(any(abs(d % 5) > 0.01 for d in departures))
+
+    def test_zero_std_dev_puts_everyone_at_the_base_hour(self):
+        from game.simulation import generate_departure_minutes
+
+        departures = generate_departure_minutes(20, base_hour=9, std_dev_min=0)
+
+        # 60 minutes into a window that starts at base_hour - 1.
+        self.assertTrue(all(abs(d - 60.0) < 0.01 for d in departures))
+>>>>>>> 574e9a6 (tests: die strasse ist endlich, staus stauen sich zurueck (rot))
