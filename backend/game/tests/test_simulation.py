@@ -530,47 +530,42 @@ class PTLineSpeedLoadingTests(TestCase):
 
 
 class BusTrafficIntegrationTests(TestCase):
-    """Tests for bus traffic integration with dedicated lanes."""
+    """A bus on a dedicated lane does not sit in the car queue.
 
-    def test_bus_on_dedicated_lane_not_in_volume(self):
-        """Test that buses on dedicated lanes don't affect traffic volume."""
-        edge_state = EdgeState(
+    Rewritten for the queue model: the intent is unchanged, but "not in the
+    volume count" is now "does not occupy the carriageway".
+    """
+
+    def _state(self, bus_lane):
+        return EdgeState(
             edge_id=1,
-            distance_m=1000,
-            free_flow_speed_kmh=50,
-            capacity=100,
-            has_dedicated_bus_lane=True,
+            distance_m=1000.0,
+            free_flow_speed_kmh=50.0,
+            car_lanes=1,
+            has_dedicated_bus_lane=bus_lane,
         )
 
-        # Add 5 cars and 2 buses
-        edge_state.current_vehicles = {1, 2, 3, 4, 5, 6, 7}
-        edge_state.buses_on_dedicated_lane = {6, 7}
+    def test_bus_on_dedicated_lane_does_not_queue(self):
+        simulator = TrafficSimulator.__new__(TrafficSimulator)
 
-        # Volume should only count the 5 cars
-        self.assertEqual(edge_state.volume, 5)
-        # Speed should be calculated based on 5 vehicles, not 7
-        expected_speed = bpr_speed(50, 5, 100)
-        self.assertAlmostEqual(edge_state.get_current_speed(), expected_speed, places=2)
-
-    def test_bus_on_regular_street_in_volume(self):
-        """Test that buses on regular streets affect traffic volume."""
-        edge_state = EdgeState(
-            edge_id=1,
-            distance_m=1000,
-            free_flow_speed_kmh=50,
-            capacity=100,
-            has_dedicated_bus_lane=False,  # No dedicated lane
+        self.assertFalse(
+            simulator._queues_for_traffic("bus", self._state(bus_lane=True))
         )
 
-        # Add 5 cars and 2 buses (all on same street)
-        edge_state.current_vehicles = {1, 2, 3, 4, 5, 6, 7}
-        # No buses on dedicated lane (none exists)
+    def test_bus_on_regular_street_queues_with_the_cars(self):
+        simulator = TrafficSimulator.__new__(TrafficSimulator)
 
-        # Volume should count all 7 vehicles
-        self.assertEqual(edge_state.volume, 7)
-        # Speed should be calculated based on 7 vehicles
-        expected_speed = bpr_speed(50, 7, 100)
-        self.assertAlmostEqual(edge_state.get_current_speed(), expected_speed, places=2)
+        self.assertTrue(
+            simulator._queues_for_traffic("bus", self._state(bus_lane=False))
+        )
+
+    def test_a_bus_takes_more_room_than_a_car(self):
+        from game.simulation import BUS_PCU
+
+        simulator = TrafficSimulator.__new__(TrafficSimulator)
+
+        self.assertEqual(simulator._pcu_for("bus"), BUS_PCU)
+        self.assertEqual(simulator._pcu_for("car"), 1.0)
 
 
 <<<<<<< HEAD
