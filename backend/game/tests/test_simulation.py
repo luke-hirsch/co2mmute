@@ -571,3 +571,220 @@ class BusTrafficIntegrationTests(TestCase):
         # Speed should be calculated based on 7 vehicles
         expected_speed = bpr_speed(50, 7, 100)
         self.assertAlmostEqual(edge_state.get_current_speed(), expected_speed, places=2)
+
+
+class ZeroSpeedLimitEdgeTests(TestCase):
+    """A street with speed_limit = 0 must not become a zero-speed edge.
+
+    Eight such rows ship with the example maps (Tiergartenstr., Verlängerung
+    Alt-Moabit). A car on one can never advance at any volume, and its delay
+    records as 0 because the delay term is guarded on base_speed > 0 — so the
+    one edge that is completely stuck also reports no congestion.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="zerospeed", password="12345")
+        self.game_map = GameMap.objects.create(
+            name="Zero Speed Map",
+            x_dim=10,
+            y_dim=10,
+            scale=100.0,
+            default_car_speed_kmh=60,
+        )
+        self.map_version = MapVersion.objects.create(
+            game_map=self.game_map, name="Base", base_version=True
+        )
+        self.node1 = Node.objects.create(
+            game_map=self.game_map, x_position=0, y_position=0
+        )
+        self.node1.map_versions.add(self.map_version)
+        self.node2 = Node.objects.create(
+            game_map=self.game_map, x_position=2, y_position=0
+        )
+        self.node2.map_versions.add(self.map_version)
+
+        self.edge = Edge.objects.create(
+            game_map=self.game_map,
+            name="Tiergartenstr.",
+            start_node=self.node1,
+            end_node=self.node2,
+        )
+        self.edge.map_versions.add(self.map_version)
+
+        # The defect, exactly as it ships in map_examples/Berlin_Mitte-West.json
+        self.street_edge = StreetEdge.objects.create(
+            edge=self.edge, speed_limit=0, lanes=1
+        )
+        self.street_edge.map_versions.add(self.map_version)
+
+        self.game_session = GameSession.objects.create(
+            game_host=self.user,
+            game_name="Zero Speed Game",
+            game_map=self.game_map,
+            max_players=4,
+            agent_per_player=1,
+            max_rounds=3,
+            max_CO2_level=1000,
+        )
+        self.game_round = GameRound.objects.create(
+            game=self.game_session, round_number=1
+        )
+        self.player = Player.objects.create(name="Fahrer", game=self.game_session)
+        self.player_move = PlayerMove.objects.create(
+            session_round=self.game_round,
+            player=self.player,
+            action="route_submit",
+        )
+        self.agent_route = AgentRoute.objects.create(
+            player_move=self.player_move,
+            agent_id=1,
+            transport_mode="car",
+            total_distance_m=200,
+            estimated_time_min=5,
+        )
+        RouteSegment.objects.create(
+            agent_route=self.agent_route,
+            order=1,
+            edge=self.edge,
+            mode="car",
+        )
+
+    def test_zero_speed_limit_falls_back_to_the_map_default(self):
+        simulator = TrafficSimulator(self.game_round, scale=100.0)
+
+        edge_state = simulator.edge_states[self.edge.pk]
+
+        self.assertEqual(edge_state.free_flow_speed_kmh, 60)
+
+    def test_a_car_on_such_an_edge_can_move(self):
+        simulator = TrafficSimulator(self.game_round, scale=100.0)
+
+        edge_state = simulator.edge_states[self.edge.pk]
+
+        self.assertGreater(edge_state.get_current_speed(), 0)
+
+
+class NonArrivalAccountingTests(TestCase):
+    """Vehicles still under way when the clock stops have to be counted.
+
+    trip_times is appended on arrival only, so a round that did not finish
+    reported a mean over its survivors while CO2 and cost billed the whole
+    route for everyone — and a route where nobody arrived fell back to the
+    client's free-flow estimate with delay 0, which renders total gridlock as
+    the fastest trip on the screen.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="stranded", password="12345")
+        self.game_map = GameMap.objects.create(
+            name="Stranded Map", x_dim=10, y_dim=10, scale=100.0
+        )
+        self.map_version = MapVersion.objects.create(
+            game_map=self.game_map, name="Base", base_version=True
+        )
+        self.node1 = Node.objects.create(
+            game_map=self.game_map, x_position=0, y_position=0
+        )
+        self.node1.map_versions.add(self.map_version)
+        self.node2 = Node.objects.create(
+            game_map=self.game_map, x_position=3, y_position=0
+        )
+        self.node2.map_versions.add(self.map_version)
+        self.edge = Edge.objects.create(
+            game_map=self.game_map, start_node=self.node1, end_node=self.node2
+        )
+        self.edge.map_versions.add(self.map_version)
+        self.street_edge = StreetEdge.objects.create(
+            edge=self.edge, speed_limit=50, lanes=1
+        )
+        self.street_edge.map_versions.add(self.map_version)
+
+        self.game_session = GameSession.objects.create(
+            game_host=self.user,
+            game_name="Stranded Game",
+            game_map=self.game_map,
+            max_players=4,
+            agent_per_player=1,
+            max_rounds=3,
+            max_CO2_level=1000,
+        )
+        self.game_round = GameRound.objects.create(
+            game=self.game_session, round_number=1
+        )
+        self.player = Player.objects.create(name="Fahrer", game=self.game_session)
+        self.player_move = PlayerMove.objects.create(
+            session_round=self.game_round,
+            player=self.player,
+            action="route_submit",
+        )
+        self.agent_route = AgentRoute.objects.create(
+            player_move=self.player_move,
+            agent_id=1,
+            transport_mode="car",
+            total_distance_m=300,
+            estimated_time_min=7,
+        )
+        RouteSegment.objects.create(
+            agent_route=self.agent_route, order=1, edge=self.edge, mode="car"
+        )
+
+    def test_result_tracking_starts_with_a_non_arrival_counter(self):
+        simulator = TrafficSimulator(self.game_round, scale=100.0)
+
+        results = simulator.agent_results[self.agent_route.pk]
+
+        self.assertEqual(results["not_arrived"], 0)
+
+    def test_stranded_vehicles_are_recorded_at_their_elapsed_time(self):
+        from game.simulation import Vehicle
+
+        simulator = TrafficSimulator(self.game_round, scale=100.0)
+        simulator.current_tick = 200
+        simulator.vehicles[1] = Vehicle(
+            route_pk=self.agent_route.pk,
+            person_index=0,
+            mode="car",
+            segment_index=0,
+            position_on_edge_m=10.0,
+            total_travel_time_min=180.0,
+            congestion_delay_min=150.0,
+            departed=True,
+            arrived=False,
+            passenger_count=2,
+        )
+
+        simulator._record_non_arrivals()
+
+        results = simulator.agent_results[self.agent_route.pk]
+        self.assertEqual(results["not_arrived"], 2)
+        self.assertEqual(results["trip_times"], [180.0, 180.0])
+        self.assertEqual(results["delays"], [150.0, 150.0])
+
+    def test_arrived_and_undeparted_vehicles_are_left_alone(self):
+        from game.simulation import Vehicle
+
+        simulator = TrafficSimulator(self.game_round, scale=100.0)
+        simulator.vehicles[1] = Vehicle(
+            route_pk=self.agent_route.pk,
+            person_index=0,
+            mode="car",
+            segment_index=0,
+            position_on_edge_m=0.0,
+            departed=True,
+            arrived=True,
+        )
+        simulator.vehicles[2] = Vehicle(
+            route_pk=self.agent_route.pk,
+            person_index=1,
+            mode="car",
+            segment_index=0,
+            position_on_edge_m=0.0,
+            departed=False,
+            arrived=False,
+        )
+
+        simulator._record_non_arrivals()
+
+        results = simulator.agent_results[self.agent_route.pk]
+        self.assertEqual(results["not_arrived"], 0)
+        self.assertEqual(results["trip_times"], [])
