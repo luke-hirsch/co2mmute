@@ -279,11 +279,11 @@ const PTLinePanel = ({
       {/* Existing lines */}
       <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle">
         <h3 className="text-lg font-semibold text-main dark:text-darktext mb-3">
-          PT Lines ({allLines.length})
+          {de.editor.ptLine.countTitle(allLines.length)}
         </h3>
         {allLines.length === 0 ? (
           <p className="text-sm text-mutedtext dark:text-darkmutedtext">
-            No public transport lines yet.
+            {de.editor.ptLine.none}
           </p>
         ) : (
           <div className="space-y-2">
@@ -310,7 +310,7 @@ const PTLinePanel = ({
                     {line.name}
                   </span>
                   <span className="text-xs text-mutedtext dark:text-darkmutedtext ml-2">
-                    {line.edges.length} edges, {line.interval}min
+                    {de.editor.ptLine.summary(line.edges.length, line.interval)}
                   </span>
                 </div>
                 <div className="flex gap-1">
@@ -319,7 +319,7 @@ const PTLinePanel = ({
                     disabled={!!ptLineCreating || (!!editingLine && editingLine.id !== line.id)}
                     className="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 disabled:opacity-30"
                   >
-                    Edit
+                    {de.editor.edit}
                   </button>
                   <button
                     onClick={() =>
@@ -331,7 +331,7 @@ const PTLinePanel = ({
                     disabled={!!editingLine || !!ptLineCreating}
                     className="text-xs text-red-600 hover:text-red-800 dark:text-red-400 disabled:opacity-30"
                   >
-                    Delete
+                    {de.editor.delete}
                   </button>
                 </div>
               </div>
@@ -351,12 +351,12 @@ const PTLinePanel = ({
               onClick={cancelEdit}
               className="text-xs text-mutedtext dark:text-darkmutedtext hover:text-main dark:hover:text-darktext"
             >
-              Cancel
+              {de.editor.cancel}
             </button>
           </div>
 
           <div>
-            <label className="text-xs text-mutedtext dark:text-darkmutedtext">Name</label>
+            <label className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.ptLine.name}</label>
             <input
               type="text"
               value={editName}
@@ -368,7 +368,7 @@ const PTLinePanel = ({
           <div className="grid grid-cols-3 gap-2">
             <div>
               <label className="text-xs text-mutedtext dark:text-darkmutedtext">
-                Interval
+                {de.editor.ptLine.interval}
               </label>
               <input
                 type="number"
@@ -379,7 +379,7 @@ const PTLinePanel = ({
               />
             </div>
             <div>
-              <label className="text-xs text-mutedtext dark:text-darkmutedtext">Capacity</label>
+              <label className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.ptLine.capacity}</label>
               <input
                 type="number"
                 min={1}
@@ -389,7 +389,7 @@ const PTLinePanel = ({
               />
             </div>
             <div>
-              <label className="text-xs text-mutedtext dark:text-darkmutedtext">Speed</label>
+              <label className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.ptLine.speed}</label>
               <input
                 type="number"
                 min={1}
@@ -407,7 +407,7 @@ const PTLinePanel = ({
             </p>
             {ptLineEdgeIds.length === 0 ? (
               <p className="text-xs text-amber-600 dark:text-amber-400">
-                Click edges on the map to build the route
+                {de.editor.ptLine.pickEdges}
               </p>
             ) : (
               <div className="flex flex-col gap-1">
@@ -450,7 +450,7 @@ const PTLinePanel = ({
                         <button
                           onClick={() => handleFlipEdge(idx)}
                           className="text-xs px-1 py-0.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 rounded"
-                          title="Flip direction"
+                          title={de.editor.ptLine.flipDirection}
                         >
                           ↔
                         </button>
@@ -461,7 +461,7 @@ const PTLinePanel = ({
               </div>
             )}
             <p className="text-xs text-mutedtext dark:text-darkmutedtext mt-1">
-              Click edges on map to extend. Click end edges to remove.
+              {de.editor.ptLine.extendHint}
             </p>
           </div>
 
@@ -479,7 +479,7 @@ const PTLinePanel = ({
                 updateTrainMutation.error ||
                 updateBusEdgesMutation.error ||
                 updateTrainEdgesMutation.error)?.message ??
-                "Failed to save changes"}
+                de.editor.saveFailed}
             </p>
           )}
 
@@ -501,7 +501,7 @@ const PTLinePanel = ({
           </h3>
 
           <div>
-            <label className="text-xs text-mutedtext dark:text-darkmutedtext">Name</label>
+            <label className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.ptLine.name}</label>
             <input
               type="text"
               value={name}
@@ -514,7 +514,7 @@ const PTLinePanel = ({
           <div className="grid grid-cols-3 gap-2">
             <div>
               <label className="text-xs text-mutedtext dark:text-darkmutedtext">
-                Interval
+                {de.editor.ptLine.interval}
               </label>
               <input
                 type="number"
@@ -525,7 +525,7 @@ const PTLinePanel = ({
               />
             </div>
             <div>
-              <label className="text-xs text-mutedtext dark:text-darkmutedtext">Capacity</label>
+              <label className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.ptLine.capacity}</label>
               <input
                 type="number"
                 min={1}
@@ -535,7 +535,7 @@ const PTLinePanel = ({
               />
             </div>
             <div>
-              <label className="text-xs text-mutedtext dark:text-darkmutedtext">Speed</label>
+              <label className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.ptLine.speed}</label>
               <input
                 type="number"
                 min={1}
@@ -553,7 +553,7 @@ const PTLinePanel = ({
             </p>
             {ptLineEdgeIds.length === 0 ? (
               <p className="text-xs text-amber-600 dark:text-amber-400">
-                Click edges on the map to build the route
+                {de.editor.ptLine.pickEdges}
               </p>
             ) : (
               <div className="flex flex-col gap-1">
@@ -589,7 +589,7 @@ const PTLinePanel = ({
                         <button
                           onClick={() => handleFlipEdge(idx)}
                           className="text-xs px-1 py-0.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 rounded"
-                          title="Flip direction"
+                          title={de.editor.ptLine.flipDirection}
                         >
                           ↔
                         </button>
@@ -609,7 +609,7 @@ const PTLinePanel = ({
           {(createBusMutation.isError || createTrainMutation.isError) && (
             <p className="text-xs text-red-600 dark:text-red-400">
               {(createBusMutation.error || createTrainMutation.error)?.message ??
-                "Failed to create line"}
+                de.editor.ptLine.createFailed}
             </p>
           )}
 

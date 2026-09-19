@@ -87,7 +87,7 @@ const MapViewer = ({
         <div className="flex items-center justify-center h-96">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-main mx-auto mb-4"></div>
-            <p className="text-mutedtext dark:text-darkmutedtext">Loading map...</p>
+            <p className="text-mutedtext dark:text-darkmutedtext">{de.map.loading}</p>
           </div>
         </div>
       </div>
@@ -99,7 +99,7 @@ const MapViewer = ({
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
           <h3 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">
-            Error Loading Map
+            {de.map.loadFailed}
           </h3>
           <p className="text-red-700 dark:text-red-300">{error}</p>
         </div>
@@ -112,7 +112,7 @@ const MapViewer = ({
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         <div className="bg-subtle dark:bg-darksubtle rounded-lg p-6 border border-subtle dark:border-darksubtle">
           <p className="text-mutedtext dark:text-darkmutedtext">
-            No graph data available
+            {de.map.noGraph}
           </p>
         </div>
       </div>
@@ -170,7 +170,7 @@ const MapViewer = ({
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
             <p className="text-sm text-mutedtext dark:text-darkmutedtext">
-              Max Players
+              {de.editor.settings.maxPlayer}
             </p>
             <p className="text-2xl font-bold text-main dark:text-darktext">
               {gameMap.max_player}
@@ -178,21 +178,21 @@ const MapViewer = ({
           </div>
           <div>
             <p className="text-sm text-mutedtext dark:text-darkmutedtext">
-              Dimensions
+              {de.map.dimensions}
             </p>
             <p className="text-2xl font-bold text-main dark:text-darktext">
               {gameMap.x_dim} × {gameMap.y_dim}
             </p>
           </div>
           <div>
-            <p className="text-sm text-mutedtext dark:text-darkmutedtext">Author</p>
+            <p className="text-sm text-mutedtext dark:text-darkmutedtext">{de.map.author}</p>
             <p className="text-lg font-semibold text-main dark:text-darktext">
               {gameMap.author.username}
             </p>
           </div>
           <div>
             <p className="text-sm text-mutedtext dark:text-darkmutedtext">
-              Created
+              {de.map.created}
             </p>
             <p className="text-lg font-semibold text-main dark:text-darktext">
               {new Date(gameMap.created).toLocaleDateString()}
@@ -205,20 +205,20 @@ const MapViewer = ({
       <div className="bg-subtle dark:bg-darksubtle rounded-lg p-6 mb-8 border border-subtle dark:border-darksubtle">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <div>
-            <p className="text-sm text-mutedtext dark:text-darkmutedtext">Nodes</p>
+            <p className="text-sm text-mutedtext dark:text-darkmutedtext">{de.map.nodes}</p>
             <p className="text-2xl font-bold text-main dark:text-darktext">
               {mapGraph.node_count}
             </p>
           </div>
           <div>
-            <p className="text-sm text-mutedtext dark:text-darkmutedtext">Edges</p>
+            <p className="text-sm text-mutedtext dark:text-darkmutedtext">{de.map.edges}</p>
             <p className="text-2xl font-bold text-main dark:text-darktext">
               {mapGraph.edge_count}
             </p>
           </div>
           <div>
             <p className="text-sm text-mutedtext dark:text-darkmutedtext">
-              Version
+              {de.map.version}
             </p>
             <p className="text-lg font-semibold text-main dark:text-darktext">
               {mapGraph.version_name}
@@ -365,14 +365,14 @@ const MapViewer = ({
         <div className="lg:col-span-1">
           <div className="sticky top-8 bg-subtle dark:bg-darksubtle rounded-lg p-6 border border-subtle dark:border-darksubtle">
             <h3 className="text-lg font-semibold text-main dark:text-darktext mb-4">
-              Details
+              {de.map.details}
             </h3>
 
             {selectedNode ? (
               <div className="space-y-4">
                 <div>
                   <p className="text-xs text-mutedtext dark:text-darkmutedtext">
-                    Node
+                    {de.editor.node.title}
                   </p>
                   <p className="font-semibold text-main dark:text-darktext">
                     {selectedNode.name}
@@ -380,7 +380,7 @@ const MapViewer = ({
                 </div>
                 <div>
                   <p className="text-xs text-mutedtext dark:text-darkmutedtext">
-                    Position
+                    {de.editor.node.position}
                   </p>
                   <p className="text-sm text-main dark:text-darktext">
                     ({selectedNode.x_position}, {selectedNode.y_position})
@@ -388,7 +388,7 @@ const MapViewer = ({
                 </div>
                 <div>
                   <p className="text-xs text-mutedtext dark:text-darkmutedtext">
-                    Types
+                    {de.editor.node.types}
                   </p>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {selectedNode.node_type.map((t) => (
@@ -405,14 +405,14 @@ const MapViewer = ({
                   onClick={() => setSelectedElement(null)}
                   className="w-full mt-4 px-4 py-2 bg-main dark:bg-darktext text-white dark:text-black rounded hover:opacity-80 transition-opacity text-sm"
                 >
-                  Clear Selection
+                  {de.map.clearSelection}
                 </button>
               </div>
             ) : selectedEdge ? (
               <div className="space-y-4">
                 <div>
                   <p className="text-xs text-mutedtext dark:text-darkmutedtext">
-                    Edge
+                    {de.editor.edge.title}
                   </p>
                   <p className="font-semibold text-main dark:text-darktext">
                     {selectedEdge.name}
@@ -420,7 +420,7 @@ const MapViewer = ({
                 </div>
                 <div>
                   <p className="text-xs text-mutedtext dark:text-darkmutedtext">
-                    Edge Type
+                    {de.editor.edge.type}
                   </p>
                   <div className="flex flex-col gap-2 mt-1">
                     {selectedEdge.street_edge ? (
@@ -435,7 +435,7 @@ const MapViewer = ({
                     ) : null}
                     {selectedEdge.train_edge ? (
                       <span className="text-xs bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100 px-2 py-1 rounded">
-                        Train
+                        {de.editor.edge.train}
                       </span>
                     ) : null}
                     {!selectedEdge.street_edge && !selectedEdge.train_edge ? (
@@ -448,17 +448,17 @@ const MapViewer = ({
                 {(selectedEdge.biking || selectedEdge.walking) && (
                   <div>
                     <p className="text-xs text-mutedtext dark:text-darkmutedtext">
-                      Accessible By
+                      {de.editor.edge.accessibleBy}
                     </p>
                     <div className="flex gap-2 mt-1">
                       {selectedEdge.biking && (
                         <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100 px-2 py-1 rounded">
-                          Biking
+                          {de.editor.edge.biking}
                         </span>
                       )}
                       {selectedEdge.walking && (
                         <span className="text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 px-2 py-1 rounded">
-                          Walking
+                          {de.editor.edge.walking}
                         </span>
                       )}
                     </div>
@@ -466,7 +466,7 @@ const MapViewer = ({
                 )}
                 <div>
                   <p className="text-xs text-mutedtext dark:text-darkmutedtext">
-                    Max Lanes
+                    {de.editor.edge.maxLanes}
                   </p>
                   <p className="text-sm text-main dark:text-darktext">
                     {selectedEdge.max_lanes}
@@ -476,12 +476,12 @@ const MapViewer = ({
                   onClick={() => setSelectedElement(null)}
                   className="w-full mt-4 px-4 py-2 bg-main dark:bg-darktext text-white dark:text-black rounded hover:opacity-80 transition-opacity text-sm"
                 >
-                  Clear Selection
+                  {de.map.clearSelection}
                 </button>
               </div>
             ) : (
               <p className="text-sm text-mutedtext dark:text-darkmutedtext">
-                Click on a node or edge to view details
+                {de.map.pickHint}
               </p>
             )}
           </div>

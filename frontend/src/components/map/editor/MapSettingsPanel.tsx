@@ -44,24 +44,48 @@ const MapSettingsPanel = ({ mapId, gameMap }: MapSettingsPanelProps) => {
     max: number;
     step: number;
   }[] = [
-    { field: "x_dim", label: "Width (grid units)", min: 1, max: 100, step: 1 },
-    { field: "y_dim", label: "Height (grid units)", min: 1, max: 100, step: 1 },
-    { field: "scale", label: "Scale (m per unit)", min: 1, max: 10000, step: 1 },
-    { field: "max_player", label: "Max Players", min: 1, max: 20, step: 1 },
-    { field: "walk_speed_kmh", label: "Walk Speed (km/h)", min: 1, max: 15, step: 1 },
-    { field: "bike_speed_kmh", label: "Bike Speed (km/h)", min: 5, max: 50, step: 1 },
-    { field: "default_car_speed_kmh", label: "Default Car Speed (km/h)", min: 10, max: 200, step: 5 },
+    { field: "x_dim", label: de.editor.settings.xDim, min: 1, max: 100, step: 1 },
+    { field: "y_dim", label: de.editor.settings.yDim, min: 1, max: 100, step: 1 },
+    { field: "scale", label: de.editor.settings.scale, min: 1, max: 10000, step: 1 },
+    {
+      field: "max_player",
+      label: de.editor.settings.maxPlayer,
+      min: 1,
+      max: 20,
+      step: 1,
+    },
+    {
+      field: "walk_speed_kmh",
+      label: de.editor.settings.walkSpeed,
+      min: 1,
+      max: 15,
+      step: 1,
+    },
+    {
+      field: "bike_speed_kmh",
+      label: de.editor.settings.bikeSpeed,
+      min: 5,
+      max: 50,
+      step: 1,
+    },
+    {
+      field: "default_car_speed_kmh",
+      label: de.editor.settings.carSpeed,
+      min: 10,
+      max: 200,
+      step: 5,
+    },
   ];
 
   return (
     <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle space-y-3">
       <h3 className="text-lg font-semibold text-main dark:text-darktext">
-        Map Settings
+        {de.editor.settings.title}
       </h3>
 
       <div>
         <label className="block text-xs text-mutedtext dark:text-darkmutedtext mb-1">
-          Name
+          {de.editor.settings.name}
         </label>
         <input
           type="text"
@@ -101,7 +125,7 @@ const MapSettingsPanel = ({ mapId, gameMap }: MapSettingsPanelProps) => {
         </button>
       </div>
       {updateMutation.isSuccess && (
-        <p className="text-xs text-green-600 dark:text-green-400">Saved</p>
+        <p className="text-xs text-green-600 dark:text-green-400">{de.editor.saved}</p>
       )}
     </div>
   );

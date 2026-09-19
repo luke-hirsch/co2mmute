@@ -111,12 +111,23 @@ const redeemRefusal: Record<RedeemRefusal, string> = {
   ended: "Das Spiel ist vorbei.",
 };
 
-/** Why the game is over. `game/signals.py` sends one of the two. */
-export type GameEndReason = "co2_limit" | "max_rounds";
+/**
+ * Why the game is over. `game/signals.py` sends one of these.
+ *
+ * `host` and `idle` are here ahead of the backend that sends them
+ * (`.claude/plans/to-do/[backend]-game-ending.md`): the reason used to be
+ * recomputed at read time from "over budget or not", so every ending that was
+ * neither reported `max_rounds` — a game stopped by hand in round 1 said "Alle
+ * Runden sind gefahren" above "0 Runden gefahren". Adding the words first lets
+ * that guide land on its own and be visible the day it does.
+ */
+export type GameEndReason = "co2_limit" | "max_rounds" | "host" | "idle";
 
 const endReason: Record<GameEndReason, string> = {
   co2_limit: "Das CO₂-Budget ist aufgebraucht.",
   max_rounds: "Alle Runden sind gefahren.",
+  host: "Die Spielleitung hat das Spiel beendet.",
+  idle: "Das Spiel lag zu lange still und hat sich selbst beendet.",
 };
 
 export const de = {
@@ -189,7 +200,7 @@ export const de = {
       chatOn: "an",
       chatOff: "aus",
     },
-    co2Kg: (kg: number) => `${kg} kg`,
+    co2Kg: (kg: number) => `${kg.toLocaleString("de-DE")} kg`,
     roundsCount: (rounds: number) =>
       rounds === 1 ? "1 Runde" : `${rounds} Runden`,
     seatsTaken: (taken: number, max: number) =>
@@ -244,7 +255,15 @@ export const de = {
 
   co2: {
     label: "CO₂-Budget",
-    used: (usedKg: number, maxKg: number) => `${usedKg} von ${maxKg} kg`,
+    /**
+     * Grouped, like every other figure in the game. It used to print raw
+     * integers — "10349 von 500000 kg" — which is the one number on the screen
+     * a reader has to count digits on.
+     */
+    used: (usedKg: number, maxKg: number) =>
+      `${Math.round(usedKg).toLocaleString("de-DE")} von ${Math.round(
+        maxKg,
+      ).toLocaleString("de-DE")} kg`,
     exceeded: "Budget überschritten",
   },
 
@@ -613,6 +632,20 @@ export const de = {
       busStop: "Bushaltestelle",
       other: "sonstiger Knoten",
     },
+
+    /** The map detail page (`/app/maps/<id>`), which is not the editor. */
+    loading: "Karte wird geladen …",
+    loadFailed: "Die Karte ließ sich nicht laden.",
+    noGraph: "Für diese Karte gibt es keinen Graphen.",
+    dimensions: "Maße",
+    author: "Angelegt von",
+    created: "Angelegt am",
+    nodes: "Knoten",
+    edges: "Kanten",
+    version: "Version",
+    details: "Details",
+    clearSelection: "Auswahl aufheben",
+    pickHint: "Klick einen Knoten oder eine Kante an, um Details zu sehen.",
   },
 
   /**
@@ -627,6 +660,8 @@ export const de = {
     back: "Zurück zur Karte",
     loading: "Karte wird geladen …",
     failed: "Die Karte ließ sich nicht laden.",
+    notFound: "Die Karte gibt es nicht.",
+    unsaved: "Nicht gespeichert",
 
     /** The tools in the graph tab. */
     tools: {
@@ -639,6 +674,13 @@ export const de = {
       bidirectionalHint: "Neue Kanten gelten in beide Richtungen (A↔B).",
       oneWayHint: "Neue Kanten gelten nur in eine Richtung (A→B).",
       deleteHint: "Klick Knoten oder Kanten an, um sie zum Löschen zu markieren.",
+      /** What to do next, per tool. The editor used to say all of this in English. */
+      addNodeHint: "Klick auf die Fläche, um einen Knoten zu setzen.",
+      addEdgeHint: "Klick zwei Knoten an, um sie zu verbinden.",
+      selectHint: "Klick Kanten an, um sie zu ändern.",
+      proposeNodeHint: "Klick auf die Fläche, um einen Knoten vorzuschlagen.",
+      proposeEdgeHint: "Klick zwei Knoten an, um eine Kante vorzuschlagen.",
+      editingPtLine: "Linie wird bearbeitet — klick Kanten auf der Karte an.",
     },
 
     /** The toolbar's tabs. */
@@ -660,6 +702,14 @@ export const de = {
     create: "Anlegen",
     creating: "Wird angelegt …",
     nothingSelected: "Nichts ausgewählt.",
+    modify: "Ändern",
+    remove: "Entfernen",
+    manage: "Verwalten",
+    editMap: "Karte bearbeiten",
+    deleteMap: "Karte löschen",
+    emptyMap: "Leere Karte — leg im Graph-Modus Knoten und Kanten an.",
+    pickHint: "Klick einen Knoten oder eine Kante an, um sie zu bearbeiten.",
+    versionStep1: "Schritt 1: Angaben zur Version",
     edit: "Bearbeiten",
     saveSettings: "Einstellungen speichern",
     saveChanges: "Änderungen speichern",
@@ -697,6 +747,7 @@ export const de = {
       position: "Position",
       add: "Knoten anlegen",
       removeConfirm: "Der Knoten und alle Kanten daran werden gelöscht.",
+      noTypes: "Es sind keine Knotenarten angelegt.",
     },
 
     /** An edge, and the two kinds that hang off it. */
@@ -713,6 +764,14 @@ export const de = {
       oneWay: "Einbahn",
       add: "Kante ziehen",
       removeConfirm: "Die Kante wird gelöscht.",
+      name: "Name",
+      type: "Art",
+      direction: "Richtung",
+      makeOneWay: "Zur Einbahn machen …",
+      whichDirection: "Welche Richtung soll bleiben?",
+      maxLanes: "Spuren (höchstens)",
+      accessibleBy: "Nutzbar für",
+      distance: "Länge",
     },
 
     /** Bus and train lines. */
@@ -728,6 +787,16 @@ export const de = {
       pickEdges: "Kanten auf der Karte anklicken.",
       add: "Linie anlegen",
       removeConfirm: "Die Linie wird gelöscht. Die Kanten bleiben.",
+      extendHint:
+        "Klick Kanten auf der Karte an, um die Linie zu verlängern. Klick die Enden an, um sie zu kürzen.",
+      flipDirection: "Richtung umdrehen",
+      createFailed: "Die Linie ließ sich nicht anlegen.",
+      none: "Noch keine Linien.",
+      countTitle: (n: number) => `Linien (${n})`,
+      addBus: "+ Buslinie",
+      addTrain: "+ Bahnlinie",
+      summary: (edges: number, interval: number) =>
+        `${edges} Kanten, alle ${interval} min`,
     },
 
     /** Versions: what the class votes on. */
@@ -743,18 +812,51 @@ export const de = {
       compatible: "Verträglich mit",
       generate: "Kombinationen erzeugen",
       hint: "Eine Version ist ein Filter über einen Graphen, keine Kopie.",
+      changeImage: "Bild ändern",
+      replaceImage: "Bild austauschen",
+      uploadImage: "Bild hochladen",
+      loading: "Versionen werden geladen …",
+      none: "Noch keine Versionen.",
+      manage: "Versionen verwalten",
+      description: "Beschreibung",
+      pollForward: "Abstimmungstext (dafür)",
+      pollRevert: "Abstimmungstext (zurück)",
+      /** Creating an alternate version out of the current changes. */
+      createTitle: "Andere Version anlegen",
+      createLead:
+        "Leg die Version fest, über die die Klasse abstimmen kann. Trag unten die Angaben ein und änder dann die Kanten.",
+      versionName: "Name der Version",
+      current: (name: string) => `Aktuell (${name})`,
+      baseSuffix: "(Grundversion)",
+      pollText: "Abstimmungstext",
+      namePlaceholder: "z. B. Busspur auf der Hauptstraße",
+      pollPlaceholder: "z. B. Soll die Hauptstraße eine Busspur bekommen?",
+      revertPlaceholder: "z. B. Soll die Busspur wieder weg?",
+      sourceVersion: "Ausgangsversion",
+      pollQuestion: "Worüber wird abgestimmt?",
+      startEditing: "Bearbeiten",
+      ptLines: "Linien",
+      savePtLine: "Änderung an der Linie speichern",
+      noPtLines: "In dieser Version gibt es keine Linien.",
+      finishPtLineFirst:
+        "Speicher oder verwirf erst die Änderung an der Linie.",
+      createFailed: "Die Version ließ sich nicht anlegen. Versuch es nochmal.",
+      created: "Die Version ist angelegt.",
+      diffHint:
+        "Änder die Karte mit den Werkzeugen oben: Kanten anklicken, um ihre Eigenschaften zu ändern, Knoten und Kanten anlegen oder löschen, oder unten eine Linie ändern.",
     },
 
     /** The map's own settings. */
     settings: {
       title: "Einstellungen",
       name: "Name der Karte",
-      xDim: "Breite",
-      yDim: "Höhe",
+      xDim: "Breite (Rasterfelder)",
+      yDim: "Höhe (Rasterfelder)",
+      scale: "Maßstab (Meter pro Feld)",
       maxPlayer: "Plätze",
-      walkSpeed: "Tempo zu Fuß",
-      bikeSpeed: "Tempo mit dem Rad",
-      carSpeed: "Tempo mit dem Auto",
+      walkSpeed: "Tempo zu Fuß (km/h)",
+      bikeSpeed: "Tempo mit dem Rad (km/h)",
+      carSpeed: "Tempo mit dem Auto (km/h)",
     },
   },
 };

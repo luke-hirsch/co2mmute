@@ -68,7 +68,10 @@ const EditorToolbar = ({
   return (
     <div className="relative z-30 flex flex-wrap items-center gap-2 bg-subtle dark:bg-darksubtle rounded-lg p-3 border border-subtle dark:border-darksubtle">
       {/* Mode tabs */}
-      <div className="flex gap-1">
+      {/* wrap: the five German tab labels are 465px wide, which is more than a
+          phone has. The editor is a desktop tool, but a row that runs off the
+          screen is a bug wherever it happens. */}
+      <div className="flex flex-wrap gap-1">
         {modes.map((m) => (
           <button
             key={m.key}
@@ -105,7 +108,7 @@ const EditorToolbar = ({
           </button>
           {gameMap.background_image_url && (
             <span className="text-xs text-green-600 dark:text-green-400">
-              Image loaded
+              {de.editor.imageLoaded}
             </span>
           )}
         </>
@@ -134,18 +137,18 @@ const EditorToolbar = ({
               onClick={onDeleteSelected}
               className="px-2.5 py-1 text-xs bg-red-600 text-white rounded-md hover:bg-red-700"
             >
-              Delete
+              {de.editor.delete}
             </button>
           )}
           {graphTool === "add-node" && (
             <span className="text-xs text-amber-600 dark:text-amber-400">
-              Click on canvas to place a node
+              {de.editor.tools.addNodeHint}
             </span>
           )}
           {graphTool === "add-edge" && (
             <>
               <span className="text-xs text-amber-600 dark:text-amber-400">
-                Click two nodes to connect them
+                {de.editor.tools.addEdgeHint}
               </span>
               <button
                 onClick={() => onBidirectionalChange(!bidirectional)}
@@ -176,13 +179,13 @@ const EditorToolbar = ({
             onClick={() => onStartPtLine("bus")}
             className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
-            + Bus Line
+            {de.editor.ptLine.addBus}
           </button>
           <button
             onClick={() => onStartPtLine("train")}
             className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-md hover:bg-red-700"
           >
-            + Train Line
+            {de.editor.ptLine.addTrain}
           </button>
         </>
       )}
@@ -196,7 +199,7 @@ const EditorToolbar = ({
             onClick={onCancelPtLine}
             className="px-3 py-1.5 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700"
           >
-            Cancel
+            {de.editor.cancel}
           </button>
         </>
       )}
@@ -204,7 +207,7 @@ const EditorToolbar = ({
       {/* Version mode step indicator */}
       {mode === "version-diff" && versionDiffStep === 1 && (
         <span className="text-sm text-mutedtext dark:text-darkmutedtext">
-          Step 1: Define version details
+          {de.editor.versionStep1}
         </span>
       )}
 
@@ -230,23 +233,23 @@ const EditorToolbar = ({
           </div>
           {versionDiffEditingPtLine && (
             <span className="text-sm text-amber-600 dark:text-amber-400">
-              Editing PT line route — click edges on map
+              {de.editor.tools.editingPtLine}
             </span>
           )}
           {!versionDiffEditingPtLine && graphTool === "select" && (
             <span className="text-xs text-mutedtext dark:text-darkmutedtext">
-              Click edges to modify properties
+              {de.editor.tools.selectHint}
             </span>
           )}
           {!versionDiffEditingPtLine && graphTool === "add-node" && (
             <span className="text-xs text-amber-600 dark:text-amber-400">
-              Click canvas to add a proposed node
+              {de.editor.tools.proposeNodeHint}
             </span>
           )}
           {!versionDiffEditingPtLine && graphTool === "add-edge" && (
             <>
               <span className="text-xs text-amber-600 dark:text-amber-400">
-                Click two nodes to propose an edge
+                {de.editor.tools.proposeEdgeHint}
               </span>
               <button
                 onClick={() => onBidirectionalChange(!bidirectional)}

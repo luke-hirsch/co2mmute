@@ -58,10 +58,10 @@ const NodePropertyPanel = ({ node, mapId }: NodePropertyPanelProps) => {
 
   return (
     <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle space-y-3">
-      <h3 className="text-lg font-semibold text-main dark:text-darktext">Node</h3>
+      <h3 className="text-lg font-semibold text-main dark:text-darktext">{de.editor.node.title}</h3>
 
       <div>
-        <label className="text-xs text-mutedtext dark:text-darkmutedtext">Name</label>
+        <label className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.node.name}</label>
         <input
           type="text"
           value={name}
@@ -72,14 +72,14 @@ const NodePropertyPanel = ({ node, mapId }: NodePropertyPanelProps) => {
       </div>
 
       <div>
-        <p className="text-xs text-mutedtext dark:text-darkmutedtext">Position</p>
+        <p className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.node.position}</p>
         <p className="text-sm text-main dark:text-darktext">
           ({node.x_position.toFixed(2)}, {node.y_position.toFixed(2)})
         </p>
       </div>
 
       <div>
-        <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">Types</p>
+        <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">{de.editor.node.types}</p>
         <div className="flex flex-wrap gap-1">
           {(allNodeTypes ?? []).map((t: NodeType) => (
             <button
@@ -96,7 +96,7 @@ const NodePropertyPanel = ({ node, mapId }: NodePropertyPanelProps) => {
           ))}
           {(!allNodeTypes || allNodeTypes.length === 0) && (
             <span className="text-xs text-mutedtext dark:text-darkmutedtext">
-              No node types defined
+              {de.editor.node.noTypes}
             </span>
           )}
         </div>
@@ -115,11 +115,11 @@ const NodePropertyPanel = ({ node, mapId }: NodePropertyPanelProps) => {
           disabled={deleteMutation.isPending}
           className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
         >
-          Delete
+          {de.editor.delete}
         </button>
       </div>
       {updateMutation.isSuccess && (
-        <p className="text-xs text-green-600 dark:text-green-400">Saved</p>
+        <p className="text-xs text-green-600 dark:text-green-400">{de.editor.saved}</p>
       )}
       {updateMutation.isError && (
         <p className="text-xs text-red-600 dark:text-red-400">{updateMutation.error?.message}</p>

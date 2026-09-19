@@ -1,3 +1,4 @@
+import { de } from "@/lib/de";
 import { useState } from "react";
 import type { Dispatch } from "react";
 import type { GameMap, MapVersion } from "../../../types/mapTypes";
@@ -126,7 +127,7 @@ const EditorSidebar = ({
       {state.mode === "graph" && !selectedNode && !selectedEdge && (
         <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle">
           <p className="text-sm text-mutedtext dark:text-darkmutedtext">
-            Click a node or edge to view and edit its properties.
+            {de.editor.pickHint}
           </p>
         </div>
       )}
@@ -158,7 +159,7 @@ const EditorSidebar = ({
                   : "bg-subtle dark:bg-darksubtle text-main dark:text-darktext hover:bg-white dark:hover:bg-darkbg"
               }`}
             >
-              Create
+              {de.editor.create}
             </button>
             <button
               type="button"
@@ -169,7 +170,7 @@ const EditorSidebar = ({
                   : "bg-subtle dark:bg-darksubtle text-main dark:text-darktext hover:bg-white dark:hover:bg-darkbg"
               }`}
             >
-              Manage
+              {de.editor.manage}
             </button>
           </div>
 

@@ -92,8 +92,15 @@ export type BetweenRoundPhase =
   | "voting"
   | "stalemate";
 
-/** Why a game ended. `game/signals.py`. */
-export type GameEndReason = "co2_limit" | "max_rounds";
+/**
+ * Why a game ended. `game/signals.py`.
+ *
+ * `host` and `idle` are here before the backend sends them
+ * (`.claude/plans/to-do/[backend]-game-ending.md`). The reason used to be
+ * recomputed at read time, so a game the host stopped in round 1 reported
+ * `max_rounds` — "Alle Runden sind gefahren" over "0 Runden gefahren".
+ */
+export type GameEndReason = "co2_limit" | "max_rounds" | "host" | "idle";
 
 /**
  * Why this device lost its seat. `game/roster.py:revoke`.
