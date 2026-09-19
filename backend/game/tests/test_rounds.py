@@ -733,3 +733,165 @@ class PausedRoundTests(PauseMixin, TestCase):
         self.assertEqual(response.status_code, 204)
         self.player.refresh_from_db()
         self.assertIsNotNone(self.player.left_at)
+
+
+# ---------------------------------------------------------------------------
+# Cost units — see `.claude/plans/to-do/[backend]-cost-units.md`.
+#
+# AgentSimulationResult.mean_cost_eur is per person; SimulationResult
+# .total_cost_eur is the whole cohort. The round table sums the first into the
+# player rows and prints the second as "Runde gesamt", so the rows come out
+# exactly people_per_agent times too small. CO2 has no such problem: total_co2_g
+# is already scaled when it is written.
+# ---------------------------------------------------------------------------
+
+
+class SimulatedRoundMixin(TempMediaRootMixin):
+    """A round with a real map and real routes, so the simulation actually runs.
+
+    `_run_simulation` is only reached when AgentRoutes exist
+    (`signals.py:301`); without them the handler takes the hardcoded fallback
+    and none of this is exercised.
+    """
+
+    people_per_agent = 1000
+
+    def setUp(self):
+        from maps.models import Edge, GameMap, MapVersion, Node, StreetEdge
+
+        from game.models import AgentRoute, RouteSegment
+
+        self.host = create_host()
+        self.game_map = GameMap.objects.create(
+            name="Kosten", x_dim=10, y_dim=10, scale=1000.0
+        )
+        version = MapVersion.objects.create(
+            game_map=self.game_map, name="Base", base_version=True
+        )
+        node_a = Node.objects.create(
+            game_map=self.game_map, name="Zuhause", x_position=0, y_position=0
+        )
+        node_a.map_versions.add(version)
+        node_b = Node.objects.create(
+            game_map=self.game_map, name="Arbeit", x_position=2, y_position=0
+        )
+        node_b.map_versions.add(version)
+        edge = Edge.objects.create(
+            game_map=self.game_map, start_node=node_a, end_node=node_b
+        )
+        edge.map_versions.add(version)
+        street_edge = StreetEdge.objects.create(edge=edge, speed_limit=50, lanes=2)
+        street_edge.map_versions.add(version)
+
+        with muted():
+            self.game = create_game_session(
+                self.host,
+                game_name="Kosten",
+                game_map=self.game_map,
+                people_per_agent=self.people_per_agent,
+            )
+            self.player = Player.objects.create(game=self.game, name="Anna")
+            self.other = Player.objects.create(game=self.game, name="Bruno")
+
+        GameSession.objects.filter(pk=self.game.pk).update(
+            is_active=True, started_at=timezone.now(), active_map_version=version
+        )
+        self.game.refresh_from_db()
+
+        self.round = GameRound.objects.create(
+            game=self.game, round_number=1, status=GameRound.Status.ACTIVE
+        )
+
+        for player in (self.player, self.other):
+            with muted():
+                move = PlayerMove.objects.create(
+                    session_round=self.round,
+                    player=player,
+                    action="car",
+                    payload={"agents": [{"id": 1, "action": "car"}]},
+                )
+            route = AgentRoute.objects.create(
+                player_move=move,
+                agent_id=1,
+                transport_mode="car",
+                total_distance_m=2000,
+                estimated_time_min=3,
+            )
+            RouteSegment.objects.create(
+                agent_route=route, order=1, edge=edge, mode="car"
+            )
+
+    def complete_round(self):
+        listener = GroupListener(self.game.game_id)
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            round_completed.send(
+                sender=GameSession, game_session=self.game, game_round=self.round
+            )
+        return listener
+
+
+@override_settings(**TEST_BACKENDS)
+class CostUnitTests(SimulatedRoundMixin, TestCase):
+    """Two numbers meant to be read against each other carry one unit."""
+
+    def test_the_player_rows_add_up_to_the_round_total(self):
+        listener = self.complete_round()
+
+        data = listener.data("round.completed")
+        rows = sum(stat["cost_eur"] for stat in data["player_stats"])
+
+        self.assertAlmostEqual(rows, data["round_cost_eur"], places=2)
+
+    def test_an_agents_own_line_adds_up_to_its_players_row(self):
+        listener = self.complete_round()
+
+        for stat in listener.data("round.completed")["player_stats"]:
+            agents = sum(agent["cost_eur"] for agent in stat["agents"])
+            self.assertAlmostEqual(agents, stat["cost_eur"], places=2)
+
+    def test_the_co2_column_was_already_consistent(self):
+        """The control: CO2 is scaled when it is written, so it always matched.
+        If this one ever goes red the scaling moved, not the units."""
+        listener = self.complete_round()
+
+        data = listener.data("round.completed")
+        rows = sum(stat["emissions_g"] for stat in data["player_stats"])
+
+        self.assertAlmostEqual(rows, data["round_emissions_g"], places=1)
+
+    def test_the_summary_reports_the_cohort_figure(self):
+        self.complete_round()
+        self.client.force_login(self.host)
+
+        with muted():
+            response = self.client.get(f"/api/game/{self.game.game_id}/summary/")
+
+        players = response.json()["players"]
+        self.assertTrue(players)
+        for player in players:
+            self.assertGreater(
+                player["total_cost_eur"],
+                100.0,
+                msg="a 2 km car trip costs about 0,64 € per person and about "
+                "640 € for the thousand people the agent stands for; the "
+                "summary shows the cohort, like the CO2 beside it",
+            )
+
+
+@override_settings(**TEST_BACKENDS)
+class CostUnitWithOnePersonPerAgentTests(SimulatedRoundMixin, TestCase):
+    """people_per_agent = 1 makes the scaling a no-op.
+
+    Without this the test above would pass for a version that simply multiplied
+    everything by a constant it made up.
+    """
+
+    people_per_agent = 1
+
+    def test_rows_and_total_agree_when_there_is_nothing_to_scale(self):
+        listener = self.complete_round()
+
+        data = listener.data("round.completed")
+        rows = sum(stat["cost_eur"] for stat in data["player_stats"])
+
+        self.assertAlmostEqual(rows, data["round_cost_eur"], places=2)
