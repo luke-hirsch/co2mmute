@@ -94,6 +94,9 @@ class GameSessionCreateForm(forms.ModelForm):
             "h-4 w-4 rounded border-gray-300 text-indigo-600 "
             "focus:ring-indigo-500 dark:bg-white/5 dark:border-white/10"
         )
+        self.fields["game_map"].required = True
+
+        self.fields["game_map"].empty_label = None  # type: ignore
         for field_name, field in self.fields.items():
             if isinstance(field.widget, forms.CheckboxInput):
                 field.widget.attrs.setdefault("class", checkbox_class)
@@ -131,9 +134,7 @@ class GameSessionCreateForm(forms.ModelForm):
 
         people_per_agent = cleaned_data.get("people_per_agent")
         if people_per_agent is not None and people_per_agent < 1:
-            self.add_error(
-                "people_per_agent", "People per agent must be at least one."
-            )
+            self.add_error("people_per_agent", "People per agent must be at least one.")
 
         return cleaned_data
 

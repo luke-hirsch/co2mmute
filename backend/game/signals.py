@@ -237,13 +237,16 @@ def game_start(
             GameRound.objects.filter(game=instance).order_by("-round_number").first()
         )
 
-        co2_limit_reached = total_emissions >= (instance.max_CO2_level * 1000)
-
         send_game_state_message(
             instance.game_id,
             "game.ended",
             {
-                "reason": "co2_limit" if co2_limit_reached else "max_rounds",
+                "reason": instance.end_reason
+                or (
+                    "co2_limit"
+                    if total_emissions >= (instance.max_CO2_level * 1000)
+                    else "max_rounds"
+                ),
                 "final_round": final_round.round_number if final_round else 0,
                 "total_emissions_g": total_emissions,
                 "max_co2_level_g": instance.max_CO2_level * 1000,
@@ -356,14 +359,24 @@ def handle_round_completed(
         game_session.is_active = False
         game_session.paused_at = None
         game_session.ended_at = timezone.now()
+        game_session.end_reason = (
+            GameSession.EndReason.CO2_LIMIT
+            if co2_limit_reached
+            else GameSession.EndReason.MAX_ROUNDS
+        )
         game_session.save(
-            update_fields=["is_active", "paused_at", "ended_at", "updated_at"]
+            update_fields=[
+                "is_active",
+                "paused_at",
+                "ended_at",
+                "end_reason",
+                "updated_at",
+            ]
         )
         logger.info(
-            f"Game {game_session.game_id} ended: "
-            f"{'CO2 limit reached' if co2_limit_reached else 'max rounds reached'}"
+            f"Game {game_session.game_id} ended because {game_session.end_reason} (total emissions: {total_game_emissions}g)"
         )
-        # The game_start signal handler will broadcast game.ended
+
         return
 
     # Enter between-round stats phase (next round created after stats ack / voting)

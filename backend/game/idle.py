@@ -55,5 +55,14 @@ def end_idle_game(game: GameSession) -> None:
     game.is_active = False
     game.paused_at = None
     game.ended_at = timezone.now()
-    game.save(update_fields=["is_active", "paused_at", "ended_at", "updated_at"])
+    game.end_reason = GameSession.EndReason.IDLE
+    game.save(
+        update_fields=[
+            "is_active",
+            "paused_at",
+            "ended_at",
+            "end_reason",
+            "updated_at",
+        ]
+    )
     logger.info(f"Game {game.game_id} ended after {game.idle_end_days} idle days")
