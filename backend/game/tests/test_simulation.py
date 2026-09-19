@@ -926,11 +926,19 @@ class LinkCapacityTests(TestCase):
 
 
 class DedicatedBusLaneTests(TestCase):
-    """A bus lane is one of the street's lanes, not an extra one.
+    """`lanes` counts the whole street, the bus lane included.
 
-    Today dedicated_bus_lane only removes buses from the volume count, so the
-    lane is a free gift and voting for one is always right at no cost. Every
-    bus-lane edge in the shipped maps has lanes == max_lanes.
+    Two conventions were possible: (A) lanes = car lanes with the bus lane on
+    top, or (B) lanes = total including it. B, decided by Lukas 2026-09-19:
+    under A every bus-lane version needs two edits that have to agree, and the
+    forgotten second one leaves cars with every lane while the editor looks
+    right. Under B ticking Busspur IS the trade-off. It is also how OSM counts
+    lanes.
+
+    On a one-lane street the tick closes it to cars entirely — a bus gate.
+    That is enforced in the client's pathfinding and at submit; the simulator
+    only has to not hang if a car reaches one anyway, which is what
+    _capacity_lanes is for.
     """
 
     def setUp(self):
@@ -944,7 +952,7 @@ class DedicatedBusLaneTests(TestCase):
         _route(game_round, player, [edge])
         return TrafficSimulator(game_round, scale=100.0)
 
-    def test_bus_lane_costs_a_car_lane(self):
+    def test_a_bus_lane_takes_one_of_the_streets_lanes(self):
         edge = _street(
             self.game_map, self.version, self.nodes[0], self.nodes[1],
             lanes=2, bus_lane=True,
@@ -964,16 +972,52 @@ class DedicatedBusLaneTests(TestCase):
 
         self.assertEqual(simulator.edge_states[edge.pk].car_lanes, 2)
 
-    def test_a_single_lane_street_with_a_bus_lane_keeps_one_car_lane(self):
-        """Never zero: a street cars cannot enter at all would deadlock them."""
+    def test_a_three_lane_street_keeps_two_for_cars(self):
+        edge = _street(
+            self.game_map, self.version, self.nodes[0], self.nodes[1],
+            lanes=3, bus_lane=True,
+        )
+
+        simulator = self._simulator_over(edge)
+
+        self.assertEqual(simulator.edge_states[edge.pk].car_lanes, 2)
+
+    def test_a_single_lane_bus_street_becomes_a_bus_gate(self):
+        """Closed to cars, still open to buses, bikes and pedestrians.
+
+        Edge 507 on "E2E Berlin" (v8 "Busspur Hauptstraße") is exactly this.
+        """
         edge = _street(
             self.game_map, self.version, self.nodes[0], self.nodes[1],
             lanes=1, bus_lane=True,
         )
 
         simulator = self._simulator_over(edge)
+        state = simulator.edge_states[edge.pk]
 
-        self.assertEqual(simulator.edge_states[edge.pk].car_lanes, 1)
+        self.assertEqual(state.car_lanes, 0)
+        self.assertFalse(state.open_to_cars)
+
+    def test_a_bus_gate_still_has_usable_capacity_numbers(self):
+        """Zero lanes must not mean zero flow: a car that reached one anyway
+        would never discharge and would hang the round to max_ticks."""
+        edge = _street(
+            self.game_map, self.version, self.nodes[0], self.nodes[1],
+            lanes=1, bus_lane=True,
+        )
+
+        state = self._simulator_over(edge).edge_states[edge.pk]
+
+        self.assertGreater(state.storage_capacity_pcu, 0)
+        self.assertGreater(state.flow_per_tick(5), 0)
+
+    def test_an_ordinary_street_is_open_to_cars(self):
+        edge = _street(
+            self.game_map, self.version, self.nodes[0], self.nodes[1],
+            lanes=2, bus_lane=True,
+        )
+
+        self.assertTrue(self._simulator_over(edge).edge_states[edge.pk].open_to_cars)
 
 
 class FreeFlowTripTimeTests(TestCase):
