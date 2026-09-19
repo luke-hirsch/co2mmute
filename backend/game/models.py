@@ -14,6 +14,12 @@ logger = logging.getLogger(__name__)
 
 
 class GameSession(models.Model):
+    class EndReason(models.TextChoices):
+        CO2_LIMIT = "co2_limit", "CO2 budget spent"
+        MAX_ROUNDS = "max_rounds", "All rounds played"
+        HOST = "host", "Ended by the host"
+        IDLE = "idle", "Idle for too long"
+
     game_host = models.ForeignKey("auth.User", on_delete=models.CASCADE)
     game_name = models.CharField(max_length=100)
     game_id = models.CharField(max_length=6, unique=True)
@@ -54,6 +60,17 @@ class GameSession(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     started_at = models.DateTimeField(null=True, blank=True)
     ended_at = models.DateTimeField(null=True, blank=True)
+    end_reason = models.CharField(
+        max_length=20,
+        choices=EndReason.choices,
+        null=True,
+        blank=True,
+        help_text=(
+            "Why the game ended. Written once, when it ends — it cannot be "
+            "worked out afterwards, which is why every ending that was not the "
+            "CO2 budget used to report 'all rounds played'."
+        ),
+    )
     anonymised_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:

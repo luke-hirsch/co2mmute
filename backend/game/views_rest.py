@@ -177,9 +177,7 @@ class GameSessionDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIVie
         )
 
         is_stop_game = (
-            "is_active" in request.data
-            and request.data["is_active"] is False
-            and is_currently_active
+            "is_active" in request.data and request.data["is_active"] is False
         )
 
         if is_stopped:
@@ -193,7 +191,15 @@ class GameSessionDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIVie
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             return super().update(request, *args, **kwargs)
+        if is_stop_game:
+            with transaction.atomic():
+                game.is_active = False
+                game.paused_at = None
+                game.ended_at = timezone.now()
+                game.save()
 
+            serializer = self.get_serializer(game)
+            return Response(serializer.data, status=status.HTTP_200_OK)
         if is_currently_active:
             allowed_fields = {"chat_enabled", "game_password", "is_active"}
             provided_fields = set(request.data.keys())
@@ -206,16 +212,6 @@ class GameSessionDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIVie
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
-            if is_stop_game:
-                with transaction.atomic():
-                    game.is_active = False
-                    game.paused_at = None
-                    game.ended_at = timezone.now()
-                    game.save()
-
-                serializer = self.get_serializer(game)
-                return Response(serializer.data, status=status.HTTP_200_OK)
 
             return super().update(request, *args, **kwargs)
 
@@ -819,8 +815,11 @@ class GameSummaryView(GenericAPIView):
         # Determine end reason
         end_reason = None
         if game.ended_at:
-            co2_limit_reached = total_co2_g >= (game.max_CO2_level * 1000)
-            end_reason = "co2_limit" if co2_limit_reached else "max_rounds"
+            end_reason = game.end_reason or (
+                "co2_limit"
+                if total_co2_g >= (game.max_CO2_level * 1000)
+                else "max_rounds"
+            )
 
         return Response(
             {

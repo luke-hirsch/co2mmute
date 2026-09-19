@@ -1,5 +1,6 @@
 {% extends "base.html" %}<!-- even more comments -->
-{% block title %}Your Profile {% endblock %}
+{% block title %} {{ request.user.first_name|default:request.user.username }} -
+CO2MMUTE{% endblock %}
 <!-- even more comments -->
 {% block main %}
 <section class="mx-auto w-full max-w-4xl px-6 py-12">
@@ -10,7 +11,7 @@
       Hey {{ request.user.first_name|default:request.user.username }},
     </h1>
     <p class="mt-2 text-sm text-muted dark:text-darkmutedtext">
-      Manage your account details and game sessions from here.
+      Hier kannst du deine Spiele verwalten und deine Account-Details einsehen.
     </p>
   </header>
 
@@ -19,12 +20,12 @@
       class="rounded-2xl bg-white p-6 shadow dark:bg-darksurface dark:text-darktext"
     >
       <div class="flex items-center justify-between">
-        <h2 class="text-xl font-semibold">Your sessions</h2>
+        <h2 class="text-xl font-semibold">Deine Spiele</h2>
         <a
           href="{% url create_session_url %}"
           class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:hover:bg-indigo-400"
         >
-          New session
+          Neues Spiel erstellen
         </a>
       </div>
       {% if game_sessions %}
@@ -35,10 +36,10 @@
             <div>
               <h3 class="text-base font-semibold">{{ session.game_name }}</h3>
               <p class="text-sm text-muted dark:text-darkmutedtext">
-                Session ID: <span class="font-mono">{{ session.game_id }}</span>
+                Spiel ID: <span class="font-mono">{{ session.game_id }}</span>
               </p>
               <p class="text-xs text-muted dark:text-darkmutedtext">
-                Created {{ session.created_at|date:"M j, Y H:i" }}
+                erstellt: {{ session.created_at|date:"M j, Y H:i" }}
               </p>
             </div>
             <div class="flex flex-wrap gap-2">
@@ -46,13 +47,13 @@
                 href="{% url 'session-share' session.game_id %}"
                 class="inline-flex items-center rounded-md border border-subtle px-3 py-1 text-sm font-medium text-main transition hover:bg-elevated dark:border-darksubtle dark:text-darktext dark:hover:bg-darksurface/70"
               >
-                Share
+                Teilen
               </a>
               <a
                 href="/app/game/{{ session.game_id }}/"
                 class="inline-flex items-center rounded-md bg-surface px-3 py-1 text-sm font-medium text-main transition hover:bg-elevated dark:bg-darksurface/70 dark:text-darktext dark:hover:bg-darksurface"
               >
-                Open lobby
+                Lobby
               </a>
             </div>
           </div>
@@ -61,7 +62,8 @@
       </ul>
       {% else %}
       <p class="mt-6 text-sm text-muted dark:text-darkmutedtext">
-        You haven't created any sessions yet.
+        Du hast noch keine Spiele erstellt. Klicke auf "Neues Spiel erstellen",
+        um loszulegen!
       </p>
       {% endif %}
     </section>
@@ -97,19 +99,21 @@
           href="{% url change_password_url %}"
           class="mt-6 inline-flex w-full items-center justify-center rounded-md border border-subtle px-3 py-1.5 text-sm font-semibold text-main transition hover:bg-elevated dark:border-darksubtle dark:text-darktext dark:hover:bg-darksurface/70"
         >
-          Change password
+          Passwort ändern
         </a>
       </div>
 
       <div
         class="rounded-2xl bg-white p-6 shadow dark:bg-darksurface dark:text-darktext"
       >
-        <h2 class="text-xl font-semibold">Profile details</h2>
+        <h2 class="text-xl font-semibold">Profile</h2>
         <p class="mt-2 text-sm text-muted dark:text-darkmutedtext">
-          Update the personal information associated with your account.
+          Aktualisiere die persönlichen Informationen, die mit deinem Konto
+          verknüpft sind.
         </p>
         <p class="mt-4 text-sm text-muted dark:text-darkmutedtext">
-          Editing username and email hasn’t been wired up yet. coming soon!
+          Die Bearbeitung von Nutzername und E-Mail ist noch nicht
+          implementiert. Demnächst!
         </p>
       </div>
     </section>

@@ -736,6 +736,7 @@ class PausedRoundTests(PauseMixin, TestCase):
 
 
 # ---------------------------------------------------------------------------
+<<<<<<< HEAD
 # Cost units — see `.claude/plans/to-do/[backend]-cost-units.md`.
 #
 # AgentSimulationResult.mean_cost_eur is per person; SimulationResult
@@ -823,10 +824,65 @@ class SimulatedRoundMixin(TempMediaRootMixin):
 
     def complete_round(self):
         listener = GroupListener(self.game.game_id)
+=======
+# The end of a game — see `.claude/plans/to-do/[backend]-game-ending.md`.
+#
+# GameSession.end_reason does not exist yet, so everything below that touches it
+# is red until the field and its migration are typed. The reason is stored once,
+# when the game ends, because it cannot be worked out afterwards: today
+# signals.py and views_rest.py both recompute it as
+# "co2_limit if over budget else max_rounds", which makes every ending that was
+# neither claim that all rounds were played.
+# ---------------------------------------------------------------------------
+
+
+def game_detail_url(game_id):
+    return f"/api/game/{game_id}/"
+
+
+@override_settings(**TEST_BACKENDS)
+class EndReasonTests(RoundFixtureMixin, TestCase):
+    """Every ending records why, and they are four different whys."""
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.host)
+
+    def stop_game(self):
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            return self.client.patch(
+                game_detail_url(self.game.game_id),
+                {"is_active": False},
+                content_type="application/json",
+            )
+
+    def test_the_host_stopping_a_game_is_recorded_as_host(self):
+        """Ended by hand in round 1 of 10 — "all rounds played" is a lie."""
+        self.stop_game()
+
+        self.game.refresh_from_db()
+        self.assertEqual(self.game.end_reason, GameSession.EndReason.HOST)
+
+    def test_an_idle_ending_is_recorded_as_idle(self):
+        from game.idle import end_idle_game
+
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            end_idle_game(self.game)
+
+        self.game.refresh_from_db()
+        self.assertEqual(self.game.end_reason, GameSession.EndReason.IDLE)
+
+    def test_running_out_of_rounds_is_recorded_as_max_rounds(self):
+        GameSession.objects.filter(pk=self.game.pk).update(max_rounds=1)
+        self.game.refresh_from_db()
+        self.submit_move(self.player)
+
+>>>>>>> backend/game-ending
         with muted(), self.captureOnCommitCallbacks(execute=True):
             round_completed.send(
                 sender=GameSession, game_session=self.game, game_round=self.round
             )
+<<<<<<< HEAD
         return listener
 
 
@@ -862,10 +918,45 @@ class CostUnitTests(SimulatedRoundMixin, TestCase):
     def test_the_summary_reports_the_cohort_figure(self):
         self.complete_round()
         self.client.force_login(self.host)
+=======
+
+        self.game.refresh_from_db()
+        self.assertIsNotNone(self.game.ended_at)
+        self.assertEqual(self.game.end_reason, GameSession.EndReason.MAX_ROUNDS)
+
+    def test_blowing_the_co2_budget_is_recorded_as_co2_limit(self):
+        """max_CO2_level is in kg; the check multiplies by 1000."""
+        GameSession.objects.filter(pk=self.game.pk).update(max_CO2_level=0)
+        self.game.refresh_from_db()
+        self.submit_move(self.player)
+
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            round_completed.send(
+                sender=GameSession, game_session=self.game, game_round=self.round
+            )
+
+        self.game.refresh_from_db()
+        self.assertIsNotNone(self.game.ended_at)
+        self.assertEqual(self.game.end_reason, GameSession.EndReason.CO2_LIMIT)
+
+    def test_the_broadcast_carries_the_stored_reason(self):
+        listener = GroupListener(self.game.game_id)
+
+        self.stop_game()
+
+        self.assertEqual(listener.data("game.ended")["reason"], "host")
+
+    def test_a_game_that_ended_before_the_field_existed_still_reports_something(self):
+        """end_reason is NULL on every game that ended before this landed, and
+        no backfill can recover it — the summary falls back to the old guess."""
+        self.stop_game()
+        GameSession.objects.filter(pk=self.game.pk).update(end_reason=None)
+>>>>>>> backend/game-ending
 
         with muted():
             response = self.client.get(f"/api/game/{self.game.game_id}/summary/")
 
+<<<<<<< HEAD
         players = response.json()["players"]
         self.assertTrue(players)
         for player in players:
@@ -895,3 +986,61 @@ class CostUnitWithOnePersonPerAgentTests(SimulatedRoundMixin, TestCase):
         rows = sum(stat["cost_eur"] for stat in data["player_stats"])
 
         self.assertAlmostEqual(rows, data["round_cost_eur"], places=2)
+=======
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(response.json()["end_reason"], {"co2_limit", "max_rounds"})
+
+
+@override_settings(**TEST_BACKENDS)
+class EndingAnUnstartedGameTests(TempMediaRootMixin, TestCase):
+    """A game that never started has to be endable too.
+
+    views_rest.py gates the stop on is_currently_active, so PATCH
+    {"is_active": false} on a lobby answers 200 and does nothing. Combined with
+    a game created without a map — which cannot be started at all, because
+    GameSession.save() forces is_active back to False — that leaves a game that
+    can neither be started nor ended nor deleted, for ever.
+
+    The status code is 200 both before and after this change, so these assert
+    ended_at rather than the status.
+    """
+
+    def setUp(self):
+        self.host = create_host()
+        with muted():
+            self.game = create_game_session(self.host, game_name="Nie gestartet")
+        self.client.force_login(self.host)
+
+    def stop_game(self):
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            return self.client.patch(
+                game_detail_url(self.game.game_id),
+                {"is_active": False},
+                content_type="application/json",
+            )
+
+    def test_the_game_was_never_started(self):
+        """The precondition, so a failure below is not about the fixture."""
+        self.assertIsNone(self.game.started_at)
+        self.assertFalse(self.game.is_active)
+
+    def test_stopping_an_unstarted_game_ends_it(self):
+        response = self.stop_game()
+
+        self.assertEqual(response.status_code, 200)
+        self.game.refresh_from_db()
+        self.assertIsNotNone(self.game.ended_at)
+
+    def test_it_is_recorded_as_ended_by_the_host(self):
+        self.stop_game()
+
+        self.game.refresh_from_db()
+        self.assertEqual(self.game.end_reason, GameSession.EndReason.HOST)
+
+    def test_stopping_it_twice_is_still_refused(self):
+        self.stop_game()
+
+        response = self.stop_game()
+
+        self.assertEqual(response.status_code, 400)
+>>>>>>> backend/game-ending
