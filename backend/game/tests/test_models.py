@@ -313,3 +313,53 @@ class HostRowMigrationTests(TempMediaRootMixin, TestCase):
         self.migration().give_duplicate_player_ids_a_new_one(apps, None)
 
         self.assertEqual(set(Player.objects.values_list("pk", "player_id")), ids_before)
+
+
+@override_settings(**TEST_BACKENDS)
+class GameMapRequiredTests(TempMediaRootMixin, TestCase):
+    """A game without a map is a game nobody can start.
+
+    GameSession.game_map is null=True, so the create form offers "---------"
+    and makes one anyway: PATCH {"is_active": true} then answers 200, writes
+    started_at, creates round 1 — and GameSession.save() forces is_active back
+    to False, so no game.started ever goes out and the screen never moves. The
+    model stays nullable for the rows that already exist; the form is where it
+    is refused. See `.claude/plans/to-do/[backend]-game-ending.md`.
+    """
+
+    def setUp(self):
+        self.host = create_host()
+        self.client.force_login(self.host)
+
+    def test_the_form_refuses_a_game_without_a_map(self):
+        from game.forms import GameSessionCreateForm
+
+        form = GameSessionCreateForm(data=create_form_data(game_map=""))
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("game_map", form.errors)
+
+    def test_the_form_accepts_a_game_with_a_map(self):
+        from game.forms import GameSessionCreateForm
+
+        form = GameSessionCreateForm(data=create_form_data())
+
+        self.assertTrue(form.is_valid(), msg=form.errors.as_json())
+
+    def test_the_dropdown_has_no_empty_option(self):
+        """"---------" is what lets somebody pick nothing without noticing."""
+        from game.forms import GameSessionCreateForm
+
+        form = GameSessionCreateForm()
+
+        self.assertTrue(form.fields["game_map"].required)
+        self.assertIsNone(form.fields["game_map"].empty_label)
+
+    def test_the_create_view_refuses_it_too(self):
+        with muted():
+            response = self.client.post(
+                "/game/create/", create_form_data(game_name="Ohne Karte", game_map="")
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(GameSession.objects.filter(game_name="Ohne Karte").exists())

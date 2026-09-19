@@ -102,8 +102,25 @@ def log_in_as_player(client, game_id, player_id):
     )
 
 
+def create_game_map(name="Test Map"):
+    """A map, so a created game is one that could actually be started.
+
+    GameSession.save() forces is_active back to False whenever game_map is
+    None, so a mapless game is unstartable — which is why the create form is
+    being made to require one.
+    """
+    from maps.models import GameMap
+
+    return GameMap.objects.create(name=name)
+
+
 def create_form_data(**overrides):
-    """A valid POST body for GameSessionCreateView (game/create/)."""
+    """A valid POST body for GameSessionCreateView (game/create/).
+
+    A map is created and selected unless the caller names one: "valid" has to
+    include a map, or the game cannot be started. Pass `game_map=""` explicitly
+    to build the invalid body on purpose.
+    """
     data = {
         "game_name": "Neues Spiel",
         "game_password": "",
@@ -116,6 +133,8 @@ def create_form_data(**overrides):
         "idle_end_days": 30,
         "lobby_open": "",
     }
+    if "game_map" not in overrides:
+        data["game_map"] = create_game_map().pk
     data.update(overrides)
     return data
 
