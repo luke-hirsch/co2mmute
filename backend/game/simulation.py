@@ -2,7 +2,7 @@ import io
 import logging
 import math
 import random
-from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from maps.models import BusLine, Edge, StreetPerRound, TrainLine
@@ -45,28 +45,46 @@ FALLBACK_TRAIN_SPEED_KMH = 40
 FALLBACK_BUS_INTERVAL_MIN = 10
 FALLBACK_TRAIN_INTERVAL_MIN = 10
 
-# Departure window: matches the ±60 min clamp in generate_departure_times()
+# Departure window: matches the ±60 min clamp in generate_departure_minutes()
 DEPARTURE_WINDOW_MIN = 120
+
+# Physical road constants, replacing the old capacity model. That one put 750
+# vehicles on a kilometre of one lane (speed_limit * 15), about five times what
+# fits, so an edge only counted as congested in a state that cannot exist.
+#
+# A car is ~4.5 m and occupies ~7.5 m at a standstill -> ~133 veh/km/lane.
+# One lane discharges ~1800 veh/h at capacity (HCM base saturation flow is
+# ~1900 pc/h/ln; 1800 is the common working figure for an urban arterial).
+JAM_DENSITY_VEH_PER_KM_LANE = 133.0
+SATURATION_FLOW_VEH_PER_H_LANE = 1800.0
+
+# A bus takes about three car lengths in mixed traffic (passenger car units).
+BUS_PCU = 3.0
+
+# A junction whose head has not moved for this many consecutive ticks is
+# gridlocked, not busy: routes are holding each other's streets and nothing
+# downstream will free up on its own. It then releases its tick's budget
+# anyway, over storage, and the release is counted. Liveness beats storage.
+DEADLOCK_TICKS = 4
 
 
 @dataclass
 class Vehicle:
-    """Represents a single vehicle/person in the simulation."""
+    """One person (car/bike/walk) or one PT vehicle carrying many."""
 
     route_pk: int
-    person_index: int  # 0-999 for each agent
-    mode: str  # car, bus, train, bike, walk
-    segment_index: int  # Current segment in route
-    position_on_edge_m: float  # Position along current edge
-    total_travel_time_min: float = 0.0
-    congestion_delay_min: float = 0.0
+    person_index: int
+    mode: str
+    segment_index: int
+    passenger_count: int = 1
+
+    wants_to_depart_min: float = 0.0  # when this person wanted to leave
+    ready_at_min: float = 0.0  # earliest it may leave its current link
+    entered_edge_min: float = 0.0
+    arrived_min: float | None = None
     departed: bool = False
     arrived: bool = False
-    waiting_for_pt: bool = False
-    pt_vehicle_id: int | None = None
-    passenger_count: int = (
-        1  # Number of people this vehicle carries (>1 for PT vehicles)
-    )
+    queued: bool = False
 
 
 @dataclass
@@ -119,120 +137,126 @@ class SimulationLog:
 
 
 @dataclass
+class QueuedVehicle:
+    """One vehicle sitting on a link, with the earliest minute it may leave."""
+
+    vehicle_id: int
+    ready_at_min: float
+    pcu: float
+    entered_at_min: float
+
+
+@dataclass
 class EdgeState:
-    """State of an edge during simulation."""
+    """A link in the queue model: free-flow time, flow capacity, storage."""
 
     edge_id: int
     distance_m: float
     free_flow_speed_kmh: float
-    capacity: int  # Number of cars at optimal flow
-    lanes: int = 1
+    car_lanes: int = 1
     has_dedicated_bus_lane: bool = False
-    current_vehicles: set[int] = field(
-        default_factory=set
-    )  # All vehicle IDs on this edge
-    buses_on_dedicated_lane: set[int] = field(
-        default_factory=set
-    )  # Buses using dedicated lane
+
+    queue: list[QueuedVehicle] = field(default_factory=list)
+    occupancy_pcu: float = 0.0
+    release_budget: float = 0.0
+    blocked_since_tick: int = 0
+
+    # Observed traversals, for the per-edge speed the snapshot stores.
+    traversal_count: int = 0
+    traversal_time_min: float = 0.0
+    peak_occupancy_pcu: float = 0.0
 
     @property
-    def volume(self) -> int:
-        """Return traffic volume affecting congestion (excludes buses on dedicated lanes)."""
-        return len(self.current_vehicles) - len(self.buses_on_dedicated_lane)
+    def free_flow_min(self) -> float:
+        """Minutes to cross the link when it is empty."""
+        if self.free_flow_speed_kmh <= 0:
+            return 0.0
+        return self.distance_m / 1000.0 / self.free_flow_speed_kmh * 60.0
 
     @property
-    def total_vehicles(self) -> int:
-        """Return total number of vehicles (including all buses)."""
-        return len(self.current_vehicles)
+    def open_to_cars(self) -> bool:
+        """False on a bus gate: a street given over entirely to buses."""
+        return self.car_lanes > 0
 
-    def get_current_speed(self) -> float:
-        """Calculate current speed using BPR function."""
-        if self.capacity == 0:
+    @property
+    def _capacity_lanes(self) -> int:
+        """Never zero — see the fallback in _enter_edge.
+
+        A link with no flow capacity can never discharge, so a car that
+        reached a bus gate despite the client and the submit check would
+        stand there until max_ticks and take the round's numbers with it.
+        """
+        return max(1, self.car_lanes)
+
+    @property
+    def storage_capacity_pcu(self) -> float:
+        """How many car-equivalents stand on the link bumper to bumper."""
+        return max(
+            1.0,
+            JAM_DENSITY_VEH_PER_KM_LANE
+            * self._capacity_lanes
+            * self.distance_m
+            / 1000.0,
+        )
+
+    def flow_per_tick(self, tick_duration_min: int) -> float:
+        """Car-equivalents the link discharges in one tick."""
+        return (
+            SATURATION_FLOW_VEH_PER_H_LANE
+            * self._capacity_lanes
+            * tick_duration_min
+            / 60.0
+        )
+
+    def has_room_for(self, pcu: float) -> bool:
+        """Whether one more vehicle of this size fits on the link.
+
+        Asking "is it full?" before adding lets occupancy overshoot by up to
+        one vehicle, and by three for a bus — a link with 39.9 of storage
+        admitted a 40th car in testing. An empty link never refuses: a link
+        too short to hold a single bus would otherwise block it forever.
+        """
+        if not self.queue:
+            return True
+        return self.occupancy_pcu + pcu <= self.storage_capacity_pcu
+
+    @property
+    def mean_speed_kmh(self) -> float:
+        """Length over observed CAR traversal time; free flow if none crossed.
+
+        Only cars are counted into traversal_count / traversal_time_min (see
+        _discharge). A pedestrian takes 10.7 minutes over an 895 m edge where a
+        car takes 1.07, so letting walkers into this mean would report an empty
+        street as jammed — and this number feeds both the CO2 factor and the
+        route preview the players see.
+        """
+        if self.traversal_count == 0 or self.traversal_time_min <= 0:
             return self.free_flow_speed_kmh
-        return bpr_speed(self.free_flow_speed_kmh, self.volume, self.capacity)
+        mean_min = self.traversal_time_min / self.traversal_count
+        return self.distance_m / 1000.0 / (mean_min / 60.0)
 
 
-def bpr_speed(free_flow_speed: float, volume: int, capacity: int) -> float:
-    """
-    Bureau of Public Roads (BPR) function for calculating speed under congestion.
-
-    speed = free_flow / (1 + 0.15 * (volume/capacity)^4)
-
-    Args:
-        free_flow_speed: Speed limit or free flow speed in km/h
-        volume: Current number of vehicles on the edge
-        capacity: Edge capacity (vehicles at optimal flow)
-
-    Returns:
-        Adjusted speed in km/h
-    """
-    if capacity <= 0:
-        return free_flow_speed
-    ratio = volume / capacity
-    return free_flow_speed / (1 + 0.15 * (ratio**4))
-
-
-def calculate_edge_capacity(
-    distance_m: float, speed_limit_kmh: float = 50, lanes: int = 1
-) -> int:
-    """
-    Calculate edge capacity based on length, speed limit, and lanes.
-
-    Uses a more realistic capacity model:
-    - Capacity per lane ≈ speed_limit * 15 vehicles per km per hour
-    - This accounts for required spacing at different speeds
-    - At 30 km/h: ~450 vehicles/km/lane (every 2.2m)
-    - At 50 km/h: ~750 vehicles/km/lane (every 1.3m)
-    - At 80 km/h: ~1200 vehicles/km/lane (every 0.8m)
-
-    Args:
-        distance_m: Edge length in meters
-        speed_limit_kmh: Speed limit in km/h
-        lanes: Number of lanes
-
-    Returns:
-        Capacity in number of vehicles
-    """
-    # Calculate capacity per lane per km
-    capacity_per_lane_per_km = speed_limit_kmh * 15
-
-    # Calculate total capacity for this edge
-    distance_km = distance_m / 1000
-    capacity = int(capacity_per_lane_per_km * lanes * distance_km)
-
-    return max(1, capacity)
-
-
-def generate_departure_times(
+def generate_departure_minutes(
     num_people: int,
     base_hour: int,
     std_dev_min: float,
-    tick_duration_min: int = 5,
-) -> list[int]:
+) -> list[float]:
     """
-    Generate departure times using normal distribution.
+    Draw departure times from a normal distribution around base_hour.
 
-    Args:
-        num_people: Number of departure times to generate
-        base_hour: Base departure hour (e.g., 9 for 9:00 AM)
-        std_dev_min: Standard deviation in minutes
-        tick_duration_min: Duration of each tick in minutes
-
-    Returns:
-        List of departure ticks (tick buckets relative to simulation start)
+    Returns minutes from the start of the departure window, which begins
+    60 minutes before base_hour (DEPARTURE_WINDOW_MIN is 120 wide). Floats,
+    not tick buckets: bucketing here quantised every trip to the tick before
+    the simulation had started, and the tick is a simulation step, not a
+    property of when people leave the house.
     """
     base_minutes = base_hour * 60
+    window_start = (base_hour - 1) * 60
     departures = []
-
     for _ in range(num_people):
-        # Generate departure time with normal distribution
         departure_min = random.gauss(base_minutes, std_dev_min)
-        # Clamp to reasonable range (1 hour before to 1 hour after base time)
         departure_min = max(base_minutes - 60, min(base_minutes + 60, departure_min))
-        # Convert to tick (tick_duration_min buckets)
-        tick = int((departure_min - (base_hour - 1) * 60) / tick_duration_min)
-        departures.append(max(0, tick))
-
+        departures.append(max(0.0, departure_min - window_start))
     return departures
 
 
@@ -305,7 +329,7 @@ class TrafficSimulator:
         self.route_vehicle_scaling: dict[int, tuple[int, int]] = {}
 
         # Departure schedules: route_pk -> list of (person_index, departure_tick)
-        self.departure_schedule: dict[int, list[tuple[int, int]]] = {}
+        self.departure_schedule: dict[int, list[tuple[int, float]]] = {}
 
         # Results tracking
         self.agent_results: dict[int, dict] = {}  # route_pk -> results dict
@@ -314,7 +338,7 @@ class TrafficSimulator:
         self.current_tick = 0
 
         # Callback for progress updates
-        self.on_progress: callable | None = None
+        self.on_progress: Callable[[int, int], None] | None = None
 
         # Detailed simulation log
         self.sim_log = SimulationLog()
@@ -325,6 +349,9 @@ class TrafficSimulator:
         # Load routes and initialize edges during construction
         self._load_routes()
         self._initialize_edges()
+        self.free_running: set[int] = set()
+        self.waiting: list[tuple[float, int, int]] = []
+        self.forced_releases = 0
 
     def _load_routes(self):
         """Load all agent routes for the round."""
@@ -341,7 +368,7 @@ class TrafficSimulator:
             )
             for route in routes:
                 self.agent_routes[route.pk] = route
-                segments = list(route.segments.order_by("order"))
+                segments = list(route.segments.order_by("order"))  # type: ignore
                 self.route_segments[route.pk] = segments
 
                 label = f"{player_name}/Agent#{route.agent_id} ({route.transport_mode})"
@@ -392,7 +419,7 @@ class TrafficSimulator:
 
             if min_pt_capacity and min_pt_capacity > 1:
                 # Number of physical buses/trains in the departure window
-                num_vehicles = max(1, round(DEPARTURE_WINDOW_MIN / min_interval))
+                num_vehicles = max(1, round(DEPARTURE_WINDOW_MIN / (min_interval or 1)))
                 # Each vehicle carries min(capacity, ceil(people/vehicles)) passengers
                 passenger_count = min(
                     int(min_pt_capacity),
@@ -401,7 +428,7 @@ class TrafficSimulator:
                 total_seats = num_vehicles * passenger_count
                 overcapacity = total_seats < self.people_per_agent
                 self.route_vehicle_scaling[route_pk] = (num_vehicles, passenger_count)
-                self.route_pt_wait_min[route_pk] = min_interval / 2.0
+                self.route_pt_wait_min[route_pk] = (min_interval or 1) / 2.0
 
                 log_msg = (
                     f"[SIM] Route {route_pk}: PT scaling — "
@@ -463,7 +490,7 @@ class TrafficSimulator:
         edge_ids = set()
         for segments in self.route_segments.values():
             for seg in segments:
-                edge_ids.add(seg.edge_id)
+                edge_ids.add(seg.edge_id)  # type: ignore
 
         logger.info(f"[SIM] Initializing {len(edge_ids)} unique edges")
 
@@ -478,7 +505,7 @@ class TrafficSimulator:
             distance_m = edge.euclidean_2d_distance() * self.scale
 
             # Get speed limit, lanes, and bus lane info from StreetEdge
-            street_edge = edge.streetedge_set.first()
+            street_edge = edge.streetedge_set.first()  # type: ignore
             if street_edge:
                 speed_limit = street_edge.speed_limit
                 lanes = street_edge.lanes
@@ -499,13 +526,21 @@ class TrafficSimulator:
                 )
                 speed_limit = self.default_car_speed_kmh
 
-            capacity = calculate_edge_capacity(distance_m, speed_limit, lanes)
+            car_lanes = lanes
+            if has_dedicated_bus_lane:
+                car_lanes = max(0, lanes - 1)
+                if car_lanes == 0:
+                    logger.info(
+                        "[SIM] Edge %s is a bus gate: closed to cars, open to "
+                        "buses, bikes and pedestrians.",
+                        edge.pk,
+                    )
+
             self.edge_states[edge.pk] = EdgeState(
                 edge_id=edge.pk,
                 distance_m=distance_m,
                 free_flow_speed_kmh=speed_limit,
-                capacity=capacity,
-                lanes=lanes,
+                car_lanes=car_lanes,
                 has_dedicated_bus_lane=has_dedicated_bus_lane,
             )
 
@@ -513,12 +548,6 @@ class TrafficSimulator:
             start_name = edge.start_node.name or f"Node {edge.start_node.pk}"
             end_name = edge.end_node.name or f"Node {edge.end_node.pk}"
             edge_names[edge.pk] = f"{start_name} → {end_name}"
-
-            logger.debug(
-                f"[SIM] Edge {edge.pk}: dist={distance_m:.0f}m, "
-                f"speed={speed_limit}km/h, lanes={lanes}, capacity={capacity}, "
-                f"dedicated_bus_lane={has_dedicated_bus_lane}"
-            )
 
         self.sim_log.set_edge_names(edge_names)
         logger.info(f"[SIM] Initialized {len(self.edge_states)} edge states")
@@ -534,12 +563,11 @@ class TrafficSimulator:
         base_hour = (
             self.morning_departure_hour if is_morning else self.evening_departure_hour
         )
-        # Tick corresponding to (base_hour - 1), i.e. the start of the ±60 min window.
-        # generate_departure_times uses (base_hour-1)*60 as time-zero, so offset=0 is that point.
-        window_start_tick = 0
+        # Everything here is in minutes from the start of the departure window,
+        # which opens at (base_hour - 1) * 60. generate_departure_minutes uses
+        # the same time-zero, so 0.0 is the first minute of the window.
 
         for route_pk in self.agent_routes:
-            route = self.agent_routes[route_pk]
             num_vehicles, _ = self.route_vehicle_scaling.get(
                 route_pk, (self.people_per_agent, 1)
             )
@@ -551,33 +579,112 @@ class TrafficSimulator:
             )
 
             if pt_mode:
-                # PT route: evenly spaced departures across the departure window
                 pt_line_id = next(
                     (seg.pt_line_id for seg in segments if seg.mode == pt_mode), None
                 )
                 interval_min = self._get_pt_interval(pt_line_id, pt_mode)
-                interval_ticks = max(1, round(interval_min / self.tick_duration_min))
                 self.departure_schedule[route_pk] = [
-                    (i, window_start_tick + i * interval_ticks)
-                    for i in range(num_vehicles)
+                    (i, float(i * interval_min)) for i in range(num_vehicles)
                 ]
             else:
-                # Car/bike/walk: random normal distribution (unchanged)
-                departures = generate_departure_times(
-                    num_vehicles,
-                    base_hour,
-                    self.departure_std_dev_min,
-                    self.tick_duration_min,
+                departures = generate_departure_minutes(
+                    num_vehicles, base_hour, self.departure_std_dev_min
                 )
-                self.departure_schedule[route_pk] = [
-                    (i, tick) for i, tick in enumerate(departures)
-                ]
+                self.departure_schedule[route_pk] = list(enumerate(departures))
 
-    def _spawn_vehicles(self):
-        """Spawn vehicles that should depart at the current tick."""
-        for route_pk, schedule in self.departure_schedule.items():
-            route = self.agent_routes.get(route_pk)
-            if not route:
+    def _queues_for_traffic(self, mode: str, edge_state: "EdgeState") -> bool:
+        """Cars queue; buses queue only in mixed traffic."""
+        if mode == "car":
+            return True
+        if mode == "bus":
+            return not edge_state.has_dedicated_bus_lane
+        return False
+
+    def _pcu_for(self, mode: str) -> float:
+        return BUS_PCU if mode == "bus" else 1.0
+
+    def _state_for_segment(self, route_pk: int, segment_index: int):
+        """The link a route's Nth segment runs on, or None past the end."""
+        segments = self.route_segments.get(route_pk, [])
+        if segment_index >= len(segments):
+            return None
+        return self.edge_states.get(segments[segment_index].edge_id)  # type: ignore
+
+    def _free_speed_for(self, vehicle: Vehicle, edge_state: "EdgeState") -> float:
+        """Uncongested speed for this vehicle on this link."""
+        segments = self.route_segments.get(vehicle.route_pk, [])
+        segment = segments[vehicle.segment_index]
+        if vehicle.mode == "bus":
+            if segment.pt_line_id and segment.pt_line_id in self.bus_line_speeds:
+                return float(self.bus_line_speeds[segment.pt_line_id])
+            return float(FALLBACK_BUS_SPEED_KMH)
+        if vehicle.mode == "train":
+            if segment.pt_line_id and segment.pt_line_id in self.train_line_speeds:
+                return float(self.train_line_speeds[segment.pt_line_id])
+            return float(FALLBACK_TRAIN_SPEED_KMH)
+        if vehicle.mode == "bike":
+            return float(self.bike_speed_kmh)
+        if vehicle.mode == "walk":
+            return float(self.walk_speed_kmh)
+        return edge_state.free_flow_speed_kmh or float(self.default_car_speed_kmh)
+
+    def _enter_edge(self, vehicle_id: int, vehicle: Vehicle, at_min: float) -> bool:
+        """Put a vehicle onto its current segment. False if the link is full."""
+        edge_state = self._state_for_segment(vehicle.route_pk, vehicle.segment_index)
+        if edge_state is None:
+            vehicle.arrived = True
+            vehicle.arrived_min = at_min
+            return True
+
+        speed = self._free_speed_for(vehicle, edge_state)
+        travel_min = edge_state.distance_m / 1000.0 / speed * 60.0 if speed > 0 else 0.0
+        vehicle.entered_edge_min = at_min
+        vehicle.ready_at_min = at_min + travel_min
+
+        if not self._queues_for_traffic(vehicle.mode, edge_state):
+            vehicle.queued = False
+            self.free_running.add(vehicle_id)
+            return True
+
+        if vehicle.mode == "car" and not edge_state.open_to_cars:
+            logger.error(
+                "[SIM] Car routed over edge %s, which is a bus lane closed to "
+                "cars. Letting it through on one lane so the round completes — "
+                "the route should have been rejected at submit.",
+                edge_state.edge_id,
+            )
+
+        pcu = self._pcu_for(vehicle.mode)
+        if not edge_state.has_room_for(pcu):
+            return False
+
+        edge_state.queue.append(
+            QueuedVehicle(
+                vehicle_id=vehicle_id,
+                ready_at_min=vehicle.ready_at_min,
+                pcu=pcu,
+                entered_at_min=at_min,
+            )
+        )
+        edge_state.occupancy_pcu += pcu
+        edge_state.peak_occupancy_pcu = max(
+            edge_state.peak_occupancy_pcu, edge_state.occupancy_pcu
+        )
+        vehicle.queued = True
+        return True
+
+    def _spawn_vehicles(self, now: float, tick_end: float):
+        """Release everyone who wanted to leave by the end of this tick.
+
+        self.waiting is sorted by wanted departure across ALL routes. A vehicle
+        whose first link is full stays in the list and tries again next tick —
+        it is waiting at the front door, and its clock runs from when it wanted
+        to leave, not from when the street let it in.
+        """
+        still_waiting = []
+        for depart_min, route_pk, person_index in self.waiting:
+            if depart_min > tick_end:
+                still_waiting.append((depart_min, route_pk, person_index))
                 continue
 
             segments = self.route_segments.get(route_pk, [])
@@ -587,192 +694,155 @@ class TrafficSimulator:
             _, passenger_count = self.route_vehicle_scaling.get(
                 route_pk, (self.people_per_agent, 1)
             )
+            vehicle = Vehicle(
+                route_pk=route_pk,
+                person_index=person_index,
+                mode=segments[0].mode,
+                segment_index=0,
+                passenger_count=passenger_count,
+                wants_to_depart_min=depart_min,
+                departed=True,
+            )
+            vehicle_id = self.next_vehicle_id
+            if self._enter_edge(vehicle_id, vehicle, max(depart_min, now)):
+                self.next_vehicle_id += 1
+                self.vehicles[vehicle_id] = vehicle
+                if person_index == 0:
+                    self.sample_vehicles[route_pk] = vehicle_id
+            else:
+                still_waiting.append((depart_min, route_pk, person_index))
 
-            # Find vehicles that should depart at this tick
-            for person_index, departure_tick in schedule:
-                if departure_tick == self.current_tick:
-                    # Create vehicle
-                    vehicle = Vehicle(
-                        route_pk=route_pk,
-                        person_index=person_index,
-                        mode=segments[0].mode,  # Start with first segment mode
-                        segment_index=0,
-                        position_on_edge_m=0.0,
-                        departed=True,
-                        passenger_count=passenger_count,
-                    )
+        self.waiting = still_waiting
 
-                    vehicle_id = self.next_vehicle_id
-                    self.next_vehicle_id += 1
-                    self.vehicles[vehicle_id] = vehicle
+    def _discharge(
+        self, edge_state: "EdgeState", now: float, tick_end: float, released: set[int]
+    ) -> bool:
+        """Release from the head of the queue while budget and space allow."""
+        moved = False
+        while edge_state.queue:
+            head = edge_state.queue[0]
+            if head.pcu > edge_state.release_budget:
+                break
+            if head.ready_at_min > tick_end:
+                # The head has not finished crossing yet, and FIFO means
+                # nobody behind it can pass either.
+                break
 
-                    # Track first vehicle (person_index=0) as sample for detailed logging
-                    if person_index == 0:
-                        self.sample_vehicles[route_pk] = vehicle_id
+            vehicle = self.vehicles[head.vehicle_id]
+            next_state = self._state_for_segment(
+                vehicle.route_pk, vehicle.segment_index + 1
+            )
 
-                    # Add to first edge
-                    first_segment = segments[0]
-                    if first_segment.edge_id in self.edge_states:
-                        edge_state = self.edge_states[first_segment.edge_id]
-                        edge_state.current_vehicles.add(vehicle_id)
+            if next_state is not None and not next_state.has_room_for(head.pcu):
+                if self.current_tick - edge_state.blocked_since_tick < DEADLOCK_TICKS:
+                    break
+                self.forced_releases += 1
+                forced = True
+            else:
+                forced = False
 
-                        # Track buses on dedicated lanes separately
-                        if vehicle.mode == "bus" and edge_state.has_dedicated_bus_lane:
-                            edge_state.buses_on_dedicated_lane.add(vehicle_id)
+            left_at = max(head.ready_at_min, now)
+            edge_state.queue.pop(0)
+            edge_state.occupancy_pcu -= head.pcu
+            edge_state.release_budget -= head.pcu
+            if vehicle.mode == "car":
+                # Cars only — see EdgeState.mean_speed_kmh. A bus runs at its
+                # own line speed and would drag the mean the same way a walker
+                # would.
+                edge_state.traversal_count += 1
+                edge_state.traversal_time_min += left_at - head.entered_at_min
+            released.add(edge_state.edge_id)
+            moved = True
 
-    def _move_vehicles(self):
-        """Move all vehicles based on current conditions."""
-        arrived_vehicles = []
-
-        for vehicle_id, vehicle in self.vehicles.items():
-            if vehicle.arrived or not vehicle.departed:
-                continue
-
+            vehicle.segment_index += 1
             segments = self.route_segments.get(vehicle.route_pk, [])
             if vehicle.segment_index >= len(segments):
                 vehicle.arrived = True
-                arrived_vehicles.append(vehicle_id)
-                continue
-
-            current_segment = segments[vehicle.segment_index]
-            edge_state = self.edge_states.get(current_segment.edge_id)
-
-            if not edge_state:
-                # Skip if edge not found (shouldn't happen)
-                vehicle.segment_index += 1
-                continue
-
-            # Calculate speed based on mode and congestion.
-            # Delay is computed per-tick as the fraction of tick lost to congestion.
-            if vehicle.mode in ["car"]:
-                # Cars experience full congestion
-                current_speed = edge_state.get_current_speed()
-                base_speed = edge_state.free_flow_speed_kmh
-                delay = (
-                    self.tick_duration_min * max(0, 1 - current_speed / base_speed)
-                    if base_speed > 0
-                    else 0
-                )
-            elif vehicle.mode == "bus":
-                # Get bus speed from PT line or use fallback
-                if (
-                    current_segment.pt_line_id
-                    and current_segment.pt_line_id in self.bus_line_speeds
-                ):
-                    bus_speed = self.bus_line_speeds[current_segment.pt_line_id]
-                else:
-                    bus_speed = FALLBACK_BUS_SPEED_KMH
-
-                # Buses on dedicated lanes bypass traffic, otherwise affected by congestion
-                if edge_state.has_dedicated_bus_lane:
-                    # Dedicated bus lane: use fixed bus speed, no delay
-                    current_speed = bus_speed
-                    delay = 0
-                else:
-                    # No dedicated lane: buses stuck in traffic like cars
-                    current_speed = min(bus_speed, edge_state.get_current_speed())
-                    delay = (
-                        self.tick_duration_min * max(0, 1 - current_speed / bus_speed)
-                        if bus_speed > 0
-                        else 0
-                    )
-            elif vehicle.mode == "train":
-                # Get train speed from PT line or use fallback
-                if (
-                    current_segment.pt_line_id
-                    and current_segment.pt_line_id in self.train_line_speeds
-                ):
-                    train_speed = self.train_line_speeds[current_segment.pt_line_id]
-                else:
-                    train_speed = FALLBACK_TRAIN_SPEED_KMH
-                current_speed = train_speed
-                delay = 0
-            elif vehicle.mode == "bike":
-                current_speed = self.bike_speed_kmh
-                delay = 0
-            elif vehicle.mode == "walk":
-                current_speed = self.walk_speed_kmh
-                delay = 0
+                vehicle.arrived_min = left_at
             else:
-                current_speed = self.walk_speed_kmh
-                delay = 0
+                vehicle.mode = segments[vehicle.segment_index].mode
+                if forced or not self._enter_edge(head.vehicle_id, vehicle, left_at):
+                    # Forced past a full link: put it there anyway, over
+                    # storage. This only happens after DEADLOCK_TICKS.
+                    self._force_enter(head.vehicle_id, vehicle, left_at)
+        return moved
 
-            # Calculate distance traveled in this tick
-            distance_this_tick = current_speed * 1000 / 60 * self.tick_duration_min
+    def _force_enter(self, vehicle_id: int, vehicle: Vehicle, at_min: float):
+        """Enter a full link regardless of storage (deadlock escape only)."""
+        edge_state = self._state_for_segment(vehicle.route_pk, vehicle.segment_index)
+        if edge_state is None:
+            vehicle.arrived = True
+            vehicle.arrived_min = at_min
+            return
+        pcu = self._pcu_for(vehicle.mode)
+        speed = self._free_speed_for(vehicle, edge_state)
+        travel_min = edge_state.distance_m / 1000.0 / speed * 60.0 if speed > 0 else 0.0
+        vehicle.entered_edge_min = at_min
+        vehicle.ready_at_min = at_min + travel_min
+        vehicle.queued = True
+        edge_state.queue.append(
+            QueuedVehicle(vehicle_id, vehicle.ready_at_min, pcu, at_min)
+        )
+        edge_state.occupancy_pcu += pcu
 
-            # Update position
-            vehicle.position_on_edge_m += distance_this_tick
-            vehicle.total_travel_time_min += self.tick_duration_min
-            vehicle.congestion_delay_min += delay
-
-            # Check if vehicle has completed current segment
-            remaining = edge_state.distance_m - vehicle.position_on_edge_m
-
-            if remaining <= 0:
-                # Log per-edge detail for sample vehicles
-                is_sample = self.sample_vehicles.get(vehicle.route_pk) == vehicle_id
-                if is_sample:
-                    free_flow = edge_state.free_flow_speed_kmh
-                    ff_time_min = (
-                        edge_state.distance_m / 1000 / free_flow * 60
-                        if free_flow > 0
-                        else 0
-                    )
-                    actual_time_min = (
-                        edge_state.distance_m / 1000 / max(current_speed, 0.1) * 60
-                    )
-                    self.sim_log.write(
-                        f"  [tick {self.current_tick:>3}] {self.sim_log._route_label(vehicle.route_pk)} | "
-                        f"{self.sim_log._edge_label(current_segment.edge_id)} | "
-                        f"mode={vehicle.mode} | "
-                        f"dist={edge_state.distance_m:.0f}m | "
-                        f"free_flow={free_flow:.0f}km/h ({ff_time_min:.1f}min) | "
-                        f"actual={current_speed:.1f}km/h ({actual_time_min:.1f}min) | "
-                        f"delay={delay:.2f}min | "
-                        f"vehicles_on_edge={edge_state.total_vehicles} | "
-                        f"volume/capacity={edge_state.volume}/{edge_state.capacity}"
-                    )
-
-                # Remove from current edge
-                edge_state.current_vehicles.discard(vehicle_id)
-                edge_state.buses_on_dedicated_lane.discard(vehicle_id)
-
-                # Move to next segment
+    def _advance_free_running(self, now: float, tick_end: float):
+        """Move everything that does not interact with car traffic."""
+        done = []
+        for vehicle_id in self.free_running:
+            vehicle = self.vehicles[vehicle_id]
+            while not vehicle.arrived and vehicle.ready_at_min <= tick_end:
+                left_at = vehicle.ready_at_min
+                segments = self.route_segments.get(vehicle.route_pk, [])
+                # Deliberately NOT recorded into the edge's traversal stats:
+                # nothing here is a car, and this is the number that becomes
+                # the street's speed (see EdgeState.mean_speed_kmh).
                 vehicle.segment_index += 1
-                vehicle.position_on_edge_m = abs(remaining)  # Carry over excess
-
                 if vehicle.segment_index >= len(segments):
                     vehicle.arrived = True
-                    arrived_vehicles.append(vehicle_id)
-                else:
-                    # Update mode for new segment
-                    next_segment = segments[vehicle.segment_index]
-                    vehicle.mode = next_segment.mode
+                    vehicle.arrived_min = left_at
+                    done.append(vehicle_id)
+                    break
+                vehicle.mode = segments[vehicle.segment_index].mode
+                if not self._enter_edge(vehicle_id, vehicle, left_at):
+                    # It has just joined mixed traffic and the link is full;
+                    # it waits where it is and retries next tick.
+                    vehicle.segment_index -= 1
+                    vehicle.ready_at_min = tick_end
+                    break
+                if vehicle.queued:
+                    done.append(vehicle_id)  # it is a queue's problem now
+                    break
+        for vehicle_id in done:
+            self.free_running.discard(vehicle_id)
 
-                    # Add to next edge
-                    if next_segment.edge_id in self.edge_states:
-                        next_edge_state = self.edge_states[next_segment.edge_id]
-                        next_edge_state.current_vehicles.add(vehicle_id)
+    def _advance_traffic(self):
+        """One simulation tick."""
+        now = self.current_tick * self.tick_duration_min
+        tick_end = now + self.tick_duration_min
 
-                        # Track buses on dedicated lanes
-                        if (
-                            vehicle.mode == "bus"
-                            and next_edge_state.has_dedicated_bus_lane
-                        ):
-                            next_edge_state.buses_on_dedicated_lane.add(vehicle_id)
+        for edge_state in self.edge_states.values():
+            edge_state.release_budget = edge_state.flow_per_tick(self.tick_duration_min)
 
-        # Record arrival times (each vehicle may represent multiple passengers).
-        # For PT routes, add the average wait time (interval/2) to trip time —
-        # passengers arrive at the stop and wait for the next bus/train on average.
-        for vehicle_id in arrived_vehicles:
-            vehicle = self.vehicles[vehicle_id]
-            agent_results = self.agent_results.get(vehicle.route_pk)
-            if agent_results:
-                wait_min = self.route_pt_wait_min.get(vehicle.route_pk, 0.0)
-                total_time = vehicle.total_travel_time_min + wait_min
-                for _ in range(vehicle.passenger_count):
-                    agent_results["trip_times"].append(total_time)
-                    agent_results["delays"].append(vehicle.congestion_delay_min)
+        self._spawn_vehicles(now, tick_end)
+        self._advance_free_running(now, tick_end)
+
+        # A vehicle may cross several links within one tick — its own clock
+        # (ready_at_min) is what bounds it, not the tick. So keep making
+        # passes until nothing moves.
+        released: set[int] = set()
+        moved = True
+        while moved:
+            moved = False
+            for edge_state in self.edge_states.values():
+                if self._discharge(edge_state, now, tick_end, released):
+                    moved = True
+
+        # A link is in trouble only if it moved NOTHING this tick while holding
+        # a vehicle. Counting blocked *passes* instead of ticks makes the
+        # storage limit leak — a queue overran its storage 34-fold in testing.
+        for edge_id, edge_state in self.edge_states.items():
+            if edge_id in released or not edge_state.queue:
+                edge_state.blocked_since_tick = self.current_tick
 
     def _record_edge_traffic(self):
         """Record traffic snapshot for each edge."""
@@ -781,14 +851,14 @@ class TrafficSimulator:
 
         snapshots = []
         for edge_id, state in self.edge_states.items():
-            if state.total_vehicles > 0:
+            if state.queue or state.traversal_count:
                 snapshots.append(
                     EdgeTrafficSnapshot(
                         simulation=self.simulation_result,
                         edge_id=edge_id,
                         time_tick=self.current_tick,
-                        vehicle_count=state.total_vehicles,  # Total vehicles for visualization
-                        speed_kmh=state.get_current_speed(),  # Speed based on congestion volume
+                        vehicle_count=len(state.queue),
+                        speed_kmh=state.mean_speed_kmh,
                     )
                 )
 
@@ -802,9 +872,68 @@ class TrafficSimulator:
                 return False
         return True
 
+    def _record_arrivals(self):
+        """Book every arrived vehicle at its measured door-to-door time.
+
+        The clock starts when the person WANTED to leave, not when the street
+        let them in: waiting at the front door because the road outside is
+        full is part of the trip, and hiding it would make the worst rounds
+        look the cheapest.
+        """
+        for vehicle in self.vehicles.values():
+            if not vehicle.arrived or vehicle.arrived_min is None:
+                continue
+            agent_results = self.agent_results.get(vehicle.route_pk)
+            if not agent_results:
+                continue
+            wait_min = self.route_pt_wait_min.get(vehicle.route_pk, 0.0)
+            trip_min = vehicle.arrived_min - vehicle.wants_to_depart_min + wait_min
+            delay_min = max(0.0, trip_min - self._free_flow_min(vehicle.route_pk))
+            for _ in range(vehicle.passenger_count):
+                agent_results["trip_times"].append(trip_min)
+                agent_results["delays"].append(delay_min)
+
+    def _free_flow_min(self, route_pk: int) -> float:
+        """The route's uncongested time — the baseline the delay is against."""
+        total = 0.0
+        for segment in self.route_segments.get(route_pk, []):
+            edge_state = self.edge_states.get(segment.edge_id)  # type: ignore
+            if not edge_state:
+                continue
+            speed = edge_state.free_flow_speed_kmh
+            if segment.mode == "bike":
+                speed = float(self.bike_speed_kmh)
+            elif segment.mode == "walk":
+                speed = float(self.walk_speed_kmh)
+            elif segment.mode in ("bus", "train"):
+                speed = float(
+                    self.bus_line_speeds.get(
+                        segment.pt_line_id or 0, FALLBACK_BUS_SPEED_KMH
+                    )
+                    if segment.mode == "bus"
+                    else self.train_line_speeds.get(
+                        segment.pt_line_id or 0, FALLBACK_TRAIN_SPEED_KMH
+                    )
+                )
+            if speed > 0:
+                total += edge_state.distance_m / 1000.0 / speed * 60.0
+        return total
+
     def _record_non_arrivals(self):
-        """Book the vehicles that were still on the road when time ran out."""
+        """Book the travellers who were still under way when time ran out.
+
+        Two groups, and both have to be counted or the mean becomes a mean
+        over survivors: vehicles still on a link, and people still at the
+        front door because the first street never let them in. The second
+        group is not in self.vehicles at all, so without this pass a route
+        whose first link jammed would report only the lucky few.
+
+        Their time is a lower bound — the clock stopped, the trip did not —
+        which is what the log below says.
+        """
+        sim_end_min = self.current_tick * self.tick_duration_min
         stranded_routes = 0
+
         for vehicle in self.vehicles.values():
             if not vehicle.departed or vehicle.arrived:
                 continue
@@ -812,10 +941,31 @@ class TrafficSimulator:
             if not agent_results:
                 continue
             wait_min = self.route_pt_wait_min.get(vehicle.route_pk, 0.0)
-            total_time = vehicle.total_travel_time_min + wait_min
+            elapsed = max(0.0, sim_end_min - vehicle.wants_to_depart_min) + wait_min
+            delay = max(0.0, elapsed - self._free_flow_min(vehicle.route_pk))
             for _ in range(vehicle.passenger_count):
-                agent_results["trip_times"].append(total_time)
-                agent_results["delays"].append(vehicle.congestion_delay_min)
+                agent_results["trip_times"].append(elapsed)
+                agent_results["delays"].append(delay)
+                agent_results["not_arrived"] += 1
+
+        for depart_min, route_pk, _person_index in self.waiting:
+            if depart_min > sim_end_min:
+                # The simulation ended before this person wanted to leave at
+                # all. Nothing happened to them, so nothing is recorded —
+                # the same rule as an undeparted vehicle.
+                continue
+            agent_results = self.agent_results.get(route_pk)
+            if not agent_results:
+                continue
+            _, passenger_count = self.route_vehicle_scaling.get(
+                route_pk, (self.people_per_agent, 1)
+            )
+            wait_min = self.route_pt_wait_min.get(route_pk, 0.0)
+            elapsed = sim_end_min - depart_min + wait_min
+            delay = max(0.0, elapsed - self._free_flow_min(route_pk))
+            for _ in range(passenger_count):
+                agent_results["trip_times"].append(elapsed)
+                agent_results["delays"].append(delay)
                 agent_results["not_arrived"] += 1
 
         for route_pk, results in self.agent_results.items():
@@ -839,7 +989,7 @@ class TrafficSimulator:
     def run_simulation(
         self,
         max_ticks: int = 200,
-        on_progress: callable | None = None,
+        on_progress: Callable[[int, int], None] | None = None,
     ) -> SimulationResult:
         """
         Run the full simulation.
@@ -903,7 +1053,7 @@ class TrafficSimulator:
                     )
                 self.sim_log.write(route_line)
                 for seg in segments:
-                    es = self.edge_states.get(seg.edge_id)
+                    es = self.edge_states.get(seg.edge_id)  # type: ignore
                     if es:
                         pt_info = ""
                         if seg.pt_line_id:
@@ -912,10 +1062,12 @@ class TrafficSimulator:
                                 f" | pt_line={seg.pt_line_id} | interval={interval}min"
                             )
                         self.sim_log.write(
-                            f"    seg {seg.order}: {self.sim_log._edge_label(seg.edge_id)} | "
+                            f"    seg {seg.order}: {self.sim_log._edge_label(seg.edge_id)} | "  # type: ignore
                             f"mode={seg.mode} | dist={es.distance_m:.0f}m | "
-                            f"free_flow={es.free_flow_speed_kmh:.0f}km/h | "
-                            f"capacity={es.capacity} | lanes={es.lanes}" + pt_info
+                            f"free_flow={es.free_flow_speed_kmh:.0f}km/h "
+                            f"({es.free_flow_min:.1f}min) | "
+                            f"car_lanes={es.car_lanes} | "
+                            f"storage={es.storage_capacity_pcu:.0f}pcu" + pt_info
                         )
 
             # Log edges
@@ -924,16 +1076,23 @@ class TrafficSimulator:
                 self.sim_log.write(
                     f"  {self.sim_log._edge_label(eid)}: "
                     f"dist={es.distance_m:.0f}m, speed={es.free_flow_speed_kmh:.0f}km/h, "
-                    f"lanes={es.lanes}, capacity={es.capacity}"
+                    f"car_lanes={es.car_lanes}, "
+                    f"storage={es.storage_capacity_pcu:.0f}pcu, "
+                    f"flow={es.flow_per_tick(self.tick_duration_min):.0f}pcu/tick"
                     + (", DEDICATED BUS LANE" if es.has_dedicated_bus_lane else "")
                 )
-
             # Routes and edges are already loaded in __init__
             if not self.agent_routes:
                 logger.warning("[SIM] No agent routes found, simulation will be empty")
 
             # Run morning commute
             self._generate_departures(is_morning=True)
+            self.waiting: list[tuple[float, int, int]] = sorted(
+                (depart_min, route_pk, person_index)
+                for route_pk, schedule in self.departure_schedule.items()
+                for person_index, depart_min in schedule
+            )
+
             total_departures = sum(len(s) for s in self.departure_schedule.values())
             logger.info(
                 f"[SIM] Generated {total_departures} departures for "
@@ -947,23 +1106,12 @@ class TrafficSimulator:
                 f"PT vehicles scaled by interval+capacity, car/bike/walk by people_per_agent)"
             )
 
-            # Simulation loop
+            # Simulation loop. One call per tick: _advance_traffic() spawns,
+            # moves the free-running modes and discharges every queue itself.
             self.current_tick = 0
-            vehicles_spawned = 0
-            vehicles_arrived = 0
 
             while self.current_tick < max_ticks:
-                prev_vehicle_count = len(self.vehicles)
-                self._spawn_vehicles()
-                new_spawned = len(self.vehicles) - prev_vehicle_count
-                vehicles_spawned += new_spawned
-
-                prev_arrived = sum(1 for v in self.vehicles.values() if v.arrived)
-                self._move_vehicles()
-                new_arrived = (
-                    sum(1 for v in self.vehicles.values() if v.arrived) - prev_arrived
-                )
-                vehicles_arrived += new_arrived
+                self._advance_traffic()
 
                 # Log progress every 10 ticks to simulation log
                 if self.current_tick % 10 == 0:
@@ -973,32 +1121,34 @@ class TrafficSimulator:
                         if v.departed and not v.arrived
                     )
                     arrived = sum(1 for v in self.vehicles.values() if v.arrived)
-
-                    # Find congested edges
-                    congested = [
-                        (eid, s.volume, s.capacity, s.get_current_speed())
+                    queued = [
+                        (eid, s)
                         for eid, s in self.edge_states.items()
-                        if s.volume > s.capacity * 0.5
+                        if s.occupancy_pcu > s.storage_capacity_pcu * 0.5
                     ]
-
                     tick_line = (
                         f"[tick {self.current_tick:>3}] "
-                        f"spawned={len(self.vehicles)}, active={active}, "
+                        f"waiting_to_depart={len(self.waiting)}, active={active}, "
                         f"arrived={arrived}/{len(self.vehicles)}, "
-                        f"congested_edges={len(congested)}"
+                        f"queued_edges={len(queued)}, forced={self.forced_releases}"
                     )
                     self.sim_log.write(tick_line)
 
-                    for eid, vol, cap, speed in congested:
+                    for eid, state in queued:
                         self.sim_log.write(
-                            f"    CONGESTION: {self.sim_log._edge_label(eid)} — "
-                            f"{vol}/{cap} vehicles, speed={speed:.1f}km/h "
-                            f"(free_flow={self.edge_states[eid].free_flow_speed_kmh:.0f}km/h)"
+                            f"    QUEUE: {self.sim_log._edge_label(eid)} — "
+                            f"{state.occupancy_pcu:.0f}/"
+                            f"{state.storage_capacity_pcu:.0f}pcu in "
+                            f"{len(state.queue)} vehicles, "
+                            f"observed={state.mean_speed_kmh:.1f}km/h "
+                            f"(free_flow={state.free_flow_speed_kmh:.0f}km/h)"
                         )
 
                     logger.info(
-                        f"[SIM] Tick {self.current_tick}: active={active}, "
-                        f"arrived={arrived}/{len(self.vehicles)}, congested_edges={len(congested)}"
+                        f"[SIM] Tick {self.current_tick}: "
+                        f"waiting_to_depart={len(self.waiting)}, active={active}, "
+                        f"arrived={arrived}/{len(self.vehicles)}, "
+                        f"queued_edges={len(queued)}, forced={self.forced_releases}"
                     )
 
                 # Record traffic every 5 ticks
@@ -1010,11 +1160,7 @@ class TrafficSimulator:
                     on_progress(self.current_tick, max_ticks)
 
                 # Check if all vehicles arrived
-                if (
-                    self.current_tick > 20
-                    and self._all_vehicles_arrived()
-                    and len(self.vehicles) > 0
-                ):
+                if not self.waiting and self._all_vehicles_arrived():
                     self.sim_log.write(
                         f"\n>>> All {len(self.vehicles)} vehicles arrived at tick {self.current_tick}"
                     )
@@ -1024,19 +1170,31 @@ class TrafficSimulator:
                     break
 
                 self.current_tick += 1
-
+            self._record_arrivals()
             # Whatever is still moving when the loop ends has to be counted too.
             self._record_non_arrivals()
             # Log sample vehicle summaries
             self.sim_log.header("SAMPLE VEHICLE TRIP SUMMARIES")
             for route_pk, vid in self.sample_vehicles.items():
                 v = self.vehicles.get(vid)
-                if v:
+                if not v:
+                    continue
+                free_flow = self._free_flow_min(route_pk)
+                label = self.sim_log._route_label(route_pk)
+                if v.arrived and v.arrived_min is not None:
+                    trip_min = v.arrived_min - v.wants_to_depart_min
                     self.sim_log.write(
-                        f"  {self.sim_log._route_label(route_pk)}: "
-                        f"total_time={v.total_travel_time_min:.1f}min, "
-                        f"congestion_delay={v.congestion_delay_min:.2f}min, "
-                        f"arrived={'YES' if v.arrived else 'NO'}"
+                        f"  {label}: wanted_to_leave={v.wants_to_depart_min:.1f}min, "
+                        f"total_time={trip_min:.1f}min, "
+                        f"free_flow={free_flow:.1f}min, "
+                        f"congestion_delay={max(0.0, trip_min - free_flow):.2f}min, "
+                        f"arrived=YES"
+                    )
+                else:
+                    self.sim_log.write(
+                        f"  {label}: wanted_to_leave={v.wants_to_depart_min:.1f}min, "
+                        f"free_flow={free_flow:.1f}min, "
+                        f"still on segment {v.segment_index}, arrived=NO"
                     )
 
             # Calculate final results
@@ -1125,8 +1283,11 @@ class TrafficSimulator:
                 f"mean={mean_trip_time:.1f}min, min={min_trip_time:.1f}min, max={max_trip_time:.1f}min"
             )
             self.sim_log.write(f"  Mean congestion delay: {mean_delay:.2f}min")
+            recorded = len(trip_times)
+            not_arrived = results["not_arrived"]
             self.sim_log.write(
-                f"  Vehicles arrived: {len(trip_times)}/{self.people_per_agent}"
+                f"  Travellers recorded: {recorded}/{self.people_per_agent}"
+                + (f" — {not_arrived} of them still under way" if not_arrived else "")
             )
             self.sim_log.write(
                 f"  CO2: {co2:.0f}g total ({co2_per_person:.1f}g per person, {co2 / 1000:.2f}kg total)"
@@ -1138,7 +1299,7 @@ class TrafficSimulator:
             # Per-segment emission breakdown
             segments = self.route_segments.get(route_pk, [])
             for seg in segments:
-                es = self.edge_states.get(seg.edge_id)
+                es = self.edge_states.get(seg.edge_id)  # type: ignore
                 if not es:
                     continue
                 dist_km = es.distance_m / 1000
@@ -1309,29 +1470,25 @@ class TrafficSimulator:
         return FALLBACK_BUS_INTERVAL_MIN
 
     def _update_street_speeds(self):
-        """Update StreetPerRound with average speeds from simulation."""
-        # Calculate average speed per edge
-        edge_speeds: dict[int, list[float]] = defaultdict(list)
+        """Store each street's observed car speed for the next round.
 
-        for snapshot in EdgeTrafficSnapshot.objects.filter(
-            simulation=self.simulation_result
-        ):
-            edge_speeds[snapshot.edge_id].append(snapshot.speed_kmh)
+        This is what StreetPerRound.speed_under_load has always been for. It
+        was written from a mean over snapshots that were themselves means; now
+        it is the one figure the run measured, and step 9 serves it to the
+        route preview.
+        """
+        from maps.models import StreetEdge
 
-        # Update or create StreetPerRound records
-        for edge_id, speeds in edge_speeds.items():
-            avg_speed = sum(speeds) / len(speeds) if speeds else None
-            if avg_speed:
-                # Find StreetEdge for this edge
-                from maps.models import StreetEdge
-
-                street_edge = StreetEdge.objects.filter(edge_id=edge_id).first()
-                if street_edge:
-                    StreetPerRound.objects.update_or_create(
-                        edge=street_edge,
-                        game_round=self.game_round,
-                        defaults={"speed_under_load": int(avg_speed)},
-                    )
+        for edge_id, state in self.edge_states.items():
+            if not state.traversal_count:
+                continue
+            street_edge = StreetEdge.objects.filter(edge_id=edge_id).first()
+            if street_edge:
+                StreetPerRound.objects.update_or_create(
+                    edge=street_edge,
+                    game_round=self.game_round,
+                    defaults={"speed_under_load": max(1, int(state.mean_speed_kmh))},
+                )
 
 
 def run_round_simulation(game_round: GameRound) -> SimulationResult:

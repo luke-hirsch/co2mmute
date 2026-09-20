@@ -576,14 +576,22 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
                     errors.append(
                         f"Agent {agent_id}: biking not allowed on edge {edge_id}"
                     )
-                if (
-                    mode == "car"
-                    and not hasattr(edge, "streetedge_set")
-                    and not edge.streetedge_set.exists()  # type: ignore
-                ):  # type: ignore
-                    errors.append(
-                        f"Agent {agent_id}: cars not allowed on edge {edge_id}"
-                    )
+                # StreetEdge.edge is a ForeignKey, so hasattr(edge,
+                # "streetedge_set") is always true — the old condition here
+                # short-circuited and this check never fired once.
+                if mode == "car":
+                    street_edge = edge.streetedge_set.first()  # type: ignore
+                    if street_edge is None:
+                        errors.append(
+                            f"Agent {agent_id}: cars not allowed on edge {edge_id}"
+                        )
+                    elif street_edge.dedicated_bus_lane and street_edge.lanes <= 1:
+                        # A bus lane on a one-lane street leaves no car lane:
+                        # the street is a bus gate and cars have to go round.
+                        errors.append(
+                            f"Agent {agent_id}: edge {edge_id} is a bus lane, "
+                            f"cars cannot use it"
+                        )
                 if mode in ("bus", "train"):
                     pass
 
