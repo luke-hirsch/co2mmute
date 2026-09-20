@@ -43,6 +43,7 @@ from maps.serializer import (
     TrainLineSerializer,
     VersionDiffInputSerializer,
     serialize_bus_line_for_graph,
+    serialize_previous_round_traffic,
     serialize_train_line_for_graph,
 )
 
@@ -514,9 +515,28 @@ class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
     serializer_class = MapVersionSerializer
     authentication_classes = (SessionAuthentication,)
 
+    @staticmethod
+    def _with_traffic(graph_data, game_id):
+        """Attach the last round's observed speeds, outside the cache.
+
+        The graph is the same for every game on that map version and is
+        cached for an hour under map + version. The traffic is neither: it
+        belongs to one game and changes every round. So it is attached to
+        the response on the way out and never stored in the cached payload,
+        which would serve one game's jams to another game — and keep serving
+        them after the next round had run.
+        """
+        return {
+            **graph_data,
+            "previous_round_traffic": serialize_previous_round_traffic(game_id),
+        }
+
     def get(self, request, *args, **kwargs):
         map_pk = self.get_map_id()
         version_pk = kwargs.get("version_pk")
+        # Optional: the game whose last round's speeds to attach. Without it
+        # the payload is unchanged apart from an empty traffic list.
+        game_id = request.query_params.get("game")
 
         try:
             map_obj = GameMap.objects.get(pk=map_pk)
@@ -534,7 +554,10 @@ class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
         # Try to get from cache first
         cached_graph = cache.get(cache_key)
         if cached_graph:
-            return Response(cached_graph, status=status.HTTP_200_OK)
+            return Response(
+                self._with_traffic(cached_graph, game_id),
+                status=status.HTTP_200_OK,
+            )
 
         # Get or determine version
         if not version_pk:
@@ -635,7 +658,10 @@ class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
             # Cache the result for 1 hour (3600 seconds)
             cache.set(cache_key, graph_data, 3600)
 
-            return Response(graph_data, status=status.HTTP_200_OK)
+            return Response(
+                self._with_traffic(graph_data, game_id),
+                status=status.HTTP_200_OK,
+            )
 
         except Exception as e:
             logger.exception(

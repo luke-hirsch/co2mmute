@@ -3,6 +3,7 @@ import logging
 from rest_framework import serializers
 
 import maps.models as mm
+from game.models import GameRound, SimulationResult
 
 logger = logging.getLogger(__name__)
 
@@ -609,6 +610,62 @@ def serialize_train_line_for_graph(train_line, version):
         "edges": edge_ids,
         "stops": stops,
     }
+
+
+# --- Traffic from the previous round ---
+
+
+def _congestion_level(speed_under_load: int, speed_limit: int) -> str:
+    """The three buckets the frontend's EdgeTrafficData already names."""
+    if not speed_limit:
+        return "low"
+    ratio = speed_under_load / speed_limit
+    if ratio >= 0.75:
+        return "low"
+    if ratio >= 0.4:
+        return "medium"
+    return "high"
+
+
+def serialize_previous_round_traffic(game_id):
+    """Observed car speeds from a game's last completed round, per edge.
+
+    StreetPerRound.speed_under_load has been written since the beginning and
+    read by nobody; on the other side PathfindingOptions.trafficData has been
+    threaded through the frontend with nothing ever supplying a value. This
+    is the join between the two halves — the loop the README describes as
+    routing "unter der Auslastung der letzten Runde".
+
+    Empty for an unknown game, a game with no completed round, or no game at
+    all: the graph endpoint serves the same payload with or without one.
+    """
+    if not game_id:
+        return []
+
+    last_round = (
+        GameRound.objects.filter(
+            game__game_id=game_id,
+            simulation__status=SimulationResult.Status.COMPLETED,
+        )
+        .order_by("-round_number")
+        .first()
+    )
+    if not last_round:
+        return []
+
+    return [
+        {
+            "edgeId": street_round.edge.edge_id,
+            "avgSpeedKmh": street_round.speed_under_load,
+            "congestionLevel": _congestion_level(
+                street_round.speed_under_load, street_round.edge.speed_limit
+            ),
+        }
+        for street_round in mm.StreetPerRound.objects.filter(
+            game_round=last_round
+        ).select_related("edge")
+        if street_round.speed_under_load
+    ]
 
 
 # --- Version Diff serializers ---

@@ -2,6 +2,7 @@ import io
 import logging
 import math
 import random
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from maps.models import BusLine, Edge, StreetPerRound, TrainLine
@@ -44,7 +45,7 @@ FALLBACK_TRAIN_SPEED_KMH = 40
 FALLBACK_BUS_INTERVAL_MIN = 10
 FALLBACK_TRAIN_INTERVAL_MIN = 10
 
-# Departure window: matches the ±60 min clamp in generate_departure_times()
+# Departure window: matches the ±60 min clamp in generate_departure_minutes()
 DEPARTURE_WINDOW_MIN = 120
 
 # Physical road constants, replacing the old capacity model. That one put 750
@@ -337,7 +338,7 @@ class TrafficSimulator:
         self.current_tick = 0
 
         # Callback for progress updates
-        self.on_progress: callable | None = None  # type: ignore
+        self.on_progress: Callable[[int, int], None] | None = None
 
         # Detailed simulation log
         self.sim_log = SimulationLog()
@@ -562,12 +563,11 @@ class TrafficSimulator:
         base_hour = (
             self.morning_departure_hour if is_morning else self.evening_departure_hour
         )
-        # Tick corresponding to (base_hour - 1), i.e. the start of the ±60 min window.
-        # generate_departure_times uses (base_hour-1)*60 as time-zero, so offset=0 is that point.
-        window_start_tick = 0
+        # Everything here is in minutes from the start of the departure window,
+        # which opens at (base_hour - 1) * 60. generate_departure_minutes uses
+        # the same time-zero, so 0.0 is the first minute of the window.
 
         for route_pk in self.agent_routes:
-            route = self.agent_routes[route_pk]
             num_vehicles, _ = self.route_vehicle_scaling.get(
                 route_pk, (self.people_per_agent, 1)
             )
@@ -920,8 +920,20 @@ class TrafficSimulator:
         return total
 
     def _record_non_arrivals(self):
-        """Book the vehicles that were still on the road when time ran out."""
+        """Book the travellers who were still under way when time ran out.
+
+        Two groups, and both have to be counted or the mean becomes a mean
+        over survivors: vehicles still on a link, and people still at the
+        front door because the first street never let them in. The second
+        group is not in self.vehicles at all, so without this pass a route
+        whose first link jammed would report only the lucky few.
+
+        Their time is a lower bound — the clock stopped, the trip did not —
+        which is what the log below says.
+        """
+        sim_end_min = self.current_tick * self.tick_duration_min
         stranded_routes = 0
+
         for vehicle in self.vehicles.values():
             if not vehicle.departed or vehicle.arrived:
                 continue
@@ -929,10 +941,31 @@ class TrafficSimulator:
             if not agent_results:
                 continue
             wait_min = self.route_pt_wait_min.get(vehicle.route_pk, 0.0)
-            total_time = vehicle.total_travel_time_min + wait_min
+            elapsed = max(0.0, sim_end_min - vehicle.wants_to_depart_min) + wait_min
+            delay = max(0.0, elapsed - self._free_flow_min(vehicle.route_pk))
             for _ in range(vehicle.passenger_count):
-                agent_results["trip_times"].append(total_time)
-                agent_results["delays"].append(vehicle.congestion_delay_min)
+                agent_results["trip_times"].append(elapsed)
+                agent_results["delays"].append(delay)
+                agent_results["not_arrived"] += 1
+
+        for depart_min, route_pk, _person_index in self.waiting:
+            if depart_min > sim_end_min:
+                # The simulation ended before this person wanted to leave at
+                # all. Nothing happened to them, so nothing is recorded —
+                # the same rule as an undeparted vehicle.
+                continue
+            agent_results = self.agent_results.get(route_pk)
+            if not agent_results:
+                continue
+            _, passenger_count = self.route_vehicle_scaling.get(
+                route_pk, (self.people_per_agent, 1)
+            )
+            wait_min = self.route_pt_wait_min.get(route_pk, 0.0)
+            elapsed = sim_end_min - depart_min + wait_min
+            delay = max(0.0, elapsed - self._free_flow_min(route_pk))
+            for _ in range(passenger_count):
+                agent_results["trip_times"].append(elapsed)
+                agent_results["delays"].append(delay)
                 agent_results["not_arrived"] += 1
 
         for route_pk, results in self.agent_results.items():
@@ -956,7 +989,7 @@ class TrafficSimulator:
     def run_simulation(
         self,
         max_ticks: int = 200,
-        on_progress: callable | None = None,
+        on_progress: Callable[[int, int], None] | None = None,
     ) -> SimulationResult:
         """
         Run the full simulation.
@@ -1073,24 +1106,12 @@ class TrafficSimulator:
                 f"PT vehicles scaled by interval+capacity, car/bike/walk by people_per_agent)"
             )
 
-            # Simulation loop
+            # Simulation loop. One call per tick: _advance_traffic() spawns,
+            # moves the free-running modes and discharges every queue itself.
             self.current_tick = 0
-            vehicles_spawned = 0
-            vehicles_arrived = 0
 
             while self.current_tick < max_ticks:
                 self._advance_traffic()
-                prev_vehicle_count = len(self.vehicles)
-                self._spawn_vehicles()
-                new_spawned = len(self.vehicles) - prev_vehicle_count
-                vehicles_spawned += new_spawned
-
-                prev_arrived = sum(1 for v in self.vehicles.values() if v.arrived)
-
-                new_arrived = (
-                    sum(1 for v in self.vehicles.values() if v.arrived) - prev_arrived
-                )
-                vehicles_arrived += new_arrived
 
                 # Log progress every 10 ticks to simulation log
                 if self.current_tick % 10 == 0:
@@ -1113,17 +1134,22 @@ class TrafficSimulator:
                     )
                     self.sim_log.write(tick_line)
 
-                    # for eid, vol, cap, speed in congested:
-                    #     self.sim_log.write(
-                    #         f"    CONGESTION: {self.sim_log._edge_label(eid)} — "
-                    #         f"{vol}/{cap} vehicles, speed={speed:.1f}km/h "
-                    #         f"(free_flow={self.edge_states[eid].free_flow_speed_kmh:.0f}km/h)"
-                    #     )
+                    for eid, state in queued:
+                        self.sim_log.write(
+                            f"    QUEUE: {self.sim_log._edge_label(eid)} — "
+                            f"{state.occupancy_pcu:.0f}/"
+                            f"{state.storage_capacity_pcu:.0f}pcu in "
+                            f"{len(state.queue)} vehicles, "
+                            f"observed={state.mean_speed_kmh:.1f}km/h "
+                            f"(free_flow={state.free_flow_speed_kmh:.0f}km/h)"
+                        )
 
-                    # logger.info(
-                    #     f"[SIM] Tick {self.current_tick}: active={active}, "
-                    #     f"arrived={arrived}/{len(self.vehicles)}, congested_edges={len(congested)}"
-                    # )
+                    logger.info(
+                        f"[SIM] Tick {self.current_tick}: "
+                        f"waiting_to_depart={len(self.waiting)}, active={active}, "
+                        f"arrived={arrived}/{len(self.vehicles)}, "
+                        f"queued_edges={len(queued)}, forced={self.forced_releases}"
+                    )
 
                 # Record traffic every 5 ticks
                 if self.current_tick % 5 == 0:
@@ -1151,13 +1177,25 @@ class TrafficSimulator:
             self.sim_log.header("SAMPLE VEHICLE TRIP SUMMARIES")
             for route_pk, vid in self.sample_vehicles.items():
                 v = self.vehicles.get(vid)
-                # if v:
-                #     self.sim_log.write(
-                #         f"  {self.sim_log._route_label(route_pk)}: "
-                #         f"total_time={v.total_travel_time_min:.1f}min, "
-                #         f"congestion_delay={v.congestion_delay_min:.2f}min, "
-                #         f"arrived={'YES' if v.arrived else 'NO'}"
-                #     )
+                if not v:
+                    continue
+                free_flow = self._free_flow_min(route_pk)
+                label = self.sim_log._route_label(route_pk)
+                if v.arrived and v.arrived_min is not None:
+                    trip_min = v.arrived_min - v.wants_to_depart_min
+                    self.sim_log.write(
+                        f"  {label}: wanted_to_leave={v.wants_to_depart_min:.1f}min, "
+                        f"total_time={trip_min:.1f}min, "
+                        f"free_flow={free_flow:.1f}min, "
+                        f"congestion_delay={max(0.0, trip_min - free_flow):.2f}min, "
+                        f"arrived=YES"
+                    )
+                else:
+                    self.sim_log.write(
+                        f"  {label}: wanted_to_leave={v.wants_to_depart_min:.1f}min, "
+                        f"free_flow={free_flow:.1f}min, "
+                        f"still on segment {v.segment_index}, arrived=NO"
+                    )
 
             # Calculate final results
             self._calculate_results()
@@ -1245,8 +1283,11 @@ class TrafficSimulator:
                 f"mean={mean_trip_time:.1f}min, min={min_trip_time:.1f}min, max={max_trip_time:.1f}min"
             )
             self.sim_log.write(f"  Mean congestion delay: {mean_delay:.2f}min")
+            recorded = len(trip_times)
+            not_arrived = results["not_arrived"]
             self.sim_log.write(
-                f"  Vehicles arrived: {len(trip_times)}/{self.people_per_agent}"
+                f"  Travellers recorded: {recorded}/{self.people_per_agent}"
+                + (f" — {not_arrived} of them still under way" if not_arrived else "")
             )
             self.sim_log.write(
                 f"  CO2: {co2:.0f}g total ({co2_per_person:.1f}g per person, {co2 / 1000:.2f}kg total)"
