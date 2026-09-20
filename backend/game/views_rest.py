@@ -196,6 +196,10 @@ class GameSessionDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIVie
                 game.is_active = False
                 game.paused_at = None
                 game.ended_at = timezone.now()
+                # Why it ended cannot be worked out afterwards, which is how
+                # a game the host stopped in round 1 of 3 came to report
+                # "all rounds played". Written here, once, while it is known.
+                game.end_reason = GameSession.EndReason.HOST
                 game.save()
 
             serializer = self.get_serializer(game)
