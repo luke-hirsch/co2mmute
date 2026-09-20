@@ -569,36 +569,10 @@ def serialize_train_line_for_graph(train_line, version):
         .order_by("trainlineedge__order")
     )
     edge_ids = [te.edge_id for te in train_edges]
-
-    # Build stops in traversal order, respecting edge direction.
-    # An edge may be stored in reverse relative to the travel direction, so
-    # we track the previous node and follow whichever end connects.
-    stops = []
-    for te in train_edges:
-        edge = te.edge
-        if not stops:
-            stops.append(edge.start_node_id)
-            stops.append(edge.end_node_id)
-        else:
-            prev = stops[-1]
-            if prev == edge.start_node_id:
-                stops.append(edge.end_node_id)
-            elif prev == edge.end_node_id:
-                # Edge stored in reverse — travel direction is end→start
-                stops.append(edge.start_node_id)
-            else:
-                # Disconnected edge (data issue): truncate route here
-                import logging as _logging
-
-                _logging.getLogger(__name__).warning(
-                    "Train line %s (%s): edge %s is disconnected from previous stop %s. "
-                    "Route truncated at this edge.",
-                    train_line.id,
-                    train_line.name,
-                    edge.id,
-                    prev,
-                )
-                break
+    stops = _stops_in_travel_order(
+        [te.edge for te in train_edges],
+        f"Train line {train_line.id} ({train_line.name})",
+    )
 
     return {
         "id": train_line.id,
