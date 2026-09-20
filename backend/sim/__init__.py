@@ -34,8 +34,14 @@ from sim.constants import (
     SATURATION_FLOW_VEH_PER_H_LANE,
     TRAIN_COST_PER_VEHICLE_KM,
     TRAIN_EMISSIONS_G_PER_VEHICLE_KM,
+    CAPACITY_FACTOR_CLAMP,
+    CAPACITY_FACTOR_SIGMA,
+    DRIVER_SPEED_CLAMP,
+    DRIVER_SPEED_SIGMA,
     car_cost_eur_per_km,
     car_emissions_g_per_km,
+    draw_capacity_factor,
+    draw_driver_speed_factor,
     generate_departure_minutes,
 )
 from sim.log import SimulationLog
@@ -65,7 +71,13 @@ __all__ = [
     "TRAIN_EMISSIONS_G_PER_VEHICLE_KM",
     "SimulationLog",
     "Vehicle",
+    "CAPACITY_FACTOR_CLAMP",
+    "CAPACITY_FACTOR_SIGMA",
+    "DRIVER_SPEED_CLAMP",
+    "DRIVER_SPEED_SIGMA",
     "car_cost_eur_per_km",
     "car_emissions_g_per_km",
+    "draw_capacity_factor",
+    "draw_driver_speed_factor",
     "generate_departure_minutes",
 ]

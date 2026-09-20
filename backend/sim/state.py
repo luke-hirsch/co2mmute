@@ -23,6 +23,11 @@ class Vehicle:
     segment_index: int
     passenger_count: int = 1
 
+    # Drawn once at spawn and carried for the whole trip — see
+    # draw_driver_speed_factor. Redrawing per link would average a long route
+    # back to the mean and the dial would do nothing.
+    speed_factor: float = 1.0
+
     wants_to_depart_min: float = 0.0  # when this person wanted to leave
     ready_at_min: float = 0.0  # earliest it may leave its current link
     entered_edge_min: float = 0.0
@@ -63,6 +68,11 @@ class EdgeState:
     free_flow_speed_kmh: float
     car_lanes: int = 1
     has_dedicated_bus_lane: bool = False
+
+    # This round's capacity draw for this link — see draw_capacity_factor.
+    # 1.0 means "no noise", so an EdgeState built by hand in a test behaves
+    # exactly as it did before the stochastic layer.
+    capacity_factor: float = 1.0
 
     queue: list[QueuedVehicle] = field(default_factory=list)
     occupancy_pcu: float = 0.0
@@ -108,10 +118,16 @@ class EdgeState:
         )
 
     def flow_per_tick(self, tick_duration_min: int) -> float:
-        """Car-equivalents the link discharges in one tick."""
+        """Car-equivalents the link discharges in one tick.
+
+        Scaled by this round's capacity draw: capacity is a random variable,
+        not a constant, and this is where the round-to-round variance enters
+        the model.
+        """
         return (
             SATURATION_FLOW_VEH_PER_H_LANE
             * self._capacity_lanes
+            * self.capacity_factor
             * tick_duration_min
             / 60.0
         )

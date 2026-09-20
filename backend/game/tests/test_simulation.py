@@ -1333,8 +1333,14 @@ class CongestedRouteCostsMoreTests(TestCase):
             "approach_speed": simulator.edge_states[north.pk].mean_speed_kmh,
         }
 
-    def _play_chain(self, label, people, speed_limit=50):
-        """A plain 3 x 300 m chain, one driver on it — free flow by construction."""
+    def _play_chain(self, label, people, speed_limit=50, seed=606):
+        """A plain 3 x 300 m chain, one driver on it — free flow by construction.
+
+        The seed is pinned. Without it the simulator seeds off the round pk,
+        which depends on how many rounds earlier tests in the same run
+        happened to create — so these assertions passed alone and failed in a
+        full suite, which is the worst way for a test to fail.
+        """
         from game.models import AgentSimulationResult
         from game.tests._helpers import muted
 
@@ -1348,7 +1354,7 @@ class CongestedRouteCostsMoreTests(TestCase):
         player = Player.objects.create(name="Fahrer", game=session)
         route = _route(game_round, player, edges)
 
-        simulator = TrafficSimulator(game_round, scale=100.0)
+        simulator = TrafficSimulator(game_round, scale=100.0, seed=seed)
         with muted():
             simulator.run_simulation(max_ticks=300)
 
@@ -1391,23 +1397,45 @@ class CongestedRouteCostsMoreTests(TestCase):
             f"EUR {free['cost_per_person']:.4f} in free flow",
         )
 
-    def test_an_empty_fifty_route_still_emits_the_old_number(self):
-        """The anchor doing its job — passes before and after this guide."""
+    def test_an_empty_fifty_route_still_emits_about_the_old_number(self):
+        """The anchor, with the one tolerance the stochastic layer costs it.
+
+        EF(50) is still exactly CAR_EMISSIONS_G_PER_KM — that identity is
+        pinned in CarEmissionCurveTests and did not move. What moved is what
+        an empty road OBSERVES: drivers now want slightly different speeds
+        (DRIVER_SPEED_SIGMA), and the mean speed a link reports is length over
+        mean traversal time, which is a harmonic mean. A mix of 44 and 56 has
+        a lower harmonic mean than a uniform 50, and the emission curve is
+        convex, so an empty 50 road reads a few tenths of a percent above the
+        anchor rather than exactly on it.
+
+        That is real — a spread of speeds does burn more fuel than everyone
+        driving the mean — and it is under 1%. The assertion is a percentage
+        rather than four decimal places for exactly that reason; tightening it
+        back would be pinning the absence of driver heterogeneity.
+        """
         from game.simulation import CAR_EMISSIONS_G_PER_KM
 
-        free = self._play_chain("Anchor map", people=5)
+        free = self._play_chain("Anchor map", people=400)
 
-        self.assertAlmostEqual(
-            free["co2_per_person"], CAR_EMISSIONS_G_PER_KM * 0.9, places=4
+        expected = CAR_EMISSIONS_G_PER_KM * 0.9
+        self.assertLess(
+            abs(free["co2_per_person"] - expected) / expected,
+            0.015,
+            f'{free["co2_per_person"]:.3f} against {expected:.3f}',
         )
 
-    def test_an_empty_fifty_route_still_costs_the_old_number(self):
+    def test_an_empty_fifty_route_still_costs_about_the_old_number(self):
+        """Same tolerance, same reason — cost rides the emission curve."""
         from game.simulation import CAR_COST_PER_KM
 
-        free = self._play_chain("Anchor cost map", people=5)
+        free = self._play_chain("Anchor cost map", people=400)
 
-        self.assertAlmostEqual(
-            free["cost_per_person"], CAR_COST_PER_KM * 0.9, places=6
+        expected = CAR_COST_PER_KM * 0.9
+        self.assertLess(
+            abs(free["cost_per_person"] - expected) / expected,
+            0.015,
+            f'{free["cost_per_person"]:.5f} against {expected:.5f}',
         )
 
     def test_a_thirty_zone_emits_more_than_a_fifty_zone_even_empty(self):
@@ -1529,3 +1557,163 @@ class SeededRandomnessTests(TestCase):
         second._generate_departures(is_morning=True)
 
         self.assertEqual(first.departure_schedule, second.departure_schedule)
+
+
+class StochasticRoundTests(TestCase):
+    """The noise has to reach the round, and with the right shape.
+
+    Large when the network is loaded, near zero when it is free-flowing.
+    That is both the better physics and the better game: a jammed network is
+    an unreliable one, and clearing a jam buys predictability as well as
+    minutes. A flat percentage on the result would wobble an empty map just
+    as hard, which is backwards.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="noisy", password="12345")
+
+    def _merge_round(self, label, people, seed):
+        """Two approaches onto one lane — the shape that actually queues."""
+        from game.tests._helpers import muted
+
+        game_map = GameMap.objects.create(
+            name=label, x_dim=1000, y_dim=1000, scale=100.0
+        )
+        version = MapVersion.objects.create(
+            game_map=game_map, name="Base", base_version=True
+        )
+        coords = {"north": (0, 20), "south": (0, 0), "merge": (10, 10), "work": (13, 10)}
+        nodes = {}
+        for name, (x, y) in coords.items():
+            node = Node.objects.create(game_map=game_map, x_position=x, y_position=y)
+            node.map_versions.add(version)
+            nodes[name] = node
+        shared = _street(game_map, version, nodes["merge"], nodes["work"])
+        north = _street(game_map, version, nodes["north"], nodes["merge"])
+        south = _street(game_map, version, nodes["south"], nodes["merge"])
+
+        session = _session(self.user, game_map, people_per_agent=people, std_dev=5)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+        anna = Player.objects.create(name="Anna", game=session)
+        ben = Player.objects.create(name="Ben", game=session)
+        route = _route(game_round, anna, [north, shared], agent_id=1)
+        _route(game_round, ben, [south, shared], agent_id=2)
+
+        simulator = TrafficSimulator(game_round, scale=100.0, seed=seed)
+        with muted():
+            simulator.run_simulation(max_ticks=400)
+        return simulator, route
+
+    def _trip_time(self, simulator, route):
+        from game.models import AgentSimulationResult
+
+        return AgentSimulationResult.objects.get(agent_route=route).mean_trip_time_min
+
+    def test_the_same_seed_still_reproduces_the_round(self):
+        """Noise must not cost reproducibility — the golden master needs it."""
+        first, r1 = self._merge_round("same-a", 600, seed=99)
+        second, r2 = self._merge_round("same-b", 600, seed=99)
+
+        self.assertAlmostEqual(
+            self._trip_time(first, r1), self._trip_time(second, r2), places=9
+        )
+
+    def test_a_different_seed_changes_a_congested_round(self):
+        """The whole point: two identical rounds must not be identical."""
+        times = [
+            self._trip_time(*self._merge_round(f"cong-{seed}", 600, seed=seed))
+            for seed in (1, 2, 3, 4, 5)
+        ]
+
+        self.assertGreater(
+            len(set(round(t, 6) for t in times)),
+            1,
+            f"every seed gave the same trip time: {times}",
+        )
+
+    def test_the_spread_is_near_zero_in_free_flow(self):
+        """An empty network is predictable. Noise must not invent variance."""
+        import statistics
+
+        times = [
+            self._trip_time(*self._merge_round(f"free-{seed}", 4, seed=seed))
+            for seed in (1, 2, 3, 4, 5)
+        ]
+
+        mean = statistics.fmean(times)
+        cv = statistics.pstdev(times) / mean if mean else 0.0
+        self.assertLess(cv, 0.05, f"free flow should be steady, got CV={cv:.3f}: {times}")
+
+    def test_congestion_is_more_variable_than_free_flow(self):
+        """The shape claim, stated as a comparison rather than a threshold."""
+        import statistics
+
+        def cv(people, tag):
+            times = [
+                self._trip_time(*self._merge_round(f"{tag}-{s}", people, seed=s))
+                for s in (1, 2, 3, 4, 5)
+            ]
+            mean = statistics.fmean(times)
+            return statistics.pstdev(times) / mean if mean else 0.0
+
+        self.assertGreater(cv(600, "shape-cong"), cv(4, "shape-free"))
+
+
+class DriverSpeedFactorIsPerVehicleTests(TestCase):
+    """Drawn once at spawn, never per edge.
+
+    A driver who is fast on one link has to stay fast on the next. Redrawing
+    per edge would average every trip back to the mean over a long route,
+    which is the quiet way for a variance dial to do nothing at all.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="perveh", password="12345")
+
+    def test_a_vehicle_keeps_its_speed_factor_across_segments(self):
+        from game.tests._helpers import muted
+
+        game_map = GameMap.objects.create(
+            name="Chain", x_dim=1000, y_dim=1000, scale=100.0
+        )
+        version = MapVersion.objects.create(
+            game_map=game_map, name="Base", base_version=True
+        )
+        nodes = []
+        for i in range(4):
+            node = Node.objects.create(game_map=game_map, x_position=i * 3, y_position=0)
+            node.map_versions.add(version)
+            nodes.append(node)
+        edges = [
+            _street(game_map, version, nodes[i], nodes[i + 1]) for i in range(3)
+        ]
+
+        session = _session(self.user, game_map, people_per_agent=20, std_dev=1)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+        player = Player.objects.create(name="Anna", game=session)
+        _route(game_round, player, edges, agent_id=1)
+
+        simulator = TrafficSimulator(game_round, scale=100.0, seed=17)
+        seen = {}
+        original = simulator._free_speed_for
+
+        def spy(vehicle, edge_state):
+            seen.setdefault(id(vehicle), set()).add(vehicle.speed_factor)
+            return original(vehicle, edge_state)
+
+        simulator._free_speed_for = spy
+        with muted():
+            simulator.run_simulation(max_ticks=200)
+
+        self.assertTrue(seen, "no vehicle was ever speed-checked")
+        multi = {k: v for k, v in seen.items() if len(v) > 1}
+        self.assertEqual(multi, {}, f"speed_factor was redrawn mid-trip: {multi}")
+
+    def test_not_every_driver_gets_the_same_factor(self):
+        from sim.constants import draw_driver_speed_factor
+        import random as _random
+
+        rng = _random.Random(3)
+        draws = {round(draw_driver_speed_factor(rng), 9) for _ in range(50)}
+
+        self.assertGreater(len(draws), 1)

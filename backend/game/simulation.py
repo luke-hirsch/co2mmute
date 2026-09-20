@@ -1,3 +1,4 @@
+import bisect
 import logging
 import math
 import random
@@ -44,6 +45,8 @@ from sim import (  # noqa: F401
     Vehicle,
     car_cost_eur_per_km,
     car_emissions_g_per_km,
+    draw_capacity_factor,
+    draw_driver_speed_factor,
     generate_departure_minutes,
 )
 
@@ -385,6 +388,12 @@ class TrafficSimulator:
                 free_flow_speed_kmh=speed_limit,
                 car_lanes=car_lanes,
                 has_dedicated_bus_lane=has_dedicated_bus_lane,
+                # Once per link per round. This is the dial that makes two
+                # rounds with identical choices come back with different
+                # numbers, and it is drawn here rather than per tick because
+                # a road's capacity on a given day is one draw, not a fresh
+                # surprise every five minutes.
+                capacity_factor=draw_capacity_factor(self.rng),
             )
 
             # Build edge name for logging
@@ -472,7 +481,12 @@ class TrafficSimulator:
             return float(self.bike_speed_kmh)
         if vehicle.mode == "walk":
             return float(self.walk_speed_kmh)
-        return edge_state.free_flow_speed_kmh or float(self.default_car_speed_kmh)
+        # Cars only. A bus and a train run to a timetable rather than to a
+        # driver's taste, and bikes and walkers do not queue, so a spread
+        # there would add noise to numbers nothing is arguing about without
+        # touching the mechanism this dial exists to feed.
+        limit = edge_state.free_flow_speed_kmh or float(self.default_car_speed_kmh)
+        return limit * vehicle.speed_factor
 
     def _enter_edge(self, vehicle_id: int, vehicle: Vehicle, at_min: float) -> bool:
         """Put a vehicle onto its current segment. False if the link is full."""
@@ -504,14 +518,25 @@ class TrafficSimulator:
         if not edge_state.has_room_for(pcu):
             return False
 
-        edge_state.queue.append(
-            QueuedVehicle(
-                vehicle_id=vehicle_id,
-                ready_at_min=vehicle.ready_at_min,
-                pcu=pcu,
-                entered_at_min=at_min,
-            )
+        queued = QueuedVehicle(
+            vehicle_id=vehicle_id,
+            ready_at_min=vehicle.ready_at_min,
+            pcu=pcu,
+            entered_at_min=at_min,
         )
+        if edge_state.car_lanes > 1:
+            # Overtaking, and the reason it is here rather than folded into a
+            # smaller sigma. Giving drivers different speeds against a strict
+            # FIFO queue means one slow driver at the head holds up everyone
+            # behind — correct on a single lane, where you genuinely cannot
+            # pass, and wrong on a multi-lane street, where the effect would
+            # be a jam the road does not have. (It is why MATSim gives every
+            # vehicle the same link speed.) Keeping the queue ordered by when
+            # each vehicle is ready to leave IS overtaking; shrinking sigma
+            # instead would only hide the missing mechanism.
+            bisect.insort(edge_state.queue, queued, key=lambda q: q.ready_at_min)
+        else:
+            edge_state.queue.append(queued)
         edge_state.occupancy_pcu += pcu
         edge_state.peak_occupancy_pcu = max(
             edge_state.peak_occupancy_pcu, edge_state.occupancy_pcu
@@ -548,6 +573,8 @@ class TrafficSimulator:
                 passenger_count=passenger_count,
                 wants_to_depart_min=depart_min,
                 departed=True,
+                # Once, here, for the whole trip.
+                speed_factor=draw_driver_speed_factor(self.rng),
             )
             vehicle_id = self.next_vehicle_id
             if self._enter_edge(vehicle_id, vehicle, max(depart_min, now)):
@@ -734,19 +761,30 @@ class TrafficSimulator:
                 continue
             wait_min = self.route_pt_wait_min.get(vehicle.route_pk, 0.0)
             trip_min = vehicle.arrived_min - vehicle.wants_to_depart_min + wait_min
-            delay_min = max(0.0, trip_min - self._free_flow_min(vehicle.route_pk))
+            delay_min = max(
+                0.0,
+                trip_min
+                - self._free_flow_min(vehicle.route_pk, vehicle.speed_factor),
+            )
             for _ in range(vehicle.passenger_count):
                 agent_results["trip_times"].append(trip_min)
                 agent_results["delays"].append(delay_min)
 
-    def _free_flow_min(self, route_pk: int) -> float:
-        """The route's uncongested time — the baseline the delay is against."""
+    def _free_flow_min(self, route_pk: int, speed_factor: float = 1.0) -> float:
+        """The route's uncongested time — the baseline the delay is against.
+
+        Measured against THIS driver's free-flow speed, not the speed limit.
+        A driver who wants to do 45 in a 50 zone arrives later than the limit
+        allows and is not delayed by anything; billing the difference as
+        congestion delay would report a jam on an empty road. The factor
+        applies to car segments only, which is the only mode it is drawn for.
+        """
         total = 0.0
         for segment in self.route_segments.get(route_pk, []):
             edge_state = self.edge_states.get(segment.edge_id)  # type: ignore
             if not edge_state:
                 continue
-            speed = edge_state.free_flow_speed_kmh
+            speed = edge_state.free_flow_speed_kmh * speed_factor
             if segment.mode == "bike":
                 speed = float(self.bike_speed_kmh)
             elif segment.mode == "walk":

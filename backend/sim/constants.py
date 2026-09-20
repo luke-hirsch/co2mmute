@@ -152,3 +152,70 @@ def generate_departure_minutes(
         departures.append(max(0.0, departure_min - window_start))
     return departures
 
+
+
+# --- The stochastic layer -------------------------------------------------
+#
+# Nothing in the model was random but the departure draw, so two rounds with
+# identical choices came back identical to the decimal. The literature says
+# day-to-day variability is real and large — sigma is around 25% of mean
+# travel time in an urban peak and up to 75% in central Stockholm, and 55% of
+# congestion is non-recurrent (FHWA) — while day-to-day DEMAND moves only
+# about 10%.
+#
+# ~10% in, 25-75% out. The amplifier is the non-linearity near capacity, and
+# the link queue model already has it: spillback, FIFO and a finite discharge
+# budget. So the inputs get modest noise and the existing mechanism produces
+# the spread. Nothing multiplies the result by a random number — that would
+# wobble an empty map exactly as hard as a jammed one, which is backwards.
+
+# Capacity is a random variable rather than a constant (Brilon, Geistefeldt
+# and Zurlinden fit a Weibull to it). A truncated normal is used here because
+# it is centred on the calibrated figure by construction, which keeps the
+# deterministic model as the mean of the stochastic one.
+#
+# THIS IS THE ONLY DIAL THAT MAKES ROUND 2 DIFFER FROM ROUND 1. Per-driver
+# noise averages away over a thousand people; a per-link, per-round draw does
+# not.
+# Calibrated, not guessed: a twenty-seed sweep over a two-approach merge puts
+# the coefficient of variation of car trip time at 12.7% with sigma 0.10,
+# 17.6% with 0.14 and 22.1% with 0.18, against a near-zero 0.3% in free flow
+# in every case. 0.14 is the smallest value that lands inside the 15-30% band
+# the literature reports for urban peaks.
+#
+# It is deliberately not pushed to the 25% those studies centre on. 55% of
+# real congestion is non-recurrent — incidents, weather, work zones — and none
+# of that is modelled here. Inflating capacity variance until it stands in for
+# an incident model would put the right number on screen for the wrong reason.
+# Reaching 25% honestly means modelling incidents, which is a game-design
+# decision rather than a modelling one.
+CAPACITY_FACTOR_SIGMA = 0.14
+CAPACITY_FACTOR_CLAMP = (0.60, 1.40)
+
+# Drivers do not all want to go the same speed. This is the within-round
+# spread and it is drawn once per vehicle at spawn, never per link: a driver
+# who is fast on one street has to stay fast on the next, or a long route
+# averages back to the mean and the dial does nothing.
+DRIVER_SPEED_SIGMA = 0.12
+DRIVER_SPEED_CLAMP = (0.70, 1.40)
+
+
+def _truncated_normal(rng: random.Random, sigma: float, clamp: tuple) -> float:
+    """A factor around 1.0, clamped so it can never be zero or negative.
+
+    Clamping rather than resampling: resampling until a draw lands in range
+    is unbounded work for a tail that is already negligible at these sigmas,
+    and it distorts the distribution in the same direction anyway.
+    """
+    low, high = clamp
+    return max(low, min(high, rng.gauss(1.0, sigma)))
+
+
+def draw_capacity_factor(rng: random.Random) -> float:
+    """This round's capacity multiplier for one link."""
+    return _truncated_normal(rng, CAPACITY_FACTOR_SIGMA, CAPACITY_FACTOR_CLAMP)
+
+
+def draw_driver_speed_factor(rng: random.Random) -> float:
+    """One driver's desired-speed multiplier, for the whole of their trip."""
+    return _truncated_normal(rng, DRIVER_SPEED_SIGMA, DRIVER_SPEED_CLAMP)
