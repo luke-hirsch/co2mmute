@@ -736,7 +736,6 @@ class PausedRoundTests(PauseMixin, TestCase):
 
 
 # ---------------------------------------------------------------------------
-<<<<<<< HEAD
 # Cost units — see `.claude/plans/to-do/[backend]-cost-units.md`.
 #
 # AgentSimulationResult.mean_cost_eur is per person; SimulationResult
@@ -824,7 +823,81 @@ class SimulatedRoundMixin(TempMediaRootMixin):
 
     def complete_round(self):
         listener = GroupListener(self.game.game_id)
-=======
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            round_completed.send(
+                sender=GameSession, game_session=self.game, game_round=self.round
+            )
+        return listener
+
+
+@override_settings(**TEST_BACKENDS)
+class CostUnitTests(SimulatedRoundMixin, TestCase):
+    """Two numbers meant to be read against each other carry one unit."""
+
+    def test_the_player_rows_add_up_to_the_round_total(self):
+        listener = self.complete_round()
+
+        data = listener.data("round.completed")
+        rows = sum(stat["cost_eur"] for stat in data["player_stats"])
+
+        self.assertAlmostEqual(rows, data["round_cost_eur"], places=2)
+
+    def test_an_agents_own_line_adds_up_to_its_players_row(self):
+        listener = self.complete_round()
+
+        for stat in listener.data("round.completed")["player_stats"]:
+            agents = sum(agent["cost_eur"] for agent in stat["agents"])
+            self.assertAlmostEqual(agents, stat["cost_eur"], places=2)
+
+    def test_the_co2_column_was_already_consistent(self):
+        """The control: CO2 is scaled when it is written, so it always matched.
+        If this one ever goes red the scaling moved, not the units."""
+        listener = self.complete_round()
+
+        data = listener.data("round.completed")
+        rows = sum(stat["emissions_g"] for stat in data["player_stats"])
+
+        self.assertAlmostEqual(rows, data["round_emissions_g"], places=1)
+
+    def test_the_summary_reports_the_cohort_figure(self):
+        self.complete_round()
+        self.client.force_login(self.host)
+
+        with muted():
+            response = self.client.get(f"/api/game/{self.game.game_id}/summary/")
+
+        players = response.json()["players"]
+        self.assertTrue(players)
+        for player in players:
+            self.assertGreater(
+                player["total_cost_eur"],
+                100.0,
+                msg="a 2 km car trip costs about 0,64 € per person and about "
+                "640 € for the thousand people the agent stands for; the "
+                "summary shows the cohort, like the CO2 beside it",
+            )
+
+
+@override_settings(**TEST_BACKENDS)
+class CostUnitWithOnePersonPerAgentTests(SimulatedRoundMixin, TestCase):
+    """people_per_agent = 1 makes the scaling a no-op.
+
+    Without this the test above would pass for a version that simply multiplied
+    everything by a constant it made up.
+    """
+
+    people_per_agent = 1
+
+    def test_rows_and_total_agree_when_there_is_nothing_to_scale(self):
+        listener = self.complete_round()
+
+        data = listener.data("round.completed")
+        rows = sum(stat["cost_eur"] for stat in data["player_stats"])
+
+        self.assertAlmostEqual(rows, data["round_cost_eur"], places=2)
+
+
+# ---------------------------------------------------------------------------
 # The end of a game — see `.claude/plans/to-do/[backend]-game-ending.md`.
 #
 # GameSession.end_reason does not exist yet, so everything below that touches it
@@ -877,48 +950,10 @@ class EndReasonTests(RoundFixtureMixin, TestCase):
         self.game.refresh_from_db()
         self.submit_move(self.player)
 
->>>>>>> backend/game-ending
         with muted(), self.captureOnCommitCallbacks(execute=True):
             round_completed.send(
                 sender=GameSession, game_session=self.game, game_round=self.round
             )
-<<<<<<< HEAD
-        return listener
-
-
-@override_settings(**TEST_BACKENDS)
-class CostUnitTests(SimulatedRoundMixin, TestCase):
-    """Two numbers meant to be read against each other carry one unit."""
-
-    def test_the_player_rows_add_up_to_the_round_total(self):
-        listener = self.complete_round()
-
-        data = listener.data("round.completed")
-        rows = sum(stat["cost_eur"] for stat in data["player_stats"])
-
-        self.assertAlmostEqual(rows, data["round_cost_eur"], places=2)
-
-    def test_an_agents_own_line_adds_up_to_its_players_row(self):
-        listener = self.complete_round()
-
-        for stat in listener.data("round.completed")["player_stats"]:
-            agents = sum(agent["cost_eur"] for agent in stat["agents"])
-            self.assertAlmostEqual(agents, stat["cost_eur"], places=2)
-
-    def test_the_co2_column_was_already_consistent(self):
-        """The control: CO2 is scaled when it is written, so it always matched.
-        If this one ever goes red the scaling moved, not the units."""
-        listener = self.complete_round()
-
-        data = listener.data("round.completed")
-        rows = sum(stat["emissions_g"] for stat in data["player_stats"])
-
-        self.assertAlmostEqual(rows, data["round_emissions_g"], places=1)
-
-    def test_the_summary_reports_the_cohort_figure(self):
-        self.complete_round()
-        self.client.force_login(self.host)
-=======
 
         self.game.refresh_from_db()
         self.assertIsNotNone(self.game.ended_at)
@@ -951,42 +986,10 @@ class CostUnitTests(SimulatedRoundMixin, TestCase):
         no backfill can recover it — the summary falls back to the old guess."""
         self.stop_game()
         GameSession.objects.filter(pk=self.game.pk).update(end_reason=None)
->>>>>>> backend/game-ending
 
         with muted():
             response = self.client.get(f"/api/game/{self.game.game_id}/summary/")
 
-<<<<<<< HEAD
-        players = response.json()["players"]
-        self.assertTrue(players)
-        for player in players:
-            self.assertGreater(
-                player["total_cost_eur"],
-                100.0,
-                msg="a 2 km car trip costs about 0,64 € per person and about "
-                "640 € for the thousand people the agent stands for; the "
-                "summary shows the cohort, like the CO2 beside it",
-            )
-
-
-@override_settings(**TEST_BACKENDS)
-class CostUnitWithOnePersonPerAgentTests(SimulatedRoundMixin, TestCase):
-    """people_per_agent = 1 makes the scaling a no-op.
-
-    Without this the test above would pass for a version that simply multiplied
-    everything by a constant it made up.
-    """
-
-    people_per_agent = 1
-
-    def test_rows_and_total_agree_when_there_is_nothing_to_scale(self):
-        listener = self.complete_round()
-
-        data = listener.data("round.completed")
-        rows = sum(stat["cost_eur"] for stat in data["player_stats"])
-
-        self.assertAlmostEqual(rows, data["round_cost_eur"], places=2)
-=======
         self.assertEqual(response.status_code, 200)
         self.assertIn(response.json()["end_reason"], {"co2_limit", "max_rounds"})
 
@@ -1043,4 +1046,121 @@ class EndingAnUnstartedGameTests(TempMediaRootMixin, TestCase):
         response = self.stop_game()
 
         self.assertEqual(response.status_code, 400)
->>>>>>> backend/game-ending
+
+
+# ---------------------------------------------------------------------------
+# Bus gates — see `.claude/plans/to-do/[backend]-sim-link-model.md`.
+#
+# `lanes` counts the whole street, the bus lane included, so ticking "Busspur"
+# on a one-lane street leaves no car lane at all: the street becomes a bus
+# gate, closed to cars and open to buses, bikes and pedestrians. The client
+# does its own pathfinding, so the submit has to refuse a car route over one
+# regardless of what the client thought.
+#
+# The car check next to it had never fired once: StreetEdge.edge is a
+# ForeignKey, so `hasattr(edge, "streetedge_set")` is always true and the
+# `not hasattr(...) and ...` condition short-circuited on every route.
+# ---------------------------------------------------------------------------
+
+
+class BusGateSubmitTests(TempMediaRootMixin, TestCase):
+    """A car route over a street with no car lane is refused at submit."""
+
+    def setUp(self):
+        from maps.models import Edge, GameMap, MapVersion, Node, StreetEdge
+
+        self.user = create_host()
+        self.game_map = GameMap.objects.create(
+            name="Gate Map", x_dim=10, y_dim=10, scale=100.0
+        )
+        self.version = MapVersion.objects.create(
+            game_map=self.game_map, name="Base", base_version=True
+        )
+        self.home = Node.objects.create(
+            game_map=self.game_map, x_position=0, y_position=0
+        )
+        self.work = Node.objects.create(
+            game_map=self.game_map, x_position=3, y_position=0
+        )
+        for node in (self.home, self.work):
+            node.map_versions.add(self.version)
+
+        self.edge = Edge.objects.create(
+            game_map=self.game_map, start_node=self.home, end_node=self.work
+        )
+        self.edge.map_versions.add(self.version)
+        self.street = StreetEdge.objects.create(
+            edge=self.edge, speed_limit=50, lanes=1, dedicated_bus_lane=False
+        )
+        self.street.map_versions.add(self.version)
+
+        with muted():
+            self.game = create_game_session(
+                self.user, game_name="Gate Game", game_map=self.game_map
+            )
+            self.player = Player.objects.create(game=self.game, name="Fahrerin")
+        self.player.agent_assignments = {
+            "home_node": self.home.pk,
+            "agents": [{"id": 1, "destination_node": self.work.pk}],
+        }
+        self.player.save()
+
+    def _car_route(self):
+        return [
+            {
+                "id": 1,
+                "transport_mode": "car",
+                "route": {
+                    "segments": [
+                        {
+                            "edge_id": self.edge.pk,
+                            "mode": "car",
+                            "start_node": self.home.pk,
+                            "end_node": self.work.pk,
+                        }
+                    ]
+                },
+            }
+        ]
+
+    def _validate(self):
+        from game.views_rest import PlayerMoveView
+
+        return PlayerMoveView()._validate_routes(
+            self._car_route(), self.player, self.game
+        )
+
+    def test_an_ordinary_street_takes_a_car(self):
+        self.assertIsNone(self._validate())
+
+    def test_a_two_lane_street_with_a_bus_lane_still_takes_a_car(self):
+        self.street.lanes = 2
+        self.street.dedicated_bus_lane = True
+        self.street.save()
+
+        self.assertIsNone(self._validate())
+
+    def test_a_one_lane_bus_gate_refuses_a_car(self):
+        self.street.lanes = 1
+        self.street.dedicated_bus_lane = True
+        self.street.save()
+
+        errors = self._validate()
+
+        self.assertIsNotNone(errors)
+        self.assertTrue(
+            any("bus lane" in error for error in errors),
+            msg=f"expected a bus-lane refusal, got {errors}",
+        )
+
+    def test_an_edge_with_no_street_at_all_refuses_a_car(self):
+        """The check this replaces short-circuited and never ran."""
+        self.street.delete()
+
+        errors = self._validate()
+
+        self.assertIsNotNone(errors)
+        self.assertTrue(
+            any("cars not allowed" in error for error in errors),
+            msg=f"expected a no-street refusal, got {errors}",
+        )
