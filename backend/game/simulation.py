@@ -322,6 +322,7 @@ def generate_departure_minutes(
     num_people: int,
     base_hour: int,
     std_dev_min: float,
+    rng: random.Random | None = None,
 ) -> list[float]:
     """
     Draw departure times from a normal distribution around base_hour.
@@ -331,12 +332,19 @@ def generate_departure_minutes(
     not tick buckets: bucketing here quantised every trip to the tick before
     the simulation had started, and the tick is a simulation step, not a
     property of when people leave the house.
+
+    Args:
+        rng: The generator to draw from. The simulator passes its own, seeded
+            from the round, so a round is reproducible. Defaults to the module
+            generator for the handful of direct callers that only care about
+            the shape of the distribution.
     """
+    draw = rng if rng is not None else random
     base_minutes = base_hour * 60
     window_start = (base_hour - 1) * 60
     departures = []
     for _ in range(num_people):
-        departure_min = random.gauss(base_minutes, std_dev_min)
+        departure_min = draw.gauss(base_minutes, std_dev_min)
         departure_min = max(base_minutes - 60, min(base_minutes + 60, departure_min))
         departures.append(max(0.0, departure_min - window_start))
     return departures
@@ -350,17 +358,32 @@ class TrafficSimulator:
     accounting for congestion and public transport dynamics.
     """
 
-    def __init__(self, game_round: GameRound, scale: float = 100.0):
+    def __init__(
+        self,
+        game_round: GameRound,
+        scale: float = 100.0,
+        seed: int | None = None,
+    ):
         """
         Initialize the simulator.
 
         Args:
             game_round: The game round to simulate
             scale: Meters per coordinate unit (for distance calculation)
+            seed: Seed for this round's draws. Defaults to the round pk, so a
+                round always replays identically — in a test, in a debugger, or
+                after a worker restart. Pass one explicitly to sweep the same
+                round over many seeds (calibration), which is the only reason
+                the argument exists.
         """
         self.game_round = game_round
         self.scale = scale
         self.simulation_result: SimulationResult | None = None
+        # A generator of its own rather than module-level `random`: the module
+        # generator is process-wide shared state, so anything else drawing from
+        # it would shift this round's departures.
+        self.seed = game_round.pk if seed is None else seed
+        self.rng = random.Random(self.seed)
 
         # Load simulation parameters from GameSession
         game_session = game_round.game
@@ -670,7 +693,10 @@ class TrafficSimulator:
                 ]
             else:
                 departures = generate_departure_minutes(
-                    num_vehicles, base_hour, self.departure_std_dev_min
+                    num_vehicles,
+                    base_hour,
+                    self.departure_std_dev_min,
+                    rng=self.rng,
                 )
                 self.departure_schedule[route_pk] = list(enumerate(departures))
 
