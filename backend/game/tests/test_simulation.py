@@ -1428,3 +1428,104 @@ class CongestedRouteCostsMoreTests(TestCase):
             f"{thirty['co2_per_person']:.2f} g/person at 30 against "
             f"{fifty['co2_per_person']:.2f} at 50",
         )
+
+
+class SeededRandomnessTests(TestCase):
+    """The draw is seeded off the round, so a round is reproducible.
+
+    Everything the stochastic layer adds later depends on this landing
+    first: without a seeded generator there is no golden master, and with
+    no golden master there is no proof that moving the engine into its own
+    package changed nothing.
+
+    The seed is the round pk rather than a wall clock, so re-running a
+    round — in a test, in a debugger, or after a worker restart — draws the
+    same departures it drew the first time.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="seeded", password="12345")
+
+    def _round(self):
+        game_map = GameMap.objects.create(
+            name="Seeded", x_dim=1000, y_dim=1000, scale=100.0
+        )
+        version = MapVersion.objects.create(
+            game_map=game_map, name="Base", base_version=True
+        )
+        a = Node.objects.create(game_map=game_map, x_position=0, y_position=0)
+        b = Node.objects.create(game_map=game_map, x_position=3, y_position=0)
+        for node in (a, b):
+            node.map_versions.add(version)
+        edge = _street(game_map, version, a, b)
+        session = _session(self.user, game_map, people_per_agent=200)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+        player = Player.objects.create(name="Anna", game=session)
+        _route(game_round, player, [edge], agent_id=1)
+        return game_round
+
+    def test_generate_departure_minutes_is_reproducible_with_an_explicit_rng(self):
+        import random as _random
+
+        from game.simulation import generate_departure_minutes
+
+        first = generate_departure_minutes(
+            50, base_hour=9, std_dev_min=10, rng=_random.Random(4242)
+        )
+        second = generate_departure_minutes(
+            50, base_hour=9, std_dev_min=10, rng=_random.Random(4242)
+        )
+
+        self.assertEqual(first, second)
+
+    def test_a_different_seed_draws_a_different_schedule(self):
+        import random as _random
+
+        from game.simulation import generate_departure_minutes
+
+        first = generate_departure_minutes(
+            50, base_hour=9, std_dev_min=10, rng=_random.Random(1)
+        )
+        second = generate_departure_minutes(
+            50, base_hour=9, std_dev_min=10, rng=_random.Random(2)
+        )
+
+        self.assertNotEqual(first, second)
+
+    def test_the_simulator_carries_its_own_generator(self):
+        import random as _random
+
+        game_round = self._round()
+
+        simulator = TrafficSimulator(game_round, scale=100.0)
+
+        self.assertIsInstance(simulator.rng, _random.Random)
+
+    def test_two_simulators_on_one_round_schedule_identically(self):
+        game_round = self._round()
+
+        first = TrafficSimulator(game_round, scale=100.0)
+        first._generate_departures(is_morning=True)
+        second = TrafficSimulator(game_round, scale=100.0)
+        second._generate_departures(is_morning=True)
+
+        self.assertEqual(first.departure_schedule, second.departure_schedule)
+
+    def test_the_module_level_random_does_not_steer_the_simulation(self):
+        """Seeding the global generator must not change what the round draws.
+
+        If it does, the engine is still reaching for module-level `random`
+        somewhere and the round is only accidentally reproducible.
+        """
+        import random as _random
+
+        game_round = self._round()
+
+        _random.seed(1)
+        first = TrafficSimulator(game_round, scale=100.0)
+        first._generate_departures(is_morning=True)
+        _random.seed(99999)
+        second = TrafficSimulator(game_round, scale=100.0)
+        second._generate_departures(is_morning=True)
+
+        self.assertEqual(first.departure_schedule, second.departure_schedule)
