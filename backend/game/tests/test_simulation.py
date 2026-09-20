@@ -1306,8 +1306,19 @@ class CongestedRouteCostsMoreTests(TestCase):
         shared = _street(game_map, version, nodes["merge"], nodes["work"])
         return game_map, version, nodes, shared
 
-    def _play_merge(self, label, people):
-        """Both players drive their approach and then the shared lane."""
+    def _play_merge(self, label, people, seed=606):
+        """Both players drive their approach and then the shared lane.
+
+        The seed is pinned for the same reason as _play_chain below. Left to
+        the round pk, the jam these three tests rest on is drawn fresh every
+        run: over twenty seeds the approach came out between 24.6 and 45.0
+        km/h, three of them at or above the 40.0 the guard allows. Postgres
+        sequences do not roll back, so the pk climbs through the suite and the
+        draw moves the moment a test that creates a round is added anywhere
+        before this one; sqlite reuses the rowid after each rollback, so a run
+        outside the container draws seed 1 every time — 45.00 km/h, no jam at
+        all, and a red guard that says nothing about the model.
+        """
         from game.models import AgentSimulationResult
         from game.tests._helpers import muted
 
@@ -1322,7 +1333,7 @@ class CongestedRouteCostsMoreTests(TestCase):
         route = _route(game_round, anna, [north, shared], agent_id=1)
         _route(game_round, ben, [south, shared], agent_id=2)
 
-        simulator = TrafficSimulator(game_round, scale=100.0)
+        simulator = TrafficSimulator(game_round, scale=100.0, seed=seed)
         with muted():
             simulator.run_simulation(max_ticks=400)
 
