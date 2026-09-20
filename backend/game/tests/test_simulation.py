@@ -3,6 +3,7 @@ Unit tests for the traffic simulation.
 
 Tests cover:
 - The link queue model: flow capacity, storage, spillback, deadlock escape
+- Speed-dependent CO2 and cost for cars, and that a jam costs more of both
 - Free-flow trip times (no longer quantised to whole ticks)
 - Dedicated bus lanes and bus gates
 - Bus traffic integration (a dedicated lane costs the cars nothing)
@@ -1125,3 +1126,305 @@ class DepartureMinuteTests(TestCase):
 
         # 60 minutes into a window that starts at base_hour - 1.
         self.assertTrue(all(abs(d - 60.0) < 0.01 for d in departures))
+
+
+class CarEmissionCurveTests(TestCase):
+    """CO2 per kilometre is a function of the speed the link actually ran at.
+
+    COPERT/HBEFA-style average-speed emission modelling — the same lineage as
+    the link model itself. Three physical terms: a/v is the time-proportional
+    part (idling and stop-and-go, burning fuel while covering no ground), b is
+    rolling resistance, c*v**2 is drag, which is why the curve is U-shaped and
+    a motorway is not the optimum either.
+    """
+
+    def test_the_curve_is_anchored_at_fifty(self):
+        """The one that keeps an uncongested 50 km/h round emitting what it did.
+
+        a and b are derived from c and this condition, so it holds to
+        floating-point rounding rather than to four digits.
+        """
+        from game.simulation import CAR_EMISSIONS_G_PER_KM, car_emissions_g_per_km
+
+        self.assertAlmostEqual(
+            car_emissions_g_per_km(50.0), CAR_EMISSIONS_G_PER_KM, places=6
+        )
+
+    def test_stop_and_go_burns_more_per_kilometre(self):
+        """10 km/h is 1.9x the 50 km/h rate — the one judgement call in here."""
+        from game.simulation import CAR_EMISSIONS_G_PER_KM, car_emissions_g_per_km
+
+        self.assertAlmostEqual(
+            car_emissions_g_per_km(10.0) / CAR_EMISSIONS_G_PER_KM, 1.9, places=3
+        )
+
+    def test_the_curve_falls_all_the_way_from_ten_to_fifty(self):
+        from game.simulation import car_emissions_g_per_km
+
+        for slower, faster in ((10.0, 20.0), (20.0, 30.0), (30.0, 40.0), (40.0, 50.0)):
+            with self.subTest(slower=slower):
+                self.assertGreater(
+                    car_emissions_g_per_km(slower), car_emissions_g_per_km(faster)
+                )
+
+    def test_the_curve_is_u_shaped(self):
+        """Drag is why a motorway costs more than the 70 km/h minimum."""
+        from game.simulation import car_emissions_g_per_km
+
+        self.assertLess(car_emissions_g_per_km(70.0), car_emissions_g_per_km(50.0))
+        self.assertLess(car_emissions_g_per_km(70.0), car_emissions_g_per_km(120.0))
+
+    def test_the_factor_is_capped_at_two(self):
+        """a/v diverges, and a diverging function is not an accurate one."""
+        from game.simulation import (
+            CAR_EMISSIONS_G_PER_KM,
+            MAX_CAR_EMISSION_FACTOR,
+            car_emissions_g_per_km,
+        )
+
+        self.assertAlmostEqual(
+            car_emissions_g_per_km(1.0),
+            MAX_CAR_EMISSION_FACTOR * CAR_EMISSIONS_G_PER_KM,
+            places=6,
+        )
+
+    def test_it_is_flat_below_the_cap(self):
+        """The cap bites at 9.2 km/h; gridlock and a crawl bill the same."""
+        from game.simulation import car_emissions_g_per_km
+
+        self.assertAlmostEqual(
+            car_emissions_g_per_km(1.0), car_emissions_g_per_km(9.0), places=6
+        )
+
+    def test_no_speed_ever_exceeds_the_cap(self):
+        from game.simulation import (
+            CAR_EMISSIONS_G_PER_KM,
+            MAX_CAR_EMISSION_FACTOR,
+            car_emissions_g_per_km,
+        )
+
+        ceiling = MAX_CAR_EMISSION_FACTOR * CAR_EMISSIONS_G_PER_KM
+        for tenths in range(0, 2000, 7):
+            speed = tenths / 10.0
+            with self.subTest(speed=speed):
+                value = car_emissions_g_per_km(speed)
+                self.assertGreater(value, 0.0)
+                self.assertLessEqual(value, ceiling + 1e-9)
+
+    def test_a_standstill_does_not_divide_by_zero(self):
+        """mean_speed_kmh can be 0 on a zero-length link. Arithmetic, not model."""
+        from game.simulation import car_emissions_g_per_km
+
+        self.assertGreater(car_emissions_g_per_km(0.0), 0.0)
+
+
+class CarCostCurveTests(TestCase):
+    """Half the per-kilometre cost rides on the emission curve.
+
+    0.32 €/km is a Vollkosten figure, so it cannot all follow: fuel (~0.126)
+    and stop-and-go wear on brakes, clutch and tyres (~0.034) are metered by
+    how the car is driven, depreciation, insurance and tax are not. Fuel
+    tracks the CO2 factor exactly rather than on a curve of its own, because
+    CO2 is fuel burnt — one physics, two units.
+    """
+
+    def test_the_cost_is_anchored_at_fifty(self):
+        from game.simulation import CAR_COST_PER_KM, car_cost_eur_per_km
+
+        self.assertAlmostEqual(car_cost_eur_per_km(50.0), CAR_COST_PER_KM, places=6)
+
+    def test_a_jam_costs_more_money(self):
+        from game.simulation import car_cost_eur_per_km
+
+        self.assertGreater(car_cost_eur_per_km(15.0), car_cost_eur_per_km(50.0))
+
+    def test_only_the_traffic_share_moves(self):
+        """At the 2.00x CO2 cap money is 1.50x, not 2.00x."""
+        from game.simulation import (
+            CAR_COST_PER_KM,
+            CAR_COST_TRAFFIC_SHARE,
+            MAX_CAR_EMISSION_FACTOR,
+            car_cost_eur_per_km,
+        )
+
+        expected = CAR_COST_PER_KM * (
+            1.0
+            - CAR_COST_TRAFFIC_SHARE
+            + CAR_COST_TRAFFIC_SHARE * MAX_CAR_EMISSION_FACTOR
+        )
+
+        self.assertAlmostEqual(car_cost_eur_per_km(1.0), expected, places=6)
+        self.assertLess(car_cost_eur_per_km(1.0), MAX_CAR_EMISSION_FACTOR * CAR_COST_PER_KM)
+
+    def test_the_cost_is_capped_where_the_emissions_are(self):
+        from game.simulation import car_cost_eur_per_km
+
+        self.assertAlmostEqual(
+            car_cost_eur_per_km(1.0), car_cost_eur_per_km(9.0), places=6
+        )
+
+
+class CongestedRouteCostsMoreTests(TestCase):
+    """The goal. Everything above it is arithmetic.
+
+    The same route, the same distance, the same mode, run once on an empty
+    network and once with 800 cars merging onto one lane. Today both come back
+    identical to the decimal, because CO2 and cost are distance times a
+    constant — so a bus lane that unjams a street shows a zero benefit on the
+    metric the game is lost by.
+
+    The jam has to be a MERGE, not a single chain. _advance_traffic keeps
+    discharging until nothing moves, so a chain fed from one origin drains
+    end to end within a tick and the queue forms at the front door instead of
+    on a link: every traversal is free flow and the street reports 50 km/h
+    however long the line outside is. Two approaches feeding one lane is what
+    holds cars ON a link — and it is also what a real map does, since players
+    start at different homes and converge.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="jamco2", password="12345")
+
+    def _merge_map(self, label):
+        """Two 1.4 km approaches merging into one 300 m lane.
+
+        The approaches have to be long enough to HOLD the queue: one lane
+        passes 150 cars a tick, so approaches storing less than that between
+        them empty completely every tick and the line forms at the front door
+        again. 1.4 km stores 188 cars each.
+        """
+        game_map = GameMap.objects.create(name=label, x_dim=1000, y_dim=1000, scale=100.0)
+        version = MapVersion.objects.create(
+            game_map=game_map, name="Base", base_version=True
+        )
+        coords = {"north": (0, 20), "south": (0, 0), "merge": (10, 10), "work": (13, 10)}
+        nodes = {}
+        for name, (x, y) in coords.items():
+            node = Node.objects.create(game_map=game_map, x_position=x, y_position=y)
+            node.map_versions.add(version)
+            nodes[name] = node
+        shared = _street(game_map, version, nodes["merge"], nodes["work"])
+        return game_map, version, nodes, shared
+
+    def _play_merge(self, label, people):
+        """Both players drive their approach and then the shared lane."""
+        from game.models import AgentSimulationResult
+        from game.tests._helpers import muted
+
+        game_map, version, nodes, shared = self._merge_map(label)
+        north = _street(game_map, version, nodes["north"], nodes["merge"])
+        south = _street(game_map, version, nodes["south"], nodes["merge"])
+
+        session = _session(self.user, game_map, people_per_agent=people, std_dev=1)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+        anna = Player.objects.create(name="Anna", game=session)
+        ben = Player.objects.create(name="Ben", game=session)
+        route = _route(game_round, anna, [north, shared], agent_id=1)
+        _route(game_round, ben, [south, shared], agent_id=2)
+
+        simulator = TrafficSimulator(game_round, scale=100.0)
+        with muted():
+            simulator.run_simulation(max_ticks=400)
+
+        result = AgentSimulationResult.objects.get(agent_route=route)
+        return {
+            "co2_per_person": result.total_co2_g / people,
+            "cost_per_person": result.mean_cost_eur,
+            "approach_speed": simulator.edge_states[north.pk].mean_speed_kmh,
+        }
+
+    def _play_chain(self, label, people, speed_limit=50):
+        """A plain 3 x 300 m chain, one driver on it — free flow by construction."""
+        from game.models import AgentSimulationResult
+        from game.tests._helpers import muted
+
+        game_map, version, nodes = _grid_map(label, 4)
+        edges = [
+            _street(game_map, version, nodes[i], nodes[i + 1], speed_limit=speed_limit)
+            for i in range(3)
+        ]
+        session = _session(self.user, game_map, people_per_agent=people, std_dev=1)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+        player = Player.objects.create(name="Fahrer", game=session)
+        route = _route(game_round, player, edges)
+
+        simulator = TrafficSimulator(game_round, scale=100.0)
+        with muted():
+            simulator.run_simulation(max_ticks=300)
+
+        result = AgentSimulationResult.objects.get(agent_route=route)
+        return {
+            "co2_per_person": result.total_co2_g / people,
+            "cost_per_person": result.mean_cost_eur,
+        }
+
+    def test_the_jam_really_is_a_jam(self):
+        """Guard for the two below: if this fails they prove nothing."""
+        jammed = self._play_merge("Jam map", people=400)
+
+        self.assertLess(
+            jammed["approach_speed"],
+            40.0,
+            f"800 cars merging onto one lane left the approach at "
+            f"{jammed['approach_speed']:.1f} km/h",
+        )
+
+    def test_a_jammed_route_emits_more_per_person(self):
+        free = self._play_merge("Free map", people=5)
+        jammed = self._play_merge("Jam map", people=400)
+
+        self.assertGreater(
+            jammed["co2_per_person"],
+            free["co2_per_person"] * 1.05,
+            f"{jammed['co2_per_person']:.2f} g/person jammed against "
+            f"{free['co2_per_person']:.2f} in free flow",
+        )
+
+    def test_a_jammed_route_costs_more_per_person(self):
+        free = self._play_merge("Free map", people=5)
+        jammed = self._play_merge("Jam map", people=400)
+
+        self.assertGreater(
+            jammed["cost_per_person"],
+            free["cost_per_person"] * 1.02,
+            f"EUR {jammed['cost_per_person']:.4f}/person jammed against "
+            f"EUR {free['cost_per_person']:.4f} in free flow",
+        )
+
+    def test_an_empty_fifty_route_still_emits_the_old_number(self):
+        """The anchor doing its job — passes before and after this guide."""
+        from game.simulation import CAR_EMISSIONS_G_PER_KM
+
+        free = self._play_chain("Anchor map", people=5)
+
+        self.assertAlmostEqual(
+            free["co2_per_person"], CAR_EMISSIONS_G_PER_KM * 0.9, places=4
+        )
+
+    def test_an_empty_fifty_route_still_costs_the_old_number(self):
+        from game.simulation import CAR_COST_PER_KM
+
+        free = self._play_chain("Anchor cost map", people=5)
+
+        self.assertAlmostEqual(
+            free["cost_per_person"], CAR_COST_PER_KM * 0.9, places=6
+        )
+
+    def test_a_thirty_zone_emits_more_than_a_fifty_zone_even_empty(self):
+        """Pinned deliberately: this is the surprising half of the change.
+
+        An average-speed model cannot tell a steady 30 from a 50 street with a
+        queue on it, so a Tempo-30 street bills 1.13x even with nobody on it.
+        That is real in every HBEFA-style model, and the example maps are full
+        of 30 zones — so it shifts the baseline of a real game, not just the
+        jammed part of it. Better named in a test than found in a round.
+        """
+        fifty = self._play_chain("Fifty zone", people=5, speed_limit=50)
+        thirty = self._play_chain("Thirty zone", people=5, speed_limit=30)
+
+        self.assertGreater(
+            thirty["co2_per_person"],
+            fifty["co2_per_person"] * 1.10,
+            f"{thirty['co2_per_person']:.2f} g/person at 30 against "
+            f"{fifty['co2_per_person']:.2f} at 50",
+        )
