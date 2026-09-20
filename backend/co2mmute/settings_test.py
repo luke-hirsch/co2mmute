@@ -20,6 +20,15 @@ SECRET_KEY = "test-only-key-not-used-anywhere-else-0123456789"
 
 DEBUG = False
 
+# settings.py derives the secure-cookie flags from its own import-time DEBUG,
+# which reads DJANGO_DEBUG (default True). Compose sets it to False, so a local
+# run is hardened; a CI runner sets nothing, so the flags froze at False while
+# DEBUG above is False — the one combination the hardening test rejects.
+# Re-derive them against this module's DEBUG, the way SECRET_KEY and DATABASES
+# are re-declared.
+SESSION_COOKIE_SECURE = os.environ.get("DJANGO_SECURE_COOKIES", "True") == "True"
+CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
+
 # MD5 rather than PBKDF2. _helpers.create_host runs in most setUp methods and the
 # default hasher is deliberately slow.
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
