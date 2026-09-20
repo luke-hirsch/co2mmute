@@ -1,0 +1,96 @@
+{
+  "total": {
+    "status": "completed",
+    "total_co2_g": 350755.654746,
+    "total_cost_eur": 555.8756
+  },
+  "agents": [
+    {
+      "agent_id": 1,
+      "mode": "car",
+      "mean_trip_time_min": 2.160459,
+      "mean_return_time_min": 0.0,
+      "mean_cost_eur": 0.582223,
+      "total_co2_g": 128414.558456,
+      "congestion_delay_min": 0.060229,
+      "wait_time_min": 0.0
+    },
+    {
+      "agent_id": 2,
+      "mode": "car",
+      "mean_trip_time_min": 14.295997,
+      "mean_return_time_min": 0.0,
+      "mean_cost_eur": 0.807466,
+      "total_co2_g": 222341.09629,
+      "congestion_delay_min": 11.093611,
+      "wait_time_min": 0.0
+    },
+    {
+      "agent_id": 3,
+      "mode": "bike",
+      "mean_trip_time_min": 5.142641,
+      "mean_return_time_min": 0.0,
+      "mean_cost_eur": 0.0,
+      "total_co2_g": 0.0,
+      "congestion_delay_min": 0.0,
+      "wait_time_min": 0.0
+    },
+    {
+      "agent_id": 4,
+      "mode": "walk",
+      "mean_trip_time_min": 20.570563,
+      "mean_return_time_min": 0.0,
+      "mean_cost_eur": 0.0,
+      "total_co2_g": 0.0,
+      "congestion_delay_min": 0.0,
+      "wait_time_min": 0.0
+    }
+  ],
+  "snapshots": [
+    {
+      "tick": 10,
+      "vehicle_count": 33,
+      "speed_kmh": 29.272352
+    },
+    {
+      "tick": 10,
+      "vehicle_count": 34,
+      "speed_kmh": 47.768566
+    },
+    {
+      "tick": 10,
+      "vehicle_count": 49,
+      "speed_kmh": 29.736366
+    },
+    {
+      "tick": 15,
+      "vehicle_count": 0,
+      "speed_kmh": 48.530668
+    },
+    {
+      "tick": 15,
+      "vehicle_count": 39,
+      "speed_kmh": 13.932547
+    },
+    {
+      "tick": 15,
+      "vehicle_count": 150,
+      "speed_kmh": 10.917715
+    },
+    {
+      "tick": 20,
+      "vehicle_count": 0,
+      "speed_kmh": 8.54008
+    },
+    {
+      "tick": 20,
+      "vehicle_count": 0,
+      "speed_kmh": 12.310497
+    },
+    {
+      "tick": 20,
+      "vehicle_count": 0,
+      "speed_kmh": 48.556489
+    }
+  ]
+}

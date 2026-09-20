@@ -1,9 +1,8 @@
-import io
+import bisect
 import logging
 import math
 import random
 from collections.abc import Callable
-from dataclasses import dataclass, field
 
 from maps.models import BusLine, Edge, StreetPerRound, TrainLine
 
@@ -16,54 +15,41 @@ from game.models import (
     SimulationResult,
 )
 
-# Emission factors from Mobility models (defaults)
-CAR_EMISSIONS_G_PER_KM = 166.8  # g CO2e per vehicle-km (1 person = 1 vehicle)
-BUS_EMISSIONS_G_PER_VEHICLE_KM = 1200.0  # g CO2e per bus-km
-TRAIN_EMISSIONS_G_PER_VEHICLE_KM = 3500.0  # g CO2e per train-km
-
-# Speed-dependent CO2 for cars, COPERT/HBEFA-style: an emission factor as a
-# continuous function of the average speed on a link. The three terms are
-# physical — a/v is the time-proportional part (idling, stop-and-go, burning
-# fuel while covering no ground), b is rolling resistance per km, c*v**2 is
-# aerodynamic drag — which is why the curve is U-shaped with its minimum at
-# 70 km/h rather than monotonic.
-#
-# a and b are DERIVED from c and two calibration conditions rather than
-# written out as rounded literals, so both conditions hold exactly instead of
-# to four digits:
-#   minimum at 70 km/h   ->  a = 2*c*70**3
-#   EF(50) == 166.8      ->  b = 166.8 - a/50 - c*2500
-# The third condition, EF(10) == 1.9 * EF(50), is what fixes c. It is the one
-# judgement call in here: how dear stop-and-go is. Everything else is identity.
-CAR_EF_MIN_SPEED_KMH = 70.0
-CAR_EF_DRAG_TERM = 0.0028605  # c, g*h^2/km^3
-CAR_EF_IDLE_TERM = 2 * CAR_EF_DRAG_TERM * CAR_EF_MIN_SPEED_KMH**3  # a, g/h
-CAR_EF_ROLLING_TERM = (  # b, g per km
-    CAR_EMISSIONS_G_PER_KM
-    - CAR_EF_IDLE_TERM / 50.0
-    - CAR_EF_DRAG_TERM * 50.0**2
+# The engine itself lives in `sim/`, a plain package with no Django in it.
+# This module is the adapter: ORM rows in, engine, result rows out. The names
+# are re-exported rather than re-homed because ~25 call sites across the test
+# suite, and `game/signals.py`, import them from here — the extraction is
+# meant to be invisible above this seam.
+from sim import (  # noqa: F401
+    BUS_COST_PER_VEHICLE_KM,
+    BUS_EMISSIONS_G_PER_VEHICLE_KM,
+    BUS_PCU,
+    CAR_COST_PER_KM,
+    CAR_COST_TRAFFIC_SHARE,
+    CAR_EF_DRAG_TERM,
+    CAR_EF_IDLE_TERM,
+    CAR_EF_MIN_SPEED_KMH,
+    CAR_EF_ROLLING_TERM,
+    CAR_EMISSIONS_G_PER_KM,
+    DEADLOCK_TICKS,
+    JAM_DENSITY_VEH_PER_KM_LANE,
+    MAX_CAR_EMISSION_FACTOR,
+    SATURATION_FLOW_VEH_PER_H_LANE,
+    TRAIN_COST_PER_VEHICLE_KM,
+    TRAIN_EMISSIONS_G_PER_VEHICLE_KM,
+    EdgeState,
+    PTVehicle,
+    QueuedVehicle,
+    Segment,
+    SimulationLog,
+    Vehicle,
+    car_cost_eur_per_km,
+    car_emissions_g_per_km,
+    draw_capacity_factor,
+    draw_driver_speed_factor,
+    generate_departure_minutes,
 )
 
-# a/v diverges at v -> 0, and a diverging function is no more accurate than a
-# flat one down there. The FACTOR is capped rather than the speed floored: it
-# bites below 9.2 km/h, where a car is idling rather than driving and an
-# average-speed model has nothing left to say. 2.00x is also a number a class
-# can hold in its head.
-MAX_CAR_EMISSION_FACTOR = 2.0
-
-# Cost factors from Mobility models (defaults)
-CAR_COST_PER_KM = 0.32  # € per vehicle-km
-BUS_COST_PER_VEHICLE_KM = 4.5  # € per bus-km
-TRAIN_COST_PER_VEHICLE_KM = 12.0  # € per train-km
-
-# 0.32 €/km is a Vollkosten figure, so not all of it can follow the emission
-# curve. Roughly half of it is metered by how the car is actually driven:
-# fuel is 166.8 g/km / ~2320 g per litre = ~7.2 l/100km, about 0.126 €/km at
-# ~1.75 €/l, and stop-and-go wear on brakes, clutch and tyres adds ~0.034.
-# The other half — depreciation, insurance, tax — is per kilometre whatever
-# the traffic does. Fuel tracks the CO2 factor EXACTLY rather than on a curve
-# of its own, because CO2 is fuel burnt: one physics, two units.
-CAR_COST_TRAFFIC_SHARE = 0.5
 
 logger = logging.getLogger(__name__)
 
@@ -87,259 +73,10 @@ FALLBACK_TRAIN_INTERVAL_MIN = 10
 # Departure window: matches the ±60 min clamp in generate_departure_minutes()
 DEPARTURE_WINDOW_MIN = 120
 
-# Physical road constants, replacing the old capacity model. That one put 750
-# vehicles on a kilometre of one lane (speed_limit * 15), about five times what
-# fits, so an edge only counted as congested in a state that cannot exist.
-#
-# A car is ~4.5 m and occupies ~7.5 m at a standstill -> ~133 veh/km/lane.
-# One lane discharges ~1800 veh/h at capacity (HCM base saturation flow is
-# ~1900 pc/h/ln; 1800 is the common working figure for an urban arterial).
-JAM_DENSITY_VEH_PER_KM_LANE = 133.0
-SATURATION_FLOW_VEH_PER_H_LANE = 1800.0
-
-# A bus takes about three car lengths in mixed traffic (passenger car units).
-BUS_PCU = 3.0
-
-# A junction whose head has not moved for this many consecutive ticks is
-# gridlocked, not busy: routes are holding each other's streets and nothing
-# downstream will free up on its own. It then releases its tick's budget
-# anyway, over storage, and the release is counted. Liveness beats storage.
-DEADLOCK_TICKS = 4
 
 
-@dataclass
-class Vehicle:
-    """One person (car/bike/walk) or one PT vehicle carrying many."""
-
-    route_pk: int
-    person_index: int
-    mode: str
-    segment_index: int
-    passenger_count: int = 1
-
-    wants_to_depart_min: float = 0.0  # when this person wanted to leave
-    ready_at_min: float = 0.0  # earliest it may leave its current link
-    entered_edge_min: float = 0.0
-    arrived_min: float | None = None
-    departed: bool = False
-    arrived: bool = False
-    queued: bool = False
 
 
-@dataclass
-class PTVehicle:
-    """Represents a public transport vehicle (bus/train)."""
-
-    line_id: int
-    vehicle_type: str  # bus or train
-    current_stop_index: int
-    passenger_count: int
-    capacity: int
-    departure_tick: int  # When this vehicle starts its route
-
-
-class SimulationLog:
-    """Collects detailed simulation logs into a downloadable text report."""
-
-    def __init__(self):
-        self._buf = io.StringIO()
-        self._edge_names: dict[int, str] = {}  # edge_id -> name
-        self._route_labels: dict[int, str] = {}  # route_pk -> "Player/Agent#N (mode)"
-        # Per-edge per-route sample tracking: (route_pk, edge_id) -> {enter_tick, exit_tick, ...}
-        self._sample_edge_events: dict[tuple[int, int], dict] = {}
-
-    def set_edge_names(self, edge_names: dict[int, str]):
-        self._edge_names = edge_names
-
-    def set_route_labels(self, route_labels: dict[int, str]):
-        self._route_labels = route_labels
-
-    def _edge_label(self, edge_id: int) -> str:
-        name = self._edge_names.get(edge_id, "")
-        return f"Edge {edge_id} ({name})" if name else f"Edge {edge_id}"
-
-    def _route_label(self, route_pk: int) -> str:
-        return self._route_labels.get(route_pk, f"Route {route_pk}")
-
-    def write(self, line: str):
-        self._buf.write(line + "\n")
-
-    def header(self, text: str):
-        sep = "=" * 70
-        self._buf.write(f"\n{sep}\n{text}\n{sep}\n")
-
-    def subheader(self, text: str):
-        self._buf.write(f"\n--- {text} ---\n")
-
-    def get_text(self) -> str:
-        return self._buf.getvalue()
-
-
-@dataclass
-class QueuedVehicle:
-    """One vehicle sitting on a link, with the earliest minute it may leave."""
-
-    vehicle_id: int
-    ready_at_min: float
-    pcu: float
-    entered_at_min: float
-
-
-@dataclass
-class EdgeState:
-    """A link in the queue model: free-flow time, flow capacity, storage."""
-
-    edge_id: int
-    distance_m: float
-    free_flow_speed_kmh: float
-    car_lanes: int = 1
-    has_dedicated_bus_lane: bool = False
-
-    queue: list[QueuedVehicle] = field(default_factory=list)
-    occupancy_pcu: float = 0.0
-    release_budget: float = 0.0
-    blocked_since_tick: int = 0
-
-    # Observed traversals, for the per-edge speed the snapshot stores.
-    traversal_count: int = 0
-    traversal_time_min: float = 0.0
-    peak_occupancy_pcu: float = 0.0
-
-    @property
-    def free_flow_min(self) -> float:
-        """Minutes to cross the link when it is empty."""
-        if self.free_flow_speed_kmh <= 0:
-            return 0.0
-        return self.distance_m / 1000.0 / self.free_flow_speed_kmh * 60.0
-
-    @property
-    def open_to_cars(self) -> bool:
-        """False on a bus gate: a street given over entirely to buses."""
-        return self.car_lanes > 0
-
-    @property
-    def _capacity_lanes(self) -> int:
-        """Never zero — see the fallback in _enter_edge.
-
-        A link with no flow capacity can never discharge, so a car that
-        reached a bus gate despite the client and the submit check would
-        stand there until max_ticks and take the round's numbers with it.
-        """
-        return max(1, self.car_lanes)
-
-    @property
-    def storage_capacity_pcu(self) -> float:
-        """How many car-equivalents stand on the link bumper to bumper."""
-        return max(
-            1.0,
-            JAM_DENSITY_VEH_PER_KM_LANE
-            * self._capacity_lanes
-            * self.distance_m
-            / 1000.0,
-        )
-
-    def flow_per_tick(self, tick_duration_min: int) -> float:
-        """Car-equivalents the link discharges in one tick."""
-        return (
-            SATURATION_FLOW_VEH_PER_H_LANE
-            * self._capacity_lanes
-            * tick_duration_min
-            / 60.0
-        )
-
-    def has_room_for(self, pcu: float) -> bool:
-        """Whether one more vehicle of this size fits on the link.
-
-        Asking "is it full?" before adding lets occupancy overshoot by up to
-        one vehicle, and by three for a bus — a link with 39.9 of storage
-        admitted a 40th car in testing. An empty link never refuses: a link
-        too short to hold a single bus would otherwise block it forever.
-        """
-        if not self.queue:
-            return True
-        return self.occupancy_pcu + pcu <= self.storage_capacity_pcu
-
-    @property
-    def mean_speed_kmh(self) -> float:
-        """Length over observed CAR traversal time; free flow if none crossed.
-
-        Only cars are counted into traversal_count / traversal_time_min (see
-        _discharge). A pedestrian takes 10.7 minutes over an 895 m edge where a
-        car takes 1.07, so letting walkers into this mean would report an empty
-        street as jammed — and this number feeds both the CO2 factor and the
-        route preview the players see.
-        """
-        if self.traversal_count == 0 or self.traversal_time_min <= 0:
-            return self.free_flow_speed_kmh
-        mean_min = self.traversal_time_min / self.traversal_count
-        return self.distance_m / 1000.0 / (mean_min / 60.0)
-
-
-def car_emissions_g_per_km(speed_kmh: float) -> float:
-    """CO2 per vehicle-km for a car travelling at this average speed.
-
-    COPERT/HBEFA-style average-speed emission modelling. Returns exactly
-    CAR_EMISSIONS_G_PER_KM at 50 km/h, and never more than
-    MAX_CAR_EMISSION_FACTOR times it.
-
-    Args:
-        speed_kmh: Mean speed observed on the link.
-
-    Returns:
-        Grams of CO2 per vehicle-kilometre, for one person in one car.
-    """
-    # Arithmetic guard, not a model floor: a zero-length link would divide by
-    # zero. The cap below is the modelling decision.
-    speed = max(float(speed_kmh), 1.0)
-    factor = (
-        CAR_EF_IDLE_TERM / speed
-        + CAR_EF_ROLLING_TERM
-        + CAR_EF_DRAG_TERM * speed * speed
-    )
-    return min(factor, MAX_CAR_EMISSION_FACTOR * CAR_EMISSIONS_G_PER_KM)
-
-
-def car_cost_eur_per_km(speed_kmh: float) -> float:
-    """Cost per vehicle-km for a car travelling at this average speed.
-
-    CAR_COST_TRAFFIC_SHARE of the Vollkosten figure is fuel and stop-and-go
-    wear and rides on the emission curve; the rest is flat. Returns exactly
-    CAR_COST_PER_KM at 50 km/h.
-
-    Args:
-        speed_kmh: Mean speed observed on the link.
-
-    Returns:
-        Euro per vehicle-kilometre, for one person in one car.
-    """
-    factor = car_emissions_g_per_km(speed_kmh) / CAR_EMISSIONS_G_PER_KM
-    return CAR_COST_PER_KM * (
-        1.0 - CAR_COST_TRAFFIC_SHARE + CAR_COST_TRAFFIC_SHARE * factor
-    )
-
-
-def generate_departure_minutes(
-    num_people: int,
-    base_hour: int,
-    std_dev_min: float,
-) -> list[float]:
-    """
-    Draw departure times from a normal distribution around base_hour.
-
-    Returns minutes from the start of the departure window, which begins
-    60 minutes before base_hour (DEPARTURE_WINDOW_MIN is 120 wide). Floats,
-    not tick buckets: bucketing here quantised every trip to the tick before
-    the simulation had started, and the tick is a simulation step, not a
-    property of when people leave the house.
-    """
-    base_minutes = base_hour * 60
-    window_start = (base_hour - 1) * 60
-    departures = []
-    for _ in range(num_people):
-        departure_min = random.gauss(base_minutes, std_dev_min)
-        departure_min = max(base_minutes - 60, min(base_minutes + 60, departure_min))
-        departures.append(max(0.0, departure_min - window_start))
-    return departures
 
 
 class TrafficSimulator:
@@ -350,17 +87,32 @@ class TrafficSimulator:
     accounting for congestion and public transport dynamics.
     """
 
-    def __init__(self, game_round: GameRound, scale: float = 100.0):
+    def __init__(
+        self,
+        game_round: GameRound,
+        scale: float = 100.0,
+        seed: int | None = None,
+    ):
         """
         Initialize the simulator.
 
         Args:
             game_round: The game round to simulate
             scale: Meters per coordinate unit (for distance calculation)
+            seed: Seed for this round's draws. Defaults to the round pk, so a
+                round always replays identically — in a test, in a debugger, or
+                after a worker restart. Pass one explicitly to sweep the same
+                round over many seeds (calibration), which is the only reason
+                the argument exists.
         """
         self.game_round = game_round
         self.scale = scale
         self.simulation_result: SimulationResult | None = None
+        # A generator of its own rather than module-level `random`: the module
+        # generator is process-wide shared state, so anything else drawing from
+        # it would shift this round's departures.
+        self.seed = game_round.pk if seed is None else seed
+        self.rng = random.Random(self.seed)
 
         # Load simulation parameters from GameSession
         game_session = game_round.game
@@ -394,7 +146,7 @@ class TrafficSimulator:
 
         # Route data indexed by route.pk (globally unique)
         self.agent_routes: dict[int, AgentRoute] = {}
-        self.route_segments: dict[int, list[RouteSegment]] = {}
+        self.route_segments: dict[int, list[Segment]] = {}
 
         # PT line speed cache: line_id -> speed_kmh
         self.bus_line_speeds: dict[int, int] = {}
@@ -450,7 +202,19 @@ class TrafficSimulator:
             )
             for route in routes:
                 self.agent_routes[route.pk] = route
-                segments = list(route.segments.order_by("order"))  # type: ignore
+                # Convert the model rows into the engine's own Segment: four
+                # fields and no Django. This is the whole of what used to tie
+                # the tick loop to the database — every other thing it touches
+                # was already a plain dataclass.
+                segments = [
+                    Segment(
+                        edge_id=row.edge_id,  # type: ignore
+                        order=row.order,
+                        mode=row.mode,
+                        pt_line_id=row.pt_line_id,  # type: ignore
+                    )
+                    for row in route.segments.order_by("order")  # type: ignore
+                ]
                 self.route_segments[route.pk] = segments
 
                 label = f"{player_name}/Agent#{route.agent_id} ({route.transport_mode})"
@@ -624,6 +388,12 @@ class TrafficSimulator:
                 free_flow_speed_kmh=speed_limit,
                 car_lanes=car_lanes,
                 has_dedicated_bus_lane=has_dedicated_bus_lane,
+                # Once per link per round. This is the dial that makes two
+                # rounds with identical choices come back with different
+                # numbers, and it is drawn here rather than per tick because
+                # a road's capacity on a given day is one draw, not a fresh
+                # surprise every five minutes.
+                capacity_factor=draw_capacity_factor(self.rng),
             )
 
             # Build edge name for logging
@@ -670,7 +440,10 @@ class TrafficSimulator:
                 ]
             else:
                 departures = generate_departure_minutes(
-                    num_vehicles, base_hour, self.departure_std_dev_min
+                    num_vehicles,
+                    base_hour,
+                    self.departure_std_dev_min,
+                    rng=self.rng,
                 )
                 self.departure_schedule[route_pk] = list(enumerate(departures))
 
@@ -708,7 +481,12 @@ class TrafficSimulator:
             return float(self.bike_speed_kmh)
         if vehicle.mode == "walk":
             return float(self.walk_speed_kmh)
-        return edge_state.free_flow_speed_kmh or float(self.default_car_speed_kmh)
+        # Cars only. A bus and a train run to a timetable rather than to a
+        # driver's taste, and bikes and walkers do not queue, so a spread
+        # there would add noise to numbers nothing is arguing about without
+        # touching the mechanism this dial exists to feed.
+        limit = edge_state.free_flow_speed_kmh or float(self.default_car_speed_kmh)
+        return limit * vehicle.speed_factor
 
     def _enter_edge(self, vehicle_id: int, vehicle: Vehicle, at_min: float) -> bool:
         """Put a vehicle onto its current segment. False if the link is full."""
@@ -740,14 +518,25 @@ class TrafficSimulator:
         if not edge_state.has_room_for(pcu):
             return False
 
-        edge_state.queue.append(
-            QueuedVehicle(
-                vehicle_id=vehicle_id,
-                ready_at_min=vehicle.ready_at_min,
-                pcu=pcu,
-                entered_at_min=at_min,
-            )
+        queued = QueuedVehicle(
+            vehicle_id=vehicle_id,
+            ready_at_min=vehicle.ready_at_min,
+            pcu=pcu,
+            entered_at_min=at_min,
         )
+        if edge_state.car_lanes > 1:
+            # Overtaking, and the reason it is here rather than folded into a
+            # smaller sigma. Giving drivers different speeds against a strict
+            # FIFO queue means one slow driver at the head holds up everyone
+            # behind — correct on a single lane, where you genuinely cannot
+            # pass, and wrong on a multi-lane street, where the effect would
+            # be a jam the road does not have. (It is why MATSim gives every
+            # vehicle the same link speed.) Keeping the queue ordered by when
+            # each vehicle is ready to leave IS overtaking; shrinking sigma
+            # instead would only hide the missing mechanism.
+            bisect.insort(edge_state.queue, queued, key=lambda q: q.ready_at_min)
+        else:
+            edge_state.queue.append(queued)
         edge_state.occupancy_pcu += pcu
         edge_state.peak_occupancy_pcu = max(
             edge_state.peak_occupancy_pcu, edge_state.occupancy_pcu
@@ -784,6 +573,8 @@ class TrafficSimulator:
                 passenger_count=passenger_count,
                 wants_to_depart_min=depart_min,
                 departed=True,
+                # Once, here, for the whole trip.
+                speed_factor=draw_driver_speed_factor(self.rng),
             )
             vehicle_id = self.next_vehicle_id
             if self._enter_edge(vehicle_id, vehicle, max(depart_min, now)):
@@ -970,19 +761,30 @@ class TrafficSimulator:
                 continue
             wait_min = self.route_pt_wait_min.get(vehicle.route_pk, 0.0)
             trip_min = vehicle.arrived_min - vehicle.wants_to_depart_min + wait_min
-            delay_min = max(0.0, trip_min - self._free_flow_min(vehicle.route_pk))
+            delay_min = max(
+                0.0,
+                trip_min
+                - self._free_flow_min(vehicle.route_pk, vehicle.speed_factor),
+            )
             for _ in range(vehicle.passenger_count):
                 agent_results["trip_times"].append(trip_min)
                 agent_results["delays"].append(delay_min)
 
-    def _free_flow_min(self, route_pk: int) -> float:
-        """The route's uncongested time — the baseline the delay is against."""
+    def _free_flow_min(self, route_pk: int, speed_factor: float = 1.0) -> float:
+        """The route's uncongested time — the baseline the delay is against.
+
+        Measured against THIS driver's free-flow speed, not the speed limit.
+        A driver who wants to do 45 in a 50 zone arrives later than the limit
+        allows and is not delayed by anything; billing the difference as
+        congestion delay would report a jam on an empty road. The factor
+        applies to car segments only, which is the only mode it is drawn for.
+        """
         total = 0.0
         for segment in self.route_segments.get(route_pk, []):
             edge_state = self.edge_states.get(segment.edge_id)  # type: ignore
             if not edge_state:
                 continue
-            speed = edge_state.free_flow_speed_kmh
+            speed = edge_state.free_flow_speed_kmh * speed_factor
             if segment.mode == "bike":
                 speed = float(self.bike_speed_kmh)
             elif segment.mode == "walk":
@@ -1583,20 +1385,3 @@ class TrafficSimulator:
                     game_round=self.game_round,
                     defaults={"speed_under_load": max(1, int(state.mean_speed_kmh))},
                 )
-
-
-def run_round_simulation(game_round: GameRound) -> SimulationResult:
-    """
-    Convenience function to run simulation for a game round.
-
-    Args:
-        game_round: The GameRound to simulate
-
-    Returns:
-        SimulationResult with computed statistics
-    """
-    # Get scale from game map
-    scale = game_round.game.game_map.scale if game_round.game.game_map else 100.0
-
-    simulator = TrafficSimulator(game_round, scale=scale)
-    return simulator.run_simulation()
