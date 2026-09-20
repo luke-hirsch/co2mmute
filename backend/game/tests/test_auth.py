@@ -820,18 +820,80 @@ class SlidingCookieTests(TempMediaRootMixin, TestCase):
 class SettingsHardeningTests(TestCase):
     """The HTTPS flags, and the dead CORS config."""
 
+    def _cookie_flags_under(self, **environment):
+        """Import settings.py again under a chosen environment, and report the
+        two flags it derives.
+
+        They are computed at import from os.environ, and DiscoverRunner forces
+        settings.DEBUG to False for every run — so the skip guard this test
+        used to carry never fired, whatever DJANGO_DEBUG said, and the
+        assertion reported the environment the run happened to have: green in
+        the container, where compose sets DJANGO_DEBUG=False, red on a bare
+        host shell and on a CI runner, which set nothing. Re-importing under a
+        known environment tests the derivation itself, the same way on every
+        machine and under either settings module.
+        """
+        import importlib
+        import os
+        import shutil
+        import tempfile
+        from unittest import mock
+
+        from co2mmute import settings as settings_module
+
+        media_root = tempfile.mkdtemp(prefix="co2mmute-settings-reload-")
+        self.addCleanup(shutil.rmtree, media_root, True)
+        environment.setdefault("DJANGO_MEDIA_ROOT", media_root)
+        environment.setdefault(
+            "DJANGO_SECRET_KEY", "a-real-enough-key-for-this-test-0123456789"
+        )
+
+        try:
+            with mock.patch.dict(os.environ, environment, clear=True):
+                reloaded = importlib.reload(settings_module)
+                # Django's own default is False, so a deleted derivation reads
+                # as the insecure value rather than an AttributeError — which
+                # is both what would ship and the clearer failure message.
+                return (
+                    getattr(reloaded, "SESSION_COOKIE_SECURE", False),
+                    getattr(reloaded, "CSRF_COOKIE_SECURE", False),
+                )
+        finally:
+            # Leave the module holding the values this run really has.
+            importlib.reload(settings_module)
+
     def test_cookies_are_secure_when_debug_is_off(self):
         """Django's defaults are False, so `hasattr` proves nothing — assert the
-        value. The compose stack runs with DJANGO_DEBUG=False, which is the case
-        that matters; a DEBUG run is allowed to stay insecure so a plain http dev
-        box still works."""
-        from django.conf import settings as django_settings
+        value. DEBUG off is the case that matters: it is how the compose stack
+        and the live box run."""
+        session_secure, csrf_secure = self._cookie_flags_under(DJANGO_DEBUG="False")
 
-        if django_settings.DEBUG:
-            self.skipTest("secure cookies are deliberately off under DEBUG")
+        self.assertTrue(session_secure)
+        self.assertTrue(csrf_secure)
 
-        self.assertTrue(django_settings.SESSION_COOKIE_SECURE)
-        self.assertTrue(django_settings.CSRF_COOKIE_SECURE)
+    def test_a_debug_box_is_allowed_to_stay_insecure(self):
+        """The other half of the same rule, and why the flags are derived
+        rather than hard-coded: a plain http dev box still has to work, so
+        DEBUG on hands out unsecured cookies on purpose."""
+        session_secure, csrf_secure = self._cookie_flags_under(DJANGO_DEBUG="True")
+
+        self.assertFalse(session_secure)
+        self.assertFalse(csrf_secure)
+
+    def test_the_environment_can_override_either_way(self):
+        """DJANGO_SECURE_COOKIES wins over the DEBUG default, in both
+        directions — that is what makes a hardened DEBUG box possible, and it
+        is the switch settings_test re-derives for itself."""
+        self.assertEqual(
+            self._cookie_flags_under(DJANGO_DEBUG="True", DJANGO_SECURE_COOKIES="True"),
+            (True, True),
+        )
+        self.assertEqual(
+            self._cookie_flags_under(
+                DJANGO_DEBUG="False", DJANGO_SECURE_COOKIES="False"
+            ),
+            (False, False),
+        )
 
     def test_hsts_does_not_over_reach(self):
         """A guard, green from the start: the host is a subdomain of

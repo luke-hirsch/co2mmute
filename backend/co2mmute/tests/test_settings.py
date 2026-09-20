@@ -159,3 +159,15 @@ class TestSettingsModuleTests(SimpleTestCase):
     def test_debug_is_off(self):
         self.assertFalse(self.load().DEBUG)
 
+    def test_it_re_derives_the_secure_cookie_flags(self):
+        """settings.py freezes these at import from DJANGO_DEBUG, which
+        defaults to True — so a runner that sets nothing leaves them False
+        while DEBUG here is False, the one combination the hardening test in
+        game.tests.test_auth rejects. Compose sets the variable, a CI runner
+        does not, which is why four CI runs were red against a green
+        container. Deleting the two lines from settings_test was enough to
+        redden CI again; this keeps that visible where it is typed."""
+        settings_test = self.load()
+
+        self.assertTrue(settings_test.SESSION_COOKIE_SECURE)
+        self.assertTrue(settings_test.CSRF_COOKIE_SECURE)
