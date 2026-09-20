@@ -832,7 +832,18 @@ class SimulatedRoundMixin(TempMediaRootMixin):
 
 @override_settings(**TEST_BACKENDS)
 class CostUnitTests(SimulatedRoundMixin, TestCase):
-    """Two numbers meant to be read against each other carry one unit."""
+    """Two numbers meant to be read against each other carry one unit.
+
+    The tolerances are half a display unit per row, not a fixed number of
+    decimals: signals.py rounds each row for display (cost to the cent, CO2 to
+    a tenth of a gram) and leaves the total exact, so n rows can legitimately
+    miss the total by n/2 display units. That was invisible while a car cost
+    distance x 0.32 and emitted distance x 166.8 — the rows came out short
+    enough that rounding them was a no-op. With the speed-dependent factors
+    they no longer do. The thing these tests exist to catch is a unit mix of
+    a factor of people_per_agent, which this still catches by three orders of
+    magnitude.
+    """
 
     def test_the_player_rows_add_up_to_the_round_total(self):
         listener = self.complete_round()
@@ -840,14 +851,18 @@ class CostUnitTests(SimulatedRoundMixin, TestCase):
         data = listener.data("round.completed")
         rows = sum(stat["cost_eur"] for stat in data["player_stats"])
 
-        self.assertAlmostEqual(rows, data["round_cost_eur"], places=2)
+        self.assertAlmostEqual(
+            rows, data["round_cost_eur"], delta=0.005 * len(data["player_stats"])
+        )
 
     def test_an_agents_own_line_adds_up_to_its_players_row(self):
         listener = self.complete_round()
 
         for stat in listener.data("round.completed")["player_stats"]:
             agents = sum(agent["cost_eur"] for agent in stat["agents"])
-            self.assertAlmostEqual(agents, stat["cost_eur"], places=2)
+            self.assertAlmostEqual(
+                agents, stat["cost_eur"], delta=0.005 * len(stat["agents"])
+            )
 
     def test_the_co2_column_was_already_consistent(self):
         """The control: CO2 is scaled when it is written, so it always matched.
@@ -857,7 +872,9 @@ class CostUnitTests(SimulatedRoundMixin, TestCase):
         data = listener.data("round.completed")
         rows = sum(stat["emissions_g"] for stat in data["player_stats"])
 
-        self.assertAlmostEqual(rows, data["round_emissions_g"], places=1)
+        self.assertAlmostEqual(
+            rows, data["round_emissions_g"], delta=0.05 * len(data["player_stats"])
+        )
 
     def test_the_summary_reports_the_cohort_figure(self):
         self.complete_round()
@@ -894,7 +911,9 @@ class CostUnitWithOnePersonPerAgentTests(SimulatedRoundMixin, TestCase):
         data = listener.data("round.completed")
         rows = sum(stat["cost_eur"] for stat in data["player_stats"])
 
-        self.assertAlmostEqual(rows, data["round_cost_eur"], places=2)
+        self.assertAlmostEqual(
+            rows, data["round_cost_eur"], delta=0.005 * len(data["player_stats"])
+        )
 
 
 # ---------------------------------------------------------------------------
