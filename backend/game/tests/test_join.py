@@ -787,3 +787,127 @@ class GermanFunnelTests(TempMediaRootMixin, TestCase):
 
         text = visible_text(response.content.decode())
         self.assertEqual(english_in(text), [], f"English on /accounts/profile/: {text[:400]}")
+class MapWithNothingToVoteOnTests(GameCookieMixin, TempMediaRootMixin, TestCase):
+    """A map with one version removes the vote, and nothing says so.
+
+    `_advance_from_stats` is "discussion if there is a ballot, else the next
+    round", and `vote_options()` offers the versions `compatible_versions`
+    reaches from the active one. On a single-version map there are none — so
+    the class goes stats → next round and never sees a discussion or a ballot,
+    which is the mechanic the whole game is built around. The shipped map has
+    one version, so nobody has ever seen it in a real game.
+
+    The chain itself is fine; it was verified end to end through tie and
+    stalemate on a seeded copy. What is missing is a warning at the two places
+    a host can still do something about it: the map select, and the lobby.
+    """
+
+    def setUp(self):
+        from maps.models import GameMap, MapVersion
+
+        self.host = create_host()
+        self.flat_map = GameMap.objects.create(
+            name="Eine Fassung", x_dim=100, y_dim=100, scale=100.0
+        )
+        self.flat_base = MapVersion.objects.create(
+            game_map=self.flat_map, name="Base", base_version=True
+        )
+        self.rich_map = GameMap.objects.create(
+            name="Mit Varianten", x_dim=100, y_dim=100, scale=100.0
+        )
+        self.rich_base = MapVersion.objects.create(
+            game_map=self.rich_map, name="Base", base_version=True
+        )
+        self.rich_change = MapVersion.objects.create(
+            game_map=self.rich_map, name="Busspur Hauptstraße"
+        )
+        self.rich_base.compatible_versions.add(self.rich_change)
+
+    def _lobby(self, game_map, map_updates=True, **overrides):
+        # map_updates is passed explicitly in every case: the MODEL default is
+        # False while the create form's initial is True, so a game made any
+        # other way than through /game/create/ has no vote at all whatever its
+        # map offers. That trap has its own test below.
+        with muted():
+            game = create_game_session(
+                self.host,
+                game_name="Abstimmung",
+                game_map=game_map,
+                map_updates=map_updates,
+                **overrides,
+            )
+        self.give_game_access(game.game_id)
+        return self.client.get(lobby_url(game.game_id)).json()
+
+    def test_the_lobby_names_the_map(self):
+        """Finding 13: the host lobby never said which map the game runs on —
+        which matters now that the map decides whether there is a vote."""
+        payload = self._lobby(self.rich_map)
+
+        self.assertEqual(payload["map_name"], "Mit Varianten")
+
+    def test_the_lobby_says_a_one_version_map_has_no_ballot(self):
+        payload = self._lobby(self.flat_map)
+
+        self.assertIs(payload["map_changes_available"], False)
+
+    def test_the_lobby_says_a_versioned_map_has_one(self):
+        payload = self._lobby(self.rich_map)
+
+        self.assertIs(payload["map_changes_available"], True)
+
+    def test_a_game_with_map_updates_switched_off_has_no_ballot_either(self):
+        """Same outcome, different cause, and the host set this one themselves."""
+        payload = self._lobby(self.rich_map, map_updates=False)
+
+        self.assertIs(payload["map_changes_available"], False)
+
+    def test_the_model_default_leaves_the_vote_switched_off(self):
+        """Not the form's default — the model's. A game created through the
+        REST API without naming `map_updates` never reaches a ballot, whatever
+        its map offers."""
+        with muted():
+            game = create_game_session(
+                self.host, game_name="Standard", game_map=self.rich_map
+            )
+        self.give_game_access(game.game_id)
+
+        payload = self.client.get(lobby_url(game.game_id)).json()
+
+        self.assertIs(payload["map_changes_available"], False)
+
+    def test_a_game_without_a_map_has_no_ballot_and_no_name(self):
+        payload = self._lobby(None)
+
+        self.assertIsNone(payload["map_name"])
+        self.assertIs(payload["map_changes_available"], False)
+
+    def test_the_map_is_read_before_the_game_starts(self):
+        """`active_map_version` is only set when the game starts, so the lobby
+        has to fall back to the base version — otherwise the warning would
+        only appear once it is too late to change the map."""
+        payload = self._lobby(self.rich_map)
+
+        self.assertIsNone(
+            GameSession.objects.get(game_id=payload["game_id"]).active_map_version
+        )
+        self.assertIs(payload["map_changes_available"], True)
+
+    def test_the_create_form_marks_a_map_with_nothing_to_vote_on(self):
+        from game.forms import GameSessionCreateForm
+
+        labels = dict(GameSessionCreateForm().fields["game_map"].choices)  # type: ignore
+
+        rendered = {str(v) for v in labels.values()}
+
+        self.assertIn(f"{self.flat_map} — keine Kartenänderungen", rendered)
+
+    def test_the_create_form_leaves_a_versioned_map_alone(self):
+        from game.forms import GameSessionCreateForm
+
+        labels = dict(GameSessionCreateForm().fields["game_map"].choices)  # type: ignore
+
+        rendered = {str(v) for v in labels.values()}
+
+        self.assertIn(str(self.rich_map), rendered)
+        self.assertNotIn(f"{self.rich_map} — keine Kartenänderungen", rendered)
