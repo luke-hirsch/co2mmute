@@ -54,13 +54,13 @@ jobs:
       - name: Start ssh-agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
-          ssh-private-key: ${{ secrets.PROD_KEY }}
+          ssh-private-key: ${{ secrets.KEY }}
 
       - name: Configure known_hosts
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          echo "${{ secrets.PROD_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+          echo "${{ secrets.KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
       - name: SSH smoke test
@@ -68,7 +68,7 @@ jobs:
           ssh -o BatchMode=yes \
             -o StrictHostKeyChecking=yes \
             -o PreferredAuthentications=publickey \
-            ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} \
+            ${{ secrets.USER }}@${{ secrets.HOST }} \
             "whoami && hostname"
 
       - name: Deploy
@@ -76,5 +76,5 @@ jobs:
           ssh -o BatchMode=yes \
             -o StrictHostKeyChecking=yes \
             -o PreferredAuthentications=publickey \
-            ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} \
+            ${{ secrets.USER }}@${{ secrets.HOST }} \
             "cd /commute && git fetch origin && git checkout -B prod origin/prod && docker compose -f devops/docker-compose.yaml up -d --build && docker image prune -f"
