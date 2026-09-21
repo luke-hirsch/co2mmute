@@ -550,3 +550,212 @@ class LobbyHostRowTests(GameCookieMixin, TempMediaRootMixin, TestCase):
 
         self.assertTrue(players["Ohne Handy"]["controlled_by_host"])
         self.assertFalse(players["Host"]["controlled_by_host"])
+
+
+# ---------------------------------------------------------------------------
+# The funnel is German (2.6)
+# ---------------------------------------------------------------------------
+
+ENGLISH_GIVEAWAYS = (
+    "join",
+    "session",
+    "password",
+    "continue",
+    "choose",
+    "display name",
+    "enter lobby",
+    "configure",
+    "maximum",
+    "agents per",
+    "people per",
+    "idle",
+    "optionally",
+    "profile",
+    "share your",
+    "already in progress",
+    "incorrect",
+    "no session found",
+    "please",
+)
+
+
+def visible_text(html):
+    """What a reader actually sees: no markup, no script or style bodies.
+
+    strip_tags leaves the *contents* of <script> in place, and this codebase
+    inlines four of them into base.html — a detector run over the raw page
+    would trip over `sessionStorage` rather than over a label.
+    """
+    import re
+
+    from django.utils.html import strip_tags
+
+    without_code = re.sub(
+        r"<(script|style)\b.*?</\1>", " ", html, flags=re.S | re.I
+    )
+    return re.sub(r"\s+", " ", strip_tags(without_code)).strip()
+
+
+def english_in(text):
+    lowered = text.lower()
+    return sorted({word for word in ENGLISH_GIVEAWAYS if word in lowered})
+
+
+class GermanFunnelTests(TempMediaRootMixin, TestCase):
+    """Every page the QR code lands a student on speaks German.
+
+    The SPA behind these pages is fully German; the three in front of it are
+    not, which makes the join flow the one place a class meets English. The
+    detector is the frontend's idea ported over: assert on the rendered text,
+    because a label built in `Meta.labels` is invisible to a grep of the
+    template.
+    """
+
+    def setUp(self):
+        self.host = create_host()
+        with muted():
+            self.game = create_game_session(self.host, game_name="Testspiel")
+        invalidate_game_session(self.game.game_id)
+
+    def test_the_join_page_is_german(self):
+        response = self.client.get(f"/join/{self.game.game_id}/")
+
+        text = visible_text(response.content.decode())
+
+        self.assertEqual(english_in(text), [], f"English on /join/: {text[:400]}")
+
+    def test_the_join_page_asks_for_a_spiel_id(self):
+        response = self.client.get(f"/join/{self.game.game_id}/")
+
+        label = response.context["form"].fields["game_id"].label
+
+        self.assertEqual(label, "Spiel-ID")
+
+    def test_an_unknown_id_is_refused_in_german(self):
+        response = self.client.post("/join/", {"game_id": "NOPE42"})
+
+        errors = response.context["form"].errors["game_id"]
+
+        self.assertEqual(errors, ["Es gibt kein Spiel mit dieser ID."])
+
+    def test_the_qr_code_of_a_started_game_still_renders(self):
+        """Not copy: `add_error` on an unbound form raises, so this GET 500s.
+
+        The QR code points at this page, so a class arriving late at a game
+        that has already started meets a server error rather than a sentence.
+        """
+        self.game.started_at = timezone.now()
+        with muted():
+            self.game.save()
+        invalidate_game_session(self.game.game_id)
+
+        response = self.client.get(f"/join/{self.game.game_id}/")
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_a_started_game_is_refused_in_german(self):
+        self.game.started_at = timezone.now()
+        with muted():
+            self.game.save()
+        invalidate_game_session(self.game.game_id)
+
+        response = self.client.get(f"/join/{self.game.game_id}/")
+
+        errors = response.context["form"].errors["game_id"]
+
+        self.assertEqual(english_in(" ".join(errors)), [])
+
+    def test_the_player_create_page_is_german(self):
+        session = self.client.session
+        session["joined_game_ids"] = [self.game.game_id]
+        session.save()
+
+        response = self.client.get(f"/game/{self.game.game_id}/player/create/")
+
+        text = visible_text(response.content.decode())
+        self.assertEqual(
+            english_in(text), [], f"English on player/create/: {text[:400]}"
+        )
+
+    def test_the_create_session_page_is_german(self):
+        self.client.force_login(self.host)
+
+        response = self.client.get("/game/create/")
+
+        text = visible_text(response.content.decode())
+        self.assertEqual(english_in(text), [], f"English on /game/create/: {text[:400]}")
+
+    def test_every_create_form_label_is_german(self):
+        from game.forms import GameSessionCreateForm
+
+        form = GameSessionCreateForm()
+
+        offenders = {
+            name: field.label
+            for name, field in form.fields.items()
+            if english_in(str(field.label))
+        }
+
+        self.assertEqual(offenders, {})
+
+    def test_every_create_form_help_text_is_german(self):
+        from game.forms import GameSessionCreateForm
+
+        form = GameSessionCreateForm()
+
+        offenders = {
+            name: field.help_text
+            for name, field in form.fields.items()
+            if field.help_text and english_in(str(field.help_text))
+        }
+
+        self.assertEqual(offenders, {})
+
+    def test_the_create_form_validation_speaks_german(self):
+        from game.forms import GameSessionCreateForm
+
+        form = GameSessionCreateForm(
+            data={
+                "game_name": "Zu klein",
+                "max_players": 0,
+                "agent_per_player": 0,
+                "max_rounds": 0,
+                "max_CO2_level": 0,
+                "people_per_agent": 0,
+                "idle_end_days": 30,
+            }
+        )
+        form.is_valid()
+
+        offenders = {
+            field: errors
+            for field, errors in form.errors.items()
+            if english_in(" ".join(errors))
+        }
+
+        self.assertEqual(offenders, {})
+
+    def test_the_player_form_is_german(self):
+        from game.forms import PlayerCreateForm
+
+        form = PlayerCreateForm()
+        field = form.fields["name"]
+
+        self.assertEqual(english_in(str(field.label)), [])
+        self.assertEqual(english_in(str(field.help_text or "")), [])
+
+    def test_the_share_page_is_german(self):
+        self.client.force_login(self.host)
+
+        response = self.client.get(f"/game/{self.game.game_id}/share/")
+
+        text = visible_text(response.content.decode())
+        self.assertEqual(english_in(text), [], f"English on /share/: {text[:400]}")
+
+    def test_the_profile_page_has_no_english_heading(self):
+        self.client.force_login(self.host)
+
+        response = self.client.get("/accounts/profile/")
+
+        text = visible_text(response.content.decode())
+        self.assertEqual(english_in(text), [], f"English on /accounts/profile/: {text[:400]}")
