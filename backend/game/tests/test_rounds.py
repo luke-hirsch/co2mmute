@@ -1183,3 +1183,106 @@ class BusGateSubmitTests(TempMediaRootMixin, TestCase):
             any("cars not allowed" in error for error in errors),
             msg=f"expected a no-street refusal, got {errors}",
         )
+
+
+@override_settings(**TEST_BACKENDS)
+class SummaryPayloadTests(SimulatedRoundMixin, TestCase):
+    """What the end screen is missing to show a per-person figure.
+
+    Every number on the summary is class-scale — kg and € are
+    x people_per_agent, the time column is a mean per agent, and "Am
+    schnellsten" is a sum over every agent-trip of every round, so a student
+    reads `8 h 18 min` and `14.541,15 €` for one commute. The screen cannot
+    divide its way out of that without knowing the cohort size and how many
+    agent-trips a figure is made of, and the payload carries neither.
+
+    Filed with it: the three other gaps in this payload (no per-round class
+    total, no simulation_used, nobody who left).
+    """
+
+    def _summary(self):
+        self.client.force_login(self.host)
+        with muted():
+            response = self.client.get(f"/api/game/{self.game.game_id}/summary/")
+        return response.json()
+
+    def test_the_payload_names_the_cohort_size(self):
+        """One Fahrgast stands for a thousand people, and only the server knows."""
+        self.complete_round()
+
+        self.assertEqual(self._summary()["people_per_agent"], self.people_per_agent)
+
+    def test_a_round_carries_the_class_total(self):
+        """The frontend sums the listed players today, which undershoots."""
+        self.complete_round()
+        self.round.refresh_from_db()
+
+        rounds = {r["round_number"]: r for r in self._summary()["rounds"]}
+
+        self.assertAlmostEqual(
+            rounds[1]["co2_kg"], self.round.total_emissions_g / 1000, places=2
+        )
+
+    def test_a_round_carries_the_class_cost(self):
+        self.complete_round()
+        self.round.refresh_from_db()
+
+        rounds = {r["round_number"]: r for r in self._summary()["rounds"]}
+
+        self.assertAlmostEqual(
+            rounds[1]["cost_eur"], self.round.total_cost_eur, places=2
+        )
+
+    def test_a_round_says_whether_the_simulation_ran(self):
+        self.complete_round()
+
+        rounds = {r["round_number"]: r for r in self._summary()["rounds"]}
+
+        self.assertIs(rounds[1]["simulation_used"], True)
+
+    def test_a_round_reports_how_many_agent_trips_it_holds(self):
+        """`time_min` is a sum over agents; without this it cannot be a mean."""
+        self.complete_round()
+
+        player = self._summary()["players"][0]
+
+        self.assertEqual(player["rounds"][0]["agent_count"], 1)
+
+    def test_somebody_who_left_is_still_in_the_list(self):
+        """Their emissions stay in the class total, so hiding them makes the
+        listed rows fail to add up to the headline."""
+        self.complete_round()
+        Player.objects.filter(pk=self.other.pk).update(left_at=timezone.now())
+
+        names = {p["name"] for p in self._summary()["players"]}
+
+        self.assertIn("Bruno", names)
+
+    def test_somebody_who_left_is_marked_as_such(self):
+        self.complete_round()
+        Player.objects.filter(pk=self.other.pk).update(left_at=timezone.now())
+
+        players = {p["name"]: p for p in self._summary()["players"]}
+
+        self.assertIs(players["Bruno"]["left"], True)
+        self.assertIs(players["Anna"]["left"], False)
+
+    def test_the_host_row_is_still_out(self):
+        """`playing()` filtered two things at once. Only one of them goes."""
+        self.complete_round()
+        with muted():
+            Player.objects.create(game=self.game, name="Chefin", user=self.host)
+
+        names = {p["name"] for p in self._summary()["players"]}
+
+        self.assertNotIn("Chefin", names)
+
+    def test_a_recorded_end_reason_beats_the_guess(self):
+        """Green already — the view reads `end_reason` before falling back.
+        Here so the fallback cannot quietly become the only path again."""
+        self.complete_round()
+        GameSession.objects.filter(pk=self.game.pk).update(
+            ended_at=timezone.now(), end_reason=GameSession.EndReason.HOST
+        )
+
+        self.assertEqual(self._summary()["end_reason"], "host")
