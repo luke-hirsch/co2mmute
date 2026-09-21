@@ -172,8 +172,12 @@ class MapExportPortabilityTests(TempMediaRootMixin, TestCase):
         self.assertEqual(block["offset_x"], 0.5)
 
 
-class MapImportPortabilityTests(TempMediaRootMixin, TestCase):
-    """What `/map/upload/` has to read back out of that file."""
+class MapUploadMixin(TempMediaRootMixin):
+    """Posting `/map/upload/` the way the page does.
+
+    Extracted so the bike and rail tests below can upload a map without
+    inheriting a test class and re-running its assertions under a second name.
+    """
 
     def setUp(self):
         self.user = get_user_model().objects.create_user(
@@ -242,6 +246,10 @@ class MapImportPortabilityTests(TempMediaRootMixin, TestCase):
             "train_lines": [],
             **extra,
         }
+
+
+class MapImportPortabilityTests(MapUploadMixin, TestCase):
+    """What `/map/upload/` has to read back out of that file."""
 
     def test_import_reads_the_image_and_its_placement(self):
         payload = self.graph_payload(
@@ -372,3 +380,209 @@ class MapRoundTripTests(TempMediaRootMixin, TestCase):
             Node.objects.filter(game_map=copy).count(),
             Node.objects.filter(game_map=original).count(),
         )
+
+
+# ---------------------------------------------------------------------------
+# The bike lane — see `.claude/plans/to-do/[backend]-bike-lane-and-traffic.md`.
+#
+# `Edge.biking` was carrying two meanings at once: *a bike may use this link*
+# and *a bike is unimpeded on this link*. The first is access, the second is
+# infrastructure, and a map could not tell them apart. `Edge.bike_lane` is the
+# second one, and it has to survive the JSON round trip like every other field
+# — export is the only way a map moves between boxes.
+# ---------------------------------------------------------------------------
+
+
+class BikeLaneTravelsTests(MapUploadMixin, TestCase):
+    """`bike_lane` has to go into the file and come back out of it."""
+
+    def street_payload(self, **edge_extra):
+        payload = self.graph_payload()
+        payload["edges"] = [
+            {
+                "start_node": "1",
+                "end_node": "2",
+                "name": "Hauptstraße",
+                "type": "street",
+                "lanes": 2,
+                **edge_extra,
+            }
+        ]
+        return payload
+
+    def test_a_bike_lane_survives_the_import(self):
+        game_map = self.upload(
+            self.street_payload(bike_lane=True), name="Mit Radweg"
+        )
+
+        self.assertTrue(Edge.objects.get(game_map=game_map).bike_lane)
+
+    def test_an_edge_that_does_not_mention_it_has_none(self):
+        """The default is False everywhere, including on a path.
+
+        Unlike `biking`, which is True by default because a bike may ride on
+        an ordinary street, infrastructure is absent until a map says it is
+        there. So no default needs flipping and no existing map changes
+        meaning.
+        """
+        game_map = self.upload(self.street_payload(), name="Ohne Radweg")
+
+        self.assertFalse(Edge.objects.get(game_map=game_map).bike_lane)
+
+    def test_the_export_carries_the_bike_lane_back_out(self):
+        game_map = self.upload(
+            self.street_payload(bike_lane=True), name="Radweg Export"
+        )
+
+        response = self.client.get(
+            reverse("maps:map-export", kwargs={"pk": game_map.pk})
+        )
+
+        self.assertEqual(response.json()["edges"][0]["bike_lane"], True)
+
+    def test_the_export_carries_a_missing_bike_lane_too(self):
+        """False has to be written out, not left out.
+
+        A key that only appears when it is True re-imports as False anyway,
+        which is the same value — but the file then stops describing the map
+        and starts describing a diff against a default, and the next reader
+        cannot tell "no bike lane" from "this exporter is older than the
+        field".
+        """
+        game_map = self.upload(self.street_payload(), name="Radweg Export leer")
+
+        response = self.client.get(
+            reverse("maps:map-export", kwargs={"pk": game_map.pk})
+        )
+
+        self.assertEqual(response.json()["edges"][0]["bike_lane"], False)
+
+    def test_the_graph_the_client_reads_carries_it(self):
+        """`canUseEdge` and the map legend are on the other end of this.
+
+        The editor checkbox and the game's own renderer both read the edge out
+        of EdgeSerializer, so a field missing from that list exists in the
+        database and nowhere a player can see it.
+        """
+        from maps.serializer import EdgeSerializer
+
+        game_map = self.upload(
+            self.street_payload(bike_lane=True), name="Radweg Graph"
+        )
+        edge = Edge.objects.get(game_map=game_map)
+
+        self.assertEqual(EdgeSerializer(edge).data["bike_lane"], True)
+
+    def test_a_bike_lane_without_access_is_refused(self):
+        """The two contradict each other, so the file is wrong, not the reader.
+
+        Lukas: "obviously we can't have a bike lane and not accessible by bike
+        on the edge." Silently correcting it would let a map say one thing and
+        play another; the import says no and names the edge.
+        """
+        from game.tests._helpers import muted
+
+        payload = self.street_payload(bike_lane=True, biking=False)
+
+        with muted():
+            response = self.client.post(
+                reverse("map-upload"),
+                {
+                    "map_name": "Widerspruch",
+                    "max_players": 4,
+                    "description": "",
+                    "json_file": ContentFile(
+                        json.dumps(payload).encode("utf-8"), name="map.json"
+                    ),
+                },
+                follow=True,
+            )
+        notes = " ".join(
+            str(m) for m in (getattr(response, "context", None) or {}).get(
+                "messages", []
+            )
+        )
+
+        self.assertFalse(GameMap.objects.filter(name="Widerspruch").exists())
+        self.assertIn("bike_lane", notes)
+
+
+class RailIsNotACycleTrackTests(MapUploadMixin, TestCase):
+    """A railway is not a shortcut for bikes — unless it says it has a path.
+
+    All 92 rail-only edges across the two maps in the dev database carry
+    `biking=True` and `walking=True`, so the bike graph is the street network
+    *plus* the rail alignment: the straightest, longest links on the map, with
+    no junctions. Same origin and destination: car 8.4 km, bike 4.7 km.
+
+    The first fix proposed was to force `biking=False` on every rail edge at
+    import. The bike-lane split makes that wrong: a cycle path alongside a
+    rail alignment is real and common — Lukas named the S-Bahn in the south of
+    Berlin — and `bike_lane` is how a map says so. So the importer honours
+    what the file says and the existing default does the work: an edge of type
+    `train` that mentions neither flag arrives closed to both. The 92 edges
+    that are wrong today are a data problem, fixed by the migration's pass and
+    pinned in `test_models.py`.
+    """
+
+    def rail_payload(self, **edge_extra):
+        payload = self.graph_payload()
+        payload["edges"] = [
+            {
+                "start_node": "1",
+                "end_node": "2",
+                "name": "Stadtbahn",
+                "type": "train",
+                **edge_extra,
+            }
+        ]
+        return payload
+
+    def test_a_rail_edge_that_says_nothing_arrives_closed_to_bikes(self):
+        game_map = self.upload(self.rail_payload(), name="Schiene")
+
+        self.assertFalse(Edge.objects.get(game_map=game_map).biking)
+
+    def test_a_rail_edge_that_says_nothing_arrives_closed_to_walkers(self):
+        game_map = self.upload(self.rail_payload(), name="Schiene zu Fuss")
+
+        self.assertFalse(Edge.objects.get(game_map=game_map).walking)
+
+    def test_a_rail_alignment_may_carry_a_path_alongside(self):
+        """The U-Bahn is closed to both; parts of the S-Bahn are not.
+
+        This is the case that killed `StreetEdge.dedicated_bike_lane`: there
+        is no street here at all, so the flag has to live on `Edge`.
+        """
+        payload = self.rail_payload(biking=True, walking=True, bike_lane=True)
+
+        game_map = self.upload(payload, name="Schiene mit Weg")
+        edge = Edge.objects.get(game_map=game_map)
+
+        self.assertTrue(edge.biking)
+        self.assertTrue(edge.walking)
+        self.assertTrue(edge.bike_lane)
+
+    def test_a_street_that_also_carries_rail_keeps_its_flags(self):
+        """`type: "both"` is a real case — six edges on each shipped map.
+
+        A tram alignment down a street is still a street: you can cycle on it,
+        and blanket-clearing every edge that touches a TrainEdge would take
+        those twelve off the bike network for no reason.
+        """
+        payload = self.rail_payload(type="both", speed_limit=30, lanes=2)
+
+        game_map = self.upload(payload, name="Strasse mit Gleis")
+        edge = Edge.objects.get(game_map=game_map)
+
+        self.assertTrue(edge.biking)
+        self.assertTrue(edge.walking)
+
+    def test_an_ordinary_street_is_untouched(self):
+        payload = self.rail_payload(type="street", lanes=1)
+
+        game_map = self.upload(payload, name="Nur Strasse")
+        edge = Edge.objects.get(game_map=game_map)
+
+        self.assertTrue(edge.biking)
+        self.assertTrue(edge.walking)
