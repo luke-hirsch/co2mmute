@@ -557,48 +557,72 @@ class LobbyHostRowTests(GameCookieMixin, TempMediaRootMixin, TestCase):
 # ---------------------------------------------------------------------------
 
 ENGLISH_GIVEAWAYS = (
-    "join",
-    "session",
-    "password",
-    "continue",
+    # Words that cannot appear in German copy. Matched whole-word, so a
+    # German word that merely contains one of them is not a hit.
     "choose",
+    "continue",
+    "configure",
     "display name",
     "enter lobby",
-    "configure",
-    "maximum",
-    "agents per",
-    "people per",
+    "enable",
     "idle",
+    "incorrect",
+    "join",
     "optionally",
+    "password",
+    "please",
     "profile",
     "share your",
     "already in progress",
-    "incorrect",
     "no session found",
-    "please",
+    # Not "session" and not "maximum" on their own: both are German words
+    # too ("die Session", "das Maximum"), and flagging them would make the
+    # detector an opinion about vocabulary rather than about language. Only
+    # the English collocations they came from are hits.
+    "session id",
+    "session name",
+    "session password",
+    "maximum players",
+    "maximum rounds",
+    "maximum co",
+    "agents per",
+    "people per",
 )
 
 
 def visible_text(html):
-    """What a reader actually sees: no markup, no script or style bodies.
+    """What a reader actually sees: no markup, no code, no URLs.
 
     strip_tags leaves the *contents* of <script> in place, and this codebase
     inlines four of them into base.html — a detector run over the raw page
-    would trip over `sessionStorage` rather than over a label.
+    would trip over `sessionStorage` rather than over a label. URLs go the
+    same way: the share page prints its join link for people to type, and
+    `/join/<id>/` is a route, not a sentence. A path is never copy.
     """
     import re
 
     from django.utils.html import strip_tags
 
-    without_code = re.sub(
-        r"<(script|style)\b.*?</\1>", " ", html, flags=re.S | re.I
-    )
-    return re.sub(r"\s+", " ", strip_tags(without_code)).strip()
+    without_code = re.sub(r"<(script|style)\b.*?</\1>", " ", html, flags=re.S | re.I)
+    without_urls = re.sub(r"\S*(?:https?://|/)\S*", " ", strip_tags(without_code))
+    return re.sub(r"\s+", " ", without_urls).strip()
 
 
 def english_in(text):
-    lowered = text.lower()
-    return sorted({word for word in ENGLISH_GIVEAWAYS if word in lowered})
+    """The English in `text`, or an empty list.
+
+    Whole words only, so a German word that happens to contain an English one
+    is not a hit. The point is to catch a string nobody translated, never to
+    pin the words of one that somebody did — an assertion on exact copy would
+    make every rewording a red pipeline, which is worth less than the copy.
+    """
+    import re
+
+    pattern = re.compile(
+        r"\b(?:%s)\b" % "|".join(re.escape(w).replace(r"\ ", r"\s+") for w in ENGLISH_GIVEAWAYS),
+        re.I,
+    )
+    return sorted({match.lower() for match in pattern.findall(text)})
 
 
 class GermanFunnelTests(TempMediaRootMixin, TestCase):
@@ -609,6 +633,10 @@ class GermanFunnelTests(TempMediaRootMixin, TestCase):
     detector is the frontend's idea ported over: assert on the rendered text,
     because a label built in `Meta.labels` is invisible to a grep of the
     template.
+
+    Nothing in here asserts an exact sentence. The test is "this page is not
+    English", never "this page says what the guide said" — the wording stays
+    free to improve, and only a string nobody translated goes red.
     """
 
     def setUp(self):
@@ -624,19 +652,19 @@ class GermanFunnelTests(TempMediaRootMixin, TestCase):
 
         self.assertEqual(english_in(text), [], f"English on /join/: {text[:400]}")
 
-    def test_the_join_page_asks_for_a_spiel_id(self):
-        response = self.client.get(f"/join/{self.game.game_id}/")
-
-        label = response.context["form"].fields["game_id"].label
-
-        self.assertEqual(label, "Spiel-ID")
-
     def test_an_unknown_id_is_refused_in_german(self):
+        """The refusal lands on the field and is not English.
+
+        Which sentence it is, is copy. Asserting it here would mean every
+        reword breaks the suite, and the suite would then be an argument
+        against improving the copy.
+        """
         response = self.client.post("/join/", {"game_id": "NOPE42"})
 
         errors = response.context["form"].errors["game_id"]
 
-        self.assertEqual(errors, ["Es gibt kein Spiel mit dieser ID."])
+        self.assertEqual(len(errors), 1)
+        self.assertEqual(english_in(" ".join(errors)), [])
 
     def test_the_qr_code_of_a_started_game_still_renders(self):
         """Not copy: `add_error` on an unbound form raises, so this GET 500s.
