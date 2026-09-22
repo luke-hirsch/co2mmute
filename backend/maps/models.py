@@ -59,6 +59,27 @@ class GameMap(models.Model):
     class Meta:
         ordering = ("name", "pk")
 
+    def offers_map_changes(self, from_version=None) -> bool:
+        """Whether a game on this map can ever reach a ballot.
+
+        `vote_options()` answers the same question for a finished round. This
+        one answers it before the first round — for the map select and the
+        lobby, where a host can still choose a different map. A map whose
+        active version reaches no compatible version removes the discussion
+        and the vote from the game silently: `_advance_from_stats` is
+        "discussion if there is a ballot, else the next round".
+
+        `from_version` defaults to the base version, because
+        `active_map_version` is only set when the game starts.
+        """
+        version = (
+            from_version
+            or MapVersion.objects.filter(game_map=self, base_version=True).first()
+        )
+        if version is None:
+            return False
+        return version.compatible_versions.exists()
+
 
 class MapVersion(models.Model):
     game_map = models.ForeignKey(GameMap, on_delete=models.CASCADE)

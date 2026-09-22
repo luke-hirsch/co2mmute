@@ -4,6 +4,22 @@ from django.utils import timezone
 from .models import GameSession, Player
 
 
+class MapChoiceField(forms.ModelChoiceField):
+    """The map select, with the maps that have nothing to vote on named.
+
+    A map with one version silently removes the whole discussion-and-vote
+    phase — the class goes stats → next round and never sees a ballot. This
+    select is the one place a host can still change their mind, so it is where
+    the warning belongs. No JavaScript, no second request.
+    """
+
+    def label_from_instance(self, obj):
+        label = super().label_from_instance(obj)
+        if obj.offers_map_changes():
+            return label
+        return f"{label} — keine Kartenänderungen"
+
+
 class GameSessionCreateForm(forms.ModelForm):
     lobby_open = forms.DateTimeField(
         required=False,
@@ -99,9 +115,14 @@ class GameSessionCreateForm(forms.ModelForm):
             "h-4 w-4 rounded border-gray-300 text-indigo-600 "
             "focus:ring-indigo-500 dark:bg-white/5 dark:border-white/10"
         )
-        self.fields["game_map"].required = True
-
-        self.fields["game_map"].empty_label = None  # type: ignore
+        game_map_field = self.fields["game_map"]
+        self.fields["game_map"] = MapChoiceField(
+            queryset=game_map_field.queryset,  # type: ignore
+            label=game_map_field.label,
+            help_text=game_map_field.help_text,
+            required=True,
+            empty_label=None,
+        )
         for field_name, field in self.fields.items():
             if isinstance(field.widget, forms.CheckboxInput):
                 field.widget.attrs.setdefault("class", checkbox_class)
