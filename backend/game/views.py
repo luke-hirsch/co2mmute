@@ -105,14 +105,19 @@ class JoinSessionView(GameAccessCookieMixin, TemplateView):
             if game_session:
                 show_password = bool(game_session.game_password)
                 if game_session.started_at:
+                    # add_error needs cleaned_data, which an unbound form does
+                    # not have — this branch used to raise AttributeError, so
+                    # the QR code of a running game answered a 500.
+                    form = self.form_class(data={"game_id": game_id})
+                    form.is_valid()
                     form.add_error(
                         "game_id",
-                        "Game is already in progress. Please join a different game.",
+                        "Dieses Spiel läuft schon. Such dir ein anderes.",
                     )
             else:
                 form = self.form_class(data={"game_id": game_id})
                 form.is_valid()
-                form.add_error("game_id", "No session found with that ID.")
+                form.add_error("game_id", "Es gibt kein Spiel mit dieser ID.")
 
         return self.render_to_response(
             {
@@ -134,13 +139,13 @@ class JoinSessionView(GameAccessCookieMixin, TemplateView):
             game_session = get_cached_game_session(game_id)
 
             if not game_session:
-                form.add_error("game_id", "No session found with that ID.")
+                form.add_error("game_id", "Es gibt kein Spiel mit dieser ID.")
 
             else:
                 if game_session.started_at:
                     form.add_error(
                         "game_id",
-                        "Game is already in progress. Please join a different game.",
+                        "Dieses Spiel läuft schon. Such dir ein anderes.",
                     )
 
                 show_password = bool(game_session.game_password)
@@ -149,7 +154,7 @@ class JoinSessionView(GameAccessCookieMixin, TemplateView):
                     if not password:
                         awaiting_password = True
                     elif password != game_session.game_password:
-                        form.add_error("game_password", "Incorrect password.")
+                        form.add_error("game_password", "Das Passwort stimmt nicht.")
 
             if not form.errors and not awaiting_password and game_session:
                 self._mark_joined(request, game_session)
@@ -194,11 +199,13 @@ class PlayerCreateView(
         self.game_session = get_cached_game_session(game_id)
 
         if not self.game_session:
-            messages.error(request, "We could not find that session.")
+            messages.error(request, "Dieses Spiel gibt es nicht.")
             return redirect("session-join-direct", game_id=game_id)
 
         if not self._has_join_permission(request):
-            messages.error(request, "Please join the session before creating a player.")
+            messages.error(
+                request, "Tritt dem Spiel erst bei, bevor du einen Namen wählst."
+            )
             return redirect("session-join-direct", game_id=game_id)
 
         return super().dispatch(request, *args, **kwargs)
@@ -220,7 +227,7 @@ class PlayerCreateView(
             f"PlayerCreateView.form_valid() called, creating player: {form.cleaned_data}"
         )
         if self.game_session and self.game_session.is_active:
-            messages.error(self.request, "Game has already started.")
+            messages.error(self.request, "Das Spiel läuft schon.")
             return redirect("session-join")
 
         player = form.save()
@@ -233,9 +240,8 @@ class PlayerCreateView(
             )
             messages.error(
                 self.request,
-                "An error occurred while creating your player. Please try again.",
+                "Beim Anlegen ist etwas schiefgegangen. Versuch es nochmal.",
             )
-            return redirect("player-create", game_id=self.game_session.game_id)
 
         success_url = f"/app/game/{self.game_session.game_id}/"
         response = redirect(success_url)
