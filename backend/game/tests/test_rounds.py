@@ -782,6 +782,7 @@ class SimulatedRoundMixin(TempMediaRootMixin):
         edge.map_versions.add(version)
         street_edge = StreetEdge.objects.create(edge=edge, speed_limit=50, lanes=2)
         street_edge.map_versions.add(version)
+        self.edge = edge
 
         with muted():
             self.game = create_game_session(
@@ -1286,3 +1287,122 @@ class SummaryPayloadTests(SimulatedRoundMixin, TestCase):
         )
 
         self.assertEqual(self._summary()["end_reason"], "host")
+
+    # -- what one person did once -------------------------------------------
+    #
+    # kg and euro are extensive: they add up over the agents a player plays
+    # and over the thousand people each agent stands for, so dividing by both
+    # gives one commute back. Travel time is not, which is why it gets a mean
+    # per agent-trip and never a per-person figure.
+
+    def test_a_round_says_what_one_person_emitted(self):
+        """The screen cannot divide its way there: it knows neither factor."""
+        self.complete_round()
+        self.round.refresh_from_db()
+
+        rounds = {r["round_number"]: r for r in self._summary()["rounds"]}
+
+        self.assertEqual(rounds[1]["agent_count"], 2)
+        self.assertAlmostEqual(
+            rounds[1]["co2_g_per_person"],
+            self.round.total_emissions_g / (2 * self.people_per_agent),
+            places=1,
+        )
+        # Two kilometres by car, so a number a class can hold in its head.
+        self.assertLess(rounds[1]["co2_g_per_person"], 1000)
+
+    def test_a_round_says_what_one_person_paid(self):
+        self.complete_round()
+        self.round.refresh_from_db()
+
+        rounds = {r["round_number"]: r for r in self._summary()["rounds"]}
+
+        self.assertAlmostEqual(
+            rounds[1]["cost_eur_per_person"],
+            self.round.total_cost_eur / (2 * self.people_per_agent),
+            places=2,
+        )
+        self.assertLess(rounds[1]["cost_eur_per_person"], 10)
+
+    def test_a_players_round_carries_the_same_two_figures(self):
+        """`14.541,15 €` was a commuting bill for a thousand people."""
+        self.complete_round()
+
+        player = self._summary()["players"][0]
+        first = player["rounds"][0]
+
+        self.assertAlmostEqual(
+            first["co2_g_per_person"],
+            first["co2_kg"] * 1000 / (first["agent_count"] * self.people_per_agent),
+            places=0,
+        )
+        self.assertAlmostEqual(
+            first["cost_eur_per_person"],
+            first["cost_eur"] / (first["agent_count"] * self.people_per_agent),
+            places=2,
+        )
+
+    def test_the_time_column_gets_a_mean_per_agent(self):
+        """`8 h 18 min` was a sum of twelve agent-trips. Minutes do not add
+        up into a quantity anybody has; they average."""
+        self.complete_round()
+
+        first = self._summary()["players"][0]["rounds"][0]
+
+        self.assertAlmostEqual(
+            first["time_min_per_agent"],
+            first["time_min"] / first["agent_count"],
+            places=1,
+        )
+
+    def test_the_totals_carry_a_per_commute_mean(self):
+        self.complete_round()
+
+        player = self._summary()["players"][0]
+
+        self.assertEqual(player["total_agent_trips"], 1)
+        self.assertAlmostEqual(
+            player["co2_g_per_person"],
+            player["total_co2_kg"] * 1000 / self.people_per_agent,
+            places=0,
+        )
+        self.assertAlmostEqual(
+            player["time_min_per_agent"], player["total_time_min"], places=1
+        )
+
+    def test_the_totals_cannot_be_ranked_on_now_that_leavers_are_listed(self):
+        """A sum over agent-trips crowns whoever played least, and this list
+        now contains the people who left. Anna commutes with two agents,
+        Bruno with one, and they drive the same street: the sums say Bruno is
+        faster and cheaper, the means say they are the same."""
+        from game.models import AgentRoute, RouteSegment
+
+        move = PlayerMove.objects.get(session_round=self.round, player=self.player)
+        with muted():
+            route = AgentRoute.objects.create(
+                player_move=move,
+                agent_id=2,
+                transport_mode="car",
+                total_distance_m=2000,
+                estimated_time_min=3,
+            )
+            RouteSegment.objects.create(
+                agent_route=route, order=1, edge=self.edge, mode="car"
+            )
+        self.complete_round()
+
+        players = {p["name"]: p for p in self._summary()["players"]}
+        anna, bruno = players["Anna"], players["Bruno"]
+
+        self.assertEqual(
+            (anna["total_agent_trips"], bruno["total_agent_trips"]), (2, 1)
+        )
+        self.assertGreater(anna["total_time_min"], bruno["total_time_min"] * 1.5)
+        self.assertGreater(anna["total_cost_eur"], bruno["total_cost_eur"] * 1.5)
+
+        self.assertAlmostEqual(
+            anna["time_min_per_agent"], bruno["time_min_per_agent"], delta=0.5
+        )
+        self.assertAlmostEqual(
+            anna["cost_eur_per_person"], bruno["cost_eur_per_person"], delta=0.2
+        )

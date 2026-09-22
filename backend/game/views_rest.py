@@ -2,7 +2,7 @@ import logging
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Avg, Max
+from django.db.models import Avg, Count, Max
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -716,6 +716,23 @@ class RoundTrafficHeatmapView(GenericAPIView):
         )
 
 
+def _per_person(total, agent_count, people_per_agent):
+    """Turn a class-scale sum into what one commuter did once.
+
+    CO2 and euro are extensive: they add up over agents and over the people
+    each agent stands for, so dividing by both gives one person's single
+    commute back. Travel time is not — it is passed through here with
+    `people_per_agent=1`, which makes this a mean over agent-trips rather
+    than a per-person figure, because a sum of travel times is not a
+    quantity anybody has.
+
+    Zero agent-trips is a round the player sat out; there is nothing to
+    divide and nothing to say about it.
+    """
+    people = agent_count * (people_per_agent or 1)
+    return total / people if people else 0.0
+
+
 class GameSummaryView(GenericAPIView):
     """Return end-of-game summary with per-player stats across all rounds."""
 
@@ -730,12 +747,77 @@ class GameSummaryView(GenericAPIView):
                 {"error": "Game not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
-        players = Player.objects.filter(game=game).playing()  # type: ignore
+        # Not .playing(): that filters two things at once, and only one of
+        # them belongs here. Somebody who left keeps their emissions in the
+        # class total, so leaving them out makes the listed rows fail to add
+        # up to the headline. The host's own row still goes, and it goes by
+        # account — never by controlled_by_host.
+        players = (
+            Player.objects.filter(game=game).without_host_rows().order_by("pk")  # type: ignore
+        )
         completed_rounds = GameRound.objects.filter(
             game=game, status=GameRound.Status.COMPLETED
         ).order_by("round_number")
 
+        people_per_agent = game.people_per_agent or 1
         total_co2_g = sum(r.total_emissions_g for r in completed_rounds)
+
+        simulated = set(
+            SimulationResult.objects.filter(
+                game_round__in=completed_rounds,
+                status=SimulationResult.Status.COMPLETED,
+            ).values_list("game_round_id", flat=True)
+        )
+
+        # How many agent-trips each round holds over the whole class. The
+        # divisor every per-person figure needs, counted the same way the
+        # emissions were: off the results where the simulation ran, off the
+        # routes where it did not.
+        result_counts = {
+            row["agent_route__player_move__session_round"]: row["n"]
+            for row in AgentSimulationResult.objects.filter(
+                agent_route__player_move__session_round__in=completed_rounds
+            )
+            .values("agent_route__player_move__session_round")
+            .annotate(n=Count("id"))
+        }
+        route_counts = {
+            row["player_move__session_round"]: row["n"]
+            for row in AgentRoute.objects.filter(
+                player_move__session_round__in=completed_rounds
+            )
+            .values("player_move__session_round")
+            .annotate(n=Count("id"))
+        }
+
+        # The class figure per round, read off the round rather than summed
+        # from the rows below it.
+        rounds_summary = []
+        for game_round in completed_rounds:
+            agent_count = result_counts.get(game_round.pk) or route_counts.get(
+                game_round.pk, 0
+            )
+            rounds_summary.append(
+                {
+                    "round_number": game_round.round_number,
+                    "co2_kg": round(game_round.total_emissions_g / 1000, 2),
+                    "cost_eur": round(game_round.total_cost_eur, 2),
+                    "agent_count": agent_count,
+                    "co2_g_per_person": round(
+                        _per_person(
+                            game_round.total_emissions_g, agent_count, people_per_agent
+                        ),
+                        1,
+                    ),
+                    "cost_eur_per_person": round(
+                        _per_person(
+                            game_round.total_cost_eur, agent_count, people_per_agent
+                        ),
+                        2,
+                    ),
+                    "simulation_used": game_round.pk in simulated,
+                }
+            )
 
         # Build per-player, per-round stats from AgentSimulationResult
         players_data = []
@@ -755,6 +837,7 @@ class GameSummaryView(GenericAPIView):
                 round_co2 = 0.0
                 round_cost = 0.0
                 round_time = 0.0
+                round_agents = 0
 
                 if round_move:
                     agent_results = AgentSimulationResult.objects.filter(
@@ -762,6 +845,7 @@ class GameSummaryView(GenericAPIView):
                     ).select_related("agent_route")
 
                     if agent_results.exists():
+                        round_agents = agent_results.count()
                         for result in agent_results:
                             round_co2 += result.total_co2_g
                             round_cost += result.mean_cost_eur * (
@@ -769,9 +853,11 @@ class GameSummaryView(GenericAPIView):
                             )
                             round_time += result.mean_trip_time_min
                             modes_used.add(result.agent_route.transport_mode)
+
                     else:
                         # Fallback
                         agent_routes = AgentRoute.objects.filter(player_move=round_move)
+                        round_agents = agent_routes.count()
                         fallback_emissions = {
                             "car": 166.8,
                             "public": 60.0,
@@ -802,9 +888,29 @@ class GameSummaryView(GenericAPIView):
                 rounds_data.append(
                     {
                         "round_number": game_round.round_number,
+                        # Class scale: this player's agents stand for
+                        # agent_count x people_per_agent commuters.
                         "co2_kg": round(round_co2 / 1000, 2),
                         "cost_eur": round(round_cost, 2),
+                        # A sum of agent means, and therefore not a quantity
+                        # anybody has. Kept because it is what the screen
+                        # reads today; time_min_per_agent is what it should
+                        # read.
                         "time_min": round(round_time, 1),
+                        # How many agent-trips the figures above are made of.
+                        "agent_count": round_agents,
+                        # And the same round as one commuter lived it. Grams,
+                        # because a bike ride is 0 and a walk is 0 and kg
+                        # would print both as 0.00.
+                        "co2_g_per_person": round(
+                            _per_person(round_co2, round_agents, people_per_agent), 1
+                        ),
+                        "cost_eur_per_person": round(
+                            _per_person(round_cost, round_agents, people_per_agent), 2
+                        ),
+                        "time_min_per_agent": round(
+                            _per_person(round_time, round_agents, 1), 1
+                        ),
                     }
                 )
 
@@ -812,13 +918,36 @@ class GameSummaryView(GenericAPIView):
                 player_total_cost += round_cost
                 player_total_time += round_time
 
+            # The three totals are sums over agent-trips, so a player who
+            # left after round 1 ranks fastest and cheapest for having played
+            # less. Now that leavers are in the list, the three lists have to
+            # rank on the per-commute means below, not on these.
+            total_agent_trips = sum(r["agent_count"] for r in rounds_data)
+
             players_data.append(
                 {
                     "player_id": player.player_id,
                     "name": player.name,
+                    "left": player.left_at is not None,
                     "total_co2_kg": round(player_total_co2 / 1000, 2),
                     "total_cost_eur": round(player_total_cost, 2),
                     "total_time_min": round(player_total_time, 1),
+                    "total_agent_trips": total_agent_trips,
+                    "co2_g_per_person": round(
+                        _per_person(
+                            player_total_co2, total_agent_trips, people_per_agent
+                        ),
+                        1,
+                    ),
+                    "cost_eur_per_person": round(
+                        _per_person(
+                            player_total_cost, total_agent_trips, people_per_agent
+                        ),
+                        2,
+                    ),
+                    "time_min_per_agent": round(
+                        _per_person(player_total_time, total_agent_trips, 1), 1
+                    ),
                     "modes_used": sorted(modes_used),
                     "rounds": rounds_data,
                 }
@@ -842,6 +971,12 @@ class GameSummaryView(GenericAPIView):
                 "max_rounds": game.max_rounds,
                 "total_co2_kg": round(total_co2_g / 1000, 2),
                 "max_co2_kg": game.max_CO2_level,
+                # One Fahrgast stands for this many people. Every kg and every
+                # euro above is already multiplied by it, and only the server
+                # knows the factor: it reaches the SPA on no other endpoint
+                # the host can call.
+                "people_per_agent": game.people_per_agent,
+                "rounds": rounds_summary,
                 "players": players_data,
             }
         )
