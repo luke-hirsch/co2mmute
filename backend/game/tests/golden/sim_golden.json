@@ -1,28 +1,28 @@
 {
   "total": {
     "status": "completed",
-    "total_co2_g": 350755.654746,
-    "total_cost_eur": 555.8756
+    "total_co2_g": 352065.012334,
+    "total_cost_eur": 557.131578
   },
   "agents": [
     {
       "agent_id": 1,
       "mode": "car",
-      "mean_trip_time_min": 2.160459,
+      "mean_trip_time_min": 2.156729,
       "mean_return_time_min": 0.0,
-      "mean_cost_eur": 0.582223,
-      "total_co2_g": 128414.558456,
-      "congestion_delay_min": 0.060229,
+      "mean_cost_eur": 0.583835,
+      "total_co2_g": 129086.749938,
+      "congestion_delay_min": 0.051711,
       "wait_time_min": 0.0
     },
     {
       "agent_id": 2,
       "mode": "car",
-      "mean_trip_time_min": 14.295997,
+      "mean_trip_time_min": 13.925407,
       "mean_return_time_min": 0.0,
-      "mean_cost_eur": 0.807466,
-      "total_co2_g": 222341.09629,
-      "congestion_delay_min": 11.093611,
+      "mean_cost_eur": 0.808994,
+      "total_co2_g": 222978.262397,
+      "congestion_delay_min": 10.710495,
       "wait_time_min": 0.0
     },
     {
@@ -64,33 +64,33 @@
     },
     {
       "tick": 15,
-      "vehicle_count": 0,
-      "speed_kmh": 48.530668
+      "vehicle_count": 1,
+      "speed_kmh": 48.417236
     },
     {
       "tick": 15,
       "vehicle_count": 39,
-      "speed_kmh": 13.932547
+      "speed_kmh": 13.368719
     },
     {
       "tick": 15,
-      "vehicle_count": 150,
-      "speed_kmh": 10.917715
+      "vehicle_count": 186,
+      "speed_kmh": 11.062132
     },
     {
       "tick": 20,
       "vehicle_count": 0,
-      "speed_kmh": 8.54008
+      "speed_kmh": 7.73976
     },
     {
       "tick": 20,
       "vehicle_count": 0,
-      "speed_kmh": 12.310497
+      "speed_kmh": 11.911649
     },
     {
       "tick": 20,
       "vehicle_count": 0,
-      "speed_kmh": 48.556489
+      "speed_kmh": 48.445272
     }
   ]
 }
