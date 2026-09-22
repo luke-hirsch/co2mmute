@@ -6,15 +6,6 @@ from collections.abc import Callable
 
 from maps.models import BusLine, Edge, StreetPerRound, TrainLine
 
-from game.models import (
-    AgentRoute,
-    AgentSimulationResult,
-    EdgeTrafficSnapshot,
-    GameRound,
-    RouteSegment,
-    SimulationResult,
-)
-
 # The engine itself lives in `sim/`, a plain package with no Django in it.
 # This module is the adapter: ORM rows in, engine, result rows out. The names
 # are re-exported rather than re-homed because ~25 call sites across the test
@@ -50,6 +41,13 @@ from sim import (  # noqa: F401
     generate_departure_minutes,
 )
 
+from game.models import (
+    AgentRoute,
+    AgentSimulationResult,
+    EdgeTrafficSnapshot,
+    GameRound,
+    SimulationResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -72,11 +70,6 @@ FALLBACK_TRAIN_INTERVAL_MIN = 10
 
 # Departure window: matches the ±60 min clamp in generate_departure_minutes()
 DEPARTURE_WINDOW_MIN = 120
-
-
-
-
-
 
 
 class TrafficSimulator:
@@ -709,6 +702,13 @@ class TrafficSimulator:
             for edge_state in self.edge_states.values():
                 if self._discharge(edge_state, now, tick_end, released):
                     moved = True
+            if moved and self.waiting:
+                # A discharge freed storage at somebody's front door. Without
+                # this the origin link is filled once per tick and emptied
+                # again inside the same tick, so it admits its STORAGE per
+                # tick where the model means its FLOW — measured at 118/tick
+                # on a link storing 118 and passing 157.
+                self._spawn_vehicles(now, tick_end)
 
         # A link is in trouble only if it moved NOTHING this tick while holding
         # a vehicle. Counting blocked *passes* instead of ticks makes the
@@ -763,8 +763,7 @@ class TrafficSimulator:
             trip_min = vehicle.arrived_min - vehicle.wants_to_depart_min + wait_min
             delay_min = max(
                 0.0,
-                trip_min
-                - self._free_flow_min(vehicle.route_pk, vehicle.speed_factor),
+                trip_min - self._free_flow_min(vehicle.route_pk, vehicle.speed_factor),
             )
             for _ in range(vehicle.passenger_count):
                 agent_results["trip_times"].append(trip_min)
@@ -1242,9 +1241,9 @@ class TrafficSimulator:
         self.sim_log.write(f"Routes processed: {len(self.agent_results)}")
 
         # Update totals
-        self.simulation_result.total_co2_g = total_co2
-        self.simulation_result.total_cost_eur = total_cost
-        self.simulation_result.save()
+        self.simulation_result.total_co2_g = total_co2  # type: ignore
+        self.simulation_result.total_cost_eur = total_cost  # type: ignore
+        self.simulation_result.save()  # type: ignore
 
         logger.info(
             f"[SIM] Total CO2: {total_co2:.0f}g, Total cost: {total_cost:.2f}EUR"

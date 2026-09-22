@@ -4,6 +4,22 @@ from django.utils import timezone
 from .models import GameSession, Player
 
 
+class MapChoiceField(forms.ModelChoiceField):
+    """The map select, with the maps that have nothing to vote on named.
+
+    A map with one version silently removes the whole discussion-and-vote
+    phase — the class goes stats → next round and never sees a ballot. This
+    select is the one place a host can still change their mind, so it is where
+    the warning belongs. No JavaScript, no second request.
+    """
+
+    def label_from_instance(self, obj):
+        label = super().label_from_instance(obj)
+        if obj.offers_map_changes():
+            return label
+        return f"{label} — keine Kartenänderungen"
+
+
 class GameSessionCreateForm(forms.ModelForm):
     lobby_open = forms.DateTimeField(
         required=False,
@@ -11,7 +27,7 @@ class GameSessionCreateForm(forms.ModelForm):
             attrs={"type": "datetime-local"},
             format="%Y-%m-%dT%H:%M",
         ),
-        help_text="Optionally choose when the lobby should open.",
+        help_text="Optional – lege fest, wann die Lobby aufmacht.",
     )
 
     class Meta:
@@ -30,29 +46,34 @@ class GameSessionCreateForm(forms.ModelForm):
             "lobby_open",
         ]
         labels = {
-            "game_name": "Session name",
-            "game_password": "Lobby password",
-            "game_map": "Map",
-            "map_updates": "Enable map updates",
-            "max_players": "Maximum players",
-            "agent_per_player": "Agents per player",
-            "max_rounds": "Maximum rounds",
-            "max_CO2_level": "Maximum CO₂ level (kg)",
-            "people_per_agent": "People per agent",
-            "idle_end_days": "End after idle days",
-            "lobby_open": "Lobby opens at",
+            "game_name": "Name des Spiels",
+            "game_password": "Passwort für die Lobby",
+            "game_map": "Karte",
+            "map_updates": "Kartenänderungen zulassen",
+            "max_players": "Plätze insgesamt",
+            "agent_per_player": "Fahrgäste pro Person",
+            "max_rounds": "Runden",
+            "max_CO2_level": "CO₂-Budget (kg)",
+            "people_per_agent": "Menschen pro Fahrgast",
+            "idle_end_days": "Ende nach Tagen ohne Spiel",
+            "lobby_open": "Lobby öffnet um",
         }
         help_texts = {
-            "game_password": "Optional – leave blank for an open lobby.",
-            "map_updates": "Send live map updates to players during the session.",
-            "max_players": "Total number of player slots available.",
-            "agent_per_player": "Number of agents assigned to each player.",
-            "max_rounds": "How many rounds the session should run for.",
-            "max_CO2_level": "Upper limit before the game ends.",
-            "people_per_agent": "How many individuals each agent represents in the simulation.",
+            "game_password": "Optional – ohne Passwort kommt jeder in die Lobby.",
+            "map_updates": (
+                "Schickt Kartenänderungen während des Spiels an alle Geräte."
+            ),
+            "max_players": "So viele Plätze hat das Spiel insgesamt.",
+            "agent_per_player": ("So viele Fahrgäste bekommt jede Person zu Beginn."),
+            "max_rounds": ("So viele Runden werden gefahren, wenn das Budget reicht."),
+            "max_CO2_level": "Ist das Budget aufgebraucht, ist das Spiel vorbei.",
+            "people_per_agent": (
+                "Für so viele Menschen steht ein Fahrgast in der Simulation."
+            ),
             "idle_end_days": (
-                "A game nobody plays for this many days ends by itself, paused or "
-                "not. Player names are removed a day later."
+                "Ein Spiel, das so lange niemand spielt, endet von selbst – "
+                "angehalten oder nicht. Einen Tag später werden die "
+                "Spielernamen entfernt."
             ),
         }
         widgets = {
@@ -60,7 +81,7 @@ class GameSessionCreateForm(forms.ModelForm):
             "game_password": forms.TextInput(
                 attrs={
                     "autocomplete": "off",
-                    "placeholder": "e.g. ECO-42",
+                    "placeholder": "z. B. ECO-42",
                 }
             ),
         }
@@ -94,9 +115,14 @@ class GameSessionCreateForm(forms.ModelForm):
             "h-4 w-4 rounded border-gray-300 text-indigo-600 "
             "focus:ring-indigo-500 dark:bg-white/5 dark:border-white/10"
         )
-        self.fields["game_map"].required = True
-
-        self.fields["game_map"].empty_label = None  # type: ignore
+        game_map_field = self.fields["game_map"]
+        self.fields["game_map"] = MapChoiceField(
+            queryset=game_map_field.queryset,  # type: ignore
+            label=game_map_field.label,
+            help_text=game_map_field.help_text,
+            required=True,
+            empty_label=None,
+        )
         for field_name, field in self.fields.items():
             if isinstance(field.widget, forms.CheckboxInput):
                 field.widget.attrs.setdefault("class", checkbox_class)
@@ -111,30 +137,36 @@ class GameSessionCreateForm(forms.ModelForm):
         max_co2_level = cleaned_data.get("max_CO2_level")
 
         if max_players is not None and max_players < 1:
-            self.add_error("max_players", "Please allow at least one player.")
+            self.add_error("max_players", "Es muss mindestens einen Platz geben.")
 
         if agent_per_player is not None:
             if agent_per_player < 1:
                 self.add_error(
-                    "agent_per_player", "Each player needs at least one agent."
+                    "agent_per_player",
+                    "Jede Person braucht mindestens einen Fahrgast.",
                 )
             if max_players is not None and agent_per_player > max_players:
                 self.add_error(
                     "agent_per_player",
-                    "Agents per player cannot exceed the maximum number of players.",
+                    "Mehr Fahrgäste pro Person als Plätze im Spiel geht nicht.",
                 )
 
         if max_rounds is not None and max_rounds < 1:
-            self.add_error("max_rounds", "Maximum rounds must be at least one.")
+            self.add_error(
+                "max_rounds", "Es muss mindestens eine Runde gefahren werden."
+            )
 
         if max_co2_level is not None and max_co2_level < 1:
             self.add_error(
-                "max_CO2_level", "Maximum CO₂ level must be at least one kilogram."
+                "max_CO2_level", "Das CO₂-Budget muss mindestens ein Kilogramm sein."
             )
 
         people_per_agent = cleaned_data.get("people_per_agent")
         if people_per_agent is not None and people_per_agent < 1:
-            self.add_error("people_per_agent", "People per agent must be at least one.")
+            self.add_error(
+                "people_per_agent",
+                "Ein Fahrgast muss für mindestens einen Menschen stehen.",
+            )
 
         return cleaned_data
 
@@ -153,8 +185,7 @@ class PlayerCreateForm(forms.ModelForm):
     class Meta:
         model = Player
         fields = ["name"]
-        labels = {"name": "Display name"}
-        help_texts = {"name": "Pick the name that other players will see in the lobby."}
+        labels = {"name": "Dein Name"}
         widgets = {
             "name": forms.TextInput(attrs={"autocomplete": "off"}),
         }
@@ -174,7 +205,7 @@ class PlayerCreateForm(forms.ModelForm):
 class JoinSessionForm(forms.Form):
     game_id = forms.CharField(
         max_length=6,
-        label="Session ID",
+        label="Spiel-ID",
         widget=forms.TextInput(
             attrs={"autocomplete": "off", "autocapitalize": "characters"}
         ),
@@ -182,7 +213,7 @@ class JoinSessionForm(forms.Form):
     game_password = forms.CharField(
         max_length=50,
         required=False,
-        label="Session password",
+        label="Passwort",
         widget=forms.PasswordInput(render_value=False),
     )
 
@@ -200,5 +231,5 @@ class JoinSessionForm(forms.Form):
     def clean_game_id(self):
         game_id = self.cleaned_data["game_id"].strip().upper()
         if not game_id:
-            raise forms.ValidationError("Please enter a session ID.")
+            raise forms.ValidationError("Gib eine Spiel-ID ein.")
         return game_id

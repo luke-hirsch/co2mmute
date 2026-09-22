@@ -1428,7 +1428,11 @@ class CongestedRouteCostsMoreTests(TestCase):
         """
         from game.simulation import CAR_EMISSIONS_G_PER_KM
 
-        free = self._play_chain("Anchor map", people=400)
+        # people=5, not 400: 400 cars wanting to leave in the same minute on
+        # one lane is not an empty road, it is a lane at its flow capacity.
+        # It only read as free flow while the origin link admitted its storage
+        # per tick and spread the load over ten ticks instead of three.
+        free = self._play_chain("Anchor map", people=5)
 
         expected = CAR_EMISSIONS_G_PER_KM * 0.9
         self.assertLess(
@@ -1441,7 +1445,7 @@ class CongestedRouteCostsMoreTests(TestCase):
         """Same tolerance, same reason — cost rides the emission curve."""
         from game.simulation import CAR_COST_PER_KM
 
-        free = self._play_chain("Anchor cost map", people=400)
+        free = self._play_chain("Anchor cost map", people=5)
 
         expected = CAR_COST_PER_KM * 0.9
         self.assertLess(
@@ -1729,6 +1733,109 @@ class DriverSpeedFactorIsPerVehicleTests(TestCase):
         draws = {round(draw_driver_speed_factor(rng), 9) for _ in range(50)}
 
         self.assertGreater(len(draws), 1)
+
+
+class OriginAdmissionTests(TestCase):
+    """A trip's first link admits its FLOW per tick, not its STORAGE.
+
+    `_advance_traffic` spawns once, before the `while moved:` discharge loop,
+    so the origin link is filled once per tick and emptied again inside the
+    same tick. With a 5-minute tick over a link a car crosses in 0.36 min it
+    should cycle four or five times; it cycles once. Measured on the live map:
+    exactly 118 vehicles per tick on a link whose storage is 118 and whose
+    flow is 157 — 1416 veh/h against a nominal 1800.
+
+    The fixture makes the two numbers far apart on purpose: 300 m of one lane
+    holds 39.9 vehicles and discharges 150 of them per tick, so "admits its
+    storage" and "admits its flow" are a factor of 3.75 apart and no reading of
+    the noise can confuse them.
+    """
+
+    SEED = 20260921
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="origin", password="12345")
+        self.game_map, self.version, self.nodes = _grid_map("Origin map", 4)
+        self.edges = [
+            _street(self.game_map, self.version, self.nodes[i], self.nodes[i + 1])
+            for i in range(3)
+        ]
+        # Everyone wants to leave at the same minute, so the waiting list is
+        # never the thing that throttles admission.
+        self.session = _session(
+            self.user, self.game_map, people_per_agent=1000, std_dev=1
+        )
+        self.game_round = GameRound.objects.create(game=self.session, round_number=1)
+        self.player = Player.objects.create(name="Fahrer", game=self.session)
+        self.route = _route(self.game_round, self.player, self.edges)
+
+    def _run(self):
+        """Run the round, sampling the waiting list once per tick.
+
+        `on_progress` fires after `_advance_traffic`, so the difference between
+        two samples is exactly what the network admitted in that tick.
+        """
+        from game.tests._helpers import muted
+
+        simulator = TrafficSimulator(self.game_round, scale=100.0, seed=self.SEED)
+        waiting = []
+
+        def probe(tick, total):
+            waiting.append(len(simulator.waiting))
+
+        with muted():
+            simulator.run_simulation(max_ticks=200, on_progress=probe)
+        return simulator, waiting
+
+    def _admissions(self, waiting):
+        return [a - b for a, b in zip(waiting, waiting[1:])]
+
+    def test_the_first_link_admits_more_than_it_holds(self):
+        """The decisive one. Storage is 39.9; anything near it is the bug."""
+        simulator, waiting = self._run()
+        storage = simulator.edge_states[self.edges[0].pk].storage_capacity_pcu
+
+        best = max(self._admissions(waiting))
+
+        self.assertGreater(
+            best,
+            storage * 2,
+            f"best tick admitted {best:.0f} against a storage of {storage:.0f} "
+            f"— the origin link still cycles once per tick",
+        )
+
+    def test_admission_is_the_links_flow_capacity(self):
+        """Not just 'more than storage': the number the model means is flow."""
+        simulator, waiting = self._run()
+        flow = simulator.edge_states[self.edges[0].pk].flow_per_tick(
+            self.session.tick_duration_min
+        )
+
+        best = max(self._admissions(waiting))
+
+        self.assertGreater(best, flow * 0.8, f"{best:.0f} against a flow of {flow:.0f}")
+
+    def test_a_thousand_cars_are_on_the_road_inside_ten_ticks(self):
+        """1000 at 150/tick is seven ticks. At 40/tick it is twenty-five."""
+        _, waiting = self._run()
+
+        opened = next(i for i, left in enumerate(waiting) if left < 1000)
+        emptied = next(i for i, left in enumerate(waiting) if left == 0)
+
+        self.assertLess(
+            emptied - opened,
+            10,
+            f"the waiting list took {emptied - opened} ticks to clear",
+        )
+
+    def test_everybody_still_arrives(self):
+        """The invariant the change must not cost: no one is left standing."""
+        simulator, _ = self._run()
+
+        results = simulator.agent_results[self.route.pk]
+
+        self.assertEqual(results["not_arrived"], 0)
+        self.assertEqual(len(results["trip_times"]), 1000)
 
 
 class OriginQueueVisibilityTests(TestCase):

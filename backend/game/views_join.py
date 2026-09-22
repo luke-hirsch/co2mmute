@@ -183,11 +183,17 @@ class LobbyStateView(APIView):
             Player.objects.filter(game=game).host_rows().values_list("pk", flat=True)  # type: ignore
         )
         joinable, reason = _joinable(game)
+        game_map = game.game_map
+        map_changes_available = bool(
+            game_map and game.map_updates and game_map.offers_map_changes()
+        )
 
         return Response(
             {
                 "game_id": game.game_id,
                 "game_name": game.game_name,
+                "map_name": game_map.name if game_map else None,
+                "map_changes_available": map_changes_available,
                 "max_players": game.max_players,
                 "agent_per_player": game.agent_per_player,
                 "max_rounds": game.max_rounds,

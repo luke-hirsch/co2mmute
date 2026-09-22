@@ -550,3 +550,364 @@ class LobbyHostRowTests(GameCookieMixin, TempMediaRootMixin, TestCase):
 
         self.assertTrue(players["Ohne Handy"]["controlled_by_host"])
         self.assertFalse(players["Host"]["controlled_by_host"])
+
+
+# ---------------------------------------------------------------------------
+# The funnel is German (2.6)
+# ---------------------------------------------------------------------------
+
+ENGLISH_GIVEAWAYS = (
+    # Words that cannot appear in German copy. Matched whole-word, so a
+    # German word that merely contains one of them is not a hit.
+    "choose",
+    "continue",
+    "configure",
+    "display name",
+    "enter lobby",
+    "enable",
+    "idle",
+    "incorrect",
+    "join",
+    "optionally",
+    "password",
+    "please",
+    "profile",
+    "share your",
+    "already in progress",
+    "no session found",
+    # Not "session" and not "maximum" on their own: both are German words
+    # too ("die Session", "das Maximum"), and flagging them would make the
+    # detector an opinion about vocabulary rather than about language. Only
+    # the English collocations they came from are hits.
+    "session id",
+    "session name",
+    "session password",
+    "maximum players",
+    "maximum rounds",
+    "maximum co",
+    "agents per",
+    "people per",
+)
+
+
+def visible_text(html):
+    """What a reader actually sees: no markup, no code, no URLs.
+
+    strip_tags leaves the *contents* of <script> in place, and this codebase
+    inlines four of them into base.html — a detector run over the raw page
+    would trip over `sessionStorage` rather than over a label. URLs go the
+    same way: the share page prints its join link for people to type, and
+    `/join/<id>/` is a route, not a sentence. A path is never copy.
+    """
+    import re
+
+    from django.utils.html import strip_tags
+
+    without_code = re.sub(r"<(script|style)\b.*?</\1>", " ", html, flags=re.S | re.I)
+    without_urls = re.sub(r"\S*(?:https?://|/)\S*", " ", strip_tags(without_code))
+    return re.sub(r"\s+", " ", without_urls).strip()
+
+
+def english_in(text):
+    """The English in `text`, or an empty list.
+
+    Whole words only, so a German word that happens to contain an English one
+    is not a hit. The point is to catch a string nobody translated, never to
+    pin the words of one that somebody did — an assertion on exact copy would
+    make every rewording a red pipeline, which is worth less than the copy.
+    """
+    import re
+
+    pattern = re.compile(
+        r"\b(?:%s)\b" % "|".join(re.escape(w).replace(r"\ ", r"\s+") for w in ENGLISH_GIVEAWAYS),
+        re.I,
+    )
+    return sorted({match.lower() for match in pattern.findall(text)})
+
+
+class GermanFunnelTests(TempMediaRootMixin, TestCase):
+    """Every page the QR code lands a student on speaks German.
+
+    The SPA behind these pages is fully German; the three in front of it are
+    not, which makes the join flow the one place a class meets English. The
+    detector is the frontend's idea ported over: assert on the rendered text,
+    because a label built in `Meta.labels` is invisible to a grep of the
+    template.
+
+    Nothing in here asserts an exact sentence. The test is "this page is not
+    English", never "this page says what the guide said" — the wording stays
+    free to improve, and only a string nobody translated goes red.
+    """
+
+    def setUp(self):
+        self.host = create_host()
+        with muted():
+            self.game = create_game_session(self.host, game_name="Testspiel")
+        invalidate_game_session(self.game.game_id)
+
+    def test_the_join_page_is_german(self):
+        response = self.client.get(f"/join/{self.game.game_id}/")
+
+        text = visible_text(response.content.decode())
+
+        self.assertEqual(english_in(text), [], f"English on /join/: {text[:400]}")
+
+    def test_an_unknown_id_is_refused_in_german(self):
+        """The refusal lands on the field and is not English.
+
+        Which sentence it is, is copy. Asserting it here would mean every
+        reword breaks the suite, and the suite would then be an argument
+        against improving the copy.
+        """
+        response = self.client.post("/join/", {"game_id": "NOPE42"})
+
+        errors = response.context["form"].errors["game_id"]
+
+        self.assertEqual(len(errors), 1)
+        self.assertEqual(english_in(" ".join(errors)), [])
+
+    def test_the_qr_code_of_a_started_game_still_renders(self):
+        """Not copy: `add_error` on an unbound form raises, so this GET 500s.
+
+        The QR code points at this page, so a class arriving late at a game
+        that has already started meets a server error rather than a sentence.
+        """
+        self.game.started_at = timezone.now()
+        with muted():
+            self.game.save()
+        invalidate_game_session(self.game.game_id)
+
+        response = self.client.get(f"/join/{self.game.game_id}/")
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_a_started_game_is_refused_in_german(self):
+        self.game.started_at = timezone.now()
+        with muted():
+            self.game.save()
+        invalidate_game_session(self.game.game_id)
+
+        response = self.client.get(f"/join/{self.game.game_id}/")
+
+        errors = response.context["form"].errors["game_id"]
+
+        self.assertEqual(english_in(" ".join(errors)), [])
+
+    def test_the_player_create_page_is_german(self):
+        session = self.client.session
+        session["joined_game_ids"] = [self.game.game_id]
+        session.save()
+
+        response = self.client.get(f"/game/{self.game.game_id}/player/create/")
+
+        text = visible_text(response.content.decode())
+        self.assertEqual(
+            english_in(text), [], f"English on player/create/: {text[:400]}"
+        )
+
+    def test_the_create_session_page_is_german(self):
+        self.client.force_login(self.host)
+
+        response = self.client.get("/game/create/")
+
+        text = visible_text(response.content.decode())
+        self.assertEqual(english_in(text), [], f"English on /game/create/: {text[:400]}")
+
+    def test_every_create_form_label_is_german(self):
+        from game.forms import GameSessionCreateForm
+
+        form = GameSessionCreateForm()
+
+        offenders = {
+            name: field.label
+            for name, field in form.fields.items()
+            if english_in(str(field.label))
+        }
+
+        self.assertEqual(offenders, {})
+
+    def test_every_create_form_help_text_is_german(self):
+        from game.forms import GameSessionCreateForm
+
+        form = GameSessionCreateForm()
+
+        offenders = {
+            name: field.help_text
+            for name, field in form.fields.items()
+            if field.help_text and english_in(str(field.help_text))
+        }
+
+        self.assertEqual(offenders, {})
+
+    def test_the_create_form_validation_speaks_german(self):
+        from game.forms import GameSessionCreateForm
+
+        form = GameSessionCreateForm(
+            data={
+                "game_name": "Zu klein",
+                "max_players": 0,
+                "agent_per_player": 0,
+                "max_rounds": 0,
+                "max_CO2_level": 0,
+                "people_per_agent": 0,
+                "idle_end_days": 30,
+            }
+        )
+        form.is_valid()
+
+        offenders = {
+            field: errors
+            for field, errors in form.errors.items()
+            if english_in(" ".join(errors))
+        }
+
+        self.assertEqual(offenders, {})
+
+    def test_the_player_form_is_german(self):
+        from game.forms import PlayerCreateForm
+
+        form = PlayerCreateForm()
+        field = form.fields["name"]
+
+        self.assertEqual(english_in(str(field.label)), [])
+        self.assertEqual(english_in(str(field.help_text or "")), [])
+
+    def test_the_share_page_is_german(self):
+        self.client.force_login(self.host)
+
+        response = self.client.get(f"/game/{self.game.game_id}/share/")
+
+        text = visible_text(response.content.decode())
+        self.assertEqual(english_in(text), [], f"English on /share/: {text[:400]}")
+
+    def test_the_profile_page_has_no_english_heading(self):
+        self.client.force_login(self.host)
+
+        response = self.client.get("/accounts/profile/")
+
+        text = visible_text(response.content.decode())
+        self.assertEqual(english_in(text), [], f"English on /accounts/profile/: {text[:400]}")
+class MapWithNothingToVoteOnTests(GameCookieMixin, TempMediaRootMixin, TestCase):
+    """A map with one version removes the vote, and nothing says so.
+
+    `_advance_from_stats` is "discussion if there is a ballot, else the next
+    round", and `vote_options()` offers the versions `compatible_versions`
+    reaches from the active one. On a single-version map there are none — so
+    the class goes stats → next round and never sees a discussion or a ballot,
+    which is the mechanic the whole game is built around. The shipped map has
+    one version, so nobody has ever seen it in a real game.
+
+    The chain itself is fine; it was verified end to end through tie and
+    stalemate on a seeded copy. What is missing is a warning at the two places
+    a host can still do something about it: the map select, and the lobby.
+    """
+
+    def setUp(self):
+        from maps.models import GameMap, MapVersion
+
+        self.host = create_host()
+        self.flat_map = GameMap.objects.create(
+            name="Eine Fassung", x_dim=100, y_dim=100, scale=100.0
+        )
+        self.flat_base = MapVersion.objects.create(
+            game_map=self.flat_map, name="Base", base_version=True
+        )
+        self.rich_map = GameMap.objects.create(
+            name="Mit Varianten", x_dim=100, y_dim=100, scale=100.0
+        )
+        self.rich_base = MapVersion.objects.create(
+            game_map=self.rich_map, name="Base", base_version=True
+        )
+        self.rich_change = MapVersion.objects.create(
+            game_map=self.rich_map, name="Busspur Hauptstraße"
+        )
+        self.rich_base.compatible_versions.add(self.rich_change)
+
+    def _lobby(self, game_map, map_updates=True, **overrides):
+        # map_updates is passed explicitly in every case: the MODEL default is
+        # False while the create form's initial is True, so a game made any
+        # other way than through /game/create/ has no vote at all whatever its
+        # map offers. That trap has its own test below.
+        with muted():
+            game = create_game_session(
+                self.host,
+                game_name="Abstimmung",
+                game_map=game_map,
+                map_updates=map_updates,
+                **overrides,
+            )
+        self.give_game_access(game.game_id)
+        return self.client.get(lobby_url(game.game_id)).json()
+
+    def test_the_lobby_names_the_map(self):
+        """Finding 13: the host lobby never said which map the game runs on —
+        which matters now that the map decides whether there is a vote."""
+        payload = self._lobby(self.rich_map)
+
+        self.assertEqual(payload["map_name"], "Mit Varianten")
+
+    def test_the_lobby_says_a_one_version_map_has_no_ballot(self):
+        payload = self._lobby(self.flat_map)
+
+        self.assertIs(payload["map_changes_available"], False)
+
+    def test_the_lobby_says_a_versioned_map_has_one(self):
+        payload = self._lobby(self.rich_map)
+
+        self.assertIs(payload["map_changes_available"], True)
+
+    def test_a_game_with_map_updates_switched_off_has_no_ballot_either(self):
+        """Same outcome, different cause, and the host set this one themselves."""
+        payload = self._lobby(self.rich_map, map_updates=False)
+
+        self.assertIs(payload["map_changes_available"], False)
+
+    def test_the_model_default_leaves_the_vote_switched_off(self):
+        """Not the form's default — the model's. A game created through the
+        REST API without naming `map_updates` never reaches a ballot, whatever
+        its map offers."""
+        with muted():
+            game = create_game_session(
+                self.host, game_name="Standard", game_map=self.rich_map
+            )
+        self.give_game_access(game.game_id)
+
+        payload = self.client.get(lobby_url(game.game_id)).json()
+
+        self.assertIs(payload["map_changes_available"], False)
+
+    def test_a_game_without_a_map_has_no_ballot_and_no_name(self):
+        payload = self._lobby(None)
+
+        self.assertIsNone(payload["map_name"])
+        self.assertIs(payload["map_changes_available"], False)
+
+    def test_the_map_is_read_before_the_game_starts(self):
+        """`active_map_version` is only set when the game starts, so the lobby
+        has to fall back to the base version — otherwise the warning would
+        only appear once it is too late to change the map."""
+        payload = self._lobby(self.rich_map)
+
+        self.assertIsNone(
+            GameSession.objects.get(game_id=payload["game_id"]).active_map_version
+        )
+        self.assertIs(payload["map_changes_available"], True)
+
+    def test_the_create_form_marks_a_map_with_nothing_to_vote_on(self):
+        from game.forms import GameSessionCreateForm
+
+        labels = dict(GameSessionCreateForm().fields["game_map"].choices)  # type: ignore
+
+        rendered = {str(v) for v in labels.values()}
+
+        self.assertIn(f"{self.flat_map} — keine Kartenänderungen", rendered)
+
+    def test_the_create_form_leaves_a_versioned_map_alone(self):
+        from game.forms import GameSessionCreateForm
+
+        labels = dict(GameSessionCreateForm().fields["game_map"].choices)  # type: ignore
+
+        rendered = {str(v) for v in labels.values()}
+
+        self.assertIn(str(self.rich_map), rendered)
+        self.assertNotIn(f"{self.rich_map} — keine Kartenänderungen", rendered)
