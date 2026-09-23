@@ -446,8 +446,9 @@ class EdgeTrafficSnapshot(models.Model):
         SimulationResult, on_delete=models.CASCADE, related_name="traffic_snapshots"
     )
     edge = models.ForeignKey("maps.Edge", on_delete=models.CASCADE)
-    time_tick = models.PositiveSmallIntegerField()  # Minutes from simulation start
+    time_tick = models.PositiveSmallIntegerField()
     vehicle_count = models.PositiveIntegerField()
+    waiting_count = models.PositiveIntegerField(default=0)
     speed_kmh = models.FloatField()  # Actual speed after congestion
 
     class Meta:

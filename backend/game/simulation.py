@@ -106,7 +106,7 @@ class TrafficSimulator:
         # it would shift this round's departures.
         self.seed = game_round.pk if seed is None else seed
         self.rng = random.Random(self.seed)
-
+        self.held_at_origin: dict[int, int] = {}
         # Load simulation parameters from GameSession
         game_session = game_round.game
         self.people_per_agent = game_session.people_per_agent
@@ -710,12 +710,11 @@ class TrafficSimulator:
                 # on a link storing 118 and passing 157.
                 self._spawn_vehicles(now, tick_end)
 
-        # A link is in trouble only if it moved NOTHING this tick while holding
-        # a vehicle. Counting blocked *passes* instead of ticks makes the
-        # storage limit leak — a queue overran its storage 34-fold in testing.
         for edge_id, edge_state in self.edge_states.items():
             if edge_id in released or not edge_state.queue:
                 edge_state.blocked_since_tick = self.current_tick
+
+        self.held_at_origin = self._held_at_origin(tick_end)
 
     def _record_edge_traffic(self):
         """Record traffic snapshot for each edge."""
@@ -724,19 +723,46 @@ class TrafficSimulator:
 
         snapshots = []
         for edge_id, state in self.edge_states.items():
-            if state.queue or state.traversal_count:
+            held = self.held_at_origin.get(edge_id, 0)
+            # `held` on its own is enough to record a row: an origin link with
+            # a queue outside it and nothing on it is the case the heatmap was
+            # blind to, and skipping it would keep it that way.
+            if state.queue or state.traversal_count or held:
                 snapshots.append(
                     EdgeTrafficSnapshot(
                         simulation=self.simulation_result,
                         edge_id=edge_id,
                         time_tick=self.current_tick,
                         vehicle_count=len(state.queue),
+                        waiting_count=held,
                         speed_kmh=state.mean_speed_kmh,
                     )
                 )
 
         if snapshots:
             EdgeTrafficSnapshot.objects.bulk_create(snapshots)
+
+    def _held_at_origin(self, tick_end: float) -> dict[int, int]:
+        """Who wanted to leave by now and is still standing at the front door.
+
+        The queue no instrument could see. These vehicles sit in self.waiting,
+        so the link they want samples empty: queued_edges reads 0, the
+        snapshot reads one vehicle at free flow, and mean_speed_kmh — which
+        feeds the CO2 factor and the route preview — stays at the speed limit.
+
+        self.waiting is sorted by wanted departure, so the walk stops at the
+        first vehicle that does not want to leave yet.
+        """
+        held: dict[int, int] = {}
+        for depart_min, route_pk, _person_index in self.waiting:
+            if depart_min > tick_end:
+                break
+            segments = self.route_segments.get(route_pk, [])
+            if not segments:
+                continue
+            edge_id = segments[0].edge_id  # type: ignore
+            held[edge_id] = held.get(edge_id, 0) + 1
+        return held
 
     def _all_vehicles_arrived(self) -> bool:
         """Check if all vehicles have arrived."""
@@ -1009,13 +1035,29 @@ class TrafficSimulator:
                         for eid, s in self.edge_states.items()
                         if s.occupancy_pcu > s.storage_capacity_pcu * 0.5
                     ]
+                    held_total = sum(self.held_at_origin.values())
                     tick_line = (
                         f"[tick {self.current_tick:>3}] "
                         f"waiting_to_depart={len(self.waiting)}, active={active}, "
                         f"arrived={arrived}/{len(self.vehicles)}, "
-                        f"queued_edges={len(queued)}, forced={self.forced_releases}"
+                        f"queued_edges={len(queued)}, "
+                        f"held_at_door={held_total}, "
+                        f"forced={self.forced_releases}"
                     )
                     self.sim_log.write(tick_line)
+
+                    for eid, count in sorted(
+                        self.held_at_origin.items(), key=lambda kv: -kv[1]
+                    )[:5]:
+                        es = self.edge_states.get(eid)
+                        if es is None:
+                            continue
+                        self.sim_log.write(
+                            f"    DOOR: {self.sim_log._edge_label(eid)} — "
+                            f"{count} vehicles cannot get on "
+                            f"(storage={es.storage_capacity_pcu:.0f}pcu, "
+                            f"observed={es.mean_speed_kmh:.1f}km/h)"
+                        )
 
                     for eid, state in queued:
                         self.sim_log.write(
@@ -1031,7 +1073,35 @@ class TrafficSimulator:
                         f"[SIM] Tick {self.current_tick}: "
                         f"waiting_to_depart={len(self.waiting)}, active={active}, "
                         f"arrived={arrived}/{len(self.vehicles)}, "
-                        f"queued_edges={len(queued)}, forced={self.forced_releases}"
+                        f"queued_edges={len(queued)}, held_at_door={held_total}, "
+                        f"forced={self.forced_releases}"
+                    )
+                elif self.held_at_origin:
+                    # A door queue can open and fully drain between two
+                    # decade-ticks — origin-admission lets a link discharge
+                    # its whole flow capacity per tick, so a queue that used
+                    # to take an hour to clear now can clear in under ten.
+                    # Gating this on the same %10 as the full status line
+                    # would make the log silently miss it, which is exactly
+                    # the blindness this branch exists to remove.
+                    held_total = sum(self.held_at_origin.values())
+                    self.sim_log.write(
+                        f"[tick {self.current_tick:>3}] held_at_door={held_total}"
+                    )
+                    for eid, count in sorted(
+                        self.held_at_origin.items(), key=lambda kv: -kv[1]
+                    )[:5]:
+                        es = self.edge_states.get(eid)
+                        if es is None:
+                            continue
+                        self.sim_log.write(
+                            f"    DOOR: {self.sim_log._edge_label(eid)} — "
+                            f"{count} vehicles cannot get on "
+                            f"(storage={es.storage_capacity_pcu:.0f}pcu, "
+                            f"observed={es.mean_speed_kmh:.1f}km/h)"
+                        )
+                    logger.info(
+                        f"[SIM] Tick {self.current_tick}: held_at_door={held_total}"
                     )
 
                 # Record traffic every 5 ticks
