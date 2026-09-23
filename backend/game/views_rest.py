@@ -669,6 +669,8 @@ class RoundTrafficHeatmapView(GenericAPIView):
             .annotate(
                 avg_vehicle_count=Avg("vehicle_count"),
                 max_vehicle_count=Max("vehicle_count"),
+                avg_waiting_count=Avg("waiting_count"),
+                max_waiting_count=Max("waiting_count"),
                 avg_speed_kmh=Avg("speed_kmh"),
             )
         )
@@ -701,6 +703,8 @@ class RoundTrafficHeatmapView(GenericAPIView):
                     "edge_id": eid,
                     "avg_vehicle_count": round(et["avg_vehicle_count"], 1),
                     "max_vehicle_count": et["max_vehicle_count"],
+                    "avg_waiting_count": round(et["avg_waiting_count"], 1),
+                    "max_waiting_count": et["max_waiting_count"],
                     "avg_speed_kmh": round(avg_speed, 1),
                     "free_flow_speed_kmh": free_flow,
                     "congestion_ratio": round(congestion_ratio, 3),
