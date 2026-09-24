@@ -751,11 +751,6 @@ class GameSummaryView(GenericAPIView):
                 {"error": "Game not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
-        # Not .playing(): that filters two things at once, and only one of
-        # them belongs here. Somebody who left keeps their emissions in the
-        # class total, so leaving them out makes the listed rows fail to add
-        # up to the headline. The host's own row still goes, and it goes by
-        # account — never by controlled_by_host.
         players = (
             Player.objects.filter(game=game).without_host_rows().order_by("pk")  # type: ignore
         )
@@ -773,10 +768,6 @@ class GameSummaryView(GenericAPIView):
             ).values_list("game_round_id", flat=True)
         )
 
-        # How many agent-trips each round holds over the whole class. The
-        # divisor every per-person figure needs, counted the same way the
-        # emissions were: off the results where the simulation ran, off the
-        # routes where it did not.
         result_counts = {
             row["agent_route__player_move__session_round"]: row["n"]
             for row in AgentSimulationResult.objects.filter(
@@ -794,8 +785,6 @@ class GameSummaryView(GenericAPIView):
             .annotate(n=Count("id"))
         }
 
-        # The class figure per round, read off the round rather than summed
-        # from the rows below it.
         rounds_summary = []
         for game_round in completed_rounds:
             agent_count = result_counts.get(game_round.pk) or route_counts.get(
@@ -820,6 +809,7 @@ class GameSummaryView(GenericAPIView):
                         2,
                     ),
                     "simulation_used": game_round.pk in simulated,
+                    "vote": game_round.vote_result or None,
                 }
             )
 

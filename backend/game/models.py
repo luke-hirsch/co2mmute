@@ -227,6 +227,7 @@ class GameRound(models.Model):
     )
     stalemate_count = models.PositiveSmallIntegerField(default=0)
     vote_option_ids = models.JSONField(default=list, blank=True)
+    vote_result = models.JSONField(default=dict, blank=True)
 
     class Meta:
         unique_together = (("game", "round_number"),)

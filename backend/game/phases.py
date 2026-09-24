@@ -384,26 +384,27 @@ def submit_vote(
     return True
 
 
-def _tally_if_complete(game: GameSession, game_round: GameRound) -> None:
-    """Everyone has voted: apply the winner, or ask again after a tie."""
-    if not _complete(MapVersionVote, game, game_round):
-        return
+def _tally(game_round: GameRound, game: GameSession) -> tuple[list[dict], dict]:
+    """The votes on this round, counted once.
 
+    Returns the `vote_counts` rows the frontend already reads and the
+    version-id → name map behind them. A vote with `map_version=None` is a
+    vote to leave the map as it is and counts under the key `None`.
+
+    Extracted because `_leave_as_is` used to broadcast an empty
+    `vote_counts` — throwing away the tied tally, which is the number the
+    class had just spent the discussion arguing about.
+    """
     votes = list(
         MapVersionVote.objects.filter(
             game_round=game_round, player__in=_playing(game)
         ).select_related("map_version")
     )
-    if not votes:
-        logger.warning(
-            f"Round {game_round.round_number} of game {game.game_id} completed with no votes"
-        )
-        return
-    counter = Counter(vote.map_version_id for vote in votes)  # type:ignore
+    counter = Counter(vote.map_version_id for vote in votes)  # type: ignore
     names = {
-        vote.map_version_id: vote.map_version.name  # type:ignore
+        vote.map_version_id: vote.map_version.name  # type: ignore
         for vote in votes
-        if vote.map_version  # type:ignore
+        if vote.map_version  # type: ignore
     }
     vote_counts = [
         {
@@ -413,7 +414,54 @@ def _tally_if_complete(game: GameSession, game_round: GameRound) -> None:
         }
         for version_id, count in counter.items()
     ]
+    return vote_counts, names
 
+
+def _vote_result_payload(
+    game_round: GameRound,
+    vote_counts: list[dict],
+    winner_id: int | None,
+    winner_name: str,
+    tie: bool,
+    stalemate_count: int,
+    forced: bool = False,
+) -> dict:
+    """What gets stored on the round and shown in the summary.
+
+    Deliberately the same keys as the `vote.result` broadcast, plus the
+    ballot: one shape for the screen to learn, not two. `options` is stored
+    rather than left to `vote_option_ids` so a version deleted from the map
+    later still reads back with the name the class voted on.
+    """
+    options = [
+        {"version_id": version.pk, "version_name": version.name}
+        for version in MapVersion.objects.filter(
+            pk__in=game_round.vote_option_ids
+        ).order_by("pk")
+    ]
+    return {
+        "options": options,
+        "vote_counts": vote_counts,
+        "winning_version_id": winner_id,
+        "winning_version_name": winner_name,
+        "tie": tie,
+        "stalemate_count": stalemate_count,
+        "forced": forced,
+    }
+
+
+def _tally_if_complete(game: GameSession, game_round: GameRound) -> None:
+    """Everyone has voted: apply the winner, or ask again after a tie."""
+    if not _complete(MapVersionVote, game, game_round):
+        return
+
+    vote_counts, names = _tally(game_round, game)
+    if not vote_counts:
+        logger.warning(
+            f"Round {game_round.round_number} of game {game.game_id} completed with no votes"
+        )
+        return
+    counter = Counter({row["version_id"]: row["count"] for row in vote_counts})
     top = max(counter.values())
     leaders = [version_id for version_id, count in counter.items() if count == top]
     tie = len(leaders) > 1
@@ -444,6 +492,14 @@ def _tally_if_complete(game: GameSession, game_round: GameRound) -> None:
         Phase.VOTING,
         winner_id=winner_id,
         stalemate_count=stalemate_count,
+        vote_result=_vote_result_payload(
+            game_round,
+            vote_counts,
+            winner_id,
+            names.get(winner_id, LEAVE_AS_IS),
+            tie,
+            stalemate_count,
+        ),
     )
     if started:
         _broadcast(
@@ -530,7 +586,22 @@ def force_leave_as_is(game_id: str) -> bool:
 
 
 def _leave_as_is(game: GameSession, game_round: GameRound) -> bool:
-    started = _start_next_round(game, game_round, Phase.STALEMATE)
+    """The stalemate is over, the map stays as it is. The second tie in a round"""
+    vote_counts, _ = _tally(game_round, game)
+    started = _start_next_round(
+        game,
+        game_round,
+        Phase.STALEMATE,
+        vote_result=_vote_result_payload(
+            game_round,
+            vote_counts,
+            None,
+            LEAVE_AS_IS,
+            tie=True,
+            stalemate_count=game_round.stalemate_count,
+            forced=True,
+        ),
+    )
     if not started:
         return False
 
@@ -541,7 +612,7 @@ def _leave_as_is(game: GameSession, game_round: GameRound) -> bool:
             "stalemate": False,
             "winning_version_id": None,
             "winning_version_name": LEAVE_AS_IS,
-            "vote_counts": [],
+            "vote_counts": vote_counts,
             "forced": True,
         },
     )
