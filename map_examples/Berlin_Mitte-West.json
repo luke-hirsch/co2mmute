@@ -1264,8 +1264,8 @@
       "end_node": "168",
       "name": "Stadtbahn",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1273,8 +1273,8 @@
       "end_node": "150",
       "name": "Stadtbahn",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1282,8 +1282,8 @@
       "end_node": "157",
       "name": "Stadtbahn",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1291,8 +1291,8 @@
       "end_node": "168",
       "name": "Stadtbahn",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1300,8 +1300,8 @@
       "end_node": "182",
       "name": "Stadtbahn",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1309,8 +1309,8 @@
       "end_node": "157",
       "name": "Stadtbahn",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1318,8 +1318,8 @@
       "end_node": "176",
       "name": "Stadtbahn",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1327,8 +1327,8 @@
       "end_node": "182",
       "name": "Stadtbahn",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1336,8 +1336,8 @@
       "end_node": "177",
       "name": "Stadtbahn",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1345,8 +1345,8 @@
       "end_node": "176",
       "name": "Stadtbahn",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1354,8 +1354,8 @@
       "end_node": "178",
       "name": "Stadtbahn",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1363,8 +1363,8 @@
       "end_node": "177",
       "name": "Stadtbahn",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1372,8 +1372,8 @@
       "end_node": "181",
       "name": "Stadtbahn",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1381,8 +1381,8 @@
       "end_node": "178",
       "name": "Stadtbahn",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1390,8 +1390,8 @@
       "end_node": "180",
       "name": "Stadtbahn",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1399,8 +1399,8 @@
       "end_node": "181",
       "name": "Stadtbahn",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1408,8 +1408,8 @@
       "end_node": "179",
       "name": "Stadtbahn",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1417,8 +1417,8 @@
       "end_node": "180",
       "name": "Stadtbahn",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1570,8 +1570,8 @@
       "end_node": "172",
       "name": "U2",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1579,8 +1579,8 @@
       "end_node": "168",
       "name": "U2",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1588,8 +1588,8 @@
       "end_node": "169",
       "name": "U2",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1597,8 +1597,8 @@
       "end_node": "171",
       "name": "U2",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1606,8 +1606,8 @@
       "end_node": "173",
       "name": "U2",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1615,8 +1615,8 @@
       "end_node": "171",
       "name": "U2",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1624,8 +1624,8 @@
       "end_node": "174",
       "name": "U2",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1633,8 +1633,8 @@
       "end_node": "173",
       "name": "U2",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1642,8 +1642,8 @@
       "end_node": "161",
       "name": "U2",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1651,8 +1651,8 @@
       "end_node": "174",
       "name": "U2",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1660,8 +1660,8 @@
       "end_node": "169",
       "name": "U2",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1669,8 +1669,8 @@
       "end_node": "172",
       "name": "U2",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1726,8 +1726,8 @@
       "end_node": "148",
       "name": "U7",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1735,8 +1735,8 @@
       "end_node": "147",
       "name": "U7",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1744,8 +1744,8 @@
       "end_node": "149",
       "name": "U7",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1753,8 +1753,8 @@
       "end_node": "148",
       "name": "U7",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1762,8 +1762,8 @@
       "end_node": "150",
       "name": "U7",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1771,8 +1771,8 @@
       "end_node": "149",
       "name": "U7",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1780,8 +1780,8 @@
       "end_node": "151",
       "name": "U7",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1789,8 +1789,8 @@
       "end_node": "150",
       "name": "U7",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1798,8 +1798,8 @@
       "end_node": "152",
       "name": "U7",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1807,8 +1807,8 @@
       "end_node": "151",
       "name": "U7",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1816,8 +1816,8 @@
       "end_node": "153",
       "name": "U7",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1825,8 +1825,8 @@
       "end_node": "152",
       "name": "U7",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1834,8 +1834,8 @@
       "end_node": "154",
       "name": "U7",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1843,8 +1843,8 @@
       "end_node": "153",
       "name": "U7",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1852,8 +1852,8 @@
       "end_node": "155",
       "name": "U7",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
@@ -1861,8 +1861,8 @@
       "end_node": "154",
       "name": "U7",
       "type": "train",
-      "biking": true,
-      "walking": true,
+      "biking": false,
+      "walking": false,
       "max_lanes": 1
     },
     {
