@@ -1,16 +1,16 @@
 from datetime import timedelta
 
 import jwt
-from co2mmute.utils import set_game_access_cookie, set_player_cookie
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LogoutView as DjangoLogoutView
 from django.shortcuts import redirect, resolve_url
-from django.urls import NoReverseMatch
+from django.urls import NoReverseMatch, reverse_lazy
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.timezone import now
-from django.views.generic import CreateView, TemplateView
+from django.views.generic import CreateView, TemplateView, UpdateView
 from game.auth import resolve_player_id
 from game.cache import get_cached_game_session
 from game.models import GameSession, Player
@@ -18,7 +18,9 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .forms import SignupForm
+from co2mmute.utils import set_game_access_cookie, set_player_cookie
+
+from .forms import ProfileForm, SignupForm
 
 
 class IndexView(TemplateView):
@@ -87,8 +89,17 @@ class CookiesView(TemplateView):
     template_name = "legal/cookies.html"
 
 
-class ProfileView(LoginRequiredMixin, TemplateView):
+class ProfileView(LoginRequiredMixin, UpdateView):
     template_name = "registration/profile.html"
+    form_class = ProfileForm
+    success_url = reverse_lazy("profile")
+
+    def get_object(self, queryset=None):
+        return self.request.user
+
+    def form_valid(self, form):
+        messages.success(self.request, "Gespeichert.")
+        return super().form_valid(form)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
