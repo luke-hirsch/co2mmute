@@ -18,6 +18,8 @@ ORM rows in, engine, result rows out.
 """
 
 from sim.constants import (
+    BIKE_PCU,
+    BIKE_SATURATION_FLOW_VEH_PER_H_LANE,
     BUS_COST_PER_VEHICLE_KM,
     BUS_EMISSIONS_G_PER_VEHICLE_KM,
     BUS_PCU,
@@ -58,6 +60,8 @@ from sim.state import (
 )
 
 __all__ = [
+    "BIKE_PCU",
+    "BIKE_SATURATION_FLOW_VEH_PER_H_LANE",
     "BUS_COST_PER_VEHICLE_KM",
     "BUS_EMISSIONS_G_PER_VEHICLE_KM",
     "BUS_PCU",

@@ -40,6 +40,21 @@ SATURATION_FLOW_VEH_PER_H_LANE = 1800.0
 # bus size = 3x car
 BUS_PCU = 3.0
 
+# A bicycle in mixed traffic, in the same units. HCM/HBS put a bicycle at
+# roughly a fifth of a car: it is short, and riders do not keep a car's
+# following distance. Small, but not nothing — a thousand cyclists on one
+# street really do take the room of two hundred cars, which is the whole
+# driver-side argument for giving them a lane of their own.
+BIKE_PCU = 0.2
+
+# Bikes discharge on a budget of their own, so the car flow limit never holds
+# a cyclist: in a car jam the bike is at its own speed while the cars crawl,
+# which is what "filtering" means here. A one-directional cycle lane carries
+# on the order of 2000 bikes/h; at the demand a school class generates it
+# almost never binds, and that is the point — a bike in traffic is delayed by
+# other bikes and by nothing else.
+BIKE_SATURATION_FLOW_VEH_PER_H_LANE = 2000.0
+
 # A junction whose head has not moved for this many consecutive ticks is
 # gridlocked
 DEADLOCK_TICKS = 4

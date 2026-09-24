@@ -253,8 +253,10 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                     errors.append(f"Node '{node_id}': missing 'y' coordinate")
 
         # Validate edges
+
         if not edges_data:
             errors.append("At least one edge is required")
+
         else:
             for idx, edge in enumerate(edges_data):
                 start = str(edge.get("start_node", ""))
@@ -278,6 +280,18 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                     errors.append(
                         f"Edge {idx}: invalid type '{edge_type}'. "
                         f"Must be 'street', 'train', or 'both'"
+                    )
+                # A bike lane implies bike access. Read against the same
+                # default _create_edges uses, so a train edge that asks for a
+                # bike lane has to say `biking` too rather than inherit a
+                # False it did not mean.
+                default_biking = edge_type != "train"
+                if edge.get("bike_lane", False) and not edge.get(
+                    "biking", default_biking
+                ):
+                    errors.append(
+                        f"Edge {idx}: bike_lane is set but biking is not — "
+                        f"a bike lane has to be open to bikes"
                     )
 
         # Validate bus lines
@@ -397,10 +411,11 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             end_node = node_mapping[end_node_id]
 
             edge_type = edge_data.get("type", "both")
-            default_biking = False if edge_type == "train" else True
-            default_walking = False if edge_type == "train" else True
+            default_biking = edge_type != "train"
+            default_walking = edge_type != "train"
 
             edge = Edge.objects.create(
+                bike_lane=edge_data.get("bike_lane", False),
                 game_map=game_map,
                 name=edge_data.get("name", f"{start_node_id}-{end_node_id}"),
                 start_node=start_node,
