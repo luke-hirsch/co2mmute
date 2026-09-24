@@ -772,6 +772,13 @@ class GameSummaryView(GenericAPIView):
                 status=SimulationResult.Status.COMPLETED,
             ).values_list("game_round_id", flat=True)
         )
+        network_by_round = {
+            row["game_round_id"]: row["network_co2_g"]
+            for row in SimulationResult.objects.filter(
+                game_round__in=completed_rounds,
+                status=SimulationResult.Status.COMPLETED,
+            ).values("game_round_id", "network_co2_g")
+        }
 
         # How many agent-trips each round holds over the whole class. The
         # divisor every per-person figure needs, counted the same way the
@@ -911,6 +918,9 @@ class GameSummaryView(GenericAPIView):
                         ),
                         "cost_eur_per_person": round(
                             _per_person(round_cost, round_agents, people_per_agent), 2
+                        ),
+                        "network_co2_kg": round(
+                            network_by_round.get(game_round.pk, 0.0) / 1000, 2
                         ),
                         "time_min_per_agent": round(
                             _per_person(round_time, round_agents, 1), 1

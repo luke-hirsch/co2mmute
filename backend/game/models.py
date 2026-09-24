@@ -409,6 +409,8 @@ class SimulationResult(models.Model):
     completed_at = models.DateTimeField(null=True, blank=True)
     total_co2_g = models.FloatField(default=0.0)
     total_cost_eur = models.FloatField(default=0.0)
+    network_co2_g = models.FloatField(default=0.0)
+    network_cost_eur = models.FloatField(default=0.0)
     error_message = models.TextField(null=True, blank=True)
     detailed_log = models.TextField(null=True, blank=True)
 
@@ -428,6 +430,7 @@ class AgentSimulationResult(models.Model):
     mean_trip_time_min = models.FloatField()
     mean_return_time_min = models.FloatField(default=0.0)
     mean_cost_eur = models.FloatField()
+    mean_paid_eur = models.FloatField(default=0.0)
     total_co2_g = models.FloatField()
     congestion_delay_min = models.FloatField(default=0.0)
     wait_time_min = models.FloatField(default=0.0)  # For public transport

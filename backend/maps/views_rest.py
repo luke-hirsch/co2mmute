@@ -1053,7 +1053,7 @@ class VersionDiffCreateView(GenericAPIView):
                         game_map=game_map,
                         name=pt_change.get("name", "New Bus Line"),
                         intervall=pt_change.get("interval", 5),
-                        bus_capacity=pt_change.get("capacity", 60),
+                        bus_capacity=pt_change.get("capacity", 85),
                         bus_speed_kmh=pt_change.get("speed_kmh", 30),
                     )
                     bl.map_versions.add(new_version)
@@ -1077,7 +1077,7 @@ class VersionDiffCreateView(GenericAPIView):
                         game_map=game_map,
                         name=pt_change.get("name", "New Train Line"),
                         intervall=pt_change.get("interval", 10),
-                        train_capacity=pt_change.get("capacity", 500),
+                        train_capacity=pt_change.get("capacity", 1000),
                         train_speed_kmh=pt_change.get("speed_kmh", 40),
                     )
                     tl.map_versions.add(new_version)
