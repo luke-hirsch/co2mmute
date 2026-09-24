@@ -14,6 +14,7 @@ import os
 from io import StringIO
 from unittest.mock import patch
 
+from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.utils import timezone
@@ -761,3 +762,193 @@ class IdleEndSettingTests(TempMediaRootMixin, TestCase):
         ]
         self.assertEqual(len(entries), 1)
         self.assertIsInstance(entries[0]["schedule"], crontab)
+
+
+@override_settings(**TEST_BACKENDS)
+class AccountAnonymisationTests(TempMediaRootMixin, TestCase):
+    """DSGVO erasure for the host account. Decided 2026-09-24.
+
+    The host is the only real auth.User this project has, and
+    GameSession.game_host is on_delete=CASCADE — so deleting that row would
+    take every game the host ever ran, and the thesis data with it. The answer
+    is the one already given for players: the name goes, the rows stay.
+
+    Running games end, because a host who deletes their account mid-lesson is
+    not coming back to press stop.
+    """
+
+    def setUp(self):
+        self.host = create_host(
+            username="werblinski",
+            email="sebastian@example.com",
+            first_name="Sebastian",
+            last_name="Werblinski",
+        )
+        with muted():
+            self.running = create_game_session(self.host, game_name="Laufend")
+            GameSession.objects.filter(pk=self.running.pk).update(
+                is_active=True, started_at=timezone.now()
+            )
+            self.running.refresh_from_db()
+            self.host_row = Player.objects.create(
+                game=self.running,
+                user=self.host,
+                name="Sebastian Werblinski (Host)",
+            )
+            self.student = Player.objects.create(game=self.running, name="Mia")
+
+    def anonymise(self):
+        from game.anon import anonymise_account
+
+        with muted():
+            return anonymise_account(self.host)
+
+    # --- the row survives, because CASCADE would take the games -------------
+
+    def test_the_account_row_survives(self):
+        self.anonymise()
+
+        self.assertTrue(
+            get_user_model().objects.filter(pk=self.host.pk).exists(),
+            "deleting the row cascades onto every game this host ever ran",
+        )
+
+    def test_the_games_survive(self):
+        self.anonymise()
+
+        self.running.refresh_from_db()
+        self.assertEqual(self.running.game_host_id, self.host.pk)
+
+    def test_the_moves_and_players_survive(self):
+        self.anonymise()
+
+        self.assertTrue(Player.objects.filter(pk=self.student.pk).exists())
+
+    # --- what is actually stripped -----------------------------------------
+
+    def test_the_username_is_gone(self):
+        self.anonymise()
+
+        self.host.refresh_from_db()
+        self.assertNotIn("werblinski", self.host.username.lower())
+
+    def test_the_username_names_the_row_and_stays_unique(self):
+        self.anonymise()
+
+        self.host.refresh_from_db()
+        self.assertEqual(self.host.username, f"geloescht-{self.host.pk}")
+
+    def test_the_personal_fields_are_emptied(self):
+        self.anonymise()
+
+        self.host.refresh_from_db()
+        self.assertEqual(self.host.first_name, "")
+        self.assertEqual(self.host.last_name, "")
+        self.assertEqual(self.host.email, "")
+
+    def test_the_account_can_no_longer_be_used(self):
+        self.anonymise()
+
+        self.host.refresh_from_db()
+        self.assertFalse(self.host.is_active)
+        self.assertFalse(self.host.has_usable_password())
+
+    # --- the host's own Player rows ----------------------------------------
+
+    def test_the_host_row_loses_the_real_name(self):
+        """GameSessionCreateView writes "<full name> (Host)" into the row."""
+        self.anonymise()
+
+        self.host_row.refresh_from_db()
+        self.assertEqual(self.host_row.name, "Host")
+
+    def test_the_host_row_is_still_found_by_account(self):
+        """The trap: clearing Player.user would make host_rows() miss it, and
+        the later game anonymisation would number the host as a Spieler."""
+        self.anonymise()
+
+        host_rows = Player.objects.filter(game=self.running).host_rows()
+        self.assertEqual(list(host_rows), [self.host_row])
+
+    def test_the_students_are_not_renamed_yet(self):
+        """Player anonymisation stays with the grace-period beat job."""
+        self.anonymise()
+
+        self.student.refresh_from_db()
+        self.assertEqual(self.student.name, "Mia")
+
+    # --- the running games --------------------------------------------------
+
+    def test_a_running_game_is_ended(self):
+        self.anonymise()
+
+        self.running.refresh_from_db()
+        self.assertIsNotNone(self.running.ended_at)
+        self.assertFalse(self.running.is_active)
+
+    def test_the_ending_is_recorded_as_the_host(self):
+        self.anonymise()
+
+        self.running.refresh_from_db()
+        self.assertEqual(self.running.end_reason, GameSession.EndReason.HOST)
+
+    def test_a_paused_game_is_ended_too(self):
+        GameSession.objects.filter(pk=self.running.pk).update(
+            paused_at=timezone.now()
+        )
+
+        self.anonymise()
+
+        self.running.refresh_from_db()
+        self.assertIsNotNone(self.running.ended_at)
+        self.assertIsNone(self.running.paused_at)
+
+    def test_an_already_ended_game_keeps_its_own_reason(self):
+        ended_at = timezone.now() - timezone.timedelta(days=2)
+        with muted():
+            old = create_game_session(self.host, game_name="Fertig")
+        GameSession.objects.filter(pk=old.pk).update(
+            ended_at=ended_at,
+            is_active=False,
+            end_reason=GameSession.EndReason.MAX_ROUNDS,
+        )
+
+        self.anonymise()
+
+        old.refresh_from_db()
+        self.assertEqual(old.end_reason, GameSession.EndReason.MAX_ROUNDS)
+        self.assertEqual(old.ended_at, ended_at)
+
+    def test_somebody_elses_game_keeps_running(self):
+        other_host = create_host(username="kollegin")
+        with muted():
+            theirs = create_game_session(other_host, game_name="Fremd")
+            GameSession.objects.filter(pk=theirs.pk).update(is_active=True)
+
+        self.anonymise()
+
+        theirs.refresh_from_db()
+        self.assertIsNone(theirs.ended_at)
+        self.assertTrue(theirs.is_active)
+
+    def test_the_players_are_told_the_game_ended(self):
+        listener = GroupListener(self.running.game_id)
+
+        self.anonymise()
+
+        self.assertIn("game.ended", listener.names())
+
+    # --- shape --------------------------------------------------------------
+
+    def test_it_returns_the_number_of_games_ended(self):
+        self.assertEqual(self.anonymise(), 1)
+
+    def test_running_it_twice_changes_nothing(self):
+        self.anonymise()
+        self.host.refresh_from_db()
+        username_after_one = self.host.username
+
+        self.assertEqual(self.anonymise(), 0)
+
+        self.host.refresh_from_db()
+        self.assertEqual(self.host.username, username_after_one)
