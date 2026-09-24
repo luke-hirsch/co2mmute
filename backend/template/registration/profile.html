@@ -1,6 +1,9 @@
 {% extends "base.html" %}<!-- even more comments -->
-{% block title %} {{ request.user.first_name|default:request.user.username }} -
-CO2MMUTE{% endblock %}
+{% block title %}
+<!-- comment to trick formatter -->
+{{ request.user.first_name|default:request.user.username }} - CO2MMUTE
+<!-- comment to trick formatter -->
+{% endblock %}
 <!-- even more comments -->
 {% block main %}
 <section class="mx-auto w-full max-w-4xl px-6 py-12">
@@ -17,7 +20,9 @@ CO2MMUTE{% endblock %}
   </header>
   {% if messages %}
   <div class="mb-8 space-y-3">
-    {% for message in messages %} {% if "success" in message.tags %}
+    {% for message in messages %}
+    <!-- comment to trick formatter -->
+    {% if "success" in message.tags %}
     <div
       class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-500/40 dark:bg-green-500/10 dark:text-green-200"
       role="alert"
@@ -31,7 +36,9 @@ CO2MMUTE{% endblock %}
     >
       {{ message }}
     </div>
-    {% endif %} {% endfor %}
+    {% endif %}
+    <!-- comment to trick formatter -->
+    {% endfor %}
   </div>
   {% endif %}
 
@@ -93,19 +100,32 @@ CO2MMUTE{% endblock %}
       >
         <h2 class="text-xl font-semibold">Dein Konto</h2>
         <p class="mt-2 text-sm text-muted dark:text-darkmutedtext">
-          Diese Angaben gehören zu deinem Zugang, nicht zu einem Spiel.
+          Hier kannst du deine persönlichen Daten bearbeiten und dein Passwort
+          ändern.
         </p>
 
         <form method="post" novalidate class="mt-6 space-y-5">
-          {% csrf_token %} {% if form.non_field_errors %}
+          {% csrf_token %}
+          <!-- comment to trick formatter -->
+          {% if form.non_field_errors %}
           <div
             class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200"
             role="alert"
           >
-            {% for error in form.non_field_errors %}{{ error }}{% if not
-            forloop.last %}<br />{% endif %}{% endfor %}
+            {% for error in form.non_field_errors %}
+            <!-- comment to trick formatter -->
+            {{ error }}
+            <!-- comment to trick formatter -->
+            {% if not forloop.last %}<br />
+            <!-- comment to trick formatter -->
+            {% endif %}
+            <!-- comment to trick formatter -->
+
+            {% endfor %}
           </div>
-          {% endif %} {% for field in form %}
+          {% endif %}
+          <!-- comment to trick formatter -->
+          {% for field in form %}
           <div>
             <label
               class="block text-sm font-medium text-gray-900 dark:text-gray-100"
@@ -118,7 +138,9 @@ CO2MMUTE{% endblock %}
             <p class="mt-1 text-xs text-muted dark:text-darkmutedtext">
               {{ field.help_text }}
             </p>
-            {% endif %} {% if field.errors %}
+            {% endif %}
+            <!-- comment to trick formatter -->
+            {% if field.errors %}
             <ul class="mt-2 space-y-1">
               {% for error in field.errors %}
               <li class="text-sm text-red-600 dark:text-red-300">
@@ -145,23 +167,6 @@ CO2MMUTE{% endblock %}
           Passwort ändern
         </a>
       </div>
-<<<<<<< Updated upstream
-
-      <div
-        class="rounded-2xl bg-white p-6 shadow dark:bg-darksurface dark:text-darktext"
-      >
-        <h2 class="text-xl font-semibold">Profile</h2>
-        <p class="mt-2 text-sm text-muted dark:text-darkmutedtext">
-          Aktualisiere die persönlichen Informationen, die mit deinem Konto
-          verknüpft sind.
-        </p>
-        <p class="mt-4 text-sm text-muted dark:text-darkmutedtext">
-          Die Bearbeitung von Nutzername und E-Mail ist noch nicht
-          implementiert. Demnächst!
-        </p>
-      </div>
-=======
->>>>>>> Stashed changes
     </section>
   </div>
 </section>
