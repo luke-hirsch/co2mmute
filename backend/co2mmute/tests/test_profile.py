@@ -1,10 +1,17 @@
+import re
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
+from game.models import GameSession
+from game.tests._helpers import TempMediaRootMixin, create_game_session, muted
 
 User = get_user_model()
 
 PROFILE_URL = "/accounts/profile/"
+DELETE_URL = "/accounts/profile/delete/"
+DELETED_URL = "/accounts/deleted/"
 
 
 def _host(username="host", email="host@example.com", **extra):
@@ -236,3 +243,145 @@ class ProfileUniquenessTests(TestCase):
 
         for word in ("already", "exists", "please", "in use", "username", "email"):
             self.assertNotIn(word, errors)
+
+
+class AccountDeleteTests(TempMediaRootMixin, TestCase):
+    """The panel can edit an account; DSGVO says it must be able to end one.
+
+    What "delete" means here is settled in game/anon.py and pinned in
+    game/tests/test_privacy.py: the row stays, the name goes, running games
+    end. These tests are about the way in — the confirm page, the password,
+    the logout.
+    """
+
+    def setUp(self):
+        self.user = _host(first_name="Sebastian")
+        self.client.force_login(self.user)
+
+    def _delete(self, password="password123", follow=False):
+        with muted():
+            return self.client.post(
+                DELETE_URL, {"password": password}, follow=follow
+            )
+
+    def test_the_profile_page_offers_the_way_out(self):
+        response = self.client.get(PROFILE_URL)
+
+        self.assertTrue(
+            DELETE_URL in response.content.decode(),
+            "the profile page never links to the account deletion",
+        )
+
+    def test_the_confirm_page_needs_a_login(self):
+        self.client.logout()
+
+        response = self.client.get(DELETE_URL)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("login"), response["Location"])
+
+    def test_a_stranger_cannot_post_the_deletion(self):
+        self.client.logout()
+
+        response = self.client.post(DELETE_URL, {"password": "password123"})
+
+        self.user.refresh_from_db()
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.user.username, "host")
+
+    def test_the_confirm_page_counts_the_running_games(self):
+        """The host has to see what pressing this costs the class."""
+        with muted():
+            create_game_session(self.user, game_name="Laufend")
+
+        response = self.client.get(DELETE_URL)
+
+        self.assertEqual(response.context["running_games"], 1)
+
+    def test_an_ended_game_is_not_counted(self):
+        with muted():
+            game = create_game_session(self.user, game_name="Fertig")
+        GameSession.objects.filter(pk=game.pk).update(
+            ended_at=timezone.now(), is_active=False
+        )
+
+        response = self.client.get(DELETE_URL)
+
+        self.assertEqual(response.context["running_games"], 0)
+
+    def test_the_confirm_page_is_german(self):
+        """The rest of the funnel was translated in 5bfaf66; this page is new."""
+        response = self.client.get(DELETE_URL)
+
+        self.assertEqual(response.status_code, 200)
+        text = re.sub(r"<[^>]+>", " ", response.content.decode()).lower()
+
+        for word in (" delete ", " password ", " cancel ", " confirm "):
+            self.assertNotIn(word, text)
+
+    def test_a_wrong_password_changes_nothing(self):
+        response = self._delete(password="falsch")
+
+        self.user.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.user.username, "host")
+        self.assertTrue(self.user.is_active)
+
+    def test_no_password_changes_nothing(self):
+        response = self._delete(password="")
+
+        self.user.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.user.username, "host")
+
+    def test_the_refusal_is_not_english(self):
+        response = self._delete(password="falsch")
+
+        errors = " ".join(
+            " ".join(messages)
+            for messages in response.context["form"].errors.values()
+        ).lower()
+
+        for word in ("password", "incorrect", "please", "field", "required"):
+            self.assertNotIn(word, errors)
+
+    def test_the_right_password_anonymises_the_account(self):
+        self._delete()
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.username, f"geloescht-{self.user.pk}")
+        self.assertFalse(self.user.is_active)
+        self.assertEqual(self.user.email, "")
+
+    def test_the_deletion_ends_the_running_game(self):
+        with muted():
+            game = create_game_session(self.user, game_name="Laufend")
+            GameSession.objects.filter(pk=game.pk).update(is_active=True)
+
+        self._delete()
+
+        game.refresh_from_db()
+        self.assertIsNotNone(game.ended_at)
+        self.assertEqual(game.end_reason, GameSession.EndReason.HOST)
+
+    def test_it_lands_on_the_goodbye_page(self):
+        response = self._delete()
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], DELETED_URL)
+
+    def test_the_deletion_logs_you_out(self):
+        self._delete()
+
+        response = self.client.get(PROFILE_URL)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("login"), response["Location"])
+
+    def test_the_goodbye_page_reads_when_logged_out(self):
+        """It is the last thing the account ever sees; it cannot need a login."""
+        self.client.logout()
+
+        response = self.client.get(DELETED_URL)
+
+        self.assertEqual(response.status_code, 200)
