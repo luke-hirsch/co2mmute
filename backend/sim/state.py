@@ -8,10 +8,12 @@ tick loop touches, which is what makes the loop itself Django-free.
 from dataclasses import dataclass, field
 
 from sim.constants import (
-    BUS_PCU,
     JAM_DENSITY_VEH_PER_KM_LANE,
     SATURATION_FLOW_VEH_PER_H_LANE,
+    pt_cost_eur_per_vehicle_km,
+    pt_emissions_g_per_vehicle_km,
 )
+
 
 @dataclass
 class Vehicle:
@@ -35,6 +37,59 @@ class Vehicle:
     departed: bool = False
     arrived: bool = False
     queued: bool = False
+
+
+@dataclass
+class PTLineState:
+    """One public transport line and the timetable it runs to.
+
+    The unit is the LINE, not the route. Its vehicles are counted once for the
+    round however many agents ride it — counting them per route is what made
+    two agents on the same bus line emit two lines' worth — and they are
+    counted whether anybody rides it or not, because a timetable does not ask.
+
+    `person_km` is filled while the round's routes are attributed and is the
+    divisor every personal figure uses. It is zero for a line nobody rode, and
+    that is not a division by zero waiting to happen: nobody asks such a line
+    for a personal figure, only for its society one.
+    """
+
+    line_id: int
+    mode: str  # "bus" or "train"
+    name: str
+    line_km: float
+    interval_min: int
+    capacity: int
+    vehicles: int
+    person_km: float = 0.0
+
+    @property
+    def vehicle_km(self) -> float:
+        """Vehicle-kilometres run inside the departure window."""
+        return self.vehicles * self.line_km
+
+    @property
+    def society_co2_g(self) -> float:
+        """What the line emits this round. Not a function of its riders."""
+        return pt_emissions_g_per_vehicle_km(self.mode) * self.vehicle_km
+
+    @property
+    def society_cost_eur(self) -> float:
+        """What running the line costs this round. Not a function of riders."""
+        return pt_cost_eur_per_vehicle_km(self.mode) * self.vehicle_km
+
+    def share_of(self, society_total: float, person_km: float) -> float:
+        """This many person-kilometres' slice of a society total.
+
+        Weighted by person-km rather than split per head: on a 13 km line a
+        one-stop rider must not carry the same share as one going end to end,
+        and the car beside them is priced per kilometre. Summed over every
+        contribution this returns the society total exactly, which is the
+        identity the whole design rests on.
+        """
+        if self.person_km <= 0:
+            return 0.0
+        return society_total * person_km / self.person_km
 
 
 @dataclass
@@ -158,4 +213,3 @@ class EdgeState:
             return self.free_flow_speed_kmh
         mean_min = self.traversal_time_min / self.traversal_count
         return self.distance_m / 1000.0 / (mean_min / 60.0)
-

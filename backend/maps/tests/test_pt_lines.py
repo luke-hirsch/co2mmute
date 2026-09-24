@@ -191,3 +191,41 @@ class GraphSerializerPTTests(PTFixtureMixin, TestCase):
 
         self.assertEqual(payload["edges"], [])
         self.assertEqual(payload["stops"], [])
+
+
+class PTCapacityDefaultTests(PTFixtureMixin, TestCase):
+    """A line drawn without a capacity gets a plausible vehicle, not 60 seats.
+
+    `[backend]-pt-timetable-and-society.md` §2.5. Five places disagreed about
+    what an unspecified PT vehicle holds, and the one a map author actually
+    meets — the editor's new-line panel — did not branch on mode at all. That
+    is how the shipped map came to carry a 60-seat U-Bahn.
+
+    The numbers are game parameters with a real order of magnitude behind them:
+    a 12 m city bus carries 70-100 including standing room, a Großprofil
+    U-Bahn train and a full S-Bahn are both around a thousand. After the
+    timetable change nothing in the emissions path reads them, so they can be
+    corrected without moving a reported number.
+    """
+
+    def test_a_bus_line_without_a_capacity_seats_a_city_bus(self):
+        line = BusLine.objects.create(game_map=self.game_map, name="M99")
+
+        self.assertEqual(line.bus_capacity, 85)
+
+    def test_a_train_line_without_a_capacity_seats_a_full_train(self):
+        line = TrainLine.objects.create(game_map=self.game_map, name="U99")
+
+        self.assertEqual(line.train_capacity, 1000)
+
+    def test_an_explicit_capacity_still_wins(self):
+        """The default is a default — a map author's own number is data."""
+        bus = BusLine.objects.create(
+            game_map=self.game_map, name="M98", bus_capacity=40
+        )
+        train = TrainLine.objects.create(
+            game_map=self.game_map, name="U98", train_capacity=200
+        )
+
+        self.assertEqual(bus.bus_capacity, 40)
+        self.assertEqual(train.train_capacity, 200)

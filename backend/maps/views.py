@@ -444,7 +444,7 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                 game_map=game_map,
                 name=bus_line_data["name"],
                 intervall=bus_line_data.get("interval", 5),
-                bus_capacity=bus_line_data.get("capacity", 60),
+                bus_capacity=bus_line_data.get("capacity", 85),
             )
             bus_line.map_versions.add(base_version)
 
@@ -475,7 +475,7 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                 game_map=game_map,
                 name=train_line_data["name"],
                 intervall=train_line_data.get("interval", 10),
-                train_capacity=train_line_data.get("capacity", 500),
+                train_capacity=train_line_data.get("capacity", 1000),
             )
             train_line.map_versions.add(base_version)
 

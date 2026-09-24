@@ -210,7 +210,7 @@ class BusLine(models.Model):
     name = models.CharField(max_length=20)
     map_versions = models.ManyToManyField(MapVersion)
     intervall = models.PositiveSmallIntegerField(default=5)
-    bus_capacity = models.PositiveSmallIntegerField()
+    bus_capacity = models.PositiveSmallIntegerField(default=85)
     bus_speed_kmh = models.PositiveSmallIntegerField(default=30)
     edges = models.ManyToManyField(StreetEdge, through="BusLineEdge")
 
@@ -249,7 +249,7 @@ class TrainLine(models.Model):
     map_versions = models.ManyToManyField(MapVersion)
     name = models.CharField(max_length=20)
     intervall = models.PositiveSmallIntegerField(default=5)
-    train_capacity = models.PositiveIntegerField()
+    train_capacity = models.PositiveIntegerField(default=1000)
     train_speed_kmh = models.PositiveSmallIntegerField(default=40)
     edges = models.ManyToManyField(TrainEdge, through="TrainLineEdge")
 

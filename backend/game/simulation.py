@@ -6,11 +6,7 @@ from collections.abc import Callable
 
 from maps.models import BusLine, Edge, StreetPerRound, TrainLine
 
-# The engine itself lives in `sim/`, a plain package with no Django in it.
-# This module is the adapter: ORM rows in, engine, result rows out. The names
-# are re-exported rather than re-homed because ~25 call sites across the test
-# suite, and `game/signals.py`, import them from here — the extraction is
-# meant to be invisible above this seam.
+# The engine itself lives in `sim/`
 from sim import (  # noqa: F401
     BUS_COST_PER_VEHICLE_KM,
     BUS_EMISSIONS_G_PER_VEHICLE_KM,
@@ -25,10 +21,12 @@ from sim import (  # noqa: F401
     DEADLOCK_TICKS,
     JAM_DENSITY_VEH_PER_KM_LANE,
     MAX_CAR_EMISSION_FACTOR,
+    PT_FARE_EUR,
     SATURATION_FLOW_VEH_PER_H_LANE,
     TRAIN_COST_PER_VEHICLE_KM,
     TRAIN_EMISSIONS_G_PER_VEHICLE_KM,
     EdgeState,
+    PTLineState,
     PTVehicle,
     QueuedVehicle,
     Segment,
@@ -36,6 +34,7 @@ from sim import (  # noqa: F401
     Vehicle,
     car_cost_eur_per_km,
     car_emissions_g_per_km,
+    car_out_of_pocket_eur_per_km,
     draw_capacity_factor,
     draw_driver_speed_factor,
     generate_departure_minutes,
@@ -149,6 +148,9 @@ class TrafficSimulator:
         self.bus_line_intervals: dict[int, int] = {}
         self.train_line_intervals: dict[int, int] = {}
 
+        # PT sim in itself
+        self.pt_lines: dict[tuple[str, int], PTLineState] = {}
+
         # Per-route PT wait time (interval/2): route_pk -> wait_min
         self.route_pt_wait_min: dict[int, float] = {}
 
@@ -233,6 +235,7 @@ class TrafficSimulator:
         # Load PT line speeds and compute vehicle scaling
         self._load_pt_line_speeds()
         self._compute_vehicle_scaling()
+        self._load_pt_lines()
 
     def _compute_vehicle_scaling(self):
         """Compute how many actual vehicles to spawn per route.
@@ -277,15 +280,149 @@ class TrafficSimulator:
                 )
                 if overcapacity:
                     log_msg += (
-                        f" — WARNING: overcapacity! "
-                        f"{total_seats} seats < {self.people_per_agent} people"
+                        f" — {total_seats} seats < {self.people_per_agent} people. "
+                        f"Nothing is done about it yet: capacity constrains "
+                        f"boarding only once [backend]-pt-boarding.md lands."
                     )
-                    logger.warning(log_msg)
+                    logger.info(log_msg)
                 else:
                     logger.info(log_msg)
             else:
                 # Car/bike/walk: 1 person per vehicle
                 self.route_vehicle_scaling[route_pk] = (self.people_per_agent, 1)
+
+    def _load_pt_lines(self):
+        """Register every PT line on the map version this round runs on.
+
+        Every line, not only the ridden ones: a timetable runs whether anyone
+        is aboard or not, and a line nobody rides emitting nothing was the
+        defect this guide exists to fix.
+
+        `active_map_version` is set when the game starts (`GameSessionViewSet`
+        writes the base version), so it is the right filter for a real round;
+        the base version is the fallback for a round built by hand or in a
+        test, and an unversioned map falls through to every line on it.
+        """
+        from maps.models import (
+            BusLine,
+            BusLineEdge,
+            MapVersion,
+            TrainLine,
+            TrainLineEdge,
+        )
+
+        game_map = self.game_round.game.game_map
+        if not game_map:
+            return
+
+        version = (
+            self.game_round.game.active_map_version
+            or MapVersion.objects.filter(game_map=game_map, base_version=True).first()
+        )
+
+        bus_lines = BusLine.objects.filter(game_map=game_map)
+        train_lines = TrainLine.objects.filter(game_map=game_map)
+        if version is not None:
+            bus_lines = bus_lines.filter(map_versions=version)
+            train_lines = train_lines.filter(map_versions=version)
+
+        for line in bus_lines.distinct():
+            edges = [
+                link.street_edge.edge
+                for link in BusLineEdge.objects.filter(bus_line=line).select_related(
+                    "street_edge__edge__start_node",
+                    "street_edge__edge__end_node",
+                )
+            ]
+            self._register_pt_line(
+                "bus", line.pk, line.name, edges, line.intervall, line.bus_capacity
+            )
+
+        for line in train_lines.distinct():
+            edges = [
+                link.train_edge.edge
+                for link in TrainLineEdge.objects.filter(
+                    train_line=line
+                ).select_related(
+                    "train_edge__edge__start_node",
+                    "train_edge__edge__end_node",
+                )
+            ]
+            self._register_pt_line(
+                "train", line.pk, line.name, edges, line.intervall, line.train_capacity
+            )
+
+        logger.info(f"[SIM] Loaded {len(self.pt_lines)} PT lines from the timetable")
+
+    def _register_pt_line(
+        self,
+        mode: str,
+        line_id: int,
+        name: str,
+        edges: list,
+        interval_min: int,
+        capacity: int,
+    ):
+        """Measure one line and put it in the registry."""
+        line_km = sum(e.euclidean_2d_distance() * self.scale for e in edges) / 1000
+        interval = max(1, int(interval_min or 1))
+        # round(), not floor(): a 7-minute interval over the two-hour window is
+        # 17 departures, and flooring it would quietly shorten every timetable
+        # whose interval does not divide 120.
+        vehicles = max(1, round(DEPARTURE_WINDOW_MIN / interval))
+        self.pt_lines[(mode, line_id)] = PTLineState(
+            line_id=line_id,
+            mode=mode,
+            name=name,
+            line_km=line_km,
+            interval_min=interval,
+            capacity=max(1, int(capacity or 1)),
+            vehicles=vehicles,
+        )
+        if line_km <= 0:
+            logger.warning(
+                "[SIM] PT line %s (%s) measures 0 km — no edges on this map "
+                "version, so it emits nothing. Fix the map.",
+                name,
+                mode,
+            )
+
+    def _pt_line_for(self, segment) -> "PTLineState | None":
+        """The registry entry a PT segment rides on, None for road modes.
+
+        A PT segment whose line is not in the registry is a map that changed
+        under a submitted route. It is logged and then costs nothing, which is
+        wrong but is not worth inventing a line for — the route should not
+        have validated.
+        """
+        if segment.mode not in ("bus", "train") or not segment.pt_line_id:
+            return None
+        line = self.pt_lines.get((segment.mode, int(segment.pt_line_id)))
+        if line is None:
+            logger.warning(
+                "[SIM] Route segment rides %s line %s, which is not on this "
+                "round's map version — it is charged nothing.",
+                segment.mode,
+                segment.pt_line_id,
+            )
+        return line
+
+    def _attribute_pt_person_km(self):
+        """Count the person-kilometres each line carries this round.
+
+        Runs to completion before the first figure is calculated: `share_of`
+        divides by `person_km`, so a line that is still being filled would
+        hand the first route too large a share and the last one too small.
+        """
+        for route_pk in self.agent_routes:
+            for seg in self.route_segments.get(route_pk, []):
+                line = self._pt_line_for(seg)
+                if line is None:
+                    continue
+                edge_state = self.edge_states.get(seg.edge_id)  # type: ignore
+                if not edge_state:
+                    continue
+                line.person_km += (edge_state.distance_m / 1000) * self.people_per_agent
 
     def _load_pt_line_speeds(self):
         """Load bus and train line speeds from database."""
@@ -1177,6 +1314,8 @@ class TrafficSimulator:
         """Calculate final results and store in database."""
         logger.info(f"[SIM] Calculating results for {len(self.agent_results)} agents")
 
+        self._attribute_pt_person_km()
+
         self.sim_log.header("RESULTS — PER ROUTE")
 
         total_co2 = 0.0
@@ -1217,7 +1356,7 @@ class TrafficSimulator:
                 mean_delay = sum(delays) / len(delays) if delays else 0.0
 
             # Calculate CO2 and cost based on mode and segments
-            co2, cost = self._calculate_emissions_and_cost(route)
+            co2, cost, paid = self._calculate_emissions_and_cost(route)
             total_co2 += co2
             total_cost += cost
 
@@ -1267,14 +1406,23 @@ class TrafficSimulator:
                         f"50km/h rate, €{car_cost_eur_per_km(speed) * dist_km:.3f}/person) "
                         f"× {self.people_per_agent} = {seg_co2 * self.people_per_agent:.0f}g"
                     )
-                elif seg.mode == "bus":
-                    cap = self._get_pt_capacity(seg.pt_line_id, "bus")
-                    seg_co2 = BUS_EMISSIONS_G_PER_VEHICLE_KM * dist_km / cap
+                elif seg.mode in ("bus", "train"):
+                    line = self.pt_lines.get((seg.mode, int(seg.pt_line_id or 0)))
+                    if line is None:
+                        self.sim_log.write(
+                            f"    seg {seg.order} ({seg.mode}): {es.distance_m:.0f}m → "
+                            f"line not on this map version, charged nothing"
+                        )
+                        continue
+                    seg_person_km = dist_km * self.people_per_agent
+                    seg_co2 = line.share_of(line.society_co2_g, seg_person_km)
                     self.sim_log.write(
-                        f"    seg {seg.order} ({seg.mode}, cap={cap:.0f}): {es.distance_m:.0f}m → "
-                        f"{seg_co2:.2f}g/person × {self.people_per_agent} = {seg_co2 * self.people_per_agent:.0f}g"
+                        f"    seg {seg.order} ({seg.mode}, {line.name}): "
+                        f"{es.distance_m:.0f}m → {seg_co2:.0f}g, this route's share "
+                        f"of {line.society_co2_g / 1000:.1f}kg "
+                        f"({line.vehicles} veh × {line.line_km:.2f}km), "
+                        f"{seg_person_km:.0f} of {line.person_km:.0f} Personen-km"
                     )
-                elif seg.mode == "train":
                     cap = self._get_pt_capacity(seg.pt_line_id, "train")
                     seg_co2 = TRAIN_EMISSIONS_G_PER_VEHICLE_KM * dist_km / cap
                     self.sim_log.write(
@@ -1300,19 +1448,44 @@ class TrafficSimulator:
                 mean_cost_eur=cost / self.people_per_agent
                 if self.people_per_agent
                 else 0.0,
+                mean_paid_eur=paid / self.people_per_agent
+                if self.people_per_agent
+                else 0.0,
                 total_co2_g=co2,
                 congestion_delay_min=mean_delay,
             )
 
-        # Totals
+        # Totals. The network's own emissions are in the round total whether
+        # anyone rode or not — the ridden lines are already inside total_co2
+        # as the routes' shares, so only the lines nobody touched are added.
+        network_co2 = sum(line.society_co2_g for line in self.pt_lines.values())
+        network_cost = sum(line.society_cost_eur for line in self.pt_lines.values())
+        unridden_co2 = sum(
+            line.society_co2_g for line in self.pt_lines.values() if line.person_km <= 0
+        )
+        unridden_cost = sum(
+            line.society_cost_eur
+            for line in self.pt_lines.values()
+            if line.person_km <= 0
+        )
+        total_co2 += unridden_co2
+        total_cost += unridden_cost
+
         self.sim_log.header("TOTALS")
         self.sim_log.write(f"Total CO2: {total_co2:.0f}g ({total_co2 / 1000:.2f}kg)")
         self.sim_log.write(f"Total cost: €{total_cost:.2f}")
+        self.sim_log.write(
+            f"  of which the network's own timetable: {network_co2 / 1000:.2f}kg, "
+            f"€{network_cost:.2f} over {len(self.pt_lines)} lines "
+            f"({unridden_co2 / 1000:.2f}kg of it on lines nobody rode)"
+        )
         self.sim_log.write(f"Routes processed: {len(self.agent_results)}")
 
         # Update totals
         self.simulation_result.total_co2_g = total_co2  # type: ignore
         self.simulation_result.total_cost_eur = total_cost  # type: ignore
+        self.simulation_result.network_co2_g = network_co2  # type: ignore
+        self.simulation_result.network_cost_eur = network_cost  # type: ignore
         self.simulation_result.save()  # type: ignore
 
         logger.info(
@@ -1322,30 +1495,43 @@ class TrafficSimulator:
         # Update street speeds for next round
         self._update_street_speeds()
 
-    def _calculate_emissions_and_cost(self, route: AgentRoute) -> tuple[float, float]:
-        """
-        Calculate CO2 emissions and cost for an agent's route.
+    def _calculate_emissions_and_cost(
+        self, route: AgentRoute
+    ) -> tuple[float, float, float]:
+        """CO2, cost and fare for one agent's route, for all its people.
 
-        Uses Mobility model emission/cost factors per segment:
-        - Car: speed-dependent, 166.8 g/vehicle-km at 50 km/h and up to twice
-          that in stop-and-go (see car_emissions_g_per_km); each person drives
-          alone → per-person = per-vehicle
-        - Bus: 1200 g/vehicle-km ÷ capacity = per-person g/km
-        - Train: 3500 g/vehicle-km ÷ capacity = per-person g/km
-        - Bike/Walk: 0 emissions, 0 cost
+        - Car: speed-dependent per car_emissions_g_per_km — a jam burns more
+          per kilometre, and that is what makes clearing one worth a vote.
+          Each person drives alone, so per-person is per-vehicle.
+        - Bus/train: this route's slice of the LINE's own emissions and cost,
+          weighted by the person-kilometres it contributes. Not divided by
+          capacity: a timetable does not get cleaner because the seats are
+          empty.
+        - Bike/walk: nothing.
+
+        The car side accumulates per person and multiplies once at the end,
+        the way it always did. That is not a style choice — reordering it
+        moves the last digits of every car figure and the golden master with
+        them. The PT shares are class-scale already, so they are kept in a
+        separate accumulator and added afterwards.
 
         Returns:
-            Tuple of (total_co2_g, total_cost_eur) for all people_per_agent persons.
+            (total_co2_g, total_cost_eur, total_paid_eur), all for the whole
+            people_per_agent.
         """
         segments = self.route_segments.get(route.pk, [])
         if not segments:
-            return 0.0, 0.0
+            return 0.0, 0.0, 0.0
 
-        total_co2_per_person = 0.0
-        total_cost_per_person = 0.0
+        per_person_co2 = 0.0
+        per_person_cost = 0.0
+        per_person_paid = 0.0
+        class_co2 = 0.0
+        class_cost = 0.0
+        rides_pt = False
 
         for seg in segments:
-            edge_state = self.edge_states.get(seg.edge_id)
+            edge_state = self.edge_states.get(seg.edge_id)  # type: ignore
             if not edge_state:
                 continue
 
@@ -1353,45 +1539,38 @@ class TrafficSimulator:
 
             if seg.mode == "car":
                 # The speed this link actually ran at this round, not the
-                # speed limit: a jam burns more fuel per kilometre and eats
-                # more brake, and that is what makes clearing one worth
-                # voting for.
+                # speed limit.
                 speed_kmh = edge_state.mean_speed_kmh
-                total_co2_per_person += car_emissions_g_per_km(speed_kmh) * distance_km
-                total_cost_per_person += car_cost_eur_per_km(speed_kmh) * distance_km
+                per_person_co2 += car_emissions_g_per_km(speed_kmh) * distance_km
+                per_person_cost += car_cost_eur_per_km(speed_kmh) * distance_km
+                per_person_paid += car_out_of_pocket_eur_per_km(speed_kmh) * distance_km
+                continue
 
-            elif seg.mode == "bus":
-                # Get bus capacity for per-person calculation
-                capacity = self._get_pt_capacity(seg.pt_line_id, "bus")
-                total_co2_per_person += (
-                    BUS_EMISSIONS_G_PER_VEHICLE_KM * distance_km / capacity
-                )
-                total_cost_per_person += (
-                    BUS_COST_PER_VEHICLE_KM * distance_km / capacity
-                )
+            if seg.mode in ("bus", "train"):
+                line = self._pt_line_for(seg)
+                if line is None:
+                    continue
+                rides_pt = True
+                person_km = distance_km * self.people_per_agent
+                class_co2 += line.share_of(line.society_co2_g, person_km)
+                class_cost += line.share_of(line.society_cost_eur, person_km)
 
-            elif seg.mode == "train":
-                # Get train capacity for per-person calculation
-                capacity = self._get_pt_capacity(seg.pt_line_id, "train")
-                total_co2_per_person += (
-                    TRAIN_EMISSIONS_G_PER_VEHICLE_KM * distance_km / capacity
-                )
-                total_cost_per_person += (
-                    TRAIN_COST_PER_VEHICLE_KM * distance_km / capacity
-                )
+            # bike and walk: no emissions, no cost, nothing paid
 
-            # bike and walk: 0 emissions, 0 cost
+        if rides_pt:
+            # One Ticket for the trip, however many times they change.
+            per_person_paid += PT_FARE_EUR
 
-        # Multiply by people_per_agent (each agent represents N persons)
-        total_co2 = total_co2_per_person * self.people_per_agent
-        total_cost = total_cost_per_person * self.people_per_agent
-
-        return total_co2, total_cost
+        return (
+            per_person_co2 * self.people_per_agent + class_co2,
+            per_person_cost * self.people_per_agent + class_cost,
+            per_person_paid * self.people_per_agent,
+        )
 
     def _get_pt_capacity(self, pt_line_id: int | None, mode: str) -> float:
         """Get the passenger capacity for a PT line. Returns a default if not found."""
         if not pt_line_id:
-            return 60.0 if mode == "bus" else 500.0
+            return 85.0 if mode == "bus" else 1000.0
 
         if mode == "bus":
             if not hasattr(self, "_bus_capacities"):
@@ -1399,7 +1578,7 @@ class TrafficSimulator:
             if pt_line_id not in self._bus_capacities:
                 bus_line = BusLine.objects.filter(id=pt_line_id).first()
                 self._bus_capacities[pt_line_id] = (
-                    bus_line.bus_capacity if bus_line else 60
+                    bus_line.bus_capacity if bus_line else 85
                 )
             return max(1.0, float(self._bus_capacities[pt_line_id]))
 
@@ -1409,11 +1588,11 @@ class TrafficSimulator:
             if pt_line_id not in self._train_capacities:
                 train_line = TrainLine.objects.filter(id=pt_line_id).first()
                 self._train_capacities[pt_line_id] = (
-                    train_line.train_capacity if train_line else 500
+                    train_line.train_capacity if train_line else 1000
                 )
             return max(1.0, float(self._train_capacities[pt_line_id]))
 
-        return 60.0
+        return 85.0
 
     def _get_pt_interval(self, pt_line_id: int | None, mode: str) -> int:
         """Get the interval in minutes for a PT line. Returns a fallback if not found."""

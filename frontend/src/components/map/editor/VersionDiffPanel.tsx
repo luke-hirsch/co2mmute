@@ -1,4 +1,5 @@
 import { de } from "@/lib/de";
+import { defaultPtCapacity } from "@/lib/map/pt-defaults";
 import { useState } from "react";
 import type { Dispatch } from "react";
 import type { MapVersion, Edge } from "../../../types/mapTypes";
@@ -168,12 +169,12 @@ const VersionDiffPanel = ({
       line_type: type,
       name: "",
       interval: 5,
-      capacity: type === "bus" ? 60 : 200,
+      capacity: defaultPtCapacity(type),
       speed_kmh: type === "bus" ? 30 : 60,
     });
     setPtDraftName("");
     setPtDraftInterval(5);
-    setPtDraftCapacity(type === "bus" ? 60 : 200);
+    setPtDraftCapacity(defaultPtCapacity(type));
     setPtDraftSpeed(type === "bus" ? 30 : 60);
     setPtLineEdgeIds([]);
     setPtDraftError(null);

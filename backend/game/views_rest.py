@@ -767,6 +767,13 @@ class GameSummaryView(GenericAPIView):
                 status=SimulationResult.Status.COMPLETED,
             ).values_list("game_round_id", flat=True)
         )
+        network_by_round = {
+            row["game_round_id"]: row["network_co2_g"]
+            for row in SimulationResult.objects.filter(
+                game_round__in=completed_rounds,
+                status=SimulationResult.Status.COMPLETED,
+            ).values("game_round_id", "network_co2_g")
+        }
 
         result_counts = {
             row["agent_route__player_move__session_round"]: row["n"]
@@ -795,6 +802,9 @@ class GameSummaryView(GenericAPIView):
                     "round_number": game_round.round_number,
                     "co2_kg": round(game_round.total_emissions_g / 1000, 2),
                     "cost_eur": round(game_round.total_cost_eur, 2),
+                    "network_co2_kg": round(
+                        network_by_round.get(game_round.pk, 0.0) / 1000, 2
+                    ),
                     "agent_count": agent_count,
                     "co2_g_per_person": round(
                         _per_person(

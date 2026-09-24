@@ -2025,3 +2025,532 @@ class TrafficHeatmapPayloadTests(TestCase):
         self.assertAlmostEqual(
             edges[self.edges[0].pk]["congestion_ratio"], 0.016, places=3
         )
+
+
+# ---------------------------------------------------------------------------
+# PT runs to its timetable — society vs personal numbers
+# `.claude/plans/to-do/[backend]-pt-timetable-and-society.md`
+#
+# Every new symbol below is imported INSIDE the test that needs it. A missing
+# `PTLineState` at module level would raise on import and silently delete the
+# other two thousand lines of this file from the run — which is exactly the
+# failure mode `test_all_python_sources_parse` cannot see.
+# ---------------------------------------------------------------------------
+
+
+class PTScenarioMixin:
+    """Two 1 km links in a row, one bus line and one train line over both.
+
+    Distances are chosen so every expected figure is a round number at
+    scale=100: each edge is 10 units long, so 1 km, and a line over both is
+    2 km. The bus runs every 10 minutes — 12 vehicles in the 120-minute
+    departure window — and the train every 5, so 24. That makes
+
+        bus   society CO2 = 12 x 2 km x 1200 g =  28 800 g
+        train society CO2 = 24 x 2 km x 3500 g = 168 000 g
+
+    and the same shape in euro. None of it depends on people_per_agent: a
+    share is person-km over person-km, so the scale cancels.
+    """
+
+    def _pt_map(self, label="PT map", bus_interval=10, train_interval=5,
+                bus_capacity=85, train_capacity=1000):
+        game_map = GameMap.objects.create(
+            name=label, x_dim=100, y_dim=100, scale=100.0
+        )
+        version = MapVersion.objects.create(
+            game_map=game_map, name="Base", base_version=True
+        )
+        nodes = []
+        for i in range(3):
+            node = Node.objects.create(
+                game_map=game_map, name=f"N{i}", x_position=i * 10, y_position=0
+            )
+            node.map_versions.add(version)
+            nodes.append(node)
+
+        edges = [
+            _street(game_map, version, nodes[0], nodes[1], lanes=2),
+            _street(game_map, version, nodes[1], nodes[2], lanes=2),
+        ]
+
+        bus_line = BusLine.objects.create(
+            game_map=game_map,
+            name="M1",
+            intervall=bus_interval,
+            bus_capacity=bus_capacity,
+        )
+        bus_line.map_versions.add(version)
+        for order, edge in enumerate(edges):
+            BusLineEdge.objects.create(
+                bus_line=bus_line,
+                street_edge=edge.streetedge_set.first(),
+                order=order,
+            )
+
+        train_edges = []
+        for edge in edges:
+            train_edge = TrainEdge.objects.create(edge=edge)
+            train_edge.map_versions.add(version)
+            train_edges.append(train_edge)
+        train_line = TrainLine.objects.create(
+            game_map=game_map,
+            name="U1",
+            intervall=train_interval,
+            train_capacity=train_capacity,
+        )
+        train_line.map_versions.add(version)
+        for order, train_edge in enumerate(train_edges):
+            TrainLineEdge.objects.create(
+                train_line=train_line, train_edge=train_edge, order=order
+            )
+
+        return game_map, version, edges, bus_line, train_line
+
+    def _pt_session(self, game_map, version, people=100):
+        session = _session(self.user, game_map, people_per_agent=people, std_dev=5)
+        session.active_map_version = version
+        session.save(update_fields=["active_map_version"])
+        return session
+
+    def _pt_route(self, game_round, player, edges, mode, line, agent_id=1):
+        """A route whose segments name a PT line, which `_route` cannot do."""
+        move, _ = PlayerMove.objects.get_or_create(
+            session_round=game_round, player=player, action="route_submit"
+        )
+        route = AgentRoute.objects.create(
+            player_move=move,
+            agent_id=agent_id,
+            transport_mode="public",
+            total_distance_m=1000.0 * len(edges),
+            estimated_time_min=5.0,
+        )
+        for order, edge in enumerate(edges, start=1):
+            RouteSegment.objects.create(
+                agent_route=route,
+                order=order,
+                edge=edge,
+                mode=mode,
+                pt_line_id=line.pk,
+            )
+        return route
+
+    def _run(self, game_round, seed=606, max_ticks=300):
+        from game.tests._helpers import muted
+
+        simulator = TrafficSimulator(game_round, scale=100.0, seed=seed)
+        with muted():
+            simulator.run_simulation(max_ticks=max_ticks)
+        return simulator
+
+
+class PTLineRegistryTests(PTScenarioMixin, TestCase):
+    """The unit is the LINE, and every line on the version is in the registry.
+
+    Today vehicles are counted per AgentRoute, so two agents riding M1 count
+    M1's buses twice and a line nobody rides is not counted at all. A timetable
+    is a property of the map, not of who chose it.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="ptregistry", password="12345")
+
+    def test_a_line_nobody_rides_is_still_registered(self):
+        """The whole finding, in the loading step: the timetable does not ask."""
+        game_map, version, edges, bus_line, train_line = self._pt_map()
+        session = self._pt_session(game_map, version)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+        player = Player.objects.create(name="Anna", game=session)
+        _route(game_round, player, edges, mode="car", agent_id=1)
+
+        simulator = TrafficSimulator(game_round, scale=100.0)
+
+        self.assertIn(("bus", bus_line.pk), simulator.pt_lines)
+        self.assertIn(("train", train_line.pk), simulator.pt_lines)
+
+    def test_line_km_is_the_geometry_times_the_scale(self):
+        game_map, version, edges, bus_line, _ = self._pt_map()
+        session = self._pt_session(game_map, version)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+
+        simulator = TrafficSimulator(game_round, scale=100.0)
+
+        self.assertAlmostEqual(
+            simulator.pt_lines[("bus", bus_line.pk)].line_km, 2.0, places=6
+        )
+
+    def test_vehicles_come_from_the_interval_not_from_demand(self):
+        game_map, version, _, bus_line, train_line = self._pt_map()
+        session = self._pt_session(game_map, version)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+
+        simulator = TrafficSimulator(game_round, scale=100.0)
+
+        # DEPARTURE_WINDOW_MIN is 120.
+        self.assertEqual(simulator.pt_lines[("bus", bus_line.pk)].vehicles, 12)
+        self.assertEqual(simulator.pt_lines[("train", train_line.pk)].vehicles, 24)
+
+    def test_an_interval_that_does_not_divide_the_window_rounds(self):
+        """floor() would quietly shorten every timetable with an odd interval."""
+        game_map, version, _, bus_line, _ = self._pt_map(bus_interval=7)
+        session = self._pt_session(game_map, version)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+
+        simulator = TrafficSimulator(game_round, scale=100.0)
+
+        self.assertEqual(simulator.pt_lines[("bus", bus_line.pk)].vehicles, 17)
+
+    def test_a_bus_and_a_train_with_the_same_id_do_not_collide(self):
+        """RouteSegment.pt_line_id is a bare id from two different sequences.
+
+        Keyed by that id alone, registering the train would overwrite the bus
+        and every M1 rider would silently be charged U1's emissions. The pk is
+        forced equal here because a natural collision is a matter of luck.
+        """
+        game_map, version, edges, bus_line, train_line = self._pt_map()
+        train_line.delete()
+        twin = TrainLine.objects.create(
+            pk=bus_line.pk,
+            game_map=game_map,
+            name="U-twin",
+            intervall=5,
+            train_capacity=1000,
+        )
+        twin.map_versions.add(version)
+        session = self._pt_session(game_map, version)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+
+        simulator = TrafficSimulator(game_round, scale=100.0)
+
+        self.assertEqual(len(simulator.pt_lines), 2)
+        self.assertEqual(simulator.pt_lines[("bus", bus_line.pk)].mode, "bus")
+        self.assertEqual(simulator.pt_lines[("train", twin.pk)].mode, "train")
+
+    def test_falls_back_to_the_base_version_without_an_active_one(self):
+        """active_map_version is only set when a game starts through the API."""
+        game_map, version, _, bus_line, _ = self._pt_map()
+        session = _session(self.user, game_map, people_per_agent=100)
+        self.assertIsNone(session.active_map_version)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+
+        simulator = TrafficSimulator(game_round, scale=100.0)
+
+        self.assertIn(("bus", bus_line.pk), simulator.pt_lines)
+
+    def test_a_line_on_another_version_is_not_registered(self):
+        """A version is a filter over one shared graph — so is its timetable."""
+        game_map, version, _, _, _ = self._pt_map()
+        other = MapVersion.objects.create(game_map=game_map, name="Other")
+        only_there = BusLine.objects.create(
+            game_map=game_map, name="M-other", intervall=10, bus_capacity=85
+        )
+        only_there.map_versions.add(other)
+        session = self._pt_session(game_map, version)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+
+        simulator = TrafficSimulator(game_round, scale=100.0)
+
+        self.assertNotIn(("bus", only_there.pk), simulator.pt_lines)
+
+
+class PTSocietyFiguresTests(PTScenarioMixin, TestCase):
+    """A line emits because it runs, not because someone is aboard.
+
+    `_calculate_emissions_and_cost` divides by `capacity` today, which makes a
+    full bus and an empty one identical per person and a line nobody rides
+    free. Both halves of that are wrong and they are the same line of code.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="ptsociety", password="12345")
+
+    def _round_with(self, mode="car", **map_kwargs):
+        game_map, version, edges, bus_line, train_line = self._pt_map(**map_kwargs)
+        session = self._pt_session(game_map, version)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+        player = Player.objects.create(name="Anna", game=session)
+        if mode == "car":
+            _route(game_round, player, edges, mode="car", agent_id=1)
+        else:
+            self._pt_route(game_round, player, edges, "bus", bus_line, agent_id=1)
+        return game_map, version, edges, bus_line, train_line, game_round
+
+    def test_society_is_vehicles_times_km_times_the_vehicle_factor(self):
+        _, _, _, bus_line, _, game_round = self._round_with()
+
+        simulator = TrafficSimulator(game_round, scale=100.0)
+        line = simulator.pt_lines[("bus", bus_line.pk)]
+
+        # 12 vehicles x 2 km x 1200 g/vehicle-km
+        self.assertAlmostEqual(line.society_co2_g, 28_800.0, places=3)
+        # 12 vehicles x 2 km x 4.50 €/vehicle-km
+        self.assertAlmostEqual(line.society_cost_eur, 108.0, places=3)
+
+    def test_capacity_does_not_touch_the_society_figure(self):
+        """The seats are not what burns the diesel.
+
+        This is the test that makes the capacity data pass safe: after this
+        change nothing on the emissions path reads bus_capacity at all, so a
+        60-seat U-Bahn can be corrected to 1000 without moving a number.
+        """
+        _, _, _, small_line, _, small_round = self._round_with(bus_capacity=20)
+        _, _, _, large_line, _, large_round = self._round_with(
+            bus_capacity=500, label="PT map large"
+        )
+
+        small = TrafficSimulator(small_round, scale=100.0)
+        large = TrafficSimulator(large_round, scale=100.0)
+
+        self.assertAlmostEqual(
+            small.pt_lines[("bus", small_line.pk)].society_co2_g,
+            large.pt_lines[("bus", large_line.pk)].society_co2_g,
+            places=3,
+        )
+        self.assertAlmostEqual(
+            small.pt_lines[("bus", small_line.pk)].society_co2_g, 28_800.0, places=3
+        )
+
+    def test_a_line_nobody_rides_is_in_the_round_total(self):
+        """Everybody drives; the buses and trains still ran."""
+        from game.models import SimulationResult
+
+        _, _, _, _, _, game_round = self._round_with(mode="car")
+
+        self._run(game_round)
+
+        result = SimulationResult.objects.get(game_round=game_round)
+        # 28 800 g of bus + 168 000 g of train, plus whatever the car did.
+        self.assertGreater(result.total_co2_g, 196_800.0)
+
+    def test_network_co2_is_the_whole_timetable(self):
+        from game.models import SimulationResult
+
+        _, _, _, _, _, game_round = self._round_with(mode="car")
+
+        self._run(game_round)
+
+        result = SimulationResult.objects.get(game_round=game_round)
+        self.assertAlmostEqual(result.network_co2_g, 196_800.0, places=2)
+        self.assertAlmostEqual(result.network_cost_eur, 108.0 + 576.0, places=2)
+
+    def test_the_total_is_the_routes_plus_the_lines_nobody_rode(self):
+        """The identity the screen has to explain: rows + network = headline."""
+        from game.models import AgentSimulationResult, SimulationResult
+
+        _, _, _, _, _, game_round = self._round_with(mode="car")
+
+        self._run(game_round)
+
+        result = SimulationResult.objects.get(game_round=game_round)
+        rows = AgentSimulationResult.objects.filter(simulation=result)
+        row_total = sum(row.total_co2_g for row in rows)
+
+        self.assertAlmostEqual(
+            result.total_co2_g, row_total + result.network_co2_g, places=2
+        )
+
+
+class PTPersonalShareTests(PTScenarioMixin, TestCase):
+    """personal = society x person-km / person-km, and the shares add up.
+
+    This is where "the more people take the bus the better it looks per
+    person" actually comes from. Today it does not happen at all: the figure
+    is society / capacity whoever else is aboard.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="ptshare", password="12345")
+
+    def test_one_rider_carries_the_whole_line(self):
+        from game.models import AgentSimulationResult
+
+        game_map, version, edges, bus_line, _ = self._pt_map()
+        session = self._pt_session(game_map, version)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+        anna = Player.objects.create(name="Anna", game=session)
+        route = self._pt_route(game_round, anna, edges, "bus", bus_line, agent_id=1)
+
+        self._run(game_round)
+
+        result = AgentSimulationResult.objects.get(agent_route=route)
+        self.assertAlmostEqual(result.total_co2_g, 28_800.0, places=2)
+
+    def test_two_agents_on_one_line_halve_each_others_share(self):
+        from game.models import AgentSimulationResult
+
+        game_map, version, edges, bus_line, _ = self._pt_map()
+        session = self._pt_session(game_map, version)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+        anna = Player.objects.create(name="Anna", game=session)
+        ben = Player.objects.create(name="Ben", game=session)
+        first = self._pt_route(game_round, anna, edges, "bus", bus_line, agent_id=1)
+        second = self._pt_route(game_round, ben, edges, "bus", bus_line, agent_id=2)
+
+        self._run(game_round)
+
+        one = AgentSimulationResult.objects.get(agent_route=first)
+        two = AgentSimulationResult.objects.get(agent_route=second)
+        self.assertAlmostEqual(one.total_co2_g, 14_400.0, places=2)
+        self.assertAlmostEqual(two.total_co2_g, 14_400.0, places=2)
+
+    def test_the_shares_add_up_to_the_line(self):
+        """The identity the whole design rests on."""
+        from game.models import AgentSimulationResult
+
+        game_map, version, edges, bus_line, _ = self._pt_map()
+        session = self._pt_session(game_map, version)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+        anna = Player.objects.create(name="Anna", game=session)
+        ben = Player.objects.create(name="Ben", game=session)
+        self._pt_route(game_round, anna, edges, "bus", bus_line, agent_id=1)
+        self._pt_route(game_round, ben, edges[:1], "bus", bus_line, agent_id=2)
+
+        self._run(game_round)
+
+        rows = AgentSimulationResult.objects.filter(
+            agent_route__player_move__session_round=game_round
+        )
+        self.assertAlmostEqual(
+            sum(row.total_co2_g for row in rows), 28_800.0, places=2
+        )
+
+    def test_a_short_ride_carries_less_than_a_long_one(self):
+        """Per head rather than per person-km, a one-stop hop would pay full.
+
+        Anna rides both kilometres, Ben one. Three person-km on the line, so
+        Anna carries two thirds of it and Ben one.
+        """
+        from game.models import AgentSimulationResult
+
+        game_map, version, edges, bus_line, _ = self._pt_map()
+        session = self._pt_session(game_map, version)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+        anna = Player.objects.create(name="Anna", game=session)
+        ben = Player.objects.create(name="Ben", game=session)
+        long_route = self._pt_route(game_round, anna, edges, "bus", bus_line, agent_id=1)
+        short_route = self._pt_route(
+            game_round, ben, edges[:1], "bus", bus_line, agent_id=2
+        )
+
+        self._run(game_round)
+
+        long_result = AgentSimulationResult.objects.get(agent_route=long_route)
+        short_result = AgentSimulationResult.objects.get(agent_route=short_route)
+        self.assertAlmostEqual(long_result.total_co2_g, 19_200.0, places=2)
+        self.assertAlmostEqual(short_result.total_co2_g, 9_600.0, places=2)
+
+
+class PTFareAndOutOfPocketTests(PTScenarioMixin, TestCase):
+    """*Was du zahlst* beside *was es kostet* — on both modes.
+
+    The PT gap between the two IS the subsidy, which is the only reason a fare
+    is in the model at all. The car's contrast needs no new constant:
+    CAR_COST_TRAFFIC_SHARE already splits the Vollkosten in half.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="ptfare", password="12345")
+
+    def test_the_car_pays_the_traffic_metered_half(self):
+        from sim.constants import (
+            CAR_COST_PER_KM,
+            CAR_COST_TRAFFIC_SHARE,
+            car_out_of_pocket_eur_per_km,
+        )
+
+        self.assertAlmostEqual(
+            car_out_of_pocket_eur_per_km(50.0),
+            CAR_COST_PER_KM * CAR_COST_TRAFFIC_SHARE,
+            places=10,
+        )
+
+    def test_what_a_jam_costs_is_felt_entirely_out_of_pocket(self):
+        """Abschreibung does not rise in a jam; fuel and brakes do."""
+        from sim.constants import car_cost_eur_per_km, car_out_of_pocket_eur_per_km
+
+        free = car_out_of_pocket_eur_per_km(50.0)
+        jammed = car_out_of_pocket_eur_per_km(10.0)
+
+        self.assertGreater(jammed, free)
+        self.assertAlmostEqual(
+            jammed - free,
+            car_cost_eur_per_km(10.0) - car_cost_eur_per_km(50.0),
+            places=10,
+        )
+
+    def test_a_pt_trip_pays_one_ticket(self):
+        from game.models import AgentSimulationResult
+        from sim.constants import PT_FARE_EUR
+
+        game_map, version, edges, bus_line, _ = self._pt_map()
+        session = self._pt_session(game_map, version)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+        anna = Player.objects.create(name="Anna", game=session)
+        route = self._pt_route(game_round, anna, edges, "bus", bus_line, agent_id=1)
+
+        self._run(game_round)
+
+        result = AgentSimulationResult.objects.get(agent_route=route)
+        self.assertAlmostEqual(result.mean_paid_eur, PT_FARE_EUR, places=6)
+
+    def test_a_transfer_is_still_one_ticket(self):
+        """One Ticket for the trip, not one per Umstieg."""
+        from game.models import AgentSimulationResult
+        from sim.constants import PT_FARE_EUR
+
+        game_map, version, edges, bus_line, train_line = self._pt_map()
+        session = self._pt_session(game_map, version)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+        anna = Player.objects.create(name="Anna", game=session)
+        move = PlayerMove.objects.create(
+            session_round=game_round, player=anna, action="route_submit"
+        )
+        route = AgentRoute.objects.create(
+            player_move=move,
+            agent_id=1,
+            transport_mode="public",
+            total_distance_m=2000.0,
+            estimated_time_min=5.0,
+        )
+        RouteSegment.objects.create(
+            agent_route=route, order=1, edge=edges[0], mode="bus",
+            pt_line_id=bus_line.pk,
+        )
+        RouteSegment.objects.create(
+            agent_route=route, order=2, edge=edges[1], mode="train",
+            pt_line_id=train_line.pk,
+        )
+
+        self._run(game_round)
+
+        result = AgentSimulationResult.objects.get(agent_route=route)
+        self.assertAlmostEqual(result.mean_paid_eur, PT_FARE_EUR, places=6)
+
+    def test_a_driver_pays_less_than_the_trip_costs(self):
+        from game.models import AgentSimulationResult
+
+        game_map, version, edges, _, _ = self._pt_map()
+        session = self._pt_session(game_map, version, people=20)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+        anna = Player.objects.create(name="Anna", game=session)
+        route = _route(game_round, anna, edges, mode="car", agent_id=1)
+
+        self._run(game_round)
+
+        result = AgentSimulationResult.objects.get(agent_route=route)
+        self.assertGreater(result.mean_paid_eur, 0.0)
+        self.assertLess(result.mean_paid_eur, result.mean_cost_eur)
+
+    def test_a_walker_pays_nothing(self):
+        from game.models import AgentSimulationResult
+
+        game_map, version, edges, _, _ = self._pt_map()
+        session = self._pt_session(game_map, version, people=10)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+        anna = Player.objects.create(name="Anna", game=session)
+        route = _route(game_round, anna, edges, mode="walk", agent_id=1)
+
+        self._run(game_round)
+
+        result = AgentSimulationResult.objects.get(agent_route=route)
+        self.assertAlmostEqual(result.mean_paid_eur, 0.0, places=6)
