@@ -1,4 +1,5 @@
 import { de } from "@/lib/de";
+import { defaultPtCapacity } from "@/lib/map/pt-defaults";
 import { useState, useEffect } from "react";
 import type { ExtendedMapGraph } from "../../../types/routeTypes";
 import type { PTLine } from "../../../types/routeTypes";
@@ -41,15 +42,23 @@ const PTLinePanel = ({
 
   const [name, setName] = useState("");
   const [interval, setInterval] = useState(5);
-  const [capacity, setCapacity] = useState(60);
+  const [capacity, setCapacity] = useState(defaultPtCapacity("bus"));
   const [speed, setSpeed] = useState(30);
 
   // Edit mode state
   const [editingLine, setEditingLine] = useState<PTLine | null>(null);
   const [editName, setEditName] = useState("");
   const [editInterval, setEditInterval] = useState(5);
-  const [editCapacity, setEditCapacity] = useState(60);
+  const [editCapacity, setEditCapacity] = useState(defaultPtCapacity("bus"));
   const [editSpeed, setEditSpeed] = useState(30);
+
+  // One panel serves both modes, so the seat default has to follow the mode
+  // the host just picked rather than being fixed when the component mounts —
+  // a train that opens at a bus's 85 seats is the bug this closes, one order
+  // of magnitude smaller.
+  useEffect(() => {
+    if (ptLineCreating) setCapacity(defaultPtCapacity(ptLineCreating));
+  }, [ptLineCreating]);
 
   // Sync edit edge IDs when editing
   useEffect(() => {
