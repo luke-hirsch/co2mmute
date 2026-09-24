@@ -12,6 +12,8 @@ from game.views import (
 from maps.views import MapDetailView, MapListView, MapUploadView
 
 from .views import (
+    AccountDeletedView,
+    AccountDeleteView,
     CookiesView,
     DsgvoView,
     ImpressumView,
@@ -29,6 +31,12 @@ urlpatterns = [
     path("accounts/logout/", LogoutView.as_view(), name="logout"),
     path("accounts/signup/", SignUpView.as_view(), name="signup"),
     path("accounts/profile/", ProfileView.as_view(), name="profile"),
+    path(
+        "accounts/profile/delete/",
+        AccountDeleteView.as_view(),
+        name="account-delete",
+    ),
+    path("accounts/deleted/", AccountDeletedView.as_view(), name="account-deleted"),
     path("accounts/", include("django.contrib.auth.urls")),
     path("legal/dsgvo/", DsgvoView.as_view(), name="dsgvo"),
     path("legal/impressum/", ImpressumView.as_view(), name="impressum"),

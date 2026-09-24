@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+<!-- comment to trick formatter -->
+{% block title % }
+<!-- comment to trick formatter -->
+Konto gelöscht - CO2MMUTE
+<!-- comment to trick formatter -->
+{% endblock %}
+<!-- comment to trick formatter -->
+{% block main %}
+<section class="mx-auto w-full max-w-2xl px-6 py-12">
+  <h1
+    class="text-3xl font-semibold tracking-tight text-main dark:text-darktext"
+  >
+    Dein Konto ist gelöscht.
+  </h1>
+  <p class="mt-4 text-sm text-muted dark:text-darkmutedtext">
+    Dein Name, dein Benutzername und deine E-Mail-Adresse sind entfernt, und
+    laufende Spiele sind beendet. Die Spielergebnisse bleiben anonym erhalten.
+  </p>
+  <p class="mt-4 text-sm text-muted dark:text-darkmutedtext">
+    Anmelden kannst du dich damit nicht mehr. Wenn du wieder mitspielen
+    möchtest, leg einfach ein neues Konto an.
+  </p>
+  <div class="mt-8 flex flex-col gap-3 sm:flex-row">
+    <a
+      href="{% url 'index' %}"
+      class="inline-flex items-center justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow transition hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400"
+    >
+      Zur Startseite
+    </a>
+    <a
+      href="{% url 'signup' %}"
+      class="inline-flex items-center justify-center rounded-md border border-subtle px-3 py-1.5 text-sm font-semibold text-main transition hover:bg-elevated dark:border-darksubtle dark:text-darktext dark:hover:bg-darksurface/70"
+    >
+      Neues Konto anlegen
+    </a>
+  </div>
+</section>
+{% endblock %}

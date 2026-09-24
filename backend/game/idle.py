@@ -52,17 +52,5 @@ def games_due_for_idle_end(now: datetime | None = None) -> list[GameSession]:
 def end_idle_game(game: GameSession) -> None:
     """End the game the way the host's stop does. post_save (game_start)
     sends game.ended."""
-    game.is_active = False
-    game.paused_at = None
-    game.ended_at = timezone.now()
-    game.end_reason = GameSession.EndReason.IDLE
-    game.save(
-        update_fields=[
-            "is_active",
-            "paused_at",
-            "ended_at",
-            "end_reason",
-            "updated_at",
-        ]
-    )
+    game.end(GameSession.EndReason.IDLE)
     logger.info(f"Game {game.game_id} ended after {game.idle_end_days} idle days")

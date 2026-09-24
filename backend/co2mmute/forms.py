@@ -148,3 +148,36 @@ class ProfileForm(forms.ModelForm):
         if self._held_by_somebody_else("email", email):
             raise forms.ValidationError("Diese Adresse gehört schon zu einem Konto.")
         return email
+
+
+class AccountDeleteForm(forms.Form):
+    """Re-authentication before the account goes.
+
+    The host machine stands in a classroom, often projected and often still
+    logged in — the password is what keeps a passing student from pressing
+    this. The confirm page of its own is the second guard.
+    """
+
+    password = forms.CharField(
+        label="Passwort",
+        strip=False,
+        widget=forms.PasswordInput,
+        error_messages={"required": "Bitte gib zur Bestätigung dein Passwort ein."},
+    )
+
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user = user
+        self.fields["password"].widget.attrs.setdefault(
+            "class",
+            "block w-full rounded-md bg-white px-3 py-2 text-base text-gray-900 "
+            "outline outline-1 outline-gray-300 focus:outline-2 "
+            "focus:outline-indigo-600 dark:bg-white/5 dark:text-white "
+            "dark:outline-white/10",
+        )
+
+    def clean_password(self):
+        password = self.cleaned_data.get("password") or ""
+        if self.user is None or not self.user.check_password(password):
+            raise forms.ValidationError("Das stimmt nicht. Versuch es noch einmal.")
+        return password

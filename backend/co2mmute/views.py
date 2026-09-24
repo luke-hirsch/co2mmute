@@ -3,14 +3,15 @@ from datetime import timedelta
 import jwt
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import login
+from django.contrib.auth import login, logout
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LogoutView as DjangoLogoutView
 from django.shortcuts import redirect, resolve_url
 from django.urls import NoReverseMatch, reverse_lazy
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.timezone import now
-from django.views.generic import CreateView, TemplateView, UpdateView
+from django.views.generic import CreateView, FormView, TemplateView, UpdateView
+from game.anon import anonymise_account
 from game.auth import resolve_player_id
 from game.cache import get_cached_game_session
 from game.models import GameSession, Player
@@ -20,7 +21,7 @@ from rest_framework.views import APIView
 
 from co2mmute.utils import set_game_access_cookie, set_player_cookie
 
-from .forms import ProfileForm, SignupForm
+from .forms import AccountDeleteForm, ProfileForm, SignupForm
 
 
 class IndexView(TemplateView):
@@ -235,3 +236,38 @@ class WhoAmIView(APIView):
         if cached_game and player:
             return "player"
         return "user"
+
+
+class AccountDeleteView(LoginRequiredMixin, FormView):
+    """DSGVO erasure, from the one page a host ever sees.
+
+    What deletion means is game/anon.py's answer, not this view's: the row
+    stays and the name goes, because game_host is CASCADE.
+    """
+
+    template_name = "registration/account_delete.html"
+    form_class = AccountDeleteForm
+    success_url = reverse_lazy("account-deleted")
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["running_games"] = GameSession.objects.filter(
+            game_host=self.request.user, ended_at__isnull=True
+        ).count()
+        return context
+
+    def form_valid(self, form):
+        anonymise_account(self.request.user)
+        logout(self.request)
+        return super().form_valid(form)
+
+
+class AccountDeletedView(TemplateView):
+    """The last page the account sees, so it cannot want a login."""
+
+    template_name = "registration/account_deleted.html"

@@ -21,6 +21,8 @@ logger = logging.getLogger(__name__)
 ANONYMOUS_NAME_TEMPLATE = "Spieler {n}"
 HOST_NAME = "Host"
 
+DELETED_USERNAME_TEMPLATE = "geloescht-{pk}"
+
 
 def anonymise_game(game: GameSession) -> int:
     """Strip identifying data from a finished game. Returns rows renamed.
@@ -80,3 +82,50 @@ def games_due_for_anonymisation(grace_hours: int):
         ended_at__lt=cutoff,
         anonymised_at__isnull=True,
     )
+
+
+def anonymise_account(user) -> int:
+    """Strip a host account without deleting the row. Returns games ended.
+
+    DSGVO erasure for the one real account this project has. Deleting the row
+    is not an option: GameSession.game_host is on_delete=CASCADE, so it would
+    take every game that host ever ran and the research data with it — the
+    same reason anonymise_game does not delete a game.
+
+    Running games end first. Someone deleting their account mid-lesson is not
+    coming back to press stop, and an abandoned game would otherwise sit there
+    for its whole idle_end_days with a class still in it.
+    """
+    ended = 0
+    for game in GameSession.objects.filter(game_host=user, ended_at__isnull=True):
+        game.end(GameSession.EndReason.HOST)
+        ended += 1
+
+    with transaction.atomic():
+        host_row_ids = list(
+            Player.objects.filter(user=user).host_rows().values_list("pk", flat=True)  # type: ignore
+        )
+        Player.objects.filter(pk__in=host_row_ids).exclude(name=HOST_NAME).update(
+            name=HOST_NAME
+        )
+
+        user.username = DELETED_USERNAME_TEMPLATE.format(pk=user.pk)
+        user.first_name = ""
+        user.last_name = ""
+        user.email = ""
+        user.is_active = False
+        user.set_unusable_password()
+        user.save(
+            update_fields=[
+                "username",
+                "first_name",
+                "last_name",
+                "email",
+                "is_active",
+                "password",
+            ]
+        )
+
+    # the pk, never the name that just went.
+    logger.info(f"Anonymised account {user.pk}: {ended} running games ended")
+    return ended

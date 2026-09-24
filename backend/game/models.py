@@ -9,6 +9,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +119,28 @@ class GameSession(models.Model):
         buffer.seek(0)
 
         return f"{self.game_id}.png", ContentFile(buffer.read())
+
+    def end(self, reason: str) -> None:
+        """End the game now, recording why.
+
+        One definition for every ending: the idle sweep and a deleted host
+        account both land here. Why it ended cannot be worked out afterwards,
+        which is how a game stopped in round 1 of 3 came to report "all rounds
+        played". Saving is what sends game.ended (post_save in signals.py).
+        """
+        self.is_active = False
+        self.paused_at = None
+        self.ended_at = timezone.now()
+        self.end_reason = reason
+        self.save(
+            update_fields=[
+                "is_active",
+                "paused_at",
+                "ended_at",
+                "end_reason",
+                "updated_at",
+            ]
+        )
 
 
 class PlayerQuerySet(models.QuerySet):
