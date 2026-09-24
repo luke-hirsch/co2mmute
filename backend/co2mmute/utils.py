@@ -38,11 +38,22 @@ class CustomPasswordValidator:
         )
 
 
-def game_map_clean(version_game_maps, base_game_map):
-    for version_game_map in version_game_maps:
-        if version_game_map != base_game_map:
+def game_map_clean(map_versions, base_game_map):
+    """Every version an object belongs to has to be a version OF its map.
+
+    The first argument is MapVersion rows and the second a GameMap, so the
+    comparison has to go through the version's own game_map. Comparing the two
+    directly is never equal — they are different models — so this refused
+    every Node, Edge, StreetEdge and TrainEdge that belonged to any version,
+    with a message naming two things that print identically. Nothing in the
+    REST path calls full_clean(), which is why it stayed hidden; the admin
+    could not save one of these at all.
+    """
+    for version in map_versions:
+        if version.game_map_id != base_game_map.pk:
             raise ValidationError(
-                f"MapVersion's GameMap {version_game_map} does not match Node's GameMap {base_game_map}"
+                f"MapVersion {version} belongs to a different GameMap "
+                f"than {base_game_map}"
             )
 
 

@@ -8,6 +8,7 @@ tick loop touches, which is what makes the loop itself Django-free.
 from dataclasses import dataclass, field
 
 from sim.constants import (
+    BIKE_SATURATION_FLOW_VEH_PER_H_LANE,
     JAM_DENSITY_VEH_PER_KM_LANE,
     SATURATION_FLOW_VEH_PER_H_LANE,
     pt_cost_eur_per_vehicle_km,
@@ -194,6 +195,12 @@ class EdgeState:
     car_lanes: int = 1
     has_dedicated_bus_lane: bool = False
 
+    # Whether a bike shares this link with cars. Both default to the values
+    # that leave an EdgeState built by hand in a test behaving exactly as it
+    # did before bikes entered the queue model: not a street, so free running.
+    is_street: bool = False
+    has_bike_lane: bool = False
+
     # This round's capacity draw for this link — see draw_capacity_factor.
     # 1.0 means "no noise", so an EdgeState built by hand in a test behaves
     # exactly as it did before the stochastic layer.
@@ -203,6 +210,12 @@ class EdgeState:
     occupancy_pcu: float = 0.0
     release_budget: float = 0.0
     blocked_since_tick: int = 0
+
+    # The second line on the link. It shares occupancy_pcu with the cars —
+    # bikes take room — but has its own budget, so the car queue can never
+    # hold a cyclist up and a cyclist can never hold a driver up.
+    bike_queue: list[QueuedVehicle] = field(default_factory=list)
+    bike_release_budget: float = 0.0
 
     # Observed traversals, for the per-edge speed the snapshot stores.
     traversal_count: int = 0
@@ -218,8 +231,38 @@ class EdgeState:
 
     @property
     def open_to_cars(self) -> bool:
-        """False on a bus gate: a street given over entirely to buses."""
+        """False on a gate: a street given over entirely to buses or bikes."""
         return self.car_lanes > 0
+
+    @property
+    def bikes_share_the_road(self) -> bool:
+        """A bike is in traffic iff there is a street and no bike lane.
+
+        Everything else is free running: a path, a cycle track, a rail
+        alignment with a way alongside it.
+        """
+        return self.is_street and not self.has_bike_lane
+
+    def bike_flow_per_tick(self, tick_duration_min: int) -> float:
+        """BIKES the link discharges in one tick — not car-equivalents.
+
+        One line, whatever the street's lane count: a cycle lane is a cycle
+        lane. Scaled by the same capacity draw as the cars, because it is the
+        same street having the same kind of day.
+
+        Counted in vehicles and spent in vehicles. The car budget is in PCU
+        because a car is 1.0 and a bus is 3.0 and they share one queue; the
+        bike line holds nothing but bikes, and spending a PCU budget on 0.2
+        PCU vehicles would quietly turn 2000 bikes/h into 10 000. Units are
+        the recurring source of bugs in this model — this one is named for
+        what it counts.
+        """
+        return (
+            BIKE_SATURATION_FLOW_VEH_PER_H_LANE
+            * self.capacity_factor
+            * tick_duration_min
+            / 60.0
+        )
 
     @property
     def _capacity_lanes(self) -> int:

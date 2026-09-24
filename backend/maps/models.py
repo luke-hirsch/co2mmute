@@ -152,6 +152,19 @@ class Node(models.Model):
         pass
 
 
+class EdgeQuerySet(models.QuerySet):
+    def rail_only(self):
+        """Edges that carry rail and no street: a railway, not a street.
+
+        The set the 0005 data pass clears `biking` and `walking` on. Written
+        here rather than inline in the migration so it can be tested without
+        importing a module whose name starts with a digit, and so the next
+        caller has one definition to use. Same shape as
+        `Player.objects.playing()`.
+        """
+        return self.filter(trainedge__isnull=False, streetedge__isnull=True).distinct()
+
+
 class Edge(models.Model):
     class Meta:
         ordering = ("game_map", "name", "pk")
@@ -166,8 +179,11 @@ class Edge(models.Model):
         Node, on_delete=models.CASCADE, related_name="end_node"
     )
     biking = models.BooleanField(default=True)
+    bike_lane = models.BooleanField(default=False)
     walking = models.BooleanField(default=True)
     max_lanes = models.PositiveSmallIntegerField(default=1)
+
+    objects = EdgeQuerySet.as_manager()
 
     def euclidean_2d_distance(self):
         dx = self.end_node.x_position - self.start_node.x_position
@@ -175,6 +191,14 @@ class Edge(models.Model):
         return math.sqrt((dx * dx) + (dy * dy))
 
     def clean(self) -> None:
+        if self.bike_lane and not self.biking:
+            raise ValidationError(
+                {
+                    "bike_lane": (
+                        "Eine Kante mit Radweg muss auch fuer Raeder freigegeben sein."
+                    )
+                }
+            )
         game_map_clean(self.map_versions.all(), self.game_map)
         return super().clean()
 

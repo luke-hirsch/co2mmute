@@ -1083,8 +1083,12 @@ class EndingAnUnstartedGameTests(TempMediaRootMixin, TestCase):
 # ---------------------------------------------------------------------------
 
 
-class BusGateSubmitTests(TempMediaRootMixin, TestCase):
-    """A car route over a street with no car lane is refused at submit."""
+class GateFixtureMixin(TempMediaRootMixin):
+    """One street, one player, one car route over it.
+
+    Extracted so the bike-lane tests below can reuse the fixture without
+    inheriting a test class and re-running its assertions under a second name.
+    """
 
     def setUp(self):
         from maps.models import Edge, GameMap, MapVersion, Node, StreetEdge
@@ -1149,6 +1153,10 @@ class BusGateSubmitTests(TempMediaRootMixin, TestCase):
         return PlayerMoveView()._validate_routes(
             self._car_route(), self.player, self.game
         )
+
+
+class BusGateSubmitTests(GateFixtureMixin, TestCase):
+    """A car route over a street with no car lane is refused at submit."""
 
     def test_an_ordinary_street_takes_a_car(self):
         self.assertIsNone(self._validate())
@@ -1536,4 +1544,71 @@ class SummaryNetworkFigureTests(SimulatedRoundMixin, TestCase):
 
         self.assertAlmostEqual(
             self.round.total_emissions_g - rows, 28_800.0, delta=1.0
+        )
+
+
+class BikeLaneSubmitTests(GateFixtureMixin, TestCase):
+    """A bike lane closes a street to cars the same way a bus lane does.
+
+    Same fixture as the bus gate above, and the same refusal path: the point
+    of these is that the submit check counts *reservations* on the street
+    rather than asking about the bus lane by name. The client
+    does its own pathfinding and `canUseEdge` does not know about bike lanes
+    yet, so the submit is the only thing standing between a class and a car
+    routed down a Fahrradstraße.
+    """
+
+    def test_a_one_lane_street_with_a_bike_lane_refuses_a_car(self):
+        self.edge.bike_lane = True
+        self.edge.save()
+
+        errors = self._validate()
+
+        self.assertIsNotNone(errors)
+        self.assertTrue(
+            any("bike lane" in error for error in errors),
+            msg=f"expected a bike-lane refusal, got {errors}",
+        )
+
+    def test_a_two_lane_street_with_a_bike_lane_still_takes_a_car(self):
+        self.street.lanes = 2
+        self.street.save()
+        self.edge.bike_lane = True
+        self.edge.save()
+
+        self.assertIsNone(self._validate())
+
+    def test_two_lanes_and_both_reservations_refuse_a_car(self):
+        """The case that needs the count rather than two separate branches."""
+        self.street.lanes = 2
+        self.street.dedicated_bus_lane = True
+        self.street.save()
+        self.edge.bike_lane = True
+        self.edge.save()
+
+        errors = self._validate()
+
+        self.assertIsNotNone(errors)
+        self.assertTrue(
+            any("cannot use it" in error for error in errors),
+            msg=f"expected a refusal, got {errors}",
+        )
+
+    def test_a_bike_route_over_a_street_closed_to_bikes_is_refused(self):
+        """An Autobahn. Already enforced; pinned here so the `biking` split
+        cannot quietly turn access into infrastructure."""
+        self.edge.biking = False
+        self.edge.save()
+        route = self._car_route()
+        route[0]["transport_mode"] = "bike"
+        route[0]["route"]["segments"][0]["mode"] = "bike"
+
+        from game.views_rest import PlayerMoveView
+
+        errors = PlayerMoveView()._validate_routes(route, self.player, self.game)
+
+        self.assertIsNotNone(errors)
+        self.assertTrue(
+            any("biking not allowed" in error for error in errors),
+            msg=f"expected a biking refusal, got {errors}",
         )

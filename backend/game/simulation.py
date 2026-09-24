@@ -8,6 +8,7 @@ from maps.models import BusLine, Edge, StreetPerRound, TrainLine
 
 # The engine itself lives in `sim/`
 from sim import (  # noqa: F401
+    BIKE_PCU,
     BUS_COST_PER_VEHICLE_KM,
     BUS_EMISSIONS_G_PER_VEHICLE_KM,
     BUS_PCU,
@@ -213,7 +214,7 @@ class TrafficSimulator:
         self._initialize_edges()
         self._load_pt_legs()
         self.free_running: set[int] = set()
-        self.waiting: list[tuple[float, int, int]] = []
+        self.waiting: list[tuple[float, int, int, float]] = []
         self.forced_releases = 0
 
     def _load_routes(self):
@@ -590,14 +591,27 @@ class TrafficSimulator:
                 )
                 speed_limit = self.default_car_speed_kmh
 
+            # `lanes` counts the whole street, every reservation included, so
+            # ticking "Busspur" or "Radweg" IS the trade-off. Zero car lanes
+            # is legal and makes the street a gate — Lukas: "if that means a
+            # road gets closed for the car entirely, then this is what it is.
+            # People can decide and vote about it."
+            is_street = street_edge is not None
+            has_bike_lane = edge.bike_lane
             car_lanes = lanes
-            if has_dedicated_bus_lane:
-                car_lanes = max(0, lanes - 1)
-                if car_lanes == 0:
+            if is_street:
+                reserved = []
+                if has_dedicated_bus_lane:
+                    reserved.append("a bus lane")
+                if has_bike_lane:
+                    reserved.append("a bike lane")
+                car_lanes = max(0, lanes - len(reserved))
+                if car_lanes == 0 and reserved:
                     logger.info(
-                        "[SIM] Edge %s is a bus gate: closed to cars, open to "
-                        "buses, bikes and pedestrians.",
+                        "[SIM] Edge %s is a gate (%s): closed to cars, open "
+                        "to buses, bikes and pedestrians.",
                         edge.pk,
+                        " and ".join(reserved),
                     )
 
             self.edge_states[edge.pk] = EdgeState(
@@ -608,6 +622,8 @@ class TrafficSimulator:
                 free_flow_speed_kmh=speed_limit,
                 car_lanes=car_lanes,
                 has_dedicated_bus_lane=has_dedicated_bus_lane,
+                is_street=is_street,
+                has_bike_lane=has_bike_lane,
                 capacity_factor=draw_capacity_factor(self.rng),
             )
 
@@ -657,15 +673,27 @@ class TrafficSimulator:
             ]
 
     def _queues_for_traffic(self, mode: str, edge_state: "EdgeState") -> bool:
-        """Cars queue; buses queue only in mixed traffic."""
+        """Cars queue; buses and bikes queue only in mixed traffic.
+
+        A bike is in traffic iff it shares space with cars — a street edge
+        with no bike lane. A path, a cycle track and a rail alignment with a
+        way alongside all free-run. Pedestrians stay outside the queue model
+        deliberately.
+        """
         if mode == "car":
             return True
         if mode == "bus":
             return not edge_state.has_dedicated_bus_lane
+        if mode == "bike":
+            return edge_state.bikes_share_the_road
         return False
 
     def _pcu_for(self, mode: str) -> float:
-        return BUS_PCU if mode == "bus" else 1.0
+        if mode == "bus":
+            return BUS_PCU
+        if mode == "bike":
+            return BIKE_PCU
+        return 1.0
 
     def _state_for_segment(self, route_pk: int, segment_index: int):
         """The link a route's Nth segment runs on, or None past the end."""
@@ -713,6 +741,36 @@ class TrafficSimulator:
         if not self._queues_for_traffic(vehicle.mode, edge_state):
             vehicle.queued = False
             self.free_running.add(vehicle_id)
+            return True
+
+        if vehicle.mode == "bike":
+            # Its own line on the link: bikes and cars never wait for each
+            # other, which is both "a car overtakes a bike" and "a bike
+            # filters past a jam" without a mechanism for either.
+            #
+            # No storage check. A physically full street does not turn a
+            # cyclist away; they squeeze in. The PCU is added all the same —
+            # that is how a crowd of cyclists takes room from the cars, and it
+            # is the only coupling between the two.
+            #
+            # Ordered by readiness rather than strictly FIFO, because one
+            # cyclist can always pass another.
+            pcu = self._pcu_for(vehicle.mode)
+            bisect.insort(
+                edge_state.bike_queue,
+                QueuedVehicle(
+                    vehicle_id=vehicle_id,
+                    ready_at_min=vehicle.ready_at_min,
+                    pcu=pcu,
+                    entered_at_min=at_min,
+                ),
+                key=lambda q: q.ready_at_min,
+            )
+            edge_state.occupancy_pcu += pcu
+            edge_state.peak_occupancy_pcu = max(
+                edge_state.peak_occupancy_pcu, edge_state.occupancy_pcu
+            )
+            vehicle.queued = True
             return True
 
         if vehicle.mode == "car" and not edge_state.open_to_cars:
@@ -786,9 +844,11 @@ class TrafficSimulator:
         to leave, not from when the street let it in.
         """
         still_waiting = []
-        for depart_min, route_pk, person_index in self.waiting:
+        for depart_min, route_pk, person_index, speed_factor in self.waiting:
             if depart_min > tick_end:
-                still_waiting.append((depart_min, route_pk, person_index))
+                still_waiting.append(
+                    (depart_min, route_pk, person_index, speed_factor)
+                )
                 continue
 
             segments = self.route_segments.get(route_pk, [])
@@ -808,19 +868,17 @@ class TrafficSimulator:
                 passenger_count=1,
                 wants_to_depart_min=depart_min,
                 departed=True,
-                # A bus runs to its timetable, not to a driver's taste, so it
-                # takes NO draw — not merely a factor of 1.0. Drawing and
-                # discarding would advance the round's generator and shift
-                # every car departure behind it.
-                speed_factor=1.0
-                if line_key is not None
-                else draw_driver_speed_factor(self.rng),
+                # Drawn once for this person when the departures were built,
+                # and carried across every retry at the door.
+                speed_factor=speed_factor,
             )
             vehicle_id = self.next_vehicle_id
 
             if line_key is not None:
                 if not self._enter_edge(vehicle_id, vehicle, max(depart_min, now)):
-                    still_waiting.append((depart_min, route_pk, person_index))
+                    still_waiting.append(
+                        (depart_min, route_pk, person_index, speed_factor)
+                    )
                     continue
                 self.next_vehicle_id += 1
                 self.vehicles[vehicle_id] = vehicle
@@ -843,7 +901,9 @@ class TrafficSimulator:
                 if person_index == 0:
                     self.sample_vehicles[route_pk] = vehicle_id
             else:
-                still_waiting.append((depart_min, route_pk, person_index))
+                still_waiting.append(
+                    (depart_min, route_pk, person_index, speed_factor)
+                )
 
         self.waiting = still_waiting
 
@@ -906,6 +966,61 @@ class TrafficSimulator:
                 if forced or not self._begin_segment(head.vehicle_id, vehicle, left_at):
                     # Forced past a full link: put it there anyway, over
                     # storage. This only happens after DEADLOCK_TICKS.
+                    self._force_enter(head.vehicle_id, vehicle, left_at)
+        return moved
+
+    def _discharge_bikes(
+        self, edge_state: "EdgeState", now: float, tick_end: float
+    ) -> bool:
+        """Release from the head of the bike line.
+
+        Much simpler than _discharge, and each omission is deliberate:
+
+        - **no downstream storage check** — a bike is never refused entry, so
+          it can never be blocked and never spills back;
+        - **no deadlock escape** — nothing to escape, for the same reason;
+        - **no traversal recording** — traversal_count and traversal_time_min
+          are cars only and must stay so. They become EdgeState.mean_speed_kmh,
+          which feeds the CO2 curve and the route preview, and a bike crossing
+          at 20 km/h would report an empty 50 street as congested;
+        - **not in `released`** — that set is what tells _advance_traffic a
+          junction is alive, and the deadlock escape is a CAR mechanism. A
+          link whose cars are gridlocked while its cyclists ride past is
+          exactly the case the escape exists for, and counting the bikes as
+          movement would reset blocked_since_tick every tick and hang the
+          round to max_ticks.
+
+        The return value is still needed: a bike leaving frees occupancy the
+        cars share, so the tick's `while moved:` loop has to run again.
+        """
+        moved = False
+        while edge_state.bike_queue:
+            head = edge_state.bike_queue[0]
+            if edge_state.bike_release_budget < 1.0:
+                break
+            if head.ready_at_min > tick_end:
+                break
+
+            vehicle = self.vehicles[head.vehicle_id]
+            left_at = max(head.ready_at_min, now)
+            edge_state.bike_queue.pop(0)
+            edge_state.occupancy_pcu -= head.pcu
+            edge_state.bike_release_budget -= 1.0
+            moved = True
+
+            vehicle.segment_index += 1
+            segments = self.route_segments.get(vehicle.route_pk, [])
+            if vehicle.segment_index >= len(segments):
+                vehicle.arrived = True
+                vehicle.arrived_min = left_at
+            else:
+                # _begin_segment puts it back into free_running itself if the
+                # next link is a cycle track or a path, and sends it to a stop
+                # queue if the route changes to a PT leg here.
+                vehicle.mode = segments[vehicle.segment_index].mode
+                if not self._begin_segment(head.vehicle_id, vehicle, left_at):
+                    # Only reachable if the route changes mode here and the
+                    # next link is a full street.
                     self._force_enter(head.vehicle_id, vehicle, left_at)
         return moved
 
@@ -1100,6 +1215,9 @@ class TrafficSimulator:
 
         for edge_state in self.edge_states.values():
             edge_state.release_budget = edge_state.flow_per_tick(self.tick_duration_min)
+            edge_state.bike_release_budget = edge_state.bike_flow_per_tick(
+                self.tick_duration_min
+            )
 
         self._spawn_vehicles(now, tick_end)
         self._advance_free_running(now, tick_end)
@@ -1113,6 +1231,8 @@ class TrafficSimulator:
             moved = False
             for edge_state in self.edge_states.values():
                 if self._discharge(edge_state, now, tick_end, released):
+                    moved = True
+                if self._discharge_bikes(edge_state, now, tick_end):
                     moved = True
             if moved and self.waiting:
                 # A discharge freed storage at somebody's front door. Without
@@ -1166,7 +1286,7 @@ class TrafficSimulator:
         first vehicle that does not want to leave yet.
         """
         held: dict[int, int] = {}
-        for depart_min, route_pk, _person_index in self.waiting:
+        for depart_min, route_pk, _person_index, _speed_factor in self.waiting:
             if depart_min > tick_end:
                 break
             segments = self.route_segments.get(route_pk, [])
@@ -1269,7 +1389,7 @@ class TrafficSimulator:
                 agent_results["waits"].append(vehicle.wait_min)
                 agent_results["not_arrived"] += 1
 
-        for depart_min, route_pk, _person_index in self.waiting:
+        for depart_min, route_pk, _person_index, _speed_factor in self.waiting:
             if depart_min > sim_end_min:
                 # The simulation ended before this person wanted to leave at
                 # all. Nothing happened to them, so nothing is recorded —
@@ -1382,10 +1502,34 @@ class TrafficSimulator:
 
             # Run morning commute
             self._generate_departures(is_morning=True)
-            self.waiting: list[tuple[float, int, int]] = sorted(
-                (depart_min, route_pk, person_index)
-                for route_pk, schedule in self.departure_schedule.items()
-                for person_index, depart_min in schedule
+            # The desired-speed draw belongs to the PERSON, not to the
+            # attempt. It used to happen in _spawn_vehicles, where a traveller
+            # the street turns away is discarded and rebuilt next tick with a
+            # fresh draw — so someone held at the door for three ticks was
+            # dealt three different desired speeds and kept the last. Worse,
+            # it made the whole round's random stream depend on the pattern of
+            # refusals, so any change to link occupancy re-rolled every later
+            # driver and moved results by far more than the change itself.
+            self.waiting: list[tuple[float, int, int, float]] = sorted(
+                (
+                    (
+                        depart_min,
+                        route_pk,
+                        person_index,
+                        # A line vehicle runs to its timetable, not to a
+                        # driver's taste, so it takes NO draw — not merely a
+                        # factor of 1.0. Its route key is the negative one
+                        # _register_pt_line gave it.
+                        1.0
+                        if route_pk < 0
+                        else draw_driver_speed_factor(self.rng),
+                    )
+                    for route_pk, schedule in self.departure_schedule.items()
+                    for person_index, depart_min in schedule
+                ),
+                # Explicitly on the first three: the draw must never decide
+                # who leaves first.
+                key=lambda entry: entry[:3],
             )
 
             total_departures = sum(len(s) for s in self.departure_schedule.values())

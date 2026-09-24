@@ -287,6 +287,7 @@ class EdgeListView(MapScopedQuerysetMixin, ListCreateAPIView):
                 start_node=edge.end_node,
                 end_node=edge.start_node,
                 biking=edge.biking,
+                bike_lane=edge.bike_lane,
                 walking=edge.walking,
                 max_lanes=edge.max_lanes,
             )
@@ -766,6 +767,7 @@ class MapExportView(MapScopedQuerysetMixin, GenericAPIView):
                 "name": edge.name,
                 "type": edge_type,
                 "biking": edge.biking,
+                "bike_lane": edge.bike_lane,
                 "walking": edge.walking,
                 "max_lanes": edge.max_lanes,
             }
@@ -982,6 +984,7 @@ class VersionDiffCreateView(GenericAPIView):
                 start_node=original_edge.start_node,
                 end_node=original_edge.end_node,
                 biking=change.get("biking", original_edge.biking),
+                bike_lane=change.get("bike_lane", original_edge.bike_lane),
                 walking=change.get("walking", original_edge.walking),
                 max_lanes=change.get("max_lanes", original_edge.max_lanes),
             )
@@ -1280,6 +1283,7 @@ class VersionDiffCreateView(GenericAPIView):
                     start_node=s_node,
                     end_node=e_node,
                     biking=edge_data.get("biking", False),
+                    bike_lane=edge_data.get("bike_lane", False),
                     walking=edge_data.get("walking", False),
                     max_lanes=edge_data.get("max_lanes", 1),
                 )

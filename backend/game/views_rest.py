@@ -589,13 +589,23 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
                         errors.append(
                             f"Agent {agent_id}: cars not allowed on edge {edge_id}"
                         )
-                    elif street_edge.dedicated_bus_lane and street_edge.lanes <= 1:
-                        # A bus lane on a one-lane street leaves no car lane:
-                        # the street is a bus gate and cars have to go round.
-                        errors.append(
-                            f"Agent {agent_id}: edge {edge_id} is a bus lane, "
-                            f"cars cannot use it"
-                        )
+                    else:
+                        # `lanes` counts the whole street, so every reservation
+                        # takes one off the cars. On a one-lane street a single
+                        # one leaves no car lane at all: the street is a gate
+                        # and cars have to go round. Counted rather than asked
+                        # about by name, or the two-reservation case falls
+                        # through both branches.
+                        reserved = []
+                        if street_edge.dedicated_bus_lane:
+                            reserved.append("bus lane")
+                        if edge.bike_lane:
+                            reserved.append("bike lane")
+                        if reserved and street_edge.lanes - len(reserved) <= 0:
+                            errors.append(
+                                f"Agent {agent_id}: edge {edge_id} is a "
+                                f"{' and '.join(reserved)}, cars cannot use it"
+                            )
                 if mode in ("bus", "train"):
                     pass
 

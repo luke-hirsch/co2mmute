@@ -6,6 +6,7 @@ Tests cover:
 - Speed-dependent CO2 and cost for cars, and that a jam costs more of both
 - Free-flow trip times (no longer quantised to whole ticks)
 - Dedicated bus lanes and bus gates
+- Bike lanes: a lane taken from the cars, and a bike in mixed traffic
 - Bus traffic integration (a dedicated lane costs the cars nothing)
 - Departure minutes, and that they are fair across routes
 - Speed loading from models, and the speed_limit = 0 fallback
@@ -40,6 +41,7 @@ from game.models import (
 from game.simulation import (
     EdgeState,
     TrafficSimulator,
+    draw_driver_speed_factor,
 )
 
 
@@ -539,11 +541,14 @@ class NonArrivalAccountingTests(TestCase):
         # Every waiting entry is exactly one person since
         # `[backend]-pt-boarding.md` deleted route_vehicle_scaling; this test
         # used to have to say so.
+        # (wanted departure, route, person, desired-speed factor) — the
+        # factor is drawn with the departure now rather than at each spawn
+        # attempt, so it rides along on the waiting list.
         simulator.waiting = [
-            (820.0, self.agent_route.pk, 0),
+            (820.0, self.agent_route.pk, 0, 1.0),
             # Wanted to leave after the clock stopped: nothing happened to
             # them, so nothing is recorded.
-            (1200.0, self.agent_route.pk, 1),
+            (1200.0, self.agent_route.pk, 1, 1.0),
         ]
 
         simulator._record_non_arrivals()
@@ -605,9 +610,22 @@ def _grid_map(name, node_count, step_units=3.0, scale=100.0):
     return game_map, version, nodes
 
 
-def _street(game_map, version, start, end, speed_limit=50, lanes=1, bus_lane=False):
+def _street(
+    game_map,
+    version,
+    start,
+    end,
+    speed_limit=50,
+    lanes=1,
+    bus_lane=False,
+    bike_lane=False,
+):
     edge = Edge.objects.create(
-        game_map=game_map, start_node=start, end_node=end, max_lanes=lanes
+        game_map=game_map,
+        start_node=start,
+        end_node=end,
+        max_lanes=lanes,
+        bike_lane=bike_lane,
     )
     edge.map_versions.add(version)
     street = StreetEdge.objects.create(
@@ -3110,3 +3128,423 @@ class PTRealisedShareTests(PTBoardingScenarioMixin, TestCase):
             )
             shares += line.share_of(line.society_co2_g, person_km)
         self.assertAlmostEqual(shares, line.society_co2_g, places=6)
+
+
+# ---------------------------------------------------------------------------
+# Bikes — see `.claude/plans/to-do/[backend]-bike-lane-and-traffic.md`.
+#
+# Two separate claims, and they are tested separately:
+#
+#   1. A bike lane takes a car lane, floored at zero, exactly as a bus lane
+#      already does. On a one-lane street that closes it to cars — a
+#      Fahrradstraße — and that is the trade-off the class votes on.
+#   2. A bike queues if and only if it shares space with cars: a street edge
+#      with no bike lane. It takes space, it is overtaken, and it filters past
+#      a jam because it discharges on a budget of its own.
+#
+# The named simplifications, both deliberate and both pinned below: car
+# congestion does not slow a bike, and a bike does not slow a car. Any
+# coupling beyond the shared storage would be a number invented to look right.
+# ---------------------------------------------------------------------------
+
+
+class BikeLaneTakesACarLaneTests(TestCase):
+    """`lanes` counts the whole street, the bike lane included.
+
+    Same convention as the bus lane, and for the same reason: under the other
+    one every bike-lane version needs two edits that have to agree. Lukas, on
+    why a bike lane may close a street outright: "in real life, if you have a
+    road with limited space and you want to introduce a bike lane, you have to
+    decide — do I take a lane away, or do I take parking away? We are not
+    modelling parking. So it is taking space from the car and distributing it
+    to the bike. And if that means a road gets closed for the car entirely,
+    then this is what it is. People can decide and vote about it."
+
+    On the shipped map that is 54 of 90 street edges.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="radweg", password="12345")
+        self.game_map, self.version, self.nodes = _grid_map("Bike lane map", 3)
+
+    def _simulator_over(self, edge):
+        session = _session(self.user, self.game_map)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+        player = Player.objects.create(name="Radlerin", game=session)
+        _route(game_round, player, [edge], mode="bike")
+        return TrafficSimulator(game_round, scale=100.0, seed=17)
+
+    def test_a_bike_lane_takes_one_of_the_streets_lanes(self):
+        edge = _street(
+            self.game_map, self.version, self.nodes[0], self.nodes[1],
+            lanes=2, bike_lane=True,
+        )
+
+        simulator = self._simulator_over(edge)
+
+        self.assertEqual(simulator.edge_states[edge.pk].car_lanes, 1)
+
+    def test_a_street_without_a_bike_lane_keeps_all_its_lanes(self):
+        edge = _street(
+            self.game_map, self.version, self.nodes[0], self.nodes[1],
+            lanes=2, bike_lane=False,
+        )
+
+        simulator = self._simulator_over(edge)
+
+        self.assertEqual(simulator.edge_states[edge.pk].car_lanes, 2)
+
+    def test_a_bus_lane_and_a_bike_lane_take_two(self):
+        edge = _street(
+            self.game_map, self.version, self.nodes[0], self.nodes[1],
+            lanes=3, bus_lane=True, bike_lane=True,
+        )
+
+        simulator = self._simulator_over(edge)
+
+        self.assertEqual(simulator.edge_states[edge.pk].car_lanes, 1)
+
+    def test_a_single_lane_street_with_a_bike_lane_closes_to_cars(self):
+        """A Fahrradstraße, and the same machinery as the bus gate."""
+        edge = _street(
+            self.game_map, self.version, self.nodes[0], self.nodes[1],
+            lanes=1, bike_lane=True,
+        )
+
+        state = self._simulator_over(edge).edge_states[edge.pk]
+
+        self.assertEqual(state.car_lanes, 0)
+        self.assertFalse(state.open_to_cars)
+
+    def test_a_two_lane_street_with_both_reservations_closes_to_cars(self):
+        edge = _street(
+            self.game_map, self.version, self.nodes[0], self.nodes[1],
+            lanes=2, bus_lane=True, bike_lane=True,
+        )
+
+        state = self._simulator_over(edge).edge_states[edge.pk]
+
+        self.assertEqual(state.car_lanes, 0)
+        self.assertFalse(state.open_to_cars)
+
+    def test_car_lanes_never_go_negative(self):
+        """max(0, ...) rather than a bare subtraction: a negative lane count
+        would make _capacity_lanes' max(1, ...) silently hand the street back
+        to the cars."""
+        edge = _street(
+            self.game_map, self.version, self.nodes[0], self.nodes[1],
+            lanes=1, bus_lane=True, bike_lane=True,
+        )
+
+        self.assertEqual(self._simulator_over(edge).edge_states[edge.pk].car_lanes, 0)
+
+    def test_the_street_still_has_usable_capacity_numbers(self):
+        """Zero car lanes must not mean zero flow — see _capacity_lanes."""
+        edge = _street(
+            self.game_map, self.version, self.nodes[0], self.nodes[1],
+            lanes=1, bike_lane=True,
+        )
+
+        state = self._simulator_over(edge).edge_states[edge.pk]
+
+        self.assertGreater(state.storage_capacity_pcu, 0)
+        self.assertGreater(state.flow_per_tick(5), 0)
+
+
+class BikeQueueingRuleTests(TestCase):
+    """A bike queues iff it shares space with cars.
+
+    The rule has to be readable off the link alone, which is why EdgeState
+    carries `is_street` and `has_bike_lane` rather than the simulator looking
+    the edge back up. Both default to the values that leave every EdgeState
+    built by hand in the older tests behaving exactly as it did before.
+    """
+
+    def _state(self, is_street, has_bike_lane=False):
+        return EdgeState(
+            edge_id=1,
+            distance_m=1000.0,
+            free_flow_speed_kmh=50.0,
+            car_lanes=1,
+            is_street=is_street,
+            has_bike_lane=has_bike_lane,
+        )
+
+    def test_a_bike_on_a_plain_street_is_in_traffic(self):
+        simulator = TrafficSimulator.__new__(TrafficSimulator)
+
+        self.assertTrue(
+            simulator._queues_for_traffic("bike", self._state(is_street=True))
+        )
+
+    def test_a_bike_on_a_street_with_a_bike_lane_runs_free(self):
+        simulator = TrafficSimulator.__new__(TrafficSimulator)
+
+        self.assertFalse(
+            simulator._queues_for_traffic(
+                "bike", self._state(is_street=True, has_bike_lane=True)
+            )
+        )
+
+    def test_a_bike_on_a_path_runs_free(self):
+        """No street, so no cars to share with — a park path or a towpath."""
+        simulator = TrafficSimulator.__new__(TrafficSimulator)
+
+        self.assertFalse(
+            simulator._queues_for_traffic("bike", self._state(is_street=False))
+        )
+
+    def test_a_bike_alongside_a_railway_runs_free(self):
+        """The S-Bahn-with-a-path case: rail carries no StreetEdge either."""
+        simulator = TrafficSimulator.__new__(TrafficSimulator)
+
+        self.assertFalse(
+            simulator._queues_for_traffic(
+                "bike", self._state(is_street=False, has_bike_lane=True)
+            )
+        )
+
+    def test_a_walker_never_queues(self):
+        """Pedestrians stay outside the queue model deliberately."""
+        simulator = TrafficSimulator.__new__(TrafficSimulator)
+
+        self.assertFalse(
+            simulator._queues_for_traffic("walk", self._state(is_street=True))
+        )
+
+    def test_a_cyclist_takes_less_room_than_a_driver(self):
+        from game.simulation import BIKE_PCU
+
+        simulator = TrafficSimulator.__new__(TrafficSimulator)
+
+        self.assertEqual(simulator._pcu_for("bike"), BIKE_PCU)
+        self.assertLess(BIKE_PCU, 1.0)
+
+
+class BikeInTrafficTests(TestCase):
+    """What a bike in mixed traffic does to the street, and the street to it.
+
+    `departure_std_dev_min=0` on purpose: every person leaves at the same
+    minute, so the two runs a test compares differ in nothing but the traffic
+    that is there. A non-zero spread draws from the simulator's own rng, and
+    adding a second route would shift every later draw — the trip times would
+    then differ for a reason that has nothing to do with the claim.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="verkehr", password="12345")
+        self.game_map, self.version, self.nodes = _grid_map("Bike traffic map", 2)
+
+    def _run(self, modes, bike_lane=False, people=300):
+        from game.tests._helpers import muted
+
+        edge = _street(
+            self.game_map, self.version, self.nodes[0], self.nodes[1],
+            lanes=1, bike_lane=bike_lane,
+        )
+        session = _session(self.user, self.game_map, people_per_agent=people, std_dev=0)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+        routes = {}
+        for index, mode in enumerate(modes):
+            player = Player.objects.create(name=f"Agent {index}", game=session)
+            routes[mode] = _route(game_round, player, [edge], mode=mode)
+        simulator = TrafficSimulator(game_round, scale=100.0, seed=4711)
+        with muted():
+            simulator.run_simulation(max_ticks=200)
+        return simulator, edge, routes
+
+    def _trip_times(self, simulator, route):
+        return simulator.agent_results[route.pk]["trip_times"]
+
+    def test_bikes_occupy_the_street(self):
+        """The trade-off a bike lane buys the cars, and it arrives for free.
+
+        Cyclists really do take storage on a mixed street, so taking them off
+        it visibly frees space. Today they consume none: `peak_occupancy_pcu`
+        on a bike-only street reads 0.0.
+        """
+        simulator, edge, _ = self._run(["bike"])
+
+        self.assertGreater(simulator.edge_states[edge.pk].peak_occupancy_pcu, 0.0)
+
+    def test_bikes_on_a_bike_lane_occupy_nothing(self):
+        """Separated infrastructure is not the carriageway."""
+        simulator, edge, _ = self._run(["bike"], bike_lane=True)
+
+        self.assertEqual(simulator.edge_states[edge.pk].peak_occupancy_pcu, 0.0)
+
+    def test_a_bike_in_traffic_is_delayed_by_other_bikes(self):
+        """300 cyclists leaving at the same minute are a queue of cyclists.
+
+        Today every bike trip is exactly its free-flow estimate — mean, min
+        and max identical, delay 0.00 — on every edge of every map.
+        """
+        simulator, _, routes = self._run(["bike"])
+
+        delays = simulator.agent_results[routes["bike"].pk]["delays"]
+
+        self.assertGreater(max(delays), 0.0)
+
+    def test_a_bike_on_a_bike_lane_is_never_delayed(self):
+        simulator, _, routes = self._run(["bike"], bike_lane=True)
+
+        delays = simulator.agent_results[routes["bike"].pk]["delays"]
+
+        self.assertEqual(max(delays), 0.0)
+
+    def test_the_car_jam_does_not_slow_the_bike(self):
+        """The named simplification, stated as a test so it stays deliberate.
+
+        A bike in mixed traffic is delayed by other bikes and by nothing else.
+        The driver-side argument for a bike lane comes through the shared
+        storage, not through a made-up coupling.
+        """
+        alone, _, alone_routes = self._run(["bike"])
+        with_cars, _, mixed_routes = self._run(["bike", "car"])
+
+        self.assertEqual(
+            self._trip_times(with_cars, mixed_routes["bike"]),
+            self._trip_times(alone, alone_routes["bike"]),
+        )
+
+    def test_a_car_is_never_stuck_behind_a_bike(self):
+        """The other half of the same simplification.
+
+        A cyclist on a one-lane street really would hold a driver up. The
+        model says they do not: cars and bikes are separate lines on the link
+        and each discharges on its own budget, so a car passes a bike without
+        any code for overtaking. Green today because bikes are not on the link
+        at all — it is here to stay green, and it is exactly what breaks if
+        the bikes are ever put into `queue` instead of `bike_queue`.
+
+        Deliberately uncongested: what is being pinned is that the bike is not
+        in the way, not that the street is empty.
+        """
+        simulator, _, routes = self._run(["car", "bike"], people=30)
+
+        delays = simulator.agent_results[routes["car"].pk]["delays"]
+
+        # Zero to floating-point noise, not to the bit: a delay is a trip time
+        # minus a free-flow time, and both are sums of divisions.
+        self.assertAlmostEqual(max(delays), 0.0, places=6)
+
+    def test_bikes_and_cars_share_the_links_storage(self):
+        """The driver-side argument for a bike lane, and the only coupling.
+
+        Cyclists take room on a mixed street whether or not they slow anyone,
+        so taking them off it frees storage the cars can use — which is the
+        trade-off the class is voting on. It is also the *only* way bikes
+        reach the cars at all: there is no term anywhere that makes a queue of
+        cars slower because there are bicycles in it.
+
+        Thirty of each on 300 m of one lane: 30.0 PCU of cars alone, 36.0 with
+        the bikes, against 39.9 of storage — so both runs fit and the
+        difference is the bikes rather than a spillback.
+        """
+        alone, cars_only_edge, _ = self._run(["car"], people=30)
+        with_bikes, mixed_edge, _ = self._run(["car", "bike"], people=30)
+
+        self.assertGreater(
+            with_bikes.edge_states[mixed_edge.pk].peak_occupancy_pcu,
+            alone.edge_states[cars_only_edge.pk].peak_occupancy_pcu,
+        )
+
+    def test_a_street_full_of_cars_still_admits_a_bike(self):
+        """A physically full street does not turn a cyclist away; they squeeze
+        in. So a bike skips the storage check while still adding its PCU, and
+        none of the 300 are left standing at the front door."""
+        simulator, _, routes = self._run(["bike", "car"])
+
+        results = simulator.agent_results[routes["bike"].pk]
+
+        self.assertEqual(results["not_arrived"], 0)
+        self.assertEqual(len(results["trip_times"]), 300)
+
+    def test_bikes_do_not_move_the_streets_observed_speed(self):
+        """`mean_speed_kmh` stays cars-only, the way it already is for walkers.
+
+        It feeds the CO2 factor and the route preview, so a bike crossing at
+        20 km/h must not report a 50 street as congested.
+        """
+        simulator, edge, _ = self._run(["bike"])
+
+        state = simulator.edge_states[edge.pk]
+
+        self.assertEqual(state.traversal_count, 0)
+        self.assertEqual(state.mean_speed_kmh, state.free_flow_speed_kmh)
+
+
+class DriverSpeedIsDrawnOncePerPersonTests(TestCase):
+    """A desired speed belongs to the traveller, not to the attempt.
+
+    `draw_driver_speed_factor` is documented as one draw per vehicle carried
+    for the whole trip — redrawing per link would average a long route back to
+    the mean and the dial would do nothing. It was drawn in `_spawn_vehicles`,
+    which is retried: a traveller whose first street is full stays on the
+    waiting list and is rebuilt from scratch next tick, with a fresh draw.
+    Someone held at the door for three ticks was dealt three desired speeds
+    and kept the last.
+
+    The expensive half is not the unfairness, it is that the round's random
+    stream then depends on the pattern of spawn refusals. Any change touching
+    link occupancy re-rolls every later driver, so the result moves by far
+    more than the change itself — and in an arbitrary direction. Measured on
+    the golden-master scenario while adding bikes to traffic: the mechanism is
+    worth +0.2 min of car delay, and the re-rolled drivers turned that into
+    -2.0 min. A golden master cannot do its job against that.
+
+    The draw moves to where the departures are built: once per person, carried
+    through every retry.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="einmal", password="12345")
+
+    def _run(self, people, lanes):
+        from unittest import mock
+
+        from game.tests._helpers import muted
+
+        game_map, version, nodes = _grid_map(f"Draws {people} {lanes}", 3)
+        edges = [
+            _street(game_map, version, nodes[0], nodes[1], lanes=lanes),
+            _street(game_map, version, nodes[1], nodes[2], lanes=lanes),
+        ]
+        session = _session(self.user, game_map, people_per_agent=people, std_dev=1)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+        player = Player.objects.create(name="Fahrerin", game=session)
+        _route(game_round, player, edges)
+
+        simulator = TrafficSimulator(game_round, scale=100.0, seed=2026)
+        with mock.patch(
+            "game.simulation.draw_driver_speed_factor",
+            side_effect=draw_driver_speed_factor,
+        ) as draws:
+            with muted():
+                simulator.run_simulation(max_ticks=400)
+        return simulator, draws.call_count
+
+    def test_a_crowd_held_at_the_door_is_still_drawn_for_once_each(self):
+        """900 cars onto one lane: the door turns most of them away for ticks.
+
+        Storage on 300 m of one lane is 39.9 vehicles, so all but forty are
+        refused on the first tick and come back on the next.
+        """
+        _, draws = self._run(people=900, lanes=1)
+
+        self.assertEqual(draws, 900)
+
+    def test_nobody_is_drawn_for_twice_when_nobody_is_refused(self):
+        """The control. Without it the test above would also pass if the
+        draw moved somewhere it never runs at all."""
+        _, draws = self._run(people=20, lanes=3)
+
+        self.assertEqual(draws, 20)
+
+    def test_everyone_still_gets_a_speed_of_their_own(self):
+        """Moving the draw must not quietly turn the dial off."""
+        simulator, _ = self._run(people=900, lanes=1)
+
+        factors = {v.speed_factor for v in simulator.vehicles.values()}
+
+        self.assertGreater(len(factors), 100)

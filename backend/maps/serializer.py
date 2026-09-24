@@ -201,6 +201,7 @@ class EdgeSerializer(MapVersionsMixin, serializers.ModelSerializer):
             "start_node",
             "end_node",
             "biking",
+            "bike_lane",
             "walking",
             "max_lanes",
             "map_versions",
@@ -213,6 +214,26 @@ class EdgeSerializer(MapVersionsMixin, serializers.ModelSerializer):
         extra_kwargs = {
             "name": {"required": False, "allow_blank": True},
         }
+
+    def validate(self, attrs):
+        """A bike lane implies bike access — refused, not corrected.
+
+        PATCHes arrive partial, so both values are read off the instance
+        first: ticking "Radweg" on an edge that is closed to bikes sends only
+        `bike_lane` and has to be caught all the same.
+        """
+        instance = getattr(self, "instance", None)
+        bike_lane = attrs.get("bike_lane", getattr(instance, "bike_lane", False))
+        biking = attrs.get("biking", getattr(instance, "biking", True))
+        if bike_lane and not biking:
+            raise serializers.ValidationError(
+                {
+                    "bike_lane": (
+                        "Eine Kante mit Radweg muss auch fuer Raeder freigegeben sein."
+                    )
+                }
+            )
+        return attrs
 
     def get_street_edge(self, obj):
         """Get street edge data if it exists for this edge."""
@@ -612,6 +633,7 @@ class EdgeChangeSerializer(serializers.Serializer):
 
     edge_id = serializers.IntegerField()
     biking = serializers.BooleanField(required=False)
+    bike_lane = serializers.BooleanField(required=False)
     walking = serializers.BooleanField(required=False)
     max_lanes = serializers.IntegerField(required=False)
     speed_limit = serializers.IntegerField(required=False)
@@ -649,6 +671,7 @@ class NewEdgeSerializer(serializers.Serializer):
     temp_end_node = serializers.CharField()
     bidirectional = serializers.BooleanField(default=False)
     biking = serializers.BooleanField(default=False)
+    bike_lane = serializers.BooleanField(default=False)
     walking = serializers.BooleanField(default=False)
     max_lanes = serializers.IntegerField(default=1)
     speed_limit = serializers.IntegerField(required=False)
