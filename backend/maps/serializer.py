@@ -1,9 +1,9 @@
 import logging
 
+from game.models import GameRound, SimulationResult
 from rest_framework import serializers
 
 import maps.models as mm
-from game.models import GameRound, SimulationResult
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ class MapVersionsMixin:
     )
 
     def to_representation(self, instance):
-        data = super().to_representation(instance)
+        data = super().to_representation(instance)  # type: ignore
         data["map_versions"] = MapVersionSerializer(
             instance.map_versions.all(),
             many=True,
@@ -476,62 +476,24 @@ class PTLineGraphSerializer(serializers.Serializer):
 def _stops_in_travel_order(edges, line_label):
     """Node ids a line serves, in travel order.
 
-    `edges` is the ordered list of Edge rows the line runs over. An edge may be
-    stored either way round relative to the direction of travel — the map
-    importer does not normalise that, and the shipped examples store every edge
-    of every line reversed — so the chain is followed by matching node ids
-    rather than by trusting start_node/end_node.
-
-    The first edge is the one that needs care: on its own there is nothing to
-    orient it against, so its direction is decided by whichever of its ends the
-    *second* edge touches. Seeding it in stored order instead is what made every
-    line report its first two nodes and stop (2026-09-19).
-
-    Returns [] for no edges, and truncates with a warning if the chain breaks —
-    a line whose edges are not connected is a broken map, not a routing puzzle.
+    The walk itself is `sim.node_chain` — the simulator needs the identical
+    chain to run a line's vehicles stop by stop, and two copies of it would
+    drift. What stays here is the warning: a line whose edges are not connected
+    is a broken map, not a routing puzzle, and it should say so by name.
     """
-    if not edges:
-        return []
+    from sim import node_chain
 
-    first = edges[0]
-    if len(edges) == 1:
-        return [first.start_node_id, first.end_node_id]
-
-    second = edges[1]
-    second_ends = {second.start_node_id, second.end_node_id}
-
-    # The shared node is where the first edge ends and the second begins.
-    if first.end_node_id in second_ends:
-        stops = [first.start_node_id, first.end_node_id]
-    elif first.start_node_id in second_ends:
-        stops = [first.end_node_id, first.start_node_id]
-    else:
+    stops = node_chain([(e.start_node_id, e.end_node_id) for e in edges])
+    if edges and len(stops) < len(edges) + 1:
+        broken = edges[max(0, len(stops) - 1)]
         logger.warning(
-            "%s: first edge %s (%s → %s) does not connect to the next edge. "
+            "%s: edge %s (%s → %s) is disconnected from the rest of the line. "
             "Route truncated at this edge.",
             line_label,
-            first.pk,
-            first.start_node_id,
-            first.end_node_id,
+            broken.pk,
+            broken.start_node_id,
+            broken.end_node_id,
         )
-        return [first.start_node_id, first.end_node_id]
-
-    for edge in edges[1:]:
-        prev = stops[-1]
-        if prev == edge.start_node_id:
-            stops.append(edge.end_node_id)
-        elif prev == edge.end_node_id:
-            stops.append(edge.start_node_id)
-        else:
-            logger.warning(
-                "%s: edge %s is disconnected from previous stop %s. "
-                "Route truncated at this edge.",
-                line_label,
-                edge.pk,
-                prev,
-            )
-            break
-
     return stops
 
 
@@ -629,7 +591,7 @@ def serialize_previous_round_traffic(game_id):
 
     return [
         {
-            "edgeId": street_round.edge.edge_id,
+            "edgeId": street_round.edge.edge_id,  # type: ignore
             "avgSpeedKmh": street_round.speed_under_load,
             "congestionLevel": _congestion_level(
                 street_round.speed_under_load, street_round.edge.speed_limit

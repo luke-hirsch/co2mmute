@@ -48,7 +48,14 @@ from sim.constants import (
 )
 from sim.log import SimulationLog
 from sim.scenario import Segment
-from sim.state import EdgeState, PTLineState, PTVehicle, QueuedVehicle, Vehicle
+from sim.state import (
+    EdgeState,
+    PTLineState,
+    PTVehicle,
+    QueuedVehicle,
+    Vehicle,
+    node_chain,
+)
 
 __all__ = [
     "BUS_COST_PER_VEHICLE_KM",
@@ -85,4 +92,5 @@ __all__ = [
     "draw_capacity_factor",
     "draw_driver_speed_factor",
     "generate_departure_minutes",
+    "node_chain",
 ]

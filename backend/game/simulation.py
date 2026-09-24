@@ -1,8 +1,8 @@
 import bisect
 import logging
-import math
 import random
 from collections.abc import Callable
+from dataclasses import dataclass
 
 from maps.models import BusLine, Edge, StreetPerRound, TrainLine
 
@@ -38,6 +38,7 @@ from sim import (  # noqa: F401
     draw_capacity_factor,
     draw_driver_speed_factor,
     generate_departure_minutes,
+    node_chain,
 )
 
 from game.models import (
@@ -69,6 +70,23 @@ FALLBACK_TRAIN_INTERVAL_MIN = 10
 
 # Departure window: matches the ±60 min clamp in generate_departure_minutes()
 DEPARTURE_WINDOW_MIN = 120
+
+
+@dataclass(frozen=True)
+class PTLeg:
+    """One unbroken run of a route's segments on one PT line.
+
+    A route is a list of segments; a leg is the stretch of it spent on a single
+    line. `first_index` and `last_index` are indices into that segment list, so
+    a rider set down at the end of a leg resumes at `last_index + 1` — which is
+    the walk to work, or the stop where it waits for the next line.
+    """
+
+    first_index: int
+    last_index: int
+    line_key: tuple[str, int]
+    board_node: int
+    alight_node: int
 
 
 class TrafficSimulator:
@@ -135,6 +153,27 @@ class TrafficSimulator:
 
         # PT vehicles
         self.pt_vehicles: list[PTVehicle] = []
+        self.pt_by_vehicle: dict[int, PTVehicle] = {}
+
+        # A line's own run through self.route_segments, under a key that cannot
+        # be an AgentRoute pk. See §"the one structural idea".
+        self.line_route_keys: dict[tuple[str, int], int] = {}
+
+        # People standing at a stop: (line_key, node_id) -> vehicle ids, in the
+        # order they got there. A rider waiting for M1 does not board U7, so the
+        # line is part of the key.
+        self.stop_queues: dict[tuple[tuple[str, int], int], list[int]] = {}
+
+        # Which leg of which line each route rides: route_pk -> [PTLeg]
+        self.route_pt_legs: dict[int, list[PTLeg]] = {}
+
+        # Person-kilometres this route ACTUALLY rode on each line, accumulated
+        # as people alight. Replaces the timetable guide's assumption that
+        # everyone who submitted a PT route travelled on it.
+        self.route_pt_person_km: dict[int, dict[tuple[str, int], float]] = {}
+
+        # People on this route who boarded at least once, i.e. bought a ticket.
+        self.route_fares: dict[int, int] = {}
 
         # Route data indexed by route.pk (globally unique)
         self.agent_routes: dict[int, AgentRoute] = {}
@@ -150,12 +189,6 @@ class TrafficSimulator:
 
         # PT sim in itself
         self.pt_lines: dict[tuple[str, int], PTLineState] = {}
-
-        # Per-route PT wait time (interval/2): route_pk -> wait_min
-        self.route_pt_wait_min: dict[int, float] = {}
-
-        # Vehicle scaling for PT routes: route_pk -> (num_vehicles, passenger_count)
-        self.route_vehicle_scaling: dict[int, tuple[int, int]] = {}
 
         # Departure schedules: route_pk -> list of (person_index, departure_tick)
         self.departure_schedule: dict[int, list[tuple[int, float]]] = {}
@@ -178,6 +211,7 @@ class TrafficSimulator:
         # Load routes and initialize edges during construction
         self._load_routes()
         self._initialize_edges()
+        self._load_pt_legs()
         self.free_running: set[int] = set()
         self.waiting: list[tuple[float, int, int]] = []
         self.forced_releases = 0
@@ -225,6 +259,7 @@ class TrafficSimulator:
                 self.agent_results[route.pk] = {
                     "trip_times": [],
                     "delays": [],
+                    "waits": [],
                     "mode": route.transport_mode,
                     "not_arrived": 0,
                 }
@@ -234,62 +269,7 @@ class TrafficSimulator:
 
         # Load PT line speeds and compute vehicle scaling
         self._load_pt_line_speeds()
-        self._compute_vehicle_scaling()
         self._load_pt_lines()
-
-    def _compute_vehicle_scaling(self):
-        """Compute how many actual vehicles to spawn per route.
-
-        For car/bike/walk: 1 vehicle per person (people_per_agent vehicles).
-        For bus/train: number of vehicles is determined by BOTH interval and capacity:
-          - num_vehicles = floor(DEPARTURE_WINDOW_MIN / interval_min)  [physical frequency]
-          - passengers_per_vehicle = min(capacity, ceil(people_per_agent / num_vehicles))
-          - If num_vehicles * capacity < people_per_agent, buses are over capacity (logged as warning).
-        """
-        for route_pk, segments in self.route_segments.items():
-            # Find the minimum PT capacity and interval across all PT segments in this route
-            min_pt_capacity = None
-            min_interval = None
-            for seg in segments:
-                if seg.mode in ("bus", "train"):
-                    cap = self._get_pt_capacity(seg.pt_line_id, seg.mode)
-                    if min_pt_capacity is None or cap < min_pt_capacity:
-                        min_pt_capacity = cap
-                    interval = self._get_pt_interval(seg.pt_line_id, seg.mode)
-                    if min_interval is None or interval < min_interval:
-                        min_interval = interval
-
-            if min_pt_capacity and min_pt_capacity > 1:
-                # Number of physical buses/trains in the departure window
-                num_vehicles = max(1, round(DEPARTURE_WINDOW_MIN / (min_interval or 1)))
-                # Each vehicle carries min(capacity, ceil(people/vehicles)) passengers
-                passenger_count = min(
-                    int(min_pt_capacity),
-                    math.ceil(self.people_per_agent / num_vehicles),
-                )
-                total_seats = num_vehicles * passenger_count
-                overcapacity = total_seats < self.people_per_agent
-                self.route_vehicle_scaling[route_pk] = (num_vehicles, passenger_count)
-                self.route_pt_wait_min[route_pk] = (min_interval or 1) / 2.0
-
-                log_msg = (
-                    f"[SIM] Route {route_pk}: PT scaling — "
-                    f"{num_vehicles} vehicles × {passenger_count} passengers "
-                    f"(interval={min_interval}min, capacity={min_pt_capacity:.0f}, "
-                    f"total_seats={total_seats})"
-                )
-                if overcapacity:
-                    log_msg += (
-                        f" — {total_seats} seats < {self.people_per_agent} people. "
-                        f"Nothing is done about it yet: capacity constrains "
-                        f"boarding only once [backend]-pt-boarding.md lands."
-                    )
-                    logger.info(log_msg)
-                else:
-                    logger.info(log_msg)
-            else:
-                # Car/bike/walk: 1 person per vehicle
-                self.route_vehicle_scaling[route_pk] = (self.people_per_agent, 1)
 
     def _load_pt_lines(self):
         """Register every PT line on the map version this round runs on.
@@ -327,6 +307,8 @@ class TrafficSimulator:
             train_lines = train_lines.filter(map_versions=version)
 
         for line in bus_lines.distinct():
+            self.bus_line_speeds.setdefault(line.pk, line.bus_speed_kmh)
+            self.bus_line_intervals.setdefault(line.pk, line.intervall)
             edges = [
                 link.street_edge.edge
                 for link in BusLineEdge.objects.filter(bus_line=line).select_related(
@@ -339,6 +321,8 @@ class TrafficSimulator:
             )
 
         for line in train_lines.distinct():
+            self.train_line_speeds.setdefault(line.pk, line.train_speed_kmh)
+            self.train_line_intervals.setdefault(line.pk, line.intervall)
             edges = [
                 link.train_edge.edge
                 for link in TrainLineEdge.objects.filter(
@@ -354,6 +338,76 @@ class TrafficSimulator:
 
         logger.info(f"[SIM] Loaded {len(self.pt_lines)} PT lines from the timetable")
 
+    def _load_pt_legs(self):
+        """Work out where each route boards and alights, per line it rides.
+
+        A route is a chain of edges too, so its own node order comes from the
+        same walk the line's does. Segment i runs from chain[i] to chain[i+1],
+        which is what turns "segments 2 and 3 are on M1" into "gets on at
+        Turmstraße, off at Hansaplatz".
+
+        A route whose edges do not connect gets no legs at all: without a node
+        order there is no way to say where it would board, and inventing one
+        would put people on a bus at a stop the route never reaches. It rides
+        nothing, arrives on foot, and the map gets a warning.
+        """
+        for route_pk, segments in self.route_segments.items():
+            if route_pk < 0:
+                continue  # a line's own run boards nobody
+            ends = []
+            for seg in segments:
+                state = self.edge_states.get(seg.edge_id)  # type: ignore
+                if state is None:
+                    ends = []
+                    break
+                ends.append((state.start_node_id, state.end_node_id))
+            chain = node_chain(ends)
+            if len(chain) != len(segments) + 1:
+                if any(seg.mode in ("bus", "train") for seg in segments):
+                    logger.warning(
+                        "[SIM] Route %s rides public transport but its edges do "
+                        "not form a chain — nobody on it can board.",
+                        route_pk,
+                    )
+                continue
+
+            legs: list[PTLeg] = []
+            index = 0
+            while index < len(segments):
+                seg = segments[index]
+                line = self._pt_line_for(seg)
+                if line is None:
+                    index += 1
+                    continue
+                line_key = (seg.mode, int(seg.pt_line_id))  # type: ignore
+                last = index
+                while (
+                    last + 1 < len(segments)
+                    and segments[last + 1].mode == seg.mode
+                    and segments[last + 1].pt_line_id == seg.pt_line_id
+                ):
+                    last += 1
+                legs.append(
+                    PTLeg(
+                        first_index=index,
+                        last_index=last,
+                        line_key=line_key,
+                        board_node=chain[index],
+                        alight_node=chain[last + 1],
+                    )
+                )
+                index = last + 1
+
+            if legs:
+                self.route_pt_legs[route_pk] = legs
+
+    def _leg_at(self, route_pk: int, segment_index: int) -> "PTLeg | None":
+        """The leg starting exactly at this segment, if one does."""
+        for leg in self.route_pt_legs.get(route_pk, []):
+            if leg.first_index == segment_index:
+                return leg
+        return None
+
     def _register_pt_line(
         self,
         mode: str,
@@ -363,14 +417,39 @@ class TrafficSimulator:
         interval_min: int,
         capacity: int,
     ):
-        """Measure one line and put it in the registry."""
+        """Measure one line, put it in the registry, and give it a run to drive.
+
+        The run is a synthetic entry in self.route_segments under a negative
+        key. Every AgentRoute pk is a positive Postgres sequence value, so the
+        two can never collide — and every `self.agent_results.get(route_pk)` in
+        the accounting code already skips a key it does not know, which is what
+        keeps a bus out of the per-agent numbers without a guard anywhere.
+        """
         line_km = sum(e.euclidean_2d_distance() * self.scale for e in edges) / 1000
         interval = max(1, int(interval_min or 1))
         # round(), not floor(): a 7-minute interval over the two-hour window is
         # 17 departures, and flooring it would quietly shorten every timetable
         # whose interval does not divide 120.
         vehicles = max(1, round(DEPARTURE_WINDOW_MIN / interval))
-        self.pt_lines[(mode, line_id)] = PTLineState(
+
+        stops = node_chain([(e.start_node_id, e.end_node_id) for e in edges])
+        # A line whose edges do not connect is run only as far as it does. The
+        # serializer warns about the same map by name; this one is what stops a
+        # vehicle walking off the end of its own stop list.
+        usable = max(0, len(stops) - 1)
+        edge_ids = [e.pk for e in edges][:usable]
+        if edges and usable < len(edges):
+            logger.warning(
+                "[SIM] PT line %s (%s) breaks after %s of %s edges — its "
+                "vehicles run only that far. Fix the map.",
+                name,
+                mode,
+                usable,
+                len(edges),
+            )
+
+        line_key = (mode, line_id)
+        self.pt_lines[line_key] = PTLineState(
             line_id=line_id,
             mode=mode,
             name=name,
@@ -378,6 +457,8 @@ class TrafficSimulator:
             interval_min=interval,
             capacity=max(1, int(capacity or 1)),
             vehicles=vehicles,
+            edge_ids=edge_ids,
+            stops=stops,
         )
         if line_km <= 0:
             logger.warning(
@@ -386,6 +467,16 @@ class TrafficSimulator:
                 name,
                 mode,
             )
+
+        if not edge_ids:
+            return
+
+        route_key = -(len(self.line_route_keys) + 1)
+        self.line_route_keys[line_key] = route_key
+        self.route_segments[route_key] = [
+            Segment(edge_id=edge_id, order=order, mode=mode, pt_line_id=line_id)
+            for order, edge_id in enumerate(edge_ids)
+        ]
 
     def _pt_line_for(self, segment) -> "PTLineState | None":
         """The registry entry a PT segment rides on, None for road modes.
@@ -408,21 +499,18 @@ class TrafficSimulator:
         return line
 
     def _attribute_pt_person_km(self):
-        """Count the person-kilometres each line carries this round.
+        """Total up what each line actually carried.
 
-        Runs to completion before the first figure is calculated: `share_of`
-        divides by `person_km`, so a line that is still being filled would
-        hand the first route too large a share and the last one too small.
+        Was: every submitted PT segment x people_per_agent, counted before the
+        round ran. Is: the person-kilometres booked in _alight, so a line is
+        divided among the people who got on it and an agent whose people never
+        boarded carries none of it.
         """
-        for route_pk in self.agent_routes:
-            for seg in self.route_segments.get(route_pk, []):
-                line = self._pt_line_for(seg)
-                if line is None:
-                    continue
-                edge_state = self.edge_states.get(seg.edge_id)  # type: ignore
-                if not edge_state:
-                    continue
-                line.person_km += (edge_state.distance_m / 1000) * self.people_per_agent
+        for by_line in self.route_pt_person_km.values():
+            for line_key, person_km in by_line.items():
+                line = self.pt_lines.get(line_key)
+                if line is not None:
+                    line.person_km += person_km
 
     def _load_pt_line_speeds(self):
         """Load bus and train line speeds from database."""
@@ -514,15 +602,12 @@ class TrafficSimulator:
 
             self.edge_states[edge.pk] = EdgeState(
                 edge_id=edge.pk,
+                start_node_id=edge.start_node_id,  # type: ignore
+                end_node_id=edge.end_node_id,  # type: ignore
                 distance_m=distance_m,
                 free_flow_speed_kmh=speed_limit,
                 car_lanes=car_lanes,
                 has_dedicated_bus_lane=has_dedicated_bus_lane,
-                # Once per link per round. This is the dial that makes two
-                # rounds with identical choices come back with different
-                # numbers, and it is drawn here rather than per tick because
-                # a road's capacity on a given day is one draw, not a fresh
-                # surprise every five minutes.
                 capacity_factor=draw_capacity_factor(self.rng),
             )
 
@@ -535,47 +620,41 @@ class TrafficSimulator:
         logger.info(f"[SIM] Initialized {len(self.edge_states)} edge states")
 
     def _generate_departures(self, is_morning: bool = True):
-        """Generate departure times for all agents.
+        """When everyone wants to leave, and when every line's vehicles run.
 
-        Car/bike/walk: random normal distribution around base_hour (existing behaviour).
-        Bus/train: evenly spaced at the line's interval, starting at the beginning of the
-                   departure window (base_hour - 60 min), so that buses are spread across
-                   the full DEPARTURE_WINDOW_MIN period.
+        People — whatever mode they picked — draw the same normal distribution
+        around base_hour. PT riders used to be spread evenly across the whole
+        window instead, one clump per bus, which gave them no peak at all and
+        so no peak penalty; the wait they were charged was a flat interval/2
+        that assumed exactly that uniformity. Both go: they queue at a stop
+        like everyone else and the wait falls out of it.
+
+        Line vehicles are the other half, and they are NOT drawn: a timetable
+        is not a random variable. They leave the terminus at i x interval from
+        the start of the window.
         """
         base_hour = (
             self.morning_departure_hour if is_morning else self.evening_departure_hour
         )
         # Everything here is in minutes from the start of the departure window,
-        # which opens at (base_hour - 1) * 60. generate_departure_minutes uses
-        # the same time-zero, so 0.0 is the first minute of the window.
+        # which opens at (base_hour - 1) * 60.
 
         for route_pk in self.agent_routes:
-            num_vehicles, _ = self.route_vehicle_scaling.get(
-                route_pk, (self.people_per_agent, 1)
+            departures = generate_departure_minutes(
+                self.people_per_agent,
+                base_hour,
+                self.departure_std_dev_min,
+                rng=self.rng,
             )
+            self.departure_schedule[route_pk] = list(enumerate(departures))
 
-            # Determine if this route uses public transport
-            segments = self.route_segments.get(route_pk, [])
-            pt_mode = next(
-                (seg.mode for seg in segments if seg.mode in ("bus", "train")), None
-            )
-
-            if pt_mode:
-                pt_line_id = next(
-                    (seg.pt_line_id for seg in segments if seg.mode == pt_mode), None
-                )
-                interval_min = self._get_pt_interval(pt_line_id, pt_mode)
-                self.departure_schedule[route_pk] = [
-                    (i, float(i * interval_min)) for i in range(num_vehicles)
-                ]
-            else:
-                departures = generate_departure_minutes(
-                    num_vehicles,
-                    base_hour,
-                    self.departure_std_dev_min,
-                    rng=self.rng,
-                )
-                self.departure_schedule[route_pk] = list(enumerate(departures))
+        for line_key, line in self.pt_lines.items():
+            route_key = self.line_route_keys.get(line_key)
+            if route_key is None:
+                continue
+            self.departure_schedule[route_key] = [
+                (i, float(i * line.interval_min)) for i in range(line.vehicles)
+            ]
 
     def _queues_for_traffic(self, mode: str, edge_state: "EdgeState") -> bool:
         """Cars queue; buses queue only in mixed traffic."""
@@ -674,6 +753,30 @@ class TrafficSimulator:
         vehicle.queued = True
         return True
 
+    def _begin_segment(self, vehicle_id: int, vehicle: Vehicle, at_min: float) -> bool:
+        """Start the segment the vehicle is now on — road, or stop queue.
+
+        This is the only difference between a person and a bus in the whole
+        tick loop. A person whose next segment is a PT segment does not drive
+        it: it joins the queue at the stop that segment starts from and waits
+        for something to come. Everything else goes to _enter_edge unchanged.
+
+        Returns False only where _enter_edge does — the link is full and the
+        caller should try again next tick. Joining a stop queue always
+        succeeds: a pavement does not fill up.
+        """
+        leg = self._leg_at(vehicle.route_pk, vehicle.segment_index)
+        if leg is None:
+            return self._enter_edge(vehicle_id, vehicle, at_min)
+
+        vehicle.at_stop = True
+        vehicle.queued = False
+        vehicle.reached_stop_min = at_min
+        self.stop_queues.setdefault((leg.line_key, leg.board_node), []).append(
+            vehicle_id
+        )
+        return True
+
     def _spawn_vehicles(self, now: float, tick_end: float):
         """Release everyone who wanted to leave by the end of this tick.
 
@@ -691,23 +794,50 @@ class TrafficSimulator:
             segments = self.route_segments.get(route_pk, [])
             if not segments:
                 continue
+            line_key = None
+            for key, route_key in self.line_route_keys.items():
+                if route_key == route_pk:
+                    line_key = key
+                    break
 
-            _, passenger_count = self.route_vehicle_scaling.get(
-                route_pk, (self.people_per_agent, 1)
-            )
             vehicle = Vehicle(
                 route_pk=route_pk,
                 person_index=person_index,
                 mode=segments[0].mode,
                 segment_index=0,
-                passenger_count=passenger_count,
+                passenger_count=1,
                 wants_to_depart_min=depart_min,
                 departed=True,
-                # Once, here, for the whole trip.
-                speed_factor=draw_driver_speed_factor(self.rng),
+                # A bus runs to its timetable, not to a driver's taste, so it
+                # takes NO draw — not merely a factor of 1.0. Drawing and
+                # discarding would advance the round's generator and shift
+                # every car departure behind it.
+                speed_factor=1.0
+                if line_key is not None
+                else draw_driver_speed_factor(self.rng),
             )
             vehicle_id = self.next_vehicle_id
-            if self._enter_edge(vehicle_id, vehicle, max(depart_min, now)):
+
+            if line_key is not None:
+                if not self._enter_edge(vehicle_id, vehicle, max(depart_min, now)):
+                    still_waiting.append((depart_min, route_pk, person_index))
+                    continue
+                self.next_vehicle_id += 1
+                self.vehicles[vehicle_id] = vehicle
+                line = self.pt_lines[line_key]
+                pt = PTVehicle(
+                    vehicle_id=vehicle_id,
+                    line_key=line_key,
+                    capacity=line.capacity,
+                    departure_min=depart_min,
+                )
+                self.pt_vehicles.append(pt)
+                self.pt_by_vehicle[vehicle_id] = pt
+                # It is standing at its first stop the moment it sets off.
+                self._serve_stop(pt, max(depart_min, now))
+                continue
+
+            if self._begin_segment(vehicle_id, vehicle, max(depart_min, now)):
                 self.next_vehicle_id += 1
                 self.vehicles[vehicle_id] = vehicle
                 if person_index == 0:
@@ -762,9 +892,18 @@ class TrafficSimulator:
             if vehicle.segment_index >= len(segments):
                 vehicle.arrived = True
                 vehicle.arrived_min = left_at
+                pt = self.pt_by_vehicle.get(head.vehicle_id)
+                if pt is not None:
+                    pt.stop_index = vehicle.segment_index
+                    self._finish_run(pt, left_at)
+
             else:
                 vehicle.mode = segments[vehicle.segment_index].mode
-                if forced or not self._enter_edge(head.vehicle_id, vehicle, left_at):
+                pt = self.pt_by_vehicle.get(head.vehicle_id)
+                if pt is not None:
+                    pt.stop_index = vehicle.segment_index
+                    self._serve_stop(pt, left_at)
+                if forced or not self._begin_segment(head.vehicle_id, vehicle, left_at):
                     # Forced past a full link: put it there anyway, over
                     # storage. This only happens after DEADLOCK_TICKS.
                     self._force_enter(head.vehicle_id, vehicle, left_at)
@@ -803,20 +942,156 @@ class TrafficSimulator:
                 if vehicle.segment_index >= len(segments):
                     vehicle.arrived = True
                     vehicle.arrived_min = left_at
+                    pt = self.pt_by_vehicle.get(vehicle_id)
+                    if pt is not None:
+                        pt.stop_index = vehicle.segment_index
+                        self._finish_run(pt, left_at)
                     done.append(vehicle_id)
                     break
                 vehicle.mode = segments[vehicle.segment_index].mode
-                if not self._enter_edge(vehicle_id, vehicle, left_at):
+                pt = self.pt_by_vehicle.get(vehicle_id)
+                if pt is not None:
+                    pt.stop_index = vehicle.segment_index
+                    self._serve_stop(pt, left_at)
+                if not self._begin_segment(vehicle_id, vehicle, left_at):
                     # It has just joined mixed traffic and the link is full;
                     # it waits where it is and retries next tick.
                     vehicle.segment_index -= 1
                     vehicle.ready_at_min = tick_end
                     break
-                if vehicle.queued:
-                    done.append(vehicle_id)  # it is a queue's problem now
+                if vehicle.queued or vehicle.at_stop:
+                    done.append(vehicle_id)  # somebody else's problem now
                     break
         for vehicle_id in done:
             self.free_running.discard(vehicle_id)
+
+    def _serve_stop(self, pt: PTVehicle, at_min: float):
+        """Alight, then board, at the stop this vehicle is standing at.
+
+        Alight first, always: that is the order a door works in, and it is what
+        frees the seat the person behind is waiting for. Doing it the other way
+        round would refuse a boarding at a terminus where the bus empties.
+
+        Dwell time is not modelled yet — the vehicle serves the stop in the
+        instant it reaches it. It is the mechanism this design was chosen to
+        keep possible (see "the alternative that was rejected"), not something
+        this guide builds.
+        """
+        line = self.pt_lines.get(pt.line_key)
+        if line is None or pt.finished:
+            return
+        if not 0 <= pt.stop_index < len(line.stops):
+            return
+        node = line.stops[pt.stop_index]
+
+        for rider_id in list(pt.riders):
+            rider = self.vehicles.get(rider_id)
+            if rider is None:
+                continue
+            leg = self._current_leg(rider)
+            if leg is not None and leg.alight_node == node:
+                self._alight(pt, rider_id, rider, leg, at_min)
+
+        queue = self.stop_queues.get((pt.line_key, node))
+        if not queue:
+            return
+        while queue and pt.free_seats > 0:
+            rider_id = queue.pop(0)
+            rider = self.vehicles.get(rider_id)
+            if rider is None or not rider.at_stop:
+                continue
+            rider.at_stop = False
+            rider.aboard_of = pt.vehicle_id
+            rider.wait_min += max(0.0, at_min - rider.reached_stop_min)
+            if not rider.bought_ticket:
+                rider.bought_ticket = True
+                self.route_fares[rider.route_pk] = (
+                    self.route_fares.get(rider.route_pk, 0) + 1
+                )
+            pt.riders.append(rider_id)
+            pt.boarded_total += 1
+            line.boarded += 1
+        # Whoever is still standing here was refused for want of a seat.
+        line.denied += len(queue)
+
+    def _current_leg(self, rider: Vehicle) -> "PTLeg | None":
+        """The leg a rider is currently riding, by its segment index."""
+        for leg in self.route_pt_legs.get(rider.route_pk, []):
+            if leg.first_index <= rider.segment_index <= leg.last_index:
+                return leg
+        return None
+
+    def _alight(
+        self,
+        pt: PTVehicle,
+        rider_id: int,
+        rider: Vehicle,
+        leg: "PTLeg",
+        at_min: float,
+    ):
+        """Set one rider down and let it get on with its route.
+
+        The person-kilometres it rode are booked to the line HERE rather than
+        assumed from the submitted route: a line's personal shares are divided
+        among the people who actually got on it, and the seats nobody filled
+        belong to nobody. That is the seam back into
+        `[backend]-pt-timetable-and-society.md`'s `share_of`.
+        """
+        pt.riders.remove(rider_id)
+        rider.aboard_of = None
+
+        ridden_km = 0.0
+        segments = self.route_segments.get(rider.route_pk, [])
+        for index in range(leg.first_index, leg.last_index + 1):
+            state = self.edge_states.get(segments[index].edge_id)  # type: ignore
+            if state:
+                ridden_km += state.distance_m / 1000.0
+        by_line = self.route_pt_person_km.setdefault(rider.route_pk, {})
+        by_line[leg.line_key] = by_line.get(leg.line_key, 0.0) + ridden_km
+
+        rider.segment_index = leg.last_index + 1
+        if rider.segment_index >= len(segments):
+            rider.arrived = True
+            rider.arrived_min = at_min
+            return
+        rider.mode = segments[rider.segment_index].mode
+        if self._begin_segment(rider_id, rider, at_min):
+            if not rider.queued and not rider.at_stop:
+                self.free_running.add(rider_id)
+        else:
+            # The street outside the stop is full. It stands on the pavement
+            # and tries again next tick, which is what the door queue already
+            # does for a car that cannot get out of its own road.
+            rider.at_stop = True
+            rider.reached_stop_min = at_min
+            self.stop_queues.setdefault((leg.line_key, leg.alight_node), []).append(
+                rider_id
+            )
+
+    def _finish_run(self, pt: PTVehicle, at_min: float):
+        """The vehicle has reached the end of the line. Everybody off."""
+        line = self.pt_lines.get(pt.line_key)
+        pt.finished = True
+        if line is None:
+            return
+        terminus = line.stops[-1] if line.stops else None
+        for rider_id in list(pt.riders):
+            rider = self.vehicles.get(rider_id)
+            if rider is None:
+                continue
+            leg = self._current_leg(rider)
+            if leg is None:
+                pt.riders.remove(rider_id)
+                rider.aboard_of = None
+                continue
+            if leg.alight_node != terminus:
+                logger.warning(
+                    "[SIM] %s reached its terminus with a rider still aboard "
+                    "who wanted node %s — it is set down here.",
+                    line.name,
+                    leg.alight_node,
+                )
+            self._alight(pt, rider_id, rider, leg, at_min)
 
     def _advance_traffic(self):
         """One simulation tick."""
@@ -850,7 +1125,7 @@ class TrafficSimulator:
         for edge_id, edge_state in self.edge_states.items():
             if edge_id in released or not edge_state.queue:
                 edge_state.blocked_since_tick = self.current_tick
-
+        self._strand_hopeless_riders()
         self.held_at_origin = self._held_at_origin(tick_end)
 
     def _record_edge_traffic(self):
@@ -904,7 +1179,7 @@ class TrafficSimulator:
     def _all_vehicles_arrived(self) -> bool:
         """Check if all vehicles have arrived."""
         for vehicle in self.vehicles.values():
-            if vehicle.departed and not vehicle.arrived:
+            if vehicle.departed and not vehicle.arrived and not vehicle.stranded:
                 return False
         return True
 
@@ -922,8 +1197,7 @@ class TrafficSimulator:
             agent_results = self.agent_results.get(vehicle.route_pk)
             if not agent_results:
                 continue
-            wait_min = self.route_pt_wait_min.get(vehicle.route_pk, 0.0)
-            trip_min = vehicle.arrived_min - vehicle.wants_to_depart_min + wait_min
+            trip_min = vehicle.arrived_min - vehicle.wants_to_depart_min
             delay_min = max(
                 0.0,
                 trip_min - self._free_flow_min(vehicle.route_pk, vehicle.speed_factor),
@@ -931,6 +1205,7 @@ class TrafficSimulator:
             for _ in range(vehicle.passenger_count):
                 agent_results["trip_times"].append(trip_min)
                 agent_results["delays"].append(delay_min)
+                agent_results["waits"].append(vehicle.wait_min)
 
     def _free_flow_min(self, route_pk: int, speed_factor: float = 1.0) -> float:
         """The route's uncongested time — the baseline the delay is against.
@@ -986,12 +1261,12 @@ class TrafficSimulator:
             agent_results = self.agent_results.get(vehicle.route_pk)
             if not agent_results:
                 continue
-            wait_min = self.route_pt_wait_min.get(vehicle.route_pk, 0.0)
-            elapsed = max(0.0, sim_end_min - vehicle.wants_to_depart_min) + wait_min
+            elapsed = max(0.0, sim_end_min - vehicle.wants_to_depart_min)
             delay = max(0.0, elapsed - self._free_flow_min(vehicle.route_pk))
             for _ in range(vehicle.passenger_count):
                 agent_results["trip_times"].append(elapsed)
                 agent_results["delays"].append(delay)
+                agent_results["waits"].append(vehicle.wait_min)
                 agent_results["not_arrived"] += 1
 
         for depart_min, route_pk, _person_index in self.waiting:
@@ -1003,16 +1278,12 @@ class TrafficSimulator:
             agent_results = self.agent_results.get(route_pk)
             if not agent_results:
                 continue
-            _, passenger_count = self.route_vehicle_scaling.get(
-                route_pk, (self.people_per_agent, 1)
-            )
-            wait_min = self.route_pt_wait_min.get(route_pk, 0.0)
-            elapsed = sim_end_min - depart_min + wait_min
+            elapsed = sim_end_min - depart_min
             delay = max(0.0, elapsed - self._free_flow_min(route_pk))
-            for _ in range(passenger_count):
-                agent_results["trip_times"].append(elapsed)
-                agent_results["delays"].append(delay)
-                agent_results["not_arrived"] += 1
+            agent_results["trip_times"].append(elapsed)
+            agent_results["delays"].append(delay)
+            agent_results["waits"].append(0.0)
+            agent_results["not_arrived"] += 1
 
         for route_pk, results in self.agent_results.items():
             if results["not_arrived"]:
@@ -1078,43 +1349,21 @@ class TrafficSimulator:
             self.sim_log.header("ROUTES")
             for route_pk, route in self.agent_routes.items():
                 segments = self.route_segments.get(route_pk, [])
-                num_vehicles, passenger_count = self.route_vehicle_scaling.get(
-                    route_pk, (self.people_per_agent, 1)
-                )
-                wait_min = self.route_pt_wait_min.get(route_pk, 0.0)
+                legs = self.route_pt_legs.get(route_pk, [])
                 route_line = (
                     f"  {self.sim_log._route_label(route_pk)}: "
                     f"distance={route.total_distance_m:.0f}m, "
                     f"est_time={route.estimated_time_min:.1f}min, "
                     f"segments={len(segments)}, "
-                    f"vehicles={num_vehicles}×{passenger_count}pax"
+                    f"people={self.people_per_agent}"
                 )
-                if wait_min:
-                    total_seats = num_vehicles * passenger_count
-                    overcap = total_seats < self.people_per_agent
-                    route_line += f", avg_wait={wait_min:.1f}min" + (
-                        f" [OVERCAPACITY: {total_seats}/{self.people_per_agent} seats]"
-                        if overcap
-                        else ""
+                for leg in legs:
+                    line = self.pt_lines.get(leg.line_key)
+                    route_line += (
+                        f", rides {line.name if line else leg.line_key[1]} "
+                        f"{leg.board_node}→{leg.alight_node}"
                     )
                 self.sim_log.write(route_line)
-                for seg in segments:
-                    es = self.edge_states.get(seg.edge_id)  # type: ignore
-                    if es:
-                        pt_info = ""
-                        if seg.pt_line_id:
-                            interval = self._get_pt_interval(seg.pt_line_id, seg.mode)
-                            pt_info = (
-                                f" | pt_line={seg.pt_line_id} | interval={interval}min"
-                            )
-                        self.sim_log.write(
-                            f"    seg {seg.order}: {self.sim_log._edge_label(seg.edge_id)} | "  # type: ignore
-                            f"mode={seg.mode} | dist={es.distance_m:.0f}m | "
-                            f"free_flow={es.free_flow_speed_kmh:.0f}km/h "
-                            f"({es.free_flow_min:.1f}min) | "
-                            f"car_lanes={es.car_lanes} | "
-                            f"storage={es.storage_capacity_pcu:.0f}pcu" + pt_info
-                        )
 
             # Log edges
             self.sim_log.header("EDGES")
@@ -1148,8 +1397,9 @@ class TrafficSimulator:
             self.sim_log.header("SIMULATION TICK LOG (sample vehicle per route)")
             self.sim_log.write(
                 f"Total vehicles to spawn: {total_departures} "
-                f"({len(self.departure_schedule)} routes, {self.people_per_agent} people/agent, "
-                f"PT vehicles scaled by interval+capacity, car/bike/walk by people_per_agent)"
+                f"({len(self.agent_routes)} routes x {self.people_per_agent} people, "
+                f"plus {sum(l.vehicles for l in self.pt_lines.values())} PT runs "
+                f"from {len(self.pt_lines)} lines)"
             )
 
             # Simulation loop. One call per tick: _advance_traffic() spawns,
@@ -1349,11 +1599,21 @@ class TrafficSimulator:
                 min_trip_time = route.estimated_time_min
                 max_trip_time = route.estimated_time_min
                 mean_delay = 0.0
+                mean_wait = (
+                    sum(results["waits"]) / len(results["waits"])
+                    if results["waits"]
+                    else 0.0
+                )
             else:
                 mean_trip_time = sum(trip_times) / len(trip_times)
                 min_trip_time = min(trip_times)
                 max_trip_time = max(trip_times)
                 mean_delay = sum(delays) / len(delays) if delays else 0.0
+                mean_wait = (
+                    sum(results["waits"]) / len(results["waits"])
+                    if results["waits"]
+                    else 0.0
+                )
 
             # Calculate CO2 and cost based on mode and segments
             co2, cost, paid = self._calculate_emissions_and_cost(route)
@@ -1423,12 +1683,6 @@ class TrafficSimulator:
                         f"({line.vehicles} veh × {line.line_km:.2f}km), "
                         f"{seg_person_km:.0f} of {line.person_km:.0f} Personen-km"
                     )
-                    cap = self._get_pt_capacity(seg.pt_line_id, "train")
-                    seg_co2 = TRAIN_EMISSIONS_G_PER_VEHICLE_KM * dist_km / cap
-                    self.sim_log.write(
-                        f"    seg {seg.order} ({seg.mode}, cap={cap:.0f}): {es.distance_m:.0f}m → "
-                        f"{seg_co2:.2f}g/person × {self.people_per_agent} = {seg_co2 * self.people_per_agent:.0f}g"
-                    )
                 else:
                     self.sim_log.write(
                         f"    seg {seg.order} ({seg.mode}): {es.distance_m:.0f}m → 0g (zero emission)"
@@ -1453,6 +1707,7 @@ class TrafficSimulator:
                 else 0.0,
                 total_co2_g=co2,
                 congestion_delay_min=mean_delay,
+                wait_time_min=mean_wait,
             )
 
         # Totals. The network's own emissions are in the round total whether
@@ -1480,7 +1735,17 @@ class TrafficSimulator:
             f"({unridden_co2 / 1000:.2f}kg of it on lines nobody rode)"
         )
         self.sim_log.write(f"Routes processed: {len(self.agent_results)}")
-
+        if self.pt_lines:
+            self.sim_log.header("PUBLIC TRANSPORT")
+            for line in self.pt_lines.values():
+                self.sim_log.write(
+                    f"  {line.name} ({line.mode}): {line.vehicles} runs x "
+                    f"{line.line_km:.2f}km every {line.interval_min}min, "
+                    f"{line.capacity} seats — {line.boarded} boarded, "
+                    f"{line.denied} refused for want of a seat, "
+                    f"{line.stranded} gave up, "
+                    f"{line.person_km:.0f} Personen-km carried"
+                )
         # Update totals
         self.simulation_result.total_co2_g = total_co2  # type: ignore
         self.simulation_result.total_cost_eur = total_cost  # type: ignore
@@ -1528,7 +1793,6 @@ class TrafficSimulator:
         per_person_paid = 0.0
         class_co2 = 0.0
         class_cost = 0.0
-        rides_pt = False
 
         for seg in segments:
             edge_state = self.edge_states.get(seg.edge_id)  # type: ignore
@@ -1546,53 +1810,23 @@ class TrafficSimulator:
                 per_person_paid += car_out_of_pocket_eur_per_km(speed_kmh) * distance_km
                 continue
 
-            if seg.mode in ("bus", "train"):
-                line = self._pt_line_for(seg)
-                if line is None:
-                    continue
-                rides_pt = True
-                person_km = distance_km * self.people_per_agent
-                class_co2 += line.share_of(line.society_co2_g, person_km)
-                class_cost += line.share_of(line.society_cost_eur, person_km)
+        # PT: this route's realised share of each line it actually rode.
+        for line_key, person_km in self.route_pt_person_km.get(route.pk, {}).items():
+            line = self.pt_lines.get(line_key)
+            if line is None:
+                continue
+            class_co2 += line.share_of(line.society_co2_g, person_km)
+            class_cost += line.share_of(line.society_cost_eur, person_km)
 
-            # bike and walk: no emissions, no cost, nothing paid
-
-        if rides_pt:
-            # One Ticket for the trip, however many times they change.
-            per_person_paid += PT_FARE_EUR
+        # One Ticket per person who got on, however many times they changed —
+        # and none for the people who never did.
+        fare_total = PT_FARE_EUR * self.route_fares.get(route.pk, 0)
 
         return (
             per_person_co2 * self.people_per_agent + class_co2,
             per_person_cost * self.people_per_agent + class_cost,
-            per_person_paid * self.people_per_agent,
+            per_person_paid * self.people_per_agent + fare_total,
         )
-
-    def _get_pt_capacity(self, pt_line_id: int | None, mode: str) -> float:
-        """Get the passenger capacity for a PT line. Returns a default if not found."""
-        if not pt_line_id:
-            return 85.0 if mode == "bus" else 1000.0
-
-        if mode == "bus":
-            if not hasattr(self, "_bus_capacities"):
-                self._bus_capacities: dict[int, int] = {}
-            if pt_line_id not in self._bus_capacities:
-                bus_line = BusLine.objects.filter(id=pt_line_id).first()
-                self._bus_capacities[pt_line_id] = (
-                    bus_line.bus_capacity if bus_line else 85
-                )
-            return max(1.0, float(self._bus_capacities[pt_line_id]))
-
-        if mode == "train":
-            if not hasattr(self, "_train_capacities"):
-                self._train_capacities: dict[int, int] = {}
-            if pt_line_id not in self._train_capacities:
-                train_line = TrainLine.objects.filter(id=pt_line_id).first()
-                self._train_capacities[pt_line_id] = (
-                    train_line.train_capacity if train_line else 1000
-                )
-            return max(1.0, float(self._train_capacities[pt_line_id]))
-
-        return 85.0
 
     def _get_pt_interval(self, pt_line_id: int | None, mode: str) -> int:
         """Get the interval in minutes for a PT line. Returns a fallback if not found."""
@@ -1633,3 +1867,38 @@ class TrafficSimulator:
                     game_round=self.game_round,
                     defaults={"speed_under_load": max(1, int(state.mean_speed_kmh))},
                 )
+
+    def _strand_hopeless_riders(self):
+        """Give up on people no vehicle can ever reach.
+
+        A line's last run is over and nothing of it is left in self.waiting:
+        anyone still standing at one of its stops is not going to travel. They
+        are marked rather than removed, so _record_non_arrivals books them the
+        way it books a car that never got out of its road — at the time the
+        clock stopped, as a lower bound.
+
+        Without this the round burns its whole tick budget waiting for a bus
+        that has already gone home.
+        """
+        for line_key, line in self.pt_lines.items():
+            route_key = self.line_route_keys.get(line_key)
+            if route_key is None:
+                continue
+            if any(
+                not pt.finished for pt in self.pt_vehicles if pt.line_key == line_key
+            ):
+                continue
+            if any(entry[1] == route_key for entry in self.waiting):
+                continue
+            for node in line.stops:
+                queue = self.stop_queues.get((line_key, node))
+                if not queue:
+                    continue
+                for rider_id in queue:
+                    rider = self.vehicles.get(rider_id)
+                    if rider is None or not rider.at_stop:
+                        continue
+                    rider.at_stop = False
+                    rider.stranded = True
+                    line.stranded += 1
+                queue.clear()

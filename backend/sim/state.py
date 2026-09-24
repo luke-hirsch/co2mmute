@@ -15,6 +15,51 @@ from sim.constants import (
 )
 
 
+def node_chain(ends: list[tuple[int, int]]) -> list[int]:
+    """Node ids a run of edges visits, in travel order.
+
+    `ends` is each edge's (start_node_id, end_node_id) in the order the line or
+    the route stores them. An edge may be stored either way round relative to
+    the direction of travel — the map importer does not normalise that, and the
+    shipped examples store every edge of every line reversed — so the chain is
+    followed by matching node ids rather than by trusting start/end.
+
+    The first edge is the one that needs care: on its own there is nothing to
+    orient it against, so its direction is decided by whichever of its ends the
+    *second* edge touches. Seeding it in stored order instead is what made every
+    line report its first two nodes and stop (2026-09-19, `[backend]-pt-stops`).
+
+    Returns [] for nothing, and stops early where the chain breaks — so a caller
+    can tell a whole chain from a truncated one by its length, which is
+    len(ends) + 1 exactly when nothing broke.
+    """
+    if not ends:
+        return []
+
+    first_start, first_end = ends[0]
+    if len(ends) == 1:
+        return [first_start, first_end]
+
+    second = set(ends[1])
+    if first_end in second:
+        chain = [first_start, first_end]
+    elif first_start in second:
+        chain = [first_end, first_start]
+    else:
+        return [first_start, first_end]
+
+    for start_id, end_id in ends[1:]:
+        prev = chain[-1]
+        if prev == start_id:
+            chain.append(end_id)
+        elif prev == end_id:
+            chain.append(start_id)
+        else:
+            break
+
+    return chain
+
+
 @dataclass
 class Vehicle:
     """One person (car/bike/walk) or one PT vehicle carrying many."""
@@ -37,6 +82,14 @@ class Vehicle:
     departed: bool = False
     arrived: bool = False
     queued: bool = False
+
+    at_stop: bool = False
+    aboard_of: int | None = None
+    stranded: bool = False
+
+    reached_stop_min: float = 0.0
+    wait_min: float = 0.0
+    bought_ticket: bool = False
 
 
 @dataclass
@@ -62,6 +115,13 @@ class PTLineState:
     capacity: int
     vehicles: int
     person_km: float = 0.0
+
+    edge_ids: list[int] = field(default_factory=list)
+    stops: list[int] = field(default_factory=list)
+
+    boarded: int = 0
+    denied: int = 0
+    stranded: int = 0
 
     @property
     def vehicle_km(self) -> float:
@@ -94,14 +154,20 @@ class PTLineState:
 
 @dataclass
 class PTVehicle:
-    """Represents a public transport vehicle (bus/train)."""
+    """One timetabled run of a line: a bus or train on the road, with people in it."""
 
-    line_id: int
-    vehicle_type: str  # bus or train
-    current_stop_index: int
-    passenger_count: int
+    vehicle_id: int
+    line_key: tuple[str, int]
     capacity: int
-    departure_tick: int  # When this vehicle starts its route
+    departure_min: float
+    stop_index: int = 0
+    riders: list[int] = field(default_factory=list)
+    boarded_total: int = 0
+    finished: bool = False
+
+    @property
+    def free_seats(self) -> int:
+        return max(0, self.capacity - len(self.riders))
 
 
 @dataclass
@@ -121,6 +187,10 @@ class EdgeState:
     edge_id: int
     distance_m: float
     free_flow_speed_kmh: float
+
+    start_node_id: int = 0
+    end_node_id: int = 0
+
     car_lanes: int = 1
     has_dedicated_bus_lane: bool = False
 
