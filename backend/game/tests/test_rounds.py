@@ -1406,3 +1406,88 @@ class SummaryPayloadTests(SimulatedRoundMixin, TestCase):
         self.assertAlmostEqual(
             anna["cost_eur_per_person"], bruno["cost_eur_per_person"], delta=0.2
         )
+
+
+@override_settings(**TEST_BACKENDS)
+class SummaryNetworkFigureTests(SimulatedRoundMixin, TestCase):
+    """The summary has to be able to say where the missing kilograms went.
+
+    `[backend]-pt-timetable-and-society.md`: a PT line emits because it runs,
+    so a round's total now carries emissions that belong to no player. Without
+    the network figure beside it, the screen shows rows that quietly fail to
+    add up to the headline — which is the class of bug the summary payload
+    guide just finished closing.
+
+    The mixin's map has a single 2 km street. A bus line over it at a
+    10-minute interval runs 12 vehicles in the 120-minute window:
+    12 x 2 km x 1200 g = 28 800 g = 28,8 kg, whether anybody rides it or not —
+    and in this scenario both players drive.
+    """
+
+    def setUp(self):
+        from maps.models import BusLine, BusLineEdge, MapVersion
+
+        super().setUp()
+        version = MapVersion.objects.get(game_map=self.game_map, base_version=True)
+        self.bus_line = BusLine.objects.create(
+            game_map=self.game_map, name="M1", intervall=10, bus_capacity=85
+        )
+        self.bus_line.map_versions.add(version)
+        BusLineEdge.objects.create(
+            bus_line=self.bus_line,
+            street_edge=self.edge.streetedge_set.first(),
+            order=0,
+        )
+
+    def _summary(self):
+        self.client.force_login(self.host)
+        with muted():
+            response = self.client.get(f"/api/game/{self.game.game_id}/summary/")
+        return response.json()
+
+    def test_a_round_carries_the_networks_own_emissions(self):
+        self.complete_round()
+
+        rounds = {r["round_number"]: r for r in self._summary()["rounds"]}
+
+        self.assertAlmostEqual(rounds[1]["network_co2_kg"], 28.8, places=2)
+
+    def test_the_network_is_part_of_the_class_total(self):
+        """Not an extra column beside it — a slice of it.
+
+        Everybody drove, so the bus line's 28,8 kg is in the round total and
+        in none of the player rows.
+        """
+        self.complete_round()
+        self.round.refresh_from_db()
+
+        rounds = {r["round_number"]: r for r in self._summary()["rounds"]}
+
+        self.assertAlmostEqual(
+            rounds[1]["co2_kg"], self.round.total_emissions_g / 1000, places=2
+        )
+        self.assertGreater(rounds[1]["co2_kg"], rounds[1]["network_co2_kg"])
+
+    def test_the_timetable_alone_moves_the_co2_budget(self):
+        """A round in which nobody rides PT still spends the network's CO2.
+
+        `max_CO2_level` is checked against `GameRound.total_emissions_g`, so
+        this is the assertion that says the budget now includes the network:
+        the round total is the two drivers' rows PLUS the bus line's 28,8 kg.
+        Today the difference is exactly zero.
+        """
+        from game.models import AgentSimulationResult
+
+        self.complete_round()
+        self.round.refresh_from_db()
+
+        rows = sum(
+            row.total_co2_g
+            for row in AgentSimulationResult.objects.filter(
+                agent_route__player_move__session_round=self.round
+            )
+        )
+
+        self.assertAlmostEqual(
+            self.round.total_emissions_g - rows, 28_800.0, delta=1.0
+        )
