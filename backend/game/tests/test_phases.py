@@ -888,3 +888,141 @@ class PausedPhaseTests(BetweenRoundsMixin, TestCase):
         self.resume()
 
         self.assertTrue(self.ack(self.anna))
+
+
+@override_settings(**TEST_BACKENDS)
+class VoteResultIsRecordedTests(BetweenRoundsMixin, TestCase):
+    """What the class voted is written down when it happens.
+
+    `.claude/plans/to-do/[backend]-abstimmungen-im-summary.md`. The tally is
+    derivable from the MapVersionVote rows — and deriving it is the trap:
+    `_tally_if_complete` counts `player__in=_playing(game)`, so re-tallying at
+    the summary counts a smaller room than voted and can hand back a different
+    winner than the class saw. Same lesson as `GameSession.end_reason`.
+    """
+
+    phase = Phase.VOTING
+
+    def setUp(self):
+        super().setUp()
+        self.base, (self.option_1, self.option_2) = self.add_ballot()
+        self.set_round(vote_option_ids=[self.option_1.pk, self.option_2.pk])
+
+    def result(self):
+        self.round.refresh_from_db()
+        return self.round.vote_result
+
+    def test_a_round_that_held_no_vote_records_nothing(self):
+        """Advancing from stats on a single-version map: no ballot, no entry."""
+        self.set_round(between_round_phase=Phase.STATS, vote_option_ids=[])
+        GameSession.objects.filter(pk=self.game.pk).update(map_updates=False)
+        self.ack(self.anna)
+        self.ack(self.ben)
+
+        self.assertEqual(self.result(), {})
+
+    def test_a_decided_vote_records_its_winner(self):
+        self.vote(self.anna, self.option_1)
+        self.vote(self.ben, self.option_1)
+
+        self.assertEqual(self.result()["winning_version_id"], self.option_1.pk)
+        self.assertEqual(self.result()["winning_version_name"], self.option_1.name)
+        self.assertIs(self.result()["tie"], False)
+
+    def test_a_decided_vote_records_the_counts(self):
+        self.vote(self.anna, self.option_1)
+        self.vote(self.ben, self.option_2)
+        # A tie goes to the stalemate; give option_1 the majority instead.
+        self.set_round(between_round_phase=Phase.VOTING)
+        MapVersionVote.objects.filter(game_round=self.round).delete()
+        self.vote(self.anna, self.option_1)
+        self.vote(self.ben, self.option_1)
+
+        counts = {row["version_id"]: row["count"] for row in self.result()["vote_counts"]}
+
+        self.assertEqual(counts, {self.option_1.pk: 2})
+
+    def test_a_decided_vote_records_the_ballot_it_was_decided_on(self):
+        """The options, by name — a version deleted later still reads back."""
+        self.vote(self.anna, self.option_1)
+        self.vote(self.ben, self.option_1)
+
+        options = {row["version_id"]: row["version_name"] for row in self.result()["options"]}
+
+        self.assertEqual(
+            options,
+            {self.option_1.pk: self.option_1.name, self.option_2.pk: self.option_2.name},
+        )
+
+    def test_the_stored_winner_is_the_one_that_was_broadcast(self):
+        """A summary that disagrees with the room is worse than no summary."""
+        listener = GroupListener(self.game.game_id)
+        self.vote(self.anna, self.option_2)
+        self.vote(self.ben, self.option_2)
+
+        broadcast = listener.data("vote.result")
+
+        self.assertEqual(
+            self.result()["winning_version_id"], broadcast["winning_version_id"]
+        )
+
+    def test_the_first_tie_records_nothing_yet(self):
+        """It goes to the stalemate; the round is not decided."""
+        self.vote(self.anna, self.option_1)
+        self.vote(self.ben, self.option_2)
+
+        self.assertEqual(self.phase_now(), Phase.STALEMATE)
+        self.assertEqual(self.result(), {})
+
+
+@override_settings(**TEST_BACKENDS)
+class LeaveAsIsRecordsTheTiedTallyTests(BetweenRoundsMixin, TestCase):
+    """The counts the class argued about must not be thrown away.
+
+    `_leave_as_is` broadcast `"vote_counts": []` — the one outcome where the
+    numbers matter most, because nothing on the map changed and the summary
+    has to say why.
+    """
+
+    phase = Phase.STALEMATE
+
+    def setUp(self):
+        super().setUp()
+        self.base, (self.option_1, self.option_2) = self.add_ballot()
+        self.set_round(
+            stalemate_count=1,
+            vote_option_ids=[self.option_1.pk, self.option_2.pk],
+        )
+        MapVersionVote.objects.create(
+            game_round=self.round, player=self.anna, map_version=self.option_1
+        )
+        MapVersionVote.objects.create(
+            game_round=self.round, player=self.ben, map_version=self.option_2
+        )
+
+    def result(self):
+        self.round.refresh_from_db()
+        return self.round.vote_result
+
+    def test_leaving_the_map_as_it_is_records_the_counts(self):
+        with muted():
+            phases().force_leave_as_is(self.game.game_id)
+
+        counts = {row["version_id"]: row["count"] for row in self.result()["vote_counts"]}
+
+        self.assertEqual(counts, {self.option_1.pk: 1, self.option_2.pk: 1})
+
+    def test_leaving_the_map_as_it_is_records_no_winner(self):
+        with muted():
+            phases().force_leave_as_is(self.game.game_id)
+
+        self.assertIsNone(self.result()["winning_version_id"])
+        self.assertIs(self.result()["forced"], True)
+
+    def test_the_broadcast_carries_the_counts_too(self):
+        listener = GroupListener(self.game.game_id)
+
+        with muted():
+            phases().force_leave_as_is(self.game.game_id)
+
+        self.assertEqual(len(listener.data("vote.result")["vote_counts"]), 2)

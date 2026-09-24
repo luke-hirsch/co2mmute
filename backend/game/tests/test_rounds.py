@@ -1406,3 +1406,49 @@ class SummaryPayloadTests(SimulatedRoundMixin, TestCase):
         self.assertAlmostEqual(
             anna["cost_eur_per_person"], bruno["cost_eur_per_person"], delta=0.2
         )
+
+
+@override_settings(**TEST_BACKENDS)
+class SummaryVoteListTests(SimulatedRoundMixin, TestCase):
+    """The summary can finally say what the class did between the rounds.
+
+    `.claude/plans/to-do/[backend]-abstimmungen-im-summary.md`. The end screen
+    already promises "Daran siehst du, was die Änderungen an der Karte gebracht
+    haben" over a list that has never named a single change.
+    """
+
+    def _summary(self):
+        self.client.force_login(self.host)
+        with muted():
+            response = self.client.get(f"/api/game/{self.game.game_id}/summary/")
+        return response.json()
+
+    def test_a_round_that_held_no_vote_reports_none(self):
+        """A single-version map never reaches a ballot — say so, don't guess."""
+        self.complete_round()
+
+        rounds = {r["round_number"]: r for r in self._summary()["rounds"]}
+
+        self.assertIn("vote", rounds[1])
+        self.assertIsNone(rounds[1]["vote"])
+
+    def test_a_round_carries_the_vote_that_followed_it(self):
+        self.complete_round()
+        GameRound.objects.filter(pk=self.round.pk).update(
+            vote_result={
+                "options": [{"version_id": 7, "version_name": "Busspur"}],
+                "vote_counts": [
+                    {"version_id": 7, "version_name": "Busspur", "count": 2}
+                ],
+                "winning_version_id": 7,
+                "winning_version_name": "Busspur",
+                "tie": False,
+                "stalemate_count": 0,
+                "forced": False,
+            }
+        )
+
+        rounds = {r["round_number"]: r for r in self._summary()["rounds"]}
+
+        self.assertEqual(rounds[1]["vote"]["winning_version_name"], "Busspur")
+        self.assertEqual(rounds[1]["vote"]["vote_counts"][0]["count"], 2)
