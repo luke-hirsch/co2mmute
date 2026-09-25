@@ -106,6 +106,11 @@ class PTLineState:
     divisor every personal figure uses. It is zero for a line nobody rode, and
     that is not a division by zero waiting to happen: nobody asks such a line
     for a personal figure, only for its society one.
+
+    `base_vehicles` is counted whether anybody rides the line or not, because a
+    timetable does not ask; `vehicles` counts what actually left the terminus,
+    which is base_vehicles plus whatever extra the peak needed.
+
     """
 
     line_id: int
@@ -114,7 +119,8 @@ class PTLineState:
     line_km: float
     interval_min: int
     capacity: int
-    vehicles: int
+    base_vehicles: int  # minimum
+    vehicles: int = 0
     person_km: float = 0.0
 
     edge_ids: list[int] = field(default_factory=list)
@@ -126,7 +132,7 @@ class PTLineState:
 
     @property
     def vehicle_km(self) -> float:
-        """Vehicle-kilometres run inside the departure window."""
+        """Vehicle-kilometres this line actually ran this round."""
         return self.vehicles * self.line_km
 
     @property

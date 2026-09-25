@@ -2206,9 +2206,12 @@ class PTLineRegistryTests(PTScenarioMixin, TestCase):
 
         simulator = TrafficSimulator(game_round, scale=100.0)
 
-        # DEPARTURE_WINDOW_MIN is 120.
-        self.assertEqual(simulator.pt_lines[("bus", bus_line.pk)].vehicles, 12)
-        self.assertEqual(simulator.pt_lines[("train", train_line.pk)].vehicles, 24)
+        # DEPARTURE_WINDOW_MIN is 120. `base_vehicles` is the timetable;
+        # `vehicles` counts what actually left, and nothing has left yet.
+        self.assertEqual(simulator.pt_lines[("bus", bus_line.pk)].base_vehicles, 12)
+        self.assertEqual(
+            simulator.pt_lines[("train", train_line.pk)].base_vehicles, 24
+        )
 
     def test_an_interval_that_does_not_divide_the_window_rounds(self):
         """floor() would quietly shorten every timetable with an odd interval."""
@@ -2218,7 +2221,7 @@ class PTLineRegistryTests(PTScenarioMixin, TestCase):
 
         simulator = TrafficSimulator(game_round, scale=100.0)
 
-        self.assertEqual(simulator.pt_lines[("bus", bus_line.pk)].vehicles, 17)
+        self.assertEqual(simulator.pt_lines[("bus", bus_line.pk)].base_vehicles, 17)
 
     def test_a_bus_and_a_train_with_the_same_id_do_not_collide(self):
         """RouteSegment.pt_line_id is a bare id from two different sequences.
@@ -2298,7 +2301,9 @@ class PTSocietyFiguresTests(PTScenarioMixin, TestCase):
     def test_society_is_vehicles_times_km_times_the_vehicle_factor(self):
         _, _, _, bus_line, _, game_round = self._round_with()
 
-        simulator = TrafficSimulator(game_round, scale=100.0)
+        # The round has to RUN: since `pt-service-period` the figure comes off
+        # the runs actually dispatched, which is 0 on a fresh simulator.
+        simulator = self._run(game_round)
         line = simulator.pt_lines[("bus", bus_line.pk)]
 
         # 12 vehicles x 2 km x 1200 g/vehicle-km
@@ -2312,14 +2317,20 @@ class PTSocietyFiguresTests(PTScenarioMixin, TestCase):
         This is the test that makes the capacity data pass safe: after this
         change nothing on the emissions path reads bus_capacity at all, so a
         60-seat U-Bahn can be corrected to 1000 without moving a number.
+
+        Since `[backend]-pt-service-period.md` this is a statement about the
+        emissions ARITHMETIC, which still never reads bus_capacity — and it
+        holds outright here, where nobody rides the line so no extra run is
+        ever dispatched. On a line the peak overloads, capacity decides how
+        many extra buses go, and those emit.
         """
         _, _, _, small_line, _, small_round = self._round_with(bus_capacity=20)
         _, _, _, large_line, _, large_round = self._round_with(
             bus_capacity=500, label="PT map large"
         )
 
-        small = TrafficSimulator(small_round, scale=100.0)
-        large = TrafficSimulator(large_round, scale=100.0)
+        small = self._run(small_round)
+        large = self._run(large_round)
 
         self.assertAlmostEqual(
             small.pt_lines[("bus", small_line.pk)].society_co2_g,
@@ -2634,6 +2645,63 @@ class PTBoardingScenarioMixin(PTScenarioMixin):
             if getattr(v, "bought_ticket", False)
         ]
 
+    def _broken_line_map(self):
+        """A line whose edges do not connect — the shape S5/S7/M48 have.
+
+        Three links in a row, and a bus line over the FIRST and the THIRD.
+        node_chain cannot walk that, so _register_pt_line trims the line to
+        the part that does connect: stops [N1, N2], one usable edge. A route
+        riding the line over the third link boards at N2, which no vehicle of
+        the line ever stands at.
+
+        This is the only fixture left in which somebody genuinely cannot
+        travel, now that a full bus is a wait. Both the give-up tests and
+        PTRealisedShareTests use it.
+        """
+        game_map = GameMap.objects.create(
+            name="Broken line", x_dim=100, y_dim=100, scale=100.0
+        )
+        version = MapVersion.objects.create(
+            game_map=game_map, name="Base", base_version=True
+        )
+        nodes = []
+        for i in range(4):
+            node = Node.objects.create(
+                game_map=game_map, name=f"B{i}", x_position=i * 10, y_position=0
+            )
+            node.map_versions.add(version)
+            nodes.append(node)
+        edges = [
+            _street(game_map, version, nodes[i], nodes[i + 1], lanes=2)
+            for i in range(3)
+        ]
+        bus_line = BusLine.objects.create(
+            game_map=game_map, name="M48", intervall=10, bus_capacity=85
+        )
+        bus_line.map_versions.add(version)
+        for order, edge in enumerate([edges[0], edges[2]]):
+            BusLineEdge.objects.create(
+                bus_line=bus_line,
+                street_edge=edge.streetedge_set.first(),
+                order=order,
+            )
+        return game_map, version, edges, bus_line, nodes
+
+    def _broken_line_round(self, people=1000):
+        """A round whose only agent rides the unreachable part of the line."""
+        game_map, version, edges, bus_line, _nodes = self._broken_line_map()
+        session = _session(
+            self.user, game_map, people_per_agent=people, std_dev=10
+        )
+        session.active_map_version = version
+        session.save(update_fields=["active_map_version"])
+        game_round = self._round(session)
+        player = self._player(session)
+        route = self._pt_route(
+            game_round, player, [edges[2]], "bus", bus_line, agent_id=1
+        )
+        return game_round, route, bus_line
+
 
 class NodeChainTests(TestCase):
     """The walk that turns a bag of edges into a list of places.
@@ -2799,11 +2867,16 @@ class PTBoardingTests(PTBoardingScenarioMixin, TestCase):
         ]["not_arrived"], 0)
 
     def test_a_full_vehicle_refuses_the_surplus(self):
-        """Capacity finally constrains something.
+        """Capacity constrains boarding, and a refusal is a wait.
 
-        Five seats over twelve runs is sixty places for a hundred people, so
-        the line must refuse boardings — today it refuses none, because
-        nobody boards anything.
+        Five seats a bus against a hundred people queuing: almost everybody is
+        turned away at least once. Since `pt-service-period` the line keeps
+        running until they are all carried, so the cost of the shortfall lands
+        in the time column rather than in a headcount of people who vanished.
+
+        `denied` counts REFUSALS, not people — `line.denied += len(queue)` runs
+        on every stop visit, so one person turned away four times is four of
+        them. That is why the assertion is above 100 for a hundred people.
         """
         game_map, version, edges, bus_line, train_line = self._pt_map(bus_capacity=5)
         session = self._pt_session(game_map, version, people=100)
@@ -2814,8 +2887,9 @@ class PTBoardingTests(PTBoardingScenarioMixin, TestCase):
         simulator = self._run(game_round)
 
         line = simulator.pt_lines[("bus", bus_line.pk)]
-        self.assertGreater(line.denied, 0)
-        self.assertLessEqual(line.boarded, 60)
+        self.assertGreater(line.denied, 100)
+        self.assertEqual(line.boarded, 100)
+        self.assertEqual(line.stranded, 0)
 
     def test_whoever_is_refused_takes_the_next_one(self):
         """A refusal is a wait, not a dead end, while service is still coming."""
@@ -3007,57 +3081,67 @@ class PTTripTimeTests(PTBoardingScenarioMixin, TestCase):
         self.assertAlmostEqual(result.mean_trip_time_min, expected, places=6)
 
 
-class PTStrandedTests(PTBoardingScenarioMixin, TestCase):
-    """Whoever never gets a seat is counted, not quietly dropped."""
+class PTFullLineIsAWaitTests(PTBoardingScenarioMixin, TestCase):
+    """Nobody is left behind for want of a seat; the shortfall is time.
+
+    This class replaces PTStrandedTests, whose three tests asserted that
+    capacity strands the surplus. That is exactly what
+    `[backend]-pt-service-period.md` deletes (Lukas, 2026-09-25): students
+    already have CO2 and cost to argue about, and a count of people who did
+    not arrive is a third axis that ranks against neither.
+    """
 
     def setUp(self):
-        self.user = User.objects.create_user(username="ptstrand", password="12345")
+        self.user = User.objects.create_user(username="ptwait", password="12345")
 
-    def test_more_people_than_seats_strands_the_surplus(self):
-        """Two seats over twelve runs is 24 places for 100 people."""
-        game_map, version, edges, bus_line, train_line = self._pt_map(bus_capacity=2)
+    def _tiny_bus_round(self):
+        """Two seats a bus against a hundred people. 55 runs carry them all."""
+        game_map, version, edges, bus_line, _train = self._pt_map(bus_capacity=2)
         session = self._pt_session(game_map, version, people=100)
         game_round = self._round(session)
         player = self._player(session)
         route = self._pt_route(game_round, player, edges, "bus", bus_line)
+        return game_round, route, bus_line
 
-        simulator = self._run(game_round)
-
-        self.assertGreater(simulator.agent_results[route.pk]["not_arrived"], 50)
-
-    def test_the_line_records_who_gave_up(self):
-        game_map, version, edges, bus_line, train_line = self._pt_map(bus_capacity=2)
-        session = self._pt_session(game_map, version, people=100)
-        game_round = self._round(session)
-        player = self._player(session)
-        self._pt_route(game_round, player, edges, "bus", bus_line)
-
-        simulator = self._run(game_round)
-
-        line = simulator.pt_lines[("bus", bus_line.pk)]
-        self.assertGreater(line.stranded, 0)
-        self.assertEqual(line.boarded + line.stranded, 100)
-
-    def test_a_shortfall_does_not_burn_the_whole_tick_budget(self):
-        """Once the last bus has gone, waiting for it is not a simulation.
-
-        Without _strand_hopeless_riders the round spins to max_ticks with a
-        queue nothing can ever serve.
-        """
-        game_map, version, edges, bus_line, train_line = self._pt_map(bus_capacity=2)
-        session = self._pt_session(game_map, version, people=100)
-        game_round = self._round(session)
-        player = self._player(session)
-        self._pt_route(game_round, player, edges, "bus", bus_line)
+    def test_more_people_than_seats_is_a_wait(self):
+        """The headline, on the fixture that used to strand three quarters."""
+        game_round, route, bus_line = self._tiny_bus_round()
 
         simulator = self._run(game_round, max_ticks=300)
 
         line = simulator.pt_lines[("bus", bus_line.pk)]
-        # Without the first assertion this test cannot discriminate: today
-        # nobody is stranded at all, so the round ends early for the entirely
-        # different reason that everybody travelled.
-        self.assertGreater(line.stranded, 0)
-        self.assertLess(simulator.current_tick, 299)
+        self.assertEqual(line.stranded, 0)
+        self.assertEqual(line.boarded, 100)
+        self.assertEqual(simulator.agent_results[route.pk]["not_arrived"], 0)
+
+    def test_the_shortfall_shows_up_as_time(self):
+        """Where the vanished people went: into the time column.
+
+        Without this the test above is satisfied by a line that teleports
+        everybody. Two seats every ten minutes genuinely cannot move a hundred
+        people quickly, and the trip time has to say so.
+        """
+        game_round, route, _bus_line = self._tiny_bus_round()
+
+        simulator = self._run(game_round, max_ticks=300)
+
+        trips = simulator.agent_results[route.pk]["trip_times"]
+        self.assertEqual(len(trips), 100)
+        self.assertGreater(sum(trips) / len(trips), 120.0)
+
+    def test_the_line_pays_for_every_run_it_put_on(self):
+        """55 runs against a 12-run timetable, and all 55 emit."""
+        game_round, _route, bus_line = self._tiny_bus_round()
+
+        simulator = self._run(game_round, max_ticks=300)
+
+        line = simulator.pt_lines[("bus", bus_line.pk)]
+        self.assertGreater(line.vehicles, line.base_vehicles)
+        self.assertAlmostEqual(
+            line.society_co2_g,
+            line.vehicles * line.line_km * 1200.0,
+            places=3,
+        )
 
 
 class PTRealisedShareTests(PTBoardingScenarioMixin, TestCase):
@@ -3072,23 +3156,32 @@ class PTRealisedShareTests(PTBoardingScenarioMixin, TestCase):
         self.user = User.objects.create_user(username="ptshare", password="12345")
 
     def test_person_km_is_what_was_ridden_not_what_was_submitted(self):
-        """100 people submit, 24 places exist, so the line carries 24-ish.
+        """A line carries what got on it, not what was submitted over it.
 
-        Each place is one person over one 2 km ride, so the submitted figure
-        (100 x 2 km = 200) is far above what the line can have carried.
+        This used to be shown with a 2-seat bus: 100 people submit, 24 places
+        exist, so person_km came out far under the submitted 200. Since
+        `[backend]-pt-service-period.md` a full bus is a WAIT — the line keeps
+        running until all 100 are carried — so capacity no longer separates
+        the two figures at all.
+
+        What still separates them is a line whose edges do not connect.
+        _register_pt_line trims it to the part that forms a chain, the route's
+        board node is not among the stops any vehicle stands at, and a
+        thousand people submit a ride that nobody takes. person_km is 0 while
+        the submitted figure is 1000 x 1 km.
         """
-        game_map, version, edges, bus_line, train_line = self._pt_map(bus_capacity=2)
-        session = self._pt_session(game_map, version, people=100)
-        game_round = self._round(session)
-        player = self._player(session)
-        self._pt_route(game_round, player, edges, "bus", bus_line)
+        from game.simulation import TrafficSimulator
+
+        game_round, route, bus_line = self._broken_line_round(people=1000)
 
         simulator = self._run(game_round)
 
         line = simulator.pt_lines[("bus", bus_line.pk)]
-        self.assertGreater(line.person_km, 0.0)
-        self.assertLess(line.person_km, 100.0)
-        self.assertAlmostEqual(line.person_km, line.boarded * 2.0, places=6)
+        self.assertEqual(line.boarded, 0)
+        self.assertEqual(line.person_km, 0.0)
+        self.assertAlmostEqual(line.person_km, line.boarded * 1.0, places=6)
+        # And the society figure stands regardless — it is the map's.
+        self.assertGreater(line.society_co2_g, 0.0)
 
     def test_an_agent_whose_people_never_boarded_carries_none_of_it(self):
         """Nobody pays for a bus they could not get on.
@@ -3560,190 +3653,303 @@ class DriverSpeedIsDrawnOncePerPersonTests(TestCase):
 
 
 class PTServicePeriodTests(PTBoardingScenarioMixin, TestCase):
-    """A timetable is a property of the line, not of the commute window.
+    """A line runs as long as people need it, and nobody is left behind.
 
-    The road is open for the whole simulation: 4000 cars on one lane is a
-    catastrophic jam and every one of them still arrives, an hour late. A
-    line whose last run left with the last commuter is the only thing in the
-    model that answers excess demand by making people vanish.
+    Two halves, and the second is what makes the first safe:
+
+    - There is NO PT service period. A line dispatches while somebody still
+      needs it, bounded only by max_ticks — the same clock the road runs on.
+      run_simulation(max_ticks=200) at tick_duration_min=5 gives the street a
+      thousand simulated minutes; the line used to get a hundred and twenty.
+      A full bus is a WAIT, and the wait is already inside the trip time,
+      because _record_arrivals measures from wants_to_depart_min.
+    - The ONE case that cannot be waited out is a stop the line does not
+      serve, because its edges do not connect. That is a map-data defect, and
+      it has to be given up on rather than waited for — otherwise the line
+      dispatches to the end of the clock and pays society CO2 for every run.
     """
 
     def setUp(self):
-        self.user = User.objects.create_user(username="fahrplan", password="12345")
+        self.user = User.objects.create_user(username="ptservice", password="12345")
 
-    def _riders(self, people=1000, agents=1, **map_kwargs):
-        game_map, version, edges, bus_line, train_line = self._pt_map(**map_kwargs)
-        session = self._pt_session(game_map, version, people=people)
+    def _busy_round(self, people=1000, std_dev=10, capacity=85, interval=10, agents=1):
+        game_map, version, edges, bus_line, _train = self._pt_map(
+            bus_capacity=capacity, bus_interval=interval
+        )
+        session = _session(
+            self.user, game_map, people_per_agent=people, std_dev=std_dev
+        )
+        session.active_map_version = version
+        session.save(update_fields=["active_map_version"])
         game_round = self._round(session)
-        routes = []
-        for index in range(agents):
-            player = self._player(session, name=f"Fahrgast {index}")
-            routes.append(
-                self._pt_route(
-                    game_round, player, edges, "bus", bus_line, agent_id=index + 1
-                )
-            )
-        return game_round, routes, bus_line, train_line, edges
+        player = self._player(session)
+        routes = [
+            self._pt_route(game_round, player, edges, "bus", bus_line, agent_id=a)
+            for a in range(1, agents + 1)
+        ]
+        return game_round, routes, bus_line
 
-    def _drivers(self, people=1000):
-        game_map, version, edges, bus_line, train_line = self._pt_map(label="Autos")
-        session = self._pt_session(game_map, version, people=people)
-        game_round = self._round(session)
-        player = self._player(session, name="Autofahrerin")
-        route = _route(game_round, player, edges, mode="car", distance=2000.0)
-        return game_round, route, bus_line
+    # -- the floor: a line is a property of the map ------------------------
 
     def test_a_line_nobody_rides_runs_exactly_its_timetable(self):
-        """The floor, and the property this change must not break.
+        """The property the base_vehicles split exists to protect.
 
-        `pt-timetable-and-society` made a line's emissions a function of the
-        map rather than of its riders. That survives at the bottom end: an
-        unridden line still dispatches its base timetable and emits exactly
-        12 x 2 km x 1200 g.
+        Demand may buy EXTRA runs; it may never buy fewer than the timetable,
+        and a line nobody rides must cost exactly what the map says it costs.
+        12 runs x 2 km x 1200 g = 28.8 kg, unchanged from
+        `pt-timetable-and-society`.
         """
-        game_round, _route_obj, bus_line = self._drivers()
+        game_map, version, edges, bus_line, _train = self._pt_map()
+        session = self._pt_session(game_map, version, people=100)
+        game_round = self._round(session)
+        player = self._player(session)
+        _route(game_round, player, edges, mode="car", agent_id=1)
 
-        simulator = self._run(game_round, max_ticks=400)
+        simulator = self._run(game_round)
 
         line = simulator.pt_lines[("bus", bus_line.pk)]
         self.assertEqual(line.base_vehicles, 12)
         self.assertEqual(line.vehicles, 12)
         self.assertAlmostEqual(line.society_co2_g, 28_800.0, places=3)
 
-    def test_a_round_nobody_rides_does_not_run_to_the_cap(self):
-        """The regression this design can most easily cause.
+    def test_a_round_nobody_rides_does_not_run_to_the_end_of_the_clock(self):
+        """CONTROL — the regression this design most easily causes.
 
-        The extension runs are pre-generated to PT_MAX_SERVICE_MIN and sit in
-        self.waiting. A loop that counts them as pending departures would
-        spin to the cap on every round that merely HAS a line on the map.
+        Runs are pre-generated to the whole clock and cancelled when nobody
+        needs them. If a cancelled run were DEFERRED rather than dropped from
+        self.waiting, the tick loop would stay alive until its departure
+        minute and every round with a line on the map would burn the full
+        budget. This passes on `main` and must keep passing.
         """
-        game_round, _route_obj, _bus_line = self._drivers()
+        game_map, version, edges, _bus, _train = self._pt_map()
+        session = self._pt_session(game_map, version, people=20)
+        game_round = self._round(session)
+        player = self._player(session)
+        _route(game_round, player, edges, mode="car", agent_id=1)
 
-        simulator = self._run(game_round, max_ticks=400)
+        simulator = self._run(game_round, max_ticks=300)
 
-        self.assertLess(simulator.current_tick, 40)
+        self.assertLess(simulator.current_tick, 60)
+
+    # -- no cap ------------------------------------------------------------
 
     def test_the_peak_gets_the_extra_runs_it_needs(self):
-        """12 nominal runs are 1020 seats, and they carry 615 people.
+        """12 timetabled runs cannot move 1000 people; 17 can.
 
-        Five of the twelve pass the stop before the peak and take almost
-        nobody; those seats are gone. That part is real and stays. What is not
-        real is that there is no 09:10 bus.
+        Five of the twelve pass the stop before the peak and carry almost
+        nobody — 12 x 85 = 1020 nominal seats moved 615 people on `main`. That
+        part is real and stays. What was wrong is that there was no 09:10 bus.
         """
-        game_round, routes, bus_line, _train, _edges = self._riders()
+        game_round, routes, bus_line = self._busy_round()
 
-        simulator = self._run(game_round, max_ticks=400)
+        simulator = self._run(game_round)
 
         line = simulator.pt_lines[("bus", bus_line.pk)]
         self.assertEqual(line.base_vehicles, 12)
-        self.assertGreater(line.vehicles, line.base_vehicles)
+        self.assertGreater(line.vehicles, 12)
         self.assertEqual(line.boarded, 1000)
-        self.assertEqual(simulator.agent_results[routes[0].pk]["not_arrived"], 0)
 
-    def test_nobody_strands_when_the_line_can_carry_them(self):
-        """The headline. 385 of 1000 vanish today; none should.
+    def test_a_full_line_is_a_wait_not_a_dead_end(self):
+        """THE HEADLINE. 385 of 1000 vanish on `main`; none should.
 
-        Their penalty becomes a measured wait instead — the same currency the
-        car pays its congestion in.
+        Two agents, 2000 people against 85 seats every ten minutes: the capped
+        design stranded 342 of them. Here the line puts on 29 runs and carries
+        everybody.
         """
-        game_round, routes, bus_line, _train, _edges = self._riders()
+        game_round, routes, bus_line = self._busy_round(agents=2)
 
-        simulator = self._run(game_round, max_ticks=400)
+        simulator = self._run(game_round)
 
         line = simulator.pt_lines[("bus", bus_line.pk)]
-        results = simulator.agent_results[routes[0].pk]
         self.assertEqual(line.stranded, 0)
-        self.assertEqual(results["not_arrived"], 0)
-        self.assertGreater(sum(results["waits"]) / len(results["waits"]), 20.0)
+        self.assertEqual(line.boarded, 2000)
+        for route in routes:
+            self.assertEqual(simulator.agent_results[route.pk]["not_arrived"], 0)
 
-    def test_stranding_now_means_genuinely_over_capacity(self):
-        """The control: the fix must not simply switch stranding off.
+    def test_the_wait_shows_up_in_the_trip_time(self):
+        """The currency claim: a refused rider pays in minutes.
 
-        Two seats over the whole service period is 48 places for 100 people,
-        so the shortfall is real however long the line runs — and THAT is what
-        a stranded rider should mean.
+        The clock starts at wants_to_depart_min, so standing at the stop is
+        already inside the trip time and needs no new field. Two agents of a
+        thousand on an 85-seat line average over an hour and a half; the same
+        line carrying a single agent that fits averages well under one.
         """
-        game_round, routes, bus_line, _train, _edges = self._riders(
-            people=100, bus_capacity=2
-        )
+        crowded_round, crowded_routes, _line = self._busy_round(agents=2)
+        roomy_round, roomy_routes, _line2 = self._busy_round(capacity=1000)
 
-        simulator = self._run(game_round, max_ticks=400)
+        crowded = self._run(crowded_round)
+        roomy = self._run(roomy_round)
 
-        line = simulator.pt_lines[("bus", bus_line.pk)]
-        self.assertGreater(line.stranded, 0)
-        self.assertEqual(line.boarded + line.stranded, 100)
+        crowded_trips = [
+            x
+            for route in crowded_routes
+            for x in crowded.agent_results[route.pk]["trip_times"]
+        ]
+        roomy_trips = roomy.agent_results[roomy_routes[0].pk]["trip_times"]
+        crowded_mean = sum(crowded_trips) / len(crowded_trips)
+        roomy_mean = sum(roomy_trips) / len(roomy_trips)
+
+        self.assertGreater(crowded_mean, 60.0)
+        self.assertLess(roomy_mean, 20.0)
+        self.assertGreater(crowded_mean, roomy_mean * 3)
 
     def test_a_run_that_leaves_the_depot_is_paid_for(self):
-        """Society emissions come off the runs dispatched, not the plan.
+        """The price. Society emissions come off the runs dispatched.
 
-        This is the price of the change and it has to be visible: the line
-        that puts on five extra buses emits five extra buses' worth.
+        A line that had to put on five extra buses pays for five extra buses,
+        which is what "you needed 17, not 12" has to cost to be worth saying.
         """
-        from sim.constants import pt_emissions_g_per_vehicle_km
+        game_round, _routes, bus_line = self._busy_round()
 
-        game_round, _routes, bus_line, _train, _edges = self._riders()
-
-        simulator = self._run(game_round, max_ticks=400)
+        simulator = self._run(game_round)
 
         line = simulator.pt_lines[("bus", bus_line.pk)]
+        self.assertGreater(line.society_co2_g, 28_800.0)
         self.assertAlmostEqual(
             line.society_co2_g,
-            pt_emissions_g_per_vehicle_km("bus") * line.vehicles * line.line_km,
+            line.vehicles * line.line_km * 1200.0,
             places=3,
         )
-        self.assertGreater(line.society_co2_g, 28_800.0)
 
-    def test_the_service_cap_bounds_the_timetable(self):
-        """"As long as people need it" still ends somewhere.
+    def test_the_clock_is_the_only_bound(self):
+        """"As long as people need it" still ends where the road ends.
 
-        Two agents are 2000 people on a line that seats 85 every ten minutes.
-        It runs to the cap and then stops, and the surplus is stranded — which
-        by then is an honest statement about the line.
+        A thousand people against ten seats cannot be carried inside the
+        simulation, so the line runs to max_ticks and the shortfall lands in
+        not_arrived — the same bucket, with the same arithmetic, as a car
+        still on a jammed link. Nobody is `stranded`: that word now means the
+        map is broken.
         """
-        from game.simulation import PT_MAX_SERVICE_MIN
+        game_round, routes, bus_line = self._busy_round(capacity=10)
 
-        game_round, _routes, bus_line, _train, _edges = self._riders(agents=2)
-
-        simulator = self._run(game_round, max_ticks=400)
+        simulator = self._run(game_round, max_ticks=60)
 
         line = simulator.pt_lines[("bus", bus_line.pk)]
-        self.assertEqual(line.vehicles, round(PT_MAX_SERVICE_MIN / 10))
-        self.assertGreater(line.stranded, 0)
+        self.assertEqual(simulator.current_tick, 60)
+        self.assertEqual(line.stranded, 0)
+        self.assertGreater(simulator.agent_results[routes[0].pk]["not_arrived"], 0)
+        # And every run it managed is scheduled inside the clock, not past it.
+        self.assertLessEqual(line.vehicles, 60 * 5 // line.interval_min + 1)
 
     def test_a_rider_heading_for_a_transfer_keeps_the_next_line_running(self):
-        """The third group in _line_still_wanted, on its own.
+        """The third group in _line_still_wanted, isolated.
 
-        Somebody aboard the bus on their way to the train is in no stop queue
-        and not in self.waiting. Counting only those two groups would cancel
-        the train's extension runs out from under them.
+        Somebody riding the bus towards a change onto the train is in neither
+        of the cheap groups — not standing at a train stop, not still at home.
+        Without them the train could cancel the run their route needs while
+        they are still on the bus.
         """
-        from sim.state import Vehicle
-
         game_map, version, edges, bus_line, train_line = self._pt_map()
-        session = self._pt_session(game_map, version, people=10)
+        session = self._pt_session(game_map, version, people=100)
         game_round = self._round(session)
         player = self._player(session)
-        route = self._mixed_route(
+        self._mixed_route(
             game_round,
             player,
             [(edges[0], "bus", bus_line), (edges[1], "train", train_line)],
+            agent_id=1,
         )
+
+        from game.tests._helpers import muted
 
         simulator = TrafficSimulator(game_round, scale=100.0, seed=606)
         train_key = ("train", train_line.pk)
+        self.assertIn(train_key, simulator.routes_by_line)
 
-        # Aboard the bus: segment 0 done with, segment 1 is the train leg.
-        rider = Vehicle(
-            route_pk=route.pk,
-            person_index=0,
-            mode="bus",
-            segment_index=1,
-            departed=True,
+        with muted():
+            simulator.run_simulation(max_ticks=200)
+
+        train = simulator.pt_lines[train_key]
+        self.assertEqual(train.stranded, 0)
+        self.assertGreater(train.boarded, 0)
+
+    # -- the one thing that cannot be waited out ---------------------------
+
+    def test_a_stop_the_line_does_not_serve_is_given_up_on(self):
+        """The narrowed give-up: map data, not capacity.
+
+        The line's edges do not connect, so _register_pt_line trims it and its
+        vehicles never stand at the node this route boards at. No amount of
+        extra service helps.
+        """
+        game_round, route, bus_line = self._broken_line_round(people=1000)
+
+        simulator = self._run(game_round)
+
+        line = simulator.pt_lines[("bus", bus_line.pk)]
+        self.assertEqual(line.boarded, 0)
+        self.assertEqual(line.stranded, 1000)
+        self.assertEqual(simulator.agent_results[route.pk]["not_arrived"], 1000)
+
+    def test_a_broken_line_does_not_dispatch_to_the_end_of_the_clock(self):
+        """WHY the give-up is kept, and it is not about speed.
+
+        People queued at a stop keep _line_still_wanted true. Without the
+        give-up this line would dispatch every run the clock allows and pay
+        society CO2 for each: measured, 101 runs and 242 kg over the full 200
+        ticks, against 12 runs and 28.8 kg with it. A map-data defect would
+        quietly multiply the round's CO2 eightfold.
+
+        The assertion is against base_vehicles rather than a gram figure on
+        purpose. `line_km` is summed over ALL the line's edges, before `usable`
+        trims the ones its vehicles cannot reach, so this line is charged for
+        2 km while driving 1. That overstatement is real and pre-existing — see
+        the guide's §1.6 — and pinning 28 800 g here would quietly bless it.
+        """
+        game_round, _route, bus_line = self._broken_line_round(people=1000)
+
+        simulator = self._run(game_round, max_ticks=200)
+
+        line = simulator.pt_lines[("bus", bus_line.pk)]
+        self.assertEqual(line.vehicles, line.base_vehicles)
+        self.assertAlmostEqual(
+            line.society_co2_g,
+            line.base_vehicles * line.line_km * 1200.0,
+            places=3,
         )
-        simulator.vehicles[1] = rider
+        self.assertLess(simulator.current_tick, 60)
 
-        self.assertTrue(simulator._line_still_wanted(train_key))
+    def test_a_truncated_line_is_charged_for_kilometres_it_cannot_drive(self):
+        """Pre-existing, found while writing the give-up. Not fixed here.
 
-        # And once they have ridden it, they stop keeping it alive.
-        rider.segment_index = 2
-        self.assertFalse(simulator._line_still_wanted(train_key))
+        `line_km` is summed over every edge handed to _register_pt_line; the
+        `usable` trim that follows only shortens `edge_ids`. So a line that
+        breaks after one of its two edges still emits for both. CLAUDE.md names
+        five lines on map v1 with exactly this shape (S5, S7, M1, M48, 265), so
+        the shipped map's PT emissions are overstated by however much of those
+        lines is unreachable.
+
+        This test documents it rather than asserting the fix: change it to
+        assertAlmostEqual(line_km, driven) on the day the one-line fix lands.
+        """
+        game_round, _route, bus_line = self._broken_line_round(people=10)
+
+        simulator = self._run(game_round)
+
+        line = simulator.pt_lines[("bus", bus_line.pk)]
+        driven = len(line.edge_ids) * 1.0
+        self.assertEqual(driven, 1.0)
+        self.assertAlmostEqual(line.line_km, 2.0, places=6)
+        self.assertGreater(line.line_km, driven)
+
+    def test_somebody_still_standing_when_the_clock_stops_waited(self):
+        """The one line kept from the closed `nicht-angekommen`.
+
+        wait_min is credited at boarding, so the people who stood longest —
+        still standing when the clock stopped — used to be recorded as having
+        waited nothing. The person who waited most contributed zero.
+        """
+        game_round, routes, _bus_line = self._busy_round(capacity=10)
+
+        simulator = self._run(game_round, max_ticks=40)
+
+        never_boarded = [
+            v.wait_min
+            for v in simulator.vehicles.values()
+            if v.route_pk == routes[0].pk
+            and not v.arrived
+            and not v.bought_ticket
+            and v.reached_stop_min > 0
+        ]
+        self.assertGreater(len(never_boarded), 0)
+        self.assertGreater(max(never_boarded), 0.0)

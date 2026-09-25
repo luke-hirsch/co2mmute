@@ -160,6 +160,31 @@ class TrafficSimulator:
         # be an AgentRoute pk. See §"the one structural idea".
         self.line_route_keys: dict[tuple[str, int], int] = {}
 
+        # The reverse, so the tick loop can ask "which line is this negative
+        # route?" without walking the dict on every spawn.
+        self.line_by_route_key: dict[int, tuple[str, int]] = {}
+
+        # Which routes ride which line; built with the legs. The runs past the
+        # base timetable need it to answer "does anybody still want this?".
+        self.routes_by_line: dict[tuple[str, int], set[int]] = {}
+
+        # Refreshed once a tick: whether each line still has unserved demand.
+        self.line_wanted: dict[tuple[str, int], bool] = {}
+
+        # (line_key, node) that a run of the line has actually stood at, and
+        # the lines with at least one run that finished its whole journey.
+        # Together they answer the only question capacity cannot: is this
+        # person waiting at a stop the line does not serve? See
+        # _strand_hopeless_riders.
+        self.line_served_nodes: set[tuple[tuple[str, int], int]] = set()
+        self.line_has_finished_run: set[tuple[str, int]] = set()
+
+        # How long a line may keep dispatching. Set from max_ticks at the top
+        # of run_simulation — the road's clock, not a PT constant. The default
+        # matches run_simulation's own default so a simulator constructed and
+        # poked at in a test does not schedule a billion runs.
+        self.max_service_min: float = float(200 * self.tick_duration_min)
+
         # People standing at a stop: (line_key, node_id) -> vehicle ids, in the
         # order they got there. A rider waiting for M1 does not board U7, so the
         # line is part of the key.
@@ -285,10 +310,8 @@ class TrafficSimulator:
         test, and an unversioned map falls through to every line on it.
         """
         from maps.models import (
-            BusLine,
             BusLineEdge,
             MapVersion,
-            TrainLine,
             TrainLineEdge,
         )
 
@@ -402,6 +425,10 @@ class TrafficSimulator:
             if legs:
                 self.route_pt_legs[route_pk] = legs
 
+        for route_pk, legs in self.route_pt_legs.items():
+            for leg in legs:
+                self.routes_by_line.setdefault(leg.line_key, set()).add(route_pk)
+
     def _leg_at(self, route_pk: int, segment_index: int) -> "PTLeg | None":
         """The leg starting exactly at this segment, if one does."""
         for leg in self.route_pt_legs.get(route_pk, []):
@@ -431,7 +458,7 @@ class TrafficSimulator:
         # round(), not floor(): a 7-minute interval over the two-hour window is
         # 17 departures, and flooring it would quietly shorten every timetable
         # whose interval does not divide 120.
-        vehicles = max(1, round(DEPARTURE_WINDOW_MIN / interval))
+        base_vehicles = max(1, round(DEPARTURE_WINDOW_MIN / interval))
 
         stops = node_chain([(e.start_node_id, e.end_node_id) for e in edges])
         # A line whose edges do not connect is run only as far as it does. The
@@ -457,7 +484,7 @@ class TrafficSimulator:
             line_km=line_km,
             interval_min=interval,
             capacity=max(1, int(capacity or 1)),
-            vehicles=vehicles,
+            base_vehicles=base_vehicles,
             edge_ids=edge_ids,
             stops=stops,
         )
@@ -474,6 +501,8 @@ class TrafficSimulator:
 
         route_key = -(len(self.line_route_keys) + 1)
         self.line_route_keys[line_key] = route_key
+
+        self.line_by_route_key[route_key] = line_key
         self.route_segments[route_key] = [
             Segment(edge_id=edge_id, order=order, mode=mode, pt_line_id=line_id)
             for order, edge_id in enumerate(edge_ids)
@@ -515,7 +544,6 @@ class TrafficSimulator:
 
     def _load_pt_line_speeds(self):
         """Load bus and train line speeds from database."""
-        from maps.models import BusLine, TrainLine
 
         # Collect unique PT line IDs from route segments
         bus_line_ids = set()
@@ -668,8 +696,16 @@ class TrafficSimulator:
             route_key = self.line_route_keys.get(line_key)
             if route_key is None:
                 continue
+            # Scheduled to the SIMULATION's clock, not to the departure window
+            # and not to a PT-specific cap. Every run past base_vehicles is a
+            # candidate that _run_is_cancelled keeps in the depot unless
+            # somebody still needs the line. Pre-generating and cancelling is
+            # what lets the whole departure list stay sorted once, across the
+            # network, which is the rule that stopped the first route getting
+            # free flow and the last an hour's wait.
+            runs = max(1, int(self.max_service_min // line.interval_min) + 1)
             self.departure_schedule[route_key] = [
-                (i, float(i * line.interval_min)) for i in range(line.vehicles)
+                (i, float(i * line.interval_min)) for i in range(runs)
             ]
 
     def _queues_for_traffic(self, mode: str, edge_state: "EdgeState") -> bool:
@@ -835,6 +871,102 @@ class TrafficSimulator:
         )
         return True
 
+    def _line_still_wanted(self, line_key: tuple[str, int]) -> bool:
+        """Whether anybody still needs a run of this line.
+
+        Three groups, and all three have to count or a run gets cancelled out
+        from under somebody:
+
+        - people standing at one of its stops,
+        - people who have not left the house yet, still in self.waiting,
+        - people riding ANOTHER line towards a transfer onto this one. They
+          are in neither of the first two groups, so without them a two-line
+          route could lose its second bus while its rider is still on the
+          first.
+
+        A leg counts only while it has not started — leg.first_index at or
+        after the rider's current segment. Somebody already aboard has
+        boarded, and needs no further run.
+
+        The stop-queue check is first because it is the cheap one: a dict
+        lookup per stop, against a walk over every vehicle.
+        """
+        line = self.pt_lines.get(line_key)
+        if line is None:
+            return False
+
+        for node in line.stops:
+            if self.stop_queues.get((line_key, node)):
+                return True
+
+        routes = self.routes_by_line.get(line_key)
+        if not routes:
+            return False
+
+        for entry in self.waiting:
+            if entry[1] in routes:
+                return True
+
+        for vehicle in self.vehicles.values():
+            if not vehicle.departed or vehicle.arrived or vehicle.stranded:
+                continue
+            if vehicle.route_pk not in routes:
+                continue
+            for leg in self.route_pt_legs.get(vehicle.route_pk, []):
+                if (
+                    leg.line_key == line_key
+                    and leg.first_index >= vehicle.segment_index
+                ):
+                    return True
+        return False
+
+    def _refresh_line_demand(self):
+        """Answer _line_still_wanted once a tick, for every line.
+
+        _spawn_vehicles runs several times within one tick — the discharge
+        loop calls it again whenever storage frees up — and the answer must
+        not change underneath it. A run cancelled on the second pass because
+        the first pass emptied the stop is a run somebody was waiting for.
+        """
+        self.line_wanted = {
+            line_key: self._line_still_wanted(line_key) for line_key in self.pt_lines
+        }
+
+    def _run_is_cancelled(self, line_key: tuple[str, int], run_index: int) -> bool:
+        """Whether this timetabled run stays in the depot.
+
+        The base timetable always goes: a line runs whether or not anybody
+        rides it, which is what keeps its society emissions a property of the
+        map rather than of the round. Past that, a run leaves only if somebody
+        still needs the line — and it emits only if it leaves.
+
+        A cancelled run is DROPPED from self.waiting, not deferred. An entry
+        left in the list keeps the tick loop alive until its departure minute,
+        so every round would run to the end of the clock, even one where
+        everybody arrived in twenty minutes.
+        """
+        line = self.pt_lines.get(line_key)
+        if line is None or run_index < line.base_vehicles:
+            return False
+        return not self.line_wanted.get(line_key, False)
+
+    def _all_departures_are_done(self) -> bool:
+        """Whether anything left in self.waiting will actually still leave.
+
+        A run nobody needs is not a pending departure. Counting it would hold
+        the loop open to the end of the clock on every round that has a line
+        on the map, however quickly the people got to work.
+
+        A person's route key is positive, so line_by_route_key.get returns
+        None and the walk returns False — somebody still to leave the house is
+        always a pending departure.
+        """
+        for _depart_min, route_pk, person_index, _speed_factor in self.waiting:
+            line_key = self.line_by_route_key.get(route_pk)
+            if line_key is None or not self._run_is_cancelled(line_key, person_index):
+                return False
+        return True
+
     def _spawn_vehicles(self, now: float, tick_end: float):
         """Release everyone who wanted to leave by the end of this tick.
 
@@ -846,19 +978,15 @@ class TrafficSimulator:
         still_waiting = []
         for depart_min, route_pk, person_index, speed_factor in self.waiting:
             if depart_min > tick_end:
-                still_waiting.append(
-                    (depart_min, route_pk, person_index, speed_factor)
-                )
+                still_waiting.append((depart_min, route_pk, person_index, speed_factor))
                 continue
 
             segments = self.route_segments.get(route_pk, [])
             if not segments:
                 continue
-            line_key = None
-            for key, route_key in self.line_route_keys.items():
-                if route_key == route_pk:
-                    line_key = key
-                    break
+            line_key = self.line_by_route_key.get(route_pk)
+            if line_key is not None and self._run_is_cancelled(line_key, person_index):
+                continue
 
             vehicle = Vehicle(
                 route_pk=route_pk,
@@ -883,6 +1011,8 @@ class TrafficSimulator:
                 self.next_vehicle_id += 1
                 self.vehicles[vehicle_id] = vehicle
                 line = self.pt_lines[line_key]
+                # It left the terminus, so it is on the road and it emits.
+                line.vehicles += 1
                 pt = PTVehicle(
                     vehicle_id=vehicle_id,
                     line_key=line_key,
@@ -901,9 +1031,7 @@ class TrafficSimulator:
                 if person_index == 0:
                     self.sample_vehicles[route_pk] = vehicle_id
             else:
-                still_waiting.append(
-                    (depart_min, route_pk, person_index, speed_factor)
-                )
+                still_waiting.append((depart_min, route_pk, person_index, speed_factor))
 
         self.waiting = still_waiting
 
@@ -1098,6 +1226,7 @@ class TrafficSimulator:
         if not 0 <= pt.stop_index < len(line.stops):
             return
         node = line.stops[pt.stop_index]
+        self.line_served_nodes.add((pt.line_key, node))
 
         for rider_id in list(pt.riders):
             rider = self.vehicles.get(rider_id)
@@ -1187,6 +1316,7 @@ class TrafficSimulator:
         """The vehicle has reached the end of the line. Everybody off."""
         line = self.pt_lines.get(pt.line_key)
         pt.finished = True
+        self.line_has_finished_run.add(pt.line_key)
         if line is None:
             return
         terminus = line.stops[-1] if line.stops else None
@@ -1219,6 +1349,7 @@ class TrafficSimulator:
                 self.tick_duration_min
             )
 
+        self._refresh_line_demand()
         self._spawn_vehicles(now, tick_end)
         self._advance_free_running(now, tick_end)
 
@@ -1245,7 +1376,7 @@ class TrafficSimulator:
         for edge_id, edge_state in self.edge_states.items():
             if edge_id in released or not edge_state.queue:
                 edge_state.blocked_since_tick = self.current_tick
-        self._strand_hopeless_riders()
+        self._strand_hopeless_riders(tick_end)
         self.held_at_origin = self._held_at_origin(tick_end)
 
     def _record_edge_traffic(self):
@@ -1381,6 +1512,12 @@ class TrafficSimulator:
             agent_results = self.agent_results.get(vehicle.route_pk)
             if not agent_results:
                 continue
+            if vehicle.at_stop:
+                # wait_min is otherwise only credited at boarding
+                # (_serve_stop), so the people who stood longest — still
+                # standing when the clock stopped — would read as having
+                # waited nothing.
+                vehicle.wait_min += max(0.0, sim_end_min - vehicle.reached_stop_min)
             elapsed = max(0.0, sim_end_min - vehicle.wants_to_depart_min)
             delay = max(0.0, elapsed - self._free_flow_min(vehicle.route_pk))
             for _ in range(vehicle.passenger_count):
@@ -1500,6 +1637,12 @@ class TrafficSimulator:
             if not self.agent_routes:
                 logger.warning("[SIM] No agent routes found, simulation will be empty")
 
+            # A line's service period is the simulation's own clock — the same
+            # one the road runs on. There is no PT service cap; a full bus is a
+            # wait, and the wait is already inside the trip time because the
+            # clock starts at wants_to_depart_min.
+            self.max_service_min = float(max_ticks * self.tick_duration_min)
+
             # Run morning commute
             self._generate_departures(is_morning=True)
             # The desired-speed draw belongs to the PERSON, not to the
@@ -1520,9 +1663,7 @@ class TrafficSimulator:
                         # driver's taste, so it takes NO draw — not merely a
                         # factor of 1.0. Its route key is the negative one
                         # _register_pt_line gave it.
-                        1.0
-                        if route_pk < 0
-                        else draw_driver_speed_factor(self.rng),
+                        1.0 if route_pk < 0 else draw_driver_speed_factor(self.rng),
                     )
                     for route_pk, schedule in self.departure_schedule.items()
                     for person_index, depart_min in schedule
@@ -1539,11 +1680,16 @@ class TrafficSimulator:
             )
 
             self.sim_log.header("SIMULATION TICK LOG (sample vehicle per route)")
+            scheduled_runs = sum(
+                len(self.departure_schedule.get(key, []))
+                for key in self.line_by_route_key
+            )
+            base_runs = sum(l.base_vehicles for l in self.pt_lines.values())
             self.sim_log.write(
-                f"Total vehicles to spawn: {total_departures} "
-                f"({len(self.agent_routes)} routes x {self.people_per_agent} people, "
-                f"plus {sum(l.vehicles for l in self.pt_lines.values())} PT runs "
-                f"from {len(self.pt_lines)} lines)"
+                f"Total vehicles to spawn: {total_departures - scheduled_runs} people "
+                f"({len(self.agent_routes)} routes x {self.people_per_agent}), plus "
+                f"{base_runs} timetabled PT runs from {len(self.pt_lines)} lines and "
+                f"as many more as the demand asks for"
             )
 
             # Simulation loop. One call per tick: _advance_traffic() spawns,
@@ -1644,7 +1790,7 @@ class TrafficSimulator:
                     on_progress(self.current_tick, max_ticks)
 
                 # Check if all vehicles arrived
-                if not self.waiting and self._all_vehicles_arrived():
+                if self._all_departures_are_done() and self._all_vehicles_arrived():
                     self.sim_log.write(
                         f"\n>>> All {len(self.vehicles)} vehicles arrived at tick {self.current_tick}"
                     )
@@ -1882,12 +2028,16 @@ class TrafficSimulator:
         if self.pt_lines:
             self.sim_log.header("PUBLIC TRANSPORT")
             for line in self.pt_lines.values():
+                extra = line.vehicles - line.base_vehicles
+                runs = f"{line.vehicles} runs"
+                if extra > 0:
+                    runs += f" ({line.base_vehicles} timetabled + {extra} extra)"
                 self.sim_log.write(
-                    f"  {line.name} ({line.mode}): {line.vehicles} runs x "
+                    f"  {line.name} ({line.mode}): {runs} x "
                     f"{line.line_km:.2f}km every {line.interval_min}min, "
                     f"{line.capacity} seats — {line.boarded} boarded, "
-                    f"{line.denied} refused for want of a seat, "
-                    f"{line.stranded} gave up, "
+                    f"{line.denied} refusals at the stop, "
+                    f"{line.stranded} waiting at a stop it does not serve, "
                     f"{line.person_km:.0f} Personen-km carried"
                 )
         # Update totals
@@ -2012,37 +2162,61 @@ class TrafficSimulator:
                     defaults={"speed_under_load": max(1, int(state.mean_speed_kmh))},
                 )
 
-    def _strand_hopeless_riders(self):
-        """Give up on people no vehicle can ever reach.
+    def _strand_hopeless_riders(self, at_min: float):
+        """Give up only on a stop no vehicle of this line will ever serve.
 
-        A line's last run is over and nothing of it is left in self.waiting:
-        anyone still standing at one of its stops is not going to travel. They
-        are marked rather than removed, so _record_non_arrivals books them the
-        way it books a car that never got out of its road — at the time the
-        clock stopped, as a lower bound.
+        Capacity never strands anybody. A full bus is a WAIT: the line keeps
+        running as long as somebody needs it, for as long as the simulation
+        runs, and the wait is already inside the trip time because the clock
+        starts at wants_to_depart_min. Somebody the clock genuinely runs out
+        on is booked by _record_non_arrivals exactly as a car still on a
+        jammed link is — a real lower bound on a real trip.
 
-        Without this the round burns its whole tick budget waiting for a bus
-        that has already gone home.
+        What cannot be waited out is a stop the line does not actually serve:
+        a route naming a board node that _register_pt_line trimmed off the
+        line, because the line's edges do not connect. That is a MAP DATA
+        defect, not a capacity outcome, and several lines on map v1 have it
+        (S5, S7, M1, M48, 265). Once ONE run has finished its whole journey
+        the set of nodes this line serves is known, so anybody queued anywhere
+        else is waiting for nothing.
+
+        Leaving them there is not merely slow: they keep _line_still_wanted
+        true, so the line would dispatch to the end of the clock and pay
+        society CO2 for every run. Measured on a deliberately disconnected
+        line, 1000 people waiting at a stop it does not serve: with this
+        method, 12 runs and 28.8 kg over 22 ticks; without it, 101 runs and
+        242 kg over the full 200.
+
+        A rider _alight put back into this queue because the street outside
+        the stop was full is not touched, and now cannot be: the line demonstrably
+        serves the node it just set them down at, so the loop skips it before
+        the _leg_at guard is even reached.
         """
         for line_key, line in self.pt_lines.items():
-            route_key = self.line_route_keys.get(line_key)
-            if route_key is None:
+            if line_key not in self.line_has_finished_run:
                 continue
-            if any(
-                not pt.finished for pt in self.pt_vehicles if pt.line_key == line_key
-            ):
-                continue
-            if any(entry[1] == route_key for entry in self.waiting):
-                continue
-            for node in line.stops:
-                queue = self.stop_queues.get((line_key, node))
-                if not queue:
+            for (queue_line, node), queue in list(self.stop_queues.items()):
+                if queue_line != line_key or not queue:
                     continue
+                if (line_key, node) in self.line_served_nodes:
+                    continue
+                remaining = []
                 for rider_id in queue:
                     rider = self.vehicles.get(rider_id)
                     if rider is None or not rider.at_stop:
                         continue
+                    leg = self._leg_at(rider.route_pk, rider.segment_index)
+                    if leg is None or leg.line_key != line_key:
+                        remaining.append(rider_id)
+                        continue
                     rider.at_stop = False
                     rider.stranded = True
+                    rider.wait_min += max(0.0, at_min - rider.reached_stop_min)
                     line.stranded += 1
-                queue.clear()
+                    logger.warning(
+                        "[SIM] %s does not serve node %s, which a route asks "
+                        "it to. Check the map data.",
+                        line.name,
+                        node,
+                    )
+                queue[:] = remaining
