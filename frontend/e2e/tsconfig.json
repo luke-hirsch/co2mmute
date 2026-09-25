@@ -1,0 +1,14 @@
+{
+  // Deliberately NOT referenced from the root tsconfig.json, for the same
+  // reason tests/tsconfig.json is not: `tsc -b` (and therefore `npm run build`,
+  // and therefore the nginx image build) must never type-check e2e. A spec that
+  // does not compile has to fail `npm run e2e`, not a deploy.
+  //     npm run typecheck:e2e
+  "extends": "../tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "../node_modules/.tmp/tsconfig.e2e.tsbuildinfo",
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["**/*.ts", "../playwright.config.ts"]
+}
