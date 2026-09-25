@@ -61,3 +61,12 @@ frontend/test-results/
 frontend/playwright-report/
 frontend/blob-report/
 frontend/playwright/.cache/
+
+# Local native dev stack (devops/dev.sh)
+devops/.dev/
+backend/celerybeat-schedule*
+
+# Built by `npm run build:css` — in the image at build time and by the entrypoint,
+# locally by devops/dev.sh. It was tracked as an empty placeholder, which made it
+# permanently dirty once anything actually built it.
+backend/static/css/tailwind.css

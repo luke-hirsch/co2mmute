@@ -160,8 +160,30 @@ ASGI_APPLICATION = "co2mmute.asgi.application"
 
 # Database
 
+# Which engine, as a decision of its own rather than a side effect of DEBUG.
+#
+# It used to ride DEBUG alone, and the default below keeps that exactly: unset,
+# a debug run is still sqlite and a non-debug run is still Postgres, which is
+# what the container and the box do. What it adds is a way to say otherwise —
+# `DJANGO_DB=postgres` with DEBUG on, which is what a natively-run development
+# stack wants.
+#
+# It matters more than a preference. sqlite reuses a rowid after each TestCase
+# and Postgres sequences do not, so the round pk climbs in one and repeats in
+# the other — and the simulation is seeded off the round pk. A suite run on the
+# wrong engine draws different seeds than CI, which is how a test that passes
+# alone fails in a full run (see CLAUDE.md, "backend test conventions").
+DJANGO_DB = os.environ.get("DJANGO_DB", "sqlite" if DEBUG else "postgres")
+
 DATABASES = (
     {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
+    if DJANGO_DB == "sqlite"
+    else {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
             "NAME": os.environ.get("POSTGRES_DB", "co2mmute"),
@@ -170,13 +192,6 @@ DATABASES = (
             "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
             "PORT": os.environ.get("POSTGRES_PORT", "5432"),
             "CONN_MAX_AGE": int(os.environ.get("POSTGRES_CONN_MAX_AGE", "60")),
-        }
-    }
-    if not DEBUG
-    else {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
         }
     }
 )

@@ -41,6 +41,34 @@ test.describe("the funnel answers", () => {
     await expect(page.locator("#root")).not.toBeEmpty();
   });
 
+  test("a websocket reaches Daphne", async ({ page }) => {
+    // The one piece neither a page load nor an API call exercises. In the
+    // container nginx upgrades the connection; natively the Vite proxy does
+    // (`ws: true`), and that rule is easy to break without anything else
+    // noticing until a round silently stops broadcasting.
+    //
+    // A made-up game id is on purpose: the point is that the handshake is
+    // ANSWERED. Daphne rejects it with 4401 for having no cookie, and the
+    // browser surfaces a rejected upgrade as `error` — either way something
+    // replied. A dead proxy gives no reply at all.
+    await page.goto("/app/join");
+
+    const outcome = await page.evaluate(
+      () =>
+        new Promise<string>((resolve) => {
+          const socket = new WebSocket(
+            `${location.origin.replace(/^http/, "ws")}/ws/game/NOPE00/`,
+          );
+          socket.onopen = () => resolve("open");
+          socket.onclose = (event) => resolve(`close ${event.code}`);
+          socket.onerror = () => resolve("error");
+          setTimeout(() => resolve("timeout"), 8000);
+        }),
+    );
+
+    expect(outcome).not.toBe("timeout");
+  });
+
   test("the colour-mode bootstrap ran before anything painted", async ({ page }) => {
     await page.goto("/");
 
