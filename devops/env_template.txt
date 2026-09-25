@@ -6,6 +6,8 @@ POSTGRES_PASSWORD=
 # Django
 DJANGO_DEBUG=
 DJANGO_ALLOWED_HOSTS=
+# Comma-separated, and it REPLACES the built-in list rather than extending it.
+# The local dev stack (devops/dev.sh) sets its own and does not read this file.
 DJANGO_CSRF_TRUSTED_ORIGINS=
 DJANGO_BASE_URL=
 DJANGO_DB_WAIT_TIMEOUT=

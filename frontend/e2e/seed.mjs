@@ -19,7 +19,9 @@
  * it prints the one command that fixes it.
  *
  * Env:
- *   E2E_BASE_URL   default https://localhost
+ *   E2E_BASE_URL   default https://localhost:5173 — the native stack
+ *                  (devops/dev.sh up). Point it at https://localhost for the
+ *                  container behind nginx.
  *   E2E_USER       default e2e
  *   E2E_PASSWORD   default e2e-local-only
  *   E2E_MAP        default map_examples/Berlin_Mitte-West.json
@@ -38,7 +40,10 @@ import path from "node:path";
 // never be lifted into application code.
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
-const BASE = (process.env.E2E_BASE_URL ?? "https://localhost").replace(/\/$/, "");
+const BASE = (process.env.E2E_BASE_URL ?? "https://localhost:5173").replace(
+  /\/$/,
+  "",
+);
 const USER = process.env.E2E_USER ?? "e2e";
 const PASSWORD = process.env.E2E_PASSWORD ?? "e2e-local-only";
 const MAP_NAME = process.env.E2E_MAP_NAME ?? "E2E Berlin";
