@@ -4409,3 +4409,103 @@ class ReplayEndpointTests(TestCase):
         response = self.client.get(self._url(session))
 
         self.assertEqual(response.status_code, 404)
+
+
+@override_settings(**TEST_BACKENDS)
+class AlightingIntoFreeRunningTests(PTBoardingScenarioMixin, TestCase):
+    """Getting off a train and walking the last block must not kill the round.
+
+    _advance_free_running iterates self.free_running directly. A PT vehicle
+    that free-runs — a train always, a bus on a dedicated lane — serves its
+    stops from inside that loop, and a rider alighting onto a walk or a cycle
+    track is added to the very set being iterated, so Python raises
+    "Set changed size during iteration" and the whole simulation dies on the
+    first tick.
+
+    A bus in mixed traffic never hit it: it is discharged from the queue
+    instead, a different loop, and the rider it sets down is picked up on the
+    next tick. That is the behaviour this loop has to match.
+
+    Seen for real on 2026-09-25: two seats, one driving and one on Bus & Bahn,
+    and the whole round reported 0 g / 0,00 EUR / 0 min.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="alighting", password="12345")
+
+    def _ride_then_walk(self, mode="train", bus_lane=False):
+        """Ride the first link on a line, walk the second one home."""
+        game_map, version, edges, bus_line, train_line = self._pt_map()
+        if bus_lane:
+            street = edges[0].streetedge_set.first()
+            street.dedicated_bus_lane = True
+            street.lanes = 2
+            street.save(update_fields=["dedicated_bus_lane", "lanes"])
+        session = self._pt_session(game_map, version, people=100)
+        game_round = self._round(session)
+        player = self._player(session)
+        line = train_line if mode == "train" else bus_line
+        route = self._mixed_route(
+            game_round,
+            player,
+            [(edges[0], mode, line), (edges[1], "walk", None)],
+        )
+        return game_round, route
+
+    def test_a_train_rider_who_walks_the_last_block_arrives(self):
+        game_round, route = self._ride_then_walk()
+
+        simulator = self._run(game_round)
+
+        trips = simulator.agent_results[route.pk]["trip_times"]
+        self.assertTrue(trips, msg="the walk leg after the train produced no trip")
+
+    def test_the_round_is_not_free(self):
+        """The symptom as the class saw it: every figure zero."""
+        game_map, version, edges, _bus, train_line = self._pt_map()
+        session = self._pt_session(game_map, version, people=100)
+        game_round = self._round(session)
+        player = self._player(session)
+        self._mixed_route(
+            game_round,
+            player,
+            [(edges[0], "train", train_line), (edges[1], "walk", None)],
+        )
+
+        simulator = self._run(game_round)
+        result = simulator.get_results()
+
+        self.assertGreater(
+            result.total_co2_g,
+            0.0,
+            msg="a round with a train line running cannot emit nothing",
+        )
+
+    def test_a_bus_on_its_own_lane_sets_its_riders_down_too(self):
+        """The same loop, reached the other way: a bus that does not queue."""
+        game_round, route = self._ride_then_walk(mode="bus", bus_lane=True)
+
+        simulator = self._run(game_round)
+
+        trips = simulator.agent_results[route.pk]["trip_times"]
+        self.assertTrue(trips, msg="the walk leg after the bus produced no trip")
+
+    def test_the_walk_is_timed_from_the_moment_it_got_off(self):
+        """Deferring the walk to the next tick must not lengthen the trip.
+
+        arrived_min comes off ready_at_min, which _enter_edge set from the
+        alighting time, so which tick picks the walker up cannot move it. The
+        train takes 1 km at its line speed and the walk 1 km at walk speed;
+        anything near a tick more than that is the loop inventing delay.
+        """
+        game_round, route = self._ride_then_walk()
+
+        simulator = self._run(game_round)
+
+        trips = simulator.agent_results[route.pk]["trip_times"]
+        walk_min = 1.0 / simulator.walk_speed_kmh * 60.0
+        self.assertLess(
+            min(trips),
+            walk_min + simulator.tick_duration_min + 10.0,
+            msg="the walk after the train is being charged a whole extra tick",
+        )
