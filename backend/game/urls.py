@@ -15,6 +15,7 @@ from game.views_rest import (
     PlayerDetailView,
     PlayerListView,
     PlayerMoveView,
+    RoundReplayView,
     RoundTrafficHeatmapView,
     SeatCodeIssueView,
     SeatTakeoverView,
@@ -60,6 +61,11 @@ urlpatterns = [
         "<str:game_id>/round/<int:round_number>/traffic/",
         RoundTrafficHeatmapView.as_view(),
         name="round-traffic-heatmap",
+    ),
+    path(
+        "<str:game_id>/round/<int:round_number>/replay/",
+        RoundReplayView.as_view(),
+        name="round-replay",
     ),
     path(
         "<str:game_id>/summary/",

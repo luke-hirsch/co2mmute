@@ -48,6 +48,61 @@
   ],
   "snapshots": [
     {
+      "tick": 6,
+      "vehicle_count": 0,
+      "speed_kmh": 29.657625
+    },
+    {
+      "tick": 6,
+      "vehicle_count": 1,
+      "speed_kmh": 50.0
+    },
+    {
+      "tick": 7,
+      "vehicle_count": 1,
+      "speed_kmh": 49.429376
+    },
+    {
+      "tick": 7,
+      "vehicle_count": 2,
+      "speed_kmh": 30.069775
+    },
+    {
+      "tick": 7,
+      "vehicle_count": 3,
+      "speed_kmh": 50.0
+    },
+    {
+      "tick": 8,
+      "vehicle_count": 6,
+      "speed_kmh": 51.558275
+    },
+    {
+      "tick": 8,
+      "vehicle_count": 7,
+      "speed_kmh": 31.26218
+    },
+    {
+      "tick": 8,
+      "vehicle_count": 7,
+      "speed_kmh": 51.775863
+    },
+    {
+      "tick": 9,
+      "vehicle_count": 1,
+      "speed_kmh": 35.470868
+    },
+    {
+      "tick": 9,
+      "vehicle_count": 11,
+      "speed_kmh": 50.405293
+    },
+    {
+      "tick": 9,
+      "vehicle_count": 15,
+      "speed_kmh": 29.954095
+    },
+    {
       "tick": 10,
       "vehicle_count": 26,
       "speed_kmh": 40.201833
@@ -63,6 +118,66 @@
       "speed_kmh": 29.817896
     },
     {
+      "tick": 11,
+      "vehicle_count": 37,
+      "speed_kmh": 23.832262
+    },
+    {
+      "tick": 11,
+      "vehicle_count": 52,
+      "speed_kmh": 49.459563
+    },
+    {
+      "tick": 11,
+      "vehicle_count": 130,
+      "speed_kmh": 28.854482
+    },
+    {
+      "tick": 12,
+      "vehicle_count": 36,
+      "speed_kmh": 18.184483
+    },
+    {
+      "tick": 12,
+      "vehicle_count": 44,
+      "speed_kmh": 48.649381
+    },
+    {
+      "tick": 12,
+      "vehicle_count": 188,
+      "speed_kmh": 26.843325
+    },
+    {
+      "tick": 13,
+      "vehicle_count": 17,
+      "speed_kmh": 48.821632
+    },
+    {
+      "tick": 13,
+      "vehicle_count": 36,
+      "speed_kmh": 19.938869
+    },
+    {
+      "tick": 13,
+      "vehicle_count": 188,
+      "speed_kmh": 16.578915
+    },
+    {
+      "tick": 14,
+      "vehicle_count": 2,
+      "speed_kmh": 48.714866
+    },
+    {
+      "tick": 14,
+      "vehicle_count": 37,
+      "speed_kmh": 16.375675
+    },
+    {
+      "tick": 14,
+      "vehicle_count": 188,
+      "speed_kmh": 11.706982
+    },
+    {
       "tick": 15,
       "vehicle_count": 0,
       "speed_kmh": 48.757287
@@ -76,6 +191,66 @@
       "tick": 15,
       "vehicle_count": 188,
       "speed_kmh": 9.026936
+    },
+    {
+      "tick": 16,
+      "vehicle_count": 2,
+      "speed_kmh": 48.751743
+    },
+    {
+      "tick": 16,
+      "vehicle_count": 39,
+      "speed_kmh": 12.726161
+    },
+    {
+      "tick": 16,
+      "vehicle_count": 103,
+      "speed_kmh": 6.605618
+    },
+    {
+      "tick": 17,
+      "vehicle_count": 0,
+      "speed_kmh": 7.041539
+    },
+    {
+      "tick": 17,
+      "vehicle_count": 0,
+      "speed_kmh": 48.765699
+    },
+    {
+      "tick": 17,
+      "vehicle_count": 23,
+      "speed_kmh": 12.13616
+    },
+    {
+      "tick": 18,
+      "vehicle_count": 0,
+      "speed_kmh": 7.041539
+    },
+    {
+      "tick": 18,
+      "vehicle_count": 0,
+      "speed_kmh": 11.36163
+    },
+    {
+      "tick": 18,
+      "vehicle_count": 0,
+      "speed_kmh": 48.765699
+    },
+    {
+      "tick": 19,
+      "vehicle_count": 0,
+      "speed_kmh": 7.041539
+    },
+    {
+      "tick": 19,
+      "vehicle_count": 0,
+      "speed_kmh": 11.36163
+    },
+    {
+      "tick": 19,
+      "vehicle_count": 0,
+      "speed_kmh": 48.765699
     },
     {
       "tick": 20,

@@ -16,7 +16,7 @@ Tests cover:
 
 from django.contrib.auth.models import User
 from django.db import models
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from maps.models import (
     BusLine,
     BusLineEdge,
@@ -37,7 +37,9 @@ from game.models import (
     Player,
     PlayerMove,
     RouteSegment,
+    SimulationResult,
 )
+from game.tests._helpers import TEST_BACKENDS
 from game.simulation import (
     EdgeState,
     TrafficSimulator,
@@ -3953,3 +3955,457 @@ class PTServicePeriodTests(PTBoardingScenarioMixin, TestCase):
         ]
         self.assertGreater(len(never_boarded), 0)
         self.assertGreater(max(never_boarded), 0.0)
+
+
+class ReplaySamplingTests(TestCase):
+    """Who the replay follows, and the rule that it costs the round nothing.
+
+    The sample is taken by person index, never by a draw. A draw here would
+    come from `self.rng` and re-roll every later driver — the exact failure
+    that moved `draw_driver_speed_factor` out of `_spawn_vehicles`, and one
+    that would move the result by far more than a recorder is worth. The sharp
+    test for it is the generator's own state after the run
+    (`test_the_recorder_never_draws_from_the_rng`): if anything in the recorder
+    touched it, the two runs end in different places.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="replay", password="12345")
+        self.game_map, self.version, self.nodes = _grid_map("Replay map", 3)
+
+    def _run(self, people=200, stride=None, lanes=2, seed=4711):
+        from game.tests._helpers import muted
+
+        edges = [
+            _street(self.game_map, self.version, self.nodes[0], self.nodes[1],
+                    lanes=lanes),
+            _street(self.game_map, self.version, self.nodes[1], self.nodes[2],
+                    lanes=lanes),
+        ]
+        session = _session(self.user, self.game_map, people_per_agent=people, std_dev=0)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+        player = Player.objects.create(name="Fahrerin", game=session)
+        route = _route(game_round, player, edges, mode="car")
+        simulator = TrafficSimulator(game_round, scale=100.0, seed=seed)
+        if stride is not None:
+            simulator.trace_stride = stride
+        with muted():
+            simulator.run_simulation(max_ticks=200)
+        return simulator, route, edges
+
+    def test_one_dot_stands_for_a_fixed_number_of_people(self):
+        """Not a fixed number of dots: the ratio is what a class is told."""
+        from game.simulation import REPLAY_PEOPLE_PER_DOT
+
+        simulator, route, _ = self._run(people=200)
+
+        self.assertEqual(simulator.trace_stride, REPLAY_PEOPLE_PER_DOT)
+        followed = [
+            v
+            for vid, v in simulator.vehicles.items()
+            if vid in simulator.trace and v.route_pk == route.pk
+        ]
+        self.assertEqual(len(followed), 200 // REPLAY_PEOPLE_PER_DOT)
+
+    def test_the_sample_is_taken_by_person_index(self):
+        simulator, route, _ = self._run(people=200)
+
+        indices = sorted(
+            simulator.vehicles[vid].person_index
+            for vid in simulator.trace
+            if simulator.vehicles[vid].route_pk == route.pk
+        )
+
+        self.assertEqual(indices, [0, 50, 100, 150])
+
+    def test_the_recorder_never_draws_from_the_rng(self):
+        """Two strides, one seed: the generator must end in the same place.
+
+        Following every person instead of every fiftieth changes how much is
+        recorded and nothing else. If this fails, something in the recorder is
+        drawing — and every driver after that draw got a different speed.
+        """
+        few, _, _ = self._run(people=200, stride=50)
+        every, _, _ = self._run(people=200, stride=1)
+
+        self.assertEqual(few.rng.getstate(), every.rng.getstate())
+
+    def test_the_recorder_does_not_move_the_result(self):
+        """The same claim, read off the numbers a player sees.
+
+        Passes trivially before the recorder exists — it only starts testing
+        anything once `trace_stride` is real, which is why the rng-state test
+        above is the one to trust while typing.
+        """
+        few, few_route, _ = self._run(people=200, stride=50)
+        every, every_route, _ = self._run(people=200, stride=1)
+
+        self.assertEqual(
+            [round(t, 6) for t in few.agent_results[few_route.pk]["trip_times"]],
+            [round(t, 6) for t in every.agent_results[every_route.pk]["trip_times"]],
+        )
+
+
+class ReplayLineVehicleTests(PTBoardingScenarioMixin, TestCase):
+    """Every line vehicle is followed, whatever the stride.
+
+    There are only a few dozen per round, and a rider's "r" leg has to resolve
+    to one — a bus the replay did not record is a passenger floating down the
+    street with nothing under them.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="linien", password="12345")
+
+    def _run(self, stride=10_000, capacity=1000, people=100):
+        from game.tests._helpers import muted
+
+        game_map, version, edges, bus_line, train_line = self._pt_map(
+            bus_capacity=capacity
+        )
+        session = self._pt_session(game_map, version, people=people)
+        game_round = self._round(session)
+        player = self._player(session)
+        route = self._pt_route(game_round, player, edges, "bus", bus_line)
+        simulator = TrafficSimulator(game_round, scale=100.0, seed=99)
+        simulator.trace_stride = stride
+        with muted():
+            simulator.run_simulation(max_ticks=200)
+        return simulator, route, bus_line
+
+    def test_every_line_vehicle_is_followed(self):
+        simulator, _, _ = self._run()
+
+        line_vehicle_ids = {pt.vehicle_id for pt in simulator.pt_vehicles}
+
+        self.assertTrue(line_vehicle_ids)
+        self.assertTrue(line_vehicle_ids <= set(simulator.trace))
+
+    def test_a_line_vehicle_is_followed_even_though_no_person_is(self):
+        """The stride is high enough that essentially no passenger is recorded.
+
+        Sampling is by person index, never a draw, and index 0 is always
+        caught by the modulo (0 % anything == 0) — a harmless floor of one
+        traced person per route, whatever the stride. What this guards is the
+        line vehicle itself, which _trace follows unconditionally because
+        route_pk < 0 skips the modulo entirely.
+        """
+        simulator, route, _ = self._run(stride=10_000)
+
+        people = [
+            vid
+            for vid in simulator.trace
+            if simulator.vehicles[vid].route_pk == route.pk
+        ]
+
+        self.assertLessEqual(len(people), 1)
+        self.assertTrue({pt.vehicle_id for pt in simulator.pt_vehicles})
+
+
+class ReplayTraceTests(TestCase):
+    """The shape of what comes out: legs that join up, and an honest ending."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="spur", password="12345")
+        self.game_map, self.version, self.nodes = _grid_map("Trace map", 3)
+
+    def _run(self, people=200, lanes=2, max_ticks=200):
+        from game.tests._helpers import muted
+
+        edges = [
+            _street(self.game_map, self.version, self.nodes[0], self.nodes[1],
+                    lanes=lanes),
+            _street(self.game_map, self.version, self.nodes[1], self.nodes[2],
+                    lanes=lanes),
+        ]
+        session = _session(self.user, self.game_map, people_per_agent=people, std_dev=0)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+        player = Player.objects.create(name="Fahrerin", game=session)
+        route = _route(game_round, player, edges, mode="car")
+        simulator = TrafficSimulator(game_round, scale=100.0, seed=4711)
+        with muted():
+            result = simulator.run_simulation(max_ticks=max_ticks)
+        result.refresh_from_db()
+        return simulator, result.replay, route, edges
+
+    def test_the_payload_says_what_it_is(self):
+        from game.simulation import REPLAY_FORMAT_VERSION
+
+        _, replay, _, _ = self._run()
+
+        self.assertEqual(replay["version"], REPLAY_FORMAT_VERSION)
+        self.assertEqual(replay["people_per_dot"], 50)
+        self.assertEqual(replay["window_min"], 120)
+        self.assertGreater(replay["end_min"], 0)
+        self.assertTrue(replay["dots"])
+
+    def test_a_dots_legs_are_continuous(self):
+        """Entering link N+1 IS leaving link N, so there is never a gap.
+
+        The whole wire format rests on this: one timestamp per event, and the
+        frontend interpolates between them. A gap would be a dot that vanishes.
+        """
+        _, replay, _, _ = self._run()
+
+        for dot in replay["dots"]:
+            ends = [leg[3] for leg in dot["legs"][:-1]]
+            starts = [leg[2] for leg in dot["legs"][1:]]
+            self.assertEqual(ends, starts, dot)
+
+    def test_a_leg_never_ends_before_it_starts(self):
+        _, replay, _, _ = self._run()
+
+        for dot in replay["dots"]:
+            for leg in dot["legs"]:
+                self.assertGreater(leg[3], leg[2], dot)
+
+    def test_an_edge_leg_says_which_way_it_was_entered(self):
+        """An edge is stored in either direction, so the dot needs the node.
+
+        Without it the frontend draws half the map's traffic backwards.
+        """
+        _, replay, _, edges = self._run()
+
+        first = replay["dots"][0]
+        edge_legs = [leg for leg in first["legs"] if leg[0] == "e"]
+
+        self.assertEqual(edge_legs[0][1], edges[0].pk)
+        self.assertEqual(edge_legs[0][4], self.nodes[0].pk)
+        self.assertEqual(edge_legs[1][1], edges[1].pk)
+        self.assertEqual(edge_legs[1][4], self.nodes[1].pk)
+
+    def test_a_dot_that_got_there_says_arrived(self):
+        _, replay, _, _ = self._run()
+
+        self.assertEqual({dot["end"] for dot in replay["dots"]}, {"arrived"})
+
+    def test_the_door_queue_is_the_gap_before_the_first_leg(self):
+        """The queue no instrument could see before `stau-sichtbar`.
+
+        2000 people leaving in the same minute down one lane cannot all get
+        on; the ones held back want to leave before their first leg starts,
+        and that difference is what the animation draws as a crowd at home.
+        """
+        _, replay, _, _ = self._run(people=2000, lanes=1)
+
+        held = [dot for dot in replay["dots"] if dot["legs"][0][2] > dot["wants"]]
+
+        self.assertTrue(held)
+
+    def test_a_dot_carries_the_agent_it_belongs_to(self):
+        """So a player can pick their own commuters out of the traffic."""
+        _, replay, route, _ = self._run()
+
+        dot = replay["dots"][0]
+
+        self.assertEqual(dot["route"], route.pk)
+        self.assertEqual(dot["agent"], route.agent_id)
+        self.assertEqual(dot["mode"], "car")
+        self.assertIsNone(dot["line"])
+
+
+class ReplayPTTraceTests(PTBoardingScenarioMixin, TestCase):
+    """Standing at a stop, riding a bus, and being left behind by one."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="fahrgast", password="12345")
+
+    def _run(self, capacity=1000, people=100, max_ticks=200):
+        from game.tests._helpers import muted
+
+        game_map, version, edges, bus_line, train_line = self._pt_map(
+            bus_capacity=capacity
+        )
+        session = self._pt_session(game_map, version, people=people)
+        game_round = self._round(session)
+        player = self._player(session)
+        route = self._pt_route(game_round, player, edges, "bus", bus_line)
+        simulator = TrafficSimulator(game_round, scale=100.0, seed=99)
+        with muted():
+            result = simulator.run_simulation(max_ticks=max_ticks)
+        result.refresh_from_db()
+        return simulator, result.replay, route
+
+    def test_a_rider_stands_at_a_stop_before_it_rides(self):
+        _, replay, route = self._run()
+
+        riders = [dot for dot in replay["dots"] if dot["route"] == route.pk]
+        kinds = [leg[0] for leg in riders[0]["legs"]]
+
+        self.assertIn("s", kinds)
+        self.assertIn("r", kinds)
+        self.assertLess(kinds.index("s"), kinds.index("r"))
+
+    def test_a_ride_names_a_vehicle_the_replay_also_carries(self):
+        """Otherwise the passenger has nothing under them to be drawn on."""
+        _, replay, route = self._run()
+
+        ids = {dot["id"] for dot in replay["dots"]}
+        rides = [
+            leg[1]
+            for dot in replay["dots"]
+            if dot["route"] == route.pk
+            for leg in dot["legs"]
+            if leg[0] == "r"
+        ]
+
+        self.assertTrue(rides)
+        for vehicle_id in rides:
+            self.assertIn(vehicle_id, ids)
+
+    def test_a_line_vehicle_is_a_dot_with_a_name_and_no_agent(self):
+        """Named by ITS OWN line — the map also carries a same-departure U1.
+
+        Both the bus (M1) and the train (U1) dispatch their first run at
+        minute 0, and the more negative route key (U1's, registered second)
+        sorts first in self.waiting, so dots[0] with a line is not reliably
+        the bus. Filtering by name is what the test actually claims.
+        """
+        _, replay, _ = self._run()
+
+        buses = [dot for dot in replay["dots"] if dot["line"] == "M1"]
+
+        self.assertTrue(buses)
+        self.assertIsNone(buses[0]["route"])
+        self.assertIsNone(buses[0]["agent"])
+
+    def test_whoever_never_got_a_seat_is_marked_stranded(self):
+        """The map-data give-up leaves people standing, and the replay has to say so.
+
+        Since `pt-service-period`, `stranded` no longer means a full bus — it
+        means the line's edges do not reach a stop a route asks it to serve.
+        The two-link map's bus and train lines are fully connected, so a
+        merely undersized line (capacity=1) now ends `unfinished`, waiting out
+        the clock, not `stranded`. Only the broken-line fixture — a route
+        boarding past where the line's edges stop connecting — produces this
+        ending; the beat at the end of the animation cannot claim everybody
+        arrived while a stop like that is still full of people.
+        """
+        from game.tests._helpers import muted
+
+        game_round, route, _bus_line = self._broken_line_round()
+        simulator = TrafficSimulator(game_round, scale=100.0, seed=99)
+        with muted():
+            result = simulator.run_simulation(max_ticks=200)
+        result.refresh_from_db()
+
+        endings = {
+            dot["end"] for dot in result.replay["dots"] if dot["route"] == route.pk
+        }
+
+        self.assertIn("stranded", endings)
+
+
+@override_settings(**TEST_BACKENDS)
+class ReplayEndpointTests(TestCase):
+    """`api/game/<id>/round/<n>/replay/` — one fetch for the whole animation."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="wirt", password="12345")
+        self.game_map, self.version, self.nodes = _grid_map("Endpoint map", 3)
+
+    def _played_round(self, people=4000, simulate=True):
+        from game.tests._helpers import muted
+
+        edges = [
+            _street(self.game_map, self.version, self.nodes[0], self.nodes[1], lanes=2),
+            _street(self.game_map, self.version, self.nodes[1], self.nodes[2], lanes=2),
+        ]
+        session = _session(self.user, self.game_map, people_per_agent=people, std_dev=0)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+        player = Player.objects.create(name="Fahrerin", game=session)
+        _route(game_round, player, edges, mode="car")
+        if simulate:
+            with muted():
+                TrafficSimulator(game_round, scale=100.0, seed=4711).run_simulation(
+                    max_ticks=200
+                )
+        return session, game_round
+
+    def _url(self, session, round_number=1):
+        return f"/api/game/{session.game_id}/round/{round_number}/replay/"
+
+    def test_the_route_resolves_to_the_replay_view(self):
+        """Pinned with resolve(), not a status code.
+
+        `game/urls.py` ordering is load-bearing: a literal prefix below the two
+        dynamic patterns lands in `GetYourOwnGame` and returns a plausible 403
+        instead of a 404. A status-code assertion cannot tell those apart.
+        """
+        from django.urls import resolve
+
+        match = resolve("/api/game/ABCDEF/round/1/replay/")
+
+        self.assertEqual(match.url_name, "round-replay")
+
+    def test_the_host_gets_the_dots_and_the_street_fill(self):
+        session, _ = self._played_round()
+        self.client.force_login(self.user)
+
+        response = self.client.get(self._url(session))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["round_number"], 1)
+        self.assertEqual(payload["tick_duration_min"], session.tick_duration_min)
+        self.assertEqual(payload["people_per_agent"], session.people_per_agent)
+        self.assertTrue(payload["replay"]["dots"])
+        self.assertTrue(payload["ticks"])
+
+    def test_somebody_with_no_access_is_refused(self):
+        session, _ = self._played_round()
+
+        response = self.client.get(self._url(session))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_the_street_fill_arrives_once_per_tick(self):
+        """Not once per fifth tick: nine frames for a morning is a chart.
+
+        The ticks come back consecutively from the first one that had anything
+        on it, which is what lets the animation step the street fill smoothly.
+        """
+        session, _ = self._played_round()
+        self.client.force_login(self.user)
+
+        ticks = [entry["t"] for entry in self.client.get(self._url(session)).json()["ticks"]]
+
+        self.assertGreater(len(ticks), 9)
+        self.assertEqual(ticks, sorted(ticks))
+        self.assertEqual(ticks, list(range(ticks[0], ticks[0] + len(ticks))))
+
+    def test_an_edge_row_carries_the_people_still_at_their_front_door(self):
+        session, _ = self._played_round()
+        self.client.force_login(self.user)
+
+        rows = self.client.get(self._url(session)).json()["ticks"][0]["edges"]
+
+        self.assertEqual(len(rows[0]), 4)
+
+    def test_a_round_recorded_before_this_existed_still_answers(self):
+        """An old round keeps every number it ever had; only the dots are gone."""
+        session, game_round = self._played_round()
+        SimulationResult.objects.filter(game_round=game_round).update(replay=None)
+        self.client.force_login(self.user)
+
+        response = self.client.get(self._url(session))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.json()["replay"])
+
+    def test_a_round_that_never_ran_is_a_404(self):
+        """The route has to exist first, or this passes against a missing URL.
+
+        Django's own 404 for an unrouted path is indistinguishable from the
+        view's 404 for a round with no simulation — so resolve() goes in the
+        same test rather than trusting the status code alone.
+        """
+        from django.urls import resolve
+
+        session, _ = self._played_round(simulate=False)
+        resolve(self._url(session))
+        self.client.force_login(self.user)
+
+        response = self.client.get(self._url(session))
+
+        self.assertEqual(response.status_code, 404)
