@@ -1612,3 +1612,73 @@ class BikeLaneSubmitTests(GateFixtureMixin, TestCase):
             any("biking not allowed" in error for error in errors),
             msg=f"expected a biking refusal, got {errors}",
         )
+
+
+@override_settings(**TEST_BACKENDS)
+class CrashedSimulationIsNotAFreeRoundTests(SimulatedRoundMixin, TestCase):
+    """A simulation that dies must not come back as a round that cost nothing.
+
+    `_run_simulation` caught every exception and fell through to
+    `_calculate_hardcoded_stats`. That fallback reads `move.action`, and every
+    move carrying routes says `"route_submission"` — a string in none of its
+    three tables — so it answers 0.0 for every agent of every mode. The round
+    then reported 0 g, 0,00 EUR and 0 min, wrote a zero into
+    `GameRound.total_emissions_g`, left the CO2 budget untouched and announced
+    `simulation_used: True`.
+
+    That is what a play-test saw on 2026-09-25, and it is why the round-end
+    knot in `Roadmap.md` S1 was filed as a frontend bug: nothing on the wire
+    said the engine had crashed.
+    """
+
+    def setUp(self):
+        super().setUp()
+        # What PlayerMoveView actually writes once routes are submitted
+        # (`views_rest.py`: has_routes forces the action). The mixin's own
+        # "car" would let the dead fallback answer 150 g and hide the point.
+        PlayerMove.objects.filter(session_round=self.round).update(
+            action="route_submission",
+            payload={"agents": [{"id": 1, "route": {"segments": []}}]},
+        )
+
+    def _crashed_round(self):
+        with patch("game.simulation.TrafficSimulator") as simulator:
+            simulator.return_value.run_simulation.side_effect = RuntimeError(
+                "Set changed size during iteration"
+            )
+            return self.complete_round()
+
+    def test_a_crashed_round_does_not_claim_to_have_been_simulated(self):
+        data = self._crashed_round().data("round.completed")
+
+        self.assertIs(
+            data["simulation_used"],
+            False,
+            msg="simulation_used said True for a round the simulator never finished",
+        )
+
+    def test_a_round_that_really_ran_still_says_so(self):
+        """The control. Without it the flag could just be hardwired False."""
+        data = self.complete_round().data("round.completed")
+
+        self.assertIs(data["simulation_used"], True)
+        self.assertGreater(data["round_emissions_g"], 0.0)
+
+    def test_the_players_are_still_named_so_the_screen_is_not_blank(self):
+        """The stats phase is entered either way — the class has to be able to
+        press on. What must not survive is the claim that this is a result."""
+        data = self._crashed_round().data("round.completed")
+
+        names = {stat["player_name"] for stat in data["player_stats"]}
+        self.assertEqual(names, {"Anna", "Bruno"})
+
+    def test_the_dead_fallback_is_gone_from_the_failure_path(self):
+        """`_calculate_hardcoded_stats` stays for genuinely legacy moves, which
+        carry no routes at all. On the failure path it is not a fallback, it is
+        a mask: it cannot return anything but zero and it hides the crash."""
+        with patch("game.signals._calculate_hardcoded_stats") as fallback:
+            with patch("game.simulation.TrafficSimulator") as simulator:
+                simulator.return_value.run_simulation.side_effect = RuntimeError("x")
+                self.complete_round()
+
+        fallback.assert_not_called()

@@ -100,12 +100,13 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | R-11 | Reconnect mitten in der Runde | schon abgeschickte Wahl ist noch da | geht | - |
 | R-12 | ÖPNV-Route gibt es nicht | sagt es und lässt eine andere Linie wählen | geht | - |
 | R-13 | Chat während der Runde | erreichbar | offen | - |
+| R-14 | ÖPNV fahren und das letzte Stück laufen | Runde wird gerechnet, nicht abgebrochen | geht | - |
 
 ## Z — zwischen den runden
 
 | ID | Fall | Erwartet | Status | E2E |
 | --- | --- | --- | --- | --- |
-| Z-01 | Runde fertig | Ergebnis pro Spieler: CO₂, Kosten, Zeit | geht | - |
+| Z-01 | Runde fertig | Ergebnis pro Spieler: CO₂, Kosten, Zeit | ungeprüft | - |
 | Z-02 | alle haben gelesen | weiter zur Diskussion | geht | - |
 | Z-03 | keine Kartenversionen zur Wahl | direkt die nächste Runde | geht | - |
 | Z-04 | Host öffnet die Abstimmung | nur aus der Diskussion heraus | geht | - |
