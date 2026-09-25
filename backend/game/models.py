@@ -437,6 +437,12 @@ class SimulationResult(models.Model):
     network_cost_eur = models.FloatField(default=0.0)
     error_message = models.TextField(null=True, blank=True)
     detailed_log = models.TextField(null=True, blank=True)
+    # Everything needed to play this round back: sampled people and every line
+    # vehicle, with the links they were on and when. Written once by
+    # TrafficSimulator._build_replay and never updated. Null for every round
+    # simulated before this field existed, which the endpoint reports as an
+    # empty replay rather than a 404 — an old round still has its numbers.
+    replay = models.JSONField(null=True, blank=True)
 
     def __str__(self):
         return f"Simulation for {self.game_round}"

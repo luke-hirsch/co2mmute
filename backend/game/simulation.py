@@ -72,6 +72,20 @@ FALLBACK_TRAIN_INTERVAL_MIN = 10
 # Departure window: matches the ±60 min clamp in generate_departure_minutes()
 DEPARTURE_WINDOW_MIN = 120
 
+# One dot on the replay stands for this many people. 1000 people per agent
+# gives 20 dots per agent — enough life on a 90-edge map to read as traffic,
+# few enough to pick your own agent out of.
+#
+# The sample is taken by PERSON INDEX and never by a draw. A draw here would
+# come from self.rng and re-roll every later driver, which is the exact failure
+# that moved draw_driver_speed_factor out of _spawn_vehicles — and it would
+# move the round's result by far more than this recorder is worth.
+REPLAY_PEOPLE_PER_DOT = 50
+
+# Bumped when the wire format changes, so a stored replay from an older round
+# can be recognised and skipped rather than mis-drawn.
+REPLAY_FORMAT_VERSION = 1
+
 
 @dataclass(frozen=True)
 class PTLeg:
@@ -204,6 +218,11 @@ class TrafficSimulator:
         # Route data indexed by route.pk (globally unique)
         self.agent_routes: dict[int, AgentRoute] = {}
         self.route_segments: dict[int, list[Segment]] = {}
+        # The node ids a route visits, in travel order — route_pk -> [node_id].
+        # An edge is stored in either direction (see sim.state.node_chain), so
+        # the replay cannot tell which way a dot crosses a link without this.
+        # Index i of a route's segments runs from chain[i] to chain[i + 1].
+        self.route_nodes: dict[int, list[int]] = {}
 
         # PT line speed cache: line_id -> speed_kmh
         self.bus_line_speeds: dict[int, int] = {}
@@ -234,6 +253,11 @@ class TrafficSimulator:
         # Sample vehicle IDs: route_pk -> vehicle_id (person_index=0, for detailed logging)
         self.sample_vehicles: dict[int, int] = {}
 
+        # The replay trace: vehicle_id -> [(at_min, kind, ref, from_node)].
+        # Only sampled people and line vehicles are in here — see _trace.
+        self.trace: dict[int, list[tuple[float, str, int | None, int | None]]] = {}
+        self.trace_stride = max(1, REPLAY_PEOPLE_PER_DOT)
+
         # Load routes and initialize edges during construction
         self._load_routes()
         self._initialize_edges()
@@ -257,6 +281,7 @@ class TrafficSimulator:
             )
             for route in routes:
                 self.agent_routes[route.pk] = route
+                rows = list(route.segments.order_by("order"))  # type: ignore
                 # Convert the model rows into the engine's own Segment: four
                 # fields and no Django. This is the whole of what used to tie
                 # the tick loop to the database — every other thing it touches
@@ -268,9 +293,15 @@ class TrafficSimulator:
                         mode=row.mode,
                         pt_line_id=row.pt_line_id,  # type: ignore
                     )
-                    for row in route.segments.order_by("order")  # type: ignore
+                    for row in rows
                 ]
                 self.route_segments[route.pk] = segments
+                # Same helper the PT lines use. A route whose edges do not
+                # connect yields a short chain; _trace falls back to no
+                # direction rather than to a wrong one.
+                self.route_nodes[route.pk] = node_chain(
+                    [(row.edge.start_node_id, row.edge.end_node_id) for row in rows]  # type: ignore
+                )
 
                 label = f"{player_name}/Agent#{route.agent_id} ({route.transport_mode})"
                 route_labels[route.pk] = label
@@ -501,12 +532,14 @@ class TrafficSimulator:
 
         route_key = -(len(self.line_route_keys) + 1)
         self.line_route_keys[line_key] = route_key
-
         self.line_by_route_key[route_key] = line_key
         self.route_segments[route_key] = [
             Segment(edge_id=edge_id, order=order, mode=mode, pt_line_id=line_id)
             for order, edge_id in enumerate(edge_ids)
         ]
+        # `stops` is already this line's node chain; `usable` trimmed the edges
+        # to the part that connects, so trim the chain to match.
+        self.route_nodes[route_key] = stops[: usable + 1]
 
     def _pt_line_for(self, segment) -> "PTLineState | None":
         """The registry entry a PT segment rides on, None for road modes.
@@ -861,7 +894,14 @@ class TrafficSimulator:
         """
         leg = self._leg_at(vehicle.route_pk, vehicle.segment_index)
         if leg is None:
-            return self._enter_edge(vehicle_id, vehicle, at_min)
+            # Resolved before the call, because _enter_edge advances nothing but
+            # returns True for "the route ends here" as well as for "it is on".
+            state = self._state_for_segment(vehicle.route_pk, vehicle.segment_index)
+            if not self._enter_edge(vehicle_id, vehicle, at_min):
+                return False
+            if state is not None:
+                self._trace(vehicle_id, vehicle, at_min, "e", state.edge_id)
+            return True
 
         vehicle.at_stop = True
         vehicle.queued = False
@@ -869,6 +909,7 @@ class TrafficSimulator:
         self.stop_queues.setdefault((leg.line_key, leg.board_node), []).append(
             vehicle_id
         )
+        self._trace(vehicle_id, vehicle, at_min, "s", leg.board_node)
         return True
 
     def _line_still_wanted(self, line_key: tuple[str, int]) -> bool:
@@ -1021,6 +1062,9 @@ class TrafficSimulator:
                 )
                 self.pt_vehicles.append(pt)
                 self.pt_by_vehicle[vehicle_id] = pt
+                self._trace(
+                    vehicle_id, vehicle, max(depart_min, now), "e", segments[0].edge_id
+                )
                 # It is standing at its first stop the moment it sets off.
                 self._serve_stop(pt, max(depart_min, now))
                 continue
@@ -1169,6 +1213,7 @@ class TrafficSimulator:
             QueuedVehicle(vehicle_id, vehicle.ready_at_min, pcu, at_min)
         )
         edge_state.occupancy_pcu += pcu
+        self._trace(vehicle_id, vehicle, at_min, "e", edge_state.edge_id)
 
     def _advance_free_running(self, now: float, tick_end: float):
         """Move everything that does not interact with car traffic."""
@@ -1246,6 +1291,7 @@ class TrafficSimulator:
                 continue
             rider.at_stop = False
             rider.aboard_of = pt.vehicle_id
+            self._trace(rider_id, rider, at_min, "r", pt.vehicle_id)
             rider.wait_min += max(0.0, at_min - rider.reached_stop_min)
             if not rider.bought_ticket:
                 rider.bought_ticket = True
@@ -1311,6 +1357,7 @@ class TrafficSimulator:
             self.stop_queues.setdefault((leg.line_key, leg.alight_node), []).append(
                 rider_id
             )
+            self._trace(rider_id, rider, at_min, "s", leg.alight_node)
 
     def _finish_run(self, pt: PTVehicle, at_min: float):
         """The vehicle has reached the end of the line. Everybody off."""
@@ -1457,6 +1504,114 @@ class TrafficSimulator:
                 agent_results["trip_times"].append(trip_min)
                 agent_results["delays"].append(delay_min)
                 agent_results["waits"].append(vehicle.wait_min)
+
+    def _trace(
+        self,
+        vehicle_id: int,
+        vehicle: Vehicle,
+        at_min: float,
+        kind: str,
+        ref: int | None,
+    ):
+        """Record one position change for a vehicle the replay follows.
+
+        `kind` is where it is from now until its next event:
+          "e" — crossing edge `ref`, entering it at node `from_node`
+          "s" — standing at node `ref`, waiting for a line
+          "r" — riding vehicle `ref`, so its position is that vehicle's
+
+        One timestamp per event is enough: entering link N+1 IS leaving link N,
+        because the caller passes the same `left_at` to both. _build_replay
+        pairs them and closes the last one from the vehicle's own arrival.
+
+        Sampling is by person index, never by a draw — see REPLAY_PEOPLE_PER_DOT.
+        A line vehicle (route_pk < 0) is always followed: there are only a few
+        dozen per round and a rider's "r" leg has to resolve to one.
+        """
+        if vehicle.route_pk >= 0 and vehicle.person_index % self.trace_stride:
+            return
+
+        from_node = None
+        if kind == "e":
+            chain = self.route_nodes.get(vehicle.route_pk, [])
+            if 0 <= vehicle.segment_index < len(chain):
+                from_node = chain[vehicle.segment_index]
+
+        self.trace.setdefault(vehicle_id, []).append((at_min, kind, ref, from_node))
+
+    def _build_replay(self) -> dict:
+        """Turn the event log into legs the frontend can interpolate.
+
+        A leg is a pair of consecutive events; the tail is closed from the
+        vehicle's own arrival, so no arrival site needs a hook of its own.
+        Everything here is a time the simulation computed, in continuous
+        minutes from the start of the departure window — never a tick bucket,
+        which is why playback smoothness does not depend on tick_duration_min.
+        """
+        stopped_at = self.current_tick * self.tick_duration_min
+        dots = []
+        end_min = 0.0
+
+        for vehicle_id, events in self.trace.items():
+            vehicle = self.vehicles.get(vehicle_id)
+            if vehicle is None or not events:
+                continue
+
+            if vehicle.arrived and vehicle.arrived_min is not None:
+                closed_at, ending = vehicle.arrived_min, "arrived"
+            elif vehicle.stranded:
+                closed_at, ending = stopped_at, "stranded"
+            else:
+                closed_at, ending = stopped_at, "unfinished"
+
+            legs = []
+            for index, (at_min, kind, ref, from_node) in enumerate(events):
+                until = events[index + 1][0] if index + 1 < len(events) else closed_at
+                if until <= at_min:
+                    # Two events at the same instant: a link crossed in no time,
+                    # or a rider set down and picked up again. Nothing to draw.
+                    continue
+                legs.append(
+                    [kind, ref, round(at_min, 2), round(until, 2), from_node]
+                )
+
+            if not legs:
+                continue
+            end_min = max(end_min, legs[-1][3])
+
+            pt = self.pt_by_vehicle.get(vehicle_id)
+            line = self.pt_lines.get(pt.line_key) if pt else None
+            route = self.agent_routes.get(vehicle.route_pk)
+            dots.append(
+                {
+                    "id": vehicle_id,
+                    # None for a line vehicle: it belongs to nobody's agent.
+                    "route": vehicle.route_pk if vehicle.route_pk >= 0 else None,
+                    "agent": route.agent_id if route else None,
+                    "line": line.name if line else None,
+                    "mode": (
+                        route.transport_mode
+                        if route
+                        else (line.mode if line else vehicle.mode)
+                    ),
+                    # When this person wanted to leave. The gap between `wants`
+                    # and the first leg IS the queue at the front door — the
+                    # thing no instrument could see before stau-sichtbar.
+                    "wants": round(vehicle.wants_to_depart_min, 2),
+                    "legs": legs,
+                    "end": ending,
+                }
+            )
+
+        dots.sort(key=lambda dot: dot["id"])
+        return {
+            "version": REPLAY_FORMAT_VERSION,
+            "people_per_dot": self.trace_stride,
+            "tick_duration_min": self.tick_duration_min,
+            "window_min": DEPARTURE_WINDOW_MIN,
+            "end_min": round(end_min, 2),
+            "dots": dots,
+        }
 
     def _free_flow_min(self, route_pk: int, speed_factor: float = 1.0) -> float:
         """The route's uncongested time — the baseline the delay is against.
@@ -1781,9 +1936,11 @@ class TrafficSimulator:
                         f"[SIM] Tick {self.current_tick}: held_at_door={held_total}"
                     )
 
-                # Record traffic every 5 ticks
-                if self.current_tick % 5 == 0:
-                    self._record_edge_traffic()
+                # Record traffic every tick. Every fifth was one sample per 25
+                # simulated minutes — nine frames for a whole morning, which is
+                # a chart, not an animation. The per-edge filter in
+                # _record_edge_traffic keeps this to the active links.
+                self._record_edge_traffic()
 
                 # Progress callback
                 if on_progress:
@@ -1833,6 +1990,7 @@ class TrafficSimulator:
             # Update simulation status
             self.simulation_result.status = SimulationResult.Status.COMPLETED
             self.simulation_result.detailed_log = self.sim_log.get_text()
+            self.simulation_result.replay = self._build_replay()
             self.simulation_result.save()
 
             logger.info(

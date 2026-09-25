@@ -730,6 +730,75 @@ class RoundTrafficHeatmapView(GenericAPIView):
         )
 
 
+class RoundReplayView(GenericAPIView):
+    """Everything needed to play one finished round back.
+
+    Two layers in one fetch, because the animation needs both at once and the
+    biggest payload in the game should not cost two round trips on school wifi:
+    the dots (who moved, where, when) and the street fill per tick (how full
+    each link was, and how many people were still standing at their front door).
+
+    Deliberately NOT the aggregate RoundTrafficHeatmapView serves — that one
+    averages the time axis away, which is the whole reason it cannot show how a
+    jam forms.
+    """
+
+    authentication_classes = (SessionAuthentication,)
+    permission_classes = (HasGameAccess,)
+
+    def get(self, request, game_id, round_number):
+        try:
+            game = GameSession.objects.get(game_id=game_id)
+        except GameSession.DoesNotExist:
+            return Response(
+                {"error": "Game not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        try:
+            game_round = GameRound.objects.get(game=game, round_number=round_number)
+        except GameRound.DoesNotExist:
+            return Response(
+                {"error": "Round not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        try:
+            sim_result = game_round.simulation  # type: ignore
+        except SimulationResult.DoesNotExist:
+            return Response(
+                {"error": "No simulation for this round"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        ticks: dict[int, list] = {}
+        snapshots = EdgeTrafficSnapshot.objects.filter(
+            simulation=sim_result
+        ).order_by("time_tick", "edge_id")
+        for snap in snapshots:
+            ticks.setdefault(snap.time_tick, []).append(
+                [
+                    snap.edge_id,
+                    snap.vehicle_count,
+                    snap.waiting_count,
+                    round(snap.speed_kmh, 1),
+                ]
+            )
+
+        return Response(
+            {
+                "round_number": round_number,
+                "tick_duration_min": game.tick_duration_min,
+                "people_per_agent": game.people_per_agent,
+                # Null for a round simulated before the recorder existed. The
+                # screen falls back to the street fill alone rather than 404 —
+                # an old round still has everything else it ever had.
+                "replay": sim_result.replay,
+                "ticks": [
+                    {"t": tick, "edges": rows} for tick, rows in sorted(ticks.items())
+                ],
+            }
+        )
+
+
 def _per_person(total, agent_count, people_per_agent):
     """Turn a class-scale sum into what one commuter did once.
 
