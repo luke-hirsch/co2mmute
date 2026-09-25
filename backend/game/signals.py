@@ -303,13 +303,24 @@ def handle_round_completed(
     moves = PlayerMove.objects.filter(session_round=game_round)
     has_routes = AgentRoute.objects.filter(player_move__in=moves).exists()
 
+    simulation_used = False
     if has_routes:
-        # Run traffic simulation
-        round_emissions, round_cost, player_stats = _run_simulation(
-            game_session, game_round, moves
-        )
+        simulated = _run_simulation(game_session, game_round, moves)
+        if simulated is None:
+            # The engine died mid-round. There is nothing to fall back to:
+            # _calculate_hardcoded_stats reads move.action, and every move that
+            # carries routes says "route_submission", which is in none of its
+            # tables — so it answers zero for every agent of every mode and
+            # puts a round that cost nothing on the board. Report the zero,
+            # but say on the wire that it is not a result.
+            round_emissions, round_cost = 0.0, 0.0
+            player_stats = _unsimulated_stats(moves)
+        else:
+            round_emissions, round_cost, player_stats = simulated
+            simulation_used = True
     else:
-        # Fallback to hardcoded values (legacy mode)
+        # Legacy mode: a move with no routes at all, whose action is one of
+        # car/public/bike/walk. The hardcoded table can still answer that.
         round_emissions, round_cost, player_stats = _calculate_hardcoded_stats(moves)
 
     # Update round totals
@@ -343,7 +354,7 @@ def handle_round_completed(
             "total_game_emissions_g": total_game_emissions,
             "max_co2_level_g": game_session.max_CO2_level * 1000,
             "player_stats": player_stats,
-            "simulation_used": has_routes,
+            "simulation_used": simulation_used,
             "has_map_versions": has_map_versions,
             "map_versions": map_versions_data,
         },
@@ -393,7 +404,8 @@ def _run_simulation(game_session, game_round, moves):
     Run the traffic simulation engine and return results.
 
     Returns:
-        Tuple of (round_emissions, round_cost, player_stats)
+        Tuple of (round_emissions, round_cost, player_stats), or None when the
+        engine raised — the caller decides what a round without a result says.
     """
     from game.simulation import TrafficSimulator
 
@@ -498,7 +510,45 @@ def _run_simulation(game_session, game_round, moves):
                 "error": str(e),
             },
         )
-        return _calculate_hardcoded_stats(moves)
+        return None
+
+
+def _unsimulated_stats(moves):
+    """One named row per player for a round the simulation never finished.
+
+    The stats phase is entered either way — a class has to be able to press on
+    — so the screen still needs the names and the modes that were chosen. The
+    figures are zero because nothing was computed, and `simulation_used: False`
+    beside them is what says so.
+    """
+    from game.models import AgentRoute
+
+    player_stats = []
+    for move in moves:
+        agents = [
+            {
+                "agent_id": route.agent_id,
+                "mode": route.transport_mode,
+                "trip_time_min": 0.0,
+                "delay_min": 0.0,
+                "co2_g": 0.0,
+                "cost_eur": 0.0,
+            }
+            for route in AgentRoute.objects.filter(player_move=move)
+        ]
+        modes_used = list({agent["mode"] for agent in agents})
+        player_stats.append(
+            {
+                "player_id": move.player.player_id,
+                "player_name": move.player.name or "Player",
+                "action": ", ".join(modes_used) if modes_used else "unknown",
+                "emissions_g": 0.0,
+                "cost_eur": 0.0,
+                "time_min": 0.0,
+                "agents": agents,
+            }
+        )
+    return player_stats
 
 
 def _calculate_hardcoded_stats(moves):

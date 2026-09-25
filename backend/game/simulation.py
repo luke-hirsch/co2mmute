@@ -1216,9 +1216,24 @@ class TrafficSimulator:
         self._trace(vehicle_id, vehicle, at_min, "e", edge_state.edge_id)
 
     def _advance_free_running(self, now: float, tick_end: float):
-        """Move everything that does not interact with car traffic."""
+        """Move everything that does not interact with car traffic.
+
+        Over a snapshot, because the set grows underneath: a PT vehicle that
+        free-runs — a train always, a bus on a dedicated lane — serves its
+        stops from in here, and _alight puts a rider whose next leg is a walk
+        or a cycle track straight back into self.free_running. Iterating the
+        live set raised "Set changed size during iteration" and killed the
+        whole round on its first tick.
+
+        Whoever is added mid-pass is walked on the next tick, which is what
+        already happens to a rider set down by a bus in mixed traffic: that
+        one is discharged from the queue, after this loop has run. It costs
+        no time either way — arrived_min comes off ready_at_min, which
+        _enter_edge set from the moment the doors opened, so the tick that
+        picks the walker up cannot move the trip.
+        """
         done = []
-        for vehicle_id in self.free_running:
+        for vehicle_id in list(self.free_running):
             vehicle = self.vehicles[vehicle_id]
             while not vehicle.arrived and vehicle.ready_at_min <= tick_end:
                 left_at = vehicle.ready_at_min

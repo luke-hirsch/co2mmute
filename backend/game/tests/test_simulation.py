@@ -981,7 +981,20 @@ class FairDepartureTests(TestCase):
     spawn loop — gave the first route free flow and the last an hour's wait,
     purely from dict order. In a classroom that is one player's agents always
     beating another's onto a shared street.
+
+    Measured over five pinned seeds rather than one unpinned round, because
+    the thing being asserted is a BIAS and a single round is mostly noise. On
+    one draw the two means part by up to 17 % with the spawn loop working
+    correctly (3 of 40 seeds break a 10 % bound); pooling five takes the worst
+    block of 40 to 4.4 %. Unfairness of the kind this guards is a factor, not
+    a few per cent, so the bound loses nothing by sitting at 7 %.
+
+    Unpinned it drew its seed from the round pk, which climbs with however
+    many rounds the suite made earlier — so adding tests anywhere before it
+    could turn it red without touching the model. It did, on 2026-09-25.
     """
+
+    SEEDS = (0, 1, 2, 3, 4)
 
     def setUp(self):
         self.user = User.objects.create_user(username="fair", password="12345")
@@ -991,27 +1004,38 @@ class FairDepartureTests(TestCase):
             for i in range(2)
         ]
         self.session = _session(self.user, self.game_map, people_per_agent=400, std_dev=1)
-        self.game_round = GameRound.objects.create(game=self.session, round_number=1)
         self.anna = Player.objects.create(name="Anna", game=self.session)
         self.ben = Player.objects.create(name="Ben", game=self.session)
-        self.route_a = _route(self.game_round, self.anna, self.edges, agent_id=1)
-        self.route_b = _route(self.game_round, self.ben, self.edges, agent_id=2)
+
+    def _round_with_both(self, round_number):
+        """A round of its own per seed — SimulationResult is one per round."""
+        game_round = GameRound.objects.create(
+            game=self.session, round_number=round_number
+        )
+        return (
+            game_round,
+            _route(game_round, self.anna, self.edges, agent_id=1),
+            _route(game_round, self.ben, self.edges, agent_id=2),
+        )
 
     def test_both_routes_wait_about_equally(self):
         from game.tests._helpers import muted
 
-        simulator = TrafficSimulator(self.game_round, scale=100.0)
-        with muted():
-            simulator.run_simulation(max_ticks=200)
+        times_a, times_b = [], []
+        for seed in self.SEEDS:
+            game_round, route_a, route_b = self._round_with_both(seed + 1)
+            simulator = TrafficSimulator(game_round, scale=100.0, seed=seed)
+            with muted():
+                simulator.run_simulation(max_ticks=200)
+            times_a += simulator.agent_results[route_a.pk]["trip_times"]
+            times_b += simulator.agent_results[route_b.pk]["trip_times"]
 
-        times_a = simulator.agent_results[self.route_a.pk]["trip_times"]
-        times_b = simulator.agent_results[self.route_b.pk]["trip_times"]
         mean_a = sum(times_a) / len(times_a)
         mean_b = sum(times_b) / len(times_b)
 
         self.assertLess(
             abs(mean_a - mean_b) / max(mean_a, mean_b),
-            0.1,
+            0.07,
             f"one route was served ahead of the other: {mean_a:.1f} vs {mean_b:.1f} min",
         )
 
@@ -4472,8 +4496,11 @@ class AlightingIntoFreeRunningTests(PTBoardingScenarioMixin, TestCase):
             [(edges[0], "train", train_line), (edges[1], "walk", None)],
         )
 
-        simulator = self._run(game_round)
-        result = simulator.get_results()
+        from game.tests._helpers import muted
+
+        simulator = TrafficSimulator(game_round, scale=100.0, seed=606)
+        with muted():
+            result = simulator.run_simulation(max_ticks=300)
 
         self.assertGreater(
             result.total_co2_g,
