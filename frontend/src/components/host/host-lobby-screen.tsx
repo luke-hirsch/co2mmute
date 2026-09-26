@@ -1,6 +1,7 @@
 import { AddSeatDialog } from "@/components/host/add-seat-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { ConfirmAction } from "@/components/layout/confirm-action";
 import { DepartureBoard } from "@/components/metro/departure-board";
 import { GameSettings } from "@/components/lobby/game-settings";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
@@ -8,7 +9,7 @@ import { SeatAdminList } from "@/components/host/seat-admin-list";
 import { useGame } from "@/components/game/game-context";
 import { de } from "@/lib/de";
 import { playingSeats } from "@/lib/game/game-state";
-import { useHostGame, useStartGame } from "@/lib/queries/session";
+import { useEndGame, useHostGame, useStartGame } from "@/lib/queries/session";
 
 /**
  * The host's lobby: get the room in, then start.
@@ -30,6 +31,7 @@ export function HostLobbyScreen() {
   const { state } = useGame();
   const game = useHostGame(state.gameId, true);
   const start = useStartGame(state.gameId);
+  const end = useEndGame(state.gameId);
 
   const players = playingSeats(state);
 
@@ -92,7 +94,7 @@ export function HostLobbyScreen() {
         <GameSettings />
       </section>
 
-      {start.error || startRefused || noMap ? (
+      {start.error || startRefused || noMap || end.error ? (
         <Alert variant="destructive" className="mb-6">
           <AlertDescription>
             {noMap
@@ -112,6 +114,26 @@ export function HostLobbyScreen() {
         >
           {start.isPending ? de.host.starting : de.host.start}
         </Button>
+
+        {/* The way out of a game that cannot start.
+            `HostControls` carries this between rounds and on the desk but never
+            here, so a game whose map is missing could be neither started nor
+            ended from the interface — and `/accounts/profile/` refuses to delete
+            a game while it is running. Pause is deliberately not here: there is
+            nothing yet to pause. */}
+        {!state.endedAt ? (
+          <ConfirmAction
+            label={de.host.end}
+            title={de.host.end}
+            description={de.host.endConfirm}
+            confirmLabel={de.host.end}
+            onConfirm={() => end.mutate()}
+            variant="ghost"
+            size="default"
+            pending={end.isPending}
+          />
+        ) : null}
+
         {!canStart && !noMap ? (
           <p className="text-sm text-muted-foreground">{de.host.startBlocked}</p>
         ) : null}

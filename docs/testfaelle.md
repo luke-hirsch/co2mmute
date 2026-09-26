@@ -149,6 +149,7 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | H-08 | neuer Code für denselben Platz | macht den alten ungültig | geht | - |
 | H-09 | ganzes Spiel auf einem Rechner | läuft durch, ohne ein einziges Handy | geht | - |
 | H-10 | Pause-Knopf | beim Host, wirkt überall | geht | - |
+| H-11 | Host beendet aus der Lobby | geht auch bei einem Spiel ohne Karte, Grund `host` | geht | - |
 
 ## C — chat
 
@@ -189,3 +190,5 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | S-04 | Spielernamen | tauchen in keinem Log auf | ungeprüft | - |
 | S-05 | Anonymisierung | nach Spielende „Spieler N", Host wird „Host" | ungeprüft | - |
 | S-06 | Rechtstexte in der SPA | Links auch im Spiel erreichbar | offen | - |
+| S-07 | Spiel im Profil löschen | fragt vorher, nimmt Runden und QR mit; laufendes Spiel: 409 | geht | - |
+| S-08 | Kopfzeile unter `/app` | auf den Beitreten-Screens, nicht im Spiel, nicht im Editor | geht | - |
