@@ -136,6 +136,16 @@ export const de = {
     loading: "Lädt …",
     saving: "Wird gespeichert …",
     empty: "Nichts da.",
+
+    /**
+     * The header on the screens under `/app/` that are not a game. Both links
+     * leave the SPA — the landing page and the profile are Django pages — so
+     * they are plain `<a href>` and not router links.
+     */
+    header: {
+      home: "Startseite",
+      profile: "Mein Profil",
+    },
   },
 
   actions: {
