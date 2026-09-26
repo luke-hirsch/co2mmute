@@ -88,6 +88,68 @@ class ShareSessionView(LoginRequiredMixin, TemplateView):
         return context
 
 
+class GameDeleteView(LoginRequiredMixin, TemplateView):
+    """Throw a game away, from the one page that lists a host's games.
+
+    The REST endpoint can do it, but a server-rendered page cannot reach it:
+    an `<a href>` sends GET. So this is the funnel's own two-step — ask, then
+    POST with a CSRF token.
+
+    The case that made it necessary: a game created without a map can never be
+    started, because `GameSession.save()` forces `is_active` back to False
+    whenever `game_map` is None — so it could not be started, could not be
+    ended, and had no way out of the list either.
+
+    404 rather than 403 for somebody else's game, the same as ShareSessionView:
+    whether a game id exists is not a stranger's business.
+
+    A **running** game is refused. Ending it is the host screen's job and it
+    records why it ended (`end_reason`), which deleting the row would skip —
+    and a game vanishing under a class mid-round is not something to offer in
+    two clicks.
+    """
+
+    template_name = "game/delete_session.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            self.game_session = get_object_or_404(
+                GameSession, game_id=kwargs["game_id"], game_host=request.user
+            )
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        game = self.game_session
+        context.update(
+            {
+                "game_session": game,
+                "is_running": game.is_active,
+                # What goes with it. Named on the page rather than described,
+                # because "alle Daten" is not something anybody can weigh.
+                "round_count": game.rounds.count(),
+                "player_count": Player.objects.filter(game=game)
+                .without_host_rows()  # type: ignore
+                .count(),
+            }
+        )
+        return context
+
+    def post(self, request, *args, **kwargs):
+        game = self.game_session
+
+        if game.is_active:
+            context = self.get_context_data(**kwargs)
+            context["refused"] = True
+            return self.render_to_response(context, status=409)
+
+        game_id = game.game_id
+        game.delete()
+        logger.info(f"Host deleted game {game_id}")
+        messages.success(request, "Das Spiel wurde gelöscht.")
+        return redirect("profile")
+
+
 class JoinSessionView(GameAccessCookieMixin, TemplateView):
     template_name = "game/join_session.html"
     form_class = JoinSessionForm

@@ -3,6 +3,7 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path, re_path
 from game.views import (
+    GameDeleteView,
     GameSessionCreateView,
     JoinSessionView,
     PlayerCreateView,
@@ -43,6 +44,7 @@ urlpatterns = [
     path("legal/cookies/", CookiesView.as_view(), name="cookies"),
     path("game/create/", GameSessionCreateView.as_view(), name="session-create"),
     path("game/<game_id>/share/", ShareSessionView.as_view(), name="session-share"),
+    path("game/<game_id>/delete/", GameDeleteView.as_view(), name="session-delete"),
     path("join/", JoinSessionView.as_view(), name="session-join"),
     path("join/<game_id>/", JoinSessionView.as_view(), name="session-join-direct"),
     path(
