@@ -160,6 +160,26 @@ class GameSessionDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIVie
             raise ValidationError("game_id is required")
         return GameSession.objects.filter(game_id=game_id)
 
+    def destroy(self, request, *args, **kwargs):
+        """Only the host of this game, and everything on it goes with it.
+
+        `HasGameAccess` + `IsAuthenticated` is not enough here, because both
+        are true for a logged-in researcher who joined somebody else's game as
+        a player: the game cookie satisfies the first and their own host
+        session the second. `update()` has always checked the host by hand;
+        `destroy()` was inherited and did not, and a game is CASCADE all the
+        way down — every round, move, route and result on it.
+        """
+        game = self.get_object()
+
+        if game.game_host != request.user:
+            return Response(
+                {"error": "Only the host can delete this game"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        return super().destroy(request, *args, **kwargs)
+
     def update(self, request, *args, **kwargs):
         game = self.get_object()
 

@@ -911,3 +911,85 @@ class SettingsHardeningTests(TestCase):
         from django.conf import settings as django_settings
 
         self.assertNotIn("corsheaders", django_settings.INSTALLED_APPS)
+
+
+@override_settings(**TEST_BACKENDS)
+class GameDeletionPermissionTests(TempMediaRootMixin, TestCase):
+    """`DELETE /api/game/<game_id>/` belongs to the host of that game.
+
+    GameSessionDetailView is a RetrieveUpdateDestroyAPIView, and `update()`
+    checks `game.game_host != request.user` by hand — but `destroy()` is
+    inherited, so it was guarded only by `HasGameAccess, IsAuthenticated`.
+    Those two are both true for **a logged-in researcher who joined someone
+    else's game as a player**: the game cookie satisfies the first and their
+    own host session the second. CLAUDE.md names that exact combination as a
+    normal thing to happen in this project.
+
+    Deleting a game is CASCADE all the way down — every round, move, route and
+    result on it, which is the thesis data.
+    """
+
+    def setUp(self):
+        User = get_user_model()
+        self.host = User.objects.create_user(username="owner", password="pass")
+        self.stranger = User.objects.create_user(username="guest", password="pass")
+        with muted():
+            self.game = GameSession.objects.create(
+                game_host=self.host,
+                game_name="Deletion",
+                max_players=4,
+                max_rounds=4,
+                max_CO2_level=100,
+                agent_per_player=1,
+            )
+            self.player = Player.objects.create(game=self.game, name="Mia")
+
+    def url(self):
+        return f"/api/game/{self.game.game_id}/"
+
+    def give_the_game_cookie(self):
+        self.client.cookies[f"{settings.COOKIE_GAME_PREFIX}{self.game.game_id}"] = (
+            signed_game_cookie(self.game.game_id)
+        )
+        self.client.cookies[f"{settings.COOKIE_PLAYER_PREFIX}{self.game.game_id}"] = (
+            signed_player_cookie(self.game.game_id, self.player.player_id)
+        )
+
+    def test_the_host_can_delete_their_own_game(self):
+        """The control. If this ever goes red the guard is too tight."""
+        self.client.force_login(self.host)
+
+        with muted():
+            response = self.client.delete(self.url())
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(GameSession.objects.filter(pk=self.game.pk).exists())
+
+    def test_a_logged_in_player_in_the_game_cannot_delete_it(self):
+        """The researcher case: their own session, somebody else's game."""
+        self.give_the_game_cookie()
+        self.client.force_login(self.stranger)
+
+        with muted():
+            response = self.client.delete(self.url())
+
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(GameSession.objects.filter(pk=self.game.pk).exists())
+
+    def test_a_player_without_an_account_cannot_delete_it(self):
+        self.give_the_game_cookie()
+
+        with muted():
+            response = self.client.delete(self.url())
+
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(GameSession.objects.filter(pk=self.game.pk).exists())
+
+    def test_another_host_without_the_cookie_cannot_delete_it(self):
+        self.client.force_login(self.stranger)
+
+        with muted():
+            response = self.client.delete(self.url())
+
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(GameSession.objects.filter(pk=self.game.pk).exists())

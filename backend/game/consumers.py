@@ -25,6 +25,26 @@ from game.ws_auth import resolve_player
 logger = logging.getLogger(__name__)
 
 
+async def refuse(consumer: AsyncJsonWebsocketConsumer, code: int | None) -> None:
+    """Complete the handshake, then close with `code`.
+
+    Closing *before* accepting rejects the handshake, and a rejected handshake
+    carries no application code: the browser reports 1006. So every one of the
+    44xx refusals `resolve_player` is careful to distinguish reached the client
+    as an ordinary dropped connection — and `BaseWSClient.shouldReconnect`,
+    which refuses to retry that whole range precisely because none of them get
+    better by asking again, never saw them. A permanent no was retried five
+    times with backoff, on every phone on the summary screen of every ended
+    game.
+
+    Accepting first concedes nothing: no group is joined, nothing is sent, and
+    the close is the only frame on the wire.
+    """
+    await consumer.accept()
+    # A refusal without a code is still a refusal, and 1000 would be retried.
+    await consumer.close(code=code or 4403)
+
+
 class ChatConsumer(AsyncJsonWebsocketConsumer):
     CHAT_MESSAGES_REDIS_KEY_PATTERN = "chat:{game_id}:messages"
     CHAT_MESSAGE_HISTORY_LIMIT = 100
@@ -43,7 +63,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         route = self.scope.get("url_route")
         if not route or "kwargs" not in route:
             logger.warning("Missing URL route or kwargs for chat")
-            await self.close(code=4400)
+            await refuse(self, 4400)
             return
 
         self.game_id = route["kwargs"]["game_id"]
@@ -56,7 +76,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             logger.warning(
                 f"WebSocket auth failed for chat {self.game_id}: code={close_code}, reason={reason}"
             )
-            await self.close(code=close_code)
+            await refuse(self, close_code)
             return
 
         self.player_id = player.player_id
@@ -231,7 +251,7 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
         route = self.scope.get("url_route")
         if not route or "kwargs" not in route:
             logger.warning("Missing URL route for game state")
-            await self.close(code=4400)
+            await refuse(self, 4400)
             return
 
         self.game_id = route["kwargs"]["game_id"]
@@ -244,7 +264,7 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
             logger.warning(
                 f"GameState auth failed for {self.game_id}: code={close_code}"
             )
-            await self.close(code=close_code)
+            await refuse(self, close_code)
             return
 
         self.player_id = player.player_id

@@ -385,3 +385,109 @@ class AccountDeleteTests(TempMediaRootMixin, TestCase):
         response = self.client.get(DELETED_URL)
 
         self.assertEqual(response.status_code, 200)
+
+
+class DeleteGameFromProfileTests(TempMediaRootMixin, TestCase):
+    """A host can get rid of a game from the one page that lists their games.
+
+    Until this, `/accounts/profile/` could open a game and share it and nothing
+    else, and the REST DELETE is not reachable from a server-rendered page —
+    an `<a href>` cannot send it. A game created without a map is the case that
+    made this matter: `GameSession.save()` forces `is_active` back to False
+    whenever `game_map` is None, so such a game can never be started, never be
+    ended, and had no way out of the list.
+
+    Deleting is CASCADE all the way down and `post_delete` takes the QR file
+    with it, so it asks first and says what goes. A game that is **running** is
+    refused outright: end it from the host screen, then delete it.
+    """
+
+    def setUp(self):
+        self.host = _host()
+        self.other = _host(username="other", email="other@example.com")
+        with muted():
+            self.game = create_game_session(self.host, game_name="Wegwerfspiel")
+        self.client.force_login(self.host)
+
+    def url(self, game=None):
+        return f"/game/{(game or self.game).game_id}/delete/"
+
+    def test_the_profile_offers_a_way_to_delete_each_game(self):
+        response = self.client.get(PROFILE_URL)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.url())
+
+    def test_the_page_asks_before_deleting(self):
+        response = self.client.get(self.url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(GameSession.objects.filter(pk=self.game.pk).exists())
+
+    def test_the_question_names_the_game(self):
+        """Assert the status first: a 404 page has no game name on it either,
+        so a content-only check would pass before the view existed."""
+        response = self.client.get(self.url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Wegwerfspiel")
+
+    def test_posting_deletes_the_game(self):
+        with muted():
+            response = self.client.post(self.url())
+
+        self.assertRedirects(response, PROFILE_URL)
+        self.assertFalse(GameSession.objects.filter(pk=self.game.pk).exists())
+
+    def test_deleting_takes_the_rounds_with_it(self):
+        """The reason it asks. game_host is CASCADE and so is everything below
+        a game: rounds, moves, routes, results — the research data."""
+        from game.models import GameRound
+
+        with muted():
+            GameRound.objects.create(game=self.game, round_number=1)
+            self.client.post(self.url())
+
+        self.assertFalse(GameRound.objects.filter(game_id=self.game.pk).exists())
+
+    def test_a_running_game_is_refused(self):
+        GameSession.objects.filter(pk=self.game.pk).update(
+            is_active=True, started_at=timezone.now()
+        )
+
+        with muted():
+            response = self.client.post(self.url())
+
+        self.assertEqual(response.status_code, 409)
+        self.assertTrue(GameSession.objects.filter(pk=self.game.pk).exists())
+
+    def test_an_ended_game_can_still_be_deleted(self):
+        GameSession.objects.filter(pk=self.game.pk).update(
+            is_active=False, started_at=timezone.now(), ended_at=timezone.now()
+        )
+
+        with muted():
+            response = self.client.post(self.url())
+
+        self.assertRedirects(response, PROFILE_URL)
+        self.assertFalse(GameSession.objects.filter(pk=self.game.pk).exists())
+
+    def test_another_host_gets_a_404(self):
+        """404 rather than 403: whether a game id exists is not their business."""
+        self.client.force_login(self.other)
+
+        with muted():
+            response = self.client.post(self.url())
+
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(GameSession.objects.filter(pk=self.game.pk).exists())
+
+    def test_a_visitor_is_sent_to_the_login(self):
+        self.client.logout()
+
+        with muted():
+            response = self.client.post(self.url())
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response["Location"])
+        self.assertTrue(GameSession.objects.filter(pk=self.game.pk).exists())
