@@ -874,6 +874,13 @@ class HandoverSocketTests(GameWithSeatsMixin, TransactionTestCase):
         self.run_async(scenario)
 
     def test_the_old_cookie_no_longer_connects(self):
+        """Refused — and the handshake completes so the *code* gets through.
+
+        The consumer accepts and then closes with 4403 rather than rejecting
+        the handshake, because a rejected handshake reaches the browser as
+        1006 and the client retries it five times. See
+        RefusalReachesTheBrowserTests.
+        """
         from game.seats import take_over
 
         old_id = self.anna.player_id
@@ -882,9 +889,11 @@ class HandoverSocketTests(GameWithSeatsMixin, TransactionTestCase):
 
         async def scenario():
             old_phone = self.player_socket(old_id)
-            connected, code = await old_phone.connect()
-            self.assertFalse(connected)
-            self.assertEqual(code, 4403)
+            connected, _ = await old_phone.connect()
+            self.assertTrue(connected)
+            seen = await read_until(old_phone, is_type("websocket.close"))
+            self.assertEqual(seen[-1]["code"], 4403)
+            await old_phone.disconnect()
 
         self.run_async(scenario)
 
@@ -1031,3 +1040,105 @@ class ConsumerIsTransportOnlyTests(SimpleTestCase):
         import co2mmute.utils as utils
 
         self.assertFalse(hasattr(utils, "send_player_status_update"))
+
+
+@override_settings(**TEST_BACKENDS, **NO_REDIS)
+class RefusalReachesTheBrowserTests(GameWithSeatsMixin, TransactionTestCase):
+    """A refused socket has to say *why* in a code the browser can read.
+
+    `resolve_player` picks a 44xx code for every refusal and `BaseWSClient.
+    shouldReconnect` refuses to retry that whole range — but the consumer used
+    to `close()` *before* `accept()`, which rejects the handshake. A rejected
+    handshake carries no application code: the browser reports 1006, every
+    44xx refusal looks like a dropped connection, and the client retries a
+    permanent no five times with backoff.
+
+    Measured on the summary screen of an ended game, where the refusal is
+    "game-ended": two reconnects in the first nine seconds and three more
+    queued, on every phone in the room.
+
+    So the consumer accepts first and then closes with the code. Nothing is
+    sent and no group is joined in between, so accepting concedes nothing.
+    """
+
+    def socket(self, cookies):
+        return WebsocketCommunicator(
+            AuthMiddlewareStack(URLRouter(websocket_urlpatterns)),
+            f"/ws/game/{self.game.game_id}/",
+            headers=[(b"cookie", cookie_header(cookies))],
+        )
+
+    def run_async(self, scenario):
+        with muted():
+            async_to_sync(scenario)()
+
+    async def refusal_code(self, communicator):
+        """The close code the browser would see, or None if it never closed."""
+        connected, _ = await communicator.connect()
+        self.assertTrue(
+            connected,
+            msg="the handshake has to complete, or the code is lost as 1006",
+        )
+        seen = await read_until(communicator, is_type("websocket.close"))
+        return seen[-1].get("code")
+
+    def test_a_stale_player_id_says_4403(self):
+        from game.seats import take_over
+
+        old_id = self.anna.player_id
+        with muted():
+            take_over(self.anna)
+
+        async def scenario():
+            stale = self.socket(player_cookies(self.game.game_id, old_id))
+            self.assertEqual(await self.refusal_code(stale), 4403)
+            await stale.disconnect()
+
+        self.run_async(scenario)
+
+    def test_an_ended_game_says_4403(self):
+        """The summary screen's own case. Nothing to reconnect to, ever."""
+        with muted():
+            GameSession.objects.filter(pk=self.game.pk).update(
+                is_active=False, ended_at=timezone.now()
+            )
+
+        async def scenario():
+            anna = self.socket(player_cookies(self.game.game_id, self.anna.player_id))
+            self.assertEqual(await self.refusal_code(anna), 4403)
+            await anna.disconnect()
+
+        self.run_async(scenario)
+
+    def test_no_cookie_at_all_says_4401(self):
+        async def scenario():
+            nobody = self.socket({})
+            self.assertEqual(await self.refusal_code(nobody), 4401)
+            await nobody.disconnect()
+
+        self.run_async(scenario)
+
+    def test_a_refused_socket_joins_no_group(self):
+        """Accepting must concede nothing: no roster, no state, no broadcast.
+
+        The close is the only thing on the wire. If the consumer ever grew a
+        send before its auth check, this is what would catch it.
+        """
+        with muted():
+            GameSession.objects.filter(pk=self.game.pk).update(
+                is_active=False, ended_at=timezone.now()
+            )
+
+        async def scenario():
+            anna = self.socket(player_cookies(self.game.game_id, self.anna.player_id))
+            connected, _ = await anna.connect()
+            self.assertTrue(connected)
+            seen = await read_until(anna, is_type("websocket.close"))
+            self.assertEqual(
+                [output.get("type") for output in seen],
+                ["websocket.close"],
+                msg=f"a refused socket sent something before closing: {seen}",
+            )
+            await anna.disconnect()
+
+        self.run_async(scenario)
