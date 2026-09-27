@@ -49,7 +49,13 @@ class GameSession(models.Model):
     )
 
     # Simulation parameters
-    people_per_agent = models.PositiveIntegerField(default=1000)
+    # 100 is DISTRICT_COMMUTERS / (16 seats x 4 Fahrgäste), the shipped class
+    # size — written as a literal because a model default has to be one, and
+    # pinned against game.calibration.people_per_agent() by a test. The create
+    # form derives it from the class size the host actually chooses; this is
+    # what the REST API and the admin get. It was 1000, which put 64 000 cars
+    # on a 90-edge map and reported a 298-minute commute for 7.66 km.
+    people_per_agent = models.PositiveIntegerField(default=100)
     tick_duration_min = models.PositiveSmallIntegerField(default=5)
     morning_departure_hour = models.PositiveSmallIntegerField(default=9)  # 9:00 AM
     evening_departure_hour = models.PositiveSmallIntegerField(default=17)  # 5:00 PM
@@ -310,7 +316,12 @@ class CarMobility(models.Model):
 
 class TrainMobility(models.Model):
     session_round = models.ForeignKey(GameRound, on_delete=models.CASCADE)
-    base_emissions_g_per_km = models.FloatField(default=3500.0)  # g CO2e / vehicle-km
+    # Kept in step with sim.constants.TRAIN_EMISSIONS_G_PER_VEHICLE_KM, which
+    # is what actually calculates. Nothing reads this row — it reaches a
+    # serializer and the admin and no arithmetic — which is exactly why it
+    # would have been left at 3500 as a second, wrong answer to "what does a
+    # train emit".
+    base_emissions_g_per_km = models.FloatField(default=1500.0)  # g CO2e / vehicle-km
     base_cost_per_km = models.FloatField(default=12.0)  # € / vehicle-km
 
     def emissions_per_km(self, passengers_onboard: float) -> float:

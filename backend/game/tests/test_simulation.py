@@ -16,7 +16,7 @@ Tests cover:
 
 from django.contrib.auth.models import User
 from django.db import models
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from maps.models import (
     BusLine,
     BusLineEdge,
@@ -2093,7 +2093,7 @@ class PTScenarioMixin:
     departure window — and the train every 5, so 24. That makes
 
         bus   society CO2 = 12 x 2 km x 1200 g =  28 800 g
-        train society CO2 = 24 x 2 km x 3500 g = 168 000 g
+        train society CO2 = 24 x 2 km x 1500 g =  72 000 g
 
     and the same shape in euro. None of it depends on people_per_agent: a
     share is person-km over person-km, so the scale cancels.
@@ -2376,8 +2376,8 @@ class PTSocietyFiguresTests(PTScenarioMixin, TestCase):
         self._run(game_round)
 
         result = SimulationResult.objects.get(game_round=game_round)
-        # 28 800 g of bus + 168 000 g of train, plus whatever the car did.
-        self.assertGreater(result.total_co2_g, 196_800.0)
+        # 28 800 g of bus + 72 000 g of train, plus whatever the car did.
+        self.assertGreater(result.total_co2_g, 100_800.0)
 
     def test_network_co2_is_the_whole_timetable(self):
         from game.models import SimulationResult
@@ -2387,7 +2387,7 @@ class PTSocietyFiguresTests(PTScenarioMixin, TestCase):
         self._run(game_round)
 
         result = SimulationResult.objects.get(game_round=game_round)
-        self.assertAlmostEqual(result.network_co2_g, 196_800.0, places=2)
+        self.assertAlmostEqual(result.network_co2_g, 100_800.0, places=2)
         self.assertAlmostEqual(result.network_cost_eur, 108.0 + 576.0, places=2)
 
     def test_the_total_is_the_routes_plus_the_lines_nobody_rode(self):
@@ -3916,11 +3916,10 @@ class PTServicePeriodTests(PTBoardingScenarioMixin, TestCase):
         ticks, against 12 runs and 28.8 kg with it. A map-data defect would
         quietly multiply the round's CO2 eightfold.
 
-        The assertion is against base_vehicles rather than a gram figure on
-        purpose. `line_km` is summed over ALL the line's edges, before `usable`
-        trims the ones its vehicles cannot reach, so this line is charged for
-        2 km while driving 1. That overstatement is real and pre-existing — see
-        the guide's §1.6 — and pinning 28 800 g here would quietly bless it.
+        The gram figure is pinned now that `line_km` is trimmed to the part
+        the vehicles reach: this line breaks after one of its two edges, so it
+        drives 1 km and is charged for 1 km. It used to be charged for 2, and
+        the assertion was against base_vehicles alone so as not to bless that.
         """
         game_round, _route, bus_line = self._broken_line_round(people=1000)
 
@@ -3935,18 +3934,19 @@ class PTServicePeriodTests(PTBoardingScenarioMixin, TestCase):
         )
         self.assertLess(simulator.current_tick, 60)
 
-    def test_a_truncated_line_is_charged_for_kilometres_it_cannot_drive(self):
-        """Pre-existing, found while writing the give-up. Not fixed here.
+    def test_a_truncated_line_is_charged_only_for_what_it_drives(self):
+        """A line emits over the part of itself its vehicles can reach.
 
-        `line_km` is summed over every edge handed to _register_pt_line; the
-        `usable` trim that follows only shortens `edge_ids`. So a line that
-        breaks after one of its two edges still emits for both. CLAUDE.md names
-        five lines on map v1 with exactly this shape (S5, S7, M1, M48, 265), so
-        the shipped map's PT emissions are overstated by however much of those
-        lines is unreachable.
+        `line_km` used to be summed over every edge handed to
+        _register_pt_line, while the `usable` trim below it only shortened
+        `edge_ids` — so a line that breaks after one of its two edges was
+        charged society CO2 and cost for both. On the shipped map that is five
+        lines (S5, S7, M1, M48, 265 on v1), and `101`/`101 reverse` on
+        Berlin_Mitte-West, whose PT emissions were overstated by whatever part
+        of them is unreachable.
 
-        This test documents it rather than asserting the fix: change it to
-        assertAlmostEqual(line_km, driven) on the day the one-line fix lands.
+        The vehicles were always honest: they run to the end of `edge_ids` and
+        stop. Only the measurement disagreed with them.
         """
         game_round, _route, bus_line = self._broken_line_round(people=10)
 
@@ -3955,8 +3955,7 @@ class PTServicePeriodTests(PTBoardingScenarioMixin, TestCase):
         line = simulator.pt_lines[("bus", bus_line.pk)]
         driven = len(line.edge_ids) * 1.0
         self.assertEqual(driven, 1.0)
-        self.assertAlmostEqual(line.line_km, 2.0, places=6)
-        self.assertGreater(line.line_km, driven)
+        self.assertAlmostEqual(line.line_km, driven, places=6)
 
     def test_somebody_still_standing_when_the_clock_stops_waited(self):
         """The one line kept from the closed `nicht-angekommen`.
@@ -4536,3 +4535,48 @@ class AlightingIntoFreeRunningTests(PTBoardingScenarioMixin, TestCase):
             walk_min + simulator.tick_duration_min + 10.0,
             msg="the walk after the train is being charged a whole extra tick",
         )
+
+
+class PTEmissionFactorTests(SimpleTestCase):
+    """The two per-vehicle factors the timetable is charged at.
+
+    They are not free parameters: the timetable runs whether anyone rides or
+    not, so on a map with six train lines these two numbers set the floor
+    under every round's CO2. On Berlin_Mitte-West that floor was 5 597 kg a
+    round, 97 % of it trains, against a shipped budget of 500 kg — which is
+    how S2's calibration started.
+    """
+
+    def test_a_bus_is_a_diesel_city_bus(self):
+        """~40 l/100 km diesel x 2.64 kg CO2/l, the figure that was right."""
+        from sim.constants import BUS_EMISSIONS_G_PER_VEHICLE_KM
+
+        self.assertAlmostEqual(BUS_EMISSIONS_G_PER_VEHICLE_KM, 1200.0, places=6)
+
+    def test_a_train_is_an_electric_metro_on_the_grid_mix(self):
+        """3500 g/train-km implied 9.6 kWh/train-km — a diesel mainline train.
+
+        A Berlin U- or S-Bahn train draws about 4 kWh per train-km including
+        auxiliaries, and the German grid mix was 363 g CO2/kWh in 2024 (UBA).
+        4 x 0.363 = 1.45 kg, so 1500 g/train-km. Not the operator's own green
+        tariff, deliberately: the grid mix is the conservative figure and it is
+        the one a class can check.
+        """
+        from sim.constants import TRAIN_EMISSIONS_G_PER_VEHICLE_KM
+
+        self.assertAlmostEqual(TRAIN_EMISSIONS_G_PER_VEHICLE_KM, 1500.0, places=6)
+
+    def test_a_train_still_costs_more_per_vehicle_km_than_a_bus(self):
+        """The cost side is untouched — only the emission factor moved.
+
+        Worth pinning together: correcting CO2 without cost is exactly what
+        makes the two disagree about which mode is expensive, and the fare-vs-
+        Vollkosten contrast rests on the cost side being left alone.
+        """
+        from sim.constants import (
+            BUS_COST_PER_VEHICLE_KM,
+            TRAIN_COST_PER_VEHICLE_KM,
+        )
+
+        self.assertAlmostEqual(BUS_COST_PER_VEHICLE_KM, 4.5, places=6)
+        self.assertAlmostEqual(TRAIN_COST_PER_VEHICLE_KM, 12.0, places=6)

@@ -911,3 +911,359 @@ class MapWithNothingToVoteOnTests(GameCookieMixin, TempMediaRootMixin, TestCase)
 
         self.assertIn(str(self.rich_map), rendered)
         self.assertNotIn(f"{self.rich_map} — keine Kartenänderungen", rendered)
+
+
+class CalibratedCreateFormTests(TempMediaRootMixin, TestCase):
+    """S2: the two numbers a game is played against follow the class size.
+
+    The scale is not a taste. Measured on Berlin_Mitte-West, a round is the
+    same round for a full class and for a half-empty one only if the district's
+    commuter population is held constant while the seats vary: at 6 400
+    commuters, 16 / 8 / 4 / 2 seats give a mean car delay of 11.3 / 11.0 / 11.4
+    / 11.5 min and car CO2 within 3 %. Hold `people_per_agent` at a number
+    instead and a half-full class sees 0.4 min of delay against 11.3, which is
+    a different game depending on who turned up.
+    """
+
+    def setUp(self):
+        self.host = create_host()
+
+    def test_the_shipped_initials_are_the_calibrated_pair(self):
+        from game.forms import GameSessionCreateForm
+
+        form = GameSessionCreateForm()
+
+        self.assertEqual(form.fields["max_players"].initial, 16)
+        self.assertEqual(form.fields["agent_per_player"].initial, 4)
+        self.assertEqual(form.fields["max_rounds"].initial, 6)
+        self.assertEqual(form.fields["people_per_agent"].initial, 100)
+        self.assertEqual(form.fields["max_CO2_level"].initial, 48_000)
+
+    def test_people_per_agent_follows_the_class_size(self):
+        """Half the seats, twice the people behind each Fahrgast."""
+        from game.forms import GameSessionCreateForm
+
+        for seats, expected in ((16, 100), (8, 200), (4, 400), (2, 800)):
+            with self.subTest(seats=seats):
+                form = GameSessionCreateForm(initial={"max_players": seats})
+                self.assertEqual(
+                    form.fields["people_per_agent"].initial, expected
+                )
+
+    def test_people_per_agent_follows_the_agents_per_player_too(self):
+        """It is agents that carry people, not players."""
+        from game.forms import GameSessionCreateForm
+
+        form = GameSessionCreateForm(initial={"agent_per_player": 2})
+
+        self.assertEqual(form.fields["people_per_agent"].initial, 200)
+
+    def test_the_budget_follows_the_round_count_and_nothing_else(self):
+        """Per round, because the pressure is spread over the whole game.
+
+        It carries no agent term on purpose: the district's population is
+        constant, so a round costs what it costs however many students play.
+        """
+        from game.forms import GameSessionCreateForm
+
+        for rounds, expected in ((6, 48_000), (3, 24_000), (10, 80_000)):
+            with self.subTest(rounds=rounds):
+                form = GameSessionCreateForm(initial={"max_rounds": rounds})
+                self.assertEqual(form.fields["max_CO2_level"].initial, expected)
+
+        form = GameSessionCreateForm(initial={"max_players": 4})
+        self.assertEqual(form.fields["max_CO2_level"].initial, 48_000)
+
+    def test_a_host_can_still_override_both(self):
+        """Derived is an initial, not a rule. The host stays in charge."""
+        from game.forms import GameSessionCreateForm
+
+        form = GameSessionCreateForm(
+            initial={"people_per_agent": 1000, "max_CO2_level": 500}
+        )
+
+        self.assertEqual(form.fields["people_per_agent"].initial, 1000)
+        self.assertEqual(form.fields["max_CO2_level"].initial, 500)
+
+    def test_the_budget_is_beatable_and_losable(self):
+        """What the two numbers are FOR, in one assertion.
+
+        Measured on the shipped map with the corrected train factor: an
+        all-car round is 11 140 kg and a round nobody drives is 2 449 kg, the
+        timetable's own floor. So over six rounds a class that never gets out
+        of the car spends 66 840 kg and one that improves spends about 41 000.
+        The budget has to sit between them or it is not a budget.
+        """
+        from game.calibration import co2_budget_kg
+
+        budget = co2_budget_kg(max_rounds=6)
+        all_car_six_rounds = 6 * 11_140
+        improving_six_rounds = 40_998
+
+        self.assertLess(budget, all_car_six_rounds)
+        self.assertGreater(budget, improving_six_rounds)
+
+    def test_the_create_page_offers_the_derived_pair(self):
+        """What the host actually sees, rendered.
+
+        The form is server-rendered, so the derivation happens once per GET.
+        Following it as the host edits the class size or picks another map is
+        the React port's job; this is the check that the offer itself is the
+        calibrated one and not the old 1000-against-500.
+
+        The status code is asserted first: a content check alone goes green
+        against the 404 a missing route returns.
+        """
+        self.client.force_login(self.host)
+
+        response = self.client.get("/game/create/")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.content.decode()
+        self.assertIn('name="people_per_agent" value="100"', body)
+        self.assertIn('name="max_CO2_level" value="48000"', body)
+
+
+class MapCarriedCalibrationTests(TempMediaRootMixin, TestCase):
+    """The two calibrated numbers belong to the map, not to a constant.
+
+    Both are properties of the graph: the commuter population is what its
+    corridors can carry at a realistic peak, and the CO2 budget is what a
+    playable game costs on it — which depends on its distances and on how much
+    timetable it runs. Another city is another pair. Keeping them as module
+    constants would have made Berlin_Mitte-West's measurements a property of
+    the software.
+    """
+
+    def setUp(self):
+        self.host = create_host()
+
+    def _map(self, **overrides):
+        from maps.models import GameMap
+
+        fields = {
+            "name": "Testkarte",
+            "x_dim": 13,
+            "y_dim": 10,
+            "scale": 1000.0,
+        }
+        fields.update(overrides)
+        return GameMap.objects.create(**fields)
+
+    def test_a_map_carries_its_own_pair(self):
+        from maps.models import GameMap
+
+        game_map = self._map()
+
+        self.assertEqual(
+            game_map.district_commuters,
+            GameMap._meta.get_field("district_commuters").default,
+        )
+        self.assertEqual(
+            game_map.co2_budget_kg_per_round,
+            GameMap._meta.get_field("co2_budget_kg_per_round").default,
+        )
+
+    def test_the_shipped_defaults_are_the_measured_berlin_figures(self):
+        from maps.models import GameMap
+
+        self.assertEqual(
+            GameMap._meta.get_field("district_commuters").default, 6_400
+        )
+        self.assertEqual(
+            GameMap._meta.get_field("co2_budget_kg_per_round").default, 8_000
+        )
+
+    def test_the_scale_comes_off_the_map_that_was_chosen(self):
+        """A quieter map means fewer people behind each Fahrgast."""
+        from game.calibration import people_per_agent
+
+        quiet = self._map(name="Kleinstadt", district_commuters=1_600)
+
+        self.assertEqual(
+            people_per_agent(max_players=16, agent_per_player=4, game_map=quiet),
+            25,
+        )
+
+    def test_the_budget_comes_off_the_map_that_was_chosen(self):
+        from game.calibration import co2_budget_kg
+
+        quiet = self._map(name="Kleinstadt", co2_budget_kg_per_round=2_000)
+
+        self.assertEqual(co2_budget_kg(max_rounds=6, game_map=quiet), 12_000)
+
+    def test_without_a_map_the_field_defaults_stand_in(self):
+        """The create form renders before a map is chosen, and must offer
+        something coherent rather than nothing."""
+        from game.calibration import co2_budget_kg, people_per_agent
+
+        self.assertEqual(
+            people_per_agent(max_players=16, agent_per_player=4), 100
+        )
+        self.assertEqual(co2_budget_kg(max_rounds=6), 48_000)
+
+    def test_the_form_derives_from_the_chosen_map(self):
+        from game.forms import GameSessionCreateForm
+
+        quiet = self._map(
+            name="Kleinstadt",
+            district_commuters=1_600,
+            co2_budget_kg_per_round=2_000,
+        )
+
+        form = GameSessionCreateForm(initial={"game_map": quiet.pk})
+
+        self.assertEqual(form.fields["people_per_agent"].initial, 25)
+        self.assertEqual(form.fields["max_CO2_level"].initial, 12_000)
+
+    def test_a_map_instance_in_initial_works_too(self):
+        """`initial` holds a pk from a GET and an instance from code.
+
+        800 over 64 Fahrgäste is 12.5, and Python's round() goes to even, so
+        12. Pinned rather than rounded up on purpose: under the corridors'
+        capacity is the safe side of a tie.
+        """
+        from game.forms import GameSessionCreateForm
+
+        quiet = self._map(name="Kleinstadt", district_commuters=800)
+
+        form = GameSessionCreateForm(initial={"game_map": quiet})
+
+        self.assertEqual(form.fields["people_per_agent"].initial, 12)
+
+    def test_an_unknown_map_pk_does_not_break_the_page(self):
+        """A stale pk in a querystring must not 500 the create form."""
+        from game.forms import GameSessionCreateForm
+
+        form = GameSessionCreateForm(initial={"game_map": 10_000_000})
+
+        self.assertEqual(form.fields["people_per_agent"].initial, 100)
+        self.assertEqual(form.fields["max_CO2_level"].initial, 48_000)
+
+
+class MapCalibrationRoundTripTests(TempMediaRootMixin, TestCase):
+    """The pair has to survive an export and a re-import.
+
+    The JSON export is the only way a map moves between boxes, so a field the
+    export drops is a field that does not exist off this machine. The `map`
+    block already carried four keys the import silently ignored
+    (`max_player` and the three speeds) — that half of the round trip is S5's,
+    but these two are wired both ways from the start rather than joining them.
+    """
+
+    def setUp(self):
+        self.host = create_host()
+        self.host.is_staff = True
+        self.host.save(update_fields=["is_staff"])
+
+    def test_the_export_carries_the_pair(self):
+        from maps.models import GameMap, MapVersion
+
+        game_map = GameMap.objects.create(
+            name="Exportkarte",
+            x_dim=13,
+            y_dim=10,
+            scale=1000.0,
+            district_commuters=3_200,
+            co2_budget_kg_per_round=5_000,
+        )
+        MapVersion.objects.create(
+            game_map=game_map, name="Base", base_version=True
+        )
+        self.client.force_login(self.host)
+
+        response = self.client.get(f"/api/maps/{game_map.pk}/export/")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["map"]["district_commuters"], 3_200)
+        self.assertEqual(payload["map"]["co2_budget_kg_per_round"], 5_000)
+
+    def test_an_import_reads_the_pair_back(self):
+        import json
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from maps.models import GameMap
+
+        graph = {
+            "scale": 1000.0,
+            "map": {
+                "name": "Reimport",
+                "x_dim": 13,
+                "y_dim": 10,
+                "district_commuters": 3_200,
+                "co2_budget_kg_per_round": 5_000,
+            },
+            "nodes": [
+                {"id": "a", "name": "A", "x": 0, "y": 0, "types": []},
+                {"id": "b", "name": "B", "x": 1, "y": 0, "types": []},
+            ],
+            "edges": [
+                {"start_node": "a", "end_node": "b", "type": "street"},
+            ],
+            "bus_lines": [],
+            "train_lines": [],
+        }
+        upload = SimpleUploadedFile(
+            "reimport.json",
+            json.dumps(graph).encode(),
+            content_type="application/json",
+        )
+        self.client.force_login(self.host)
+
+        response = self.client.post(
+            "/map/upload/",
+            {
+                "map_name": "Reimport",
+                "description": "",
+                "max_players": 16,
+                "json_file": upload,
+            },
+        )
+
+        # The view redirects on success and re-renders with messages on
+        # failure, so a 200 here would mean it refused.
+        self.assertEqual(response.status_code, 302)
+        game_map = GameMap.objects.get(name="Reimport")
+        self.assertEqual(game_map.district_commuters, 3_200)
+        self.assertEqual(game_map.co2_budget_kg_per_round, 5_000)
+
+    def test_an_old_export_without_the_pair_still_imports(self):
+        """Every map exported before today has no such keys."""
+        import json
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from maps.models import GameMap
+
+        graph = {
+            "scale": 1000.0,
+            "map": {"name": "Alt", "x_dim": 13, "y_dim": 10},
+            "nodes": [
+                {"id": "a", "name": "A", "x": 0, "y": 0, "types": []},
+                {"id": "b", "name": "B", "x": 1, "y": 0, "types": []},
+            ],
+            "edges": [
+                {"start_node": "a", "end_node": "b", "type": "street"},
+            ],
+            "bus_lines": [],
+            "train_lines": [],
+        }
+        upload = SimpleUploadedFile(
+            "alt.json", json.dumps(graph).encode(), content_type="application/json"
+        )
+        self.client.force_login(self.host)
+
+        response = self.client.post(
+            "/map/upload/",
+            {
+                "map_name": "Alt",
+                "description": "",
+                "max_players": 16,
+                "json_file": upload,
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        game_map = GameMap.objects.get(name="Alt")
+        self.assertEqual(game_map.district_commuters, 6_400)
+        self.assertEqual(game_map.co2_budget_kg_per_round, 8_000)
