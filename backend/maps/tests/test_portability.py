@@ -24,7 +24,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from game.tests._helpers import TempMediaRootMixin
-from maps.models import Edge, GameMap, MapVersion, Node
+from maps.models import BusLine, Edge, GameMap, MapVersion, Node, TrainLine
 
 # Two real 2x2 PNGs, blue and red. `image_file` on the upload form is an
 # ImageField, so Pillow opens whatever is posted — a handmade byte string that
@@ -586,3 +586,181 @@ class RailIsNotACycleTrackTests(MapUploadMixin, TestCase):
 
         self.assertTrue(edge.biking)
         self.assertTrue(edge.walking)
+
+
+# ---------------------------------------------------------------------------
+# The rest of the map block, and the lines.
+#
+# S2 read `district_commuters` and `co2_budget_kg_per_round` on the way in and
+# named what it left behind: `_create_game_map` takes a `map_meta` argument that
+# no caller passes, so `max_player` and the three speeds are written into every
+# export and dropped by every import. A PT line's `speed_kmh` is the same story
+# one level down — `_create_bus_lines` and `_create_train_lines` never read it,
+# which is why every line on every imported map has run at the model default
+# whatever its file said.
+# ---------------------------------------------------------------------------
+
+
+class MapBlockPortabilityTests(MapUploadMixin, TestCase):
+    """Everything under `map` that is not the picture or the calibration pair."""
+
+    def test_import_reads_max_player_from_the_file(self):
+        """The file wins over the form field.
+
+        `max_players` is a required field on the upload form with no default, so
+        the host types *something* on every import — which means the form can
+        never be "absent" and the file would never win if the form took
+        precedence. What the map was drawn for is a property of the map.
+        """
+        payload = self.graph_payload(
+            map={"name": "Berlin 3", "x_dim": 7, "y_dim": 5, "max_player": 6}
+        )
+
+        game_map = self.upload(payload, max_players=4)
+
+        self.assertEqual(game_map.max_player, 6)
+
+    def test_import_reads_the_three_speeds_from_the_file(self):
+        """walk, bike and the car default: what the graph is measured with.
+
+        A map whose walking speed is 4 km/h and whose streets default to 45
+        arrives as 5 and 50, so every travel time on the new box differs from
+        the box the map was drawn on.
+        """
+        payload = self.graph_payload(
+            map={
+                "name": "Berlin 3",
+                "x_dim": 7,
+                "y_dim": 5,
+                "walk_speed_kmh": 4,
+                "bike_speed_kmh": 18,
+                "default_car_speed_kmh": 45,
+            }
+        )
+
+        game_map = self.upload(payload)
+
+        self.assertEqual(game_map.walk_speed_kmh, 4)
+        self.assertEqual(game_map.bike_speed_kmh, 18)
+        self.assertEqual(game_map.default_car_speed_kmh, 45)
+
+    def test_a_file_without_them_keeps_the_form_and_the_defaults(self):
+        """An older export, and every handwritten file, says none of this."""
+        game_map = self.upload(self.graph_payload(), max_players=4)
+
+        self.assertEqual(game_map.max_player, 4)
+        self.assertEqual(game_map.walk_speed_kmh, 5)
+        self.assertEqual(game_map.bike_speed_kmh, 20)
+        self.assertEqual(game_map.default_car_speed_kmh, 50)
+
+    def test_the_whole_block_survives_export_and_import(self):
+        original = self.upload(
+            self.graph_payload(
+                map={
+                    "name": "Berlin 3",
+                    "x_dim": 7,
+                    "y_dim": 5,
+                    "max_player": 6,
+                    "walk_speed_kmh": 4,
+                    "bike_speed_kmh": 18,
+                    "default_car_speed_kmh": 45,
+                    "district_commuters": 4200,
+                    "co2_budget_kg_per_round": 5500,
+                }
+            ),
+            name="Vorher",
+        )
+
+        exported = self.client.get(
+            reverse("maps:map-export", kwargs={"pk": original.pk})
+        ).json()
+        copy = self.upload(exported, name="Nachher", max_players=2)
+
+        self.assertEqual(copy.max_player, 6)
+        self.assertEqual(copy.walk_speed_kmh, 4)
+        self.assertEqual(copy.bike_speed_kmh, 18)
+        self.assertEqual(copy.default_car_speed_kmh, 45)
+        self.assertEqual(copy.district_commuters, 4200)
+        self.assertEqual(copy.co2_budget_kg_per_round, 5500)
+        self.assertEqual(copy.x_dim, 7)
+        self.assertEqual(copy.y_dim, 5)
+
+
+class PTLinePortabilityTests(MapUploadMixin, TestCase):
+    """A line's own numbers: seats, interval, and how fast it drives.
+
+    The speed is not decoration — `game/simulation.py` loads it into
+    `bus_line_speeds` / `train_line_speeds` to run the line's vehicles, and
+    `ptRouting.ts` costs every boarding with it. A line that arrives at the
+    default drives at the default on both sides.
+    """
+
+    def line_payload(self, *, bus=None, train=None):
+        payload = self.graph_payload()
+        if bus is not None:
+            payload["bus_lines"] = [{"name": "100", "edges": [0], **bus}]
+        if train is not None:
+            payload["train_lines"] = [{"name": "U2", "edges": [0], **train}]
+        return payload
+
+    def test_import_reads_the_bus_line_speed(self):
+        game_map = self.upload(
+            self.line_payload(bus={"speed_kmh": 22}), name="Bus mit Tempo"
+        )
+
+        self.assertEqual(BusLine.objects.get(game_map=game_map).bus_speed_kmh, 22)
+
+    def test_import_reads_the_train_line_speed(self):
+        game_map = self.upload(
+            self.line_payload(train={"speed_kmh": 55}), name="Bahn mit Tempo"
+        )
+
+        self.assertEqual(TrainLine.objects.get(game_map=game_map).train_speed_kmh, 55)
+
+    def test_a_bus_line_without_a_speed_drives_at_the_model_default(self):
+        game_map = self.upload(self.line_payload(bus={}), name="Bus ohne Tempo")
+
+        self.assertEqual(BusLine.objects.get(game_map=game_map).bus_speed_kmh, 30)
+
+    def test_a_train_line_without_a_speed_drives_at_the_model_default(self):
+        game_map = self.upload(self.line_payload(train={}), name="Bahn ohne Tempo")
+
+        self.assertEqual(TrainLine.objects.get(game_map=game_map).train_speed_kmh, 40)
+
+    def test_a_train_line_without_an_interval_keeps_the_model_default(self):
+        """Five, like the model and like a bus — not ten.
+
+        The importer answered this question with 10 while `TrainLine.intervall`
+        says 5 and `_create_bus_lines` says 5, so a handwritten file got twice
+        the service it asked for on the bus and half of it on the train. Same
+        shape as the 60-seat U-Bahn: three places, two answers.
+        """
+        game_map = self.upload(self.line_payload(train={}), name="Bahn ohne Takt")
+
+        self.assertEqual(TrainLine.objects.get(game_map=game_map).intervall, 5)
+
+    def test_a_line_survives_export_and_import(self):
+        original = self.upload(
+            self.line_payload(
+                bus={"interval": 8, "capacity": 85, "speed_kmh": 22},
+                train={"interval": 4, "capacity": 1000, "speed_kmh": 55},
+            ),
+            name="Linien vorher",
+        )
+
+        exported = self.client.get(
+            reverse("maps:map-export", kwargs={"pk": original.pk})
+        ).json()
+        copy = self.upload(exported, name="Linien nachher")
+
+        bus = BusLine.objects.get(game_map=copy)
+        train = TrainLine.objects.get(game_map=copy)
+        self.assertEqual(
+            (bus.intervall, bus.bus_capacity, bus.bus_speed_kmh), (8, 85, 22)
+        )
+        self.assertEqual(
+            (train.intervall, train.train_capacity, train.train_speed_kmh),
+            (4, 1000, 55),
+        )
+        self.assertEqual(bus.edges.count(), 1)
+        self.assertEqual(train.edges.count(), 1)

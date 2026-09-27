@@ -101,6 +101,7 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | R-12 | ÖPNV-Route gibt es nicht | sagt es und lässt eine andere Linie wählen | geht | - |
 | R-13 | Chat während der Runde | erreichbar | offen | - |
 | R-14 | ÖPNV fahren und das letzte Stück laufen | Runde wird gerechnet, nicht abgebrochen | geht | - |
+| R-15 | Bus & Bahn auf der ausgelieferten Karte | findet für jedes der 36 Wohnort-Arbeitsplatz-Paare eine Verbindung (S5) | geht | `replay.spec.ts` |
 
 ## A — die animation
 
@@ -220,8 +221,12 @@ nicht gemessen.
 | K-04 | Editor lädt | Graph erscheint, auf Deutsch, mit Legende | geht | - |
 | K-05 | Editor: Knoten und Kanten bearbeiten | speichert | geht | - |
 | K-06 | Editor: Version anlegen | taucht in der Abstimmung auf | ungeprüft | - |
-| K-07 | Karte importieren / exportieren | JSON rein und raus | ungeprüft | - |
+| K-07 | Karte importieren / exportieren | JSON rein und raus | geht | - |
 | K-09 | Export → Import derselben Karte | Bild, Maße und Platzierung kommen mit | ungeprüft | - |
+| K-13 | Export → Import: Linien | Plätze, Takt und Tempo jeder Linie kommen mit (S5) | geht | - |
+| K-14 | Export → Import: Kartenwerte | Platzzahl und die drei Geschwindigkeiten kommen mit; eine alte Datei ohne die Schlüssel behält die Vorgabewerte (S5) | geht | - |
+| K-15 | Linien der ausgelieferten Karte | alle zehn durchgehend, Hin- und Rückrichtung halten an denselben Bahnhöfen, Bus 85 / Bahn 1000 Plätze (S5) | geht | - |
+| K-16 | Karte neu importieren | dieselbe Datei ergibt dieselbe Karte: 136 Kanten, 4 Bus- und 6 Zuglinien, 13x10, Pendlerzahl und Budget (S5) | geht | - |
 | K-12 | Export → Import: Pendlerzahl und CO₂-Budget der Karte (S2) | kommen mit; eine alte Datei ohne die Schlüssel behält die Vorgabewerte | geht | - |
 | K-10 | Hintergrundbild neben den Graphen geschoben | bleibt ganz sichtbar, wird nicht abgeschnitten | geht | - |
 | K-11 | Kartendetail | Hintergrundbild liegt unter dem Graphen | geht | - |
