@@ -339,6 +339,79 @@ export const de = {
   },
 
   /**
+   * The animation, which is the first act of the stats phase rather than a phase
+   * of its own: submit → loading → animation → numbers → Weiter.
+   *
+   * The vocabulary is the player's, not the researcher's. "Knoten" and "Kante"
+   * belong to the map editor; here it is zu Hause and die Haltestelle.
+   */
+  replay: {
+    title: "Der Morgen",
+    lead:
+      "Zwei Stunden Berufsverkehr in zwei Minuten — so verhält sich die Karte " +
+      "mit dem, was ihr gewählt habt.",
+    mapLabel: "Karte mit den Fahrten dieser Runde",
+
+    /**
+     * Simulated time, not a time of day. The model has no wall clock — the
+     * departure window simply starts at zero — so claiming "7:48 Uhr" would put
+     * a number on screen that nothing in the simulation stands behind.
+     */
+    clockLabel: "Simulationszeit",
+    clock: (minute: number) =>
+      `${Math.floor(minute / 60)}:${String(Math.floor(minute % 60)).padStart(2, "0")}`,
+
+    play: "Abspielen",
+    pause: "Anhalten",
+    again: "Nochmal ansehen",
+    skip: "Überspringen",
+
+    /**
+     * One dot is fifty people, and the screen says so. Every other figure on
+     * these screens is class-scale and nothing names it; a dot is the one place
+     * where the scale is attached to something you can point at.
+     */
+    scale: (people: string) => `Ein Punkt steht für ${people} Menschen.`,
+    crowd: (people: number) => people.toLocaleString("de-DE"),
+
+    /**
+     * The four lines plus the two marks that are not a person. No entry for "your
+     * own dots": everybody watches the same traffic and no dot belongs to anybody
+     * on screen (Lukas, 2026-09-27).
+     */
+    legend: {
+      title: "Was du siehst",
+      /** Reads as a label in front of the four mode dots, which are people. */
+      people: "unterwegs mit",
+      vehicle: "ein Bus oder eine Bahn",
+      crowd: "Menschen, die warten",
+      fill: "wie voll die Straße ist",
+    },
+    hint:
+      "Punkte, die stehen bleiben, stecken im Stau. Wer noch nicht losfahren " +
+      "konnte, wartet als Gruppe zu Hause oder an der Haltestelle.",
+
+    /**
+     * The beat at the end. Three sentences, because the three endings mean
+     * different things and the first one may only appear when it is true:
+     * `arrived` got there, `unfinished` was still moving when the clock stopped,
+     * and `stranded` never travelled at all because the line's edges do not
+     * reach a stop its route asks for — a defect in the map, not a bad choice.
+     */
+    beatArrived: "Alle sind angekommen.",
+    beatUnfinished: (people: string) =>
+      `${people} Menschen waren noch unterwegs, als der Morgen vorbei war.`,
+    beatStranded: (people: string) =>
+      `${people} Menschen kamen gar nicht los: die Linie fährt ihre Haltestelle ` +
+      `nicht an. Das liegt an der Karte, nicht an der Wahl.`,
+
+    loading: "Die Aufzeichnung wird geladen …",
+    /** An old round, simulated before the recorder existed. Its numbers are intact. */
+    missing: "Von dieser Runde gibt es keine Aufzeichnung.",
+    failed: "Die Aufzeichnung ließ sich nicht laden.",
+  },
+
+  /**
    * Between two rounds: what the last one cost, and what the class does about
    * it. The phases are the backend's (`game/phases.py`), and each one is a
    * screen: stats → discussion → voting → stalemate → next round.

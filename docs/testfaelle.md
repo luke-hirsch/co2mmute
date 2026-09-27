@@ -102,6 +102,37 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | R-13 | Chat während der Runde | erreichbar | offen | - |
 | R-14 | ÖPNV fahren und das letzte Stück laufen | Runde wird gerechnet, nicht abgebrochen | geht | - |
 
+## A — die animation
+
+Die Animation ist der erste Teil der Statistik-Phase, keine eigene Phase: erst zuschauen, dann
+lesen, dann „Weiter". Sie blockiert nie — überspringen ist ein Klick, und eine Runde ohne
+Aufzeichnung zeigt einfach ihre Zahlen.
+
+| ID | Fall | Erwartet | Status | E2E |
+| --- | --- | --- | --- | --- |
+| A-01 | Runde ist gefahren | die Animation läuft zuerst, die Zahlen kommen danach | geht | `replay.spec.ts` |
+| A-02 | „Überspringen" | Zahlen und „Weiter" sofort da | geht | `replay.spec.ts` |
+| A-03 | „Nochmal ansehen" | läuft von vorn, die Zahlen bleiben stehen | geht | `replay.spec.ts` |
+| A-04 | „Anhalten" und weiter | Punkte stehen still, die Uhr auch | geht | `replay.spec.ts` |
+| A-05 | Uhr | läuft in Simulationsminuten und wird im Abfluss sichtbar schneller | geht | - |
+| A-06 | Stau | Punkte, die stehen bleiben; die Straße wird dicker | geht | - |
+| A-07 | Warteschlange vor der Haustür | Gruppe am Knoten, **nicht** auf der Kante | geht | - |
+| A-08 | Haltestelle | Gruppe wächst und schrumpft, Bus rollt mit und ohne Fahrgäste | ungeprüft | - |
+| A-09 | Fahrgast im Bus | wird nicht zusätzlich als eigener Punkt gezeichnet | ungeprüft | - |
+| A-10 | Ende | hält ein paar Sekunden auf dem letzten Moment | geht | - |
+| A-11 | jemand ist nicht angekommen | sagt es, statt „alle sind angekommen" | ungeprüft | - |
+| A-12 | Runde ohne Aufzeichnung | sagt es in einer Zeile, die Zahlen stehen trotzdem da | ungeprüft | - |
+| A-13 | ein Punkt sind 50 Menschen | steht unter der Karte | geht | - |
+| A-14 | kein Punkt gehört jemandem | alle Geräte sehen dieselbe Animation, niemand ist markiert | geht | - |
+| A-15 | Leitpult | zeigt dieselbe Animation, vor den Zahlen | geht | `replay.spec.ts` |
+| A-16 | 390px und dunkel | Karte lesbar, keine Querscrollbar | geht | - |
+| A-17 | Bildrate | große Karte, sechs Plätze: läuft rund in WebKit | ungeprüft | - |
+
+`A-08` bis `A-12` und `A-17` stehen offen, weil sie in dem Durchlauf nicht vorkamen: in der
+gefahrenen Runde ist **jeder angekommen**, also war nur die ehrliche Variante des Schlussbilds nicht
+zu sehen, und die Haltestellen-Schlange über die Zeit sowie die Bildrate mit sechs Plätzen sind noch
+nicht gemessen.
+
 ## Z — zwischen den runden
 
 | ID | Fall | Erwartet | Status | E2E |
