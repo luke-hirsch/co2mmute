@@ -484,7 +484,6 @@ class TrafficSimulator:
         the accounting code already skips a key it does not know, which is what
         keeps a bus out of the per-agent numbers without a guard anywhere.
         """
-        line_km = sum(e.euclidean_2d_distance() * self.scale for e in edges) / 1000
         interval = max(1, int(interval_min or 1))
         # round(), not floor(): a 7-minute interval over the two-hour window is
         # 17 departures, and flooring it would quietly shorten every timetable
@@ -497,6 +496,13 @@ class TrafficSimulator:
         # vehicle walking off the end of its own stop list.
         usable = max(0, len(stops) - 1)
         edge_ids = [e.pk for e in edges][:usable]
+        # Measured over the trimmed edges, not all of them: a line is charged
+        # society CO2 and cost for the kilometres its vehicles actually drive.
+        # Summing before the trim charged a broken line for the part it can
+        # never reach, which on Berlin_Mitte-West is `101` (4.04 of 6.33 km).
+        line_km = (
+            sum(e.euclidean_2d_distance() * self.scale for e in edges[:usable]) / 1000
+        )
         if edges and usable < len(edges):
             logger.warning(
                 "[SIM] PT line %s (%s) breaks after %s of %s edges — its "

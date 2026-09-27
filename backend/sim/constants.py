@@ -11,8 +11,16 @@ import random
 
 # Emission factors from Mobility models (defaults)
 CAR_EMISSIONS_G_PER_KM = 166.8  # g CO2e per vehicle-km (1 person = 1 vehicle)
+# A 12 m diesel city bus: ~40 l/100 km x 2.64 kg CO2/l.
 BUS_EMISSIONS_G_PER_VEHICLE_KM = 1200.0  # g CO2e per bus-km
-TRAIN_EMISSIONS_G_PER_VEHICLE_KM = 3500.0  # g CO2e per train-km
+# An electric U- or S-Bahn train: ~4 kWh per train-km including auxiliaries,
+# times the German grid mix of 363 g CO2/kWh (UBA, 2024). Not the operator's
+# own green tariff — the grid mix is the conservative figure and the one a
+# class can check. This was 3500 until the S2 calibration, which implied
+# 9.6 kWh/train-km, a diesel mainline train. It matters more than it looks:
+# the timetable runs whether anyone rides it or not, so on a map with six
+# train lines this number alone sets the floor under every round.
+TRAIN_EMISSIONS_G_PER_VEHICLE_KM = 1500.0  # g CO2e per train-km
 
 # Speed-dependent CO2 for cars, COPERT/HBEFA-style: an emission factor as a
 # continuous function of the average speed on a link.
