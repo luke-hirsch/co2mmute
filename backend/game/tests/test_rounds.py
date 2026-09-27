@@ -1408,8 +1408,17 @@ class SummaryPayloadTests(SimulatedRoundMixin, TestCase):
         self.assertGreater(anna["total_time_min"], bruno["total_time_min"] * 1.5)
         self.assertGreater(anna["total_cost_eur"], bruno["total_cost_eur"] * 1.5)
 
+        # A relative band, not half a minute: the round is seeded off its pk,
+        # which climbs through the suite, and Anna's second car is a third
+        # vehicle on a one-street map — so the two means are the same figure
+        # with a few percent of real traffic between them. Pinned at half a
+        # minute this passed alone and failed in a full run at 8,2 against 8,8.
+        # What it has to catch is a sum masquerading as a mean, which is a
+        # factor of two.
         self.assertAlmostEqual(
-            anna["time_min_per_agent"], bruno["time_min_per_agent"], delta=0.5
+            anna["time_min_per_agent"],
+            bruno["time_min_per_agent"],
+            delta=bruno["time_min_per_agent"] * 0.2,
         )
         self.assertAlmostEqual(
             anna["cost_eur_per_person"], bruno["cost_eur_per_person"], delta=0.2
@@ -1682,3 +1691,350 @@ class CrashedSimulationIsNotAFreeRoundTests(SimulatedRoundMixin, TestCase):
                 self.complete_round()
 
         fallback.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# S4, the backend half: the payloads say what scale their numbers are on, and
+# name the two things a screen cannot derive — what a commuter actually paid,
+# and which part of the round total belongs to no player at all.
+# ---------------------------------------------------------------------------
+
+
+@override_settings(**TEST_BACKENDS)
+class RoundCompletedScaleTests(SimulatedRoundMixin, TestCase):
+    """`round.completed` is class-scale throughout and never says so.
+
+    The round table reads `emissions_g` and `cost_eur` straight off this
+    payload, so a 2 km drive shows up as 334 g x 1000 people. The summary
+    endpoint learned to carry both scales in 2.4; the socket did not, which is
+    why the table and the end screen disagree about what a row means.
+
+    Two things only the server can answer: the cohort size (it reaches the SPA
+    on the seat endpoint alone, and the host has no seat) and the division
+    itself — a screen dividing a rounded display figure by 1000 is dividing
+    noise.
+    """
+
+    def test_the_round_names_the_cohort_size(self):
+        data = self.complete_round().data("round.completed")
+
+        self.assertEqual(data["people_per_agent"], self.people_per_agent)
+
+    def test_a_player_row_says_how_many_agent_trips_it_holds(self):
+        data = self.complete_round().data("round.completed")
+
+        for stat in data["player_stats"]:
+            self.assertEqual(stat["agent_count"], 1)
+
+    def test_a_player_row_carries_the_same_figure_per_person(self):
+        data = self.complete_round().data("round.completed")
+
+        for stat in data["player_stats"]:
+            self.assertAlmostEqual(
+                stat["co2_g_per_person"] * stat["agent_count"] * self.people_per_agent,
+                stat["emissions_g"],
+                delta=stat["agent_count"] * self.people_per_agent * 0.05,
+            )
+            self.assertAlmostEqual(
+                stat["cost_eur_per_person"]
+                * stat["agent_count"]
+                * self.people_per_agent,
+                stat["cost_eur"],
+                delta=stat["agent_count"] * self.people_per_agent * 0.005,
+            )
+
+    def test_one_commute_is_a_readable_number(self):
+        """The whole point of the field: 2 km by car is a few hundred grams and
+        well under a euro, not 334 kg and 640 €."""
+        data = self.complete_round().data("round.completed")
+
+        for stat in data["player_stats"]:
+            self.assertGreater(stat["co2_g_per_person"], 100.0)
+            self.assertLess(stat["co2_g_per_person"], 1000.0)
+            self.assertGreater(stat["cost_eur_per_person"], 0.0)
+            self.assertLess(stat["cost_eur_per_person"], 2.0)
+
+    def test_a_player_row_says_what_the_commuter_paid_out_of_pocket(self):
+        """`AgentSimulationResult.mean_paid_eur` has been written since the PT
+        work and read by nothing at all — not this payload, not the summary, no
+        serializer. `was du zahlst` beside `was es kostet` is the subsidy, and
+        for a driver it is the split between fuel and Abschreibung."""
+        data = self.complete_round().data("round.completed")
+
+        for stat in data["player_stats"]:
+            self.assertGreater(stat["paid_eur_per_person"], 0.0)
+            self.assertLess(stat["paid_eur_per_person"], stat["cost_eur_per_person"])
+
+    def test_the_round_carries_what_the_class_paid(self):
+        data = self.complete_round().data("round.completed")
+
+        paid = sum(
+            stat["paid_eur_per_person"] * stat["agent_count"] * self.people_per_agent
+            for stat in data["player_stats"]
+        )
+        # Half a cent per row x the people behind it, the same tolerance
+        # `CostUnitTests` uses: the rows are rounded for display and the total
+        # is exact, so a thousand people amplify the rounding by a thousand.
+        # What this catches is a scale mix-up, by three orders of magnitude.
+        self.assertAlmostEqual(
+            paid,
+            data["round_paid_eur"],
+            delta=0.005 * self.people_per_agent * len(data["player_stats"]),
+        )
+        self.assertLess(data["round_paid_eur"], data["round_cost_eur"])
+
+    def test_the_time_column_is_a_mean_over_the_trips_not_a_sum(self):
+        """Anna drives the same street with two Fahrgäste, Bruno with one. The
+        minutes must not double: a sum of travel times is not a quantity
+        anybody has, which is why this column never gets a per-person twin."""
+        from game.models import AgentRoute, RouteSegment
+
+        move = PlayerMove.objects.get(session_round=self.round, player=self.player)
+        with muted():
+            route = AgentRoute.objects.create(
+                player_move=move,
+                agent_id=2,
+                transport_mode="car",
+                total_distance_m=2000,
+                estimated_time_min=3,
+            )
+            RouteSegment.objects.create(
+                agent_route=route, order=1, edge=self.edge, mode="car"
+            )
+
+        stats = {s["player_name"]: s for s in self.complete_round().data(
+            "round.completed"
+        )["player_stats"]}
+
+        self.assertEqual((stats["Anna"]["agent_count"], stats["Bruno"]["agent_count"]),
+                         (2, 1))
+        self.assertAlmostEqual(
+            stats["Anna"]["time_min"], stats["Bruno"]["time_min"], delta=0.5
+        )
+        self.assertGreater(
+            stats["Anna"]["co2_g_per_person"] * 0.5,
+            0.0,
+            msg="sanity: the per-person CO2 is a mean too, not a sum",
+        )
+        self.assertAlmostEqual(
+            stats["Anna"]["co2_g_per_person"],
+            stats["Bruno"]["co2_g_per_person"],
+            delta=stats["Bruno"]["co2_g_per_person"] * 0.2,
+        )
+
+    def test_a_round_with_no_lines_on_the_map_reports_no_network_cost(self):
+        """The control for the class below: this map is one street, so the
+        timetable figures must be exactly zero rather than absent."""
+        data = self.complete_round().data("round.completed")
+
+        self.assertEqual(data["network_co2_g"], 0.0)
+        self.assertEqual(data["unridden_co2_g"], 0.0)
+        self.assertEqual(data["network_cost_eur"], 0.0)
+        self.assertEqual(data["unridden_cost_eur"], 0.0)
+
+
+@override_settings(**TEST_BACKENDS)
+class RoundCompletedNetworkShareTests(SimulatedRoundMixin, TestCase):
+    """The round table's rows do not add up to its total, and nothing says why.
+
+    One bus line over the mixin's 2 km street at a 10-minute interval runs 12
+    vehicles in the 120-minute window: 12 x 2 km x 1200 g = 28,8 kg, whether
+    anybody rides it or not. Both players drive, so those 28,8 kg belong to no
+    row on the screen — the footer is 28,8 kg larger than the rows above it and
+    reads as an arithmetic bug.
+    """
+
+    def setUp(self):
+        from maps.models import BusLine, BusLineEdge, MapVersion
+
+        super().setUp()
+        version = MapVersion.objects.get(game_map=self.game_map, base_version=True)
+        self.bus_line = BusLine.objects.create(
+            game_map=self.game_map, name="M1", intervall=10, bus_capacity=85
+        )
+        self.bus_line.map_versions.add(version)
+        BusLineEdge.objects.create(
+            bus_line=self.bus_line,
+            street_edge=self.edge.streetedge_set.first(),
+            order=0,
+        )
+
+    def test_the_round_says_what_the_timetable_costs_on_its_own(self):
+        data = self.complete_round().data("round.completed")
+
+        self.assertAlmostEqual(data["network_co2_g"], 28_800.0, delta=1.0)
+
+    def test_the_round_names_the_part_that_belongs_to_no_row(self):
+        """Nobody rode M1, so its whole 28,8 kg is the gap between the rows and
+        the total. That is the number the footer has to be able to name."""
+        data = self.complete_round().data("round.completed")
+
+        rows = sum(stat["emissions_g"] for stat in data["player_stats"])
+
+        self.assertAlmostEqual(data["unridden_co2_g"], 28_800.0, delta=1.0)
+        self.assertAlmostEqual(
+            rows + data["unridden_co2_g"],
+            data["round_emissions_g"],
+            delta=0.05 * len(data["player_stats"]),
+        )
+
+    def test_the_same_holds_for_the_money(self):
+        data = self.complete_round().data("round.completed")
+
+        rows = sum(stat["cost_eur"] for stat in data["player_stats"])
+
+        self.assertGreater(data["unridden_cost_eur"], 0.0)
+        self.assertAlmostEqual(
+            rows + data["unridden_cost_eur"],
+            data["round_cost_eur"],
+            delta=0.005 * len(data["player_stats"]),
+        )
+
+    def test_a_ridden_line_is_not_counted_as_unridden(self):
+        """The distinction the screen is making.
+
+        Bruno takes the bus, so M1's emissions move into his row as his
+        person-km share and the unridden figure drops to zero. The network
+        figure does not stay put: a thousand people wanting an 85-seat bus make
+        the line dispatch extra runs beyond its timetable, so it grows. Which is
+        exactly why the two figures are both in the payload — `network_co2_g` is
+        what the timetable costs, `unridden_co2_g` is what nobody used.
+        """
+        from game.models import AgentRoute, RouteSegment
+
+        move = PlayerMove.objects.get(session_round=self.round, player=self.other)
+        AgentRoute.objects.filter(player_move=move).delete()
+        with muted():
+            route = AgentRoute.objects.create(
+                player_move=move,
+                agent_id=1,
+                transport_mode="public",
+                total_distance_m=2000,
+                estimated_time_min=6,
+            )
+            RouteSegment.objects.create(
+                agent_route=route,
+                order=1,
+                edge=self.edge,
+                mode="bus",
+                pt_line_id=self.bus_line.pk,
+            )
+
+        data = self.complete_round().data("round.completed")
+        rows = sum(stat["emissions_g"] for stat in data["player_stats"])
+
+        self.assertGreaterEqual(data["network_co2_g"], 28_800.0)
+        self.assertAlmostEqual(data["unridden_co2_g"], 0.0, delta=1.0)
+        self.assertAlmostEqual(
+            rows, data["round_emissions_g"], delta=0.05 * len(data["player_stats"])
+        )
+
+
+@override_settings(**TEST_BACKENDS)
+class SummaryPaidFigureTests(SimulatedRoundMixin, TestCase):
+    """`mean_paid_eur` reaches no payload at all, so the end screen cannot put
+    *was du zahlst* beside *was es kostet* — which is the whole argument about
+    the PT fare, and for a car the split between fuel and Abschreibung."""
+
+    def _summary(self):
+        self.client.force_login(self.host)
+        with muted():
+            response = self.client.get(f"/api/game/{self.game.game_id}/summary/")
+        return response.json()
+
+    def test_a_players_round_says_what_was_paid(self):
+        self.complete_round()
+
+        for player in self._summary()["players"]:
+            for row in player["rounds"]:
+                self.assertGreater(row["paid_eur_per_person"], 0.0)
+                self.assertLess(
+                    row["paid_eur_per_person"], row["cost_eur_per_person"]
+                )
+
+    def test_the_totals_carry_it_too(self):
+        self.complete_round()
+
+        for player in self._summary()["players"]:
+            self.assertGreater(player["paid_eur_per_person"], 0.0)
+            self.assertLess(
+                player["paid_eur_per_person"], player["cost_eur_per_person"]
+            )
+
+
+@override_settings(**TEST_BACKENDS)
+class SummaryUnriddenFigureTests(SimulatedRoundMixin, TestCase):
+    """`network_co2_kg` alone cannot explain the gap in the end screen.
+
+    It is the whole timetable, ridden and unridden together, and the ridden
+    part is already inside the players' rows. What the screen has to name is
+    the part that is in the round total and in nobody's row — see
+    `RoundCompletedNetworkShareTests` for the same figure on the socket.
+    """
+
+    def setUp(self):
+        from maps.models import BusLine, BusLineEdge, MapVersion
+
+        super().setUp()
+        version = MapVersion.objects.get(game_map=self.game_map, base_version=True)
+        bus_line = BusLine.objects.create(
+            game_map=self.game_map, name="M1", intervall=10, bus_capacity=85
+        )
+        bus_line.map_versions.add(version)
+        BusLineEdge.objects.create(
+            bus_line=bus_line,
+            street_edge=self.edge.streetedge_set.first(),
+            order=0,
+        )
+
+    def _summary(self):
+        self.client.force_login(self.host)
+        with muted():
+            response = self.client.get(f"/api/game/{self.game.game_id}/summary/")
+        return response.json()
+
+    def test_a_round_names_the_part_no_player_rode(self):
+        self.complete_round()
+
+        rounds = {r["round_number"]: r for r in self._summary()["rounds"]}
+
+        self.assertAlmostEqual(rounds[1]["unridden_co2_kg"], 28.8, places=1)
+
+    def test_the_rows_plus_the_unridden_part_are_the_round(self):
+        self.complete_round()
+        summary = self._summary()
+        rounds = {r["round_number"]: r for r in summary["rounds"]}
+
+        rows = sum(
+            row["co2_kg"]
+            for player in summary["players"]
+            for row in player["rounds"]
+            if row["round_number"] == 1
+        )
+
+        self.assertAlmostEqual(
+            rows + rounds[1]["unridden_co2_kg"], rounds[1]["co2_kg"], places=1
+        )
+
+    def test_the_money_side_is_there_as_well(self):
+        self.complete_round()
+
+        rounds = {r["round_number"]: r for r in self._summary()["rounds"]}
+
+        self.assertGreater(rounds[1]["network_cost_eur"], 0.0)
+        self.assertGreater(rounds[1]["unridden_cost_eur"], 0.0)
+
+    def test_a_round_the_simulation_never_ran_claims_no_network(self):
+        """Without the guard the whole hardcoded total would read as timetable
+        nobody rode: there are no agent results to subtract."""
+        self.complete_round()
+        from game.models import AgentSimulationResult, SimulationResult
+
+        AgentSimulationResult.objects.all().delete()
+        SimulationResult.objects.all().delete()
+
+        rounds = {r["round_number"]: r for r in self._summary()["rounds"]}
+
+        self.assertIs(rounds[1]["simulation_used"], False)
+        self.assertEqual(rounds[1]["unridden_co2_kg"], 0.0)
+        self.assertEqual(rounds[1]["unridden_cost_eur"], 0.0)

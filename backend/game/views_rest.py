@@ -2,7 +2,7 @@ import logging
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Avg, Count, Max
+from django.db.models import Avg, Count, Max, Sum
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -17,6 +17,7 @@ from rest_framework.response import Response
 
 from game.auth import resolve_player_id
 from game.cache import get_cached_game_session
+from game.calibration import per_person
 from game.mixins import GameScopedQuerysetMixin
 from game.models import (
     AgentRoute,
@@ -819,23 +820,6 @@ class RoundReplayView(GenericAPIView):
         )
 
 
-def _per_person(total, agent_count, people_per_agent):
-    """Turn a class-scale sum into what one commuter did once.
-
-    CO2 and euro are extensive: they add up over agents and over the people
-    each agent stands for, so dividing by both gives one person's single
-    commute back. Travel time is not — it is passed through here with
-    `people_per_agent=1`, which makes this a mean over agent-trips rather
-    than a per-person figure, because a sum of travel times is not a
-    quantity anybody has.
-
-    Zero agent-trips is a round the player sat out; there is nothing to
-    divide and nothing to say about it.
-    """
-    people = agent_count * (people_per_agent or 1)
-    return total / people if people else 0.0
-
-
 class GameSummaryView(GenericAPIView):
     """Return end-of-game summary with per-player stats across all rounds."""
 
@@ -867,11 +851,26 @@ class GameSummaryView(GenericAPIView):
             ).values_list("game_round_id", flat=True)
         )
         network_by_round = {
-            row["game_round_id"]: row["network_co2_g"]
+            row["game_round_id"]: row
             for row in SimulationResult.objects.filter(
                 game_round__in=completed_rounds,
                 status=SimulationResult.Status.COMPLETED,
-            ).values("game_round_id", "network_co2_g")
+            ).values("game_round_id", "network_co2_g", "network_cost_eur")
+        }
+        # What the players' own rows add up to, straight from the source the
+        # rows come from. The round total minus this is the part of the
+        # timetable nobody rode: `_register_pt_line` puts a line on the network
+        # whether or not anyone boards, the ridden share is already inside the
+        # routes, and only the unridden remainder is added on top of them
+        # (`simulation.py`, "Totals"). So the difference is exact rather than
+        # estimated — and it is what makes the screen's footer add up.
+        ridden_by_round = {
+            row["agent_route__player_move__session_round"]: row
+            for row in AgentSimulationResult.objects.filter(
+                agent_route__player_move__session_round__in=completed_rounds
+            )
+            .values("agent_route__player_move__session_round")
+            .annotate(co2_g=Sum("total_co2_g"), cost_eur=Sum("mean_cost_eur"))
         }
 
         result_counts = {
@@ -896,28 +895,53 @@ class GameSummaryView(GenericAPIView):
             agent_count = result_counts.get(game_round.pk) or route_counts.get(
                 game_round.pk, 0
             )
+            network = network_by_round.get(game_round.pk) or {}
+            ridden = ridden_by_round.get(game_round.pk) or {}
+            simulation_used = game_round.pk in simulated
+            unridden_co2 = (
+                max(game_round.total_emissions_g - (ridden.get("co2_g") or 0.0), 0.0)
+                if simulation_used
+                else 0.0
+            )
+            unridden_cost = (
+                max(
+                    game_round.total_cost_eur
+                    - (ridden.get("cost_eur") or 0.0) * people_per_agent,
+                    0.0,
+                )
+                if simulation_used
+                else 0.0
+            )
             rounds_summary.append(
                 {
                     "round_number": game_round.round_number,
                     "co2_kg": round(game_round.total_emissions_g / 1000, 2),
                     "cost_eur": round(game_round.total_cost_eur, 2),
-                    "network_co2_kg": round(
-                        network_by_round.get(game_round.pk, 0.0) / 1000, 2
-                    ),
+                    # The whole timetable's own emissions, ridden and unridden
+                    # together — a bus emits because it runs.
+                    "network_co2_kg": round(network.get("network_co2_g", 0.0) / 1000, 2),
+                    "network_cost_eur": round(network.get("network_cost_eur", 0.0), 2),
+                    # And the slice of it that belongs to no player's row, which
+                    # is what the footer of a table has to be able to name. Zero
+                    # for a round the simulation never ran: there are no agent
+                    # rows to subtract, so the whole total would read as
+                    # timetable nobody rode.
+                    "unridden_co2_kg": round(unridden_co2 / 1000, 2),
+                    "unridden_cost_eur": round(unridden_cost, 2),
                     "agent_count": agent_count,
                     "co2_g_per_person": round(
-                        _per_person(
+                        per_person(
                             game_round.total_emissions_g, agent_count, people_per_agent
                         ),
                         1,
                     ),
                     "cost_eur_per_person": round(
-                        _per_person(
+                        per_person(
                             game_round.total_cost_eur, agent_count, people_per_agent
                         ),
                         2,
                     ),
-                    "simulation_used": game_round.pk in simulated,
+                    "simulation_used": simulation_used,
                     "vote": game_round.vote_result or None,
                 }
             )
@@ -932,6 +956,10 @@ class GameSummaryView(GenericAPIView):
             player_total_co2 = 0.0
             player_total_cost = 0.0
             player_total_time = 0.0
+            # Already per person when the simulation writes it, so it is summed
+            # over the agent-trips and divided by their count, never by
+            # people_per_agent as well.
+            player_total_paid = 0.0
             modes_used = set()
             rounds_data = []
 
@@ -940,6 +968,7 @@ class GameSummaryView(GenericAPIView):
                 round_co2 = 0.0
                 round_cost = 0.0
                 round_time = 0.0
+                round_paid = 0.0
                 round_agents = 0
 
                 if round_move:
@@ -955,6 +984,7 @@ class GameSummaryView(GenericAPIView):
                                 game.people_per_agent or 1
                             )
                             round_time += result.mean_trip_time_min
+                            round_paid += result.mean_paid_eur
                             modes_used.add(result.agent_route.transport_mode)
 
                     else:
@@ -1006,13 +1036,21 @@ class GameSummaryView(GenericAPIView):
                         # because a bike ride is 0 and a walk is 0 and kg
                         # would print both as 0.00.
                         "co2_g_per_person": round(
-                            _per_person(round_co2, round_agents, people_per_agent), 1
+                            per_person(round_co2, round_agents, people_per_agent), 1
                         ),
                         "cost_eur_per_person": round(
-                            _per_person(round_cost, round_agents, people_per_agent), 2
+                            per_person(round_cost, round_agents, people_per_agent), 2
                         ),
                         "time_min_per_agent": round(
-                            _per_person(round_time, round_agents, 1), 1
+                            per_person(round_time, round_agents, 1), 1
+                        ),
+                        # What the commuter actually handed over — one Ticket
+                        # per PT trip, fuel and brakes for a driver. Beside
+                        # cost_eur_per_person, which is what the trip costs
+                        # altogether, the difference is the subsidy on one side
+                        # and Abschreibung on the other.
+                        "paid_eur_per_person": round(
+                            per_person(round_paid, round_agents, 1), 2
                         ),
                     }
                 )
@@ -1020,6 +1058,7 @@ class GameSummaryView(GenericAPIView):
                 player_total_co2 += round_co2
                 player_total_cost += round_cost
                 player_total_time += round_time
+                player_total_paid += round_paid
 
             # The three totals are sums over agent-trips, so a player who
             # left after round 1 ranks fastest and cheapest for having played
@@ -1037,19 +1076,22 @@ class GameSummaryView(GenericAPIView):
                     "total_time_min": round(player_total_time, 1),
                     "total_agent_trips": total_agent_trips,
                     "co2_g_per_person": round(
-                        _per_person(
+                        per_person(
                             player_total_co2, total_agent_trips, people_per_agent
                         ),
                         1,
                     ),
                     "cost_eur_per_person": round(
-                        _per_person(
+                        per_person(
                             player_total_cost, total_agent_trips, people_per_agent
                         ),
                         2,
                     ),
                     "time_min_per_agent": round(
-                        _per_person(player_total_time, total_agent_trips, 1), 1
+                        per_person(player_total_time, total_agent_trips, 1), 1
+                    ),
+                    "paid_eur_per_person": round(
+                        per_person(player_total_paid, total_agent_trips, 1), 2
                     ),
                     "modes_used": sorted(modes_used),
                     "rounds": rounds_data,

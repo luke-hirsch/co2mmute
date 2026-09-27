@@ -11,6 +11,7 @@ from django.dispatch import Signal, receiver
 from django.utils import timezone
 
 from game.cache import cache_game_session, invalidate_game_session
+from game.calibration import per_person
 from game.models import GameRound, GameSession, Player, PlayerMove
 from game.phases import vote_options
 from game.roster import broadcast, schedule_broadcast
@@ -304,6 +305,10 @@ def handle_round_completed(
     has_routes = AgentRoute.objects.filter(player_move__in=moves).exists()
 
     simulation_used = False
+    # Zero for every path but a simulation that finished. A round with no
+    # result has no timetable figures either, and the keys are always present
+    # so the screen never has to guess whether a missing field means zero.
+    network = _no_network()
     if has_routes:
         simulated = _run_simulation(game_session, game_round, moves)
         if simulated is None:
@@ -316,7 +321,7 @@ def handle_round_completed(
             round_emissions, round_cost = 0.0, 0.0
             player_stats = _unsimulated_stats(moves)
         else:
-            round_emissions, round_cost, player_stats = simulated
+            round_emissions, round_cost, player_stats, network = simulated
             simulation_used = True
     else:
         # Legacy mode: a move with no routes at all, whose action is one of
@@ -357,6 +362,14 @@ def handle_round_completed(
             "simulation_used": simulation_used,
             "has_map_versions": has_map_versions,
             "map_versions": map_versions_data,
+            # One Fahrgast stands for this many people, and every kg and euro
+            # in `player_stats` is already multiplied by it. Only the server
+            # knows the factor — it reaches the SPA on the seat endpoint alone,
+            # and the host has no seat.
+            "people_per_agent": game_session.people_per_agent or 1,
+            # The timetable's own figures, and the part of the round total that
+            # belongs to no row in `player_stats`. See `_no_network`.
+            **network,
         },
     )
     logger.info(
@@ -449,11 +462,22 @@ def _run_simulation(game_session, game_round, moves):
         player_stats = []
         round_emissions = result.total_co2_g
         round_cost = result.total_cost_eur
+        people = game_session.people_per_agent or 1
+        # What the rows on the screen add up to. The round total is larger by
+        # exactly the timetable nobody rode — a line is on the network whether
+        # or not anybody boards, and only the unridden remainder is added on top
+        # of the routes' own shares (`simulation.py`, "Totals"). The screen has
+        # to be able to name that difference, or its footer reads as an
+        # arithmetic bug.
+        rows_emissions = 0.0
+        rows_cost = 0.0
+        rows_paid = 0.0
 
         for move in moves:
             player_emissions = 0.0
             player_cost = 0.0
             player_time = 0.0
+            player_paid = 0.0
             agent_details = []
 
             # Get simulation results for this player's agents
@@ -461,20 +485,29 @@ def _run_simulation(game_session, game_round, moves):
                 simulation=result,
                 agent_route__player_move=move,
             ).select_related("agent_route")
-            people = game_session.people_per_agent or 1
             for agent_result in agent_results:
                 agent_cost = agent_result.mean_cost_eur * people
                 player_emissions += agent_result.total_co2_g
                 player_cost += agent_cost
                 player_time += agent_result.mean_trip_time_min
+                # mean_paid_eur is per person already, so it is never
+                # multiplied by `people`.
+                player_paid += agent_result.mean_paid_eur
                 agent_details.append(
                     {
                         "agent_id": agent_result.agent_route.agent_id,
                         "mode": agent_result.agent_route.transport_mode,
                         "trip_time_min": round(agent_result.mean_trip_time_min, 1),
                         "delay_min": round(agent_result.congestion_delay_min, 1),
+                        # Class scale, like the row it adds up to.
                         "co2_g": round(agent_result.total_co2_g, 1),
                         "cost_eur": round(agent_cost, 2),
+                        # And what one commuter on this Fahrgast lived.
+                        "co2_g_per_person": round(
+                            per_person(agent_result.total_co2_g, 1, people), 1
+                        ),
+                        "cost_eur_per_person": round(agent_result.mean_cost_eur, 2),
+                        "paid_eur_per_person": round(agent_result.mean_paid_eur, 2),
                     }
                 )
 
@@ -482,21 +515,55 @@ def _run_simulation(game_session, game_round, moves):
             modes_used = list(set(a["mode"] for a in agent_details))
             action_summary = ", ".join(modes_used) if modes_used else "unknown"
 
+            rows_emissions += player_emissions
+            rows_cost += player_cost
+            rows_paid += player_paid
+
+            agent_count = len(agent_details)
             player_stats.append(
                 {
                     "player_id": move.player.player_id,
                     "player_name": move.player.name or "Player",
                     "action": action_summary,
+                    # Class scale: this seat's Fahrgäste stand for
+                    # agent_count x people_per_agent commuters.
                     "emissions_g": round(player_emissions, 1),
                     "cost_eur": round(player_cost, 2),
-                    "time_min": round(player_time / len(agent_details), 1)
+                    # A mean over the seat's Fahrgäste, not a sum — a sum of
+                    # travel times is not a quantity anybody has, which is why
+                    # this column has no per-person twin and never flips scale.
+                    "time_min": round(player_time / agent_count, 1)
                     if agent_details
                     else 0,
+                    # How many agent-trips the two figures above are made of,
+                    # and the same round as one commuter lived it. Divided here
+                    # rather than on the screen: a client dividing a rounded
+                    # display figure by a thousand is dividing noise.
+                    "agent_count": agent_count,
+                    "co2_g_per_person": round(
+                        per_person(player_emissions, agent_count, people), 1
+                    ),
+                    "cost_eur_per_person": round(
+                        per_person(player_cost, agent_count, people), 2
+                    ),
+                    "paid_eur_per_person": round(
+                        per_person(player_paid, agent_count, 1), 2
+                    ),
                     "agents": agent_details,
                 }
             )
 
-        return round_emissions, round_cost, player_stats
+        network = {
+            # The whole timetable's own figures, ridden or not.
+            "network_co2_g": round(result.network_co2_g, 1),
+            "network_cost_eur": round(result.network_cost_eur, 2),
+            # And the slice of the round total that belongs to no row above.
+            "unridden_co2_g": round(max(round_emissions - rows_emissions, 0.0), 1),
+            "unridden_cost_eur": round(max(round_cost - rows_cost, 0.0), 2),
+            "round_paid_eur": round(rows_paid * people, 2),
+        }
+
+        return round_emissions, round_cost, player_stats, network
 
     except Exception as e:
         logger.exception(f"Simulation failed for round {game_round.round_number}")
@@ -511,6 +578,23 @@ def _run_simulation(game_session, game_round, moves):
             },
         )
         return None
+
+
+def _no_network():
+    """The timetable figures for a round that produced no simulation result.
+
+    Every key `round.completed` can carry is always in it, with a zero rather
+    than an absence: a screen that has to tell "no lines on this map" from
+    "this field is new" ends up guessing, and a payload whose fields come and
+    go is what made seven events go unread for months.
+    """
+    return {
+        "network_co2_g": 0.0,
+        "network_cost_eur": 0.0,
+        "unridden_co2_g": 0.0,
+        "unridden_cost_eur": 0.0,
+        "round_paid_eur": 0.0,
+    }
 
 
 def _unsimulated_stats(moves):
@@ -533,6 +617,9 @@ def _unsimulated_stats(moves):
                 "delay_min": 0.0,
                 "co2_g": 0.0,
                 "cost_eur": 0.0,
+                "co2_g_per_person": 0.0,
+                "cost_eur_per_person": 0.0,
+                "paid_eur_per_person": 0.0,
             }
             for route in AgentRoute.objects.filter(player_move=move)
         ]
@@ -545,6 +632,14 @@ def _unsimulated_stats(moves):
                 "emissions_g": 0.0,
                 "cost_eur": 0.0,
                 "time_min": 0.0,
+                # Nothing was computed, so both scales are zero — but the keys
+                # are there, because the screen reads them unconditionally and
+                # `simulation_used: False` beside them is what says the row is
+                # not a result.
+                "agent_count": len(agents),
+                "co2_g_per_person": 0.0,
+                "cost_eur_per_person": 0.0,
+                "paid_eur_per_person": 0.0,
                 "agents": agents,
             }
         )
@@ -615,6 +710,11 @@ def _calculate_hardcoded_stats(moves):
         round_emissions += player_emissions
         round_cost += player_cost
 
+        # The legacy table is per person and was never scaled by
+        # people_per_agent, so the two scales are the same figure here and the
+        # per-person one is only a mean over the agents. `simulation_used:
+        # False` rides along with it.
+        agent_count = max(len(agents), 1)
         player_stats.append(
             {
                 "player_id": move.player.player_id,
@@ -623,6 +723,10 @@ def _calculate_hardcoded_stats(moves):
                 "emissions_g": player_emissions,
                 "cost_eur": player_cost,
                 "time_min": player_time,
+                "agent_count": agent_count,
+                "co2_g_per_person": round(player_emissions / agent_count, 1),
+                "cost_eur_per_person": round(player_cost / agent_count, 2),
+                "paid_eur_per_person": 0.0,
             }
         )
 
