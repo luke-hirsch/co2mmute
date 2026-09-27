@@ -105,6 +105,7 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                     max_players=max_players,
                     author=self.request.user,
                     scale=scale,
+                    map_meta=(graph_data or {}).get("map", {}),
                 )
                 logger.info(f"Created GameMap with pk {game_map.pk}")
 
@@ -353,18 +354,53 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         return errors
 
     def _create_game_map(self, name, max_players, author, scale=1.0, map_meta=None):
+        """The map row itself, from the file's `map` block where it has one.
+
+        `map_meta` was accepted here and passed by nobody, so every key in the
+        block except the dimensions and (since S2) the calibration pair was
+        written into the export and dropped on the way back in: the copy arrived
+        with the form's Platzzahl and the three speed defaults, whatever the
+        file said. A map whose walking speed is 4 km/h is a different map on the
+        next box, which is the whole thing the round trip exists to prevent.
+
+        Every value is guarded rather than defaulted, so a file that does not
+        mention a key — every export older than the field — keeps the field
+        default instead of a None. `max_player` takes the form's number as its
+        fallback, because that field is required and the host always types
+        something; when the file states one, the file wins. What the map was
+        drawn for is a property of the map, not of the upload.
+        """
         meta = map_meta or {}
+
+        def from_meta(key, fallback):
+            if key not in meta:
+                return fallback
+            try:
+                value = int(meta[key])
+            except (TypeError, ValueError):
+                value = 0
+            if value <= 0:
+                logger.warning(
+                    "Map %r: %s is not a usable number (%r), keeping %s",
+                    name,
+                    key,
+                    meta[key],
+                    fallback,
+                )
+                return fallback
+            return value
+
         game_map = GameMap.objects.create(
             name=name,
-            max_player=meta.get("max_player", max_players),
+            max_player=from_meta("max_player", max_players),
             author=author,
             updated_by=author,
             x_dim=100,
             y_dim=100,
             scale=scale,
-            walk_speed_kmh=meta.get("walk_speed_kmh", 5),
-            bike_speed_kmh=meta.get("bike_speed_kmh", 20),
-            default_car_speed_kmh=meta.get("default_car_speed_kmh", 50),
+            walk_speed_kmh=from_meta("walk_speed_kmh", 5),
+            bike_speed_kmh=from_meta("bike_speed_kmh", 20),
+            default_car_speed_kmh=from_meta("default_car_speed_kmh", 50),
         )
         return game_map
 
@@ -483,11 +519,19 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
 
     def _create_bus_lines(self, game_map, base_version, bus_lines_data, edge_mapping):
         for bus_line_data in bus_lines_data:
+            # Every default here is the model's own (`maps/models.py`), so a
+            # handwritten file that mentions none of them gets the same line the
+            # editor's "new line" button makes. `speed_kmh` used to be exported
+            # and then dropped, which is why every line on every imported map has
+            # run at 30 whatever its file said — the simulator takes a line
+            # vehicle's speed from it (`bus_line_speeds`) and so does the
+            # client's route preview (`ptRouting.ts`).
             bus_line = BusLine.objects.create(
                 game_map=game_map,
                 name=bus_line_data["name"],
                 intervall=bus_line_data.get("interval", 5),
                 bus_capacity=bus_line_data.get("capacity", 85),
+                bus_speed_kmh=bus_line_data.get("speed_kmh", 30),
             )
             bus_line.map_versions.add(base_version)
 
@@ -514,11 +558,16 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         self, game_map, base_version, train_lines_data, edges_data, edge_mapping
     ):
         for train_line_data in train_lines_data:
+            # `intervall` defaulted to 10 here while the model, the editor and
+            # the bus above all say 5: three places, two answers, the same shape
+            # as the 60-seat U-Bahn. A file without an interval asked for a
+            # timetable and got half of one.
             train_line = TrainLine.objects.create(
                 game_map=game_map,
                 name=train_line_data["name"],
-                intervall=train_line_data.get("interval", 10),
+                intervall=train_line_data.get("interval", 5),
                 train_capacity=train_line_data.get("capacity", 1000),
+                train_speed_kmh=train_line_data.get("speed_kmh", 40),
             )
             train_line.map_versions.add(base_version)
 
