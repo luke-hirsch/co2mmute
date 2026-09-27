@@ -137,7 +137,7 @@ nicht gemessen.
 
 | ID | Fall | Erwartet | Status | E2E |
 | --- | --- | --- | --- | --- |
-| Z-01 | Runde fertig | Ergebnis pro Spieler: CO₂, Kosten, Zeit | ungeprüft | - |
+| Z-01 | Runde fertig | Ergebnis pro Spieler: CO₂, Kosten, Zeit | geht | numbers.spec.ts |
 | Z-02 | alle haben gelesen | weiter zur Diskussion | geht | - |
 | Z-03 | keine Kartenversionen zur Wahl | direkt die nächste Runde | geht | - |
 | Z-04 | Host öffnet die Abstimmung | nur aus der Diskussion heraus | geht | - |
@@ -151,6 +151,12 @@ nicht gemessen.
 | Z-12 | zweimal abstimmen | sagt „schon abgestimmt", statt einen Fehler zu zeigen | geht | - |
 | Z-13 | Pause in einer Phase | Banner da, Phase läuft nicht weiter | geht | - |
 | Z-14 | Host stimmt für seine Plätze ab | einer nach dem anderen, verdeckter Zwischenschritt | geht | - |
+| Z-15 | Tabelle nach der Runde | steht auf „pro Person" und sagt, für wie viele Menschen ein Fahrgast steht | geht | numbers.spec.ts |
+| Z-16 | Schalter „ganze Klasse" | jede CO₂- und Kostenzelle wird eine andere Zahl; die Zeit bleibt der Schnitt pro Weg | geht | numbers.spec.ts |
+| Z-17 | Zeilen ergeben nicht die Summe | Zeile „Linien ohne Fahrgäste" schließt die Lücke genau, mit einem Satz warum | geht | numbers.spec.ts |
+| Z-18 | bezahlt gegen gekostet | steht unter der Tabelle; am eigenen Platz persönlich, am Leitpult für die Klasse | geht | numbers.spec.ts |
+| Z-19 | „Wie wird gerechnet?" | Overlay mit Maßstab, Zeit, Kosten, Fahrplan und Stau | geht | numbers.spec.ts |
+| Z-20 | Wartebildschirme | Erklärtext steht voll ausgeschrieben da — beim Warten auf die Runde und in der Diskussion, **nie** neben dem Stimmzettel | ungeprüft | - |
 
 ## E — spielende
 
@@ -158,7 +164,6 @@ nicht gemessen.
 | --- | --- | --- | --- | --- |
 | E-01 | letzte Runde gespielt | Ende mit Grund `max_rounds` | geht | - |
 | E-02 | CO₂-Budget überschritten | Ende mit Grund `co2_limit` | geht | - |
-| E-06 | Spiel mit den Vorgabewerten (S2) | endet **nicht** in Runde 1; sechs Runden sind fahrbar, wenn die Klasse umsteigt | geht | - |
 | E-03 | Auswertung | pro Spieler über alle Runden, drei Reihenfolgen, niemand gekürt | geht | - |
 | E-04 | Host beendet von Hand | Ende, alle sehen es | geht | - |
 | E-05 | Spiel endet wegen Inaktivität | meldet heute `max_rounds` — **falsch**, offen im Backend | kaputt | - |
@@ -166,6 +171,12 @@ nicht gemessen.
 | E-07 | Auswertung Runde für Runde | eine Linie mit einem Halt pro Runde; bei nur einer Runde keine | geht | - |
 | E-08 | Auswertung neu geladen | Zahlen und Grund stehen weiter da, ohne Socket | geht | - |
 | E-09 | Auswertung auf dem Handy | eigener Platz in allen drei Listen mit „du" markiert | geht | - |
+| E-10 | Spiel mit den Vorgabewerten (S2) | endet **nicht** in Runde 1; sechs Runden sind fahrbar, wenn die Klasse umsteigt | geht | - |
+| E-11 | Was der Fahrplan gekostet hat | eigener Block, Klassenmaßstab, mit dem Anteil auf Linien, die niemand genutzt hat | geht | numbers.spec.ts |
+| E-12 | die drei Listen | sortieren pro Weg, nicht auf den Summen; wer vorzeitig raus ist, ist markiert; Schalter auch hier | geht | numbers.spec.ts |
+| E-13 | Was die Klasse geändert hat | eine Zeile pro Abstimmung mit Stimmen und Gewinner; ohne Abstimmung sagt es das | geht | numbers.spec.ts |
+| E-14 | „davon selbst bezahlt" | in der Kostenliste, wenn man einen Namen aufklappt | geht | numbers.spec.ts |
+| E-15 | Auswertung mit Abstimmungen | Karte mit mehreren Versionen: Gewinner, Stimmen, Patt und „von der Spielleitung beendet" stehen da | ungeprüft | - |
 
 ## H — das leitpult (host)
 
