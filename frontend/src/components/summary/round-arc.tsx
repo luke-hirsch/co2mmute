@@ -24,6 +24,10 @@ import type { ArcStop } from "@/lib/game/summary";
  *   once, in the head of the screen, as the bar it belongs on.
  * - **Under two rounds there is no arc.** One bar is not a chart — it is the
  *   headline figure, and the head of the screen is already showing it.
+ * - **The figures are the class's own, read not derived.** They used to be summed
+ *   out of the listed players, which undershot every round by whoever had left
+ *   the game — so the chart disagreed with the total above it. `rounds[]` carries
+ *   the same number the CO₂ budget is spent out of.
  */
 export function RoundArc({ stops }: { stops: ArcStop[] }) {
   if (stops.length < 2) return null;

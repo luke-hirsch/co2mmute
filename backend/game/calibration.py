@@ -129,3 +129,24 @@ def co2_budget_kg(max_rounds: int, game_map=None) -> int:
     """
     per_round = _map_value(game_map, "co2_budget_kg_per_round")
     return per_round * max(1, int(max_rounds or 0))
+
+
+def per_person(total: float, agent_count: int, people_per_agent_value: int) -> float:
+    """Turn a class-scale sum back into what one commuter did once.
+
+    The inverse of the scaling above, and the reason it belongs here: the same
+    factor that decides how much demand a class puts on the map decides how a
+    figure on the screen has to be read back.
+
+    CO2 and euro are extensive: they add up over agents and over the people each
+    agent stands for, so dividing by both gives one person's single commute
+    back. Travel time is not — it is passed through here with
+    `people_per_agent_value=1`, which makes this a mean over agent-trips rather
+    than a per-person figure, because a sum of travel times is not a quantity
+    anybody has.
+
+    Zero agent-trips is a round the player sat out; there is nothing to divide
+    and nothing to say about it.
+    """
+    people = agent_count * (people_per_agent_value or 1)
+    return total / people if people else 0.0

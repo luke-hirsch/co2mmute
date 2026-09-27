@@ -52,14 +52,39 @@ export type VoteOption = {
   change_img_url: string | null;
 };
 
-/** Per-player figures in `round.completed`. `game/signals.py`. */
+/**
+ * Per-player figures in `round.completed`. `game/signals.py`.
+ *
+ * **Two scales, both in the payload.** `emissions_g` and `cost_eur` are class
+ * scale — this seat's Fahrgäste stand for `agent_count x people_per_agent`
+ * commuters — and the `*_per_person` fields are the same round divided back down
+ * to one commuter making one commute. Divided on the server, because a screen
+ * dividing a figure already rounded for display by a thousand is dividing noise.
+ *
+ * `time_min` is the odd one out and always was: it is a **mean** over the seat's
+ * Fahrgäste, not a sum, so it has no second scale and never switches. A sum of
+ * travel times is not a quantity anybody has. (Careful: the summary endpoint's
+ * `time_min` is the sum, and `time_min_per_agent` beside it is this figure.)
+ */
 export type RoundPlayerStats = {
   player_id: string;
   player_name: string;
   action: string;
+  /** Class scale. */
   emissions_g: number;
   cost_eur: number;
+  /** A mean over this seat's Fahrgäste — see above. */
   time_min: number;
+  /** How many agent-trips the class-scale figures are made of. */
+  agent_count: number;
+  /** Grams, because a bike ride is 0 and kg would print it beside a car's 1,33. */
+  co2_g_per_person: number;
+  cost_eur_per_person: number;
+  /**
+   * What the commuter handed over: one Ticket per PT trip, fuel and brakes for a
+   * driver. Against `cost_eur_per_person`, which is the whole cost of the trip.
+   */
+  paid_eur_per_person: number;
   /** Only present when the simulation ran; the legacy fallback omits it. */
   agents?: { mode: TransportMode; [key: string]: unknown }[];
 };
@@ -195,6 +220,27 @@ export type GameEvent =
         simulation_used: boolean;
         has_map_versions: boolean;
         map_versions: VoteOption[];
+        /**
+         * One Fahrgast stands for this many real people, and every class-scale
+         * figure above is already multiplied by it. Only the server knows the
+         * factor — it reaches the SPA on the seat endpoint alone, and the host
+         * has no seat.
+         */
+        people_per_agent: number;
+        /** The whole timetable's own emissions, ridden or not. */
+        network_co2_g: number;
+        network_cost_eur: number;
+        /**
+         * The slice of the round total that belongs to no row in
+         * `player_stats`: a line is on the network whether or not anybody
+         * boards, and only the part nobody rode is added on top of the riders'
+         * own shares. Without it the table's footer is larger than its rows and
+         * reads as an arithmetic bug.
+         */
+        unridden_co2_g: number;
+        unridden_cost_eur: number;
+        /** What the class actually paid, against what the round cost. */
+        round_paid_eur: number;
       }
     >
   | Envelope<

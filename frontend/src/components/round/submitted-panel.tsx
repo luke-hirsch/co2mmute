@@ -1,3 +1,4 @@
+import { NumbersExplainerPanel } from "@/components/numbers/numbers-explainer";
 import { useGame } from "@/components/game/game-context";
 import { de } from "@/lib/de";
 import { playingSeats } from "@/lib/game/game-state";
@@ -13,6 +14,13 @@ import { playingSeats } from "@/lib/game/game-state";
  * Names appear here because the roster is exactly the list of who is in the
  * room, and the players can see each other. They must not reach a log, a toast
  * or an error string (CLAUDE.md → players are minors).
+ *
+ * And it is one of the two screens that carry the explain-the-numbers text in
+ * full (Lukas, 2026-09-22 — never in the ballot). There is nothing to press here
+ * and a round takes as long as it takes, so this is the reading time the class
+ * has: that one Fahrgast is a hundred people, and that a line emits whether
+ * anybody boards it or not. Read here, the class brings the argument to the
+ * discussion themselves instead of finding it printed next to the vote.
  */
 export function SubmittedPanel() {
   const { state } = useGame();
@@ -48,6 +56,8 @@ export function SubmittedPanel() {
           </ul>
         </div>
       ) : null}
+
+      <NumbersExplainerPanel className="mt-12 border-t border-border pt-8" />
     </section>
   );
 }

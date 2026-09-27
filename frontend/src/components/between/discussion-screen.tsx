@@ -1,4 +1,5 @@
 import { MapChangeCard } from "@/components/between/map-change-card";
+import { NumbersExplainerPanel } from "@/components/numbers/numbers-explainer";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
 import { de } from "@/lib/de";
 import { useGame } from "@/components/game/game-context";
@@ -13,6 +14,13 @@ import { useGame } from "@/components/game/game-context";
  *
  * The host sees the same cards with the opening control under them — that is
  * `host-between-screen.tsx`, not a role flag in this file.
+ *
+ * The explain-the-numbers text is here in full, and this is the screen it was
+ * written for: the class is arguing about the map with nothing to press, and the
+ * two facts that decide the argument — one Fahrgast is a hundred people, a line
+ * emits whether it is ridden or not — belong in front of them **before** the
+ * ballot rather than beside it (Lukas, 2026-09-22). Next to the vote it hands
+ * them a conclusion; here it hands them the question.
  */
 export function DiscussionScreen() {
   const { state } = useGame();
@@ -39,6 +47,8 @@ export function DiscussionScreen() {
       <p className="mt-12 text-muted-foreground">
         {de.between.discussionWaiting}
       </p>
+
+      <NumbersExplainerPanel className="mt-16 border-t border-border pt-8" />
     </Screen>
   );
 }
