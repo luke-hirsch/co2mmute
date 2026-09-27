@@ -134,10 +134,38 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                         nodes_data=graph_data.get("nodes", []),
                     )
                     map_meta = (graph_data or {}).get("map", {})
+                    changed = []
                     if "x_dim" in map_meta and "y_dim" in map_meta:
                         game_map.x_dim = int(map_meta["x_dim"])
                         game_map.y_dim = int(map_meta["y_dim"])
-                        game_map.save(update_fields=["x_dim", "y_dim"])
+                        changed += ["x_dim", "y_dim"]
+                    # What the map is played against travels with it: the
+                    # export is the only way a map moves between boxes, so a
+                    # key read on the way out and ignored on the way back in is
+                    # a field that does not exist off this machine. Absent on
+                    # every map exported before S2, which is why each is
+                    # guarded rather than defaulted — the field default then
+                    # stands, and that is the right answer for an old file.
+                    # (`max_player` and the three speeds are still dropped on
+                    # import; that half of the round trip is S5's.)
+                    for key in ("district_commuters", "co2_budget_kg_per_round"):
+                        if key in map_meta:
+                            try:
+                                value = int(map_meta[key])
+                            except (TypeError, ValueError):
+                                logger.warning(
+                                    "Map %s: %s is not a number (%r), keeping "
+                                    "the default",
+                                    game_map.pk,
+                                    key,
+                                    map_meta[key],
+                                )
+                                continue
+                            if value > 0:
+                                setattr(game_map, key, value)
+                                changed.append(key)
+                    if changed:
+                        game_map.save(update_fields=changed)
                     logger.info(f"Created {len(node_mapping)} nodes")
 
                     edge_mapping = self._create_edges(

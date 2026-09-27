@@ -36,6 +36,28 @@ class GameMap(models.Model):
     bike_speed_kmh = models.PositiveSmallIntegerField(default=20)
     default_car_speed_kmh = models.PositiveSmallIntegerField(default=50)
 
+    # What a game on this map is played against. Both belong here rather than
+    # in code because both are properties of THIS graph: how much traffic its
+    # corridors carry, and what a playable round costs on its distances and
+    # its timetable. Another city is another pair. `game/calibration.py` has
+    # the measurements the shipped defaults come from — they are
+    # Berlin_Mitte-West's, and a smaller map wants smaller ones.
+    district_commuters = models.PositiveIntegerField(
+        default=6400,
+        help_text=(
+            "Pendler, die die Straßen dieser Karte im Berufsverkehr "
+            "verkraften. Wird auf die Fahrgäste aufgeteilt, damit auf der "
+            "Karte gleich viel Verkehr ist, egal wie viele mitspielen."
+        ),
+    )
+    co2_budget_kg_per_round = models.PositiveIntegerField(
+        default=8000,
+        help_text=(
+            "Vorschlag für das CO₂-Budget, pro Runde in kg. Genug, wenn die "
+            "Klasse umsteigt, zu wenig, wenn alle mit dem Auto fahren."
+        ),
+    )
+
     created = models.DateTimeField(auto_now_add=True)
     author = models.ForeignKey(
         "auth.User",

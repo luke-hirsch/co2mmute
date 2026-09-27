@@ -832,6 +832,8 @@ class MapExportView(MapScopedQuerysetMixin, GenericAPIView):
                 "walk_speed_kmh": game_map.walk_speed_kmh,
                 "bike_speed_kmh": game_map.bike_speed_kmh,
                 "default_car_speed_kmh": game_map.default_car_speed_kmh,
+                "district_commuters": game_map.district_commuters,
+                "co2_budget_kg_per_round": game_map.co2_budget_kg_per_round,
             },
             "nodes": nodes_data,
             "edges": edges_data,
