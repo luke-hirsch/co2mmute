@@ -27,6 +27,12 @@ export interface Edge {
   start_node: number;
   end_node: number;
   biking?: boolean;
+  /**
+   * The infrastructure, not the access right: `biking` says a bike may use the
+   * edge, this says it has a lane of its own. A bike lane takes a car lane from
+   * the street, exactly as a bus lane does, which is why the replay reads it.
+   */
+  bike_lane?: boolean;
   walking?: boolean;
   max_lanes?: number;
   distance_m?: number; // Euclidean distance in meters (computed from nodes * scale)

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Ballot } from "@/components/between/ballot";
@@ -7,6 +7,7 @@ import { ConfirmAction } from "@/components/layout/confirm-action";
 import { Curtain } from "@/components/host/curtain";
 import { HostControls } from "@/components/host/host-controls";
 import { MapChangeCard } from "@/components/between/map-change-card";
+import { ReplayPlayer } from "@/components/replay/replay-player";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
 import { StatsPanel } from "@/components/between/stats-panel";
 import { de } from "@/lib/de";
@@ -57,22 +58,35 @@ export function HostBetweenScreen() {
   }
 }
 
-/** The table, and one "Weiter" for every seat at this machine. */
+/**
+ * The animation, the table, and one "Weiter" for every seat at this machine.
+ *
+ * This screen is usually the projector, so it is where the class watches the round
+ * together. It plays the same recording every phone plays — nothing on it is per
+ * seat, and no dot belongs to anybody.
+ */
 function HostStats() {
   const { state } = useGame();
   const phase = usePhase();
   const seats = hostControlledSeats(state);
+  const roundNumber = state.lastRound?.roundNumber ?? state.currentRound;
+  const [watched, setWatched] = useState(() => phase.acked);
 
   return (
     <Screen>
       <ScreenHeading
-        title={de.between.statsTitle(
-          state.lastRound?.roundNumber ?? state.currentRound,
-        )}
+        title={de.between.statsTitle(roundNumber)}
         lead={de.between.statsLead}
       />
 
-      {state.lastRound ? (
+      {roundNumber > 0 ? (
+        <ReplayPlayer
+          roundNumber={roundNumber}
+          onWatched={() => setWatched(true)}
+        />
+      ) : null}
+
+      {watched && state.lastRound ? (
         <StatsPanel
           round={state.lastRound}
           seatId={null}
@@ -82,7 +96,7 @@ function HostStats() {
       ) : null}
 
       <div className="mt-12">
-        {seats.length === 0 ? (
+        {!watched ? null : seats.length === 0 ? (
           // Nothing to ack: every seat is on a phone and acks for itself.
           <p className="max-w-(--measure-body) text-muted-foreground">
             {de.host.waitingForPhones}

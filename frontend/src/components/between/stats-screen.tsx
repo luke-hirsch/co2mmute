@@ -1,4 +1,7 @@
+import { useState } from "react";
+
 import { Button } from "@/components/ui/button";
+import { ReplayPlayer } from "@/components/replay/replay-player";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
 import { StatsPanel } from "@/components/between/stats-panel";
 import { de } from "@/lib/de";
@@ -16,21 +19,34 @@ import { usePhase } from "@/hooks/use-phase";
  * Pressing it again after a reload is harmless: `StatsAck` is a `get_or_create`
  * on the seat, so a second ack is a no-op, which is why this screen does not
  * have to remember anything across a page load.
+ *
+ * Since S3 the round is **watched before it is read**: the animation is the front
+ * half of this phase, and the numbers and the button arrive when it has played
+ * through or been skipped. A seat that has already acked skips straight to the
+ * numbers on a reload — the class has moved past that screen and replaying the
+ * morning over its confirmation would read as the phase going backwards.
  */
 export function StatsScreen() {
   const { state, seatId } = useGame();
   const phase = usePhase();
+  const roundNumber = state.lastRound?.roundNumber ?? state.currentRound;
+  const [watched, setWatched] = useState(() => phase.acked);
 
   return (
     <Screen>
       <ScreenHeading
-        title={de.between.statsTitle(
-          state.lastRound?.roundNumber ?? state.currentRound,
-        )}
+        title={de.between.statsTitle(roundNumber)}
         lead={de.between.statsLead}
       />
 
-      {state.lastRound ? (
+      {roundNumber > 0 ? (
+        <ReplayPlayer
+          roundNumber={roundNumber}
+          onWatched={() => setWatched(true)}
+        />
+      ) : null}
+
+      {!watched ? null : state.lastRound ? (
         <StatsPanel
           round={state.lastRound}
           seatId={seatId}
@@ -47,7 +63,7 @@ export function StatsScreen() {
       )}
 
       <div className="mt-12">
-        {phase.acked ? (
+        {!watched ? null : phase.acked ? (
           <div>
             <p className="font-medium">{de.between.acked}</p>
             <p className="mt-2 max-w-(--measure-body) text-muted-foreground">
