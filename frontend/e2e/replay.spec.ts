@@ -107,10 +107,18 @@ test("the round is watched before it is read", async ({ page, baseURL }) => {
  *
  * The route is found on the client, and the row collapses onto a summary when it
  * lands — that is the only signal that the search is over. **A mode can honestly
- * have no route**: home and workplace are drawn at random per seat, and not every
- * pair is reachable by bus. So a refusal is not a failure of this spec, it is a
- * different turn, and the car takes over — a connected street network always has
- * one.
+ * have no route**: home and workplace are drawn at random per seat, and a bike is
+ * refused wherever the way is a railway. So a refusal is not a failure of this
+ * spec, it is a different turn, and the car takes over — a connected street
+ * network always has one.
+ *
+ * **Bus & Bahn is the exception, and it is the whole point of the S5 data pass.**
+ * Every one of the 36 home/workplace pairs on the seeded map now has a public
+ * transport route, so a refusal on this mode means the instance is holding the
+ * old map: bus `100` with no edges at all, `101` breaking mid-chain. Pinned away
+ * from the browser in `tests/utils/pt-routing.test.ts` and
+ * `maps/tests/test_example_map.py`; this is the same guarantee through the whole
+ * stack.
  */
 async function pickMode(page: Page, index: number, wanted: string) {
   const row = page.locator("li").filter({ hasText: `Fahrgast ${index + 1}` });
@@ -118,6 +126,12 @@ async function pickMode(page: Page, index: number, wanted: string) {
 
   const routed = row.getByText("ändern");
   const refused = row.getByText("Auf diesem Weg");
+
+  if (wanted === "Bus & Bahn") {
+    await expect(routed).toBeVisible({ timeout: 60_000 });
+    return;
+  }
+
   await expect(routed.or(refused).first()).toBeVisible({ timeout: 60_000 });
 
   if (await refused.isVisible()) {
