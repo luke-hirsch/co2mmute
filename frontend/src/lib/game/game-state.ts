@@ -77,6 +77,16 @@ export type RoundResult = {
   playerStats: RoundPlayerStats[];
   /** False when the fallback figures were used instead of the simulation. */
   simulationUsed: boolean;
+  /** How many real people one Fahrgast stood for in this round. */
+  peoplePerAgent: number;
+  /** What the timetable emitted and cost, ridden or not. */
+  networkCo2G: number;
+  networkCostEur: number;
+  /** And the part of that which belongs to no row — see `events.ts`. */
+  unriddenCo2G: number;
+  unriddenCostEur: number;
+  /** What the class handed over, against `costEur`, which is what it cost. */
+  paidEur: number;
 };
 
 /** How the map vote came out, or that it tied. */
@@ -387,6 +397,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           totalEmissionsG: event.data.total_game_emissions_g,
           playerStats: event.data.player_stats,
           simulationUsed: event.data.simulation_used,
+          peoplePerAgent: event.data.people_per_agent,
+          networkCo2G: event.data.network_co2_g,
+          networkCostEur: event.data.network_cost_eur,
+          unriddenCo2G: event.data.unridden_co2_g,
+          unriddenCostEur: event.data.unridden_cost_eur,
+          paidEur: event.data.round_paid_eur,
         },
       };
 

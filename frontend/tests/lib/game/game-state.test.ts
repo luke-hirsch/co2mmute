@@ -84,6 +84,21 @@ const roundStarted = (n: number): GameEvent => ({
   },
 });
 
+/**
+ * The fields of `round.completed` that say what scale its figures are on and
+ * what the timetable cost. Always present in the payload — `_no_network()`
+ * fills them with zeros for a round that produced no result — so the fixtures
+ * carry them too rather than letting a screen learn to cope with their absence.
+ */
+const roundScale = {
+  people_per_agent: 100,
+  network_co2_g: 0,
+  network_cost_eur: 0,
+  unridden_co2_g: 0,
+  unridden_cost_eur: 0,
+  round_paid_eur: 0,
+};
+
 const roundCompleted = (n: number): GameEvent => ({
   type: "round.completed",
   game_id: "ABC123",
@@ -97,6 +112,7 @@ const roundCompleted = (n: number): GameEvent => ({
     simulation_used: true,
     has_map_versions: false,
     map_versions: [],
+    ...roundScale,
   },
 });
 
@@ -242,6 +258,7 @@ describe("rounds and phases", () => {
         simulation_used: true,
         has_map_versions: false,
         map_versions: [],
+        ...roundScale,
       },
     });
 
@@ -468,6 +485,7 @@ describe("rounds and phases", () => {
         simulation_used: true,
         has_map_versions: false,
         map_versions: [],
+        ...roundScale,
       },
     });
     expect(state.simulation).toBeNull();
@@ -622,6 +640,7 @@ describe("exhaustiveness", () => {
           simulation_used: false,
           has_map_versions: false,
           map_versions: [],
+          ...roundScale,
         },
       },
       {

@@ -439,6 +439,17 @@ export const de = {
             maximumFractionDigits: 1,
           })} kg`
         : `${Math.round(g).toLocaleString("de-DE")} g`,
+    /**
+     * The same figure in a unit the caller picked, for a whole column at once.
+     * `grams` above switches at a kilo per figure, which is right for a single
+     * number and wrong for a list — see `lib/game/scale.ts:co2Unit`.
+     */
+    co2Figure: (g: number, unit: "g" | "kg") =>
+      unit === "kg"
+        ? `${(g / 1000).toLocaleString("de-DE", {
+            maximumFractionDigits: 1,
+          })} kg`
+        : `${Math.round(g).toLocaleString("de-DE")} g`,
     eur: (value: number) =>
       `${value.toLocaleString("de-DE", {
         minimumFractionDigits: 2,
@@ -466,6 +477,96 @@ export const de = {
       "Redet darüber, bevor abgestimmt wird. Die Spielleitung öffnet die Abstimmung.",
     discussionWaiting: "Die Abstimmung wird gleich geöffnet.",
     noOptions: "Diesmal steht keine Änderung zur Wahl. Es geht direkt weiter.",
+
+    /** The two class-scale rows under the table, and the switch above it. */
+    unridden: "Linien ohne Fahrgäste",
+    unriddenHint:
+      "Bus und Bahn fahren ihren Takt, auch wenn niemand einsteigt. Dieses CO₂ steht in der Rundensumme, aber in keiner Zeile.",
+    /** The class's own commutes, not the round — the timetable nobody rode is
+     *  already on its own line above and would make the gap look like subsidy. */
+    paidSelf: (paid: string, cost: string) =>
+      `Für die Wege der Klasse wurden ${paid} bezahlt. Gekostet haben sie ${cost}.`,
+    /** The footer is the class's whatever the switch says. */
+    wholeClass: "ganze Klasse",
+    paidYou: (paid: string, cost: string) =>
+      `Du hast ${paid} bezahlt. Gekostet hat dein Weg ${cost}.`,
+  },
+
+  /**
+   * How the numbers on screen are to be read.
+   *
+   * Every figure in this game has two scales: what the class did, and what one
+   * commuter did once. The class scale is what the CO₂ budget is spent out of;
+   * the per-person one is the only figure a student can hold against their own
+   * morning. Both are in the payload, and the reader switches between them.
+   *
+   * **The explanation never goes next to the ballot** (Lukas, 2026-09-22). The
+   * class needs to know that one Fahrgast is a hundred people and that a line
+   * runs empty or not — but that sentence beside the vote hands them an argument
+   * they should arrive at themselves. So it lives in an overlay of its own and
+   * on the screens where there is nothing to do but wait.
+   */
+  numbers: {
+    /** The switch. The table above it is the subject, so the legend is for screen readers. */
+    scaleLegend: "Zahlen anzeigen",
+    person: "pro Person",
+    class: "ganze Klasse",
+
+    /** One line above the table, so the column headings do not have to carry it. */
+    perPersonNote: (people: string) =>
+      `Eine Zeile ist ein Weg, einmal gefahren. Ein Fahrgast steht für ${people} Menschen — die Summe unten ist die ganze Klasse.`,
+    classNote: (people: string) =>
+      `Jede Zeile ist schon mit ${people} Menschen pro Fahrgast gerechnet.`,
+    /** Without the factor: the host desk in round 1 has no seat to read it off. */
+    perPersonNotePlain:
+      "Eine Zeile ist ein Weg, einmal gefahren. Die Summe unten ist die ganze Klasse.",
+    classNotePlain:
+      "Jede Zeile ist mit allen Menschen gerechnet, für die ein Fahrgast steht.",
+
+    /** The overlay. */
+    explain: "Wie wird gerechnet?",
+    explainTitle: "Wie diese Zahlen zustande kommen",
+    explainLead: "Was hinter den Zahlen auf dem Schirm steht.",
+    close: "Verstanden",
+
+    scaleTitle: "Ein Fahrgast ist nicht eine Person",
+    scaleBody: (people: string) =>
+      `Die Karte zeigt einen echten Stadtteil, und dort pendeln jeden Morgen ` +
+      `tausende Menschen. Die verteilen sich auf die Fahrgäste im Spiel: einer ` +
+      `steht für ${people} Menschen. Deshalb kostet eine Runde Tonnen und nicht ` +
+      `Gramm. Wenn mehr Plätze mitspielen, steht ein Fahrgast für weniger ` +
+      `Menschen — der Stadtteil bleibt gleich groß.`,
+    scaleBodyPlain:
+      "Die Karte zeigt einen echten Stadtteil, und dort pendeln jeden Morgen " +
+      "tausende Menschen. Die verteilen sich auf die Fahrgäste im Spiel: einer " +
+      "steht für viele. Deshalb kostet eine Runde Tonnen und nicht Gramm.",
+
+    timeTitle: "Zeit wird nicht zusammengezählt",
+    timeBody:
+      "CO₂ und Kosten kann man addieren: zwei Wege kosten doppelt. Zeit nicht — " +
+      "wenn zwei Fahrgäste je 30 Minuten brauchen, dauert der Morgen 30 Minuten " +
+      "und nicht 60. In der Zeitspalte steht deshalb immer der Schnitt über die " +
+      "Wege, auf beiden Skalen.",
+
+    paidTitle: "Was es kostet und was du zahlst",
+    paidBody:
+      "In der Kostenspalte steht, was ein Weg wirklich kostet: beim Auto Sprit, " +
+      "Verschleiß, Versicherung und Wertverlust, bei Bus und Bahn der Betrieb " +
+      "der Linie. Was du selbst zahlst, ist weniger — ein Ticket, oder was an " +
+      "der Tankstelle liegen bleibt. Den Rest zahlen alle zusammen.",
+
+    networkTitle: "Der Fahrplan fährt auch leer",
+    networkBody:
+      "Eine Buslinie fährt ihren Takt, ob jemand einsteigt oder nicht, und " +
+      "stößt dabei CO₂ aus. Benutzt niemand aus der Klasse eine Linie, steht " +
+      "ihr CO₂ trotzdem in der Rundensumme — aber in keiner Zeile. Genau diese " +
+      "Differenz steht unter der Tabelle.",
+
+    jamTitle: "Im Stau wird es mehr",
+    jamBody:
+      "Ein Auto im Stau verbraucht pro Kilometer mehr als eines, das fährt. " +
+      "Dieselbe Strecke kann in zwei Runden also unterschiedlich viel CO₂ " +
+      "kosten, auch wenn niemand seine Route geändert hat.",
   },
 
   /** The map vote and the tie-break that can follow it. */
@@ -543,6 +644,36 @@ export const de = {
       "Drei Listen, drei Reihenfolgen. Wenig CO₂, wenig Geld und wenig Zeit sind selten dasselbe. Wer also hat am besten gespielt? Das entscheidet ihr.",
     perRound: "Pro Runde",
     modes: "Womit",
+    /**
+     * They left before the end and their rounds still count. Marked because the
+     * list is ordered per commute for exactly this reason: on the sums, whoever
+     * played least comes out cleanest, cheapest and fastest.
+     */
+    leftEarly: "vorzeitig raus",
+    /** In the cost list only, where the contrast is the point. */
+    paid: "davon selbst bezahlt",
+
+    /** The class's own figures, under the arc. Always class scale. */
+    societyTitle: "Was der Fahrplan gekostet hat",
+    societyLead:
+      "Bus und Bahn fahren ihren Takt, ob jemand einsteigt oder nicht. Dieses CO₂ zählt gegen das Budget wie jedes andere.",
+    societyTimetable: "Fahrplan insgesamt",
+    societyUnridden: "davon auf Linien, die niemand genutzt hat",
+    /** Nothing to say: a map without bus or train lines. */
+    societyNone: "Auf dieser Karte fahren keine Linien.",
+
+    /** The vote list. History, not a ballot — so it may explain itself. */
+    votesTitle: "Was die Klasse geändert hat",
+    votesLead:
+      "Nach jeder Runde stand eine Änderung zur Wahl. Daran siehst du, warum die nächste Zeile anders aussieht.",
+    votesNone: "In diesem Spiel wurde nichts abgestimmt.",
+    afterRound: (n: number) => `Nach Runde ${n}`,
+    voteWon: (name: string) => `„${name}" ist angenommen.`,
+    voteKept: "Die Karte ist geblieben, wie sie war.",
+    voteTie: "Gleichstand.",
+    voteForced: "Die Spielleitung hat die Abstimmung beendet.",
+    voteKeepRow: "So lassen",
+    voteCount: (n: number) => (n === 1 ? "1 Stimme" : `${n} Stimmen`),
 
     /** A game that ended before anybody completed a round. */
     empty:

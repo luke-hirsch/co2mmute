@@ -1,16 +1,22 @@
 import { useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Co2Bar } from "@/components/metro/co2-bar";
 import { MetricList } from "@/components/summary/metric-list";
+import { NumbersExplainerDialog } from "@/components/numbers/numbers-explainer";
 import { RoundArc } from "@/components/summary/round-arc";
+import { ScaleSwitch } from "@/components/numbers/scale-switch";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
 import { Skeleton } from "@/components/ui/skeleton";
+import { VoteList } from "@/components/summary/vote-list";
 import { classArc, summaryMetrics } from "@/lib/game/summary";
 import { de } from "@/lib/de";
 import { displayKg, kgToGrams } from "@/lib/co2";
 import { useGame } from "@/components/game/game-context";
 import { useGameSummary } from "@/lib/queries/summary";
+import { voteHistory } from "@/lib/game/vote-history";
+import type { Scale } from "@/lib/game/scale";
 
 /**
  * The game is over (E-01 … E-04), and this is the debrief (E-03).
@@ -29,6 +35,12 @@ import { useGameSummary } from "@/lib/queries/summary";
  * Nothing is invalidated and nothing polls. The game is over: there is no
  * second opinion to reconcile, only one source that arrives slightly late.
  *
+ * **It is also the last round's stats screen.** A game that ends gets no stats
+ * phase — a socket for an ended game is refused, so a phase there could never be
+ * acked or seen — which is why the per-round figures and the vote list under the
+ * three lists are not extra: they are the only place the final round's numbers
+ * and the last vote are ever read.
+ *
  * The names on it are real until anonymisation runs, 24 h after the end (1.3) —
  * deliberately, because the debrief happens in the lesson and the names go
  * after it. They stay on the screen: never a log, a toast or an error string.
@@ -37,9 +49,16 @@ export function EndScreen() {
   const navigate = useNavigate();
   const { state, seatId, isHost } = useGame();
   const summary = useGameSummary(state.gameId, !!state.endedAt);
+  /**
+   * Per commute by default. It has to be: the three lists rank on what is shown,
+   * and the totals are sums over agent-trips — a player who left after round 1
+   * heads all three of them for having played less.
+   */
+  const [scale, setScale] = useState<Scale>("person");
 
   const endReason = state.endReason ?? summary.data?.end_reason ?? null;
   const players = summary.data?.players ?? [];
+  const rounds = summary.data?.rounds ?? [];
 
   /**
    * The totals come from the payload once it lands, and only fall back to the
@@ -60,6 +79,11 @@ export function EndScreen() {
     summary.data !== undefined
       ? kgToGrams(summary.data.max_co2_kg)
       : state.maxCo2LevelG;
+
+  // Class scale throughout, whatever the switch says: the timetable is not
+  // anybody's commute, and this is the figure the budget above was spent out of.
+  const timetableKg = rounds.reduce((sum, round) => sum + round.network_co2_kg, 0);
+  const unriddenKg = rounds.reduce((sum, round) => sum + round.unridden_co2_kg, 0);
 
   return (
     <Screen>
@@ -111,10 +135,54 @@ export function EndScreen() {
           </p>
         ) : (
           <>
-            <RoundArc stops={classArc(players)} />
+            <RoundArc stops={classArc(rounds)} />
+
+            {/*
+              Why the round totals are larger than the sum of the three lists.
+              Only where there is a timetable at all — a map with no bus or train
+              lines has nothing to say here, and the shipped one has six.
+            */}
+            <section>
+              <h2 className="text-2xl font-semibold">{de.summary.societyTitle}</h2>
+              {timetableKg > 0 ? (
+                <>
+                  <p className="mt-4 max-w-(--measure-body) text-muted-foreground">
+                    {de.summary.societyLead}
+                  </p>
+                  <dl className="mt-8 max-w-(--measure-body) space-y-2">
+                    <div className="flex items-baseline justify-between gap-4 border-b border-border/60 pb-2">
+                      <dt>{de.summary.societyTimetable}</dt>
+                      <dd className="font-mono tabular-nums">
+                        {de.summary.kgExact(timetableKg)}
+                      </dd>
+                    </div>
+                    <div className="flex items-baseline justify-between gap-4 text-muted-foreground">
+                      <dt>{de.summary.societyUnridden}</dt>
+                      <dd className="font-mono tabular-nums">
+                        {de.summary.kgExact(unriddenKg)}
+                      </dd>
+                    </div>
+                  </dl>
+                </>
+              ) : (
+                <p className="mt-4 max-w-(--measure-body) text-muted-foreground">
+                  {de.summary.societyNone}
+                </p>
+              )}
+            </section>
 
             <section>
-              <h2 className="text-2xl font-semibold">{de.summary.listsTitle}</h2>
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <h2 className="text-2xl font-semibold">{de.summary.listsTitle}</h2>
+                <NumbersExplainerDialog />
+              </div>
+
+              <ScaleSwitch
+                value={scale}
+                onChange={setScale}
+                name="summary-scale"
+                className="mt-6"
+              />
 
               {/* Three orders of the same people, side by side on a wide
                   screen and stacked on a phone. Side by side is what makes
@@ -126,6 +194,7 @@ export function EndScreen() {
                     key={metric}
                     players={players}
                     metric={metric}
+                    scale={scale}
                     seatId={seatId}
                   />
                 ))}
@@ -135,6 +204,8 @@ export function EndScreen() {
                 {de.summary.noWinner}
               </p>
             </section>
+
+            <VoteList entries={voteHistory(rounds)} />
           </>
         )}
       </div>

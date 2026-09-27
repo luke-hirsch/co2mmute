@@ -3,18 +3,19 @@ import { ChevronDown } from "lucide-react";
 import { LineSwatch } from "@/components/metro/line";
 import { de } from "@/lib/de";
 import { cn } from "@/lib/utils";
+import { co2Unit, type Co2Unit, type Scale } from "@/lib/game/scale";
 import { orderBy, playerValue, roundValue, type SummaryMetric } from "@/lib/game/summary";
 import type { SummaryPlayer } from "@/lib/queries/summary";
 
-/** Heading and formatter per metric. Presentation, so it lives here. */
+/** Heading per metric, and how a figure in that column is written. */
 const metrics: Record<
   SummaryMetric,
-  { title: string; format: (value: number) => string }
+  { title: string; format: (value: number, unit: Co2Unit) => string }
 > = {
-  // Kilos, not `between.grams`: every figure in a list is read against the one
-  // above it, and a list that says "0 g" over "4.794 kg" makes the reader
-  // convert units to see which is bigger.
-  co2: { title: de.summary.cleanest, format: (kg) => de.summary.kgExact(kg) },
+  // The unit is picked once for the whole column (`lib/game/scale.ts`): every
+  // figure in a list is read against the one above it, and a list that says
+  // "0 g" over "4.794 kg" makes the reader convert units to see which is bigger.
+  co2: { title: de.summary.cleanest, format: (g, unit) => de.between.co2Figure(g, unit) },
   cost: { title: de.summary.cheapest, format: (eur) => de.between.eur(eur) },
   time: { title: de.summary.fastest, format: (min) => de.round.duration(min) },
 };
@@ -32,23 +33,34 @@ const metrics: Record<
  * all three and watch it move from the top to the bottom. That is the whole
  * argument: the three orders disagree, because less CO₂ costs time.
  *
+ * **The order follows the scale the reader chose, and the default is per
+ * commute.** It has to be: the three totals are sums over agent-trips and this
+ * list contains the people who left, so ranked on the sums whoever played least
+ * comes out cleanest, cheapest *and* fastest. A leaver is marked, because that is
+ * the one case where the class-scale order says something true that reads as a
+ * ranking.
+ *
  * Expanding a name shows that list's own metric round by round, plus what they
  * travelled with — `<details>` rather than an accordion component, because the
  * behaviour is native, needs no state and no dependency, and keyboard and
- * screen readers already know it.
+ * screen readers already know it. In the cost list it also shows what was
+ * actually paid, which is where the subsidy is legible.
  */
 export function MetricList({
   players,
   metric,
+  scale,
   seatId,
 }: {
   players: readonly SummaryPlayer[];
   metric: SummaryMetric;
+  scale: Scale;
   /** This device's seat, marked in every list. Null for the host. */
   seatId: string | null;
 }) {
   const { title, format } = metrics[metric];
-  const ordered = orderBy(players, metric);
+  const ordered = orderBy(players, metric, scale);
+  const unit = co2Unit(players.map((player) => playerValue(player, "co2", scale)));
 
   return (
     <section>
@@ -81,9 +93,14 @@ export function MetricList({
                         {de.between.you}
                       </span>
                     ) : null}
+                    {player.left ? (
+                      <span className="ml-2 text-xs font-normal text-muted-foreground">
+                        {de.summary.leftEarly}
+                      </span>
+                    ) : null}
                   </span>
                   <span className="shrink-0 font-mono tabular-nums">
-                    {format(playerValue(player, metric))}
+                    {format(playerValue(player, metric, scale), unit)}
                   </span>
                 </summary>
 
@@ -97,11 +114,26 @@ export function MetricList({
                       >
                         <dt>{de.summary.arcRound(round.round_number)}</dt>
                         <dd className="font-mono tabular-nums">
-                          {format(roundValue(round, metric))}
+                          {format(roundValue(round, metric, scale), unit)}
                         </dd>
                       </div>
                     ))}
                   </dl>
+
+                  {/*
+                    Only in the cost list, and only per person: "was du zahlst"
+                    against "was es kostet" is the subsidy, and it is a figure
+                    about one commuter. Multiplied up by the class it stops being
+                    a sentence anybody can check.
+                  */}
+                  {metric === "cost" && scale === "person" ? (
+                    <div className="mt-3 flex items-baseline justify-between gap-3">
+                      <span>{de.summary.paid}</span>
+                      <span className="font-mono tabular-nums">
+                        {de.between.eur(player.paid_eur_per_person)}
+                      </span>
+                    </div>
+                  ) : null}
 
                   {player.modes_used.length > 0 ? (
                     <>

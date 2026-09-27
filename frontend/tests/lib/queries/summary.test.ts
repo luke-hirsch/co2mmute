@@ -30,6 +30,11 @@ function stubFetch(response: Response) {
   return spy;
 }
 
+/**
+ * The whole shape, as `GameSummaryView` sends it — worth writing out in full
+ * even though these tests only read two fields off it, because it is the one
+ * place in the tree that records what the endpoint answers.
+ */
 const payload = {
   game_id: "ABC123",
   game_name: "5b",
@@ -38,15 +43,50 @@ const payload = {
   max_rounds: 3,
   total_co2_kg: 1240,
   max_co2_kg: 1000,
+  people_per_agent: 100,
+  rounds: [
+    {
+      round_number: 1,
+      co2_kg: 640,
+      cost_eur: 1210.5,
+      network_co2_kg: 28.8,
+      network_cost_eur: 96.0,
+      unridden_co2_kg: 28.8,
+      unridden_cost_eur: 96.0,
+      agent_count: 8,
+      co2_g_per_person: 800,
+      cost_eur_per_person: 1.51,
+      simulation_used: true,
+      vote: null,
+    },
+  ],
   players: [
     {
       player_id: "P-1",
       name: "Mira",
+      left: false,
       total_co2_kg: 180,
       total_cost_eur: 4.2,
       total_time_min: 96,
+      total_agent_trips: 2,
+      co2_g_per_person: 900,
+      cost_eur_per_person: 0.021,
+      time_min_per_agent: 48,
+      paid_eur_per_person: 0,
       modes_used: ["bike", "walk"],
-      rounds: [{ round_number: 1, co2_kg: 100, cost_eur: 2.2, time_min: 50 }],
+      rounds: [
+        {
+          round_number: 1,
+          co2_kg: 100,
+          cost_eur: 2.2,
+          time_min: 50,
+          agent_count: 2,
+          co2_g_per_person: 500,
+          cost_eur_per_person: 0.011,
+          time_min_per_agent: 25,
+          paid_eur_per_person: 0,
+        },
+      ],
     },
   ],
 };
