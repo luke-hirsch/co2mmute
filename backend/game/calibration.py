@@ -52,7 +52,7 @@ deadlock and no forced release — the model is fine, the demand is not, and
 **The budget is per round, and carries no Fahrgast term.**
 Because the district's population is constant, a round costs what it costs
 however many students play. On the shipped map, with the corrected train
-emission factor:
+emission factor, measured before the S5 map data pass (see below):
 
     car share   round total
          100 %    11 140 kg   (8 691 car + 2 449 timetable)
@@ -67,6 +67,40 @@ six — sits between them: the all-car class runs out in round 5, and a class
 that improves finishes with room to spare. It is not the tightest budget that
 works; it is the roundest number inside the range, because the class has to be
 able to hold it in its head.
+
+**S5 fixed the map the calibration was measured on, and the floor moved.**
+`map_examples/Berlin_Mitte-West.json` carried a bus line with no edges, a `101`
+that broke mid-chain, a `U2` that served two stations in one direction only, and
+60 seats in every vehicle of both modes. With all ten lines connected and
+mirrored the timetable drives 98.0 line-km instead of 72.7, so its own floor is
+**2 864 kg a round, not 2 449** — 35.8 % of an 8 000 kg round rather than 30.6 %.
+
+Nothing else on the car side moved: at 100 % car the class emits 10 103 kg
+before and 10 150 after, inside the 1.4 % spread of six seeds, with the same
+22.5 min trip and 12.4 min delay. The eight streets that now state Tempo 30
+rather than inheriting 50 are on no car route the class ever takes.
+
+What did move is the reward for getting out of the car. Re-measured over six
+seeds with the routes the real client router returns:
+
+    car share   round total, before -> after
+         100 %    12 552 -> 13 015 kg
+          75 %    10 368 -> 10 003 kg
+          50 %     7 544 ->  7 315 kg
+          25 %     6 681 ->  5 071 kg
+           0 %     5 936 ->  3 191 kg
+
+The 0 % row is the point: 60-seat vehicles forced enough extra runs to put the
+timetable at 4 623 kg, and six of the 36 commutes had no PT route at all, so
+eleven of 64 Fahrgäste had to drive whatever the class decided. A round with
+nobody in a car is 46 % cheaper than it was. The budget still sits in the range
+— all-car busts it, an improving class finishes — but by less than it did, which
+is worth a look at the next play-test.
+
+Those five rows come from a harness of their own (64 Fahrgäste spread evenly
+over all 36 home/workplace pairs) and are **not** comparable with the tables
+above, whose Fahrgast-to-pair assignment was a different one and whose network
+therefore jams a little less. Compare before against after within a row.
 
 Re-deriving these after a model change means replaying rounds on the map in
 question, not adjusting them until a play-test feels right. What each number is

@@ -1,7 +1,7 @@
 # Kalibrierung: die Zahlen, gegen die gespielt wird
 
-Stand 27.09.2026. Gemessen auf `map_examples/Berlin_Mitte-West.json`, der einzigen Karte, die
-jemand spielt.
+Stand 27.09.2026, ergänzt um den Kartendaten-Durchgang vom selben Tag (Abschnitt 8). Gemessen auf
+`map_examples/Berlin_Mitte-West.json`, der einzigen Karte, die jemand spielt.
 
 Zwei Einstellungen entscheiden, ob eine Runde etwas bedeutet: für wie viele Menschen ein Fahrgast
 steht, und wie viel CO₂ die Klasse ausgeben darf. Beide waren nie kalibriert. Ausgeliefert wurden
@@ -80,6 +80,9 @@ Und der Stau bleibt eine Folge von Entscheidungen, nicht eine Gewissheit:
 | 25 % | 4.385 kg | 9,5 min | 0,1 min |
 | 0 % | 2.449 kg | — | — |
 
+Diese Tabelle ist vor dem Kartendaten-Durchgang (Abschnitt 8) gemessen: der Fahrplan-Boden liegt
+inzwischen bei 2.864 kg, und jede Runde mit Umsteigern kostet weniger als hier. Die Aussage bleibt.
+
 Steigt die Hälfte der Klasse um, ist der Stau weg. Das ist physikalisch richtig — Stau ist ein
 Schwellenphänomen dicht an der Kapazität — und es ist die Lektion, um die es geht.
 
@@ -154,7 +157,55 @@ waren immer ehrlich; nur die Messung war es nicht. Auf dieser Karte macht das 33
 
 ---
 
-## 8. Was offen bleibt
+## 8. Eine dritte Korrektur: die Kartendaten
+
+Die Kalibrierung stand auf einer Karte mit kaputten Linien. Was in der Datei stand:
+
+- **Buslinie `100` hatte gar keine Kanten** — vier Haltestellen auf dem Plan, kein Bus, der sie
+  anfährt. Brandenburger Tor und der Arbeitsplatz daneben waren damit **überhaupt nicht** mit Bus
+  oder Bahn erreichbar: von den 36 Wohnort-Arbeitsplatz-Paaren hatten sechs keine ÖPNV-Verbindung.
+- **`101` riss in der Mitte** und fuhr 4,04 von 6,33 km — die beiden fehlenden Kanten lagen in der
+  Gegenrichtung derselben Linie.
+- **Jede Linie hatte 60 Plätze**, Bus und Bahn gleich. Das ist die 60-Plätze-U-Bahn: 6.400 Menschen
+  in 60er-Fahrzeugen zwingen den Fahrplan zu sehr vielen Zusatzfahrten.
+- **`U2` fuhr hin sieben und zurück neun Kanten**, hielt also stadtauswärts an zwei Bahnhöfen nicht,
+  die sie stadteinwärts anfährt.
+
+Das ist korrigiert: alle zehn Linien sind durchgehend, jede Hin- und Rückrichtung hält an denselben
+Bahnhöfen, Busse haben 85 Plätze und Züge 1.000. Gemessen über sechs Seeds, mit den Routen, die der
+Router im Browser tatsächlich ausgibt:
+
+| Autoanteil | Runde gesamt vorher | jetzt | Fahrplan vorher | jetzt | ÖPNV-Fahrzeit vorher | jetzt |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 100 % | 12.552 kg | 13.015 kg | 2.449 kg | 2.864 kg | — | — |
+| 75 % | 10.368 kg | 10.003 kg | 2.645 kg | 2.969 kg | 60 min | 40 min |
+| 50 % | 7.544 kg | 7.315 kg | 3.245 kg | 2.963 kg | 72 min | 29 min |
+| 25 % | 6.681 kg | 5.071 kg | 4.026 kg | 3.054 kg | 78 min | 32 min |
+| 0 % | 5.936 kg | 3.191 kg | 4.623 kg | 3.191 kg | 95 min | 41 min |
+
+Drei Dinge daran sind wichtig:
+
+- **Umsteigen lohnt sich jetzt.** Vorher bestrafte die Karte es doppelt: die 60er-Fahrzeuge trieben
+  den Fahrplan auf 4.623 kg, und wer aufs Auto verzichten wollte, kam bei sechs von 36 Wegen gar
+  nicht an — in der 0-%-Spalte sitzen deshalb vorher elf von 64 Fahrgästen im Auto, weil ihr Weg
+  keine Verbindung hatte: 1.313 kg, die die Klasse nicht vermeiden konnte. Eine Runde ganz ohne Auto kostet jetzt **46 % weniger**.
+- **Die Autoseite ändert sich nicht.** 100 % Auto: 10.103 → 10.150 kg (innerhalb der Streuung von
+  1,4 %), Fahrzeit 22,5 min und Verspätung 12,4 min in beiden Fällen. Die zusätzlichen Busse auf der
+  Straße kosten die Autos nichts messbares, und die acht Straßen, die jetzt Tempo 30 statt des
+  Vorgabewerts 50 nennen, liegen auf keinem einzigen Autoweg der Klasse.
+- **Der Fahrplan-Boden steigt um 415 kg**, weil mehr Linienkilometer gefahren werden (72,7 → 98,0
+  km). Das sind 35,8 % statt 30,6 % einer 8.000-kg-Runde. Am Budget ändert das nichts: durchgehend
+  fahren sprengt es weiter, umsteigen bleibt drin — aber der Abstand ist kleiner geworden, und beim
+  nächsten Play-Test lohnt ein Blick darauf.
+
+Die Zahlen dieser Tabelle stammen aus einem eigenen Messaufbau (64 Fahrgäste gleichmäßig über alle
+36 Paare, Routen aus `ptRouting.ts` und `pathfinding.ts`) und sind deshalb **nicht** mit denen aus
+Abschnitt 2 und 3 mischbar: dort war die Zuordnung der Fahrgäste zu Paaren eine andere, was dieselbe
+Karte etwas weniger stauen lässt. Vergleichbar ist jeweils vorher gegen jetzt in einer Zeile.
+
+---
+
+## 9. Was offen bleibt
 
 - **Der Vorschlag folgt der Klassengröße noch nicht live.** Das Formular „Spiel erstellen" ist
   serverseitig gerendert, die Ableitung passiert also einmal pro Seitenaufruf. Wer die Platzzahl
@@ -168,7 +219,7 @@ waren immer ehrlich; nur die Messung war es nicht. Auf dieser Karte macht das 33
 - **Die Vorgabewerte anderer Karten sind ungeprüft.** Jede neue Karte startet mit 6.400 und 8.000 —
   den Werten von Berlin Mitte-West. Für eine kleinere Karte sind beide zu hoch.
 
-## 9. Nachrechnen
+## 10. Nachrechnen
 
 Die Zahlen oben stammen nicht aus einem Play-Test, sondern aus wiederholten Läufen mit festem Seed
 auf der ausgelieferten Karte. Wer sie nach einer Modelländerung neu braucht, spielt Runden auf der
