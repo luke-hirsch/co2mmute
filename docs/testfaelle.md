@@ -127,6 +127,7 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | --- | --- | --- | --- | --- |
 | E-01 | letzte Runde gespielt | Ende mit Grund `max_rounds` | geht | - |
 | E-02 | CO₂-Budget überschritten | Ende mit Grund `co2_limit` | geht | - |
+| E-06 | Spiel mit den Vorgabewerten (S2) | endet **nicht** in Runde 1; sechs Runden sind fahrbar, wenn die Klasse umsteigt | geht | - |
 | E-03 | Auswertung | pro Spieler über alle Runden, drei Reihenfolgen, niemand gekürt | geht | - |
 | E-04 | Host beendet von Hand | Ende, alle sehen es | geht | - |
 | E-05 | Spiel endet wegen Inaktivität | meldet heute `max_rounds` — **falsch**, offen im Backend | kaputt | - |
@@ -150,6 +151,8 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | H-09 | ganzes Spiel auf einem Rechner | läuft durch, ohne ein einziges Handy | geht | - |
 | H-10 | Pause-Knopf | beim Host, wirkt überall | geht | - |
 | H-11 | Host beendet aus der Lobby | geht auch bei einem Spiel ohne Karte, Grund `host` | geht | - |
+| H-12 | Spiel anlegen: CO₂-Budget und Menschen pro Fahrgast (S2) | vorgeschlagen werden 48.000 kg und 100, nicht 500 und 1000 | geht | `e2e/host.spec.ts` |
+| H-13 | Spiel anlegen mit weniger Plätzen | Vorschlag folgt der Klassengröße erst nach dem React-Port; von Hand überschreibbar | offen | - |
 
 ## C — chat
 
@@ -177,6 +180,7 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | K-06 | Editor: Version anlegen | taucht in der Abstimmung auf | ungeprüft | - |
 | K-07 | Karte importieren / exportieren | JSON rein und raus | ungeprüft | - |
 | K-09 | Export → Import derselben Karte | Bild, Maße und Platzierung kommen mit | ungeprüft | - |
+| K-12 | Export → Import: Pendlerzahl und CO₂-Budget der Karte (S2) | kommen mit; eine alte Datei ohne die Schlüssel behält die Vorgabewerte | geht | - |
 | K-10 | Hintergrundbild neben den Graphen geschoben | bleibt ganz sichtbar, wird nicht abgeschnitten | geht | - |
 | K-11 | Kartendetail | Hintergrundbild liegt unter dem Graphen | geht | - |
 

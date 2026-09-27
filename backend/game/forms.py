@@ -1,6 +1,13 @@
 from django import forms
 from django.utils import timezone
 
+from .calibration import (
+    DEFAULT_AGENT_PER_PLAYER,
+    DEFAULT_MAX_PLAYERS,
+    DEFAULT_MAX_ROUNDS,
+    co2_budget_kg,
+    people_per_agent,
+)
 from .models import GameSession, Player
 
 
@@ -21,8 +28,13 @@ class MapChoiceField(forms.ModelChoiceField):
 
 
 class GameSessionCreateForm(forms.ModelForm):
+    # `label` is set here, not in Meta.labels: this field is declared on the
+    # form, so Meta never reaches it — which is how "Lobby open" stayed English
+    # on a page the funnel tests call German. The detector missed it because
+    # both its words are also German words.
     lobby_open = forms.DateTimeField(
         required=False,
+        label="Lobby öffnet um",
         widget=forms.DateTimeInput(
             attrs={"type": "datetime-local"},
             format="%Y-%m-%dT%H:%M",
@@ -66,9 +78,16 @@ class GameSessionCreateForm(forms.ModelForm):
             "max_players": "So viele Plätze hat das Spiel insgesamt.",
             "agent_per_player": ("So viele Fahrgäste bekommt jede Person zu Beginn."),
             "max_rounds": ("So viele Runden werden gefahren, wenn das Budget reicht."),
-            "max_CO2_level": "Ist das Budget aufgebraucht, ist das Spiel vorbei.",
+            "max_CO2_level": (
+                "Ist das Budget aufgebraucht, ist das Spiel vorbei. "
+                "Der Vorschlag rechnet mit 8.000 kg pro Runde – genug, wenn "
+                "die Klasse umsteigt, zu wenig, wenn alle fahren."
+            ),
             "people_per_agent": (
-                "Für so viele Menschen steht ein Fahrgast in der Simulation."
+                "Für so viele Menschen steht ein Fahrgast in der Simulation. "
+                "Der Vorschlag teilt die Pendler des Stadtteils auf die "
+                "Fahrgäste auf – bei weniger Plätzen steht einer für mehr "
+                "Menschen, damit auf der Karte gleich viel Verkehr ist."
             ),
             "idle_end_days": (
                 "Ein Spiel, das so lange niemand spielt, endet von selbst – "
@@ -86,22 +105,67 @@ class GameSessionCreateForm(forms.ModelForm):
             ),
         }
 
+    def _initial_map(self):
+        """The GameMap `initial` names, if it names one that exists.
+
+        `initial` carries a pk when the value came off a querystring and an
+        instance when it came from code, so both are accepted. An unknown pk
+        returns None rather than raising: a stale link must not 500 the page
+        a host creates games from.
+        """
+        from maps.models import GameMap
+
+        value = self.initial.get("game_map")
+        if value is None or value == "":
+            return None
+        if isinstance(value, GameMap):
+            return value
+        try:
+            return GameMap.objects.get(pk=value)
+        except (GameMap.DoesNotExist, TypeError, ValueError):
+            return None
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if not self.is_bound:
             defaults = {
                 "map_updates": True,
-                "max_players": 16,
-                "agent_per_player": 4,
-                "max_rounds": 6,
-                "max_CO2_level": 500,
-                "people_per_agent": 1000,
+                "max_players": DEFAULT_MAX_PLAYERS,
+                "agent_per_player": DEFAULT_AGENT_PER_PLAYER,
+                "max_rounds": DEFAULT_MAX_ROUNDS,
                 "idle_end_days": 30,
                 "lobby_open": timezone.localtime(timezone.now()).replace(
                     second=0, microsecond=0
                 ),
             }
             for field_name, value in defaults.items():
+                self.initial.setdefault(field_name, value)
+                self.fields[field_name].initial = self.initial[field_name]
+
+            # The two calibrated ones come last: they are derived from the
+            # three above, from whatever a caller passed in `initial`, and from
+            # the chosen map — which is why they cannot sit in the dict with
+            # them. A host who names either keeps their own number: this is an
+            # initial, not a rule.
+            #
+            # The map is the interesting input and it is also the one this page
+            # cannot follow: server-rendered, the derivation happens once, for
+            # the map `initial` names. Recomputing it as the host picks a
+            # different map or changes the class size is a job for the React
+            # port of this form; until then the offer is right for the shipped
+            # class size and a host who changes it overrides it by hand.
+            game_map = self._initial_map()
+            derived = {
+                "people_per_agent": people_per_agent(
+                    max_players=self.initial["max_players"],
+                    agent_per_player=self.initial["agent_per_player"],
+                    game_map=game_map,
+                ),
+                "max_CO2_level": co2_budget_kg(
+                    max_rounds=self.initial["max_rounds"], game_map=game_map
+                ),
+            }
+            for field_name, value in derived.items():
                 self.initial.setdefault(field_name, value)
                 self.fields[field_name].initial = self.initial[field_name]
         # styling

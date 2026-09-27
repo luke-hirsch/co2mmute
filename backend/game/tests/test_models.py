@@ -363,3 +363,47 @@ class GameMapRequiredTests(TempMediaRootMixin, TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertFalse(GameSession.objects.filter(game_name="Ohne Karte").exists())
+
+
+class CalibratedModelDefaultsTests(TestCase):
+    """The API and the admin get the same scale the form hands a host.
+
+    `map_updates` is the counter-example and stays one: its model default
+    disagrees with the form's initial on purpose, pinned rather than changed
+    because flipping it is the group's call. `people_per_agent` is not that —
+    the roadmap's S2 says to change the defaults, and a game created over the
+    REST API at 1000 people per Fahrgast puts 64 000 cars on a 90-edge map and
+    reports a 298-minute commute.
+    """
+
+    def test_people_per_agent_defaults_to_the_calibrated_scale(self):
+        from game.models import GameSession
+
+        field = GameSession._meta.get_field("people_per_agent")
+
+        self.assertEqual(field.default, 100)
+
+    def test_the_default_matches_the_shipped_class_size(self):
+        """The literal on the model is the derivation's answer, not a guess."""
+        from game.calibration import people_per_agent
+        from game.models import GameSession
+
+        field = GameSession._meta.get_field("people_per_agent")
+
+        self.assertEqual(
+            field.default, people_per_agent(max_players=16, agent_per_player=4)
+        )
+
+    def test_the_legacy_train_mobility_row_agrees_with_the_engine(self):
+        """Nothing reads it, which is exactly why it drifts.
+
+        `TrainMobility` is wired to a serializer and the admin and to no
+        calculation at all. Leaving 3500 on it would leave a second, wrong
+        answer to "what does a train emit" for the next reader to find.
+        """
+        from game.models import TrainMobility
+        from sim.constants import TRAIN_EMISSIONS_G_PER_VEHICLE_KM
+
+        field = TrainMobility._meta.get_field("base_emissions_g_per_km")
+
+        self.assertEqual(field.default, TRAIN_EMISSIONS_G_PER_VEHICLE_KM)

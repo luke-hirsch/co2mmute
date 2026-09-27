@@ -22,3 +22,31 @@ test("the host signs in and reaches the profile", async ({ page }) => {
   expect(new URL(page.url()).pathname).toBe("/accounts/profile/");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });
+
+/**
+ * S2's calibration, as the host actually meets it.
+ *
+ * The Django test asserts the same two values off the rendered HTML; this one
+ * is here because the create form is the host's screen and because the pair is
+ * the kind of thing that goes quietly wrong — the shipped default was 1000
+ * people per Fahrgast against a 500 kg budget, which ended every game in round
+ * one, and nothing went red over it for months.
+ *
+ * It does not create a game: that would leave a row on whatever database the
+ * run points at. What a created game then does is the backend suite's job.
+ */
+test("the create form offers the calibrated pair", async ({ page }) => {
+  await loginAsHost(page);
+
+  const response = await page.goto("/game/create/");
+
+  expect(response?.status()).toBe(200);
+  await expect(page.locator('input[name="max_players"]')).toHaveValue("16");
+  await expect(page.locator('input[name="max_rounds"]')).toHaveValue("6");
+  await expect(page.locator('input[name="people_per_agent"]')).toHaveValue(
+    "100",
+  );
+  await expect(page.locator('input[name="max_CO2_level"]')).toHaveValue(
+    "48000",
+  );
+});
