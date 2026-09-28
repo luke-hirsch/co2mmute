@@ -273,6 +273,12 @@ export const de = {
       tooFast: "Nicht so schnell — kurz warten.",
       /** The whole game is over 10 messages a second. */
       roomTooFast: "Gerade schreiben alle gleichzeitig. Versuch es gleich noch mal.",
+      /**
+       * The host muted this seat (S9). Says so outright rather than falling
+       * back on `unknown`: silence, or a vague "nicht angekommen", reads as a
+       * broken chat and invites trying again all lesson.
+       */
+      muted: "Die Spielleitung hat dich im Chat stummgeschaltet.",
       unknown: "Die Nachricht ist nicht angekommen.",
     },
   },
@@ -802,6 +808,11 @@ export const de = {
     next: "Nächster Platz",
     back: "Zurück zum Pult",
     playingSeat: (name: string) => `Platz von ${name}`,
+
+    mute: "Stummschalten",
+    unmute: "Stummschaltung aufheben",
+    muteConfirm: (name: string) =>
+      `${name} kann dann nichts mehr in den Chat schreiben. Mitlesen geht weiter, und du kannst es jederzeit wieder aufheben.`,
 
     takeOver: "Übernehmen",
     takeOverConfirm: (name: string) =>

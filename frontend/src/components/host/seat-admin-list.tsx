@@ -13,7 +13,7 @@ import { SeatCodePanel } from "@/components/host/seat-code-panel";
 import { SeatRow } from "@/components/metro/seat-row";
 import { ApiError } from "@/lib/api";
 import { de, type HostRefusal } from "@/lib/de";
-import { useRemoveSeat, useTakeOverSeat } from "@/lib/queries/seats";
+import { useMuteSeat, useRemoveSeat, useTakeOverSeat } from "@/lib/queries/seats";
 import type { RosterSeat } from "@/lib/game/events";
 
 /**
@@ -35,6 +35,11 @@ import type { RosterSeat } from "@/lib/game/events";
  * The host's own row is not here at all. It is not a seat — the round does not
  * wait for it, it cannot be played, handed over or removed, and the backend
  * refuses all three with `host`. Showing it would only offer clicks that 409.
+ * Muting is the fourth and refuses the same way, for the same reason.
+ *
+ * Muting is on every row whatever the flag says, because the chat is the one
+ * thing a seat at the host machine and a seat on a phone do identically — the
+ * host desk and a student's phone both write under the seat's own name.
  */
 export function SeatAdminList({
   gameId,
@@ -50,6 +55,7 @@ export function SeatAdminList({
 }) {
   const takeOver = useTakeOverSeat(gameId);
   const remove = useRemoveSeat(gameId);
+  const mute = useMuteSeat(gameId);
   const [handOver, setHandOver] = useState<RosterSeat | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
 
@@ -80,6 +86,7 @@ export function SeatAdminList({
             status={seat.status}
             online={seat.online}
             controlledByHost={seat.controlled_by_host}
+            muted={seat.is_muted}
             action={
               /* On a phone the controls take a line of their own. Left to
                  compete for the row, the name column shrinks instead of
@@ -113,6 +120,29 @@ export function SeatAdminList({
                     confirmLabel={de.host.takeOver}
                     onConfirm={() => run(takeOver, seat.player_id)}
                     pending={takeOver.isPending}
+                  />
+                )}
+                {/* Muting asks; unmuting does not. Taking the chat away from
+                    a student is the kind of thing a mis-tap should not do,
+                    while giving it back is never the wrong answer. */}
+                {seat.is_muted ? (
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    onClick={() => run(mute, seat.player_id)}
+                    disabled={mute.isPending}
+                  >
+                    {de.host.unmute}
+                  </Button>
+                ) : (
+                  <ConfirmAction
+                    label={de.host.mute}
+                    title={de.host.mute}
+                    description={de.host.muteConfirm(seat.name)}
+                    confirmLabel={de.host.mute}
+                    onConfirm={() => run(mute, seat.player_id)}
+                    variant="ghost"
+                    pending={mute.isPending}
                   />
                 )}
                 <ConfirmAction

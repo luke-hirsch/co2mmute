@@ -170,6 +170,7 @@ class RosterContentTests(GameWithSeatsMixin, TestCase):
                 "controlled_by_host": False,
                 "online": True,
                 "status": "ready",
+                "is_muted": False,
             },
         )
 
@@ -1142,3 +1143,110 @@ class RefusalReachesTheBrowserTests(GameWithSeatsMixin, TransactionTestCase):
             await anna.disconnect()
 
         self.run_async(scenario)
+
+
+@override_settings(**TEST_BACKENDS, **NO_REDIS)
+class MutedPlayerCannotChatTests(GameWithSeatsMixin, TransactionTestCase):
+    """`is_muted` finally means something — S9.
+
+    The flag has existed since 1.x and was read by nothing: `ChatConsumer`
+    never looked at it, so `MuteUnmutePlayerView` (itself routed nowhere) would
+    have changed a field no code obeys.
+
+    The check runs **before** the rate limits, which is why this test can call
+    `_handle_chat_message` on a bare consumer without a socket: a muted message
+    is refused before anything touches Redis. That ordering is also the right
+    one on its own — a muted player must not spend the room's global budget.
+
+    Re-read per message rather than cached at connect: the host mutes somebody
+    mid-lesson, and a check made once at handshake time would not hear about it
+    until the phone reconnected.
+    """
+
+    def _consumer(self, player):
+        from game.consumers import ChatConsumer
+
+        consumer = ChatConsumer()
+        consumer.game_id = self.game.game_id
+        consumer.player_pk = player.pk
+        consumer.player_id = player.player_id
+        consumer.player_name = player.name
+        consumer.last_message_sent_timestamp = 0.0
+        consumer.sent = []
+
+        async def capture(payload):
+            consumer.sent.append(payload)
+
+        consumer.send_json = capture
+        return consumer
+
+    async def _say(self, consumer, text="hallo"):
+        await consumer._handle_chat_message({"message": text})
+        return consumer.sent
+
+    def test_a_muted_seat_is_refused(self):
+        Player.objects.filter(pk=self.anna.pk).update(is_muted=True)
+        consumer = self._consumer(self.anna)
+
+        sent = async_to_sync(self._say)(consumer)
+
+        self.assertEqual([p.get("type") for p in sent], ["chat.error"])
+        self.assertEqual(sent[0]["error"], "You are muted")
+
+    def test_the_refusal_never_reaches_the_room(self):
+        """A refused line must not be stored or broadcast, or muting is only a
+        label on a message everybody still reads."""
+        Player.objects.filter(pk=self.anna.pk).update(is_muted=True)
+        consumer = self._consumer(self.anna)
+        consumer.channel_layer = None  # a group_send here would raise
+
+        async_to_sync(self._say)(consumer)
+
+    def test_an_unmuted_seat_is_not_refused(self):
+        """The guard is about the flag and nothing else. With no Redis this
+        gets as far as the rate limiter and fails there — what matters is that
+        it is not `chat.error: You are muted`."""
+        consumer = self._consumer(self.anna)
+
+        with muted():
+            try:
+                sent = async_to_sync(self._say)(consumer)
+            except Exception:
+                sent = consumer.sent
+
+        muted_refusals = [
+            p for p in sent if p.get("error") == "You are muted"
+        ]
+        self.assertEqual(muted_refusals, [])
+
+    def test_unmuting_is_heard_without_a_reconnect(self):
+        Player.objects.filter(pk=self.anna.pk).update(is_muted=True)
+        consumer = self._consumer(self.anna)
+        async_to_sync(self._say)(consumer)
+
+        Player.objects.filter(pk=self.anna.pk).update(is_muted=False)
+        consumer.sent.clear()
+        with muted():
+            try:
+                async_to_sync(self._say)(consumer)
+            except Exception:
+                pass
+
+        self.assertEqual(
+            [p for p in consumer.sent if p.get("error") == "You are muted"], []
+        )
+
+    def test_the_host_is_never_muted(self):
+        """`resolve_player` hands the host a `HostPlayer` duck-type whose pk is
+        None for a game with no host row. A lookup on None must not refuse the
+        host out of their own chat."""
+        consumer = self._consumer(self.anna)
+        consumer.player_pk = None
+
+        with muted():
+            try:
+                sent = async_to_sync(self._say)(consumer)
+            except Exception:
+                sent = consumer.sent
+
+        self.assertEqual([p for p in sent if p.get("error") == "You are muted"], [])

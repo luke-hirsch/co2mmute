@@ -275,3 +275,47 @@ def _rotate(seat: Player, reason: str) -> str:
     # game_id and player_ids, never the name.
     logger.info(f"Seat {old_player_id} of game {game_id} is now {seat.player_id}")
     return old_player_id
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Muting a seat (S9)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def set_muted(seat: Player, muted: bool) -> Player:
+    """Mute or unmute a seat in the chat. Raises SeatRefused: "host".
+
+    Not `_check_movable`: an ended game is a fine place to mute somebody, since
+    the chat outlives the last round and the debrief is where a class is most
+    likely to need it. The host's own row is refused for the same reason every
+    other seat operation refuses it — it is not a seat, it is not in the player
+    list, and the host is the one doing the muting.
+    """
+    if Player.objects.filter(pk=seat.pk).host_rows().exists():  # type: ignore
+        raise SeatRefused("host")
+
+    Player.objects.filter(pk=seat.pk).update(is_muted=muted)
+    seat.is_muted = muted
+    schedule_broadcast(seat.game.game_id)
+    # game_id and player_id, never the name.
+    logger.info(
+        f"Seat {seat.player_id} of game {seat.game.game_id} "
+        f"{'muted' if muted else 'unmuted'}"
+    )
+    return seat
+
+
+def is_muted(player_pk: int | None) -> bool:
+    """Is this seat muted right now?
+
+    Read per message rather than cached on the socket: the host mutes somebody
+    mid-lesson and a value taken at handshake time would not change until the
+    phone reconnected — which, for a student who has just been muted, is the
+    one thing they would try.
+
+    `None` is the host on a game with no host row (`ws_auth.HostPlayer`), and
+    the host is never muted.
+    """
+    if player_pk is None:
+        return False
+    return Player.objects.filter(pk=player_pk, is_muted=True).exists()

@@ -67,16 +67,31 @@ describe("chatErrorText", () => {
     // returns "Message too long", _check_rate_limits returns "Slow down" or
     // "Chat is moving too fast". They reach the player as they are, so the
     // German has to happen here.
-    const raw = ["Message too long", "Slow down", "Chat is moving too fast"];
+    const raw = [
+      "Message too long",
+      "Slow down",
+      "Chat is moving too fast",
+      // S9: `is_muted` finally means something, and a muted player has to be
+      // told *why* nothing they send arrives — silence reads as a broken chat.
+      "You are muted",
+    ];
     const texts = raw.map(chatErrorText);
 
     // Each says something of its own — one shared "es hat nicht geklappt" for
-    // all three would tell a rate-limited class nothing about what to do.
-    expect(new Set(texts).size).toBe(3);
+    // all four would tell a rate-limited class nothing about what to do.
+    expect(new Set(texts).size).toBe(4);
     // And none of them is the backend's own wording handed straight through.
-    expect(texts).not.toContain(raw[0]);
-    expect(texts).not.toContain(raw[1]);
-    expect(texts).not.toContain(raw[2]);
+    for (const sentence of raw) {
+      expect(texts).not.toContain(sentence);
+    }
+  });
+
+  it("does not fall back on the mute refusal", () => {
+    // The fallback is deliberately vague ("nicht angekommen"), which for a
+    // muted player is exactly the wrong answer: it invites them to try again
+    // all lesson. Pinned separately because the set-size check above would
+    // still pass if two of the four collapsed onto the fallback.
+    expect(chatErrorText("You are muted")).not.toBe(chatErrorText("Invalid JSON"));
   });
 
   it("falls back rather than showing the player an English sentence", () => {

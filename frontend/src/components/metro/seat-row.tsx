@@ -8,6 +8,10 @@ import { cn } from "@/lib/utils";
  * which never counts as a player; `controlledByHost` is a seat played at the
  * host machine because its student has no device or is out of the room (1.6).
  * A seat can be the second without being the first, and the roster sends both.
+ *
+ * `muted` is the third and reads differently again: the first two describe
+ * what the seat *is*, this one what the host has *done* to it, which is why it
+ * is the only badge here painted rather than outlined.
  */
 export function SeatRow({
   name,
@@ -16,6 +20,7 @@ export function SeatRow({
   isHost = false,
   controlledByHost = false,
   isYou = false,
+  muted = false,
   action,
   className,
 }: {
@@ -25,6 +30,8 @@ export function SeatRow({
   isHost?: boolean;
   controlledByHost?: boolean;
   isYou?: boolean;
+  /** Muted in the chat by the host (S9). */
+  muted?: boolean;
   action?: React.ReactNode;
   className?: string;
 }) {
@@ -69,6 +76,14 @@ export function SeatRow({
             // one thing only.
             <span className="rounded-full border-2 border-foreground px-2 py-0.5 text-xs font-medium">
               {de.seat.atHostMachine}
+            </span>
+          ) : null}
+          {muted ? (
+            // The accent, because it is the one thing on this row asking to be
+            // looked at — and mute is a state somebody put the seat in, not a
+            // property of the seat like the two badges above.
+            <span className="rounded-full bg-brandaccent/15 px-2 py-0.5 text-xs font-medium text-brandaccent">
+              {de.lobby.muted}
             </span>
           ) : null}
         </span>

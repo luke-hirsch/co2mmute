@@ -9,7 +9,9 @@ backend restart that never ran disconnect() leaves nobody "online" for long.
 
 A seat's status is read from the game, not stored: making_move or waiting while
 a round is open (has the seat moved?), ready otherwise, not_connected when
-offline.
+offline. `is_muted` rides along because the host mutes from the same list, and
+because the socket owns every other field on this row — a second source for it
+would be the class of bug this project keeps finding.
 
 Every function here is sync. The consumer calls them through
 database_sync_to_async, the signals and views call them directly.
@@ -96,6 +98,9 @@ def build(game: GameSession) -> list[dict]:
                 "controlled_by_host": row.controlled_by_host,
                 "online": online,
                 "status": status,
+                # Always present, never only when true: a field that appears
+                # and disappears is one a reducer cannot merge.
+                "is_muted": row.is_muted,
             }
         )
     return roster

@@ -1066,3 +1066,155 @@ class SeatCodeQrTests(HandoverMixin, TestCase):
 
         self.assertEqual(response.status_code, 201)
         self.assertRegex(response.json()["code"], CODE_PATTERN)
+
+
+def mute_url(game_id, player_id):
+    return f"/api/game/{game_id}/player/{player_id}/mute/"
+
+
+@override_settings(**TEST_BACKENDS)
+class MuteSeatTests(SeatsMixin, TestCase):
+    """POST /api/game/<game_id>/player/<player_id>/mute/ — S9.
+
+    `MuteUnmutePlayerView` existed since 1.x and was routed nowhere, so
+    `is_muted` could never change — and nothing read it either: neither
+    consumer looked at it and no screen rendered it. Routing it alone would
+    have shipped a button that changes a flag nobody obeys, which is why the
+    enforcement (ChatConsumer) and the roster field land in the same sweep.
+
+    Host-only, and by account rather than by `HasGameAccess`: a logged-in
+    researcher holding a seat in somebody else's game satisfies both
+    `HasGameAccess` and `IsAuthenticated`, which is exactly how
+    `DELETE /api/game/<id>/` came to be reachable by the wrong person.
+    """
+
+    def mute(self, player, game=None):
+        game = game or self.game
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            return self.client.post(mute_url(game.game_id, player.player_id))
+
+    def test_the_route_resolves_to_the_view(self):
+        """Three segments, so `<game_id>/<player_id>/` cannot swallow it — but
+        the same silent failure is one bad ordering away."""
+        from django.urls import resolve
+
+        match = resolve(mute_url("ABC123", "P-0001"))
+
+        self.assertEqual(match.func.view_class.__name__, "MuteUnmutePlayerView")
+        self.assertEqual(match.kwargs["game_id"], "ABC123")
+        self.assertEqual(match.kwargs["player_id"], "P-0001")
+
+    def test_the_host_mutes_a_seat(self):
+        self.as_host()
+
+        response = self.mute(self.anna)
+
+        self.anna.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(self.anna.is_muted)
+        self.assertTrue(response.json()["is_muted"])
+
+    def test_the_same_call_unmutes(self):
+        """One button, both directions — a host does not hunt for a second one."""
+        self.as_host()
+        self.mute(self.anna)
+
+        response = self.mute(self.anna)
+
+        self.anna.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(self.anna.is_muted)
+
+    def test_a_player_cannot_mute_anybody(self):
+        self.as_player(self.anna)
+
+        response = self.mute(self.ben)
+
+        self.ben.refresh_from_db()
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(self.ben.is_muted)
+
+    def test_a_player_cannot_unmute_themselves(self):
+        self.as_host()
+        self.mute(self.anna)
+        self.client.logout()
+        self.as_player(self.anna)
+
+        response = self.mute(self.anna)
+
+        self.anna.refresh_from_db()
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(self.anna.is_muted)
+
+    def test_another_host_holding_a_seat_here_cannot_mute(self):
+        """`HasGameAccess, IsAuthenticated` is true for this person. The check
+        has to be "is the host of *this* game", by account."""
+        other_host = create_host(username="other", password="password123")
+        with muted():
+            Player.objects.create(game=self.game, name="Gast", user=other_host)
+        self.client.force_login(other_host)
+
+        response = self.mute(self.anna)
+
+        self.anna.refresh_from_db()
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(self.anna.is_muted)
+
+    def test_the_hosts_own_row_cannot_be_muted(self):
+        """Same refusal as every other seat operation on the host's row. It is
+        not a seat: it is not in the player list and the round does not wait
+        for it, so a mute there would only be a click that does nothing."""
+        self.as_host()
+
+        response = self.mute(self.host_row)
+
+        self.host_row.refresh_from_db()
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json().get("reason"), "host")
+        self.assertFalse(self.host_row.is_muted)
+
+    def test_a_seat_that_left_is_gone(self):
+        self.as_host()
+        self.anna.left_at = timezone.now()
+        self.anna.save()
+
+        response = self.mute(self.anna)
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_an_unknown_seat_is_404(self):
+        self.as_host()
+
+        with muted():
+            response = self.client.post(mute_url(self.game.game_id, "P-NOPE"))
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_the_roster_goes_out_with_the_change(self):
+        """Nothing refetches after a seat mutation — `add_seat`, `remove_seat`
+        and `take_over` all broadcast instead, and this one has to match or the
+        class watches a mute that only the host can see."""
+        self.as_host()
+        listener = GroupListener(self.game.game_id)
+
+        self.mute(self.anna)
+
+        rosters = listener.rosters()
+        self.assertTrue(rosters, msg="no roster_update reached the game group")
+        row = entry(rosters[-1], self.anna)
+        self.assertIsNotNone(row)
+        self.assertTrue(row["is_muted"])
+
+    def test_the_roster_carries_the_flag_for_everybody(self):
+        """A field only present when true is a field a reducer cannot trust."""
+        self.as_host()
+
+        self.mute(self.anna)
+
+        from game.roster import build
+
+        rows = build(self.game)
+        self.assertEqual(
+            {row["name"]: row["is_muted"] for row in rows},
+            {"Host": False, "Anna": True, "Ben": False},
+        )

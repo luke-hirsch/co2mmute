@@ -5,6 +5,7 @@ import {
   addSeat,
   issueSeatCode,
   lookUpSeatCode,
+  muteSeat,
   redeemSeatCode,
   removeSeat,
   takeOverSeat,
@@ -179,5 +180,43 @@ describe("redeemSeatCode", () => {
     const refused = await redeemSeatCode("4F2A9C").catch((e: unknown) => e);
     expect((refused as ApiError).status).toBe(409);
     expect((refused as ApiError).reason).toBe("seated");
+  });
+});
+
+describe("muteSeat", () => {
+  it("posts to the seat's mute endpoint", async () => {
+    // S9. Four segments, so `<game_id>/<player_id>/` cannot swallow it — but
+    // the backend's URL ordering is load-bearing either way, and a path typed
+    // one segment wrong comes back as a plausible 403 rather than a 404.
+    const fetchSpy = stubFetch(
+      jsonResponse(200, { player_id: "P-9", name: "Ana", is_muted: true }),
+    );
+
+    const seat = await muteSeat("ABC123", "P-9");
+
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe("/api/game/ABC123/player/P-9/mute/");
+    expect(init?.method).toBe("POST");
+    expect(seat.is_muted).toBe(true);
+  });
+
+  it("sends no body — one endpoint flips the flag both ways", async () => {
+    // A `{muted: true}` body would be a second source of truth for a field the
+    // server already owns, and would let two hosts fight over it.
+    const fetchSpy = stubFetch(jsonResponse(200, { is_muted: false }));
+
+    await muteSeat("ABC123", "P-9");
+
+    expect(fetchSpy.mock.calls[0][1]?.body).toBeUndefined();
+  });
+
+  it("keeps the reason when the seat is the host's own row", async () => {
+    stubFetch(jsonResponse(409, { detail: "This seat cannot be muted.", reason: "host" }));
+
+    const error = await muteSeat("ABC123", "P-HOST").catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).status).toBe(409);
+    expect((error as ApiError).reason).toBe("host");
   });
 });

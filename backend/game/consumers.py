@@ -20,6 +20,7 @@ from game.phases import (
     vote_options,
 )
 from game.roster import connected, disconnected, heartbeat, player_group
+from game.seats import is_muted
 from game.ws_auth import resolve_player
 
 logger = logging.getLogger(__name__)
@@ -80,6 +81,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             return
 
         self.player_id = player.player_id
+        self.player_pk = player.pk
         self.player_name = player.name or "Player"
         self.last_message_sent_timestamp = 0.0
 
@@ -142,6 +144,15 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             await self.send_json({"type": "chat.error", "error": validation_error})
             return
 
+        # Before the rate limits on purpose: a muted seat must not spend the
+        # room's global budget, and the check then costs nothing when the host
+        # has muted nobody. Read per message rather than kept from connect() —
+        # the host mutes mid-lesson, and a value frozen at handshake time would
+        # not change until the phone reconnected.
+        if await self._is_muted():
+            await self.send_json({"type": "chat.error", "error": "You are muted"})
+            return
+
         rate_limit_error = await self._check_rate_limits()
         if rate_limit_error:
             await self.send_json({"type": "chat.error", "error": rate_limit_error})
@@ -154,6 +165,12 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             self.group_name,
             {"type": "chat.broadcast", "message_data": message_object},
         )
+
+    @database_sync_to_async
+    def _is_muted(self) -> bool:
+        """`game.seats.is_muted`, so the rule has one home. The host's pk is
+        None on a game with no host row, and is never muted."""
+        return is_muted(getattr(self, "player_pk", None))
 
     def _validate_message_content(self, message_text: str) -> str | None:
         if len(message_text) > self.CHAT_MESSAGE_MAX_LENGTH:

@@ -35,6 +35,7 @@ function seat(overrides: Partial<RosterSeat> & { player_id: string }): RosterSea
     controlled_by_host: true,
     online: true,
     status: "making_move",
+    is_muted: false,
     ...overrides,
   };
 }
