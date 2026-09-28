@@ -3,12 +3,14 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_CAR_OPTIMIZATION,
   DEFAULT_PT_OPTIMIZATION,
+  draftChoices,
   draftComplete,
   draftPayload,
   draftProgress,
   draftRouting,
   initialRoundDraft,
   roundDraftReducer,
+  type AgentChoice,
   type RoundDraft,
   type RoundDraftAction,
 } from "@/lib/game/round-draft";
@@ -371,5 +373,140 @@ describe("round draft selectors", () => {
 
     expect(draftPayload(half)).toBeNull();
     expect(draftPayload(initialRoundDraft())).toBeNull();
+  });
+});
+
+/**
+ * A reload in the middle of an unfinished turn (S7).
+ *
+ * A locked phone discards the page; in a classroom that is the ordinary case,
+ * not the edge case. What comes back is the **taps** — the mode and the two
+ * optimisations — and never the route: `use-round-draft.ts` already re-routes
+ * anyone holding a mode with no route, so the routes are recomputed against the
+ * graph the game is on now. That is what keeps the pathfinder the single source
+ * of truth for a route, which is the rule this file's header is about.
+ */
+describe("roundDraftReducer — restoring a turn", () => {
+  const CHOICES: AgentChoice[] = [
+    {
+      agentId: 1,
+      mode: "car",
+      carOptimization: "co2",
+      ptOptimization: DEFAULT_PT_OPTIMIZATION,
+    },
+    {
+      agentId: 2,
+      mode: "public",
+      carOptimization: DEFAULT_CAR_OPTIMIZATION,
+      ptOptimization: "fewest_transfers",
+    },
+  ];
+
+  it("puts the modes and both optimisations back", () => {
+    const draft = apply(initialRoundDraft(), { ...ASSIGN, choices: CHOICES });
+
+    expect(draft.agents.map((a) => a.mode)).toEqual(["car", "public"]);
+    expect(draft.agents[0].carOptimization).toBe("co2");
+    expect(draft.agents[1].ptOptimization).toBe("fewest_transfers");
+  });
+
+  /**
+   * The one that makes the routes come back. `empty` plus a mode is exactly
+   * what the hook's routing effect looks for, so restoring a choice re-runs the
+   * search rather than resurrecting a route off the old graph.
+   */
+  it("leaves every restored agent unrouted, so the routes are computed again", () => {
+    const draft = apply(initialRoundDraft(), { ...ASSIGN, choices: CHOICES });
+
+    expect(draft.agents.every((a) => a.status === "empty")).toBe(true);
+    expect(draft.agents.every((a) => a.route === null)).toBe(true);
+    expect(draftComplete(draft)).toBe(false);
+    expect(draftPayload(draft)).toBeNull();
+  });
+
+  it("restores only the agents it has, and leaves the rest fresh", () => {
+    const draft = apply(initialRoundDraft(), {
+      ...ASSIGN,
+      choices: [CHOICES[1]],
+    });
+
+    expect(draft.agents[0].mode).toBeNull();
+    expect(draft.agents[1].mode).toBe("public");
+  });
+
+  it("ignores a choice for an agent this round does not have", () => {
+    const draft = apply(initialRoundDraft(), {
+      ...ASSIGN,
+      choices: [...CHOICES, { ...CHOICES[0], agentId: 99 }],
+    });
+
+    expect(draft.agents.map((a) => a.agentId)).toEqual([1, 2]);
+    expect(draft.agents.map((a) => a.mode)).toEqual(["car", "public"]);
+  });
+
+  /**
+   * The same guard the plain assignment has, and it matters more here: React
+   * Query re-delivers the assignment while the storage still holds the taps the
+   * turn began with, so a restore that ran twice would undo the last choice
+   * every time the screen refocused.
+   */
+  it("does not re-apply over a turn that is already under way", () => {
+    const chosen = apply(
+      initialRoundDraft(),
+      { ...ASSIGN, choices: CHOICES },
+      { kind: "mode", agentId: 1, mode: "bike" },
+    );
+
+    const again = roundDraftReducer(chosen, { ...ASSIGN, choices: CHOICES });
+
+    expect(again).toBe(chosen);
+    expect(again.agents[0].mode).toBe("bike");
+  });
+
+  it("is the plain assignment when there is nothing to restore", () => {
+    const withNone = apply(initialRoundDraft(), { ...ASSIGN, choices: [] });
+    const without = apply(initialRoundDraft(), ASSIGN);
+
+    expect(withNone).toEqual(without);
+  });
+});
+
+describe("draftChoices", () => {
+  it("is what gets stored: the taps of every agent that has one", () => {
+    const draft = apply(
+      initialRoundDraft(),
+      ASSIGN,
+      { kind: "mode", agentId: 1, mode: "car" },
+      { kind: "car-optimization", agentId: 1, optimization: "co2" },
+    );
+
+    expect(draftChoices(draft)).toEqual([
+      {
+        agentId: 1,
+        mode: "car",
+        carOptimization: "co2",
+        ptOptimization: DEFAULT_PT_OPTIMIZATION,
+      },
+    ]);
+  });
+
+  it("carries a choice whose route has not arrived or has failed", () => {
+    // Half a turn is the case this whole feature exists for. A mode that is
+    // still searching, or that failed, is still a tap worth bringing back.
+    const draft = apply(
+      initialRoundDraft(),
+      ASSIGN,
+      { kind: "mode", agentId: 1, mode: "car" },
+      { kind: "routing", agentId: 1 },
+      { kind: "mode", agentId: 2, mode: "walk" },
+      { kind: "route-failed", agentId: 2, error: "too-far" },
+    );
+
+    expect(draftChoices(draft).map((c) => c.agentId)).toEqual([1, 2]);
+  });
+
+  it("is empty before anything is chosen", () => {
+    expect(draftChoices(apply(initialRoundDraft(), ASSIGN))).toEqual([]);
+    expect(draftChoices(initialRoundDraft())).toEqual([]);
   });
 });

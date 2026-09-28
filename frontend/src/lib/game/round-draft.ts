@@ -11,11 +11,19 @@
  * submitted the seat (F4). A local `isSubmitted` would be the second source of
  * truth that Roadmap.md 2.2 exists to remove.
  *
- * The draft itself does not survive a reload, and that is the deliberate other
- * half of the same rule: half-made choices live here and nowhere else. Mirroring
- * them into storage would put routes in two places, which is the pattern the old
- * screens died of. Re-picking costs four taps; *that* it was submitted is a fact
- * the server owns and hands back.
+ * The draft *does* survive a reload since S7, and the rule above is what shapes
+ * how. A locked phone discarding the page is the ordinary case in a classroom,
+ * so the taps come back — but only the taps. **A route is never stored.**
+ * Mirroring routes into storage is what would put them in two places, which is
+ * the pattern the old screens died of, and a stored route can outlive the graph
+ * it was found on. So `draft-storage.ts` keeps `AgentChoice` per agent, the
+ * `assign` action puts it back with `status: "empty"`, and the pathfinder
+ * searches again against the map the game is on now. Re-picking still costs the
+ * four taps it always did; they just come back on their own.
+ *
+ * Still not here, and for the original reason: *that* it was submitted. The
+ * roster says that, after a reload, after a reconnect, and when another device
+ * submitted the seat.
  */
 
 import type {
@@ -44,6 +52,20 @@ export type AgentDraft = {
   error: string | null;
 };
 
+/**
+ * What survives a reload: one agent's taps, and nothing computed from them.
+ *
+ * Both optimisations travel even though only one is live, for the same reason
+ * `AgentDraft` keeps both — going car → PT → car should not forget that this
+ * passenger drives the greenest way.
+ */
+export type AgentChoice = {
+  agentId: number;
+  mode: TransportMode;
+  carOptimization: CarOptimization;
+  ptOptimization: PTOptimization;
+};
+
 export type RoundDraft = {
   /** Whose turn this is. F4 plays other people's seats through the same screen. */
   seatId: string | null;
@@ -60,6 +82,11 @@ export type RoundDraftAction =
       roundNumber: number;
       homeNode: number;
       agents: { id: number; destination_node: number }[];
+      /**
+       * A turn this seat had begun in this round before the page went away
+       * (S7). Applied only when the draft is actually built fresh — see below.
+       */
+      choices?: AgentChoice[];
     }
   | { kind: "mode"; agentId: number; mode: TransportMode }
   | { kind: "car-optimization"; agentId: number; optimization: CarOptimization }
@@ -131,11 +158,35 @@ export function roundDraftReducer(
         );
       if (sameShape) return draft;
 
+      /**
+       * Restoring rides on the `sameShape` guard above rather than having one
+       * of its own, and that is deliberate: a restore may only ever happen when
+       * this branch builds the agents, i.e. once per seat per round. React
+       * Query re-delivers the assignment on every remount and focus change
+       * while storage still holds the taps the turn began with, so a restore
+       * that ran again would quietly undo the last choice each time the screen
+       * came back.
+       *
+       * The route is *not* restored — `status` stays `empty`, which is exactly
+       * what `use-round-draft.ts`'s routing effect looks for. See the header.
+       */
+      const stored = new Map((action.choices ?? []).map((c) => [c.agentId, c]));
+
       return {
         seatId: action.seatId,
         roundNumber: action.roundNumber,
         homeNode: action.homeNode,
-        agents: action.agents.map((a) => freshAgent(a.id, a.destination_node)),
+        agents: action.agents.map((a) => {
+          const agent = freshAgent(a.id, a.destination_node);
+          const choice = stored.get(a.id);
+          if (!choice) return agent;
+          return {
+            ...agent,
+            mode: choice.mode,
+            carOptimization: choice.carOptimization,
+            ptOptimization: choice.ptOptimization,
+          };
+        }),
       };
     }
 
@@ -217,6 +268,24 @@ export function draftProgress(draft: RoundDraft): { done: number; total: number 
 
 export function draftRouting(draft: RoundDraft): boolean {
   return draft.agents.some((a) => a.status === "routing");
+}
+
+/**
+ * The taps worth keeping across a reload: every agent that has a mode.
+ *
+ * Status is not consulted on purpose. A route still searching, or one that
+ * failed, is a choice the student made and would have to make again — half a
+ * turn is the case the whole feature exists for.
+ */
+export function draftChoices(draft: RoundDraft): AgentChoice[] {
+  return draft.agents
+    .filter((agent) => agent.mode !== null)
+    .map((agent) => ({
+      agentId: agent.agentId,
+      mode: agent.mode as TransportMode,
+      carOptimization: agent.carOptimization,
+      ptOptimization: agent.ptOptimization,
+    }));
 }
 
 /**

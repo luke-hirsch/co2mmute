@@ -38,7 +38,8 @@ import type { Node } from "@/types/mapTypes";
  * Whether this seat has already submitted is **not** state here: it is
  * `seat.status === "waiting"` from the roster. That is what makes a reload
  * mid-round land on the right screen (R-11), and it is also what takes the desk
- * back to its list the moment a turn is sent.
+ * back to its list the moment a turn is sent. Since S7 it is what clears the
+ * stored draft too, so the one answer to "is this turn in" drives all three.
  *
  * **No chat on this screen yet.** The chat is `ChatSidebar` + `useChatSocket`,
  * both pre-rewrite: it needs the legacy `AuthProvider`, expects to sit in a
@@ -58,16 +59,20 @@ export function RoundScreen({
   const { state } = useGame();
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
 
+  // Read before the draft, because the draft takes it: a turn that is in has no
+  // unfinished draft to keep (S7).
+  const seat = seatById(state, seatId);
+  const submitted = seat?.status === "waiting";
+
   const draft = useRoundDraft({
     gameId: state.gameId,
     seatId,
     roundNumber: state.currentRound,
     mapVersionId: state.activeMapVersionId,
+    submitted,
   });
   const submit = useSubmitMove(state.gameId, seatId);
 
-  const seat = seatById(state, seatId);
-  const submitted = seat?.status === "waiting";
   const paused = !!state.pausedAt;
 
   // Node lookup for the destination names. A Map because a 55-node graph gets
