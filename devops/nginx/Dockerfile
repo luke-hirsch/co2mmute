@@ -18,6 +18,7 @@ COPY devops/nginx/nginx.conf /etc/nginx/conf.d/default.conf
 # Certs are NOT baked into the image — they are bind-mounted at run time
 # (see devops/docker-compose.yaml). A private key must never live in the repo.
 COPY devops/nginx/robots.txt /usr/share/nginx/html/robots.txt
+COPY devops/nginx/llms.txt /usr/share/nginx/html/llms.txt
 COPY --from=frontend-build /app/dist ./app
 
 RUN mkdir -p /var/www/backend-static

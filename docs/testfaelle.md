@@ -58,7 +58,7 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | L-11 | Host entfernt einen host-gesteuerten Platz | verschwindet, Runde wartet nicht mehr | geht | - |
 | L-12 | „Spiel verlassen" | Platz weg, Cookies weg, zurück zum Start | geht | - |
 | L-13 | Lobby ohne gültiges Cookie | 403 → „neu beitreten" | geht | - |
-| L-14 | Spiel ohne Karte angelegt | Start gesperrt und sagt warum, statt stumm nichts zu tun | geht | - |
+| L-14 | Spiel ohne Karte angelegt | Start gesperrt und sagt warum, statt stumm nichts zu tun; die API antwortet 409 `no-map` (S9) | geht | - |
 
 ## V — verbindung
 
@@ -214,6 +214,10 @@ nicht gemessen.
 | C-05 | Chat auf dem neuen Spielscreen | erreichbar wie auf dem alten | geht | `chat.spec.ts` |
 | C-06 | ungelesene Nachrichten | Zähler am Knopf, solange der Chat zu ist (S8) | geht | `chat.spec.ts` |
 | C-07 | Chat an- oder ausschalten | es gibt keinen Schalter — weder im Formular noch in der Lobby, nur über die API | offen | - |
+| C-08 | Platz stummschalten | fragt vorher, Kennzeichen am Platz, Nachricht wird abgelehnt (S9) | geht | `mute.spec.ts` |
+| C-09 | stummgeschaltet schreiben | deutsche Begründung, Zeile kommt bei niemandem an (S9) | geht | `mute.spec.ts` |
+| C-10 | Stummschaltung aufheben | ohne Rückfrage, ohne Neuverbinden wirksam (S9) | geht | `mute.spec.ts` |
+| C-11 | eigene Host-Zeile stummschalten | gibt es nicht — der Host steht nicht in der Platzliste, die API sagt 409 `host` | geht | - |
 
 > Seit S8 (28.09.26) ist der Chat wieder da, neu gegen `ChatConsumer` gebaut und auf jedem
 > Spielscreen erreichbar (`GameFrame` hängt ihn einmal ein). Von F5 (18.09.26) bis dahin gab es
@@ -222,6 +226,11 @@ nicht gemessen.
 > C-04 hängt am REST-Snapshot: `chat_enabled` kommt nur dort an, `game.state` trägt es nicht und
 > kein Event meldet eine Änderung. Ein laufender Client merkt das Ausschalten also erst beim
 > nächsten Neuladen.
+>
+> C-08 bis C-11 sind neu mit S9 (28.09.26). `Player.is_muted` und `MuteUnmutePlayerView` gab es
+> vorher schon, beides wirkungslos: die View hing an keiner URL und **kein Consumer hat das Feld
+> gelesen**. Geprüft werden muss das mit zwei echten Geräten — ein Platz am Lehrerrechner teilt
+> Cookie und Socket mit dem Host, und der Host ist nie stummgeschaltet.
 
 ## K — karte und editor
 
@@ -272,3 +281,19 @@ nicht gemessen.
 | S-06 | Rechtstexte in der SPA | Links auch im Spiel erreichbar | offen | - |
 | S-07 | Spiel im Profil löschen | fragt vorher, nimmt Runden und QR mit; laufendes Spiel: 409 | geht | - |
 | S-08 | Kopfzeile unter `/app` | auf den Beitreten-Screens, nicht im Spiel, nicht im Editor | geht | - |
+| S-09 | Passwort raten | nach 10 Fehlversuchen 429 mit deutscher Seite, 15 Minuten (S9) | geht | - |
+| S-10 | Platz-Code raten | nach 20 Fehlgriffen 429; gültige Codes zählen nie mit (S9) | geht | - |
+| S-11 | viele Konten anlegen | nach 10 angelegten Konten pro Stunde 429; abgelehnte Formulare zählen nicht (S9) | geht | - |
+| S-12 | `robots.txt` und `llms.txt` | beide unter `/`, nur über nginx — im Dev-Stack gibt es sie nicht | ungeprüft | - |
+
+> S-09 bis S-11 zählen **Fehlversuche** (Login, Platz-Code) bzw. **Erfolge** (Konten), nie einfach
+> Anfragen: eine Klasse hängt hinter *einem* Schulanschluss, und wer richtige Codes einlöst, würde
+> sich sonst selbst aussperren. Die IP-Adresse wird dabei nicht gespeichert, sondern gehasht —
+> `legal/dsgvo.html` §2.5 sagt das.
+>
+> Achtung beim Prüfen von S-09: der Zähler gilt pro Anschluss, also sperrt ein Testlauf auch die
+> eigenen e2e-Logins für 15 Minuten aus. Zurücksetzen mit
+> `cache.delete(f"throttle:login:{client_key(request)}")`.
+>
+> S-12 steht auf `ungeprüft`, weil beide Dateien vom nginx-Image kommen: `devops/dev.sh` serviert
+> sie nicht, ein Nachweis braucht also `docker compose up -d --build nginx` oder die Box.

@@ -1,0 +1,45 @@
+# CO₂mmute
+
+> Ein browserbasiertes Mehrspieler-Spiel über den Weg zur Schule und zur Arbeit.
+> Eine Klasse wählt Runde für Runde Verkehrsmittel und Route für ihre Fahrgäste,
+> eine Verkehrssimulation rechnet CO₂, Kosten und Reisezeit aus, und zwischen den
+> Runden stimmt die Klasse über eine Änderung an der Karte ab — eine Busspur, eine
+> neue Linie. Danach wird auf der geänderten Karte weitergespielt.
+
+CO₂mmute ist der Softwareteil einer Masterarbeit über agentenbasierte
+Pendlermodelle an der TU Berlin. Die Simulation ist ein Link-Queue-Modell in der
+Tradition von MATSim: Jede Straßenkante hat eine Kapazität und einen Rückstau,
+Busse und Bahnen fahren einen Fahrplan und nehmen echte Fahrgäste mit, und die
+CO₂-Emission hängt von der Geschwindigkeit ab, die eine Straße tatsächlich
+erreicht hat.
+
+## Für wen das gedacht ist
+
+Für den Unterricht. Gespielt wird ohne Konto und ohne Login: Wer mitspielt,
+scannt einen QR-Code und gibt einen Namen ein, mehr wird nicht erhoben. Nur die
+Spielleitung hat ein Konto. Am Spielende werden die Namen durch "Spieler 1",
+"Spieler 2" ersetzt; die Fahrten und Ergebnisse bleiben für die Forschung
+erhalten.
+
+## Seiten
+
+- [Startseite](https://co2mmute.stsds.tu-berlin.de/): Was das Spiel ist und wie eine Runde abläuft.
+- [Mitspielen](https://co2mmute.stsds.tu-berlin.de/join/): Einstieg für Spielerinnen und Spieler, mit Spiel-ID oder über den QR-Code.
+- [Datenschutzerklärung](https://co2mmute.stsds.tu-berlin.de/legal/dsgvo/): Welche Daten verarbeitet werden, wie lange, und welche Rechte du hast.
+- [Cookies](https://co2mmute.stsds.tu-berlin.de/legal/cookies/): Welche Cookies gesetzt werden und wofür.
+- [Impressum](https://co2mmute.stsds.tu-berlin.de/legal/impressum/): Anbieter und Verantwortliche.
+
+## Nicht zum Auslesen
+
+- `/api/`, `/ws/` — die Schnittstellen des laufenden Spiels. Sie brauchen ein
+  signiertes Cookie oder eine Sitzung und geben ohne beides nichts heraus.
+- `/app/` — die Spieloberfläche selbst. Sie wird im Browser gerendert und hat
+  ohne ein laufendes Spiel keinen Inhalt.
+- `/admin/` — die Verwaltung.
+
+Dasselbe steht in `/robots.txt`.
+
+## Kontakt
+
+Die Verantwortlichen und die Kontaktadresse stehen im
+[Impressum](https://co2mmute.stsds.tu-berlin.de/legal/impressum/).
