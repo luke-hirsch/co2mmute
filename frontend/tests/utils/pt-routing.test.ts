@@ -23,6 +23,19 @@ import type { ExtendedMapGraph, PTLine } from "@/types/routeTypes";
  * The graph is assembled here the way `MapVersionGraphView` assembles it, stop
  * lists included, because the file is the thing under test: a fixture copied
  * out of it would go stale the first time the map changed.
+ *
+ * ### One version at a time
+ *
+ * Since S14 the file carries **all eight** versions of the map, and a line's
+ * route is written per route rather than per version (`chains`). So a graph is
+ * a filter over the file and this builder needs to be told which version to
+ * cut: nodes, edges and lines each carry their own `versions`, and a line takes
+ * the one chain that names the version being built.
+ *
+ * This file stopped running entirely when that format landed — `raw_line.edges`
+ * became `undefined` and the `.map` over it threw at import, so vitest reported
+ * a failed *suite* and every assertion below silently left the count. That is
+ * the failure mode CLAUDE.md names: read the test count, not OK/FAILED.
  */
 
 const MAP_FILE = new URL(
@@ -36,6 +49,7 @@ interface RawNode {
   x: number;
   y: number;
   types?: string[];
+  versions: number[];
 }
 
 interface RawEdge {
@@ -50,6 +64,13 @@ interface RawEdge {
   speed_limit?: number;
   lanes?: number;
   dedicated_bus_lane?: boolean;
+  versions: number[];
+}
+
+interface RawChain {
+  versions: number[];
+  /** Indices into the file's global `edges` array, in travel order. */
+  edges: number[];
 }
 
 interface RawLine {
@@ -57,11 +78,18 @@ interface RawLine {
   interval: number;
   capacity: number;
   speed_kmh: number;
-  edges: number[];
+  versions: number[];
+  chains: RawChain[];
+}
+
+interface RawVersion {
+  name: string;
+  base_version?: boolean;
 }
 
 interface RawMap {
   scale: number;
+  versions: RawVersion[];
   nodes: RawNode[];
   edges: RawEdge[];
   bus_lines: RawLine[];
@@ -96,83 +124,125 @@ function nodeChain(ends: [number, number][]): number[] {
   return chain;
 }
 
-function buildGraph(raw: RawMap): ExtendedMapGraph {
+function buildGraph(raw: RawMap, version: number): ExtendedMapGraph {
   const typeIds = new Map<string, number>();
   const nodeType = (name: string): NodeType => {
     if (!typeIds.has(name)) typeIds.set(name, typeIds.size + 1);
     return { id: typeIds.get(name)!, name, short: name.slice(0, 2) };
   };
 
-  const nodes: Node[] = raw.nodes.map((node) => ({
-    id: Number(node.id),
-    name: node.name,
-    x_position: node.x,
-    y_position: node.y,
-    node_type: (node.types ?? []).map(nodeType),
-  }));
+  const nodes: Node[] = raw.nodes
+    .filter((node) => node.versions.includes(version))
+    .map((node) => ({
+      id: Number(node.id),
+      name: node.name,
+      x_position: node.x,
+      y_position: node.y,
+      node_type: (node.types ?? []).map(nodeType),
+    }));
 
   // The edge's index in the file is its id, exactly as the importer maps them
   // (`_create_edges` keys `edge_mapping` by index) — the lines address their
-  // edges that way.
-  const edges: Edge[] = raw.edges.map((edge, index) => {
-    const type = edge.type ?? "both";
-    return {
-      id: index,
-      name: edge.name ?? "",
-      start_node: Number(edge.start_node),
-      end_node: Number(edge.end_node),
-      biking: edge.biking ?? type !== "train",
-      bike_lane: edge.bike_lane ?? false,
-      walking: edge.walking ?? type !== "train",
-      max_lanes: edge.max_lanes ?? 1,
-      street_edge:
-        type === "street" || type === "both"
-          ? {
-              id: index,
-              speed_limit: edge.speed_limit ?? 50,
-              lanes: edge.lanes ?? 1,
-              dedicated_bus_lane: edge.dedicated_bus_lane ?? false,
-            }
-          : null,
-      train_edge: type === "train" || type === "both" ? { id: index } : null,
-    };
-  });
+  // edges that way, so the index is kept as the id and the version is a filter
+  // over the list rather than a renumbering of it.
+  const edges: Edge[] = raw.edges
+    .map((edge, index) => ({ edge, index }))
+    .filter(({ edge }) => edge.versions.includes(version))
+    .map(({ edge, index }) => {
+      // `"path"` is a link with neither a street nor a railway under it — a way
+      // for bikes and pedestrians. It needed its own name because the export
+      // used to write one as `"street"` and the importer invented a 50 km/h
+      // lane under it.
+      const type = edge.type ?? "both";
+      return {
+        id: index,
+        name: edge.name ?? "",
+        start_node: Number(edge.start_node),
+        end_node: Number(edge.end_node),
+        biking: edge.biking ?? type !== "train",
+        bike_lane: edge.bike_lane ?? false,
+        walking: edge.walking ?? type !== "train",
+        max_lanes: edge.max_lanes ?? 1,
+        street_edge:
+          type === "street" || type === "both"
+            ? {
+                id: index,
+                speed_limit: edge.speed_limit ?? 50,
+                lanes: edge.lanes ?? 1,
+                dedicated_bus_lane: edge.dedicated_bus_lane ?? false,
+              }
+            : null,
+        train_edge: type === "train" || type === "both" ? { id: index } : null,
+      };
+    });
 
-  const line = (raw_line: RawLine, id: number, type: "bus" | "train"): PTLine => ({
-    id,
-    name: raw_line.name,
-    type,
-    interval: raw_line.interval,
-    capacity: raw_line.capacity,
-    speed_kmh: raw_line.speed_kmh,
-    edges: raw_line.edges,
-    stops: nodeChain(
-      raw_line.edges.map(
-        (index) =>
-          [Number(raw.edges[index].start_node), Number(raw.edges[index].end_node)] as [
-            number,
-            number,
-          ],
+  /**
+   * The chain this version runs the line on, or none.
+   *
+   * A line can be in a version and still have no route in it — that is the
+   * shape of the damage S15 repaired, where a cloned street took a line's
+   * through-row with it and left the base version reaching none of its edges.
+   */
+  const chainFor = (line: RawLine): number[] | null =>
+    line.chains.find((chain) => chain.versions.includes(version))?.edges ?? null;
+
+  const line = (
+    raw_line: RawLine,
+    id: number,
+    type: "bus" | "train",
+  ): PTLine | null => {
+    const chain = chainFor(raw_line);
+    if (!chain) return null;
+    return {
+      id,
+      name: raw_line.name,
+      type,
+      interval: raw_line.interval,
+      capacity: raw_line.capacity,
+      speed_kmh: raw_line.speed_kmh,
+      edges: chain,
+      stops: nodeChain(
+        chain.map(
+          (index) =>
+            [
+              Number(raw.edges[index].start_node),
+              Number(raw.edges[index].end_node),
+            ] as [number, number],
+        ),
       ),
-    ),
-  });
+    };
+  };
+
+  const lines = (raws: RawLine[], offset: number, type: "bus" | "train") =>
+    raws
+      .map((raw_line, i) =>
+        raw_line.versions.includes(version)
+          ? line(raw_line, i + offset, type)
+          : null,
+      )
+      .filter((l): l is PTLine => l !== null);
 
   return {
     map_id: 1,
-    version_id: 1,
-    version_name: "Base",
+    version_id: version,
+    version_name: raw.versions[version].name,
     nodes,
     edges,
     node_count: nodes.length,
     edge_count: edges.length,
-    bus_lines: raw.bus_lines.map((l, i) => line(l, i + 1, "bus")),
-    train_lines: raw.train_lines.map((l, i) => line(l, i + 101, "train")),
+    bus_lines: lines(raw.bus_lines, 1, "bus"),
+    train_lines: lines(raw.train_lines, 101, "train"),
     scale: raw.scale,
   };
 }
 
 const raw = JSON.parse(readFileSync(MAP_FILE, "utf-8")) as RawMap;
-const graph = buildGraph(raw);
+
+/** The base version — the one a game starts on before the class votes. */
+const BASE = raw.versions.findIndex((v) => v.base_version) >= 0
+  ? raw.versions.findIndex((v) => v.base_version)
+  : 0;
+const graph = buildGraph(raw, BASE);
 
 /** The six `home` nodes and the six `workplace` nodes, by name. */
 const HOMES = Object.fromEntries(
@@ -237,4 +307,71 @@ describe("bus & bahn on Berlin Mitte-West", () => {
     const bus = graph.bus_lines.find((l) => lines.includes(l.id));
     expect(bus?.name).toBe("100");
   });
+});
+
+/**
+ * The same question, asked of every version the class can vote its way into.
+ *
+ * Until S16 the box's map had one version in the repo and the other seven only
+ * in a database, so this could not be asked at all — and the two bugs S15 fixed
+ * are exactly the ones it catches. A line's chain was not version-scoped, so
+ * drawing `Busspuren` moved buslinie `100` onto the cloned street in *every*
+ * version and left the base one reaching 0 of its 7 edges; and
+ * `GenerateCombinationsView` never copied `TrainLine`, so a generated
+ * combination had no rail at all.
+ *
+ * Both are the kind of damage a player meets as "keine Verbindung gefunden" on
+ * a map that looks right on screen. Per version, so a failure names the ballot
+ * option that broke rather than the map.
+ */
+describe("every version of the map keeps its public transport", () => {
+  const quiet: ReturnType<typeof vi.spyOn>[] = [];
+  beforeAll(() => {
+    quiet.push(vi.spyOn(console, "log").mockImplementation(() => {}));
+    quiet.push(vi.spyOn(console, "warn").mockImplementation(() => {}));
+  });
+  afterAll(() => quiet.forEach((spy) => spy.mockRestore()));
+
+  it("has the eight versions S16 put in the repo", () => {
+    expect(raw.versions.map((v) => v.name)).toEqual([
+      "Berlin Mitte-West - Base",
+      "Busspuren",
+      "Buslinie",
+      "Umgehungsstraßen",
+      "Buslinie + Umgehungsstraßen",
+      "Busspuren + Umgehungsstraßen",
+      "Buslinie + Busspuren",
+      "Buslinie + Busspuren + Umgehungsstraßen",
+    ]);
+  });
+
+  it.each(raw.versions.map((v, index) => [index, v.name] as const))(
+    "connects every home to every workplace in version %i (%s)",
+    async (version) => {
+      const versionGraph = buildGraph(raw, version);
+
+      // A line in the version must have a route in it. This is the assertion
+      // that fails on a chain the cloning moved somewhere else.
+      const routeless = [
+        ...versionGraph.bus_lines,
+        ...versionGraph.train_lines,
+      ].filter((line) => line.edges.length === 0);
+      expect(routeless.map((l) => l.name)).toEqual([]);
+
+      // And rail has to survive a generated combination, which is the second
+      // bug: `Buslinie + Busspuren` and friends were built without any.
+      expect(versionGraph.train_lines.length).toBeGreaterThan(0);
+
+      const failures: string[] = [];
+      for (const [home, from] of Object.entries(HOMES)) {
+        for (const [work, to] of Object.entries(WORKPLACES)) {
+          const result = await findPTRoute(versionGraph, from, to, {
+            scale: versionGraph.scale,
+          });
+          if (!result.success) failures.push(`${home} → ${work}: ${result.error}`);
+        }
+      }
+      expect(failures).toEqual([]);
+    },
+  );
 });
