@@ -550,9 +550,13 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                     street_edge = StreetEdge.objects.create(edge=edge)
                     street_edge.map_versions.add(base_version)
 
-                BusLineEdge.objects.create(
+                row = BusLineEdge.objects.create(
                     bus_line=bus_line, street_edge=street_edge, order=order
                 )
+                # The chain is version-scoped like everything else, and a file
+                # describes one version, so every link belongs to the base one.
+                # A row that named no version would be a link no reader finds.
+                row.map_versions.add(base_version)
 
     def _create_train_lines(
         self, game_map, base_version, train_lines_data, edges_data, edge_mapping
@@ -586,9 +590,10 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                     train_edge = TrainEdge.objects.create(edge=edge)
                     train_edge.map_versions.add(base_version)
 
-                TrainLineEdge.objects.create(
+                row = TrainLineEdge.objects.create(
                     train_line=train_line, train_edge=train_edge, order=order
                 )
+                row.map_versions.add(base_version)
 
 
 class MapListView(LoginRequiredMixin, UserPassesTestMixin, ListView):

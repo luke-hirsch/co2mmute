@@ -1500,7 +1500,7 @@ class SummaryNetworkFigureTests(SimulatedRoundMixin, TestCase):
             bus_line=self.bus_line,
             street_edge=self.edge.streetedge_set.first(),
             order=0,
-        )
+        ).map_versions.add(version)
 
     def _summary(self):
         self.client.force_login(self.host)
@@ -1857,7 +1857,7 @@ class RoundCompletedNetworkShareTests(SimulatedRoundMixin, TestCase):
             bus_line=self.bus_line,
             street_edge=self.edge.streetedge_set.first(),
             order=0,
-        )
+        ).map_versions.add(version)
 
     def test_the_round_says_what_the_timetable_costs_on_its_own(self):
         data = self.complete_round().data("round.completed")
@@ -1985,7 +1985,7 @@ class SummaryUnriddenFigureTests(SimulatedRoundMixin, TestCase):
             bus_line=bus_line,
             street_edge=self.edge.streetedge_set.first(),
             order=0,
-        )
+        ).map_versions.add(version)
 
     def _summary(self):
         self.client.force_login(self.host)

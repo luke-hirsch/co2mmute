@@ -145,7 +145,7 @@ class GraphSerializerPTTests(PTFixtureMixin, TestCase):
             train_edge.map_versions.add(self.version)
             TrainLineEdge.objects.create(
                 train_line=line, train_edge=train_edge, order=order
-            )
+            ).map_versions.add(self.version)
 
         payload = serialize_train_line_for_graph(line, self.version)
 
@@ -169,7 +169,7 @@ class GraphSerializerPTTests(PTFixtureMixin, TestCase):
             street_edge.map_versions.add(self.version)
             BusLineEdge.objects.create(
                 bus_line=line, street_edge=street_edge, order=order
-            )
+            ).map_versions.add(self.version)
 
         payload = serialize_bus_line_for_graph(line, self.version)
 

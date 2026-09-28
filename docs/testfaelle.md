@@ -221,6 +221,10 @@ nicht gemessen.
 | K-04 | Editor lädt | Graph erscheint, auf Deutsch, mit Legende | geht | - |
 | K-05 | Editor: Knoten und Kanten bearbeiten | speichert | geht | - |
 | K-06 | Editor: Version anlegen | taucht in der Abstimmung auf | ungeprüft | - |
+| K-17 | Version anlegen lässt die anderen Versionen ganz | eine Version über eine Straße zu zeichnen nimmt keiner anderen Version ihre Buslinie oder ihre Bahn: jede Version behält 136 Kanten und alle zehn Linien durchgehend (S15) | geht | - |
+| K-18 | Kombiversion | trägt beide Änderungen, alle sechs Bahnlinien und keine Straße doppelt (S15) | geht | - |
+| K-19 | Linie in einer Version geändert | die Version fährt über die geänderte Straße, die Ausgangsversion über die alte (S15) | geht | - |
+| K-20 | Export einer Version, deren Straße fehlt | lässt das Teilstück weg **und sagt welche Linie und welche Kante** — vorher still (S15) | geht | - |
 | K-07 | Karte importieren / exportieren | JSON rein und raus | geht | - |
 | K-09 | Export → Import derselben Karte | Bild, Maße und Platzierung kommen mit | ungeprüft | - |
 | K-13 | Export → Import: Linien | Plätze, Takt und Tempo jeder Linie kommen mit (S5) | geht | - |

@@ -764,3 +764,92 @@ class PTLinePortabilityTests(MapUploadMixin, TestCase):
         )
         self.assertEqual(bus.edges.count(), 1)
         self.assertEqual(train.edges.count(), 1)
+
+
+class PTChainExportTests(MapUploadMixin, TestCase):
+    """The export writes the chain of the version it is exporting, and says so.
+
+    This is where `map_examples/Berlin_Mitte-West.json` got its bus `100` with no
+    edges at all. The export writes a line's links as indices into the edge list
+    it has just built for one version, and a link whose street is missing from
+    that version has no index — so it was skipped without a word. Ten silent
+    drops read as a map author who never finished drawing the line, and S5 fixed
+    the file on that reading. The file was right about what it had been given.
+
+    So: the chain comes from the version's own through rows, and a link the file
+    cannot carry is a warning naming the line and the edge.
+    """
+
+    def upload_with_a_line(self, name):
+        payload = self.graph_payload()
+        payload["edges"].append(
+            {
+                "start_node": "2",
+                "end_node": "1",
+                "name": "Hauptstraße zurück",
+                "walking": True,
+            }
+        )
+        payload["bus_lines"] = [{"name": "100", "edges": [0, 1]}]
+        return self.upload(payload, name=name)
+
+    def export(self, game_map, version=None):
+        url = (
+            reverse("maps:map-export", kwargs={"pk": game_map.pk})
+            if version is None
+            else reverse(
+                "maps:map-export-version",
+                kwargs={"pk": game_map.pk, "version_pk": version.pk},
+            )
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        return response.json()
+
+    def test_a_healthy_line_exports_every_link_without_complaining(self):
+        game_map = self.upload_with_a_line("Linie ganz")
+
+        with self.assertNoLogs("maps.views_rest", level="WARNING"):
+            exported = self.export(game_map)
+
+        self.assertEqual(exported["bus_lines"][0]["edges"], [0, 1])
+
+    def test_a_link_the_version_cannot_hold_is_named_in_the_log(self):
+        """The damaged shape, built the only way it can now arise: by hand."""
+        game_map = self.upload_with_a_line("Linie mit Loch")
+        version = MapVersion.objects.get(game_map=game_map, base_version=True)
+        second = Edge.objects.get(game_map=game_map, name="Hauptstraße zurück")
+        second.map_versions.remove(version)
+
+        with self.assertLogs("maps.views_rest", level="WARNING") as captured:
+            exported = self.export(game_map)
+
+        self.assertEqual(exported["bus_lines"][0]["edges"], [0])
+        logged = " ".join(captured.output)
+        self.assertIn("100", logged)
+        self.assertIn(str(second.pk), logged)
+
+    def test_a_link_outside_the_version_is_not_exported_into_it(self):
+        """A row belonging to another version is not this version's chain.
+
+        Filtering the chain by the street edges the version happens to share
+        with the line gave the right answer only while every line had exactly one
+        chain for the whole map.
+        """
+        game_map = self.upload_with_a_line("Linie pro Version")
+        base = MapVersion.objects.get(game_map=game_map, base_version=True)
+        other = MapVersion.objects.create(game_map=game_map, name="Andere")
+        line = BusLine.objects.get(game_map=game_map)
+        line.map_versions.add(other)
+        for node in Node.objects.filter(game_map=game_map):
+            node.map_versions.add(other)
+        for edge in Edge.objects.filter(game_map=game_map):
+            edge.map_versions.add(other)
+        for row in line.buslineedge_set.all():
+            row.street_edge.map_versions.add(other)
+            row.map_versions.add(other)
+        # The second link runs on the other version only.
+        line.buslineedge_set.get(order=1).map_versions.remove(base)
+
+        self.assertEqual(self.export(game_map, base)["bus_lines"][0]["edges"], [0])
+        self.assertEqual(self.export(game_map, other)["bus_lines"][0]["edges"], [0, 1])

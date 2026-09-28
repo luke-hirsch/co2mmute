@@ -339,12 +339,17 @@ class TrafficSimulator:
         writes the base version), so it is the right filter for a real round;
         the base version is the fallback for a round built by hand or in a
         test, and an unversioned map falls through to every line on it.
+
+        The *chain* is filtered by the same version, not taken whole. A version
+        that changes a street clones it and runs the line over the clone, so the
+        unfiltered chain mixed the clone in with the original it replaced —
+        `_register_pt_line`'s `usable` trim then cut the line at the first link
+        that was not on this version's network, which is how a line with a
+        perfectly good chain came to strand its riders and keep dispatching, and
+        paying society CO2, to the end of the clock.
         """
-        from maps.models import (
-            BusLineEdge,
-            MapVersion,
-            TrainLineEdge,
-        )
+        from maps.models import MapVersion
+        from maps.versions import bus_chain_rows, train_chain_rows
 
         game_map = self.game_round.game.game_map
         if not game_map:
@@ -366,7 +371,7 @@ class TrafficSimulator:
             self.bus_line_intervals.setdefault(line.pk, line.intervall)
             edges = [
                 link.street_edge.edge
-                for link in BusLineEdge.objects.filter(bus_line=line).select_related(
+                for link in bus_chain_rows(line, version).select_related(
                     "street_edge__edge__start_node",
                     "street_edge__edge__end_node",
                 )
@@ -380,9 +385,7 @@ class TrafficSimulator:
             self.train_line_intervals.setdefault(line.pk, line.intervall)
             edges = [
                 link.train_edge.edge
-                for link in TrainLineEdge.objects.filter(
-                    train_line=line
-                ).select_related(
+                for link in train_chain_rows(line, version).select_related(
                     "train_edge__edge__start_node",
                     "train_edge__edge__end_node",
                 )
