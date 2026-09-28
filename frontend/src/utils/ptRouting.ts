@@ -23,7 +23,6 @@ import {
   buildAdjacencyList,
   canUseEdge,
   calculateDistance,
-  dijkstra,
 } from "./pathfinding";
 
 const WALK_SPEED_KMH = 5;
@@ -735,22 +734,16 @@ export async function findBestPTRoute(
 ): Promise<PTRoutingResult> {
   const ptResult = await findPTRoute(graph, startNodeId, endNodeId, options);
 
-  // Also get direct walking route for comparison
-  const walkResult = await dijkstra(graph, startNodeId, endNodeId, "walk", {
-    scale: options.scale,
-  });
-
-  // If no PT route could be found at all, report failure — do not silently
-  // fall back to walking (the player explicitly chose a PT mode).
+  // No PT route is reported as such — never a silent fall back to walking. The
+  // player chose a PT mode, so the honest answer is that this one has no
+  // connection, not a walk they did not ask for.
+  //
+  // This used to run a second, full walking Dijkstra over the whole graph
+  // purely to log whether walking would have been quicker, and then threw the
+  // result away. Every PT pick paid for it.
   if (!ptResult.success) {
     console.log(`[ptRouting] PT failed (${ptResult.error ?? "no route"}), reporting no path found`);
     return failResult(ptResult.error ?? "No public transport route found");
-  }
-
-  // If walking is faster than the PT route, still prefer PT — the player
-  // explicitly chose a PT mode, so we honour that choice.
-  if (walkResult.success && walkResult.estimatedTimeMin < ptResult.totalTimeMin) {
-    console.log(`[ptRouting] Walking (${walkResult.estimatedTimeMin.toFixed(1)}min) would be faster than PT (${ptResult.totalTimeMin.toFixed(1)}min), but PT was requested — returning PT route`);
   }
 
   return ptResult;

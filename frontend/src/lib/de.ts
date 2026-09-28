@@ -300,7 +300,27 @@ export const de = {
 
     routing: "Route wird gesucht …",
     noRoute: "Auf diesem Weg kommt der Fahrgast nicht ans Ziel. Nimm eine andere Linie.",
+    /**
+     * Too far is not the same answer as no connection, so it does not get the
+     * same sentence: one says take another line, this one says stop trying this
+     * mode. Naming the limit makes it a rule the class can argue with rather
+     * than the app being difficult.
+     */
+    tooFar: {
+      walk: (limit: string) =>
+        `Weiter als ${limit} — so weit geht niemand zu Fuß zur Arbeit.`,
+      bike: (limit: string) =>
+        `Weiter als ${limit} — so weit fährt niemand mit dem Rad zur Arbeit.`,
+    },
+    tooFarShort: "zu weit",
     routeAgain: "nochmal versuchen",
+
+    /**
+     * What you know before you choose anything: roughly how far away the place
+     * is. Until S6 the distance only appeared once a route had been found, so
+     * the number that should inform the decision was a consequence of it.
+     */
+    airDistance: (distance: string) => `Luftlinie ${distance}`,
     duration: (minutes: number) =>
       minutes < 60
         ? `${Math.round(minutes)} min`
@@ -334,6 +354,9 @@ export const de = {
 
     mapTitle: "Karte",
     mapHint: "Tippe einen Fahrgast an, um seine Route zu sehen.",
+    /** The overlay drawn from the last round's measured speeds. */
+    jamHint:
+      "Je dicker die Straße, desto langsamer war sie in der letzten Runde. „Schnellste“ rechnet damit.",
     noAssignment:
       "Für diesen Platz sind keine Fahrgäste hinterlegt. Die Spielleitung muss das Spiel neu anlegen.",
   },

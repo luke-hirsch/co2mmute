@@ -19,6 +19,7 @@ import {
   initialRoundDraft,
   roundDraftReducer,
 } from "@/lib/game/round-draft";
+import { airDistanceM, exceedsModeLimit } from "@/lib/map/trip-limits";
 import { useMapGraph } from "@/lib/queries/map-graph";
 import { useSeatGame } from "@/lib/queries/seat";
 import { findPath } from "@/utils/pathfinding";
@@ -32,6 +33,15 @@ import type {
   RouteSegment,
   TransportMode,
 } from "@/types/routeTypes";
+
+/** What the straight line says about one passenger, before a mode is picked. */
+export type AgentDistance = {
+  agentId: number;
+  /** Home → destination as the crow flies, in metres. */
+  airM: number;
+  /** Modes the straight line already rules out. A lower bound, so it is sound. */
+  tooFar: TransportMode[];
+};
 
 export function useRoundDraft({
   gameId,
@@ -58,6 +68,10 @@ export function useRoundDraft({
   const graph = useMapGraph(
     seat.data?.game_map,
     mapVersionId ?? seat.data?.active_map_version,
+    // Last round's observed speeds ride along with the graph, so "schnellste"
+    // is computed on a network that has already been driven. The round is in
+    // the key, not the URL — see `map-graph.ts`.
+    { gameId, roundNumber },
   );
   const [draft, dispatch] = useReducer(
     roundDraftReducer,
@@ -97,6 +111,43 @@ export function useRoundDraft({
     };
   }, [graph.data]);
 
+  /**
+   * How far each passenger is going, before anything is chosen.
+   *
+   * The straight line is what real life hands you: you know roughly how far the
+   * place is and nothing about the route. Until now the distance only appeared
+   * *after* a mode had been picked and a route found, so the one number that
+   * should inform the choice arrived as a consequence of it.
+   *
+   * It also gates the picker. The straight line is a lower bound on any route,
+   * so a mode it already rules out could never have worked — the gate is sound,
+   * and the routed distance in `findPath` catches the rest. On Berlin Mitte-West
+   * that is 14 of the 33 walks the cap refuses; the other 19 only fail once the
+   * detour is known, because the detour factor runs as high as 2.76.
+   */
+  const distances = useMemo(() => {
+    const byAgent = new Map<number, AgentDistance>();
+    if (!extended || draft.homeNode === null) return byAgent;
+
+    const nodes = new Map(extended.nodes.map((node) => [node.id, node]));
+    const home = nodes.get(draft.homeNode);
+    if (!home) return byAgent;
+
+    for (const agent of draft.agents) {
+      const destination = nodes.get(agent.destinationNode);
+      if (!destination) continue;
+      const airM = airDistanceM(home, destination, extended.scale);
+      byAgent.set(agent.agentId, {
+        agentId: agent.agentId,
+        airM,
+        tooFar: (["walk", "bike"] as TransportMode[]).filter((mode) =>
+          exceedsModeLimit(mode, airM),
+        ),
+      });
+    }
+    return byAgent;
+  }, [draft.agents, draft.homeNode, extended]);
+
   const findRoute = useCallback(
     async (agentId: number) => {
       const agent = draft.agents.find((a) => a.agentId === agentId);
@@ -117,6 +168,9 @@ export function useRoundDraft({
             : await findPath(extended, home, agent.destinationNode, agent.mode, {
                 optimization: agent.carOptimization,
                 scale: extended.scale,
+                // Only "schnellste" reads it — the other two optimise for
+                // quantities a jam does not change.
+                trafficData: extended.previous_round_traffic,
               });
 
         if (runs.current.get(agentId) !== token) return;
@@ -201,6 +255,8 @@ export function useRoundDraft({
   return {
     draft,
     graph: extended,
+    /** Straight-line distance per passenger, and what it already rules out. */
+    distances,
     /** The assignment or the map is still in flight; the turn cannot be drawn yet. */
     isLoading: seat.isLoading || graph.isLoading,
     error: seat.error ?? graph.error ?? null,
