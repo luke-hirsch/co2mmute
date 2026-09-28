@@ -69,7 +69,7 @@ const MapDetail = () => {
               }}
               className="inline-block px-4 py-2 text-sm bg-emerald-600 text-white rounded-md hover:bg-emerald-700"
             >
-              Export JSON
+              {de.editor.exportMap}
             </button>
             <button
               onClick={async () => {

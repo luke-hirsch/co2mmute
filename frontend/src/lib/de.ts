@@ -921,6 +921,12 @@ export const de = {
     manage: "Verwalten",
     editMap: "Karte bearbeiten",
     deleteMap: "Karte löschen",
+    /**
+     * The backup button. It writes the *whole* map — every version, the
+     * ballot between them and both poll texts — since S14, and it is the only
+     * way a map moves between boxes.
+     */
+    exportMap: "Karte sichern (JSON)",
     emptyMap: "Leere Karte — leg im Graph-Modus Knoten und Kanten an.",
     pickHint: "Klick einen Knoten oder eine Kante an, um sie zu bearbeiten.",
     versionStep1: "Schritt 1: Angaben zur Version",
