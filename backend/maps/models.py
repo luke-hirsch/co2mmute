@@ -269,13 +269,27 @@ class BusLine(models.Model):
 
 
 class BusLineEdge(models.Model):
+    """One link of a bus line's chain, in the versions that run it.
+
+    The chain is version-scoped like every other element of the graph, because
+    a version that changes a street clones it and the line has to run over the
+    clone *there* while the other versions keep running over the original. Two
+    rows of the same line therefore legitimately share an `order` — one per
+    version — which is why there is no `unique_together` on it any more; a
+    reader filters by version first and gets one row per order back.
+
+    A row that names no version is in no version. The only paths that create
+    one are the importer, the two line endpoints and the version builders, and
+    each of them says which versions the row belongs to.
+    """
+
     bus_line = models.ForeignKey(BusLine, on_delete=models.CASCADE)
     street_edge = models.ForeignKey(StreetEdge, on_delete=models.CASCADE)
+    map_versions = models.ManyToManyField(MapVersion)
     order = models.PositiveIntegerField()
 
     class Meta:
         ordering = ("order",)
-        unique_together = ("bus_line", "order")
 
 
 class TrainEdge(models.Model):
@@ -308,10 +322,17 @@ class TrainLine(models.Model):
 
 
 class TrainLineEdge(models.Model):
+    """One link of a train line's chain, in the versions that run it.
+
+    Same shape and the same reason as `BusLineEdge` — and it is not only the
+    bus lines that need it: a `"type": "both"` edge carries a rail alignment
+    too, so a version drawn over a street moved `U2`'s chain as well.
+    """
+
     train_line = models.ForeignKey(TrainLine, on_delete=models.CASCADE)
     train_edge = models.ForeignKey(TrainEdge, on_delete=models.CASCADE)
+    map_versions = models.ManyToManyField(MapVersion)
     order = models.PositiveIntegerField()
 
     class Meta:
         ordering = ("order",)
-        unique_together = ("train_line", "order")
