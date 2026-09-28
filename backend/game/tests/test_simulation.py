@@ -202,7 +202,7 @@ class PTLineSpeedLoadingTests(TestCase):
         self.bus_line.map_versions.add(self.map_version)
         BusLineEdge.objects.create(
             bus_line=self.bus_line, street_edge=self.street_edge, order=0
-        )
+        ).map_versions.add(self.map_version)
 
         # Create TrainEdge
         self.train_edge = TrainEdge.objects.create(
@@ -220,7 +220,7 @@ class PTLineSpeedLoadingTests(TestCase):
         self.train_line.map_versions.add(self.map_version)
         TrainLineEdge.objects.create(
             train_line=self.train_line, train_edge=self.train_edge, order=0
-        )
+        ).map_versions.add(self.map_version)
 
         # Create GameSession
         self.game_session = GameSession.objects.create(
@@ -2132,7 +2132,7 @@ class PTScenarioMixin:
                 bus_line=bus_line,
                 street_edge=edge.streetedge_set.first(),
                 order=order,
-            )
+            ).map_versions.add(version)
 
         train_edges = []
         for edge in edges:
@@ -2149,7 +2149,7 @@ class PTScenarioMixin:
         for order, train_edge in enumerate(train_edges):
             TrainLineEdge.objects.create(
                 train_line=train_line, train_edge=train_edge, order=order
-            )
+            ).map_versions.add(version)
 
         return game_map, version, edges, bus_line, train_line
 
@@ -2213,6 +2213,47 @@ class PTLineRegistryTests(PTScenarioMixin, TestCase):
 
         self.assertIn(("bus", bus_line.pk), simulator.pt_lines)
         self.assertIn(("train", train_line.pk), simulator.pt_lines)
+
+    def test_the_round_loads_the_chain_of_the_version_it_runs_on(self):
+        """A line's route is per version, so the timetable has to ask which one.
+
+        The registry used to take the whole chain and let `_register_pt_line`
+        trim it to whatever was on this version's network. With the chain shared
+        between versions that meant a link this version had replaced sat in the
+        middle of the list, the trim cut the line there, and the riders past the
+        cut were stranded — which keeps the line dispatching and paying society
+        CO2 to the end of the clock. Two versions of one line, two lengths, and
+        a round that names its version gets its own.
+        """
+        from maps.models import MapVersion, StreetEdge
+
+        game_map, version, edges, bus_line, _ = self._pt_map()
+        short = MapVersion.objects.create(game_map=game_map, name="Kurzfahrt")
+        for element in (
+            *edges,
+            *[node for edge in edges for node in (edge.start_node, edge.end_node)],
+        ):
+            element.map_versions.add(short)
+        for se in StreetEdge.objects.filter(edge__in=edges):
+            se.map_versions.add(short)
+        bus_line.map_versions.add(short)
+        rows = list(bus_line.buslineedge_set.order_by("order"))
+        for row in rows:
+            row.map_versions.add(short)
+        rows[-1].map_versions.remove(short)  # the short version stops one early
+
+        for active, expected_km in ((version, 2.0), (short, 1.0)):
+            with self.subTest(version=active.name):
+                session = self._pt_session(game_map, active)
+                game_round = GameRound.objects.create(game=session, round_number=1)
+
+                simulator = TrafficSimulator(game_round, scale=100.0)
+
+                self.assertAlmostEqual(
+                    simulator.pt_lines[("bus", bus_line.pk)].line_km,
+                    expected_km,
+                    places=6,
+                )
 
     def test_line_km_is_the_geometry_times_the_scale(self):
         game_map, version, edges, bus_line, _ = self._pt_map()
@@ -2710,7 +2751,7 @@ class PTBoardingScenarioMixin(PTScenarioMixin):
                 bus_line=bus_line,
                 street_edge=edge.streetedge_set.first(),
                 order=order,
-            )
+            ).map_versions.add(version)
         return game_map, version, edges, bus_line, nodes
 
     def _broken_line_round(self, people=1000):
