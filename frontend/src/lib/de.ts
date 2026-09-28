@@ -250,6 +250,33 @@ export const de = {
     resumed: "Weiter geht's.",
   },
 
+  /** S8: the chat, rebuilt against `ChatConsumer` after F5 deleted the old one. */
+  chat: {
+    title: "Chat",
+    /** On the button that opens the panel, and as the panel's own heading. */
+    open: "Chat öffnen",
+    close: "Chat schließen",
+    empty: "Noch nichts geschrieben.",
+    /** The host switched it off; there is nothing to open. */
+    disabled: "Die Spielleitung hat den Chat ausgeschaltet.",
+    placeholder: "Schreib etwas …",
+    send: "Senden",
+    /** While the socket is down the composer stays, the send does not. */
+    offline: "Keine Verbindung zum Chat. Wird neu aufgebaut …",
+    /** Beside the transcript, so nobody expects it back tomorrow. */
+    retention: "Nachrichten verschwinden nach zwei Stunden.",
+    unread: (count: number) => (count === 1 ? "1 neue" : `${count} neue`),
+    errors: {
+      /** `ChatConsumer.CHAT_MESSAGE_MAX_LENGTH` is 500. */
+      tooLong: "Das ist zu lang. Höchstens 500 Zeichen.",
+      /** This device sent two messages inside 0,35 s. */
+      tooFast: "Nicht so schnell — kurz warten.",
+      /** The whole game is over 10 messages a second. */
+      roomTooFast: "Gerade schreiben alle gleichzeitig. Versuch es gleich noch mal.",
+      unknown: "Die Nachricht ist nicht angekommen.",
+    },
+  },
+
   /** Game ids and the 1.7 seat-handover code. Both are read off a projector. */
   code: {
     boarding: "Einsteigen",

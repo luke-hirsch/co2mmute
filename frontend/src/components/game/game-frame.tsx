@@ -1,6 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
+import { ChatDock } from "@/components/chat/chat-dock";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { PauseBanner } from "@/components/metro/pause-banner";
@@ -88,7 +89,19 @@ export function GameFrame({ children }: { children: ReactNode }) {
         </div>
       ) : null}
 
-      {children}
+      {/* The dock is fixed, so without this the bottom of every game screen
+          ends underneath it — on a 390px phone the round's "Losfahren" and the
+          chat button share the last 60 pixels. Reserved here rather than on
+          each screen, because the dock belongs to the frame and any screen
+          added later would otherwise have to remember. */}
+      <div className={state.chatEnabled ? "pb-24" : undefined}>{children}</div>
+
+      {/* Mounted here and nowhere else, which is what keeps the chat to one
+          socket: every screen in a game — lobby, round, the four between-round
+          phases, the summary — sits inside this frame, so the connection and
+          the transcript survive every screen change (R-13, C-05). It renders
+          nothing when the host switched the chat off. */}
+      <ChatDock />
 
       {/* Reconnecting is normal on a school wifi and not worth an alert. It is
           worth saying, because everything on screen stops moving while it
