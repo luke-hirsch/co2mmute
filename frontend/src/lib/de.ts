@@ -1140,4 +1140,78 @@ export const de = {
       carSpeed: "Tempo mit dem Auto (km/h)",
     },
   },
+
+  /**
+   * Spiel anlegen. S13 — the last funnel screen that wanted JavaScript.
+   *
+   * It was a Django ModelForm, which derived the two calibrated numbers once
+   * per page load: a host who changed the Platzzahl had to pull both across by
+   * hand. Here they follow the class size, the round count and the chosen map
+   * as it is typed.
+   *
+   * The help texts are the form's, kept almost word for word — they are the
+   * only place the game explains what a Fahrgast stands for before a round has
+   * been played, and the explain-the-numbers overlay is not this screen.
+   */
+  create: {
+    title: "Spiel anlegen",
+    lead: "Stell das Spiel ein. Die beiden gerechneten Zahlen passen sich an, du kannst sie aber überschreiben.",
+
+    name: "Name des Spiels",
+    namePlaceholder: "z. B. Klasse 8b, Dienstag",
+    password: "Passwort für die Lobby",
+    passwordHelp: "Optional – ohne Passwort kommt jeder in die Lobby.",
+    passwordPlaceholder: "z. B. ECO-42",
+
+    map: "Karte",
+    mapLoading: "Karten werden geladen …",
+    mapNone: "Es gibt noch keine Karte. Ohne Karte lässt sich kein Spiel anlegen.",
+    mapFailed: "Die Karten ließen sich nicht laden. Lad die Seite neu.",
+    /**
+     * A map with one version removes the discussion and the vote from the whole
+     * game — `_advance_from_stats` is "discussion if there is a ballot, else the
+     * next round". This select is the last place a host can change their mind.
+     */
+    mapNoChanges:
+      "Diese Karte hat nur eine Version. Es gibt also nichts abzustimmen, und die Diskussion zwischen den Runden fällt weg.",
+
+    mapUpdates: "Kartenänderungen zulassen",
+    mapUpdatesHelp:
+      "Nach jeder Runde stimmt die Klasse über eine Änderung an der Karte ab.",
+
+    classSize: "Klasse",
+    maxPlayers: "Plätze insgesamt",
+    maxPlayersHelp: "So viele Plätze hat das Spiel insgesamt.",
+    agentPerPlayer: "Fahrgäste pro Person",
+    agentPerPlayerHelp: "So viele Fahrgäste bekommt jede Person zu Beginn.",
+
+    game: "Spielverlauf",
+    maxRounds: "Runden",
+    maxRoundsHelp: "So viele Runden werden gefahren, wenn das Budget reicht.",
+    idleEndDays: "Ende nach Tagen ohne Spiel",
+    idleEndDaysHelp:
+      "Ein Spiel, das so lange niemand spielt, endet von selbst – angehalten oder nicht. Einen Tag später werden die Spielernamen entfernt.",
+
+    derived: "Gerechnet",
+    derivedLead:
+      "Beide Zahlen kommen aus der Karte und der Klassengröße. Du kannst sie überschreiben.",
+    co2Budget: "CO₂-Budget (kg)",
+    peoplePerAgent: "Menschen pro Fahrgast",
+    /** Parameterised, because the sentence has to name the map's own figures. */
+    co2BudgetHelp: (perRound: number, rounds: number) =>
+      `${perRound.toLocaleString("de-DE")} kg pro Runde × ${rounds} ${
+        rounds === 1 ? "Runde" : "Runden"
+      }. Ist das Budget aufgebraucht, ist das Spiel vorbei – genug, wenn die Klasse umsteigt, zu wenig, wenn alle fahren.`,
+    peoplePerAgentHelp: (commuters: number, agents: number) =>
+      `${commuters.toLocaleString("de-DE")} Pendler auf ${agents} ${
+        agents === 1 ? "Fahrgast" : "Fahrgäste"
+      } verteilt. Bei weniger Plätzen steht ein Fahrgast für mehr Menschen, damit auf der Karte gleich viel Verkehr ist.`,
+    /** Shown once either number no longer matches what the map would suggest. */
+    overridden: "Von dir überschrieben.",
+    reset: "Vorschlag übernehmen",
+
+    submit: "Spiel anlegen",
+    submitting: "Wird angelegt …",
+    failed: "Das Spiel ließ sich nicht anlegen. Versuch es nochmal.",
+  },
 };

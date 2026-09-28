@@ -202,7 +202,10 @@ nicht gemessen.
 | H-10 | Pause-Knopf | beim Host, wirkt überall | geht | - |
 | H-11 | Host beendet aus der Lobby | geht auch bei einem Spiel ohne Karte, Grund `host` | geht | - |
 | H-12 | Spiel anlegen: CO₂-Budget und Menschen pro Fahrgast (S2) | vorgeschlagen werden 48.000 kg und 100, nicht 500 und 1000 | geht | `e2e/host.spec.ts` |
-| H-13 | Spiel anlegen mit weniger Plätzen | Vorschlag folgt der Klassengröße erst nach dem React-Port; von Hand überschreibbar | offen | - |
+| H-13 | Spiel anlegen mit weniger Plätzen | Vorschlag folgt der Klassengröße sofort: 8 Plätze → 200 Menschen pro Fahrgast, 3 Runden → 24.000 kg | geht | `e2e/host.spec.ts` |
+| H-14 | Vorschlag überschreiben | eigene Zahl bleibt stehen, auch wenn sich die Klassengröße danach ändert; „Vorschlag übernehmen" holt sie zurück | geht | `e2e/host.spec.ts` |
+| H-15 | Karte ohne Abstimmung auswählen | die Auswahl sagt, dass es auf dieser Karte nichts abzustimmen gibt | geht | - |
+| H-16 | `/game/create/` aufrufen | leitet in die SPA weiter; ohne Login erst zum Login | geht | `e2e/host.spec.ts` |
 
 ## C — chat
 

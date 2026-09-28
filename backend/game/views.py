@@ -4,63 +4,38 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
-from django.views.generic import CreateView, TemplateView
+from django.views.generic import CreateView, RedirectView, TemplateView
 
-from .cache import cache_game_session, get_cached_game_session
-from .forms import GameSessionCreateForm, JoinSessionForm, PlayerCreateForm
+from .cache import get_cached_game_session
+from .forms import JoinSessionForm, PlayerCreateForm
 from .mixins import GameAccessCookieMixin, PlayerCookieMixin
 from .models import GameSession, Player
 
 logger = logging.getLogger(__name__)
 
 
-class GameSessionCreateView(
-    GameAccessCookieMixin, PlayerCookieMixin, LoginRequiredMixin, CreateView
-):
-    template_name = "game/create_session.html"
-    form_class = GameSessionCreateForm
-    model = GameSession
-    object: GameSession | None
+class GameSessionCreateView(LoginRequiredMixin, RedirectView):
+    """`/game/create/` is now a doorway into the SPA. S13.
 
-    def form_valid(self, form):
-        form.instance.game_host = self.request.user
-        response = super().form_valid(form)
-        cache_game_session(form.instance)
+    The form itself is `frontend/src/routes/game/create.tsx`, because the two
+    calibrated numbers it offers have to follow the class size as the host
+    types it — `people_per_agent` divides the map's commuters between the
+    Fahrgäste, so changing the seats changes it. Server-rendered, that
+    derivation happened once per GET and a host who changed the Platzzahl had
+    to pull both numbers across by hand (`docs/testfaelle.md` H-13).
 
-        # Create a player record for the game host automatically
-        user = self.request.user
-        host_name = "Host"
-        if hasattr(user, "get_full_name"):
-            full_name = user.get_full_name()  # type: ignore
-            if full_name.strip():
-                host_name = f"{full_name} (Host)"
+    The URL stays because everything points at it: the landing page twice, the
+    footer, the profile page, the end-of-game screen and six e2e specs. A
+    redirect keeps every one of them working and leaves exactly one screen.
 
-        host_player, _created = Player.objects.get_or_create(
-            game=form.instance,
-            user=self.request.user,
-            defaults={"name": host_name},
-        )
+    `LoginRequiredMixin` stays too, and it is the reason this is a Django view
+    rather than an nginx rule: an anonymous visitor belongs on the login page,
+    not on a React screen that would bounce them there a second later.
+    """
 
-        # Ensure player_id is generated
-        if not host_player.player_id:
-            host_player.refresh_from_db()
-
-        # Set both game and player cookies for the host
-        response = self.set_game_access_cookie(
-            self.request, response, form.instance.game_id
-        )
-        player_id = host_player.player_id
-        if player_id:
-            response = self.set_player_cookie(
-                self.request, response, form.instance.game_id, player_id
-            )
-        return response
-
-    def get_success_url(self):
-        if self.object:
-            return f"/app/game/{self.object.game_id}/"
-        logger.error("Game session object is None after creation.")
-        raise ValueError("Game session not found after creation.")
+    pattern_name = None
+    url = "/app/game/create"
+    permanent = False
 
 
 class ShareSessionView(LoginRequiredMixin, TemplateView):

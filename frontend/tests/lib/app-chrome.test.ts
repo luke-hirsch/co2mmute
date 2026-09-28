@@ -27,6 +27,16 @@ describe("which screens carry the app header", () => {
     expect(showsAppChrome("/styleguide")).toBe(true);
   });
 
+  /**
+   * `/game/create` sits under a full-bleed prefix and is not a game: it runs
+   * before any game exists, and both header links — the landing page and the
+   * profile — are what a host who opened it by accident needs.
+   */
+  it("shows it on the create screen, which is the funnel", () => {
+    expect(showsAppChrome("/game/create")).toBe(true);
+    expect(showsAppChrome("/game/create/")).toBe(true);
+  });
+
   it("keeps it off a game screen, which is the whole viewport", () => {
     expect(showsAppChrome("/game/ABC123")).toBe(false);
     expect(showsAppChrome("/game/ABC123/")).toBe(false);

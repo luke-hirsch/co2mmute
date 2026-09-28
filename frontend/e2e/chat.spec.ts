@@ -1,5 +1,6 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
+import { createGame } from "./game";
 import { loginAsHost } from "./host";
 
 /**
@@ -34,7 +35,7 @@ test("a message reaches the other device, and survives a reload", async ({
   page.on("pageerror", (error) => errors.push(error.message));
 
   await loginAsHost(page);
-  const gameId = await createGame(page);
+  const gameId = await createGame(page, { name: "E2E Chat", agentPerPlayer: 1 });
 
   let playerContext: BrowserContext | null = null;
 
@@ -126,7 +127,7 @@ test("the rate limit says so in German", async ({ page, baseURL }) => {
   // fast as a script can type them trip it. The backend answers "Slow down";
   // what the class must not see is that sentence.
   await loginAsHost(page);
-  const gameId = await createGame(page);
+  const gameId = await createGame(page, { name: "E2E Chat", agentPerPlayer: 1 });
 
   try {
     await page.getByRole("button", { name: "Chat" }).click();
@@ -161,7 +162,7 @@ test("no chat is offered when the chat is switched off", async ({
   baseURL,
 }) => {
   await loginAsHost(page);
-  const gameId = await createGame(page);
+  const gameId = await createGame(page, { name: "E2E Chat", agentPerPlayer: 1 });
 
   try {
     await expect(page.getByRole("button", { name: "Chat" })).toBeVisible();
@@ -191,7 +192,7 @@ test("the chat is reachable while the round is being played", async ({
   baseURL,
 }) => {
   await loginAsHost(page);
-  const gameId = await createGame(page);
+  const gameId = await createGame(page, { name: "E2E Chat", agentPerPlayer: 1 });
 
   try {
     await page.getByRole("button", { name: "Platz anlegen" }).click();
@@ -245,25 +246,6 @@ async function send(page: Page, text: string) {
   await panel.getByRole("button", { name: "Senden" }).click();
 }
 
-/** Create a game on the seeded map and return its id. */
-async function createGame(page: Page): Promise<string> {
-  await page.goto("/game/create/");
-  await page.locator('input[name="game_name"]').fill("E2E Chat");
-  const maps = page.locator('select[name="game_map"]');
-  await maps.selectOption(
-    (await maps.locator("option").nth(1).getAttribute("value"))!,
-  );
-  await page.locator('input[name="max_players"]').fill("2");
-  await page.locator('input[name="agent_per_player"]').fill("1");
-  await page.locator('input[name="max_rounds"]').fill("2");
-
-  await page.locator('form button[type="submit"]').first().click();
-  await page.waitForURL(/\/app\/game\/[^/]+\/?$/);
-
-  const gameId = new URL(page.url()).pathname.split("/").filter(Boolean).pop();
-  expect(gameId).toBeTruthy();
-  return gameId!;
-}
 
 /**
  * Join as a student: no account, a screen name, two signed cookies.

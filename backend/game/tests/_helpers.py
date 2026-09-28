@@ -114,29 +114,42 @@ def create_game_map(name="Test Map"):
     return GameMap.objects.create(name=name)
 
 
-def create_form_data(**overrides):
-    """A valid POST body for GameSessionCreateView (game/create/).
+def create_api_body(**overrides):
+    """A valid body for `POST api/game/` — the endpoint behind the create screen.
 
     A map is created and selected unless the caller names one: "valid" has to
-    include a map, or the game cannot be started. Pass `game_map=""` explicitly
-    to build the invalid body on purpose.
+    include a map, or the game cannot be started. Pass `game_map=None`
+    explicitly to build the invalid body on purpose.
+
+    It used to be `create_form_data`, a Django form POST. S13 put the screen in
+    React, so the body is JSON and the numbers are numbers.
     """
     data = {
         "game_name": "Neues Spiel",
         "game_password": "",
-        "game_map": "",
+        "game_map": None,
         "max_players": 4,
         "agent_per_player": 1,
         "max_rounds": 3,
         "max_CO2_level": 100,
         "people_per_agent": 1000,
         "idle_end_days": 30,
-        "lobby_open": "",
     }
     if "game_map" not in overrides:
         data["game_map"] = create_game_map().pk
     data.update(overrides)
     return data
+
+
+def post_create(client, **overrides):
+    """`POST api/game/` as JSON, the way the create screen sends it."""
+    import json
+
+    return client.post(
+        "/api/game/",
+        json.dumps(create_api_body(**overrides)),
+        content_type="application/json",
+    )
 
 
 class GroupListener:

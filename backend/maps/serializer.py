@@ -68,6 +68,7 @@ class MapVersionsMixin:
 
 class GameMapSerializer(serializers.ModelSerializer):
     background_image_url = serializers.SerializerMethodField()
+    offers_map_changes = serializers.SerializerMethodField()
 
     class Meta:
         model = mm.GameMap
@@ -88,6 +89,7 @@ class GameMapSerializer(serializers.ModelSerializer):
             "updated",
             "updated_by",
             "background_image_url",
+            "offers_map_changes",
             "image_offset_x",
             "image_offset_y",
             "image_scale",
@@ -96,7 +98,30 @@ class GameMapSerializer(serializers.ModelSerializer):
             "image_crop_bottom",
             "image_crop_left",
         )
-        read_only_fields = ("id", "created", "updated", "background_image_url")
+        read_only_fields = (
+            "id",
+            "created",
+            "updated",
+            "background_image_url",
+            "offers_map_changes",
+        )
+
+    def get_offers_map_changes(self, obj) -> bool:
+        """Whether a game on this map can ever reach a ballot.
+
+        On the select in the create screen, and for the same reason the Django
+        form's `MapChoiceField` put it in the option label: a map whose base
+        version reaches no compatible version removes the discussion and the
+        vote from the whole game silently — `_advance_from_stats` is
+        "discussion if there is a ballot, else the next round". The map select
+        is the last place a host can still change their mind, so it is where
+        the warning belongs.
+
+        One query per map. The list is a handful of rows on a page a host opens
+        once, and the alternative — an `Exists` over a symmetric M2M reached
+        through the base version — is not worth reading.
+        """
+        return obj.offers_map_changes()
 
     def get_background_image_url(self, obj):
         if obj.background_image:
