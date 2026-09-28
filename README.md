@@ -1,291 +1,349 @@
 # CO2MMUTE
 
-A game to simulate different means of transportation and their impact to transportation infrastructure and CO2 Emissions based on the master thesis of Sebastian Werblinski.
+Ein Verkehrsspiel für den Unterricht — a classroom traffic game.
+Live unter [co2mmute.stsds.tu-berlin.de](https://co2mmute.stsds.tu-berlin.de/).
 
-# Work in Progress
+**[Deutsch](#deutsch) · [English](#english)**
 
-## Noch zu implementieren
+---
 
-- Game Engine
-  - Dijkstra Frontend
-  - Dijkstra Backend
-  - Zeitberechnung
-  - Emissionsberechnung
-  - Geldberechnung (?)
-  - game/views.py: post game view.
-- Maps
-  - map mit background
-  -
-- Code kommentieren
-- Api Docs
-- dark light modus switch
-- Idee: anklicken zeigt interval der public transport
-- Legende fehlt
+## Deutsch
 
-## Bugs
+co2mmute ist ein browserbasiertes Mehrspieler-Verkehrsspiel: eine Klasse pendelt gemeinsam über
+eine Stadtkarte, wählt pro Runde Verkehrsmittel und Routen, und der Server simuliert, was daraus
+wird — CO₂, Kosten, Fahrzeit. Zwischen den Runden stimmt die Klasse über eine Änderung an der Karte
+ab, eine Busspur oder eine neue Linie, und fährt die nächste Runde darauf. Grundlage ist der
+technische Teil der Masterarbeit von **Sebastian Werblinski** über agentenbasierte Pendlermodelle
+an der TU Berlin (`master_thesis.pdf`); der Code hier ist eine vollständige Neuentwicklung danach.
+Gerechnet wird mit einem Link-Queue-Modell, mesoskopisch, dieselbe Familie wie MATSim.
 
-- kritisch
-  - ✅ spieler koennen sich noch einloggen, wenn spiel schon gestartet ist
-  - Spiel wartet nicht auf eingaben aller User (Ein user kann mehrere Runden spielen ohne die anderen)
-  - Spiel endet nur nach CO2 Limit und nicht nach Runden
-- geht so
-  - ✅ chat enabled nur pausiert, aber wenn wieder aktiviert, gehen alle nachrichten durch
-  - Wenn Spieler das Spiel verlässt muss er aus der Liste verschwinden
-    - Aus redis rausnehmen?
-- nicht wichtig
-  - jwt geht nicht
-  - chat fenster hoizontal scroll
-  - messages an falscher stelle
-  - Karte über Bildrand (abgeschnitten)
-  - Man sieht gar nicht die Buttons für die Auswahlmöglichkeiten
-  - Evtl Füllbalken vertikal an der Seite
-  - Game Name in eine Zeile mit Logo und Game ID
-  - Chat evtl. zu Game Stats? Dann Buttons rechts?
-  - Edges lassen sich nicht anklicken
-  - logout dark mode nicht lesbar
+**Stack:** Django 5.2 + DRF auf Daphne (ASGI), Channels, Celery, Postgres 18, Redis; React 19 +
+Vite + TypeScript als SPA. Wie gespielt wird: [`docs/de-ueberblick.md`](docs/de-ueberblick.md).
 
-# Game Concept
+### Was wo liegt
 
-## Spielanleitung
+| Pfad                | Inhalt                                                            |
+| ------------------- | ----------------------------------------------------------------- |
+| `backend/co2mmute/` | Django-Konfiguration — Settings, URLs, ASGI, Celery                |
+| `backend/game/`     | Sitzungen, Spieler, Runden, Spielzüge, Abstimmungen, Websockets    |
+| `backend/sim/`      | die Verkehrssimulation als reines Python-Paket, ohne Django        |
+| `backend/maps/`     | Kartengraph, Versionierung, REST-API des Karteneditors             |
+| `backend/content/`  | kleines CMS für die öffentlichen Seiten                            |
+| `backend/template/` | Django-Templates — Landing, Lobby, Beitritt, Rechtstexte, Login    |
+| `frontend/`         | die SPA — Spielbildschirm, Hostseiten, Karteneditor                |
+| `devops/`           | `dev.sh`, docker-compose, nginx                                    |
+| `map_examples/`     | die gespielte Karte als JSON — Berlin Mitte-West, acht Versionen   |
+| `docs/`             | Dokumentation                                                      |
+| `.github/`          | CI und das Deployment                                              |
 
-### Spielvorbereitung
+Es ist ein Hybrid, kein reines SPA: Landing Page, Beitritt, Rechtstexte, Login und Admin sind
+servergerenderte Django-Templates, das Spiel und der Editor sind React.
 
-1. Spielleiter registriert sich
-2. Spielleiter erstellt Session
-   1. Karte auswählen
-   2. Spieleranzahl
-   3. Agentenanzahl
-   4. CO2 Budget / Spielende definieren
-   5. Sessionpassword optional
-   6. Kartenupdates ja/nein
-3. Spieler registrieren sich bei Session und erhalten temp user daten
-4. Spielbeginn durch Spielleiter
+### Lokal starten
 
-#### Hintergrundprozesse
+Zwei Wege — `devops/dev.sh` ist der Arbeitsalltag, `docker compose` ist die Anordnung, die auch
+deployt wird.
 
-6. Karte wrid ins Frontend geladen
-7. Spielern wird Heimatkiez zugeordnet
-8. Agenten wird Arbeitsort zugeordnet
+Beide brauchen ein TLS-Zertifikat: die Spieler-Cookies sind `Secure`, über plain http wirft der
+Browser sie wortlos weg. Selbstsigniert reicht.
 
-### Spielablauf
+```bash
+mkdir -p devops/nginx/certs && openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
+  -keyout devops/nginx/certs/selfsigned.key -out devops/nginx/certs/selfsigned.crt \
+  -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+```
 
-1. Spieler wählen Transportmittel für Agenten aus
-   1. Vorschau wird bereitgestellt (auf Basis letzter Runde)
-   2. finale Auswahl wird berstätigt
-2. Nachdem alle Spieler ihre Auswahl abgeschickt haben, berechnet Server die Wegzeiten und CO2 Emissionen
-   1. Abbruchbedingungen werden gecheckt
-   2. Asuwertung pro Runde wird den Spielern zur Verfügung gestellt
-3. Aus einer Liste an möglicher Kartenupdates wird ein Update zur Abstimmung freigegeben.
-   1. Spieler stimmen ab.
+#### Nativ, ohne Docker
 
-# Netzwerkstruktur
+Gebraucht: Python 3.13, Node 20+, Redis oder Valkey, und — nur für die Testsuite — Postgres 18.
+Homebrew-Befehle; unter Linux dein Paketmanager.
 
-### Knotentypen:
+```bash
+pyenv virtualenv 3.13.3 commute        # dev.sh sucht $VIRTUAL_ENV, ~/.pyenv/versions/commute, ./.venv
+~/.pyenv/versions/commute/bin/pip install -r backend/requirements.txt 'psycopg[binary]'
 
-- es gibt folgende Typen:
-  - **H**ome
-  - **W**ork
-  - **B**us **S**tation
-  - **I**ntersection
-  - **T**rain **S**tation
-- jeder Knoten hat einen oder mehrere Typen
-  - Beispiel: Knoten ist Intersection aber auch gleichzeitig Busstation
+(cd backend && npm ci)                 # Tailwind für die Django-Templates
+(cd frontend && npm ci)
 
-### Kantentypen:
+brew services start valkey             # Channel Layer, Cache und Celery-Broker, auf Datenbank 3
 
-- übergeordneter Typ **Edge** für Kanten mit folgenden Attributen:
-  - Fußgänger erlaubt (Default: ja)
-  - Fahrrad erlaubt (Default: ja)
-- abgeleitete Typen:
-  - **S**treet mit zusätzlichen Eigenschaften:
-    - Fuß und Fahrradweg optional! --> z.B.: Stadtautobahn auch mgl.
-  - **T**rain:
-    - in übergeordneter Kante dazu muss Fuß- und Fahrradweg aus!  
-      T (Pflicht: Fuß und Fahrrad müssen aus)
+brew install postgresql@18 && brew services start postgresql@18   # nur für die Suite
+psql postgres -c "CREATE ROLE commute LOGIN CREATEDB PASSWORD 'commute'"
+createdb -O commute commute
 
-### ÖPNV Struktur:
+devops/dev.sh up
+```
 
-- Bus und Zuglinien = Sammlung der entsprechenden Edges (nach wie vor Metaeigenschaft)
-- ## Eigenschaften:
+Danach liegt alles auf **https://localhost:5173** — Vite proxyt jeden Pfad, der Django gehört, so
+wie nginx es im Container tut. Die App läuft auf sqlite.
 
-# Berechnungen:
+Weitere Befehle: `status`, `logs <dienst> -f`, `restart <dienst>`, `manage <args>`, `reset-db`,
+`down`. Celery lädt nicht automatisch neu — nach Änderungen an `game/tasks.py` oder der Simulation
+`devops/dev.sh restart worker`.
 
-- Berechnung der Wegzeiten:
-- Idee: Agenten in realistischer Zahl modellieren (Faktor Personen pro Agent in GameSession)
-- nach Wahl der Runde werden Personen losgeschickt und bewegen sich auf dem vorher festlegten Weg
-- Zeitschritte von ...s in der Simulation --> wieviele befindet sich gleichzeitig auf einer Kante? --> Geschwindigkeit wird für diesen Zeitschritt angepasst
-- Bus und Bahn: wenn zuviele Spieler gleichzeitig auf der Zug oder Buskante, dann zufällig für diese Kante Wartezeit (1 bis Frequenz zufällig) oder nicht (Glück gehabt oder Pech)
--
+#### Docker compose
 
-# Berechnung Public Transport aus Sebs ABM
+```bash
+cp devops/env_template.txt devops/.env
+```
 
-## Erklärung:
+Minimum für lokal: `POSTGRES_DB/USER/PASSWORD`, ein `DJANGO_SECRET_KEY` (ohne startet nichts),
+`DJANGO_ALLOWED_HOSTS=localhost`, `DJANGO_CSRF_TRUSTED_ORIGINS=https://localhost` und
+`DJANGO_BASE_URL=https://localhost`. `DJANGO_BASE_URL` ist die einzige Quelle für die URL im
+QR-Code — steht sie falsch, bricht nichts, es zeigen nur alle QR-Codes auf `localhost`.
 
-- nutzt Dijkstra Algorithmus der von NetworkX zur Verfügung gestellt wird (nx.shortest_path)
-- dem Dijkstra kann eine Weight Function für die kanten übergeben werden (hier weight function in travel_time_along_edge)
-- schachtelung in travel_time_along_edge von weight function war nötig um implizit der weight function den transport_mode mit übergeben zu können, weil diese den transport_mode braucht um festzulegen wie schnell die kante passiert werden kann --> Bsp.: gleiche Straßenkante mit auto vs. bus ist unterschiedlich
-- die weight function gibt letztlich einfach die zeit für das passieren der kante zurück (unter der auslastung der **letzten** runde)
-- edges für transport mode (also auch pt) werden in der funktion find_shortest_path vorgefiltert (wobei pt eigentlich alle edges nutzen darf) bevor sie dem shortest_path algorithmus übergeben werden
-- weight_function in travel_time_along_edge schaut welcher transport mode ausgewählt wurde und welcher kantentyp vorliegt um festzulegen mit welchem verkehrsmittel (transport_means) und damit mit welcher geschwindigkeit sich der agent bzw. die agenten entlang der kante bewegen
-- wenn entlang von straße dann schaut er ob eine buslinie vorhanden ist
-- wenn eine buslinie existiert und auch eine busspur  nimmt er als geschwindigkeit einfach die höchstgeschwindigkeit der kante
-- wenn keine busspur vorhanden ist dann einfach den speed unter der aktuellen auslastung (dafür gibt es eine funktion die den speed für die aktuelle auslastung berechnet)
-- außerdem schaut er, nachdem er den bus_speed festgelegt hat (also ob busspur vorhanden oder nicht) ob der bus_speed größer als der pedestrian_speed ist
-- wenn bus langsamer als laufen dann nimmt er pedestrian speed und läuft
-- nachdem der nx.shortest_path mithilfe der weight function den kürzesten weg gefunden hat muss nochmal eine funktion für diesen weg die einzelnen transport_means ermitteln (transport mode wäre zum beispiel public transport und transport_means kann dann halt bus, bahn oder laufen sein), weil nx.shortest_path immer entweder nur den weg oder die zeit zurückgeben kann, aber keine zusätzlichen dinge
+```bash
+docker compose -f devops/docker-compose.yaml up -d --build
+```
 
+Alles auf **https://localhost**. Migrationen, Tailwind und `collectstatic` macht der Entrypoint.
+Eine Sache, die nicht auf der Hand liegt: **nginx baut die SPA beim Image-Build** — eine
+Frontend-Änderung braucht `up -d --build nginx`, keinen Backend-Neustart.
 
-    def travel_time_along_edge(self, transport_mode):
-        def weight_function(node1,node2,attributes):
-            '''Travel Time Along Edge
+#### Spielbereit machen
 
-            This function calculates the time for travelling along an edge using the means of transport stated in
-            transport_mode. The formula for this is distance / speed. The distance is calculated from the node positions
-            of the edge and the speed is either set to RAILWAYSPEEDLIMIT, PEDESTRIANSPEED, BIKESPEED or calculated through 
-            use of the function self.streetedge_speed_based_on_load. 
-            For cases where a train station is placed at an intersection and the distance therefore is 0 a generic time to reach the 
-            platform TRAVELTIMEPLATFORM is assumed
-            
-            :node1 first node of edge traveled
-            :node2 second node of edge traveled
-            :edge edge traveled connecting node1 and node2
-            :transport_mode means of transport used to travel along the edge
-            '''
-            # calculate the distance from the positions of the node
-            x1, y1 = self.graph.nodes[node1]['xcoord'], self.graph.nodes[node1]['ycoord']
-            x2, y2 = self.graph.nodes[node2]['xcoord'], self.graph.nodes[node2]['ycoord']
-            distance = math.sqrt(((x2-x1)*self.scale)**2+((y2-y1)*self.scale)**2)
-            #print(f"The coordinates are {(x1, y1)} and {x2,y2} and the distance therefore {distance}")
-            
-            # if nodes are at the same coordinates distance is 0 --> can happen for transfer from walking to train or vice versa  
-            if distance == 0:
-                nodetype1 = self.graph.nodes[node1]['nodetype'] 
-                nodetype2 = self.graph.nodes[node2]['nodetype'] 
+Frisch aufgesetzt ist keine Karte da, und hochladen darf nur ein Staff-Account.
 
-                # train station can be at same place as other nodetypes
-                if (nodetype1 == "TS" and nodetype2 in ["I", "H", "W"]) or (nodetype1 in ["I", "H", "W"] and nodetype2 == "TS"):
-                    # if train station is at same place as other node type agent transfers from or to the station 
-                    if transport_mode == Utils.TRANSPORTMODES["Public Transport"]:
-                        #print(f"Changing to or from train network. Adding traveltime to plattform of {Utils.TRAVELTIMEPLATFORM}")
-                        return Utils.TRAVELTIMEPLATFORM
-                    else: 
-                    # car should not go to train station 
-                        raise ValueError('Transfer to train system only possible in transport mode "PT"')
-                else: 
-                    # only train stations and another nodetype can be at the same place
-                    raise ValueError(f"Nodes of type {nodetype1} and {nodetype2} shouldnt be at identical positions.")
-                
-            # initialise speed variable
-            speed = None
+```bash
+# nativ
+DJANGO_SUPERUSER_PASSWORD='e2e-local-only' devops/dev.sh manage createsuperuser \
+  --noinput --username e2e --email e2e@example.invalid
 
-            # read edgetype
-            edgetype = attributes.get('edgetype')
-            transport_means = None
-   
-            # determine speed based on edgetype and transport mode
-            if edgetype == "T": # trains
-                # train ride possbile only in public transport mode
-                if transport_mode != "PT": 
-                    raise Exception("Can't ride the train if not using public transport!")
-                #print(f"Travelling with rail. Speedlimit is {Utils.RAILWAYSPEEDLIMIT}")
-                speed = attributes.get("speedlimit")
-                transport_means = "Train"
-            # pedestrian walk only possible in public transport mode
-            elif edgetype == "PW":
-                if transport_mode != "PT":
-                    raise Exception("Can't use pedestrian walk if not using public transport!")
-                #print(f"Travelling by foot. Speed is {Utils.PEDESTRIANSPEED}")
-                speed = Utils.PEDESTRIANSPEED
-                transport_means = "Walking"
-            # street can be used by cars and with public transport (bus or walking)
-            elif edgetype == "S":
+# Container
+DJANGO_SUPERUSER_PASSWORD='e2e-local-only' docker compose -f devops/docker-compose.yaml \
+  exec -T -e DJANGO_SUPERUSER_PASSWORD backend \
+  ./manage.py createsuperuser --noinput --username e2e --email e2e@example.invalid
+```
 
-                # for public transport check if bus line runs along the street
-                if transport_mode == "PT":
+Dann die Karte — von Hand unter `/map/upload/` mit `map_examples/Berlin_Mitte-West.json`, oder per
+Skript, das dasselbe über HTTP tut und wiederholbar ist:
 
-                    # if no bus line runs along the street simply walk
-                    if attributes.get('bus_lines') == []:
-                        #print(f"Travelling by foot. Speed is {Utils.PEDESTRIANSPEED}")
-                        speed = Utils.PEDESTRIANSPEED
-                        transport_means = "Walking"
-                    else:
-                        # init bus speed
-                        bus_speed = 0
-                        # if street has bus lane the bus travels at speedlimit (not affected by the other cars on the street)
-                        if attributes.get("bus_lane"):
-                            bus_speed = attributes.get("speedlimit")
-                        # if street has no bus lane bus travels with speed under load of street
-                        else:
-                            bus_speed = self.streetedge_speed_based_on_load((node1, node2))     
+```bash
+cd frontend && npm run e2e:seed                                  # gegen :5173
+cd frontend && E2E_BASE_URL=https://localhost npm run e2e:seed   # gegen den Container
+```
 
-                        # if bus is faster than walking take the bus
-                        if bus_speed > Utils.PEDESTRIANSPEED:
-                            speed = bus_speed
-                            #print(f"Travelling with the bus at {speed}")
-                            transport_means = "Bus"
-                        # if walking is faster walk! 
-                        else:
-                            speed = Utils.PEDESTRIANSPEED
-                            transport_means = "Walking"
-                elif transport_mode == "BK": # bike
-                    speed = Utils.BIKESPEED
-                    transport_means = "Bike"
-                elif transport_mode == "C": # car
-                    speed = self.streetedge_speed_based_on_load((node1,node2)) 
-                    transport_means = "Car"
+### Tests
 
-            # check if speed has been correctly set
-            if speed is None:
-                raise ValueError(f"Unknown edgetype {attributes.get('edgetype')} for edge {node1}-{node2})")
-            # return traveltime along the edge: distance / speed
-            #print(f"For the distance of {distance} between {node1} and {node2} at {speed} it takes {distance/speed} using {transport_means}")
-            
-            # return distance (km) / speed (kmh) --> returns time as h
-            return distance / speed
-        
-        return weight_function 
-    
-    def find_shortest_path(self,startnode, endnode,transport_mode):
-        """ Find shortest path
-        
-        Calculate the shortest path between two nodes using a certain transport mode:
-        
-        PT - Public Transport will inlcude nodes of the type H, W, BS, TS, I and edges of the type S, T, PW 
-        C - Car will only include  nodes of I, H and W and edges of S
-        BK - Bike will only include edges of type I, H, W and edges of the type S, BK
+```bash
+devops/dev.sh test                  # Backend-Suite, gegen Postgres, in der Umgebung der CI
+cd frontend && npx vitest run       # Frontend-Unit-Tests
+cd frontend && npx tsc -b           # Typen (tests/ und e2e/ haben eigene tsconfigs)
+cd frontend && npm run e2e:seed && npm run e2e   # Playwright, WebKit
+```
 
-        The correct subgraph is filtered out using generate_edge_set and the nx.shortest_path routine is used to 
-        calculate the shortest path for getting from startnode to endnode. This path is returned as a subgraph. 
+Die Backend-Suite läuft immer gegen Postgres, auch wenn die App auf sqlite läuft: sqlite macht
+`select_for_update()` zum No-op und vergibt Primärschlüssel anders, und die Simulation wird über
+den Rundenschlüssel geseedet. Gelesen wird die **Anzahl** der Tests, nicht `OK` / `FAILED` — eine
+Datei, die beim Import wegbricht, nimmt ihre eigenen Tests aus dem Lauf.
 
-        :self 
-        :startnode starting node for the trip
-        :endnode destination node for the trip
-        :transport_mode means of transport choosen for the trip
-        """
+### Deployen
 
-        # filter edges accoording to selected transport type
-        if transport_mode in Utils.TRANSPORTMODES.values():
-            edges = self._generate_edge_set(Utils.TRANSPORTMODE_EDGESETS[transport_mode])
-        else:
-            print(f"The transport mode is: {transport_mode}")
-            raise ValueError('Unknown traveltype! Can not find shortest path.')
-        
-        # create subgraph including only the matching edge types
-        subgraph = self.graph.edge_subgraph(edges)
+**Ausgeliefert wird durch einen Push, nicht von Hand auf der Box.** In `.github/workflows/` liegen
+zwei Workflows:
 
-        # check that startnode and endnode are part of the subgraph
-        if startnode in subgraph:
-            if endnode in subgraph:
-                # create instance of closure for weight function of shortest path
-                weight_function = self.travel_time_along_edge(transport_mode)
-                # calculate shortest path
-                path = nx.shortest_path(subgraph, source=startnode, target=endnode, weight=weight_function)
-                #print(path)
-                # determine which transport type was taken along the path 
-                path_with_transport_type = self.path_transport_modes(path, transport_mode)
-            else:
-                raise ValueError('Can\'t find path. Endnode not part of the subgraph.')
-        else:
-            raise ValueError('Can\'t find path. Startnode not part of subgraph.')
-        
-        return path_with_transport_type
+- `tests` — bei jedem Push und PR: `makemigrations --check` und die Backend-Suite gegen Postgres.
+- `go live` — bei jedem Push auf **`prod`**: dieselbe Suite, danach per SSH auf die TU-Box, dort
+  `git checkout -B prod origin/prod` und `docker compose -f devops/docker-compose.yaml up -d --build`.
+
+`prod` ist ein **Deploy-Zeiger, kein Entwicklungszweig**. Es wird nie darauf committet und nie
+hineingemergt, es wird nur vorgespult:
+
+```bash
+git push origin main:prod              # den aktuellen Trunk ausliefern
+git push -f origin <älterer-sha>:prod  # zurückrollen
+```
+
+Was dafür da sein muss: die Repo-Secrets `KEY`, `USER`, `HOST` und `KNOWN_HOSTS` (SSH-Key,
+Benutzer, Hostname und Hostkey der Box), und auf der Box ein Checkout unter `/commute`, der dem
+`deploy`-Benutzer gehört. Ein `sudo git` dort hinterlässt root-eigene Dateien und bricht das
+nächste Deployment.
+
+Zwei Lücken, die man kennen sollte: **die CI baut die SPA nirgends**, ein Typfehler in `frontend/`
+ist also kein roter Check, sondern ein fehlgeschlagenes Deployment; und Playwright läuft nicht auf
+dem Runner. Die Box terminiert TLS außerdem mit einem selbstsignierten Zertifikat — ein echtes über
+Let's Encrypt wäre technisch möglich, ist aber mit der TU-IT abzustimmen.
+
+### Dokumentation
+
+| Datei                                            | Inhalt                                                         |
+| ------------------------------------------------ | -------------------------------------------------------------- |
+| [`docs/de-ueberblick.md`](docs/de-ueberblick.md) | Überblick: was das Spiel ist und wie es gespielt wird           |
+| [`docs/kalibrierung.md`](docs/kalibrierung.md)   | die Zahlen, gegen die gespielt wird, und wie sie gemessen sind  |
+| [`docs/testfaelle.md`](docs/testfaelle.md)       | was das Spiel können muss, Fall für Fall, mit Status            |
+| [`docs/technical/`](docs/technical/)             | technische Übersicht — in Arbeit                                |
+
+### Lizenz
+
+MIT, siehe [`LICENSE`](LICENSE). © 2025 Sebastian Werblinski und Lukas von Hirschhausen.
+
+---
+
+## English
+
+co2mmute is a browser-based multiplayer traffic game: a class commutes together across a city map,
+picks modes and routes each round, and the server simulates what comes of it — CO₂, cost, travel
+time. Between rounds the class votes on a change to the map, a bus lane or a new line, and drives
+the next round on it. It builds on the technical part of **Sebastian Werblinski's** master's thesis
+on agent-based commuting models at TU Berlin (`master_thesis.pdf`); the code here is a complete
+rewrite after the fact. The traffic is computed with a link queue model — mesoscopic, the same
+family as MATSim.
+
+**Stack:** Django 5.2 + DRF on Daphne (ASGI), Channels, Celery, Postgres 18, Redis; React 19 + Vite
++ TypeScript for the SPA. How the game is played: [`docs/en-overview.md`](docs/en-overview.md).
+
+### Layout
+
+| Path                | What                                                              |
+| ------------------- | ----------------------------------------------------------------- |
+| `backend/co2mmute/` | Django config — settings, urls, asgi, celery                       |
+| `backend/game/`     | sessions, players, rounds, moves, votes, the websocket layer       |
+| `backend/sim/`      | the traffic engine as a plain Python package — no Django           |
+| `backend/maps/`     | map graph, versioning, the map editor's REST API                   |
+| `backend/content/`  | a small CMS for the public pages                                   |
+| `backend/template/` | Django templates — landing, lobby, join, legal, auth               |
+| `frontend/`         | the SPA — game screen, host pages, map editor                      |
+| `devops/`           | `dev.sh`, docker-compose, nginx                                    |
+| `map_examples/`     | the map the group plays — Berlin Mitte-West, eight versions        |
+| `docs/`             | documentation                                                      |
+| `.github/`          | CI and the deployment                                              |
+
+It is a hybrid, not a pure SPA: the landing page, the join flow, the legal pages, login and admin
+are server-rendered Django templates; the game and the editor are React.
+
+### Running it locally
+
+Two ways in — `devops/dev.sh` is the working day, `docker compose` is the arrangement that also
+gets deployed.
+
+Both need a TLS certificate: the player cookies are `Secure`, and over plain http the browser
+throws them away without a word. Self-signed is fine.
+
+```bash
+mkdir -p devops/nginx/certs && openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
+  -keyout devops/nginx/certs/selfsigned.key -out devops/nginx/certs/selfsigned.crt \
+  -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+```
+
+#### Native, no Docker
+
+You need Python 3.13, Node 20+, Redis or Valkey, and — for the test suite only — Postgres 18.
+Homebrew commands; on Linux use your package manager.
+
+```bash
+pyenv virtualenv 3.13.3 commute        # dev.sh looks at $VIRTUAL_ENV, ~/.pyenv/versions/commute, ./.venv
+~/.pyenv/versions/commute/bin/pip install -r backend/requirements.txt 'psycopg[binary]'
+
+(cd backend && npm ci)                 # Tailwind for the Django templates
+(cd frontend && npm ci)
+
+brew services start valkey             # channel layer, cache and Celery broker, on database index 3
+
+brew install postgresql@18 && brew services start postgresql@18   # for the suite only
+psql postgres -c "CREATE ROLE commute LOGIN CREATEDB PASSWORD 'commute'"
+createdb -O commute commute
+
+devops/dev.sh up
+```
+
+Everything then lives on **https://localhost:5173** — Vite proxies every path Django owns, the way
+nginx does in the container. The app itself runs on sqlite.
+
+Further commands: `status`, `logs <service> -f`, `restart <service>`, `manage <args>`, `reset-db`,
+`down`. Celery does not autoreload — run `devops/dev.sh restart worker` after touching
+`game/tasks.py` or the simulation.
+
+#### Docker compose
+
+```bash
+cp devops/env_template.txt devops/.env
+```
+
+The minimum for a local run: `POSTGRES_DB/USER/PASSWORD`, a `DJANGO_SECRET_KEY` (nothing starts
+without it), `DJANGO_ALLOWED_HOSTS=localhost`, `DJANGO_CSRF_TRUSTED_ORIGINS=https://localhost` and
+`DJANGO_BASE_URL=https://localhost`. `DJANGO_BASE_URL` is the only source for the URL in the QR
+code — get it wrong and nothing errors, every QR code just points at `localhost`.
+
+```bash
+docker compose -f devops/docker-compose.yaml up -d --build
+```
+
+Everything on **https://localhost**. Migrations, Tailwind and `collectstatic` are handled by the
+entrypoint. One thing that is not obvious: **nginx builds the SPA at image build time** — a
+frontend change needs `up -d --build nginx`, not a backend restart.
+
+#### Making it playable
+
+A fresh instance has no map, and uploading one requires a staff account.
+
+```bash
+# native
+DJANGO_SUPERUSER_PASSWORD='e2e-local-only' devops/dev.sh manage createsuperuser \
+  --noinput --username e2e --email e2e@example.invalid
+
+# container
+DJANGO_SUPERUSER_PASSWORD='e2e-local-only' docker compose -f devops/docker-compose.yaml \
+  exec -T -e DJANGO_SUPERUSER_PASSWORD backend \
+  ./manage.py createsuperuser --noinput --username e2e --email e2e@example.invalid
+```
+
+Then the map — by hand at `/map/upload/` with `map_examples/Berlin_Mitte-West.json`, or with the
+script, which does the same thing over HTTP and is idempotent:
+
+```bash
+cd frontend && npm run e2e:seed                                  # against :5173
+cd frontend && E2E_BASE_URL=https://localhost npm run e2e:seed   # against the container
+```
+
+### Tests
+
+```bash
+devops/dev.sh test                  # backend suite, on Postgres, in the environment CI has
+cd frontend && npx vitest run       # frontend unit tests
+cd frontend && npx tsc -b           # types (tests/ and e2e/ have their own tsconfigs)
+cd frontend && npm run e2e:seed && npm run e2e   # Playwright, WebKit
+```
+
+The backend suite always runs on Postgres even though the app runs on sqlite: sqlite makes
+`select_for_update()` a no-op and hands out primary keys differently, and the simulation is seeded
+off the round pk. Read the test **count**, not `OK` / `FAILED` — a file that breaks on import
+removes its own tests from the run.
+
+### Deploying
+
+**Shipping happens by pushing, not by hand on the box.** There are two workflows in
+`.github/workflows/`:
+
+- `tests` — on every push and PR: `makemigrations --check` and the backend suite against Postgres.
+- `go live` — on every push to **`prod`**: the same suite, then SSH to the TU box, where it runs
+  `git checkout -B prod origin/prod` and `docker compose -f devops/docker-compose.yaml up -d --build`.
+
+`prod` is a **deploy pointer, not a development branch**. Nothing is ever committed to it or merged
+into it; it only fast-forwards:
+
+```bash
+git push origin main:prod            # ship the current trunk
+git push -f origin <older-sha>:prod  # roll back
+```
+
+What has to be in place: the repo secrets `KEY`, `USER`, `HOST` and `KNOWN_HOSTS` (SSH key, user,
+hostname and host key of the box), and a checkout at `/commute` on the box owned by the `deploy`
+user. A `sudo git` there leaves root-owned files and breaks the next deploy.
+
+Two gaps worth knowing: **CI never builds the SPA**, so a type error in `frontend/` is not a red
+check but a failed deploy; and Playwright does not run on the runner. The box also terminates TLS
+with a self-signed certificate — a real one via Let's Encrypt is technically possible but needs to
+be agreed with TU IT first.
+
+### Documentation
+
+| File                                             | What                                                        |
+| ------------------------------------------------ | ----------------------------------------------------------- |
+| [`docs/en-overview.md`](docs/en-overview.md)     | overview: what the game is and how it is played              |
+| [`docs/kalibrierung.md`](docs/kalibrierung.md)   | the numbers the game is played against, and how they were measured (German) |
+| [`docs/testfaelle.md`](docs/testfaelle.md)       | what the game has to do, case by case, with status (German)  |
+| [`docs/technical/`](docs/technical/)             | technical overview — in progress                             |
+
+### License
+
+MIT, see [`LICENSE`](LICENSE). © 2025 Sebastian Werblinski and Lukas von Hirschhausen.
