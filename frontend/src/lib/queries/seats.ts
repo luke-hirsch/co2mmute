@@ -11,6 +11,7 @@
  * throws `ApiError` with its status and `reason` intact:
  *
  *   add      409 `full`, `ended`
+ *   mute     409 `host`
  *   takeover 409 `host`, `controlled`, `ended`
  *   code     409 `host`, `ended`
  *   redeem   404 (gone or used), 409 `host`, `seated`, `ended`
@@ -57,6 +58,9 @@ export type SeatRow = {
   controlled_by_host: boolean;
 };
 
+/** What `POST .../mute/` answers. `PlayerSerializer` carries `is_muted`. */
+export type MutedSeat = SeatRow & { is_muted: boolean };
+
 /**
  * A code as read off a projector or typed on a phone: upper case, no spaces.
  * The backend does the same (`seat_for_code`), but the URL is built here, so
@@ -83,6 +87,19 @@ export function removeSeat(gameId: string, seatId: string): Promise<unknown> {
 
 export function takeOverSeat(gameId: string, seatId: string): Promise<SeatRow> {
   return apiFetch<SeatRow>(`/api/game/${gameId}/player/${seatId}/takeover/`, {
+    method: "POST",
+  });
+}
+
+/**
+ * Mute or unmute a seat in the chat (S9). One endpoint, both directions.
+ *
+ * No body: the flag flips server-side, so there is nothing here that could
+ * disagree with it. The answer is the seat, but nothing reads it — `set_muted`
+ * broadcasts the roster, and the roster is the one place a screen looks.
+ */
+export function muteSeat(gameId: string, seatId: string): Promise<MutedSeat> {
+  return apiFetch<MutedSeat>(`/api/game/${gameId}/player/${seatId}/mute/`, {
     method: "POST",
   });
 }
@@ -120,6 +137,10 @@ export function useRemoveSeat(gameId: string) {
 
 export function useTakeOverSeat(gameId: string) {
   return useMutation({ mutationFn: (seatId: string) => takeOverSeat(gameId, seatId) });
+}
+
+export function useMuteSeat(gameId: string) {
+  return useMutation({ mutationFn: (seatId: string) => muteSeat(gameId, seatId) });
 }
 
 export function useIssueSeatCode(gameId: string) {

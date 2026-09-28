@@ -7,6 +7,13 @@ HasGameAccess. Roadmap.md 1.4.
 
 import logging
 
+from co2mmute.throttle import (
+    SEAT_CODE_LIMIT,
+    SEAT_CODE_WINDOW,
+    client_key,
+    over_limit,
+    record,
+)
 from co2mmute.utils import set_game_access_cookie, set_player_cookie
 from django.db import transaction
 from rest_framework import status
@@ -231,12 +238,27 @@ class SeatCodeView(APIView):
     join, because the game's own host must be refused: the host is recognised
     by the session, and a seat cookie in the host's browser would be lost there.
     A logged-in user then needs the CSRF token, which the SPA sends anyway.
+
+    **Rate limited on misses since S9.** The alphabet is 31 characters and the
+    code is six of them, so there are 887 million — a number that only means
+    anything while guessing costs something, and until S9 it cost nothing at
+    all. GET is the cheaper of the two vectors: it does not use a code up, so a
+    sweep never disturbs a real seat and nothing in the game would show it
+    happened.
+
+    **Misses are counted, not requests.** A class redeeming real codes sits
+    behind one school NAT and would otherwise throttle itself; a guesser
+    produces nothing but misses. `_unknown` is the one place both verbs answer
+    a bad code from, including the "unknown" refusal `redeem_code` raises, so
+    the counting lives there rather than at three call sites.
     """
 
     authentication_classes = (SessionAuthentication,)
     permission_classes = (AllowAny,)
 
     def get(self, request, code):
+        if self._too_many():
+            return self._throttled()
         seat = seat_for_code(code)
         if seat is None:
             return self._unknown()
@@ -251,6 +273,8 @@ class SeatCodeView(APIView):
         )
 
     def post(self, request, code):
+        if self._too_many():
+            return self._throttled()
         seat = seat_for_code(code)
         if seat is None:
             return self._unknown()
@@ -292,7 +316,18 @@ class SeatCodeView(APIView):
         seats = Player.objects.filter(game=game, player_id=player_id)
         return seats.playing().exists()  # type: ignore
 
+    def _too_many(self) -> bool:
+        return over_limit("seatcode", client_key(self.request), SEAT_CODE_LIMIT)
+
+    def _throttled(self):
+        return Response(
+            {"detail": "Too many attempts.", "reason": "throttled"},
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+
     def _unknown(self):
+        """A miss, and the only thing the limit counts."""
+        record("seatcode", client_key(self.request), SEAT_CODE_WINDOW)
         return Response(
             {"detail": "This code is not valid (any more)."},
             status=status.HTTP_404_NOT_FOUND,

@@ -142,6 +142,30 @@
             <li>sofortige Löschung, wenn der Chat vom Host deaktiviert wird</li>
           </ul>
         </div>
+        <div>
+          <h3 class="text-xl font-semibold text-main dark:text-darktext mb-3">
+            2.5 Schutz vor automatisierten Angriffen
+          </h3>
+          <p class="text-muted dark:text-darkmutedtext mb-3">
+            Damit Passwörter und Platz-Codes nicht automatisiert erraten werden
+            können, zählen wir fehlgeschlagene Versuche pro Internetanschluss.
+            Deine IP-Adresse wird dafür <strong>nicht gespeichert</strong>:
+            Sie wird in einen Prüfwert umgerechnet, aus dem sie sich nicht
+            zurückrechnen lässt, und nur dieser Prüfwert steht im
+            Zwischenspeicher.
+          </p>
+          <ul
+            class="list-disc list-inside space-y-2 text-muted dark:text-darkmutedtext"
+          >
+            <li>fehlgeschlagene Anmeldungen: 15 Minuten</li>
+            <li>angelegte Konten: 1 Stunde</li>
+            <li>fehlgeschlagene Platz-Codes: 5 Minuten</li>
+          </ul>
+          <p class="text-muted dark:text-darkmutedtext mt-3">
+            Danach verfällt der Zähler von selbst. Er wird für nichts anderes
+            benutzt und nicht mit einem Spiel oder einem Konto verknüpft.
+          </p>
+        </div>
       </div>
     </section>
 
@@ -240,7 +264,8 @@
       </p>
       <p class="text-muted dark:text-darkmutedtext mt-3">
         Chatnachrichten werden nach spätestens 2 Stunden automatisch gelöscht
-        (siehe Abschnitt 2.4).
+        (siehe Abschnitt 2.4). Die Zähler gegen automatisiertes Erraten
+        verfallen nach 5 Minuten bis 1 Stunde (siehe Abschnitt 2.5).
       </p>
     </section>
 

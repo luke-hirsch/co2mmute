@@ -5,6 +5,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.views import LoginView as DjangoLoginView
 from django.contrib.auth.views import LogoutView as DjangoLogoutView
 from django.shortcuts import redirect, resolve_url
 from django.urls import NoReverseMatch, reverse_lazy
@@ -19,9 +20,39 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from co2mmute.throttle import (
+    LOGIN_LIMIT,
+    LOGIN_WINDOW,
+    SIGNUP_LIMIT,
+    SIGNUP_WINDOW,
+    clear,
+    client_key,
+    over_limit,
+    record,
+)
 from co2mmute.utils import set_game_access_cookie, set_player_cookie
 
 from .forms import AccountDeleteForm, ProfileForm, SignupForm
+
+THROTTLED_TEMPLATE = "registration/throttled.html"
+
+
+def throttled(request, message: str, window: int):
+    """The 429 both auth views answer with.
+
+    A rendered page rather than a bare status, because these two are typed into
+    a browser by a person: `/accounts/login/` and `/accounts/signup/` are the
+    server-rendered funnel, not the API. 429 and not 403 so a log can tell the
+    two apart at a glance.
+    """
+    from django.shortcuts import render
+
+    return render(
+        request,
+        THROTTLED_TEMPLATE,
+        {"throttle_message": message, "throttle_minutes": window // 60},
+        status=429,
+    )
 
 
 class IndexView(TemplateView):
@@ -30,6 +61,43 @@ class IndexView(TemplateView):
 
 class SpaView(TemplateView):
     template_name = "app.html"
+
+
+class LoginView(DjangoLoginView):
+    """`/accounts/login/` with a limit on wrong passwords — S9.
+
+    Declared above `django.contrib.auth.urls` in `co2mmute/urls.py`, which is
+    the whole of the wiring: the first matching pattern wins, so this replaces
+    the stock view without touching the include.
+
+    **Failures are counted, not attempts.** A classroom is one address behind
+    the school's NAT, and a researcher who mistypes once should not spend a
+    quota the rest of the room shares. A guesser, by definition, produces
+    nothing but failures.
+
+    **Per address only, not per username.** A per-account counter would let
+    anybody lock a known host out of their own lesson by guessing at their name
+    — trading a real denial of service for protection against a distributed
+    attack nobody is mounting on a thesis prototype.
+    """
+
+    def post(self, request, *args, **kwargs):
+        key = client_key(request)
+        if over_limit("login", key, LOGIN_LIMIT):
+            return throttled(
+                request,
+                "Zu viele Anmeldeversuche von diesem Anschluss.",
+                LOGIN_WINDOW,
+            )
+        return super().post(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        clear("login", client_key(self.request))
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        record("login", client_key(self.request), LOGIN_WINDOW)
+        return super().form_invalid(form)
 
 
 class SignUpView(CreateView):
@@ -41,8 +109,25 @@ class SignUpView(CreateView):
         context["next"] = self._get_next_url()
         return context
 
+    def post(self, request, *args, **kwargs):
+        """**Successes** are what this one counts.
+
+        A rejected sign-up form has guessed at nothing — there is no secret
+        behind this door — so counting attempts would only lock somebody out of
+        their own account for failing the password rules twice. The abuse worth
+        stopping is a script making accounts, and every one of those succeeds.
+        """
+        if over_limit("signup", client_key(request), SIGNUP_LIMIT):
+            return throttled(
+                request,
+                "Von diesem Anschluss wurden gerade viele Konten angelegt.",
+                SIGNUP_WINDOW,
+            )
+        return super().post(request, *args, **kwargs)
+
     def form_valid(self, form):
         self.object = form.save()
+        record("signup", client_key(self.request), SIGNUP_WINDOW)
         login(self.request, self.object)
         return redirect(self.get_success_url())
 

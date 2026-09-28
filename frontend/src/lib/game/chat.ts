@@ -76,10 +76,11 @@ export function asChatEvent(payload: unknown): ChatEvent | null {
 /**
  * The German for a refusal.
  *
- * `ChatConsumer` answers a refused message with an English sentence — the three
- * literals below are the whole set (`_validate_message_content` and
- * `_check_rate_limits`). They are written for a log and reach the player
- * unchanged, so the translation has to happen at this end.
+ * `ChatConsumer` answers a refused message with an English sentence — the four
+ * literals below are the whole set (`_validate_message_content`,
+ * `_check_rate_limits` and, since S9, the mute check that runs before both).
+ * They are written for a log and reach the player unchanged, so the
+ * translation has to happen at this end.
  *
  * The fallback exists because a fourth refusal would otherwise put an English
  * sentence on a German screen; `"Invalid JSON"` is already one this client
@@ -93,6 +94,8 @@ export function chatErrorText(raw: string): string {
       return de.chat.errors.tooFast;
     case "Chat is moving too fast":
       return de.chat.errors.roomTooFast;
+    case "You are muted":
+      return de.chat.errors.muted;
     default:
       return de.chat.errors.unknown;
   }

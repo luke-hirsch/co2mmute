@@ -59,6 +59,7 @@ function seat(overrides: Partial<RosterSeat> = {}): RosterSeat {
     controlled_by_host: false,
     online: true,
     status: "ready",
+    is_muted: false,
     ...overrides,
   };
 }

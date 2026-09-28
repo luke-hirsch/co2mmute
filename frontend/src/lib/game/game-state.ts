@@ -217,6 +217,10 @@ function seatFromSnapshot(
     controlled_by_host: player.controlled_by_host,
     online: false,
     status: "not_connected",
+    // Unlike presence, this one the snapshot really does know: `LobbyStateView`
+    // reads it off the row. Taking it from here means a host who reloads sees
+    // who is muted before the socket has said anything.
+    is_muted: player.is_muted,
   };
 }
 

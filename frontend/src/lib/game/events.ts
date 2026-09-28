@@ -41,6 +41,12 @@ export type RosterSeat = {
   controlled_by_host: boolean;
   online: boolean;
   status: SeatStatus;
+  /**
+   * Muted in the chat by the host (S9). The socket owns it like every other
+   * field on this row, and it is always present — a flag that appears only
+   * when true is one a reducer cannot merge.
+   */
+  is_muted: boolean;
 };
 
 /** One option on the ballot. `game/phases.py:_build_version_dict`. */

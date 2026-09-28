@@ -18,6 +18,7 @@ from ._helpers import (
     TEST_BACKENDS,
     TempMediaRootMixin,
     create_form_data,
+    create_game_map,
     create_game_session,
     create_host,
     muted,
@@ -331,6 +332,13 @@ class GameMapRequiredTests(TempMediaRootMixin, TestCase):
         self.host = create_host()
         self.client.force_login(self.host)
 
+    def _mapless(self):
+        """`create_game_session` names no map, which is the case under test."""
+        with muted():
+            game = create_game_session(self.host, game_name="Ohne Karte")
+        self.assertIsNone(game.game_map)
+        return game
+
     def test_the_form_refuses_a_game_without_a_map(self):
         from game.forms import GameSessionCreateForm
 
@@ -364,6 +372,61 @@ class GameMapRequiredTests(TempMediaRootMixin, TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(GameSession.objects.filter(game_name="Ohne Karte").exists())
 
+    def test_starting_a_mapless_game_over_the_api_is_refused(self):
+        """The form is closed; the API and the admin are the way in that is left.
+
+        A 200 that changes nothing is the worst of the three possible answers:
+        the host presses start, the screen does not move, and nothing anywhere
+        says why. 409 with a reason is what the lobby can read.
+        """
+        game = self._mapless()
+
+        response = self.client.patch(
+            f"/api/game/{game.game_id}/",
+            {"is_active": True},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json().get("reason"), "no-map")
+
+    def test_the_refused_start_writes_nothing(self):
+        """The old path got as far as `started_at` and round 1 before
+        `save()` undid the only field that mattered, so a game could sit in the
+        lobby with a start time and a round nobody was playing."""
+        from game.models import GameRound
+
+        game = self._mapless()
+
+        self.client.patch(
+            f"/api/game/{game.game_id}/",
+            {"is_active": True},
+            content_type="application/json",
+        )
+
+        game.refresh_from_db()
+        self.assertIsNone(game.started_at)
+        self.assertFalse(game.is_active)
+        self.assertFalse(GameRound.objects.filter(game=game).exists())
+
+    def test_a_game_with_a_map_still_starts(self):
+        """The guard is about the missing map and nothing else."""
+        with muted():
+            game = create_game_session(
+                self.host, game_name="Mit Karte", game_map=create_game_map()
+            )
+
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            response = self.client.patch(
+                f"/api/game/{game.game_id}/",
+                {"is_active": True},
+                content_type="application/json",
+            )
+
+        game.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(game.is_active)
+
 
 class CalibratedModelDefaultsTests(TestCase):
     """The API and the admin get the same scale the form hands a host.
@@ -382,6 +445,30 @@ class CalibratedModelDefaultsTests(TestCase):
         field = GameSession._meta.get_field("people_per_agent")
 
         self.assertEqual(field.default, 100)
+
+    def test_map_updates_stays_off_on_the_model(self):
+        """The one default that deliberately disagrees with the form.
+
+        `GameSessionCreateForm` offers `map_updates: True`; the model says
+        False, so a game made over the REST API or in the admin has the vote
+        switched off whatever its map offers. Flipping it is the research
+        group's call, so it is pinned here rather than changed — and the two
+        docstrings that described this pin were the whole of it until now.
+        """
+        from game.models import GameSession
+
+        field = GameSession._meta.get_field("map_updates")
+
+        self.assertFalse(field.default)
+
+    def test_the_create_form_still_offers_the_vote(self):
+        """The other half of the disagreement. Pinned together, or a change to
+        one of them reads as agreement rather than as the drift it is."""
+        from game.forms import GameSessionCreateForm
+
+        form = GameSessionCreateForm()
+
+        self.assertTrue(form.get_initial_for_field(form.fields["map_updates"], "map_updates"))
 
     def test_the_default_matches_the_shipped_class_size(self):
         """The literal on the model is the derivation's answer, not a guess."""

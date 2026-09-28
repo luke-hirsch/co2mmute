@@ -12,6 +12,7 @@ from game.views_rest import (
     GameSessionDetailView,
     GameSummaryView,
     GetYourOwnGame,
+    MuteUnmutePlayerView,
     PlayerDetailView,
     PlayerListView,
     PlayerMoveView,
@@ -56,6 +57,11 @@ urlpatterns = [
         "<str:game_id>/player/<str:player_id>/takeover/",
         SeatTakeoverView.as_view(),
         name="seat-takeover",
+    ),
+    path(
+        "<str:game_id>/player/<str:player_id>/mute/",
+        MuteUnmutePlayerView.as_view(),
+        name="player-mute",
     ),
     path(
         "<str:game_id>/round/<int:round_number>/traffic/",
