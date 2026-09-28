@@ -150,8 +150,11 @@ export function useRoundDraft({
       clearStoredDraft(storage, gameId, draft.seatId);
       return;
     }
-    writeStoredChoices(storage, gameId, draft, choices);
-  }, [storage, gameId, draft, choices, submitted]);
+    // `roundNumber` is the screen's, `draft.roundNumber` the draft's; they
+    // disagree for a moment on every reload and every new round, and the write
+    // refuses while they do. See `writeStoredChoices`.
+    writeStoredChoices(storage, gameId, draft, choices, roundNumber);
+  }, [storage, gameId, draft, choices, submitted, roundNumber]);
 
   // The graph as the pathfinders want it. They read `bus_lines`, `train_lines`
   // and `scale` unconditionally, and a map with no PT lines omits them.

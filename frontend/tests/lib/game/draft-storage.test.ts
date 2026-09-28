@@ -100,12 +100,12 @@ describe("writeStoredChoices / readStoredChoices", () => {
   });
 
   it("brings the taps back for the same seat in the same round", () => {
-    writeStoredChoices(storage, "G-1", draft(), CHOICES);
+    writeStoredChoices(storage, "G-1", draft(), CHOICES, 2);
     expect(readStoredChoices(storage, "G-1", "P-1", 2)).toEqual(CHOICES);
   });
 
   it("stores the mode and both optimisations, and nothing else", () => {
-    writeStoredChoices(storage, "G-1", draft(), CHOICES);
+    writeStoredChoices(storage, "G-1", draft(), CHOICES, 2);
     const raw = JSON.parse(storage.getItem(draftStorageKey("G-1", "P-1"))!);
     expect(Object.keys(raw).sort()).toEqual(["agents", "round"]);
     expect(Object.keys(raw.agents[0]).sort()).toEqual([
@@ -122,12 +122,12 @@ describe("writeStoredChoices / readStoredChoices", () => {
    * "the choices I made last round" is not what the screen is asking for anyway.
    */
   it("refuses a draft from another round", () => {
-    writeStoredChoices(storage, "G-1", draft({ roundNumber: 1 }), CHOICES);
+    writeStoredChoices(storage, "G-1", draft({ roundNumber: 1 }), CHOICES, 1);
     expect(readStoredChoices(storage, "G-1", "P-1", 2)).toBeNull();
   });
 
   it("refuses another seat's draft", () => {
-    writeStoredChoices(storage, "G-1", draft(), CHOICES);
+    writeStoredChoices(storage, "G-1", draft(), CHOICES, 2);
     expect(readStoredChoices(storage, "G-1", "P-2", 2)).toBeNull();
   });
 
@@ -137,7 +137,7 @@ describe("writeStoredChoices / readStoredChoices", () => {
    * device's draft is unreachable by construction.
    */
   it("refuses the draft of a seat whose player_id has rotated", () => {
-    writeStoredChoices(storage, "G-1", draft({ seatId: "P-old" }), CHOICES);
+    writeStoredChoices(storage, "G-1", draft({ seatId: "P-old" }), CHOICES, 2);
     expect(readStoredChoices(storage, "G-1", "P-new", 2)).toBeNull();
   });
 
@@ -192,13 +192,36 @@ describe("writeStoredChoices / readStoredChoices", () => {
    * seat's key lying around for a turn that was never begun.
    */
   it("removes the entry instead of storing an empty turn", () => {
-    writeStoredChoices(storage, "G-1", draft(), CHOICES);
-    writeStoredChoices(storage, "G-1", draft(), []);
+    writeStoredChoices(storage, "G-1", draft(), CHOICES, 2);
+    writeStoredChoices(storage, "G-1", draft(), [], 2);
     expect(storage.getItem(draftStorageKey("G-1", "P-1"))).toBeNull();
   });
 
+  /**
+   * The bug this guard exists for, and it was found by an e2e run that failed
+   * once in four: on a reload the seat query can resolve before `game.state`
+   * arrives, so the screen is briefly on round 0 — the reducer's "no round
+   * yet". The draft assigned for it has nothing chosen, and an empty draft
+   * removes the entry, so the half-made turn was deleted a moment before the
+   * real round number got to read it.
+   */
+  it("writes nothing while the screen does not yet know its round", () => {
+    writeStoredChoices(storage, "G-1", draft(), CHOICES, 2);
+    writeStoredChoices(storage, "G-1", draft({ roundNumber: 0 }), [], 0);
+
+    expect(readStoredChoices(storage, "G-1", "P-1", 2)).toEqual(CHOICES);
+  });
+
+  /** The same, between a new round starting and its assignment arriving. */
+  it("writes nothing while the draft is still the previous round's", () => {
+    writeStoredChoices(storage, "G-1", draft(), CHOICES, 2);
+    writeStoredChoices(storage, "G-1", draft({ roundNumber: 2 }), [], 3);
+
+    expect(readStoredChoices(storage, "G-1", "P-1", 2)).toEqual(CHOICES);
+  });
+
   it("does nothing at all without a seat", () => {
-    writeStoredChoices(storage, "G-1", draft({ seatId: null }), CHOICES);
+    writeStoredChoices(storage, "G-1", draft({ seatId: null }), CHOICES, 2);
     expect(storage._map.size).toBe(0);
   });
 });
@@ -206,7 +229,7 @@ describe("writeStoredChoices / readStoredChoices", () => {
 describe("clearStoredDraft", () => {
   it("takes the turn out of storage once it is submitted", () => {
     const storage = fakeStorage();
-    writeStoredChoices(storage, "G-1", draft(), CHOICES);
+    writeStoredChoices(storage, "G-1", draft(), CHOICES, 2);
     clearStoredDraft(storage, "G-1", "P-1");
     expect(storage.getItem(draftStorageKey("G-1", "P-1"))).toBeNull();
   });
@@ -220,9 +243,9 @@ describe("pruneOtherGames", () => {
    */
   it("keeps every seat of this game and drops every other game's", () => {
     const storage = fakeStorage();
-    writeStoredChoices(storage, "G-1", draft({ seatId: "P-1" }), CHOICES);
-    writeStoredChoices(storage, "G-1", draft({ seatId: "P-2" }), CHOICES);
-    writeStoredChoices(storage, "G-2", draft({ seatId: "P-9" }), CHOICES);
+    writeStoredChoices(storage, "G-1", draft({ seatId: "P-1" }), CHOICES, 2);
+    writeStoredChoices(storage, "G-1", draft({ seatId: "P-2" }), CHOICES, 2);
+    writeStoredChoices(storage, "G-2", draft({ seatId: "P-9" }), CHOICES, 2);
 
     pruneOtherGames(storage, "G-1");
 
@@ -250,7 +273,7 @@ describe("a storage that throws", () => {
   });
 
   it("writes without throwing", () => {
-    expect(() => writeStoredChoices(storage, "G-1", draft(), CHOICES)).not.toThrow();
+    expect(() => writeStoredChoices(storage, "G-1", draft(), CHOICES, 2)).not.toThrow();
   });
 
   it("clears without throwing", () => {
@@ -266,7 +289,7 @@ describe("a storage that throws", () => {
 describe("no storage", () => {
   it("reads as nothing and writes nowhere", () => {
     expect(readStoredChoices(null, "G-1", "P-1", 2)).toBeNull();
-    expect(() => writeStoredChoices(null, "G-1", draft(), CHOICES)).not.toThrow();
+    expect(() => writeStoredChoices(null, "G-1", draft(), CHOICES, 2)).not.toThrow();
     expect(() => clearStoredDraft(null, "G-1", "P-1")).not.toThrow();
     expect(() => pruneOtherGames(null, "G-1")).not.toThrow();
   });

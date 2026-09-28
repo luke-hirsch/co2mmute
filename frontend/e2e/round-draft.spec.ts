@@ -63,7 +63,7 @@ test("a reload keeps the half-made turn", async ({ browser, page, baseURL }) => 
     await expect(second.getByText("ändern")).toHaveCount(0);
     await expect(player.getByRole("button", { name: "Losfahren" })).toBeDisabled();
 
-    await expect(stored(player)).resolves.toHaveLength(1);
+    await expect.poll(() => stored(player)).toHaveLength(1);
 
     // Finish the turn: the draft has done its job and must not outlive it.
     // `template/legal/cookies.html` §3.3 promises exactly this in writing —
@@ -77,7 +77,7 @@ test("a reload keeps the half-made turn", async ({ browser, page, baseURL }) => 
     await expect(
       player.getByRole("heading", { name: "Abgeschickt" }),
     ).toBeVisible({ timeout: 30_000 });
-    await expect(stored(player)).resolves.toHaveLength(0);
+    await expect.poll(() => stored(player)).toHaveLength(0);
 
     expect(errors).toEqual([]);
   } finally {
@@ -92,6 +92,11 @@ test("a reload keeps the half-made turn", async ({ browser, page, baseURL }) => 
  * Read out of the browser rather than asserted through the interface, because
  * there is nothing on screen to see: the entry is a retention promise, not a
  * feature. `co2mmute.draft.` is `draft-storage.ts`'s prefix.
+ *
+ * **Polled by every caller, never `expect(...).resolves`.** The write and the
+ * clear are React effects, which flush *after* the paint that made the row or
+ * the heading visible — so a single read can land in the window between the two
+ * and fail for no reason. It did, once, in a full run under load.
  */
 async function stored(page: Page): Promise<string[]> {
   return page.evaluate(() =>

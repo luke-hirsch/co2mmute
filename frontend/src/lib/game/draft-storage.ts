@@ -141,14 +141,33 @@ export function readStoredChoices(
  * Nothing chosen is nothing to keep: writing an empty record would leave a key
  * lying around for a turn that was never begun, and clearing the last agent
  * would otherwise not clear the storage.
+ *
+ * **`currentRound` is what the screen knows, and it is a guard, not a label.**
+ * The draft may only be recorded for the round the screen is actually on. Two
+ * ways it can disagree, both of which delete a perfectly good turn:
+ *
+ *  - `currentRound` is **0**, the reducer's "no round yet". On a reload the
+ *    seat query can resolve before `game.state` arrives over the socket, so the
+ *    draft is briefly assigned for round 0 with nothing chosen — and an empty
+ *    draft removes the entry. The turn was then gone before the real round
+ *    number ever got to read it. This cost an intermittent e2e failure, and it
+ *    failed *more* under load, which is precisely when a socket loses a race.
+ *  - the draft still describes the **previous** round, in the moment between a
+ *    new round starting and the assignment for it arriving.
+ *
+ * So: no round, or a draft from another round, writes nothing at all. Refusing
+ * is always safe — the entry is rewritten on the next change — where writing
+ * the wrong thing is not.
  */
 export function writeStoredChoices(
   storage: Pick<Storage, "setItem" | "removeItem"> | null,
   gameId: string,
   draft: RoundDraft,
   choices: AgentChoice[],
+  currentRound: number,
 ): void {
   if (!storage || !draft.seatId) return;
+  if (currentRound < 1 || draft.roundNumber !== currentRound) return;
 
   const key = draftStorageKey(gameId, draft.seatId);
   try {
