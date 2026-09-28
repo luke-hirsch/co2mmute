@@ -50,7 +50,7 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | L-03 | Spieler verlässt das Spiel | verschwindet aus der Liste | offen | - |
 | L-04 | Gerät schließt den Tab | nach ~90 s „nicht verbunden", Eintrag bleibt | geht | - |
 | L-05 | Host startet das Spiel | Lobby merkt es ohne Reload | geht | - |
-| L-06 | Einstellungen | Agenten, Runden, CO₂-Budget, Chat stimmen | geht | - |
+| L-06 | Einstellungen | Agenten, Runden, CO₂-Budget, Chat stimmen | geht | `chat.spec.ts` |
 | L-07 | Host entfernt einen Spieler | dessen Gerät: „Dein Platz ist weg", mit Grund | geht | - |
 | L-08 | Platzzahl | die Host-Zeile zählt nicht mit | geht | - |
 | L-09 | Platz am Lehrerrechner (1.6) | ist als solcher markiert | geht | - |
@@ -99,7 +99,7 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | R-10 | Spieler verlässt mitten in der Runde | Runde kann trotzdem fertig werden | offen | - |
 | R-11 | Reconnect mitten in der Runde | schon abgeschickte Wahl ist noch da | geht | - |
 | R-12 | ÖPNV-Route gibt es nicht | sagt es und lässt eine andere Linie wählen | geht | - |
-| R-13 | Chat während der Runde | erreichbar | offen | - |
+| R-13 | Chat während der Runde | erreichbar | geht | `chat.spec.ts` |
 | R-14 | ÖPNV fahren und das letzte Stück laufen | Runde wird gerechnet, nicht abgebrochen | geht | - |
 | R-15 | Bus & Bahn auf der ausgelieferten Karte | findet für jedes der 36 Wohnort-Arbeitsplatz-Paare eine Verbindung (S5) | geht | `replay.spec.ts` |
 | R-16 | Auto auf einem Tor (Busspur oder Radweg nimmt die letzte Spur) | wird gar nicht erst als Route angeboten, statt beim Abschicken abgelehnt (S6) | geht | `edge-rules.test.ts` |
@@ -207,14 +207,21 @@ nicht gemessen.
 
 | ID | Fall | Erwartet | Status | E2E |
 | --- | --- | --- | --- | --- |
-| C-01 | Nachricht schicken | kommt bei allen an | offen | - |
-| C-02 | neu verbinden | Verlauf ist da (100 Nachrichten, 2 h) | offen | - |
-| C-03 | zu schnell tippen | Rate limit, verständliche Meldung | offen | - |
-| C-04 | Chat ist aus | kein Chat sichtbar | offen | - |
-| C-05 | Chat auf dem neuen Spielscreen | erreichbar wie auf dem alten | offen | - |
+| C-01 | Nachricht schicken | kommt bei allen an | geht | `chat.spec.ts` |
+| C-02 | neu verbinden | Verlauf ist da (100 Nachrichten, 2 h) | geht | `chat.spec.ts` |
+| C-03 | zu schnell tippen | Rate limit, verständliche Meldung | geht | `chat.spec.ts` |
+| C-04 | Chat ist aus | kein Chat sichtbar | geht | `chat.spec.ts` |
+| C-05 | Chat auf dem neuen Spielscreen | erreichbar wie auf dem alten | geht | `chat.spec.ts` |
+| C-06 | ungelesene Nachrichten | Zähler am Knopf, solange der Chat zu ist (S8) | geht | `chat.spec.ts` |
+| C-07 | Chat an- oder ausschalten | es gibt keinen Schalter — weder im Formular noch in der Lobby, nur über die API | offen | - |
 
-> Seit F5 (18.09.26) gibt es im Spiel **gar keinen Chat mehr**: er hing am alten Screen, der mit
-> F5 gelöscht ist. Er kommt als eigener Chunk wieder, gegen `ChatConsumer` neu gebaut.
+> Seit S8 (28.09.26) ist der Chat wieder da, neu gegen `ChatConsumer` gebaut und auf jedem
+> Spielscreen erreichbar (`GameFrame` hängt ihn einmal ein). Von F5 (18.09.26) bis dahin gab es
+> **gar keinen Chat**: er hing am alten Screen, der mit F5 gelöscht wurde.
+>
+> C-04 hängt am REST-Snapshot: `chat_enabled` kommt nur dort an, `game.state` trägt es nicht und
+> kein Event meldet eine Änderung. Ein laufender Client merkt das Ausschalten also erst beim
+> nächsten Neuladen.
 
 ## K — karte und editor
 

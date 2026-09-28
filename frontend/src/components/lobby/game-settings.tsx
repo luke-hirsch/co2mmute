@@ -27,12 +27,19 @@ export function GameSettings() {
         value={de.lobby.co2Kg(state.maxCo2LevelKg)}
       />
       {/*
-        No chat row. The chat died with the legacy screen in F5 and does not
-        come back until R-13 / C-05, but `chat_enabled` is still shipped in the
-        lobby snapshot — so this row went on promising "Chat — an" for a
-        feature with no way to reach it. The setting itself stays in the state
-        and in the backend; it is only the promise that goes.
+        Back as of S8. This row was removed in F5 because the chat had died
+        with the legacy screen and it went on promising "Chat — an" for a
+        feature with no way to reach it. `ChatDock` is that way, so the promise
+        is true again — and it has to be kept true: if the chat is ever
+        switched off again, this row goes with it.
       */}
+      <Setting
+        label={de.lobby.settings.chat}
+        value={
+          state.chatEnabled ? de.lobby.settings.chatOn : de.lobby.settings.chatOff
+        }
+        mono={false}
+      />
     </dl>
   );
 }
