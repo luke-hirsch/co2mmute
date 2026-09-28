@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { createGame } from "./game";
 import { loginAsHost } from "./host";
 
 /**
@@ -36,7 +37,14 @@ test("the round is watched before it is read", async ({ page, baseURL }) => {
   page.on("pageerror", (error) => errors.push(error.message));
 
   await loginAsHost(page);
-  const gameId = await createGame(page);
+  const gameId = await createGame(page, {
+    name: "E2E Animation",
+    agentPerPlayer: 2,
+    maxRounds: 3,
+    // Deliberately below what the screen derives (1600 here): enough traffic to
+    // draw, without making the e2e run wait for a full-size round.
+    peoplePerAgent: 800,
+  });
 
   try {
     for (const name of ["Ana", "Ben"]) {
@@ -142,27 +150,6 @@ async function pickMode(page: Page, index: number, wanted: string) {
 
 /** Create a game on the seeded map and return its id. */
 
-async function createGame(page: Page): Promise<string> {
-  await page.goto("/game/create/");
-  await page.locator('input[name="game_name"]').fill("E2E Animation");
-  const maps = page.locator('select[name="game_map"]');
-  await maps.selectOption(
-    (await maps.locator("option").nth(1).getAttribute("value"))!,
-  );
-  await page.locator('input[name="max_players"]').fill("2");
-  await page.locator('input[name="agent_per_player"]').fill("2");
-  await page.locator('input[name="max_rounds"]').fill("3");
-  // S2's derivation by hand: district_commuters / (seats x Fahrgäste). The
-  // server-rendered create form cannot follow the class size yet (S13), and at
-  // the form's default this round has too little traffic to draw.
-  await page.locator('input[name="people_per_agent"]').fill("800");
-  await page.locator('form button[type="submit"]').first().click();
-  await page.waitForURL(/\/app\/game\/[^/]+\/?$/);
-
-  const gameId = new URL(page.url()).pathname.split("/").filter(Boolean).pop();
-  expect(gameId).toBeTruthy();
-  return gameId!;
-}
 
 /**
  * End the game and delete it.

@@ -16,16 +16,18 @@ from django.test import TestCase, override_settings
 from django.urls import resolve, reverse
 from django.utils import timezone
 
-from co2mmute.utils import sign_value
+from co2mmute.utils import sign_value, unsign_value
 from game.cache import invalidate_game_session
 from game.models import GameSession, Player
 
 from ._helpers import (
     TEST_BACKENDS,
     TempMediaRootMixin,
+    create_game_map,
     create_game_session,
     create_host,
     muted,
+    post_create,
 )
 
 
@@ -39,6 +41,9 @@ def join_url(game_id):
 
 def lobby_url(game_id):
     return f"/api/game/{game_id}/lobby/"
+
+
+create_url = "/api/game/"
 
 
 class GameCookieMixin:
@@ -389,6 +394,16 @@ class UrlRoutingTests(TestCase):
     a plausible-looking 403. Status codes alone cannot tell the two apart.
     """
 
+    def test_the_bare_api_path_resolves_to_the_create_view(self):
+        """`POST api/game/` is the one path with no segment after the prefix.
+
+        Nothing can swallow it — `<str:game_id>/` needs a segment — but it is
+        pinned with the rest because this file's whole point is that a route in
+        the wrong place here answers plausibly instead of 404ing.
+        """
+        match = resolve(create_url)
+        self.assertEqual(match.func.view_class.__name__, "GameSessionCreateView")
+
     def test_lookup_resolves_to_the_lookup_view(self):
         match = resolve(lookup_url("ABC123"))
         self.assertEqual(match.func.view_class.__name__, "SessionLookupView")
@@ -705,63 +720,46 @@ class GermanFunnelTests(TempMediaRootMixin, TestCase):
             english_in(text), [], f"English on player/create/: {text[:400]}"
         )
 
-    def test_the_create_session_page_is_german(self):
+    def test_the_create_endpoint_refuses_in_german(self):
+        """The create screen renders what comes back, so these are copy.
+
+        They used to be English and it did not show: the form had its own
+        German wording and this serializer only ever answered the lobby's
+        PATCH, whose errors no screen displayed. S13 made them the sentence a
+        host reads.
+        """
         self.client.force_login(self.host)
 
-        response = self.client.get("/game/create/")
+        with muted():
+            response = post_create(
+                self.client,
+                game_name="Zu klein",
+                max_players=0,
+                agent_per_player=0,
+                max_rounds=0,
+                max_CO2_level=0,
+                people_per_agent=0,
+            )
 
-        text = visible_text(response.content.decode())
-        self.assertEqual(english_in(text), [], f"English on /game/create/: {text[:400]}")
-
-    def test_every_create_form_label_is_german(self):
-        from game.forms import GameSessionCreateForm
-
-        form = GameSessionCreateForm()
-
+        self.assertEqual(response.status_code, 400)
+        errors = response.json()
+        self.assertTrue(errors)
         offenders = {
-            name: field.label
-            for name, field in form.fields.items()
-            if english_in(str(field.label))
+            field: messages
+            for field, messages in errors.items()
+            if english_in(" ".join(str(m) for m in messages))
         }
-
         self.assertEqual(offenders, {})
 
-    def test_every_create_form_help_text_is_german(self):
-        from game.forms import GameSessionCreateForm
+    def test_a_missing_map_is_refused_in_german(self):
+        self.client.force_login(self.host)
 
-        form = GameSessionCreateForm()
+        with muted():
+            response = post_create(self.client, game_map=None)
 
-        offenders = {
-            name: field.help_text
-            for name, field in form.fields.items()
-            if field.help_text and english_in(str(field.help_text))
-        }
-
-        self.assertEqual(offenders, {})
-
-    def test_the_create_form_validation_speaks_german(self):
-        from game.forms import GameSessionCreateForm
-
-        form = GameSessionCreateForm(
-            data={
-                "game_name": "Zu klein",
-                "max_players": 0,
-                "agent_per_player": 0,
-                "max_rounds": 0,
-                "max_CO2_level": 0,
-                "people_per_agent": 0,
-                "idle_end_days": 30,
-            }
-        )
-        form.is_valid()
-
-        offenders = {
-            field: errors
-            for field, errors in form.errors.items()
-            if english_in(" ".join(errors))
-        }
-
-        self.assertEqual(offenders, {})
+        self.assertEqual(response.status_code, 400)
+        messages = response.json()["game_map"]
+        self.assertEqual(english_in(" ".join(str(m) for m in messages)), [])
 
     def test_the_player_form_is_german(self):
         from game.forms import PlayerCreateForm
@@ -893,24 +891,199 @@ class MapWithNothingToVoteOnTests(GameCookieMixin, TempMediaRootMixin, TestCase)
         )
         self.assertIs(payload["map_changes_available"], True)
 
-    def test_the_create_form_marks_a_map_with_nothing_to_vote_on(self):
-        from game.forms import GameSessionCreateForm
+    def test_the_map_list_marks_a_map_with_nothing_to_vote_on(self):
+        """What the Django form put in the option label, the API now states.
 
-        labels = dict(GameSessionCreateForm().fields["game_map"].choices)  # type: ignore
+        `MapChoiceField` appended "— keine Kartenänderungen" to the label; the
+        React select reads this boolean and says the same thing. A flag beats a
+        decorated label: the screen can put the sentence where it belongs
+        instead of inside the option text.
+        """
+        self.client.force_login(self.host)
 
-        rendered = {str(v) for v in labels.values()}
+        response = self.client.get("/api/maps/")
 
-        self.assertIn(f"{self.flat_map} — keine Kartenänderungen", rendered)
+        self.assertEqual(response.status_code, 200)
+        by_id = {row["id"]: row for row in response.json()}
+        self.assertIs(by_id[self.flat_map.pk]["offers_map_changes"], False)
 
-    def test_the_create_form_leaves_a_versioned_map_alone(self):
-        from game.forms import GameSessionCreateForm
+    def test_the_map_list_leaves_a_versioned_map_alone(self):
+        self.client.force_login(self.host)
 
-        labels = dict(GameSessionCreateForm().fields["game_map"].choices)  # type: ignore
+        response = self.client.get("/api/maps/")
 
-        rendered = {str(v) for v in labels.values()}
+        self.assertEqual(response.status_code, 200)
+        by_id = {row["id"]: row for row in response.json()}
+        self.assertIs(by_id[self.rich_map.pk]["offers_map_changes"], True)
 
-        self.assertIn(str(self.rich_map), rendered)
-        self.assertNotIn(f"{self.rich_map} — keine Kartenänderungen", rendered)
+
+@override_settings(**TEST_BACKENDS)
+class CreateGameEndpointTests(TempMediaRootMixin, TestCase):
+    """`POST api/game/` — what the Django `CreateView` used to do. S13.
+
+    The screen moved to React because the two calibrated numbers have to follow
+    the class size as the host types it, and a server-rendered form derives
+    them once per GET. What moved with it is everything the old `form_valid`
+    did besides saving the row: the host's own `Player`, both signed cookies,
+    and the cache entry the permissions and the consumers read.
+
+    The cookies matter more than they look. The host is a Django user with a
+    session *and* a player in their own game, and `IsPlayerInGame` /
+    `HasGameAccess` ask for the cookies, not the session — so a create that
+    forgets them leaves the host holding a game they cannot act in.
+    """
+
+    def setUp(self):
+        self.host = create_host(first_name="Sebastian", last_name="Werblinski")
+        self.game_map = create_game_map()
+
+    def _create(self, **overrides):
+        overrides.setdefault("game_map", self.game_map.pk)
+        with muted():
+            return post_create(self.client, **overrides)
+
+    def test_an_anonymous_visitor_is_refused(self):
+        response = self._create()
+
+        self.assertIn(response.status_code, (401, 403))
+        self.assertFalse(GameSession.objects.exists())
+
+    def test_the_host_creates_a_game(self):
+        self.client.force_login(self.host)
+
+        response = self._create(game_name="Klasse 8b")
+
+        self.assertEqual(response.status_code, 201, msg=response.content)
+        game = GameSession.objects.get(game_name="Klasse 8b")
+        self.assertEqual(game.game_host, self.host)
+        self.assertEqual(response.json()["game_id"], game.game_id)
+
+    def test_the_body_cannot_name_a_different_host(self):
+        """`game_host` is read-only, so a POST cannot hand somebody else a game."""
+        other = create_host(username="fremd")
+        self.client.force_login(self.host)
+
+        response = self._create(game_name="Nicht deins", game_host=other.pk)
+
+        self.assertEqual(response.status_code, 201, msg=response.content)
+        self.assertEqual(
+            GameSession.objects.get(game_name="Nicht deins").game_host, self.host
+        )
+
+    def test_it_seats_the_host(self):
+        """Found by account, never by `controlled_by_host` — that flag means
+        "played at the host machine", which this row is not."""
+        self.client.force_login(self.host)
+
+        self._create(game_name="Mit Host")
+
+        game = GameSession.objects.get(game_name="Mit Host")
+        host_row = Player.objects.filter(game=game).host_rows().get()  # type: ignore
+        self.assertEqual(host_row.user, self.host)
+        self.assertFalse(host_row.controlled_by_host)
+        self.assertEqual(host_row.name, "Sebastian Werblinski (Host)")
+
+    def test_a_nameless_account_is_just_Host(self):
+        nameless = create_host(username="ohne")
+        self.client.force_login(nameless)
+
+        self._create(game_name="Ohne Namen")
+
+        game = GameSession.objects.get(game_name="Ohne Namen")
+        self.assertEqual(
+            Player.objects.filter(game=game).host_rows().get().name,  # type: ignore
+            "Host",
+        )
+
+    def test_it_hands_back_both_cookies(self):
+        self.client.force_login(self.host)
+
+        response = self._create(game_name="Mit Keksen")
+
+        game_id = response.json()["game_id"]
+        self.assertIn(f"{settings.COOKIE_GAME_PREFIX}{game_id}", response.cookies)
+        self.assertIn(f"{settings.COOKIE_PLAYER_PREFIX}{game_id}", response.cookies)
+
+    def test_the_player_cookie_names_the_host_row(self):
+        """Both cookie values are "<game_id>:<x>"; the player one carries the
+        `player_id`, and `ws_auth` refuses one whose game id does not match."""
+        self.client.force_login(self.host)
+
+        response = self._create(game_name="Kekse pruefen")
+
+        game_id = response.json()["game_id"]
+        raw = response.cookies[f"{settings.COOKIE_PLAYER_PREFIX}{game_id}"].value
+        value = unsign_value(raw, settings.COOKIE_PLAYER_SALT)
+        game = GameSession.objects.get(game_id=game_id)
+        host_row = Player.objects.filter(game=game).host_rows().get()  # type: ignore
+        self.assertEqual(value, f"{game_id}:{host_row.player_id}")
+
+    def test_the_new_game_is_cached(self):
+        """`get_cached_game_session` is what the permissions and both consumers
+        read, so a create that skips it makes the first request a miss."""
+        from game.cache import get_cached_game_session
+
+        self.client.force_login(self.host)
+
+        response = self._create(game_name="Im Cache")
+
+        game_id = response.json()["game_id"]
+        self.assertIsNotNone(get_cached_game_session(game_id))
+
+    def test_it_refuses_more_agents_than_seats(self):
+        self.client.force_login(self.host)
+
+        response = self._create(
+            game_name="Zu viele", max_players=2, agent_per_player=3
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("agent_per_player", response.json())
+        self.assertFalse(GameSession.objects.filter(game_name="Zu viele").exists())
+
+    def test_a_refused_body_seats_nobody(self):
+        """The row, the seat and the cookies are one step or none."""
+        self.client.force_login(self.host)
+
+        self._create(game_name="Kaputt", max_rounds=0)
+
+        self.assertFalse(GameSession.objects.filter(game_name="Kaputt").exists())
+        self.assertFalse(Player.objects.exists())
+
+
+class CreateFormRedirectTests(TempMediaRootMixin, TestCase):
+    """`/game/create/` is a doorway now, and it has to stay one.
+
+    Everything points at it: the landing page twice, the footer, the profile
+    page, the end-of-game screen and six e2e specs. The redirect is what keeps
+    all of them working while there is only one create screen.
+    """
+
+    def setUp(self):
+        self.host = create_host()
+
+    def test_the_old_url_sends_a_host_into_the_spa(self):
+        self.client.force_login(self.host)
+
+        response = self.client.get("/game/create/")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], "/app/game/create")
+
+    def test_an_anonymous_visitor_goes_to_the_login_first(self):
+        """Not into the SPA, which would only bounce them back a tick later."""
+        response = self.client.get("/game/create/")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response["Location"].startswith("/accounts/login/"))
+
+    def test_the_form_is_gone(self):
+        """A second create form is the two-sources-of-truth bug this project
+        keeps having. The Django one is deleted, not left beside the React one."""
+        import game.forms as forms
+
+        self.assertFalse(hasattr(forms, "GameSessionCreateForm"))
+        self.assertFalse(hasattr(forms, "MapChoiceField"))
 
 
 class CalibratedCreateFormTests(TempMediaRootMixin, TestCase):
@@ -928,35 +1101,52 @@ class CalibratedCreateFormTests(TempMediaRootMixin, TestCase):
     def setUp(self):
         self.host = create_host()
 
-    def test_the_shipped_initials_are_the_calibrated_pair(self):
-        from game.forms import GameSessionCreateForm
+    def test_the_shipped_defaults_are_the_calibrated_pair(self):
+        """The class size the create screen opens on, and what it derives.
 
-        form = GameSessionCreateForm()
+        These were assertions about a Django form's `initial` until S13. The
+        screen is React now and `frontend/tests/lib/create-game.test.ts` pins
+        what it offers; what stays here is the arithmetic underneath, which is
+        the half that has to agree with the simulation.
+        """
+        from game.calibration import (
+            DEFAULT_AGENT_PER_PLAYER,
+            DEFAULT_MAX_PLAYERS,
+            DEFAULT_MAX_ROUNDS,
+            co2_budget_kg,
+            people_per_agent,
+        )
 
-        self.assertEqual(form.fields["max_players"].initial, 16)
-        self.assertEqual(form.fields["agent_per_player"].initial, 4)
-        self.assertEqual(form.fields["max_rounds"].initial, 6)
-        self.assertEqual(form.fields["people_per_agent"].initial, 100)
-        self.assertEqual(form.fields["max_CO2_level"].initial, 48_000)
+        self.assertEqual(DEFAULT_MAX_PLAYERS, 16)
+        self.assertEqual(DEFAULT_AGENT_PER_PLAYER, 4)
+        self.assertEqual(DEFAULT_MAX_ROUNDS, 6)
+        self.assertEqual(
+            people_per_agent(
+                max_players=DEFAULT_MAX_PLAYERS,
+                agent_per_player=DEFAULT_AGENT_PER_PLAYER,
+            ),
+            100,
+        )
+        self.assertEqual(co2_budget_kg(max_rounds=DEFAULT_MAX_ROUNDS), 48_000)
 
     def test_people_per_agent_follows_the_class_size(self):
         """Half the seats, twice the people behind each Fahrgast."""
-        from game.forms import GameSessionCreateForm
+        from game.calibration import people_per_agent
 
         for seats, expected in ((16, 100), (8, 200), (4, 400), (2, 800)):
             with self.subTest(seats=seats):
-                form = GameSessionCreateForm(initial={"max_players": seats})
                 self.assertEqual(
-                    form.fields["people_per_agent"].initial, expected
+                    people_per_agent(max_players=seats, agent_per_player=4),
+                    expected,
                 )
 
     def test_people_per_agent_follows_the_agents_per_player_too(self):
         """It is agents that carry people, not players."""
-        from game.forms import GameSessionCreateForm
+        from game.calibration import people_per_agent
 
-        form = GameSessionCreateForm(initial={"agent_per_player": 2})
-
-        self.assertEqual(form.fields["people_per_agent"].initial, 200)
+        self.assertEqual(
+            people_per_agent(max_players=16, agent_per_player=2), 200
+        )
 
     def test_the_budget_follows_the_round_count_and_nothing_else(self):
         """Per round, because the pressure is spread over the whole game.
@@ -964,26 +1154,33 @@ class CalibratedCreateFormTests(TempMediaRootMixin, TestCase):
         It carries no agent term on purpose: the district's population is
         constant, so a round costs what it costs however many students play.
         """
-        from game.forms import GameSessionCreateForm
+        from game.calibration import co2_budget_kg
 
         for rounds, expected in ((6, 48_000), (3, 24_000), (10, 80_000)):
             with self.subTest(rounds=rounds):
-                form = GameSessionCreateForm(initial={"max_rounds": rounds})
-                self.assertEqual(form.fields["max_CO2_level"].initial, expected)
+                self.assertEqual(co2_budget_kg(max_rounds=rounds), expected)
 
-        form = GameSessionCreateForm(initial={"max_players": 4})
-        self.assertEqual(form.fields["max_CO2_level"].initial, 48_000)
+    def test_the_host_keeps_whatever_they_send(self):
+        """Derived is an offer, not a rule. The host stays in charge.
 
-    def test_a_host_can_still_override_both(self):
-        """Derived is an initial, not a rule. The host stays in charge."""
-        from game.forms import GameSessionCreateForm
+        The screen derives the pair and writes it into the two fields; if the
+        host types over them, the endpoint takes what it is given — there is no
+        server-side recomputation that would quietly overrule them.
+        """
+        self.client.force_login(self.host)
 
-        form = GameSessionCreateForm(
-            initial={"people_per_agent": 1000, "max_CO2_level": 500}
-        )
+        with muted():
+            response = post_create(
+                self.client,
+                game_name="Eigene Zahlen",
+                people_per_agent=1000,
+                max_CO2_level=500,
+            )
 
-        self.assertEqual(form.fields["people_per_agent"].initial, 1000)
-        self.assertEqual(form.fields["max_CO2_level"].initial, 500)
+        self.assertEqual(response.status_code, 201, msg=response.content)
+        game = GameSession.objects.get(game_name="Eigene Zahlen")
+        self.assertEqual(game.people_per_agent, 1000)
+        self.assertEqual(game.max_CO2_level, 500)
 
     def test_the_budget_is_beatable_and_losable(self):
         """What the two numbers are FOR, in one assertion.
@@ -1003,25 +1200,26 @@ class CalibratedCreateFormTests(TempMediaRootMixin, TestCase):
         self.assertLess(budget, all_car_six_rounds)
         self.assertGreater(budget, improving_six_rounds)
 
-    def test_the_create_page_offers_the_derived_pair(self):
-        """What the host actually sees, rendered.
+    def test_the_map_the_screen_derives_from_carries_the_pair(self):
+        """What the host sees is derived in the browser, from these two fields.
 
-        The form is server-rendered, so the derivation happens once per GET.
-        Following it as the host edits the class size or picks another map is
-        the React port's job; this is the check that the offer itself is the
-        calibrated one and not the old 1000-against-500.
-
-        The status code is asserted first: a content check alone goes green
-        against the 404 a missing route returns.
+        The derivation moved to `frontend/src/lib/calibration.ts` with S13 —
+        it has to follow the class size as the host types, which a
+        server-rendered form could never do. Its inputs still come from here,
+        over `GET api/maps/`, so this is the half the backend still owns: the
+        two numbers reach the client at all.
         """
+        from maps.models import GameMap
+
+        game_map = GameMap.objects.create(name="Vorschlagskarte")
         self.client.force_login(self.host)
 
-        response = self.client.get("/game/create/")
+        response = self.client.get("/api/maps/")
 
         self.assertEqual(response.status_code, 200)
-        body = response.content.decode()
-        self.assertIn('name="people_per_agent" value="100"', body)
-        self.assertIn('name="max_CO2_level" value="48000"', body)
+        row = {r["id"]: r for r in response.json()}[game_map.pk]
+        self.assertEqual(row["district_commuters"], 6_400)
+        self.assertEqual(row["co2_budget_kg_per_round"], 8_000)
 
 
 class MapCarriedCalibrationTests(TempMediaRootMixin, TestCase):
@@ -1102,43 +1300,39 @@ class MapCarriedCalibrationTests(TempMediaRootMixin, TestCase):
         )
         self.assertEqual(co2_budget_kg(max_rounds=6), 48_000)
 
-    def test_the_form_derives_from_the_chosen_map(self):
-        from game.forms import GameSessionCreateForm
+    def test_a_tie_rounds_down(self):
+        """800 over 64 Fahrgäste is 12.5, and Python's round() goes to even.
 
+        Pinned rather than rounded up on purpose: under the corridors' capacity
+        is the safe side of a tie. `frontend/src/lib/calibration.ts` mirrors
+        this rule, because the offer is now computed in the browser — its own
+        test uses these same numbers.
+        """
+        from game.calibration import people_per_agent
+
+        quiet = self._map(name="Kleinstadt", district_commuters=800)
+
+        self.assertEqual(
+            people_per_agent(max_players=16, agent_per_player=4, game_map=quiet),
+            12,
+        )
+
+    def test_the_pair_travels_to_the_client_per_map(self):
+        """The screen derives from whichever map is selected, so both numbers
+        have to be on every row of the list, not only on the default."""
+        self.client.force_login(self.host)
         quiet = self._map(
             name="Kleinstadt",
             district_commuters=1_600,
             co2_budget_kg_per_round=2_000,
         )
 
-        form = GameSessionCreateForm(initial={"game_map": quiet.pk})
+        response = self.client.get("/api/maps/")
 
-        self.assertEqual(form.fields["people_per_agent"].initial, 25)
-        self.assertEqual(form.fields["max_CO2_level"].initial, 12_000)
-
-    def test_a_map_instance_in_initial_works_too(self):
-        """`initial` holds a pk from a GET and an instance from code.
-
-        800 over 64 Fahrgäste is 12.5, and Python's round() goes to even, so
-        12. Pinned rather than rounded up on purpose: under the corridors'
-        capacity is the safe side of a tie.
-        """
-        from game.forms import GameSessionCreateForm
-
-        quiet = self._map(name="Kleinstadt", district_commuters=800)
-
-        form = GameSessionCreateForm(initial={"game_map": quiet})
-
-        self.assertEqual(form.fields["people_per_agent"].initial, 12)
-
-    def test_an_unknown_map_pk_does_not_break_the_page(self):
-        """A stale pk in a querystring must not 500 the create form."""
-        from game.forms import GameSessionCreateForm
-
-        form = GameSessionCreateForm(initial={"game_map": 10_000_000})
-
-        self.assertEqual(form.fields["people_per_agent"].initial, 100)
-        self.assertEqual(form.fields["max_CO2_level"].initial, 48_000)
+        self.assertEqual(response.status_code, 200)
+        row = {r["id"]: r for r in response.json()}[quiet.pk]
+        self.assertEqual(row["district_commuters"], 1_600)
+        self.assertEqual(row["co2_budget_kg_per_round"], 2_000)
 
 
 class MapCalibrationRoundTripTests(TempMediaRootMixin, TestCase):

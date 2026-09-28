@@ -102,3 +102,47 @@ export function usePauseGame(gameId: string) {
 export function useResumeGame(gameId: string) {
   return useMutation({ mutationFn: () => resumeGame(gameId) });
 }
+
+/**
+ * What `POST api/game/` takes. S13.
+ *
+ * Every field the Django form had, minus `lobby_open`: that one was collected,
+ * validated and thrown away — `GameSession` has no such column and nothing
+ * anywhere read it — so carrying it across would have been carrying a promise
+ * the app does not keep.
+ *
+ * `people_per_agent` and `max_CO2_level` are derived by `lib/calibration.ts`
+ * and written into their fields as the host changes the class size, the round
+ * count or the map. They are ordinary fields from there on: the endpoint takes
+ * whatever it is sent, so a host who types over either keeps their own number.
+ */
+export type CreateGameBody = {
+  game_name: string;
+  game_password: string;
+  game_map: number;
+  map_updates: boolean;
+  max_players: number;
+  agent_per_player: number;
+  max_rounds: number;
+  max_CO2_level: number;
+  people_per_agent: number;
+  idle_end_days: number;
+};
+
+/**
+ * Make a game and take its host to it.
+ *
+ * The response carries the new `game_id`, and the two signed cookies ride on
+ * the same response — the host is a Django session *and* a player row in their
+ * own game, and `HasGameAccess` asks for the cookies rather than the session.
+ * Nothing here has to do anything about them; they are set by the browser.
+ */
+export function useCreateGame() {
+  return useMutation({
+    mutationFn: (body: CreateGameBody) =>
+      apiFetch<HostGame>("/api/game/", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+  });
+}

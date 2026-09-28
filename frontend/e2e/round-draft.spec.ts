@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { createGame } from "./game";
 import { loginAsHost } from "./host";
 
 /**
@@ -30,7 +31,13 @@ test.setTimeout(180_000);
 
 test("a reload keeps the half-made turn", async ({ browser, page, baseURL }) => {
   await loginAsHost(page);
-  const gameId = await createGame(page);
+  const gameId = await createGame(page, {
+    name: "E2E Entwurf",
+    // Two seats, because the form refuses more Fahrgäste per person than there
+    // are seats. Only one is ever joined; the round never completes, which is
+    // the point.
+    agentPerPlayer: 2,
+  });
 
   const playerContext = await browser.newContext({ ignoreHTTPSErrors: true });
   const player = await playerContext.newPage();
@@ -133,28 +140,6 @@ async function pickRoutableMode(page: Page, index: number): Promise<string> {
   throw new Error("no mode routed for this seat — the map or the seed is wrong");
 }
 
-/** Create a game on the seeded map and return its id. */
-async function createGame(page: Page): Promise<string> {
-  await page.goto("/game/create/");
-  await page.locator('input[name="game_name"]').fill("E2E Entwurf");
-  const maps = page.locator('select[name="game_map"]');
-  await maps.selectOption(
-    (await maps.locator("option").nth(1).getAttribute("value"))!,
-  );
-  // Two seats, because the form refuses more Fahrgäste per person than there
-  // are seats ("Mehr Fahrgäste pro Person als Plätze im Spiel geht nicht").
-  // Only one is ever joined; the round never completes, which is the point.
-  await page.locator('input[name="max_players"]').fill("2");
-  await page.locator('input[name="agent_per_player"]').fill("2");
-  await page.locator('input[name="max_rounds"]').fill("2");
-
-  await page.locator('form button[type="submit"]').first().click();
-  await page.waitForURL(/\/app\/game\/[^/]+\/?$/);
-
-  const gameId = new URL(page.url()).pathname.split("/").filter(Boolean).pop();
-  expect(gameId).toBeTruthy();
-  return gameId!;
-}
 
 /**
  * Join as a student: no account, a screen name, two signed cookies.

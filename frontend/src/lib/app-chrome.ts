@@ -33,7 +33,19 @@ const FULL_BLEED = ["/game", "/maps"];
 /** Routes whose only job is to redirect somewhere else. */
 const REDIRECT_ONLY = ["/", "/game", "/game/", "/maps", "/maps/"];
 
+/**
+ * Screens that sit under a full-bleed prefix but are not that screen.
+ *
+ * `/game/create` is the funnel, not a game: it is where `/game/create/` sends a
+ * logged-in host, it runs before any game exists, and both of the header's
+ * links (the landing page, the profile) are exactly what somebody who opened it
+ * by accident needs. Listed rather than reasoned about, because "is this path a
+ * game id" is the kind of guess that starts matching the wrong thing.
+ */
+const CHROME_ANYWAY = ["/game/create"];
+
 export function showsAppChrome(pathname: string): boolean {
+  if (CHROME_ANYWAY.includes(pathname.replace(/\/$/, ""))) return true;
   if (REDIRECT_ONLY.includes(pathname)) return false;
 
   // A trailing slash is the same screen, and so is a deeper path under it.

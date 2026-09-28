@@ -1,5 +1,6 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
+import { createGame } from "./game";
 import { loginAsHost } from "./host";
 
 /**
@@ -34,7 +35,7 @@ test("a muted seat is told so, and can write again once it is lifted", async ({
   page.on("pageerror", (error) => errors.push(error.message));
 
   await loginAsHost(page);
-  const gameId = await createGame(page);
+  const gameId = await createGame(page, { name: "E2E Mute", agentPerPlayer: 1 });
 
   let playerContext: BrowserContext | null = null;
 
@@ -104,25 +105,6 @@ async function send(page: Page, text: string) {
   await panel.getByRole("button", { name: "Senden" }).click();
 }
 
-/** Create a game on the seeded map and return its id. */
-async function createGame(page: Page): Promise<string> {
-  await page.goto("/game/create/");
-  await page.locator('input[name="game_name"]').fill("E2E Mute");
-  const maps = page.locator('select[name="game_map"]');
-  await maps.selectOption(
-    (await maps.locator("option").nth(1).getAttribute("value"))!,
-  );
-  await page.locator('input[name="max_players"]').fill("2");
-  await page.locator('input[name="agent_per_player"]').fill("1");
-  await page.locator('input[name="max_rounds"]').fill("2");
-
-  await page.locator('form button[type="submit"]').first().click();
-  await page.waitForURL(/\/app\/game\/[^/]+\/?$/);
-
-  const gameId = new URL(page.url()).pathname.split("/").filter(Boolean).pop();
-  expect(gameId).toBeTruthy();
-  return gameId!;
-}
 
 async function joinAsPlayer(page: Page, gameId: string, name: string) {
   await page.goto(`/join/${gameId}/`);

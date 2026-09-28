@@ -17,7 +17,7 @@ from game.models import GameSession, Player
 from ._helpers import (
     TEST_BACKENDS,
     TempMediaRootMixin,
-    create_form_data,
+    post_create,
     create_game_map,
     create_game_session,
     create_host,
@@ -163,17 +163,15 @@ class PlayerHostRowTests(TempMediaRootMixin, TestCase):
         self.assertNotIn(elsewhere, Player.objects.filter(game=self.game).playing())
         self.assertIn(elsewhere, Player.objects.playing())
 
-    def test_the_create_view_makes_a_host_row_that_is_not_host_controlled(self):
+    def test_the_create_endpoint_makes_a_host_row_that_is_not_host_controlled(self):
         """From 1.6 on, controlled_by_host means "played at the host machine".
         The host's own row is found by its account."""
         self.client.force_login(self.host)
 
         with muted():
-            response = self.client.post(
-                "/game/create/", create_form_data(game_name="Frisch")
-            )
+            response = post_create(self.client, game_name="Frisch")
 
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 201)
         game = GameSession.objects.get(game_name="Frisch")
         host_row = Player.objects.filter(game=game).host_rows().get()
         self.assertFalse(host_row.controlled_by_host)
@@ -320,12 +318,17 @@ class HostRowMigrationTests(TempMediaRootMixin, TestCase):
 class GameMapRequiredTests(TempMediaRootMixin, TestCase):
     """A game without a map is a game nobody can start.
 
-    GameSession.game_map is null=True, so the create form offers "---------"
-    and makes one anyway: PATCH {"is_active": true} then answers 200, writes
+    GameSession.game_map is null=True, so the create form offered "---------"
+    and made one anyway: PATCH {"is_active": true} then answers 200, writes
     started_at, creates round 1 — and GameSession.save() forces is_active back
     to False, so no game.started ever goes out and the screen never moves. The
-    model stays nullable for the rows that already exist; the form is where it
-    is refused. See `.claude/plans/to-do/[backend]-game-ending.md`.
+    model stays nullable for the rows that already exist; the way in is where
+    it is refused. See `.claude/plans/to-do/[backend]-game-ending.md`.
+
+    Since S13 that way in is `POST api/game/`, and the rule moved with it:
+    `GameSessionCreateSerializer` makes `game_map` required while its parent
+    leaves it optional, because the lobby's PATCH must stay free to send a body
+    that only changes `is_active`.
     """
 
     def setUp(self):
@@ -339,38 +342,60 @@ class GameMapRequiredTests(TempMediaRootMixin, TestCase):
         self.assertIsNone(game.game_map)
         return game
 
-    def test_the_form_refuses_a_game_without_a_map(self):
-        from game.forms import GameSessionCreateForm
-
-        form = GameSessionCreateForm(data=create_form_data(game_map=""))
-
-        self.assertFalse(form.is_valid())
-        self.assertIn("game_map", form.errors)
-
-    def test_the_form_accepts_a_game_with_a_map(self):
-        from game.forms import GameSessionCreateForm
-
-        form = GameSessionCreateForm(data=create_form_data())
-
-        self.assertTrue(form.is_valid(), msg=form.errors.as_json())
-
-    def test_the_dropdown_has_no_empty_option(self):
-        """"---------" is what lets somebody pick nothing without noticing."""
-        from game.forms import GameSessionCreateForm
-
-        form = GameSessionCreateForm()
-
-        self.assertTrue(form.fields["game_map"].required)
-        self.assertIsNone(form.fields["game_map"].empty_label)
-
-    def test_the_create_view_refuses_it_too(self):
+    def test_the_endpoint_refuses_a_game_without_a_map(self):
         with muted():
-            response = self.client.post(
-                "/game/create/", create_form_data(game_name="Ohne Karte", game_map="")
+            response = post_create(
+                self.client, game_name="Ohne Karte", game_map=None
             )
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("game_map", response.json())
         self.assertFalse(GameSession.objects.filter(game_name="Ohne Karte").exists())
+
+    def test_leaving_the_map_out_altogether_is_refused_too(self):
+        """`allow_null` and `required` are two different refusals, and a screen
+        that sends nothing at all hits the second one."""
+        import json
+
+        body = {
+            "game_name": "Gar keine Karte",
+            "max_players": 4,
+            "agent_per_player": 1,
+            "max_rounds": 3,
+            "max_CO2_level": 100,
+            "people_per_agent": 100,
+        }
+        with muted():
+            response = self.client.post(
+                "/api/game/", json.dumps(body), content_type="application/json"
+            )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("game_map", response.json())
+
+    def test_the_endpoint_accepts_a_game_with_a_map(self):
+        with muted():
+            response = post_create(self.client, game_name="Mit Karte")
+
+        self.assertEqual(response.status_code, 201, msg=response.content)
+        self.assertTrue(GameSession.objects.filter(game_name="Mit Karte").exists())
+
+    def test_the_lobby_can_still_patch_without_naming_a_map(self):
+        """The parent serializer stays optional, which is what a PATCH that only
+        flips `is_active` relies on."""
+        game = self._mapless()
+        game.game_map = create_game_map()
+        with muted():
+            game.save()
+
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            response = self.client.patch(
+                f"/api/game/{game.game_id}/",
+                {"game_name": "Umbenannt"},
+                content_type="application/json",
+            )
+
+        self.assertEqual(response.status_code, 200, msg=response.content)
 
     def test_starting_a_mapless_game_over_the_api_is_refused(self):
         """The form is closed; the API and the admin are the way in that is left.
@@ -461,14 +486,26 @@ class CalibratedModelDefaultsTests(TestCase):
 
         self.assertFalse(field.default)
 
-    def test_the_create_form_still_offers_the_vote(self):
+    def test_the_create_screen_still_offers_the_vote(self):
         """The other half of the disagreement. Pinned together, or a change to
-        one of them reads as agreement rather than as the drift it is."""
-        from game.forms import GameSessionCreateForm
+        one of them reads as agreement rather than as the drift it is.
 
-        form = GameSessionCreateForm()
+        The offer moved to React with S13, so what is pinned here is that the
+        endpoint takes the answer rather than imposing the model's: a body
+        saying `map_updates: true` has to survive the default that says False.
+        `frontend/tests/lib/create-game.test.ts` pins the offer itself.
+        """
+        self.client.force_login(create_host(username="abstimmungshost"))
 
-        self.assertTrue(form.get_initial_for_field(form.fields["map_updates"], "map_updates"))
+        with muted():
+            response = post_create(
+                self.client, game_name="Mit Abstimmung", map_updates=True
+            )
+
+        self.assertEqual(response.status_code, 201, msg=response.content)
+        self.assertTrue(
+            GameSession.objects.get(game_name="Mit Abstimmung").map_updates
+        )
 
     def test_the_default_matches_the_shipped_class_size(self):
         """The literal on the model is the derivation's answer, not a guess."""

@@ -31,7 +31,7 @@ from ._helpers import (
     TEST_BACKENDS,
     GroupListener,
     TempMediaRootMixin,
-    create_form_data,
+    post_create,
     create_game_session,
     create_host,
     muted,
@@ -714,7 +714,7 @@ class IdleEndSettingTests(TempMediaRootMixin, TestCase):
 
     def create(self, **overrides):
         with muted():
-            return self.client.post("/game/create/", create_form_data(**overrides))
+            return post_create(self.client, **overrides)
 
     def test_a_game_without_a_choice_gets_30_days(self):
         """Also what the migration gives every existing game."""
@@ -723,30 +723,22 @@ class IdleEndSettingTests(TempMediaRootMixin, TestCase):
 
         self.assertEqual(game.idle_end_days, 30)
 
-    def test_the_create_form_offers_30_days(self):
-        from game.forms import GameSessionCreateForm
-
-        form = GameSessionCreateForm()
-
-        self.assertIn("idle_end_days", form.fields)
-        self.assertEqual(form.fields["idle_end_days"].initial, 30)
-
     def test_the_host_sets_it_when_creating_a_game(self):
         response = self.create(game_name="Kurz", idle_end_days=7)
 
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 201, msg=response.content)
         self.assertEqual(GameSession.objects.get(game_name="Kurz").idle_end_days, 7)
 
     def test_zero_days_is_refused(self):
         response = self.create(game_name="Null", idle_end_days=0)
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 400)
         self.assertFalse(GameSession.objects.filter(game_name="Null").exists())
 
     def test_more_than_a_year_is_refused(self):
         response = self.create(game_name="Ewig", idle_end_days=366)
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 400)
         self.assertFalse(GameSession.objects.filter(game_name="Ewig").exists())
 
     def test_the_beat_schedule_ends_idle_games_daily(self):

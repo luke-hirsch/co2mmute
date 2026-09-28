@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { createGame } from "./game";
 import { loginAsHost } from "./host";
 
 /**
@@ -34,7 +35,14 @@ test("the numbers name their scale, and the summary names the vote", async ({
   page.on("pageerror", (error) => errors.push(error.message));
 
   await loginAsHost(page);
-  const gameId = await createGame(page);
+  const gameId = await createGame(page, {
+    name: "E2E Zahlen",
+    agentPerPlayer: 2,
+    // Deliberately below what the screen derives (1600 on this map at this
+    // class size): half the traffic, so the round simulates quickly, and still
+    // enough of it that there are numbers to read.
+    peoplePerAgent: 800,
+  });
 
   try {
     for (const name of ["Ana", "Ben"]) {
@@ -183,26 +191,6 @@ async function pickMode(page: Page, index: number, wanted: string) {
   }
 }
 
-async function createGame(page: Page): Promise<string> {
-  await page.goto("/game/create/");
-  await page.locator('input[name="game_name"]').fill("E2E Zahlen");
-  const maps = page.locator('select[name="game_map"]');
-  await maps.selectOption(
-    (await maps.locator("option").nth(1).getAttribute("value"))!,
-  );
-  await page.locator('input[name="max_players"]').fill("2");
-  await page.locator('input[name="agent_per_player"]').fill("2");
-  await page.locator('input[name="max_rounds"]').fill("2");
-  // S2's derivation by hand — the server-rendered create form cannot follow the
-  // class size yet (S13, H-13).
-  await page.locator('input[name="people_per_agent"]').fill("800");
-  await page.locator('form button[type="submit"]').first().click();
-  await page.waitForURL(/\/app\/game\/[^/]+\/?$/);
-
-  const gameId = new URL(page.url()).pathname.split("/").filter(Boolean).pop();
-  expect(gameId).toBeTruthy();
-  return gameId!;
-}
 
 /** End the game if it is still running, then delete it. */
 async function endAndDelete(page: Page, gameId: string, baseURL: string) {

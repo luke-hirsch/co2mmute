@@ -10,15 +10,19 @@ from maps.models import Edge
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.exceptions import ValidationError
-from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.generics import (
+    CreateAPIView,
+    GenericAPIView,
+    RetrieveUpdateDestroyAPIView,
+)
 from rest_framework.mixins import ListModelMixin
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from game.auth import resolve_player_id
-from game.cache import get_cached_game_session
+from game.cache import cache_game_session, get_cached_game_session
 from game.calibration import per_person
-from game.mixins import GameScopedQuerysetMixin
+from game.mixins import GameAccessCookieMixin, GameScopedQuerysetMixin, PlayerCookieMixin
 from game.models import (
     AgentRoute,
     AgentSimulationResult,
@@ -50,6 +54,7 @@ from game.seats import (
     take_over,
 )
 from game.serializers import (
+    GameSessionCreateSerializer,
     GameSessionSerializer,
     PlayerMoveWithRoutesInputSerializer,
     PlayerSerializer,
@@ -169,6 +174,76 @@ class MuteUnmutePlayerView(GameScopedQuerysetMixin, GenericAPIView):
             )
 
         return Response(self.get_serializer(seat).data, status=status.HTTP_200_OK)
+
+
+class GameSessionCreateView(
+    GameAccessCookieMixin, PlayerCookieMixin, CreateAPIView
+):
+    """`POST api/game/` — a host makes a game. S13.
+
+    This is the Django `CreateView` that used to sit behind `/game/create/`,
+    with the ModelForm taken out. The screen moved to React because the two
+    calibrated numbers have to follow the class size as the host types, which a
+    server-rendered form derives once per GET and can never do; `/game/create/`
+    now redirects to the screen that calls this.
+
+    Three things happen besides the row, and they are the reason this is not a
+    plain `CreateAPIView`:
+
+    - **The host gets a `Player` row.** Every game has one, created with the
+      game. It is not "a seat at the host machine" — `controlled_by_host` means
+      that, and this row does not set it. It is the host's own seat, found by
+      account (`Player.objects.host_rows()`), which is what lets the game's own
+      anonymisation call it "Host" rather than "Spieler 3".
+    - **Both signed cookies are minted**, through the two helpers every other
+      minting site uses, so the host can reach the game socket and the REST
+      endpoints that ask for a player cookie rather than a session.
+    - **The row is cached**, because `get_cached_game_session` is what the
+      permissions and the consumers read.
+
+    `game_host` is never taken from the body — the serializer has it read-only
+    and it is set here from the session.
+    """
+
+    serializer_class = GameSessionCreateSerializer
+    authentication_classes = (SessionAuthentication,)
+    permission_classes = (IsAuthenticated,)
+    queryset = GameSession.objects.all()
+
+    def perform_create(self, serializer):
+        # Kept on the view because `create()` below needs the row, and DRF
+        # hands it back only on the serializer it built for this request.
+        self.game = serializer.save(game_host=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+
+        game: GameSession = self.game
+        cache_game_session(game)
+
+        host_player = self._seat_the_host(game)
+        response = self.set_game_access_cookie(request, response, game.game_id)
+        player_id = host_player.player_id
+        if player_id:
+            response = self.set_player_cookie(
+                request, response, game.game_id, str(player_id)
+            )
+        return response
+
+    def _seat_the_host(self, game: GameSession) -> Player:
+        """The host's own row. Named after them if the account has a name."""
+        user = self.request.user
+        name = "Host"
+        full_name = user.get_full_name()  # type: ignore[union-attr]
+        if full_name and full_name.strip():
+            name = f"{full_name} (Host)"
+
+        host_player, _created = Player.objects.get_or_create(
+            game=game, user=user, defaults={"name": name}
+        )
+        if not host_player.player_id:
+            host_player.refresh_from_db()
+        return host_player
 
 
 class GameSessionDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIView):

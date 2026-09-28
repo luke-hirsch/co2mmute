@@ -4,6 +4,21 @@ import game.models as gm
 
 
 class GameSessionSerializer(serializers.ModelSerializer):
+    """The game row, read and written by the SPA and by nothing else.
+
+    **The messages are German because the host reads them.** They used to be
+    English, which was harmless only for as long as nothing rendered them: the
+    create form was a Django `ModelForm` with its own German copy, and this
+    serializer answered the lobby's PATCH, whose errors the screen never
+    showed. S13 put the create form in React, so these strings are now the
+    sentence a host meets when they ask for a round with no seats in it.
+
+    There is no second copy of them in `de.ts`. A rule the client can check
+    before submitting — a missing name, a number below one — is checked there
+    with its own wording; a rule that needs the database is checked here and
+    the screen renders what comes back. Nothing is worded twice.
+    """
+
     class Meta:
         model = gm.GameSession
         fields = (
@@ -30,8 +45,12 @@ class GameSessionSerializer(serializers.ModelSerializer):
             "paused_at",
             "ended_at",
         )
+        # `game_host` is read-only because it is not the client's to state:
+        # the create endpoint takes it off the session. Writable, a POST could
+        # hand somebody else's account a game it never asked for.
         read_only_fields = (
             "id",
+            "game_host",
             "game_id",
             "game_qr_code",
             "created_at",
@@ -56,31 +75,73 @@ class GameSessionSerializer(serializers.ModelSerializer):
 
         if max_players is not None:
             if max_players < 1:
-                errors["max_players"] = "max_players must be at least 1."
+                errors["max_players"] = "Es muss mindestens einen Platz geben."
             if agent_per_player is not None and agent_per_player > max_players:
                 errors["agent_per_player"] = (
-                    "agent_per_player cannot exceed max_players."
+                    "Mehr Fahrgäste pro Person als Plätze im Spiel geht nicht."
                 )
 
         if agent_per_player is not None and agent_per_player < 1:
-            errors["agent_per_player"] = "agent_per_player must be at least 1."
+            errors["agent_per_player"] = (
+                "Jede Person braucht mindestens einen Fahrgast."
+            )
 
         if max_rounds is not None and max_rounds < 1:
-            errors["max_rounds"] = "max_rounds must be at least 1."
+            errors["max_rounds"] = "Es muss mindestens eine Runde gefahren werden."
 
         if max_co2_level is not None and max_co2_level < 1:
-            errors["max_CO2_level"] = "max_CO2_level must be at least 1."
+            errors["max_CO2_level"] = (
+                "Das CO₂-Budget muss mindestens ein Kilogramm sein."
+            )
 
         people_per_agent = attrs.get(
             "people_per_agent", getattr(self.instance, "people_per_agent", None)
         )
         if people_per_agent is not None and people_per_agent < 1:
-            errors["people_per_agent"] = "people_per_agent must be at least 1."
+            errors["people_per_agent"] = (
+                "Ein Fahrgast muss für mindestens einen Menschen stehen."
+            )
 
         if errors:
             raise serializers.ValidationError(errors)
 
         return attrs
+
+
+class GameSessionCreateSerializer(GameSessionSerializer):
+    """`POST api/game/` — the body the create screen sends.
+
+    One thing separates it from its parent: **a map is required.** On the model
+    `game_map` is `null=True, blank=True`, which is right for a row whose map
+    was deleted afterwards and wrong for a game being made now —
+    `GameSession.save()` forces `is_active` back to False whenever there is no
+    map, so a mapless game can never be started, never be ended, and used to
+    have no way out of the host's list either. The Django form required it for
+    that reason; so does this.
+
+    It is a subclass rather than a flag on the parent because the lobby's PATCH
+    goes through the parent and must be free to leave `game_map` out of a body
+    that only changes `is_active`.
+    """
+
+    class Meta(GameSessionSerializer.Meta):
+        extra_kwargs = {
+            "game_map": {
+                "required": True,
+                "allow_null": False,
+                "error_messages": {
+                    "required": "Wähle eine Karte aus.",
+                    "null": "Wähle eine Karte aus.",
+                    "does_not_exist": "Diese Karte gibt es nicht.",
+                },
+            },
+            "game_name": {
+                "error_messages": {
+                    "required": "Gib dem Spiel einen Namen.",
+                    "blank": "Gib dem Spiel einen Namen.",
+                },
+            },
+        }
 
 
 class PlayerSerializer(serializers.ModelSerializer):
