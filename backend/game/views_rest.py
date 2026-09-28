@@ -46,6 +46,7 @@ from game.seats import (
     code_qr_data_uri,
     issue_code,
     remove_seat,
+    set_muted,
     take_over,
 )
 from game.serializers import (
@@ -129,24 +130,45 @@ class PlayerListView(GameScopedQuerysetMixin, ListModelMixin, GenericAPIView):
 
 
 class MuteUnmutePlayerView(GameScopedQuerysetMixin, GenericAPIView):
+    """POST /api/game/<game_id>/player/<player_id>/mute/ — S9.
+
+    One endpoint, both directions: the flag flips, so a host looking for the
+    way back does not have to find a second button.
+
+    **This was routed nowhere until S9**, and `is_muted` was read by nothing —
+    neither consumer looked at it, no screen rendered it. Routing it on its own
+    would have shipped a control that changes a field no code obeys, which is
+    why `seats.is_muted`, `roster.build` and `ChatConsumer` are in the same
+    sweep.
+
+    **IsGameHost, not HasGameAccess.** A logged-in researcher holding a seat in
+    somebody else's game satisfies `HasGameAccess` *and* `IsAuthenticated` —
+    exactly how `DELETE /api/game/<id>/` came to be reachable by the wrong
+    person (S1). The host is identified by account.
+    """
+
     serializer_class = PlayerSerializer
     authentication_classes = (SessionAuthentication,)
-    permission_classes = (HasGameAccess, IsAuthenticated)
+    permission_classes = (IsGameHost,)
 
     def post(self, request, *args, **kwargs):
         player_id = self.kwargs.get("player_id")
         try:
-            player = self.get_queryset().get(player_id=player_id)
+            seat = self.get_queryset().get(player_id=player_id, left_at__isnull=True)
         except Player.DoesNotExist:
             return Response(
                 {"detail": "Player not found."}, status=status.HTTP_404_NOT_FOUND
             )
 
-        player.is_muted = not player.is_muted
-        player.save()
+        try:
+            seat = set_muted(seat, not seat.is_muted)
+        except SeatRefused as refused:
+            return Response(
+                {"detail": "This seat cannot be muted.", "reason": refused.reason},
+                status=status.HTTP_409_CONFLICT,
+            )
 
-        serializer = self.get_serializer(player)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(self.get_serializer(seat).data, status=status.HTTP_200_OK)
 
 
 class GameSessionDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIView):
@@ -241,6 +263,21 @@ class GameSessionDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIVie
             return super().update(request, *args, **kwargs)
 
         if is_start_game:
+            # A mapless game cannot be started, and used to fail by doing
+            # nothing: GameSession.save() forces is_active back to False when
+            # game_map is None, so this branch wrote started_at, made round 1
+            # and answered 200 with the game still inactive — no game.started
+            # went out and the host's screen simply did not move. The create
+            # form has required a map since 9dc1162; the API and the admin are
+            # the ways in that are left.
+            if game.game_map is None:
+                return Response(
+                    {
+                        "error": "This game has no map and cannot be started.",
+                        "reason": "no-map",
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
             with transaction.atomic():
                 game.is_active = True
                 game.started_at = timezone.now()

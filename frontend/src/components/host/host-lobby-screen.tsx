@@ -7,6 +7,7 @@ import { GameSettings } from "@/components/lobby/game-settings";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
 import { SeatAdminList } from "@/components/host/seat-admin-list";
 import { useGame } from "@/components/game/game-context";
+import { ApiError } from "@/lib/api";
 import { de } from "@/lib/de";
 import { playingSeats } from "@/lib/game/game-state";
 import { useEndGame, useHostGame, useStartGame } from "@/lib/queries/session";
@@ -36,19 +37,26 @@ export function HostLobbyScreen() {
   const players = playingSeats(state);
 
   /**
-   * A game with no map cannot start, and fails silently when you try:
-   * `GameSession.save()` forces `is_active` back to False whenever `game_map`
-   * is None, so `PATCH {is_active: true}` answers 200, sets `started_at`, makes
-   * round 1 — and leaves the game inactive, which means no `game.started` ever
-   * goes out and the screen simply does not move. The create form allows it
-   * (`game_map` is `null=True, blank=True`), so it is a real thing to land in.
+   * A game with no map cannot start.
    *
-   * Two guards, because they catch different things: the map is checked up
-   * front so the button explains itself, and the response is checked afterwards
-   * so that *any* other reason the backend declines to activate says something
-   * instead of nothing.
+   * It used to fail *silently*: `GameSession.save()` forces `is_active` back to
+   * False whenever `game_map` is None, so `PATCH {is_active: true}` answered
+   * 200, wrote `started_at`, made round 1 — and left the game inactive, so no
+   * `game.started` went out and the screen simply did not move. S9 turned that
+   * into a 409 `no-map`, which is what `refusedNoMap` reads.
+   *
+   * Three guards, because they catch different things. The map is checked up
+   * front so the button explains itself before it is pressed. The 409 is read
+   * afterwards, for a game whose map went away between the snapshot and the
+   * press. And `start.data && !start.data.is_active` stays as the catch-all:
+   * it is the shape of *any* future refusal that answers 200 without
+   * activating, which is the failure this screen was built around.
    */
   const noMap = game.data ? game.data.game_map === null : false;
+  const refusedNoMap =
+    start.error instanceof ApiError &&
+    start.error.status === 409 &&
+    start.error.reason === "no-map";
   const startRefused = !!start.data && !start.data.is_active;
   const canStart = players.length > 0 && !state.endedAt && !noMap;
 
@@ -97,7 +105,7 @@ export function HostLobbyScreen() {
       {start.error || startRefused || noMap || end.error ? (
         <Alert variant="destructive" className="mb-6">
           <AlertDescription>
-            {noMap
+            {noMap || refusedNoMap
               ? de.host.startNoMap
               : startRefused
                 ? de.host.startFailed
