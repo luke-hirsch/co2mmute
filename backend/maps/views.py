@@ -28,6 +28,7 @@ from maps.portability import (
     base_index,
     chain_groups,
     element_versions,
+    states_a_street,
     validate_versions,
     version_block,
     version_indices,
@@ -325,10 +326,10 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
 
                 # Validate edge type
                 edge_type = edge.get("type", "both")
-                if edge_type not in ("street", "train", "both"):
+                if edge_type not in ("street", "train", "both", "path"):
                     errors.append(
                         f"Edge {idx}: invalid type '{edge_type}'. "
-                        f"Must be 'street', 'train', or 'both'"
+                        f"Must be 'street', 'train', 'both', or 'path'"
                     )
                 # A bike lane implies bike access. Read against the same
                 # default _create_edges uses, so a train edge that asks for a
@@ -635,8 +636,14 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             edge_type = edge_data.get("type", "both")
             own = element_versions(edge_data, "versions", [base_idx], len(versions))
 
-            # Create StreetEdge if type is 'street' or 'both'
-            if edge_type in ("street", "both"):
+            # Create StreetEdge if type is 'street' or 'both' — but only when
+            # the file actually states a street. `"type": "path"` says there is
+            # none, and a legacy file saying `"street"` without a single street
+            # field means the same: that is how the four bike-and-foot links on
+            # the shipped map were written before the type existed. Creating one
+            # anyway handed each of them 50 km/h and a lane, which is a car
+            # shortcut past three front doors that nobody drew.
+            if edge_type in ("street", "both") and states_a_street(edge_data):
                 street_edge = StreetEdge.objects.create(
                     edge=edge,
                     speed_limit=edge_data.get("speed_limit", 50),

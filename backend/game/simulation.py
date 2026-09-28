@@ -666,9 +666,15 @@ class TrafficSimulator:
             # is legal and makes the street a gate — Lukas: "if that means a
             # road gets closed for the car entirely, then this is what it is.
             # People can decide and vote about it."
+            # A link with no street under it is a path — a way for bikes and
+            # pedestrians, and no car lane at all. `_validate_routes` and
+            # `canUseEdge` both already refuse a car there, so nothing can
+            # reach this with a car today; leaving `car_lanes = lanes` meant
+            # the same fact was answered two different ways in two places,
+            # which is the shape of every bug in this file's history.
             is_street = street_edge is not None
             has_bike_lane = edge.bike_lane
-            car_lanes = lanes
+            car_lanes = lanes if is_street else 0
             if is_street:
                 reserved = []
                 if has_dedicated_bus_lane:

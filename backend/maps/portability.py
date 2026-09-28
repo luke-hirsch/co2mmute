@@ -43,6 +43,16 @@ have to agree about them:
   and it has to be legible in the file.
 * **A flat file's ``edges`` on a line still works** and means "this route, in
   every version the line belongs to".
+* **``"type": "path"`` is a link with neither a street nor a railway under
+  it** — a way for bikes and pedestrians and nothing else. The map the group
+  plays has four of them: three homes reaching the S-Bahn at Bellevue, and the
+  Justizministerium reaching Checkpoint Charlie. It needs its own name because
+  the export used to write them as ``"street"`` (the ``else`` branch of a
+  three-way choice) and the importer then gave each one a ``StreetEdge`` at the
+  default 50 km/h and one lane — so the map could not survive its own round
+  trip, and every front door gained a fast car shortcut. A legacy file saying
+  ``"street"`` while stating no ``speed_limit``, ``lanes`` or
+  ``dedicated_bus_lane`` means the same thing and is read the same way.
 
 The version's own name wins over the form's. A copy imported under a new map
 name keeps the base version called after the map it was drawn on, which is what
@@ -129,8 +139,10 @@ def build_export(game_map, version=None):
             edge_type = "both"
         elif train:
             edge_type = "train"
-        else:
+        elif street:
             edge_type = "street"
+        else:
+            edge_type = "path"
 
         entry = {
             "start_node": str(edge.start_node_id),
@@ -351,6 +363,21 @@ def _background_block(game_map):
 # ---------------------------------------------------------------------------
 # reading
 # ---------------------------------------------------------------------------
+
+
+STREET_FIELDS = ("speed_limit", "lanes", "dedicated_bus_lane")
+
+
+def states_a_street(edge_data):
+    """Whether an edge entry actually describes a street under it.
+
+    `"type": "path"` says outright that there is none. A file written before
+    that type existed says `"street"` and simply states no street field, which
+    means the same thing — the alternative reading, "a street whose numbers
+    were left out", is what gave the four bike-and-foot links on the shipped
+    map a 50 km/h car lane on the way back in.
+    """
+    return any(field in edge_data for field in STREET_FIELDS)
 
 
 def version_block(graph_data):
