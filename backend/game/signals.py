@@ -68,7 +68,13 @@ def set_up_player(sender, instance: Player, created: bool, **kwargs):
             f"New Player {instance.player_id} added to GameSession {game_session.game_id}"
         )
         player_name = instance.name or "A new player"
-        send_chat_system_message(game_session.game_id, f"{player_name} joined the game")
+        # German, like every other player-facing string: this line is printed
+        # straight into the chat the class reads (S8). Not via a de.ts
+        # dictionary — that one belongs to the SPA, and this text is composed
+        # here with a name in it.
+        send_chat_system_message(
+            game_session.game_id, f"{player_name} ist dazugekommen"
+        )
 
         # Assign home and destination nodes if game has a map
         agent_assignments = None

@@ -225,6 +225,26 @@ class AddSeatTests(SeatsMixin, TestCase):
         last_roster = listener.rosters()[-1]
         self.assertIn(player_id, [p["player_id"] for p in last_roster])
 
+    def test_the_chat_is_told_in_german(self):
+        """S8. The line goes straight into the chat the class reads.
+
+        It said "<name> joined the game" until S8 put the chat back on screen
+        and made that visible — an English sentence in a German classroom, on a
+        screen where every other string goes through `de.ts`. This one cannot:
+        it is composed here, with a name in it.
+        """
+        listener = GroupListener(group=f"chat_{self.game.game_id}")
+        self.as_host()
+
+        self.add(name="Ohne Handy")
+
+        lines = [
+            message["message"]
+            for message in listener.messages()
+            if message.get("type") == "chat.system"
+        ]
+        self.assertEqual(lines, ["Ohne Handy ist dazugekommen"])
+
     def test_a_seat_added_during_a_round_is_waited_for(self):
         """The host plays it from the round it joins in."""
         from game.rounds import complete_round_if_ready
@@ -260,6 +280,33 @@ class RemoveSeatTests(SeatsMixin, TestCase):
         from game import roster
 
         return GroupListener(group=roster.player_group(player.pk))
+
+    def chat_lines(self, listener):
+        return [
+            message["message"]
+            for message in listener.messages()
+            if message.get("type") == "chat.system"
+        ]
+
+    def test_the_chat_says_in_german_that_someone_left(self):
+        """S8 — see AddSeatTests.test_the_chat_is_told_in_german."""
+        self.start()
+        listener = GroupListener(group=f"chat_{self.game.game_id}")
+        self.as_player(self.anna)
+
+        self.remove(self.anna)
+
+        self.assertEqual(self.chat_lines(listener), ["Anna hat das Spiel verlassen"])
+
+    def test_the_chat_says_in_german_that_someone_was_removed(self):
+        """The host removing a seat is a different sentence from leaving."""
+        self.start()
+        listener = GroupListener(group=f"chat_{self.game.game_id}")
+        self.as_host()
+
+        self.remove(self.anna)
+
+        self.assertEqual(self.chat_lines(listener), ["Anna wurde entfernt"])
 
     def test_before_the_start_the_row_is_deleted(self):
         """A guard, green from the start."""

@@ -93,9 +93,9 @@ def announce_departure(seat: Player, kicked: bool) -> None:
     name = seat.name or "A player"
 
     if kicked:
-        send_chat_system_message(game.game_id, f"{name} was removed from the game")
+        send_chat_system_message(game.game_id, f"{name} wurde entfernt")
     else:
-        send_chat_system_message(game.game_id, f"{name} left the game")
+        send_chat_system_message(game.game_id, f"{name} hat das Spiel verlassen")
 
     send_game_state_message(
         game.game_id,
