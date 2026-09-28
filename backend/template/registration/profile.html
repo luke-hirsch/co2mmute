@@ -1,9 +1,6 @@
 {% extends "base.html" %}<!-- even more comments -->
-{% block title %}
-<!-- comment to trick formatter -->
-{{ request.user.first_name|default:request.user.username }} - CO2MMUTE
-<!-- comment to trick formatter -->
-{% endblock %}
+{% block title %} {{ request.user.first_name|default:request.user.username }} -
+CO2MMUTE {% endblock %}
 <!-- even more comments -->
 {% block main %}
 <section class="mx-auto w-full max-w-4xl px-6 py-12">
