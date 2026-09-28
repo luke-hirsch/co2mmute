@@ -144,6 +144,43 @@ class GameSessionCreateSerializer(GameSessionSerializer):
         }
 
 
+class HostGameListSerializer(serializers.ModelSerializer):
+    """`GET api/game/` — the host's own games, for `/app/host`. S13.
+
+    Not `GameSessionSerializer`: that one is the whole row, including the
+    password, and this list renders for a host looking at a page, not for a
+    screen about to play. What it adds instead is the two counts the delete
+    confirmation needs — "was dabei weggeht" cannot say "alle Daten", because
+    nobody can weigh that.
+
+    Both counts are annotated on the queryset rather than read per row, and
+    `player_count` excludes the host's own seat the way `without_host_rows()`
+    does — including the NULL case, which is every student: `user` is null for
+    anyone who joined without an account, and a plain `!=` against
+    `game_host` would drop them all.
+    """
+
+    round_count = serializers.IntegerField(read_only=True)
+    player_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = gm.GameSession
+        fields = (
+            "game_id",
+            "game_name",
+            "game_map",
+            "created_at",
+            "started_at",
+            "ended_at",
+            "end_reason",
+            "paused_at",
+            "is_active",
+            "round_count",
+            "player_count",
+        )
+        read_only_fields = fields
+
+
 class PlayerSerializer(serializers.ModelSerializer):
     class Meta:
         model = gm.Player

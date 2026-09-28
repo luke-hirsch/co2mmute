@@ -2,14 +2,13 @@ import logging
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import get_object_or_404, redirect
-from django.urls import reverse
+from django.shortcuts import redirect
 from django.views.generic import CreateView, RedirectView, TemplateView
 
 from .cache import get_cached_game_session
 from .forms import JoinSessionForm, PlayerCreateForm
 from .mixins import GameAccessCookieMixin, PlayerCookieMixin
-from .models import GameSession, Player
+from .models import Player
 
 logger = logging.getLogger(__name__)
 
@@ -38,91 +37,45 @@ class GameSessionCreateView(LoginRequiredMixin, RedirectView):
     permanent = False
 
 
-class ShareSessionView(LoginRequiredMixin, TemplateView):
-    template_name = "game/share_session.html"
+class ShareSessionView(LoginRequiredMixin, RedirectView):
+    """`/game/<id>/share/` — the join QR, which the host lobby already shows.
 
-    def dispatch(self, request, *args, **kwargs):
-        self.game_session = get_object_or_404(
-            GameSession, game_id=kwargs["game_id"], game_host=request.user
-        )
-        return super().dispatch(request, *args, **kwargs)
+    Not a port: a deletion. `HostLobbyScreen` puts the game id in a departure
+    board with the QR under it, sized for a projector, and has done since F4 —
+    so this page was a second screen answering one question, which is the thing
+    this project keeps having to undo. It redirects into the lobby.
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        join_url = self.request.build_absolute_uri(
-            reverse(
-                "session-join-direct", kwargs={"game_id": self.game_session.game_id}
-            )
-        )
-        context.update(
-            {
-                "game_session": self.game_session,
-                "join_url": join_url,
-            }
-        )
-        return context
+    A started game has no QR worth showing anyway: joining answers `started`.
 
-
-class GameDeleteView(LoginRequiredMixin, TemplateView):
-    """Throw a game away, from the one page that lists a host's games.
-
-    The REST endpoint can do it, but a server-rendered page cannot reach it:
-    an `<a href>` sends GET. So this is the funnel's own two-step — ask, then
-    POST with a CSRF token.
-
-    The case that made it necessary: a game created without a map can never be
-    started, because `GameSession.save()` forces `is_active` back to False
-    whenever `game_map` is None — so it could not be started, could not be
-    ended, and had no way out of the list either.
-
-    404 rather than 403 for somebody else's game, the same as ShareSessionView:
-    whether a game id exists is not a stranger's business.
-
-    A **running** game is refused. Ending it is the host screen's job and it
-    records why it ended (`end_reason`), which deleting the row would skip —
-    and a game vanishing under a class mid-round is not something to offer in
-    two clicks.
+    The URL stays because the host's game list links to it and so might a
+    bookmark. Nothing is looked up here on purpose — whether a game id exists is
+    not a stranger's business, and the game screen refuses what it must.
     """
 
-    template_name = "game/delete_session.html"
+    pattern_name = None
+    permanent = False
 
-    def dispatch(self, request, *args, **kwargs):
-        if request.user.is_authenticated:
-            self.game_session = get_object_or_404(
-                GameSession, game_id=kwargs["game_id"], game_host=request.user
-            )
-        return super().dispatch(request, *args, **kwargs)
+    def get_redirect_url(self, *args, **kwargs):
+        return f"/app/game/{kwargs['game_id']}/"
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        game = self.game_session
-        context.update(
-            {
-                "game_session": game,
-                "is_running": game.is_active,
-                # What goes with it. Named on the page rather than described,
-                # because "alle Daten" is not something anybody can weigh.
-                "round_count": game.rounds.count(),
-                "player_count": Player.objects.filter(game=game)
-                .without_host_rows()  # type: ignore
-                .count(),
-            }
-        )
-        return context
 
-    def post(self, request, *args, **kwargs):
-        game = self.game_session
+class GameDeleteView(LoginRequiredMixin, RedirectView):
+    """`/game/<id>/delete/` — deleting a game, which `/app/host` now does.
 
-        if game.is_active:
-            context = self.get_context_data(**kwargs)
-            context["refused"] = True
-            return self.render_to_response(context, status=409)
+    The confirm page it replaces existed because an `<a href>` cannot send
+    DELETE and the REST endpoint was the only thing that could delete a game.
+    The React list can send DELETE, asks in a dialog that names what goes with
+    it, and does not leave the page.
 
-        game_id = game.game_id
-        game.delete()
-        logger.info(f"Host deleted game {game_id}")
-        messages.success(request, "Das Spiel wurde gelöscht.")
-        return redirect("profile")
+    **The rule the page carried moved with it**: a running game is refused, so
+    `end_reason` gets written while it is still known. That refusal now lives in
+    `GameSessionDetailView.destroy` (409 `running`) — on the endpoint, where
+    both doors have to pass through it, rather than on one of them.
+    """
+
+    pattern_name = None
+    url = "/app/host"
+    permanent = False
 
 
 class JoinSessionView(GameAccessCookieMixin, TemplateView):

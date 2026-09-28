@@ -2,7 +2,6 @@ from datetime import timedelta
 
 import jwt
 from django.conf import settings
-from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView as DjangoLoginView
@@ -11,12 +10,19 @@ from django.shortcuts import redirect, resolve_url
 from django.urls import NoReverseMatch, reverse_lazy
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.timezone import now
-from django.views.generic import CreateView, FormView, TemplateView, UpdateView
+from django.views.generic import (
+    CreateView,
+    FormView,
+    RedirectView,
+    TemplateView,
+)
 from game.anon import anonymise_account
 from game.auth import resolve_player_id
 from game.cache import get_cached_game_session
 from game.models import GameSession, Player
 from rest_framework import status
+from rest_framework.authentication import SessionAuthentication
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -32,7 +38,8 @@ from co2mmute.throttle import (
 )
 from co2mmute.utils import set_game_access_cookie, set_player_cookie
 
-from .forms import AccountDeleteForm, ProfileForm, SignupForm
+from .forms import AccountDeleteForm, SignupForm
+from .serializers import HostAccountSerializer
 
 THROTTLED_TEMPLATE = "registration/throttled.html"
 
@@ -175,31 +182,57 @@ class CookiesView(TemplateView):
     template_name = "legal/cookies.html"
 
 
-class ProfileView(LoginRequiredMixin, UpdateView):
-    template_name = "registration/profile.html"
-    form_class = ProfileForm
-    success_url = reverse_lazy("profile")
+class ProfileView(LoginRequiredMixin, RedirectView):
+    """`/accounts/profile/` is a doorway into the SPA now. S13.
 
-    def get_object(self, queryset=None):
-        return self.request.user
+    The page itself is `frontend/src/routes/host.tsx`: the host's games and
+    their account details, both of them things that change while you look at
+    them — a game ends, a name is taken. It followed the create form across for
+    the reason Lukas gave on 2026-09-28, that the host's own pages belong
+    together.
 
-    def form_valid(self, form):
-        messages.success(self.request, "Gespeichert.")
-        return super().form_valid(form)
+    The URL stays because Django's `LOGIN_REDIRECT_URL` defaults to it, the
+    footer and the app header point at it, and so do the account-deletion pages
+    that were deliberately *not* ported — re-authentication and the goodbye
+    page are credential flows, and those stay server-rendered.
+    """
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        user_sessions = GameSession.objects.filter(
-            game_host=self.request.user
-        ).order_by("-created_at")
-        context.update(
-            {
-                "game_sessions": user_sessions,
-                "change_password_url": "password_change",
-                "create_session_url": "session-create",
-            }
+    pattern_name = None
+    url = "/app/host"
+    permanent = False
+
+
+class AccountView(APIView):
+    """`GET`/`PATCH api/account/` — the host edits their own account. S13.
+
+    Only ever the requesting user: there is no pk in the path and none is
+    accepted, so the endpoint cannot be pointed at somebody else's row. That is
+    also why it is an `APIView` rather than a `RetrieveUpdateAPIView` with a
+    queryset — there is no lookup to get wrong.
+
+    Password and account deletion are not here. Both are credential flows with
+    a re-authentication step (`AccountDeleteForm` asks for the password, because
+    the host machine stands in a classroom and is often still logged in), and
+    they stay on Django's own pages.
+    """
+
+    authentication_classes = (SessionAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        return Response(HostAccountSerializer(request.user).data)
+
+    def patch(self, request):
+        serializer = HostAccountSerializer(
+            request.user, data=request.data, partial=True
         )
-        return context
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        # No `update_session_auth_hash` here, deliberately: the session auth
+        # hash is an HMAC of the *password*, so renaming yourself does not
+        # invalidate it. Calling it would suggest it did. That a rename does
+        # not log the host out is pinned by a test rather than by this comment.
+        return Response(serializer.data)
 
 
 class LogoutView(DjangoLogoutView):

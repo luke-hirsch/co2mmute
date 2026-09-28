@@ -70,6 +70,20 @@ export async function createGame(
       /^\/app\/game\/[^/]+\/?$/.test(url.pathname) &&
       !/\/create\/?$/.test(url.pathname),
   );
+  // And then for the screen itself.
+  //
+  // The create screen leaves with `window.location.assign`, a real navigation —
+  // the response set both signed cookies and the game screen's first request
+  // has to carry them. `waitForURL` resolves when the frame's URL changes,
+  // which is before that load has settled, and `waitForLoadState` can resolve
+  // against the document being left behind. A `page.goto` issued in that window
+  // is cancelled, and Playwright reports it as "interrupted by another
+  // navigation" from wherever the spec went next rather than from here — which
+  // is a confusing way to find out that this helper returned too early.
+  //
+  // Waiting for the host lobby's own heading is the signal that has actually
+  // arrived.
+  await page.getByRole("heading", { level: 1 }).waitFor();
 
   const gameId = new URL(page.url()).pathname.split("/").filter(Boolean).pop();
   expect(gameId).toBeTruthy();

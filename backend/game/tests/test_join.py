@@ -402,7 +402,9 @@ class UrlRoutingTests(TestCase):
         the wrong place here answers plausibly instead of 404ing.
         """
         match = resolve(create_url)
-        self.assertEqual(match.func.view_class.__name__, "GameSessionCreateView")
+        self.assertEqual(
+            match.func.view_class.__name__, "GameSessionListCreateView"
+        )
 
     def test_lookup_resolves_to_the_lookup_view(self):
         match = resolve(lookup_url("ABC123"))
@@ -1049,6 +1051,97 @@ class CreateGameEndpointTests(TempMediaRootMixin, TestCase):
 
         self.assertFalse(GameSession.objects.filter(game_name="Kaputt").exists())
         self.assertFalse(Player.objects.exists())
+
+
+@override_settings(**TEST_BACKENDS)
+class HostGameListTests(TempMediaRootMixin, TestCase):
+    """`GET api/game/` — the host's own games, for `/app/host`. S13.
+
+    It replaces the `game_sessions` context the profile template got. Two
+    things it adds and the template did not have: the counts the delete dialog
+    needs, and a scope that is asserted rather than assumed.
+    """
+
+    def setUp(self):
+        self.host = create_host()
+        self.other = create_host(username="kollegin")
+        with muted():
+            self.mine = create_game_session(self.host, game_name="Meins")
+            self.theirs = create_game_session(self.other, game_name="Deins")
+        self.client.force_login(self.host)
+
+    def test_an_anonymous_visitor_is_refused(self):
+        self.client.logout()
+
+        response = self.client.get("/api/game/")
+
+        self.assertIn(response.status_code, (401, 403))
+
+    def test_it_lists_only_your_own_games(self):
+        response = self.client.get("/api/game/")
+
+        self.assertEqual(response.status_code, 200)
+        names = [row["game_name"] for row in response.json()]
+        self.assertEqual(names, ["Meins"])
+
+    def test_it_says_nothing_about_the_password(self):
+        """This is a list on a page, not the row a game screen plays from."""
+        response = self.client.get("/api/game/")
+
+        self.assertNotIn("game_password", response.json()[0])
+
+    def test_newest_first(self):
+        with muted():
+            create_game_session(self.host, game_name="Frisch")
+
+        response = self.client.get("/api/game/")
+
+        self.assertEqual(
+            [row["game_name"] for row in response.json()], ["Frisch", "Meins"]
+        )
+
+    def test_it_counts_the_rounds(self):
+        from game.models import GameRound
+
+        with muted():
+            GameRound.objects.create(game=self.mine, round_number=1)
+            GameRound.objects.create(game=self.mine, round_number=2)
+
+        response = self.client.get("/api/game/")
+
+        self.assertEqual(response.json()[0]["round_count"], 2)
+
+    def test_it_counts_the_seats_without_the_host_row(self):
+        """`user` is NULL for every student, so a plain `!=` against the host
+        counts nobody at all. That is the bug this test exists for."""
+        Player.objects.create(game=self.mine, user=self.host, name="Host")
+        Player.objects.create(game=self.mine, name="Mia")
+        Player.objects.create(game=self.mine, name="Jonas")
+
+        response = self.client.get("/api/game/")
+
+        self.assertEqual(response.json()[0]["player_count"], 2)
+
+    def test_a_game_with_nothing_on_it_counts_zero(self):
+        response = self.client.get("/api/game/")
+
+        row = response.json()[0]
+        self.assertEqual(row["round_count"], 0)
+        self.assertEqual(row["player_count"], 0)
+
+    def test_it_says_whether_a_game_is_running(self):
+        """The delete dialog has to refuse one, and the list has to say why."""
+        from django.utils import timezone
+
+        GameSession.objects.filter(pk=self.mine.pk).update(
+            is_active=True, started_at=timezone.now()
+        )
+
+        row = self.client.get("/api/game/").json()[0]
+
+        self.assertIs(row["is_active"], True)
+        self.assertIsNotNone(row["started_at"])
+        self.assertIsNone(row["ended_at"])
 
 
 class CreateFormRedirectTests(TempMediaRootMixin, TestCase):

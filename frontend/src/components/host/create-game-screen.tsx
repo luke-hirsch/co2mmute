@@ -399,12 +399,18 @@ function Field({
       <Label htmlFor={id}>{label}</Label>
       {children}
       {help ? (
-        <p className="max-w-(--measure-body) text-sm text-muted-foreground">
+        <p
+          id={`${id}-help`}
+          className="max-w-(--measure-body) text-sm text-muted-foreground"
+        >
           {help}
         </p>
       ) : null}
       {errors?.length ? (
-        <ul className="space-y-1">
+        // `role="alert"` so a screen reader hears the refusal when it appears,
+        // and `id` so the input can point at it — both of which also make it
+        // something a test can find without pinning the sentence.
+        <ul id={`${id}-error`} role="alert" className="space-y-1">
           {errors.map((message) => (
             <li key={message} className="text-sm text-destructive">
               {message}
@@ -442,6 +448,7 @@ function NumberInput({
       autoComplete="off"
       className="font-mono"
       aria-invalid={invalid ? true : undefined}
+      aria-describedby={invalid ? `${id}-error` : `${id}-help`}
       onChange={(event) => onChange(event.target.value.replace(/[^\d]/g, ""))}
     />
   );

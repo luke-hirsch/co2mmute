@@ -993,3 +993,60 @@ class GameDeletionPermissionTests(TempMediaRootMixin, TestCase):
 
         self.assertEqual(response.status_code, 403)
         self.assertTrue(GameSession.objects.filter(pk=self.game.pk).exists())
+
+    def test_a_game_that_does_not_exist_answers_the_same_way(self):
+        """403, not 404 — otherwise the answer says which ids are real.
+
+        It matters more since S13: the confirm page that used to 404 for
+        somebody else's game is gone, and this endpoint is the only door.
+        """
+        self.client.force_login(self.stranger)
+
+        with muted():
+            response = self.client.delete("/api/game/ZZZZZZ/")
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_a_running_game_is_refused(self):
+        """End it first, so `end_reason` is written while it is still known.
+
+        The rule used to live on the Django confirm page (`GameDeleteView`),
+        which S13 deleted. A rule only one of two doors enforces is not a rule,
+        so it moved onto the endpoint.
+        """
+        GameSession.objects.filter(pk=self.game.pk).update(
+            is_active=True, started_at=timezone.now()
+        )
+        self.client.force_login(self.host)
+
+        with muted():
+            response = self.client.delete(self.url())
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json().get("reason"), "running")
+        self.assertTrue(GameSession.objects.filter(pk=self.game.pk).exists())
+
+    def test_an_ended_game_can_still_be_deleted(self):
+        """The guard is about a game in progress and nothing else."""
+        GameSession.objects.filter(pk=self.game.pk).update(
+            is_active=False, started_at=timezone.now(), ended_at=timezone.now()
+        )
+        self.client.force_login(self.host)
+
+        with muted():
+            response = self.client.delete(self.url())
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(GameSession.objects.filter(pk=self.game.pk).exists())
+
+    def test_deleting_takes_the_rounds_with_it(self):
+        """The reason the screen asks first. Everything below a game is CASCADE:
+        rounds, moves, routes, results — the thesis data."""
+        from game.models import GameRound
+
+        self.client.force_login(self.host)
+        with muted():
+            GameRound.objects.create(game=self.game, round_number=1)
+            self.client.delete(self.url())
+
+        self.assertFalse(GameRound.objects.filter(game_id=self.game.pk).exists())

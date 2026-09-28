@@ -1,3 +1,4 @@
+import json
 import re
 
 from django.contrib.auth import get_user_model
@@ -10,6 +11,7 @@ from game.tests._helpers import TempMediaRootMixin, create_game_session, muted
 User = get_user_model()
 
 PROFILE_URL = "/accounts/profile/"
+ACCOUNT_URL = "/api/account/"
 DELETE_URL = "/accounts/profile/delete/"
 DELETED_URL = "/accounts/deleted/"
 
@@ -23,145 +25,137 @@ def _host(username="host", email="host@example.com", **extra):
     )
 
 
-class ProfilePanelTests(TestCase):
-    """The panel stops promising and starts working.
+class ProfileRedirectTests(TestCase):
+    """`/accounts/profile/` is a doorway into the SPA. S13.
 
-    `/accounts/profile/` carried a card headed "Profil bearbeiten" whose body
-    read "noch nicht implementiert. Demnächst!" — a to-do list rendered to the
-    one page every host sees after logging in.
+    The page followed the create form across, because the host's own pages
+    belong together (Lukas, 2026-09-28). The URL stays because Django's
+    `LOGIN_REDIRECT_URL` defaults to it and because the footer, the app header
+    and the account-deletion pages all point at it.
+    """
+
+    def setUp(self):
+        self.user = _host(first_name="Sebastian")
+
+    def test_a_host_lands_in_the_spa(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(PROFILE_URL)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], "/app/host")
+
+    def test_a_stranger_is_sent_to_the_login_first(self):
+        """Not into the SPA, which would only bounce them back a tick later."""
+        response = self.client.get(PROFILE_URL)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("login"), response["Location"])
+
+    def test_the_form_is_gone(self):
+        """Two forms for one account is the class of bug this project has."""
+        import co2mmute.forms as forms
+
+        self.assertFalse(hasattr(forms, "ProfileForm"))
+
+
+class AccountEndpointTests(TestCase):
+    """`GET`/`PATCH api/account/` — what `ProfileForm` used to do.
+
+    Only ever the requesting user: there is no pk in the path and none is
+    accepted, so the endpoint cannot be pointed at somebody else's row.
     """
 
     def setUp(self):
         self.user = _host(first_name="Sebastian")
         self.client.force_login(self.user)
 
-    def test_the_page_offers_a_form(self):
-        response = self.client.get(PROFILE_URL)
-
-        form = response.context["form"]
-
-        self.assertEqual(
-            sorted(form.fields), ["email", "first_name", "username"]
+    def _patch(self, **fields):
+        return self.client.patch(
+            ACCOUNT_URL, json.dumps(fields), content_type="application/json"
         )
 
-    def test_the_form_starts_on_the_current_values(self):
-        response = self.client.get(PROFILE_URL)
+    def test_it_answers_with_the_current_values(self):
+        response = self.client.get(ACCOUNT_URL)
 
-        form = response.context["form"]
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "username": "host",
+                "email": "host@example.com",
+                "first_name": "Sebastian",
+            },
+        )
 
-        self.assertEqual(form.initial["username"], "host")
-        self.assertEqual(form.initial["email"], "host@example.com")
-        self.assertEqual(form.initial["first_name"], "Sebastian")
-
-    def test_nothing_is_promised_for_later_any_more(self):
-        """The card said what it could not do. Either it works or it goes."""
-        response = self.client.get(PROFILE_URL)
-
-        promises = [
-            line.strip()
-            for line in response.content.decode().splitlines()
-            if "noch nicht implementiert" in line or "Demnächst" in line
-        ]
-
-        self.assertEqual(promises, [])
-
-    def test_the_games_list_is_still_there(self):
-        """The view grew a form; it must not lose what it already rendered."""
-        response = self.client.get(PROFILE_URL)
-
-        self.assertIn("game_sessions", response.context)
-        self.assertIn("change_password_url", response.context)
-        self.assertIn("create_session_url", response.context)
-
-    def test_a_stranger_is_sent_to_the_login(self):
+    def test_a_stranger_gets_nothing(self):
         self.client.logout()
 
-        response = self.client.get(PROFILE_URL)
+        self.assertIn(self.client.get(ACCOUNT_URL).status_code, (401, 403))
 
-        self.assertEqual(response.status_code, 302)
-        self.assertIn(reverse("login"), response["Location"])
-
-    def test_a_stranger_cannot_post_either(self):
-        """LoginRequiredMixin has to cover the new verb, not just the old one."""
+    def test_a_stranger_cannot_write_either(self):
         self.client.logout()
 
-        response = self.client.post(PROFILE_URL, {"username": "eindringling"})
+        response = self._patch(username="eindringling")
 
-        self.assertEqual(response.status_code, 302)
-        self.assertIn(reverse("login"), response["Location"])
+        self.assertIn(response.status_code, (401, 403))
         self.assertFalse(User.objects.filter(username="eindringling").exists())
 
-
-class ProfileEditTests(TestCase):
-    def setUp(self):
-        self.user = _host(first_name="Sebastian")
-        self.client.force_login(self.user)
-
-    def _post(self, follow=False, **overrides):
-        data = {
-            "username": "host",
-            "email": "host@example.com",
-            "first_name": "Sebastian",
-        }
-        data.update(overrides)
-        return self.client.post(PROFILE_URL, data, follow=follow)
-
     def test_the_display_name_can_change(self):
-        response = self._post(first_name="Basti")
+        response = self._patch(first_name="Basti")
 
         self.user.refresh_from_db()
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(self.user.first_name, "Basti")
 
     def test_the_username_can_change(self):
-        self._post(username="spielleitung")
+        self._patch(username="spielleitung")
 
         self.user.refresh_from_db()
         self.assertEqual(self.user.username, "spielleitung")
 
     def test_the_email_can_change(self):
-        self._post(email="neu@example.com")
+        self._patch(email="neu@example.com")
 
         self.user.refresh_from_db()
         self.assertEqual(self.user.email, "neu@example.com")
 
-    def test_a_save_lands_back_on_the_profile(self):
-        response = self._post(first_name="Basti")
+    def test_the_answer_carries_the_saved_values(self):
+        """The screen renders what comes back rather than what it sent."""
+        response = self._patch(first_name="Basti")
 
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response["Location"], PROFILE_URL)
-
-    def test_a_save_says_so(self):
-        """base.html renders no messages block, so the page must carry one."""
-        response = self._post(first_name="Basti", follow=True)
-
-        self.assertEqual(response.status_code, 200)
-        messages = [str(m) for m in response.context["messages"]]
-
-        self.assertEqual(len(messages), 1)
-        self.assertIn(messages[0], response.content.decode())
+        self.assertEqual(response.json()["first_name"], "Basti")
 
     def test_changing_the_username_does_not_log_you_out(self):
-        """Session auth hashes the password, not the name — pin it anyway."""
-        self._post(username="spielleitung")
+        """Session auth hashes the password, not the name — pin it anyway.
 
-        response = self.client.get(PROFILE_URL)
+        `AccountView.patch` deliberately does *not* call
+        `update_session_auth_hash`, which would suggest a rename invalidated
+        the session. This is what says it does not.
+        """
+        self._patch(username="spielleitung")
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.client.get(ACCOUNT_URL).status_code, 200)
 
     def test_whitespace_around_a_value_is_dropped(self):
-        self._post(username="  spielleitung  ")
+        self._patch(username="  spielleitung  ")
 
         self.user.refresh_from_db()
         self.assertEqual(self.user.username, "spielleitung")
 
+    def test_the_display_name_may_be_empty(self):
+        self._patch(first_name="")
 
-class ProfileUniquenessTests(TestCase):
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.first_name, "")
+
+
+class AccountUniquenessTests(TestCase):
     """The trap: an update is not a signup.
 
     `SignupForm.clean_username` asks whether *anybody* holds the name. On an
-    update the answer is yes — you do. Saving the form without touching the
-    name has to work, or the form refuses every edit to any other field.
+    update the answer is yes — you do. Saving without touching the name has to
+    work, or every edit to any other field is refused.
     """
 
     def setUp(self):
@@ -169,76 +163,79 @@ class ProfileUniquenessTests(TestCase):
         self.other = _host(username="kollegin", email="kollegin@example.com")
         self.client.force_login(self.user)
 
-    def _post(self, follow=False, **overrides):
-        data = {
-            "username": "host",
-            "email": "host@example.com",
-            "first_name": "Sebastian",
-        }
-        data.update(overrides)
-        return self.client.post(PROFILE_URL, data, follow=follow)
+    def _patch(self, **fields):
+        return self.client.patch(
+            ACCOUNT_URL, json.dumps(fields), content_type="application/json"
+        )
 
     def test_keeping_your_own_username_is_not_a_conflict(self):
-        response = self._post(first_name="Basti")
+        response = self._patch(username="host", first_name="Basti")
 
         self.user.refresh_from_db()
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(self.user.first_name, "Basti")
 
     def test_keeping_your_own_email_is_not_a_conflict(self):
-        response = self._post(username="spielleitung")
+        response = self._patch(email="host@example.com", username="spielleitung")
 
         self.user.refresh_from_db()
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(self.user.username, "spielleitung")
 
     def test_somebody_elses_username_is_refused(self):
-        response = self._post(username="kollegin")
+        response = self._patch(username="kollegin")
 
         self.user.refresh_from_db()
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("username", response.context["form"].errors)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("username", response.json())
         self.assertEqual(self.user.username, "host")
 
     def test_somebody_elses_username_is_refused_in_any_case(self):
-        response = self._post(username="Kollegin")
+        response = self._patch(username="Kollegin")
 
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("username", response.context["form"].errors)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("username", response.json())
 
     def test_somebody_elses_email_is_refused(self):
-        response = self._post(email="kollegin@example.com")
+        response = self._patch(email="kollegin@example.com")
 
         self.user.refresh_from_db()
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("email", response.context["form"].errors)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("email", response.json())
         self.assertEqual(self.user.email, "host@example.com")
 
     def test_an_empty_username_is_refused(self):
-        response = self._post(username="   ")
+        response = self._patch(username="   ")
 
         self.user.refresh_from_db()
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("username", response.context["form"].errors)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("username", response.json())
         self.assertEqual(self.user.username, "host")
 
     def test_an_empty_email_is_refused(self):
-        response = self._post(email="")
+        response = self._patch(email="")
 
         self.user.refresh_from_db()
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("email", response.context["form"].errors)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("email", response.json())
+
+    def test_a_name_with_a_space_in_it_is_refused(self):
+        """Django's own validator, with its English message replaced."""
+        response = self._patch(username="spiel leitung")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("username", response.json())
 
     def test_a_refusal_is_not_english(self):
-        """The funnel detector covers the rendered page; this covers the form.
+        """Wording stays free — the assertion is "not English", never a
+        sentence. These are the strings the React screen renders, so they are
+        copy now rather than a backstop nobody sees."""
+        response = self._patch(username="kollegin", email="kollegin@example.com")
 
-        Wording stays free — the assertion is "not English", never a sentence.
-        """
-        response = self._post(username="kollegin", email="kollegin@example.com")
-
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 400)
         errors = " ".join(
-            " ".join(messages) for messages in response.context["form"].errors.values()
+            " ".join(str(m) for m in messages)
+            for messages in response.json().values()
         ).lower()
 
         for word in ("already", "exists", "please", "in use", "username", "email"):
@@ -264,13 +261,20 @@ class AccountDeleteTests(TempMediaRootMixin, TestCase):
                 DELETE_URL, {"password": password}, follow=follow
             )
 
-    def test_the_profile_page_offers_the_way_out(self):
-        response = self.client.get(PROFILE_URL)
+    def test_the_way_out_is_reachable_for_a_logged_in_host(self):
+        """DSGVO erasure has to be something a host can actually reach.
 
-        self.assertTrue(
-            DELETE_URL in response.content.decode(),
-            "the profile page never links to the account deletion",
-        )
+        It used to be asserted by grepping the profile template for the URL.
+        The profile page is React since S13, so the link itself is pinned there
+        — `frontend/e2e/host-page.spec.ts` clicks it — and what stays here is
+        that the page it leads to answers.
+
+        The status code is the whole assertion on purpose: a content check
+        would go green against the login redirect an anonymous request gets.
+        """
+        response = self.client.get(DELETE_URL)
+
+        self.assertEqual(response.status_code, 200)
 
     def test_the_confirm_page_needs_a_login(self):
         self.client.logout()
@@ -387,107 +391,58 @@ class AccountDeleteTests(TempMediaRootMixin, TestCase):
         self.assertEqual(response.status_code, 200)
 
 
-class DeleteGameFromProfileTests(TempMediaRootMixin, TestCase):
-    """A host can get rid of a game from the one page that lists their games.
+class HostPageRedirectTests(TempMediaRootMixin, TestCase):
+    """The three funnel URLs that became doorways. S13.
 
-    Until this, `/accounts/profile/` could open a game and share it and nothing
-    else, and the REST DELETE is not reachable from a server-rendered page —
-    an `<a href>` cannot send it. A game created without a map is the case that
-    made this matter: `GameSession.save()` forces `is_active` back to False
-    whenever `game_map` is None, so such a game can never be started, never be
-    ended, and had no way out of the list.
+    All three keep working because things point at them — the profile page from
+    `LOGIN_REDIRECT_URL`, the footer and the app header; the share and delete
+    URLs from the host's own game list and from anybody's bookmarks.
 
-    Deleting is CASCADE all the way down and `post_delete` takes the QR file
-    with it, so it asks first and says what goes. A game that is **running** is
-    refused outright: end it from the host screen, then delete it.
+    What the pages behind them did is not gone, it moved:
+
+    - the profile's form → `PATCH api/account/`
+    - its game list and per-game delete → `GET api/game/` and
+      `DELETE api/game/<id>/`
+    - the share page → the host lobby, which has shown the game id and the join
+      QR on a projector-sized departure board since F4. That one is a deletion
+      rather than a port.
+    - the delete page's "a running game is refused" →
+      `GameSessionDetailView.destroy`, so both doors enforce it.
     """
 
     def setUp(self):
         self.host = _host()
-        self.other = _host(username="other", email="other@example.com")
         with muted():
             self.game = create_game_session(self.host, game_name="Wegwerfspiel")
+
+    def test_the_share_url_goes_to_the_lobby(self):
         self.client.force_login(self.host)
 
-    def url(self, game=None):
-        return f"/game/{(game or self.game).game_id}/delete/"
+        response = self.client.get(f"/game/{self.game.game_id}/share/")
 
-    def test_the_profile_offers_a_way_to_delete_each_game(self):
-        response = self.client.get(PROFILE_URL)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], f"/app/game/{self.game.game_id}/")
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, self.url())
+    def test_the_delete_url_goes_to_the_host_page(self):
+        self.client.force_login(self.host)
 
-    def test_the_page_asks_before_deleting(self):
-        response = self.client.get(self.url())
+        response = self.client.get(f"/game/{self.game.game_id}/delete/")
 
-        self.assertEqual(response.status_code, 200)
-        self.assertTrue(GameSession.objects.filter(pk=self.game.pk).exists())
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], "/app/host")
 
-    def test_the_question_names_the_game(self):
-        """Assert the status first: a 404 page has no game name on it either,
-        so a content-only check would pass before the view existed."""
-        response = self.client.get(self.url())
+    def test_neither_deletes_anything_by_itself(self):
+        """A GET that deletes is the reason the confirm page existed at all."""
+        self.client.force_login(self.host)
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Wegwerfspiel")
+        self.client.get(f"/game/{self.game.game_id}/delete/")
 
-    def test_posting_deletes_the_game(self):
-        with muted():
-            response = self.client.post(self.url())
-
-        self.assertRedirects(response, PROFILE_URL)
-        self.assertFalse(GameSession.objects.filter(pk=self.game.pk).exists())
-
-    def test_deleting_takes_the_rounds_with_it(self):
-        """The reason it asks. game_host is CASCADE and so is everything below
-        a game: rounds, moves, routes, results — the research data."""
-        from game.models import GameRound
-
-        with muted():
-            GameRound.objects.create(game=self.game, round_number=1)
-            self.client.post(self.url())
-
-        self.assertFalse(GameRound.objects.filter(game_id=self.game.pk).exists())
-
-    def test_a_running_game_is_refused(self):
-        GameSession.objects.filter(pk=self.game.pk).update(
-            is_active=True, started_at=timezone.now()
-        )
-
-        with muted():
-            response = self.client.post(self.url())
-
-        self.assertEqual(response.status_code, 409)
-        self.assertTrue(GameSession.objects.filter(pk=self.game.pk).exists())
-
-    def test_an_ended_game_can_still_be_deleted(self):
-        GameSession.objects.filter(pk=self.game.pk).update(
-            is_active=False, started_at=timezone.now(), ended_at=timezone.now()
-        )
-
-        with muted():
-            response = self.client.post(self.url())
-
-        self.assertRedirects(response, PROFILE_URL)
-        self.assertFalse(GameSession.objects.filter(pk=self.game.pk).exists())
-
-    def test_another_host_gets_a_404(self):
-        """404 rather than 403: whether a game id exists is not their business."""
-        self.client.force_login(self.other)
-
-        with muted():
-            response = self.client.post(self.url())
-
-        self.assertEqual(response.status_code, 404)
         self.assertTrue(GameSession.objects.filter(pk=self.game.pk).exists())
 
     def test_a_visitor_is_sent_to_the_login(self):
-        self.client.logout()
+        for path in ("share", "delete"):
+            with self.subTest(path=path):
+                response = self.client.get(f"/game/{self.game.game_id}/{path}/")
 
-        with muted():
-            response = self.client.post(self.url())
-
-        self.assertEqual(response.status_code, 302)
-        self.assertIn("/accounts/login/", response["Location"])
-        self.assertTrue(GameSession.objects.filter(pk=self.game.pk).exists())
+                self.assertEqual(response.status_code, 302)
+                self.assertIn("/accounts/login/", response["Location"])

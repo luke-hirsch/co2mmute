@@ -1214,4 +1214,75 @@ export const de = {
     submitting: "Wird angelegt …",
     failed: "Das Spiel ließ sich nicht anlegen. Versuch es nochmal.",
   },
+
+  /**
+   * `/app/host` — the host's own page. S13.
+   *
+   * It replaces `/accounts/profile/`, which was a Django template: the game
+   * list, the account form, and links to the two credential flows that stayed
+   * server-rendered (password, account deletion).
+   */
+  hostHome: {
+    /** Parameterised so the page greets by name when the account has one. */
+    greeting: (name: string) => `Hallo ${name},`,
+    lead: "Hier verwaltest du deine Spiele und deine Kontodaten.",
+
+    games: "Deine Spiele",
+    newGame: "Neues Spiel anlegen",
+    noGames:
+      "Du hast noch kein Spiel angelegt. Fang mit „Neues Spiel anlegen“ an.",
+    gamesFailed: "Deine Spiele ließen sich nicht laden. Lad die Seite neu.",
+    gameId: "Spiel-ID",
+    createdAt: (date: string) => `angelegt am ${date}`,
+    open: "Zum Spiel",
+    delete: "Löschen",
+
+    /** What state a game is in. The list says it, so the delete dialog can. */
+    running: "läuft",
+    paused: "angehalten",
+    over: "zu Ende",
+    notStarted: "noch nicht gestartet",
+    noMap: "ohne Karte",
+    rounds: (count: number) => (count === 1 ? "1 Runde" : `${count} Runden`),
+    players: (count: number) => (count === 1 ? "1 Platz" : `${count} Plätze`),
+
+    deleteTitle: "Spiel löschen",
+    deleteBody: (name: string) =>
+      `„${name}“ und alles, was darauf gespielt wurde. Das lässt sich nicht rückgängig machen.`,
+    /** Named rather than described: "alle Daten" is nothing anybody can weigh. */
+    deleteTakes: (rounds: number, players: number) =>
+      `${rounds === 1 ? "1 gefahrene Runde" : `${rounds} gefahrene Runden`} mit allen Wegen, Ergebnissen und Abstimmungen, ${
+        players === 1 ? "1 Platz" : `${players} Plätze`
+      } und der QR-Code zum Beitreten.`,
+    deleteWarning:
+      "Gespielte Spiele sind die Forschungsdaten dieses Projekts – wirf eines nur weg, wenn es nie gespielt wurde.",
+    deleteConfirm: "Endgültig löschen",
+    deleting: "Wird gelöscht …",
+    deleteCancel: "Doch nicht",
+    /**
+     * The 409 the endpoint answers for a game in progress. Ending it is what
+     * writes `end_reason`, and that cannot be worked out afterwards.
+     */
+    deleteRunning:
+      "Das Spiel läuft gerade. Beende es erst im Spielbildschirm – dann wird auch festgehalten, warum es zu Ende ging.",
+    deleteFailed: "Das Spiel ließ sich nicht löschen. Versuch es nochmal.",
+
+    account: "Dein Konto",
+    accountLead:
+      "Hier änderst du deine persönlichen Daten. Dein Passwort änderst du auf einer eigenen Seite.",
+    accountFailed: "Deine Kontodaten ließen sich nicht laden. Lad die Seite neu.",
+    firstName: "Anzeigename",
+    firstNameHelp: "So begrüßt dich die Seite. Darf leer bleiben.",
+    username: "Benutzername",
+    email: "E-Mail-Adresse",
+    save: "Speichern",
+    saving: "Wird gespeichert …",
+    saved: "Gespeichert.",
+    saveFailed: "Das ließ sich nicht speichern. Versuch es nochmal.",
+
+    changePassword: "Passwort ändern",
+    deleteAccount: "Konto löschen",
+    deleteAccountBody:
+      "Dein Name und dein Zugang werden entfernt, laufende Spiele beendet. Die Spielergebnisse bleiben anonym erhalten.",
+  },
 };
