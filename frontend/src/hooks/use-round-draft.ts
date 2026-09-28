@@ -12,6 +12,14 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 
 import {
+  browserStorage,
+  clearStoredDraft,
+  pruneOtherGames,
+  readStoredChoices,
+  writeStoredChoices,
+} from "@/lib/game/draft-storage";
+import {
+  draftChoices,
   draftComplete,
   draftPayload,
   draftProgress,
@@ -48,6 +56,7 @@ export function useRoundDraft({
   seatId,
   roundNumber,
   mapVersionId,
+  submitted,
 }: {
   gameId: string;
   seatId: string | null;
@@ -63,6 +72,15 @@ export function useRoundDraft({
    * first render, before `game.state` has arrived.
    */
   mapVersionId: number | null;
+  /**
+   * Whether this seat's turn is already in (S7).
+   *
+   * From the roster, which is the only thing that knows it — the same fact the
+   * screen switches on. It is here so the stored draft *follows* that answer
+   * rather than being cleared by a side effect of the mutation: a turn that is
+   * in has no unfinished draft to keep, and nothing can write one back.
+   */
+  submitted: boolean;
 }) {
   const seat = useSeatGame(gameId, seatId);
   const graph = useMapGraph(
@@ -88,6 +106,18 @@ export function useRoundDraft({
 
   const assignments = seat.data?.agent_assignments ?? null;
 
+  /** Null in private mode or with site data blocked; every call below takes it. */
+  const storage = useMemo(() => browserStorage(), []);
+
+  /**
+   * Shed other games' unfinished turns on the way into this one — the retention
+   * rule from `draft-storage.ts`. Once per game, not on every keystroke of the
+   * turn: it walks the whole of localStorage.
+   */
+  useEffect(() => {
+    pruneOtherGames(storage, gameId);
+  }, [storage, gameId]);
+
   useEffect(() => {
     if (!seatId || !assignments?.agents?.length) return;
     dispatch({
@@ -96,8 +126,32 @@ export function useRoundDraft({
       roundNumber,
       homeNode: assignments.home_node,
       agents: assignments.agents,
+      // Read on every delivery rather than once: the reducer is what decides
+      // whether a restore may happen, and it only lets one through when it
+      // actually builds the agents. Doing the guard here as well would be a
+      // second answer to one question.
+      choices:
+        readStoredChoices(storage, gameId, seatId, roundNumber) ?? undefined,
     });
-  }, [seatId, roundNumber, assignments]);
+  }, [seatId, roundNumber, assignments, storage, gameId]);
+
+  /**
+   * Keep the taps, so a locked phone does not cost the turn (S7).
+   *
+   * Runs again on every status change too, which rewrites the same few hundred
+   * bytes a dozen times a turn. Deliberately not de-duplicated: the write is
+   * cheap and a "has it really changed" cache would be state about state.
+   */
+  const choices = useMemo(() => draftChoices(draft), [draft]);
+
+  useEffect(() => {
+    if (!draft.seatId) return;
+    if (submitted) {
+      clearStoredDraft(storage, gameId, draft.seatId);
+      return;
+    }
+    writeStoredChoices(storage, gameId, draft, choices);
+  }, [storage, gameId, draft, choices, submitted]);
 
   // The graph as the pathfinders want it. They read `bus_lines`, `train_lines`
   // and `scale` unconditionally, and a map with no PT lines omits them.

@@ -108,6 +108,7 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | R-19 | Stau der letzten Runde auf der Karte | dickere Linie, wo es langsamer war — keine Farbskala (S6) | geht | `traffic.test.ts` |
 | R-20 | „schnellste" | rechnet mit den gemessenen Geschwindigkeiten der letzten Runde, nicht mit dem Tempolimit (S6) | geht | `maps.tests.test_traffic` |
 | R-21 | Route auf der Karte | in der Farbe und im Strich ihres Verkehrsmittels, nicht überall bernstein (S6) | geht | - |
+| R-22 | Seite neu laden mitten in einer angefangenen Runde | die schon gewählten Verkehrsmittel sind wieder da, die Routen werden neu gesucht; nicht gewählte Fahrgäste bleiben leer (S7) | geht | `round-draft.spec.ts` |
 
 ## A — die animation
 
