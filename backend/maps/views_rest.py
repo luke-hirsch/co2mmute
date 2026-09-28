@@ -1,6 +1,4 @@
-import base64
 import logging
-import os
 
 from django.core.cache import cache
 from django.db import transaction
@@ -46,6 +44,7 @@ from maps.serializer import (
     serialize_previous_round_traffic,
     serialize_train_line_for_graph,
 )
+from maps.portability import build_export
 from maps.versions import (
     bus_chain_rows,
     combination_members,
@@ -707,223 +706,38 @@ def _drop_edge_from_version(edge, version):
         )
 
 
-def _warn_dropped_chain_row(version, line_label, edge_pk):
-    """A chain link the file cannot carry, said out loud.
-
-    This is the mechanism that wrote `map_examples/Berlin_Mitte-West.json` with a
-    bus 100 that had no edges at all: the export writes edges by index into the
-    list it just built, and a link whose street is not in the exported version
-    has no index — so it used to be skipped without a word. Ten silent drops read
-    as an author who never finished drawing the line. After S15 a healthy map
-    cannot reach this branch; a damaged one now says which line and which edge.
-    """
-    logger.warning(
-        "export of version %s (%s): %s runs over edge %s, which this version "
-        "does not hold — the link is missing from the file",
-        version.pk,
-        version.name,
-        line_label,
-        edge_pk,
-    )
-
-
 class MapExportView(MapScopedQuerysetMixin, GenericAPIView):
-    """Export a map version as upload-compatible JSON."""
+    """The map as a file — the whole thing, or one version flattened.
+
+    Two urls, two jobs. Without a `version_pk` this is the backup: every
+    version, `compatible_versions`, the poll texts and per-element membership,
+    which is the only shape a multi-version map survives a move between boxes
+    in. With one it is the single-version snapshot the project has always
+    written, and the shape every file in `map_examples/` has.
+
+    The format itself lives in `maps/portability.py`, because the importer has
+    to agree with it.
+    """
 
     authentication_classes = (SessionAuthentication,)
     permission_classes = (IsStaffOrReadOnly,)
 
     def get(self, request, *args, **kwargs):
-        map_pk = self.get_map_id()
+        game_map = get_object_or_404(GameMap, pk=self.get_map_id())
         version_pk = kwargs.get("version_pk")
 
-        game_map = get_object_or_404(GameMap, pk=map_pk)
-
-        # Resolve version
+        version = None
         if version_pk:
-            version = get_object_or_404(MapVersion, pk=version_pk, game_map=game_map)
-        else:
-            version = MapVersion.objects.filter(
-                game_map=game_map, base_version=True
-            ).first()
-            if not version:
-                version = MapVersion.objects.filter(game_map=game_map).first()
-            if not version:
-                return Response(
-                    {"error": "No map version found"},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-
-        # Gather data
-        nodes = Node.objects.filter(
-            game_map=game_map, map_versions=version
-        ).prefetch_related("node_type")
-
-        edges = (
-            Edge.objects.filter(game_map=game_map, map_versions=version)
-            .select_related("start_node", "end_node")
-            .prefetch_related("streetedge_set", "trainedge_set")
-        )
-
-        # Build edge index mapping (edge pk -> index in list)
-        edge_list = list(edges)
-        edge_pk_to_idx = {e.pk: idx for idx, e in enumerate(edge_list)}
-
-        # Pre-fetch street/train edges for this version
-        edge_pks = [e.pk for e in edge_list]
-        street_edges_map = {
-            se.edge_id: se  # type: ignore
-            for se in StreetEdge.objects.filter(
-                edge_id__in=edge_pks, map_versions=version
+            version = get_object_or_404(
+                MapVersion, pk=version_pk, game_map=game_map
             )
-        }
-        train_edges_map = {
-            te.edge_id: te  # type: ignore
-            for te in TrainEdge.objects.filter(
-                edge_id__in=edge_pks, map_versions=version
-            )
-        }
-
-        # Build node id mapping (node pk -> stable string id)
-        node_id_map = {n.pk: str(n.pk) for n in nodes}
-
-        # Serialize nodes
-        nodes_data = []
-        for node in nodes:
-            node_entry = {
-                "id": str(node.pk),
-                "name": node.name,
-                "x": float(node.x_position),
-                "y": float(node.y_position),
-            }
-            types = [nt.name for nt in node.node_type.all()]
-            if types:
-                node_entry["types"] = types
-            nodes_data.append(node_entry)
-
-        # Serialize edges
-        edges_data = []
-        for edge in edge_list:
-            has_street = edge.pk in street_edges_map
-            has_train = edge.pk in train_edges_map
-
-            if has_street and has_train:
-                edge_type = "both"
-            elif has_train:
-                edge_type = "train"
-            else:
-                edge_type = "street"
-
-            edge_entry = {
-                "start_node": node_id_map[edge.start_node_id],  # type: ignore
-                "end_node": node_id_map[edge.end_node_id],  # type: ignore
-                "name": edge.name,
-                "type": edge_type,
-                "biking": edge.biking,
-                "bike_lane": edge.bike_lane,
-                "walking": edge.walking,
-                "max_lanes": edge.max_lanes,
-            }
-
-            if has_street:
-                se = street_edges_map[edge.pk]
-                edge_entry["speed_limit"] = se.speed_limit
-                edge_entry["lanes"] = se.lanes
-                edge_entry["dedicated_bus_lane"] = se.dedicated_bus_lane
-
-            edges_data.append(edge_entry)
-
-        # Serialize bus lines
-        bus_lines = BusLine.objects.filter(game_map=game_map, map_versions=version)
-        bus_lines_data = []
-        for bl in bus_lines:
-            edge_indices = []
-            for ble in bus_chain_rows(bl, version).select_related("street_edge"):
-                se = ble.street_edge
-                idx = edge_pk_to_idx.get(se.edge_id)  # type: ignore
-                if idx is not None:
-                    edge_indices.append(idx)
-                else:
-                    _warn_dropped_chain_row(version, f"bus line {bl.name}", se.edge_id)
-            bus_lines_data.append(
-                {
-                    "name": bl.name,
-                    "interval": bl.intervall,
-                    "capacity": bl.bus_capacity,
-                    "speed_kmh": bl.bus_speed_kmh,
-                    "edges": edge_indices,
-                }
+        elif not MapVersion.objects.filter(game_map=game_map).exists():
+            return Response(
+                {"error": "No map version found"},
+                status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Serialize train lines
-        train_lines = TrainLine.objects.filter(game_map=game_map, map_versions=version)
-        train_lines_data = []
-        for tl in train_lines:
-            edge_indices = []
-            for tle in train_chain_rows(tl, version).select_related("train_edge"):
-                te = tle.train_edge
-                idx = edge_pk_to_idx.get(te.edge_id)  # type: ignore
-                if idx is not None:
-                    edge_indices.append(idx)
-                else:
-                    _warn_dropped_chain_row(
-                        version, f"train line {tl.name}", te.edge_id
-                    )
-            train_lines_data.append(
-                {
-                    "name": tl.name,
-                    "interval": tl.intervall,
-                    "capacity": tl.train_capacity,
-                    "speed_kmh": tl.train_speed_kmh,
-                    "edges": edge_indices,
-                }
-            )
-
-        export_data = {
-            "scale": float(game_map.scale),
-            "map": {
-                "name": game_map.name,
-                "x_dim": game_map.x_dim,
-                "y_dim": game_map.y_dim,
-                "max_player": game_map.max_player,
-                "walk_speed_kmh": game_map.walk_speed_kmh,
-                "bike_speed_kmh": game_map.bike_speed_kmh,
-                "default_car_speed_kmh": game_map.default_car_speed_kmh,
-                "district_commuters": game_map.district_commuters,
-                "co2_budget_kg_per_round": game_map.co2_budget_kg_per_round,
-            },
-            "nodes": nodes_data,
-            "edges": edges_data,
-            "bus_lines": bus_lines_data,
-            "train_lines": train_lines_data,
-        }
-        if game_map.background_image:
-            image_block = {
-                "scale": game_map.image_scale,
-                "offset_x": game_map.image_offset_x,
-                "offset_y": game_map.image_offset_y,
-                "crop_top": game_map.image_crop_top,
-                "crop_right": game_map.image_crop_right,
-                "crop_bottom": game_map.image_crop_bottom,
-                "crop_left": game_map.image_crop_left,
-                "filename": os.path.basename(game_map.background_image.name),
-            }
-            try:
-                with game_map.background_image.open("rb") as fh:
-                    image_block["data"] = base64.b64encode(fh.read()).decode("ascii")
-            except (FileNotFoundError, OSError) as exc:
-                # The placement is worth something anyway: if the image is added by
-                # hand later, at least it sits in the right place.
-                logger.warning(
-                    "Map %s: background image %s could not be read (%s), "
-                    "exporting placement only",
-                    game_map.pk,
-                    game_map.background_image.name,
-                    exc,
-                )
-            export_data["background_image"] = image_block
-
-        return Response(export_data, status=status.HTTP_200_OK)
+        return Response(build_export(game_map, version), status=status.HTTP_200_OK)
 
 
 def _invalidate_map_cache(map_pk):

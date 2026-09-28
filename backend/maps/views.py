@@ -23,6 +23,16 @@ from maps.models import (
     TrainLine,
     TrainLineEdge,
 )
+from maps.portability import (
+    DEFAULT_POLL_TEXT,
+    base_index,
+    chain_groups,
+    element_versions,
+    validate_versions,
+    version_block,
+    version_indices,
+)
+from maps.versions import put_rows_in
 
 logger = logging.getLogger(__name__)
 
@@ -118,20 +128,20 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                         game_map, graph_data["background_image"]
                     )
 
-                # Create base version
-                base_version = MapVersion.objects.create(
-                    game_map=game_map,
-                    name=f"{map_name} - Base",
-                    description=description,
-                    base_version=True,
+                # Every version the file describes — one implicit base version
+                # when it describes none, which is every file written before
+                # S14 and every file in `map_examples/`.
+                versions, base_idx = self._create_map_versions(
+                    game_map, graph_data, map_name, description
                 )
-                logger.info(f"Created MapVersion with pk {base_version.pk}")
+                logger.info(f"Created {len(versions)} map version(s)")
 
                 if graph_data:
                     # Create nodes and edges from JSON
                     node_mapping = self._create_nodes(
                         game_map=game_map,
-                        base_version=base_version,
+                        versions=versions,
+                        base_idx=base_idx,
                         nodes_data=graph_data.get("nodes", []),
                     )
                     map_meta = (graph_data or {}).get("map", {})
@@ -171,7 +181,8 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
 
                     edge_mapping = self._create_edges(
                         game_map=game_map,
-                        base_version=base_version,
+                        versions=versions,
+                        base_idx=base_idx,
                         edges_data=graph_data.get("edges", []),
                         node_mapping=node_mapping,
                     )
@@ -179,7 +190,8 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
 
                     # Create street and train edges
                     self._create_specialized_edges(
-                        base_version=base_version,
+                        versions=versions,
+                        base_idx=base_idx,
                         edges_data=graph_data.get("edges", []),
                         edge_mapping=edge_mapping,
                     )
@@ -187,7 +199,8 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                     # Create bus lines
                     self._create_bus_lines(
                         game_map=game_map,
-                        base_version=base_version,
+                        versions=versions,
+                        base_idx=base_idx,
                         bus_lines_data=graph_data.get("bus_lines", []),
                         edge_mapping=edge_mapping,
                     )
@@ -195,9 +208,9 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                     # Create train lines
                     self._create_train_lines(
                         game_map=game_map,
-                        base_version=base_version,
+                        versions=versions,
+                        base_idx=base_idx,
                         train_lines_data=graph_data.get("train_lines", []),
-                        edges_data=graph_data.get("edges", []),
                         edge_mapping=edge_mapping,
                     )
 
@@ -257,6 +270,13 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         if not isinstance(graph_data, dict):
             errors.append("JSON root must be an object/dictionary")
             return errors
+
+        # Everything about versioning the file can get wrong, including every
+        # index that points into the `versions` block. A hand-edited file is
+        # how S16 repairs the map the group plays, so a wrong index has to come
+        # back as a sentence on the upload page rather than as a map with a
+        # hole in it. `maps/portability.py` owns those rules.
+        errors += validate_versions(graph_data)
 
         nodes_data = graph_data.get("nodes", [])
         edges_data = graph_data.get("edges", [])
@@ -326,31 +346,42 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         # Validate bus lines
         for bus_line_idx, bus_line in enumerate(bus_lines_data):
             bus_name = bus_line.get("name", f"BusLine {bus_line_idx}")
-            for edge_idx in bus_line.get("edges", []):
-                if not isinstance(edge_idx, int) or edge_idx < 0:
-                    errors.append(
-                        f"Bus line '{bus_name}': invalid edge index {edge_idx}"
-                    )
-                elif edge_idx >= len(edges_data):
-                    errors.append(
-                        f"Bus line '{bus_name}': edge index {edge_idx} not found "
-                        f"(only {len(edges_data)} edges available)"
-                    )
+            errors += self._line_edge_errors(
+                f"Bus line '{bus_name}'", bus_line, edges_data
+            )
 
         # Validate train lines
         for train_line_idx, train_line in enumerate(train_lines_data):
             train_name = train_line.get("name", f"TrainLine {train_line_idx}")
-            for edge_idx in train_line.get("edges", []):
+            errors += self._line_edge_errors(
+                f"Train line '{train_name}'", train_line, edges_data
+            )
+
+        return errors
+
+    def _line_edge_errors(self, label, line_data, edges_data):
+        """The links a line claims, whether it writes one route or several.
+
+        `edges` is the flat route every file used to carry; `chains` is the
+        per-version form, and the bounds are the same either way. The indices
+        *inside* `chains` are checked here too rather than only in
+        `validate_versions`, so a flat-looking file with one bad index is
+        refused with the line's name on it.
+        """
+        errors = []
+        routes = [line_data.get("edges", []) or []]
+        for chain in line_data.get("chains", []) or []:
+            if isinstance(chain, dict):
+                routes.append(chain.get("edges", []) or [])
+        for route in routes:
+            for edge_idx in route:
                 if not isinstance(edge_idx, int) or edge_idx < 0:
-                    errors.append(
-                        f"Train line '{train_name}': invalid edge index {edge_idx}"
-                    )
+                    errors.append(f"{label}: invalid edge index {edge_idx}")
                 elif edge_idx >= len(edges_data):
                     errors.append(
-                        f"Train line '{train_name}': edge index {edge_idx} not found "
+                        f"{label}: edge index {edge_idx} not found "
                         f"(only {len(edges_data)} edges available)"
                     )
-
         return errors
 
     def _create_game_map(self, name, max_players, author, scale=1.0, map_meta=None):
@@ -404,7 +435,96 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
         )
         return game_map
 
-    def _create_nodes(self, game_map, base_version, nodes_data):
+    def _create_map_versions(self, game_map, graph_data, map_name, description):
+        """Every `MapVersion` the file describes, in the file's own order.
+
+        A file without a `versions` block gets the single base version this
+        importer has always made, and everything downstream keeps one code
+        path: an element that names no versions means the base one either way.
+
+        The version's own name wins over the form's. A copy uploaded under a
+        new map name therefore keeps its base version called after the map it
+        was drawn on, which is what makes the round trip a fixed point — export,
+        import, export again, and the second file says the same as the first.
+        """
+        block = version_block(graph_data)
+        if block is None:
+            base = MapVersion.objects.create(
+                game_map=game_map,
+                name=f"{map_name} - Base",
+                description=description,
+                base_version=True,
+            )
+            return [base], 0
+
+        base_idx = base_index(block)
+        created = []
+        for idx, entry in enumerate(block):
+            version = MapVersion.objects.create(
+                game_map=game_map,
+                name=entry.get("name") or f"{map_name} - Version {idx + 1}",
+                description=entry.get("description")
+                or (description if idx == base_idx else ""),
+                base_version=idx == base_idx,
+                poll_text=entry.get("poll_text") or DEFAULT_POLL_TEXT,
+                revert_poll_text=entry.get("revert_poll_text") or DEFAULT_POLL_TEXT,
+            )
+            self._apply_change_image(version, entry.get("change_img"))
+            created.append(version)
+
+        # Second pass: both links point at other versions, so they need all of
+        # them to exist first. `compatible_versions` is symmetric, so writing
+        # each side is idempotent rather than double.
+        for idx, entry in enumerate(block):
+            source = entry.get("source_version")
+            if isinstance(source, int) and 0 <= source < len(created):
+                created[idx].source_version = created[source]
+                created[idx].save(update_fields=["source_version"])
+            compatible = [
+                created[other]
+                for other in entry.get("compatible_versions", []) or []
+                if isinstance(other, int) and 0 <= other < len(created)
+            ]
+            if compatible:
+                created[idx].compatible_versions.add(*compatible)
+        return created, base_idx
+
+    def _apply_change_image(self, version, block):
+        """The picture the ballot shows for this change.
+
+        Base64 in the file like the background image, and a broken one must not
+        cost the map: the graph is the valuable part and the picture can be
+        added afterwards.
+        """
+        if not isinstance(block, dict):
+            return
+        data = block.get("data")
+        if not data:
+            return
+        try:
+            raw = base64.b64decode(data)
+        except (binascii.Error, ValueError) as exc:
+            logger.warning(
+                "Version %s: change image not decodable (%s)", version.pk, exc
+            )
+            return
+        version.change_img.save(
+            block.get("filename") or "change.png", ContentFile(raw), save=True
+        )
+
+    def _versions_for(self, entry, versions, base_idx):
+        """The `MapVersion` rows an entry in the file names.
+
+        Absent means the base version, `[]` means nowhere — see
+        `maps/portability.py`, which owns the rule and states why the two are
+        different.
+        """
+        return [
+            versions[idx]
+            for idx in version_indices(entry, len(versions), base_idx)
+        ]
+
+    def _create_nodes(self, game_map, versions, base_idx, nodes_data):
         node_mapping = {}
         max_x = 0
         max_y = 0
@@ -434,8 +554,9 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                 game_map=game_map, name=name, x_position=x_pos, y_position=y_pos
             )
 
-            # Add to base version
-            node.map_versions.add(base_version)
+            node.map_versions.add(
+                *self._versions_for(node_data, versions, base_idx)
+            )
 
             # Add node types
             for type_name in node_data.get("types", []):
@@ -450,7 +571,9 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
 
         return node_mapping
 
-    def _create_edges(self, game_map, base_version, edges_data, node_mapping):
+    def _create_edges(
+        self, game_map, versions, base_idx, edges_data, node_mapping
+    ):
         edge_mapping = {}
 
         for edge_idx, edge_data in enumerate(edges_data):
@@ -489,18 +612,28 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                 max_lanes=edge_data.get("max_lanes", 2),
             )
 
-            # Add to base version
-            edge.map_versions.add(base_version)
+            edge.map_versions.add(
+                *self._versions_for(edge_data, versions, base_idx)
+            )
 
             # Store mapping by index
             edge_mapping[edge_idx] = edge
 
         return edge_mapping
 
-    def _create_specialized_edges(self, base_version, edges_data, edge_mapping):
+    def _create_specialized_edges(self, versions, base_idx, edges_data, edge_mapping):
+        """The street and the railway under an edge, each with its own membership.
+
+        Both ride on the edge's `versions` unless the file overrides them with
+        `street_versions` / `train_versions` — a version that keeps an edge but
+        drops the street over it is a real state (`_drop_edge_from_version`
+        makes one), and a file that cannot say it would repair the map by
+        accident on the way back in.
+        """
         for edge_idx, edge_data in enumerate(edges_data):
             edge = edge_mapping[edge_idx]
             edge_type = edge_data.get("type", "both")
+            own = element_versions(edge_data, "versions", [base_idx], len(versions))
 
             # Create StreetEdge if type is 'street' or 'both'
             if edge_type in ("street", "both"):
@@ -510,14 +643,32 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                     lanes=edge_data.get("lanes", 1),
                     dedicated_bus_lane=edge_data.get("dedicated_bus_lane", False),
                 )
-                street_edge.map_versions.add(base_version)
+                street_edge.map_versions.add(
+                    *self._sub_versions(edge_data, "street_versions", own, versions)
+                )
 
             # Create TrainEdge if type is 'train' or 'both'
             if edge_type in ("train", "both"):
                 train_edge = TrainEdge.objects.create(edge=edge)
-                train_edge.map_versions.add(base_version)
+                train_edge.map_versions.add(
+                    *self._sub_versions(edge_data, "train_versions", own, versions)
+                )
 
-    def _create_bus_lines(self, game_map, base_version, bus_lines_data, edge_mapping):
+    def _sub_versions(self, edge_data, key, own, versions):
+        """A street's or a railway's own membership, defaulting to its edge's.
+
+        Absent means "wherever the edge is", and an explicit `[]` means nowhere
+        — the same two-way distinction the top-level `versions` key has, and the
+        reason this is not written as `... or own`.
+        """
+        return [
+            versions[idx]
+            for idx in element_versions(edge_data, key, own, len(versions))
+        ]
+
+    def _create_bus_lines(
+        self, game_map, versions, base_idx, bus_lines_data, edge_mapping
+    ):
         for bus_line_data in bus_lines_data:
             # Every default here is the model's own (`maps/models.py`), so a
             # handwritten file that mentions none of them gets the same line the
@@ -533,33 +684,14 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                 bus_capacity=bus_line_data.get("capacity", 85),
                 bus_speed_kmh=bus_line_data.get("speed_kmh", 30),
             )
-            bus_line.map_versions.add(base_version)
-
-            # Add street edges to bus line (ordered)
-            for order, edge_idx in enumerate(bus_line_data.get("edges", [])):
-                if edge_idx not in edge_mapping:
-                    raise ValueError(
-                        f"Bus line '{bus_line_data['name']}': "
-                        f"edge index {edge_idx} not found"
-                    )
-                edge = edge_mapping[edge_idx]
-
-                # Get or create StreetEdge for this edge
-                street_edge = StreetEdge.objects.filter(edge=edge).first()
-                if not street_edge:
-                    street_edge = StreetEdge.objects.create(edge=edge)
-                    street_edge.map_versions.add(base_version)
-
-                row = BusLineEdge.objects.create(
-                    bus_line=bus_line, street_edge=street_edge, order=order
-                )
-                # The chain is version-scoped like everything else, and a file
-                # describes one version, so every link belongs to the base one.
-                # A row that named no version would be a link no reader finds.
-                row.map_versions.add(base_version)
+            line_indices = version_indices(bus_line_data, len(versions), base_idx)
+            bus_line.map_versions.add(*[versions[i] for i in line_indices])
+            self._create_chain(
+                bus_line, bus_line_data, line_indices, versions, edge_mapping, "bus"
+            )
 
     def _create_train_lines(
-        self, game_map, base_version, train_lines_data, edges_data, edge_mapping
+        self, game_map, versions, base_idx, train_lines_data, edge_mapping
     ):
         for train_line_data in train_lines_data:
             # `intervall` defaulted to 10 here while the model, the editor and
@@ -573,27 +705,66 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
                 train_capacity=train_line_data.get("capacity", 1000),
                 train_speed_kmh=train_line_data.get("speed_kmh", 40),
             )
-            train_line.map_versions.add(base_version)
+            line_indices = version_indices(train_line_data, len(versions), base_idx)
+            train_line.map_versions.add(*[versions[i] for i in line_indices])
+            self._create_chain(
+                train_line,
+                train_line_data,
+                line_indices,
+                versions,
+                edge_mapping,
+                "train",
+            )
 
-            # Add train edges to train line (ordered)
-            for order, edge_idx in enumerate(train_line_data.get("edges", [])):
+    def _create_chain(
+        self, line, line_data, line_indices, versions, edge_mapping, kind
+    ):
+        """A line's links, one set of rows per route rather than per version.
+
+        Since S15 the chain is version-scoped: a version that clones a street
+        runs the line over the clone while the others keep the original, so one
+        line legitimately has two rows of the same `order`. The file writes that
+        as one `chains` entry per distinct route, and each entry becomes its own
+        rows named into the versions that share it. A file that says only
+        `edges` means one route in every version the line runs — which is what a
+        flat file has always meant.
+        """
+        for chain_indices, edge_indices in chain_groups(line_data, line_indices):
+            group = [
+                versions[i]
+                for i in chain_indices
+                if isinstance(i, int) and 0 <= i < len(versions)
+            ]
+            rows = []
+            for order, edge_idx in enumerate(edge_indices):
                 if edge_idx not in edge_mapping:
                     raise ValueError(
-                        f"Train line '{train_line_data['name']}': "
-                        f"edge index {edge_idx} not found"
+                        f"{kind} line '{line.name}': edge index {edge_idx} not found"
                     )
                 edge = edge_mapping[edge_idx]
-
-                # Get or create TrainEdge for this edge
-                train_edge = TrainEdge.objects.filter(edge=edge).first()
-                if not train_edge:
-                    train_edge = TrainEdge.objects.create(edge=edge)
-                    train_edge.map_versions.add(base_version)
-
-                row = TrainLineEdge.objects.create(
-                    train_line=train_line, train_edge=train_edge, order=order
-                )
-                row.map_versions.add(base_version)
+                if kind == "bus":
+                    element = StreetEdge.objects.filter(edge=edge).first()
+                    if not element:
+                        element = StreetEdge.objects.create(edge=edge)
+                        element.map_versions.add(*group)
+                    rows.append(
+                        BusLineEdge.objects.create(
+                            bus_line=line, street_edge=element, order=order
+                        )
+                    )
+                else:
+                    element = TrainEdge.objects.filter(edge=edge).first()
+                    if not element:
+                        element = TrainEdge.objects.create(edge=edge)
+                        element.map_versions.add(*group)
+                    rows.append(
+                        TrainLineEdge.objects.create(
+                            train_line=line, train_edge=element, order=order
+                        )
+                    )
+            # A row that names no version is a link no reader ever finds, so
+            # the writer is the named one (`maps/versions.py`) here too.
+            put_rows_in(rows, group)
 
 
 class MapListView(LoginRequiredMixin, UserPassesTestMixin, ListView):

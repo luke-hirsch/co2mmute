@@ -794,13 +794,17 @@ class PTChainExportTests(MapUploadMixin, TestCase):
         return self.upload(payload, name=name)
 
     def export(self, game_map, version=None):
-        url = (
-            reverse("maps:map-export", kwargs={"pk": game_map.pk})
-            if version is None
-            else reverse(
-                "maps:map-export-version",
-                kwargs={"pk": game_map.pk, "version_pk": version.pk},
-            )
+        """Always the single-version file: dropping a link is its branch alone.
+
+        The whole-map export writes every edge, so a chain row always has an
+        index there and this warning cannot fire. `None` means the base
+        version, which is what this url used to mean.
+        """
+        if version is None:
+            version = MapVersion.objects.get(game_map=game_map, base_version=True)
+        url = reverse(
+            "maps:map-export-version",
+            kwargs={"pk": game_map.pk, "version_pk": version.pk},
         )
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
@@ -809,7 +813,7 @@ class PTChainExportTests(MapUploadMixin, TestCase):
     def test_a_healthy_line_exports_every_link_without_complaining(self):
         game_map = self.upload_with_a_line("Linie ganz")
 
-        with self.assertNoLogs("maps.views_rest", level="WARNING"):
+        with self.assertNoLogs("maps.portability", level="WARNING"):
             exported = self.export(game_map)
 
         self.assertEqual(exported["bus_lines"][0]["edges"], [0, 1])
@@ -821,7 +825,7 @@ class PTChainExportTests(MapUploadMixin, TestCase):
         second = Edge.objects.get(game_map=game_map, name="Hauptstraße zurück")
         second.map_versions.remove(version)
 
-        with self.assertLogs("maps.views_rest", level="WARNING") as captured:
+        with self.assertLogs("maps.portability", level="WARNING") as captured:
             exported = self.export(game_map)
 
         self.assertEqual(exported["bus_lines"][0]["edges"], [0])
@@ -853,3 +857,781 @@ class PTChainExportTests(MapUploadMixin, TestCase):
 
         self.assertEqual(self.export(game_map, base)["bus_lines"][0]["edges"], [0])
         self.assertEqual(self.export(game_map, other)["bus_lines"][0]["edges"], [0, 1])
+
+
+# ---------------------------------------------------------------------------
+# S14 — the whole map in one file.
+#
+# Until now the export was a snapshot of one version, flattened: it picked a
+# `MapVersion`, filtered nodes, edges and lines to it and wrote no version
+# information at all, and the importer answered with exactly one base version.
+# So a map with four versions exported as four files that re-imported as four
+# separate maps, and what was lost on every move between boxes was the other
+# versions, `compatible_versions` — which *is* the vote — `source_version`, both
+# poll texts, `change_img`, and which element belongs where. Measured on the
+# box's own map: a base-only export drops 19 edges, a whole bus line pair and
+# all 24 `compatible_versions` pairs.
+#
+# `/export/` is now the whole map and `/export/version/<pk>/` stays the single
+# flattened version, which is what the two urls already read like. A file
+# *without* a `versions` block keeps importing exactly as it does today — every
+# file in `map_examples/` is one.
+# ---------------------------------------------------------------------------
+
+
+def edge_key(edge):
+    """An edge identified by what it *is*, so two maps can be compared.
+
+    Primary keys differ between the original and its copy, and a version that
+    changes a street clones the row — so the clone shares name and endpoints
+    with its original and is told apart only by the street it carries. That is
+    the whole point of the comparison: the copy has to end up with both.
+    """
+    from maps.models import StreetEdge, TrainEdge
+
+    se = StreetEdge.objects.filter(edge=edge).first()
+    te = TrainEdge.objects.filter(edge=edge).first()
+    return (
+        edge.name or "",
+        edge.start_node.name or "",
+        edge.end_node.name or "",
+        round(edge.start_node.x_position, 3),
+        round(edge.end_node.x_position, 3),
+        edge.biking,
+        edge.bike_lane,
+        edge.walking,
+        edge.max_lanes,
+        (se.speed_limit, se.lanes, se.dedicated_bus_lane) if se else None,
+        te is not None,
+    )
+
+
+def map_summary(game_map):
+    """Everything about a map that has to survive the file, by version name.
+
+    Version names are unique within these fixtures, which is what makes the
+    original and the copy comparable at all — nothing else about a version is
+    stable across two databases.
+    """
+    from maps.models import BusLine, Edge, MapVersion, Node, TrainLine
+    from maps.versions import bus_chain_rows, train_chain_rows
+
+    summary = {}
+    for version in MapVersion.objects.filter(game_map=game_map):
+        summary[version.name] = {
+            "base": version.base_version,
+            "poll_text": version.poll_text,
+            "revert_poll_text": version.revert_poll_text,
+            "description": version.description or "",
+            "source": version.source_version.name if version.source_version else None,
+            "compatible": sorted(
+                other.name for other in version.compatible_versions.all()
+            ),
+            "nodes": sorted(
+                (n.name or "", round(n.x_position, 3), round(n.y_position, 3))
+                for n in Node.objects.filter(game_map=game_map, map_versions=version)
+            ),
+            "edges": sorted(
+                edge_key(e)
+                for e in Edge.objects.filter(game_map=game_map, map_versions=version)
+            ),
+            "bus": {
+                line.name: [
+                    edge_key(row.street_edge.edge)
+                    for row in bus_chain_rows(line, version).select_related(
+                        "street_edge__edge"
+                    )
+                ]
+                for line in BusLine.objects.filter(
+                    game_map=game_map, map_versions=version
+                )
+            },
+            "train": {
+                line.name: [
+                    edge_key(row.train_edge.edge)
+                    for row in train_chain_rows(line, version).select_related(
+                        "train_edge__edge"
+                    )
+                ]
+                for line in TrainLine.objects.filter(
+                    game_map=game_map, map_versions=version
+                )
+            },
+        }
+    return summary
+
+
+class VersionedMapMixin(MapUploadMixin):
+    """A map shaped like the box's: base, two hand-drawn atomics, one combination.
+
+    Built through the real endpoints rather than by hand, because the thing
+    under test is whether a file can carry what `create-from-diff` and
+    `generate-combinations` actually produce — cloned streets, chains that
+    differ per version, and a `compatible_versions` graph nobody typed.
+
+    Four nodes in a row, three edges. `B` and `C` are `"type": "both"`, street
+    and rail at once, which is how drawing bus lanes on the box also moved
+    `U2`'s chain. Bus `100` runs A-B-C, train `U2` runs the rail half of B-C.
+    """
+
+    def seed_payload(self):
+        nodes = [
+            {"id": str(i), "name": f"N{i}", "x": float(i), "y": 0.0} for i in range(4)
+        ]
+        edges = [
+            {
+                "start_node": "0",
+                "end_node": "1",
+                "name": "A",
+                "type": "street",
+                "speed_limit": 50,
+                "lanes": 2,
+            },
+            {
+                "start_node": "1",
+                "end_node": "2",
+                "name": "B",
+                "type": "both",
+                "speed_limit": 50,
+                "lanes": 2,
+            },
+            {
+                "start_node": "2",
+                "end_node": "3",
+                "name": "C",
+                "type": "both",
+                "speed_limit": 30,
+                "lanes": 2,
+            },
+        ]
+        return {
+            "scale": 120.0,
+            "nodes": nodes,
+            "edges": edges,
+            "bus_lines": [
+                {"name": "100", "interval": 7, "capacity": 85, "speed_kmh": 30,
+                 "edges": [0, 1, 2]}
+            ],
+            "train_lines": [
+                {"name": "U2", "interval": 4, "capacity": 1000, "speed_kmh": 40,
+                 "edges": [1, 2]}
+            ],
+        }
+
+    def build_versioned_map(self, name="Mitte-West"):
+        from maps.models import Edge, MapVersion
+
+        game_map = self.upload(self.seed_payload(), name=name)
+        base = MapVersion.objects.get(game_map=game_map, base_version=True)
+        edge_b = Edge.objects.get(game_map=game_map, name="B")
+
+        def node_pk(name):
+            return Node.objects.get(game_map=game_map, name=name).pk
+
+        busspuren = self.create_version(
+            game_map,
+            base,
+            "Busspuren",
+            edge_changes=[
+                {"edge_id": edge_b.pk, "dedicated_bus_lane": True, "lanes": 2}
+            ],
+        )
+        umgehung = self.create_version(
+            game_map,
+            base,
+            "Umgehung",
+            new_edges=[
+                {
+                    "temp_start_node": str(node_pk("N0")),
+                    "temp_end_node": str(node_pk("N3")),
+                    "speed_limit": 50,
+                    "lanes": 1,
+                    "max_lanes": 1,
+                    "biking": True,
+                    "walking": True,
+                }
+            ],
+        )
+        response = self.client.post(
+            reverse(
+                "maps:version-generate-combinations", kwargs={"pk": game_map.pk}
+            ),
+            data={"version_ids": [busspuren.pk, umgehung.pk]},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        return game_map, base
+
+    def create_version(self, game_map, source, version_name, **changes):
+        from maps.models import MapVersion
+
+        response = self.client.post(
+            reverse("maps:version-diff-create", kwargs={"pk": game_map.pk}),
+            data={
+                "source_version_id": source.pk,
+                "version_name": version_name,
+                "description": f"Was {version_name} ändert",
+                "poll_text": f"Die Karte soll {version_name} bekommen.",
+                "revert_poll_text": f"Die Karte soll {version_name} wieder los.",
+                **changes,
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        return MapVersion.objects.get(pk=response.json()["id"])
+
+    def export_whole(self, game_map):
+        response = self.client.get(
+            reverse("maps:map-export", kwargs={"pk": game_map.pk})
+        )
+        self.assertEqual(response.status_code, 200)
+        return response.json()
+
+    def export_version(self, game_map, version):
+        response = self.client.get(
+            reverse(
+                "maps:map-export-version",
+                kwargs={"pk": game_map.pk, "version_pk": version.pk},
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        return response.json()
+
+
+class WholeMapExportTests(VersionedMapMixin, TestCase):
+    """What `GET api/maps/<pk>/export/` has to write down about versions."""
+
+    def setUp(self):
+        super().setUp()
+        self.game_map, self.base = self.build_versioned_map()
+        self.exported = self.export_whole(self.game_map)
+        self.names = [v["name"] for v in self.exported["versions"]]
+
+    def index(self, name):
+        return self.names.index(name)
+
+    def test_every_version_of_the_map_is_in_the_file(self):
+        self.assertEqual(
+            sorted(self.names),
+            sorted(["Mitte-West - Base", "Busspuren", "Umgehung",
+                    "Busspuren + Umgehung"]),
+        )
+
+    def test_the_base_version_is_the_first_entry_and_says_so(self):
+        self.assertEqual(self.exported["versions"][0]["name"], "Mitte-West - Base")
+        self.assertTrue(self.exported["versions"][0]["base_version"])
+        self.assertEqual(
+            [v["base_version"] for v in self.exported["versions"]].count(True), 1
+        )
+
+    def test_a_version_carries_both_poll_texts_and_its_description(self):
+        entry = self.exported["versions"][self.index("Busspuren")]
+        self.assertEqual(entry["poll_text"], "Die Karte soll Busspuren bekommen.")
+        self.assertEqual(
+            entry["revert_poll_text"], "Die Karte soll Busspuren wieder los."
+        )
+        self.assertEqual(entry["description"], "Was Busspuren ändert")
+
+    def test_source_version_is_written_as_an_index(self):
+        entry = self.exported["versions"][self.index("Busspuren")]
+        self.assertEqual(entry["source_version"], self.index("Mitte-West - Base"))
+        self.assertIsNone(
+            self.exported["versions"][self.index("Mitte-West - Base")][
+                "source_version"
+            ]
+        )
+
+    def test_compatible_versions_are_written_as_indices(self):
+        """The ballot: what `_get_voteable_map_versions()` reads.
+
+        Base reaches both atomics, each atomic reaches base and the
+        combination. Nothing else in the file says a vote exists.
+        """
+        entry = self.exported["versions"][self.index("Mitte-West - Base")]
+        self.assertEqual(
+            sorted(self.names[i] for i in entry["compatible_versions"]),
+            ["Busspuren", "Umgehung"],
+        )
+        entry = self.exported["versions"][self.index("Busspuren")]
+        self.assertEqual(
+            sorted(self.names[i] for i in entry["compatible_versions"]),
+            ["Busspuren + Umgehung", "Mitte-West - Base"],
+        )
+
+    def test_every_node_and_edge_says_which_versions_hold_it(self):
+        for node in self.exported["nodes"]:
+            self.assertIn("versions", node)
+            self.assertTrue(node["versions"])
+        # The bypass `Umgehung` draws is in that version and in the
+        # combination, and in neither of the other two.
+        added = [e for e in self.exported["edges"] if e["name"] is None]
+        self.assertEqual(len(added), 1, self.exported["edges"])
+        self.assertEqual(
+            sorted(self.names[i] for i in added[0]["versions"]),
+            ["Busspuren + Umgehung", "Umgehung"],
+        )
+
+    def test_the_street_a_version_replaced_is_in_the_file_twice(self):
+        """Once as the original and once as the bus-lane clone.
+
+        A one-version export writes whichever of the two that version holds and
+        the other is simply gone — which is how the same street ends up with
+        different tempo in two versions on the box for a reason nobody chose.
+        """
+        b_edges = [e for e in self.exported["edges"] if e["name"] == "B"]
+        self.assertEqual(len(b_edges), 2)
+        self.assertEqual(
+            sorted(e["dedicated_bus_lane"] for e in b_edges), [False, True]
+        )
+        clone = next(e for e in b_edges if e["dedicated_bus_lane"])
+        self.assertEqual(
+            sorted(self.names[i] for i in clone["versions"]),
+            ["Busspuren", "Busspuren + Umgehung"],
+        )
+
+    def test_a_line_writes_one_chain_per_route_and_not_one_per_version(self):
+        """Four versions, two routes: the file says it twice, not four times."""
+        line = next(b for b in self.exported["bus_lines"] if b["name"] == "100")
+        self.assertNotIn("edges", line)
+        self.assertEqual(len(line["chains"]), 2)
+        by_versions = {
+            tuple(sorted(self.names[i] for i in c["versions"])): c["edges"]
+            for c in line["chains"]
+        }
+        self.assertEqual(
+            sorted(by_versions),
+            [
+                ("Busspuren", "Busspuren + Umgehung"),
+                ("Mitte-West - Base", "Umgehung"),
+            ],
+        )
+        plain = by_versions[("Mitte-West - Base", "Umgehung")]
+        with_lane = by_versions[("Busspuren", "Busspuren + Umgehung")]
+        self.assertEqual(len(plain), 3)
+        self.assertEqual(len(with_lane), 3)
+        self.assertNotEqual(plain[1], with_lane[1])
+        self.assertFalse(self.exported["edges"][plain[1]]["dedicated_bus_lane"])
+        self.assertTrue(self.exported["edges"][with_lane[1]]["dedicated_bus_lane"])
+
+    def test_a_version_that_runs_no_link_of_a_line_is_written_as_an_empty_chain(self):
+        """The damaged state has to be legible, because S16 repairs it here.
+
+        On the box buslinie 100 reaches 0 of its 7 street edges in the base
+        version. A file that simply omitted that version would read as a line
+        with one route rather than a line that is broken in one of them.
+        """
+        from maps.models import BusLine
+
+        line = BusLine.objects.get(game_map=self.game_map, name="100")
+        for row in line.buslineedge_set.filter(map_versions=self.base):
+            row.map_versions.remove(self.base)
+
+        exported = self.export_whole(self.game_map)
+        names = [v["name"] for v in exported["versions"]]
+        entry = next(b for b in exported["bus_lines"] if b["name"] == "100")
+        empty = [
+            c
+            for c in entry["chains"]
+            if names[c["versions"][0]] == "Mitte-West - Base"
+        ]
+        self.assertEqual(len(empty), 1)
+        self.assertEqual(empty[0]["edges"], [])
+
+    def test_a_line_that_belongs_to_no_version_is_named_in_the_log(self):
+        """The box has three `Bus 147` leftovers that no version ever runs.
+
+        Invisible in play, so a backup that dropped them silently would be a
+        backup nobody could check. They travel with an empty version list — and
+        the export says so out loud, since a line in no version is a defect.
+        """
+        from maps.models import BusLine
+
+        orphan = BusLine.objects.create(game_map=self.game_map, name="147")
+
+        with self.assertLogs("maps.portability", level="WARNING") as captured:
+            exported = self.export_whole(self.game_map)
+
+        entry = next(b for b in exported["bus_lines"] if b["name"] == "147")
+        self.assertEqual(entry["versions"], [])
+        self.assertEqual(entry["chains"], [])
+        self.assertIn("147", " ".join(captured.output))
+        self.assertIn(str(orphan.pk), " ".join(captured.output))
+
+    def test_the_change_image_travels_with_its_version(self):
+        from maps.models import MapVersion
+
+        version = MapVersion.objects.get(game_map=self.game_map, name="Busspuren")
+        version.change_img.save("busspuren.png", ContentFile(PNG_BYTES), save=True)
+
+        exported = self.export_whole(self.game_map)
+        names = [v["name"] for v in exported["versions"]]
+        entry = exported["versions"][names.index("Busspuren")]
+
+        self.assertEqual(entry["change_img"]["filename"], "busspuren.png")
+        self.assertEqual(
+            base64.b64decode(entry["change_img"]["data"]), PNG_BYTES
+        )
+        self.assertNotIn(
+            "change_img", exported["versions"][names.index("Umgehung")]
+        )
+
+
+class SingleVersionExportStaysFlatTests(VersionedMapMixin, TestCase):
+    """`/export/version/<pk>/` is still the one-version snapshot it was.
+
+    Two urls, two jobs — and the flat one is what every file in
+    `map_examples/` looks like, so it has to keep being producible.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.game_map, self.base = self.build_versioned_map()
+
+    def test_a_version_export_writes_no_version_block(self):
+        exported = self.export_version(self.game_map, self.base)
+
+        self.assertNotIn("versions", exported)
+        for node in exported["nodes"]:
+            self.assertNotIn("versions", node)
+        for edge in exported["edges"]:
+            self.assertNotIn("versions", edge)
+
+    def test_a_version_export_writes_a_line_as_a_flat_edge_list(self):
+        exported = self.export_version(self.game_map, self.base)
+        line = next(b for b in exported["bus_lines"] if b["name"] == "100")
+
+        self.assertEqual(line["edges"], [0, 1, 2])
+        self.assertNotIn("chains", line)
+
+    def test_a_version_export_holds_only_that_version_s_edges(self):
+        from maps.models import MapVersion
+
+        umgehung = MapVersion.objects.get(game_map=self.game_map, name="Umgehung")
+
+        self.assertEqual(len(self.export_version(self.game_map, self.base)["edges"]), 3)
+        self.assertEqual(len(self.export_version(self.game_map, umgehung)["edges"]), 4)
+
+
+class WholeMapImportTests(VersionedMapMixin, TestCase):
+    """What `/map/upload/` has to read back out of a versioned file."""
+
+    def versioned_payload(self, **extra):
+        """Two versions by hand: a base and one that closes the second street."""
+        payload = self.seed_payload()
+        payload["versions"] = [
+            {
+                "name": "Basis",
+                "description": "wie gezeichnet",
+                "base_version": True,
+                "poll_text": "Die Karte soll bleiben.",
+                "revert_poll_text": "Die Karte soll zurück.",
+                "source_version": None,
+                "compatible_versions": [1],
+            },
+            {
+                "name": "Ohne C",
+                "base_version": False,
+                "poll_text": "Die Karte soll C verlieren.",
+                "revert_poll_text": "Die Karte soll C behalten.",
+                "source_version": 0,
+                "compatible_versions": [0],
+            },
+        ]
+        for node in payload["nodes"]:
+            node["versions"] = [0, 1]
+        payload["edges"][0]["versions"] = [0, 1]
+        payload["edges"][1]["versions"] = [0, 1]
+        payload["edges"][2]["versions"] = [0]
+        payload["bus_lines"][0]["versions"] = [0, 1]
+        payload["bus_lines"][0].pop("edges")
+        payload["bus_lines"][0]["chains"] = [
+            {"versions": [0], "edges": [0, 1, 2]},
+            {"versions": [1], "edges": [0, 1]},
+        ]
+        payload["train_lines"][0]["versions"] = [0]
+        payload.update(extra)
+        return payload
+
+    def test_a_file_with_versions_creates_all_of_them(self):
+        from maps.models import MapVersion
+
+        game_map = self.upload(self.versioned_payload(), name="Zwei Versionen")
+
+        versions = MapVersion.objects.filter(game_map=game_map)
+        self.assertEqual(sorted(v.name for v in versions), ["Basis", "Ohne C"])
+        self.assertEqual([v.name for v in versions if v.base_version], ["Basis"])
+
+    def test_the_vote_comes_back_with_the_map(self):
+        """`compatible_versions` is the ballot and nothing else carries it."""
+        from maps.models import MapVersion
+
+        game_map = self.upload(self.versioned_payload(), name="Mit Abstimmung")
+
+        base = MapVersion.objects.get(game_map=game_map, base_version=True)
+        self.assertEqual(
+            [v.name for v in base.compatible_versions.all()], ["Ohne C"]
+        )
+        self.assertTrue(game_map.offers_map_changes())
+
+    def test_source_version_and_the_poll_texts_arrive(self):
+        from maps.models import MapVersion
+
+        game_map = self.upload(self.versioned_payload(), name="Mit Herkunft")
+
+        other = MapVersion.objects.get(game_map=game_map, name="Ohne C")
+        self.assertEqual(other.source_version.name, "Basis")
+        self.assertEqual(other.poll_text, "Die Karte soll C verlieren.")
+        self.assertEqual(other.revert_poll_text, "Die Karte soll C behalten.")
+
+    def test_membership_lands_per_version(self):
+        from maps.models import Edge, MapVersion
+
+        game_map = self.upload(self.versioned_payload(), name="Pro Version")
+
+        base = MapVersion.objects.get(game_map=game_map, name="Basis")
+        other = MapVersion.objects.get(game_map=game_map, name="Ohne C")
+        self.assertEqual(Edge.objects.filter(map_versions=base).count(), 3)
+        self.assertEqual(Edge.objects.filter(map_versions=other).count(), 2)
+
+    def test_a_line_gets_a_chain_of_its_own_in_each_version(self):
+        from maps.models import BusLine, MapVersion
+        from maps.versions import bus_chain_rows
+
+        game_map = self.upload(self.versioned_payload(), name="Kette pro Version")
+
+        line = BusLine.objects.get(game_map=game_map)
+        base = MapVersion.objects.get(game_map=game_map, name="Basis")
+        other = MapVersion.objects.get(game_map=game_map, name="Ohne C")
+        self.assertEqual(
+            [r.street_edge.edge.name for r in bus_chain_rows(line, base)],
+            ["A", "B", "C"],
+        )
+        self.assertEqual(
+            [r.street_edge.edge.name for r in bus_chain_rows(line, other)],
+            ["A", "B"],
+        )
+
+    def test_a_line_only_one_version_runs_is_in_only_that_one(self):
+        from maps.models import MapVersion, TrainLine
+
+        game_map = self.upload(self.versioned_payload(), name="Bahn nur in Basis")
+
+        train = TrainLine.objects.get(game_map=game_map)
+        self.assertEqual(
+            [v.name for v in train.map_versions.all()], ["Basis"]
+        )
+
+    def test_an_element_that_names_no_versions_lands_in_the_base_version(self):
+        """The rule a handwritten file relies on, and the legacy one too.
+
+        `versions` absent means the base version — which is exactly what a file
+        without a `versions` block has always meant. `"versions": []` is how a
+        file says *nowhere*, and the two are deliberately different.
+        """
+        from maps.models import Edge, MapVersion
+
+        payload = self.versioned_payload()
+        del payload["edges"][0]["versions"]
+
+        game_map = self.upload(payload, name="Ohne Angabe")
+
+        base = MapVersion.objects.get(game_map=game_map, name="Basis")
+        other = MapVersion.objects.get(game_map=game_map, name="Ohne C")
+        edge_a = Edge.objects.get(game_map=game_map, name="A")
+        self.assertEqual([v.name for v in edge_a.map_versions.all()], [base.name])
+        self.assertEqual(Edge.objects.filter(map_versions=other).count(), 1)
+
+    def test_an_element_with_an_empty_version_list_lands_nowhere(self):
+        from maps.models import BusLine
+
+        payload = self.versioned_payload()
+        payload["bus_lines"][0]["versions"] = []
+        payload["bus_lines"][0]["chains"] = []
+
+        game_map = self.upload(payload, name="Linie ohne Version")
+
+        line = BusLine.objects.get(game_map=game_map)
+        self.assertEqual(line.map_versions.count(), 0)
+
+    def test_the_change_image_arrives_with_its_version(self):
+        from maps.models import MapVersion
+
+        payload = self.versioned_payload()
+        payload["versions"][1]["change_img"] = {
+            "filename": "ohne-c.png",
+            "data": base64.b64encode(PNG_BYTES).decode("ascii"),
+        }
+
+        game_map = self.upload(payload, name="Mit Bild")
+
+        other = MapVersion.objects.get(game_map=game_map, name="Ohne C")
+        with other.change_img.open("rb") as fh:
+            self.assertEqual(fh.read(), PNG_BYTES)
+
+    def test_a_file_without_a_versions_block_still_makes_one_base_version(self):
+        from maps.models import Edge, MapVersion
+
+        game_map = self.upload(self.seed_payload(), name="Alt und flach")
+
+        versions = list(MapVersion.objects.filter(game_map=game_map))
+        self.assertEqual(len(versions), 1)
+        self.assertTrue(versions[0].base_version)
+        self.assertEqual(Edge.objects.filter(map_versions=versions[0]).count(), 3)
+
+
+class VersionedFileValidationTests(VersionedMapMixin, TestCase):
+    """A hand-edited file is how S16 repairs the box's map.
+
+    So every way of getting one wrong is refused loudly, on the upload page.
+    """
+
+    def refuse(self, payload, name):
+        from maps.models import GameMap
+
+        response = self.client.post(
+            reverse("map-upload"),
+            {
+                "map_name": name,
+                "max_players": 4,
+                "description": "",
+                "json_file": ContentFile(
+                    json.dumps(payload).encode("utf-8"), name="map.json"
+                ),
+            },
+            follow=True,
+        )
+        self.assertFalse(GameMap.objects.filter(name=name).exists())
+        context = getattr(response, "context", None) or {}
+        return " ".join(str(m) for m in context.get("messages", []))
+
+    def base_payload(self):
+        payload = self.seed_payload()
+        payload["versions"] = [
+            {"name": "Basis", "base_version": True},
+            {"name": "Zweite", "base_version": False},
+        ]
+        return payload
+
+    def test_a_file_with_no_base_version_is_refused(self):
+        payload = self.base_payload()
+        payload["versions"][0]["base_version"] = False
+
+        self.assertIn("base_version", self.refuse(payload, "Ohne Basis"))
+
+    def test_a_file_with_two_base_versions_is_refused(self):
+        payload = self.base_payload()
+        payload["versions"][1]["base_version"] = True
+
+        self.assertIn("base_version", self.refuse(payload, "Zwei Basen"))
+
+    def test_a_version_index_out_of_range_is_refused(self):
+        payload = self.base_payload()
+        payload["nodes"][0]["versions"] = [0, 7]
+
+        self.assertIn("7", self.refuse(payload, "Index daneben"))
+
+    def test_a_compatible_version_pointing_nowhere_is_refused(self):
+        payload = self.base_payload()
+        payload["versions"][0]["compatible_versions"] = [4]
+
+        self.assertIn("compatible_versions", self.refuse(payload, "Ballot kaputt"))
+
+    def test_a_chain_pointing_at_an_edge_that_is_not_there_is_refused(self):
+        payload = self.base_payload()
+        payload["bus_lines"][0].pop("edges")
+        payload["bus_lines"][0]["chains"] = [{"versions": [0], "edges": [9]}]
+
+        self.assertIn("9", self.refuse(payload, "Kette daneben"))
+
+    def test_a_version_without_a_name_is_refused(self):
+        payload = self.base_payload()
+        payload["versions"][1]["name"] = ""
+
+        self.assertIn("name", self.refuse(payload, "Namenlos"))
+
+
+class WholeMapRoundTripTests(VersionedMapMixin, TestCase):
+    """Out of one box and into the next, with the ballot intact.
+
+    This is the test S16 rehearses: export the map the group plays, repair the
+    file, import it as a new map. Everything below is compared through
+    `map_summary`, which reads a map the way the game does — per version.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.original, self.base = self.build_versioned_map("Mitte-West")
+        exported = self.export_whole(self.original)
+        self.copy = self.upload(exported, name="Mitte-West (Kopie)", max_players=4)
+
+    def test_the_copy_has_the_same_versions(self):
+        self.assertEqual(
+            sorted(map_summary(self.copy)),
+            sorted(map_summary(self.original)),
+        )
+
+    def test_every_version_holds_the_same_graph(self):
+        before = map_summary(self.original)
+        after = map_summary(self.copy)
+        for name in sorted(before):
+            with self.subTest(version=name):
+                self.assertEqual(after[name]["nodes"], before[name]["nodes"])
+                self.assertEqual(after[name]["edges"], before[name]["edges"])
+
+    def test_every_version_runs_the_same_lines_over_the_same_links(self):
+        before = map_summary(self.original)
+        after = map_summary(self.copy)
+        # Guard against a vacuous pass: the fixture only says anything if the
+        # line really does run two different routes across the four versions.
+        routes = {tuple(v["bus"]["100"]) for v in before.values()}
+        self.assertEqual(len(routes), 2, before)
+        for name in sorted(before):
+            with self.subTest(version=name):
+                self.assertEqual(after[name]["bus"], before[name]["bus"])
+                self.assertEqual(after[name]["train"], before[name]["train"])
+
+    def test_the_ballot_survives(self):
+        before = map_summary(self.original)
+        after = map_summary(self.copy)
+        for name in sorted(before):
+            with self.subTest(version=name):
+                self.assertEqual(
+                    after[name]["compatible"], before[name]["compatible"]
+                )
+        self.assertTrue(self.copy.offers_map_changes())
+
+    def test_the_poll_texts_and_the_lineage_survive(self):
+        before = map_summary(self.original)
+        after = map_summary(self.copy)
+        for name in sorted(before):
+            with self.subTest(version=name):
+                for key in ("base", "poll_text", "revert_poll_text",
+                            "description", "source"):
+                    self.assertEqual(after[name][key], before[name][key], key)
+
+    def test_the_bus_lane_clone_is_a_second_street_in_the_copy_too(self):
+        """Not a detail: unioning the two would give the router two roads.
+
+        The copy has to hold both `B`s — the plain one the base runs on and the
+        bus-lane one `Busspuren` runs on — and no version may hold both.
+        """
+        from maps.models import Edge, MapVersion
+
+        b_edges = Edge.objects.filter(game_map=self.copy, name="B")
+        self.assertEqual(b_edges.count(), 2)
+        for version in MapVersion.objects.filter(game_map=self.copy):
+            with self.subTest(version=version.name):
+                self.assertEqual(
+                    Edge.objects.filter(
+                        game_map=self.copy, name="B", map_versions=version
+                    ).count(),
+                    1,
+                )
+
+    def test_a_second_round_trip_changes_nothing(self):
+        """The file is a fixed point, which is what makes it a backup."""
+        again = self.upload(
+            self.export_whole(self.copy), name="Mitte-West (Kopie 2)"
+        )
+
+        self.assertEqual(map_summary(again), map_summary(self.copy))

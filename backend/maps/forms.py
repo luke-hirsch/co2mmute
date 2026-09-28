@@ -135,38 +135,41 @@ class MapUploadForm(forms.Form):
                 )
 
         # Validate bus lines if present
-        if "bus_lines" in data:
-            if not isinstance(data["bus_lines"], list):
-                raise ValidationError("'bus_lines' must be a list.")
-            for i, bus_line in enumerate(data["bus_lines"]):
-                if not isinstance(bus_line, dict):
-                    raise ValidationError(f"Bus line {i} must be a dictionary.")
-                if "name" not in bus_line or "edges" not in bus_line:
-                    raise ValidationError(
-                        f"Bus line {i} must have 'name' and 'edges' keys"
-                    )
-                if not isinstance(bus_line["edges"], list):
-                    raise ValidationError(
-                        f"Bus line {i} 'edges' must be a list of edge indices"
-                    )
+        self._check_lines(data, "bus_lines", "Bus line")
 
         # Validate train lines if present
-        if "train_lines" in data:
-            if not isinstance(data["train_lines"], list):
-                raise ValidationError("'train_lines' must be a list.")
-            for i, train_line in enumerate(data["train_lines"]):
-                if not isinstance(train_line, dict):
-                    raise ValidationError(f"Train line {i} must be a dictionary.")
-                if "name" not in train_line or "edges" not in train_line:
-                    raise ValidationError(
-                        f"Train line {i} must have 'name' and 'edges' keys"
-                    )
-                if not isinstance(train_line["edges"], list):
-                    raise ValidationError(
-                        f"Train line {i} 'edges' must be a list of edge indices"
-                    )
+        self._check_lines(data, "train_lines", "Train line")
 
         return file
+
+    def _check_lines(self, data, key, label):
+        """A line states its route, as one `edges` list or as `chains`.
+
+        Since S14 a whole-map file carries a line's route per version, because
+        a version that clones a street runs the line over the clone. The two
+        keys are alternatives and either satisfies "this line says where it
+        runs"; what is checked here is only the shape, the indices are
+        `MapUploadView._validate_graph_data`'s.
+        """
+        if key not in data:
+            return
+        if not isinstance(data[key], list):
+            raise ValidationError(f"'{key}' must be a list.")
+        for i, line in enumerate(data[key]):
+            if not isinstance(line, dict):
+                raise ValidationError(f"{label} {i} must be a dictionary.")
+            if "name" not in line or not ("edges" in line or "chains" in line):
+                raise ValidationError(
+                    f"{label} {i} must have 'name' and either 'edges' or 'chains'"
+                )
+            if "edges" in line and not isinstance(line["edges"], list):
+                raise ValidationError(
+                    f"{label} {i} 'edges' must be a list of edge indices"
+                )
+            if "chains" in line and not isinstance(line["chains"], list):
+                raise ValidationError(
+                    f"{label} {i} 'chains' must be a list of routes"
+                )
 
     def clean_map_name(self):
         """Validate that map name is unique."""
