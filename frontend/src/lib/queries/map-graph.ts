@@ -19,23 +19,70 @@ import type { ExtendedMapGraph } from "@/types/routeTypes";
 import type { GameMap, MapVersion, NodeType } from "@/types/mapTypes";
 
 export const mapKeys = {
-  graph: (mapId: string | number | null, versionId: string | number | null) =>
-    ["map", mapId, "graph", versionId] as const,
+  graph: (
+    mapId: string | number | null,
+    versionId: string | number | null,
+    traffic: TrafficFor | null = null,
+  ) =>
+    [
+      "map",
+      mapId,
+      "graph",
+      versionId,
+      traffic?.gameId ?? null,
+      traffic?.roundNumber ?? null,
+    ] as const,
 };
 
+/**
+ * Whose traffic to attach, and as of when.
+ *
+ * The round is in here because it is in the cache key, not because the endpoint
+ * takes it: the backend always serves the *last completed* round's speeds for
+ * the game. Without the round the key would never change between rounds and
+ * `staleTime: Infinity` would hand round 3 the speeds round 1 drove on.
+ */
+export type TrafficFor = { gameId: string; roundNumber: number };
+
+/**
+ * @param traffic The game and round whose observed car speeds to attach.
+ *
+ * `previous_round_traffic` is the join between two halves that were built years
+ * apart and never met: `StreetPerRound.speed_under_load` has been written since
+ * the beginning and read by nobody, while `PathfindingOptions.trafficData` was
+ * threaded all the way through the frontend with nothing ever supplying a value.
+ * So "schnellste" was computed on a graph that had never seen a jam — the loop
+ * the README describes as routing "unter der Auslastung der letzten Runde" did
+ * not exist.
+ *
+ * The speed is the one the run measured (`EdgeState.mean_speed_kmh`, cars only),
+ * not a mean over snapshots. `_update_street_speeds` was changed to write
+ * exactly that, for exactly this.
+ *
+ * The graph itself is identical for every game on a map version and the backend
+ * caches it for an hour; the traffic is neither, so the endpoint attaches it
+ * outside that cache. React Query caches the whole response though, which is why
+ * both the game and the round are in the key. The cost is one graph fetch per
+ * round instead of one per version — the backend serves it from its own cache,
+ * and correctness beats the round trip.
+ */
 export function useMapGraph(
   mapId: string | number | null | undefined,
   versionId: string | number | null | undefined,
+  traffic?: TrafficFor | null,
 ) {
   // Both with the trailing slash Django's routes carry. Without it every graph
   // fetch costs an APPEND_SLASH 301 first — harmless, and still two round trips
   // for the biggest payload in the game, on a school wifi.
-  const path = versionId
+  const base = versionId
     ? `/api/maps/${mapId}/graph/version/${versionId}/`
     : `/api/maps/${mapId}/graph/baseversion/`;
+  const path = traffic
+    ? `${base}?game=${encodeURIComponent(traffic.gameId)}`
+    : base;
 
   return useQuery({
-    queryKey: mapKeys.graph(mapId ?? null, versionId ?? null),
+    queryKey: mapKeys.graph(mapId ?? null, versionId ?? null, traffic ?? null),
     queryFn: () => apiFetch<ExtendedMapGraph>(path),
     enabled: !!mapId,
     staleTime: Infinity,

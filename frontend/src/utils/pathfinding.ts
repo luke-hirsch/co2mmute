@@ -2,6 +2,8 @@
  * Dijkstra pathfinding implementation for traffic simulation
  */
 
+import { canUseEdge } from "@/lib/map/edge-rules";
+import { exceedsModeLimit, modeLimitM } from "@/lib/map/trip-limits";
 import type { Edge, Node, MapGraph } from "../types/mapTypes";
 import type {
   TransportMode,
@@ -66,31 +68,11 @@ export function buildAdjacencyList(
 }
 
 /**
- * Check if an edge can be used for a given transport mode
+ * Who may use a link. The rule itself lives in `lib/map/edge-rules.ts` — it is
+ * the simulation's, and a car is refused on a gate as well as on a path.
+ * Re-exported here because `ptRouting.ts` has always taken it from this module.
  */
-export function canUseEdge(edge: Edge, mode: TransportMode): boolean {
-  let canUse = false;
-
-  switch (mode) {
-    case "walk":
-      canUse = edge.walking !== false; // Default true if not specified
-      break;
-    case "bike":
-      canUse = edge.biking !== false;
-      break;
-    case "car":
-      canUse = edge.street_edge != null;
-      break;
-    case "public":
-      // Public transport uses specific routes, handled separately
-      canUse = false;
-      break;
-    default:
-      canUse = false;
-  }
-
-  return canUse;
-}
+export { canUseEdge };
 
 /**
  * Calculate edge weight based on transport mode and optimization
@@ -472,8 +454,20 @@ export async function dijkstra(
 }
 
 /**
- * Find path for any mode (wrapper that handles public transport separately)
+ * A route the player has asked for, capped.
+ *
+ * The cap is the one thing this wrapper adds over `dijkstra`: a route may come
+ * back perfectly well and still be one nobody would walk. `TOO_FAR` is a
+ * distinct failure from "no route" because the two want different sentences on
+ * screen — one says take another line, the other says it is too far on foot.
+ *
+ * Deliberately **not** inside `dijkstra`: `ptRouting` runs its own walking
+ * searches through it for the first and last mile, and those are capped at 2 km
+ * by the PT router itself. A cap here would be a second, looser opinion about
+ * the same leg.
  */
+export const TOO_FAR = "too-far";
+
 export async function findPath(
   graph: MapGraph,
   startNodeId: number,
@@ -499,39 +493,22 @@ export async function findPath(
     };
   }
 
-  return dijkstra(graph, startNodeId, endNodeId, mode, options);
-}
+  const result = await dijkstra(graph, startNodeId, endNodeId, mode, options);
 
-/**
- * Compare walking path to check if it's better than public transport
- */
-export async function findBestPath(
-  graph: MapGraph,
-  startNodeId: number,
-  endNodeId: number,
-  mode: TransportMode,
-  options: {
-    optimization?: CarOptimization;
-    trafficData?: EdgeTrafficData[];
-    scale?: number;
-  } = {},
-): Promise<PathfindingResult> {
-  // For non-public modes, just return the standard path
-  if (mode !== "public") {
-    return dijkstra(graph, startNodeId, endNodeId, mode, options);
+  if (result.success && exceedsModeLimit(mode, result.totalDistanceM)) {
+    console.log(
+      `[findPath] ${(result.totalDistanceM / 1000).toFixed(1)} km by ${mode} is past the ` +
+        `${(modeLimitM(mode)! / 1000).toFixed(0)} km limit — refusing the route`,
+    );
+    return {
+      success: false,
+      path: [],
+      segments: [],
+      totalDistanceM: result.totalDistanceM,
+      estimatedTimeMin: result.estimatedTimeMin,
+      error: TOO_FAR,
+    };
   }
 
-  // For public transport, we need to compare with walking
-  // This is a simplified version - full PT routing is in ptRouting.ts
-  const walkResult = await dijkstra(
-    graph,
-    startNodeId,
-    endNodeId,
-    "walk",
-    options,
-  );
-
-  // Return walking result for now
-  // Full PT routing will compare and return best option
-  return walkResult;
+  return result;
 }

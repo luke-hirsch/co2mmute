@@ -14,6 +14,7 @@ import { useSubmitMove } from "@/lib/queries/move";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { de } from "@/lib/de";
+import { edgeLoads } from "@/lib/map/traffic";
 import { seatById } from "@/lib/game/game-state";
 import type { Node } from "@/types/mapTypes";
 
@@ -77,6 +78,13 @@ export function RoundScreen({
     return byId;
   }, [draft.graph]);
 
+  // Where it stopped last round, from the same speeds "schnellste" routes on.
+  // Empty in round one, which is correct: nothing has been driven yet.
+  const jam = useMemo(
+    () => edgeLoads(draft.graph?.edges ?? [], draft.graph?.previous_round_traffic),
+    [draft.graph],
+  );
+
   const selected =
     draft.draft.agents.find((agent) => agent.agentId === selectedAgentId) ??
     draft.draft.agents.find((agent) => agent.status === "ready") ??
@@ -125,6 +133,7 @@ export function RoundScreen({
           graph={draft.graph}
           homeNode={draft.draft.homeNode}
           agent={selected}
+          jam={jam}
         />
       </div>
 
@@ -146,6 +155,7 @@ export function RoundScreen({
                   key={agent.agentId}
                   index={index}
                   agent={agent}
+                  distance={draft.distances.get(agent.agentId)}
                   nodes={nodes}
                   selected={selected?.agentId === agent.agentId}
                   onSelect={() => setSelectedAgentId(agent.agentId)}

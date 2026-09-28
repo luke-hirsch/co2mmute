@@ -1,9 +1,12 @@
 import { Button } from "@/components/ui/button";
+import { MAX_BIKE_M, MAX_WALK_M } from "@/lib/map/trip-limits";
 import { ModeBadge } from "@/components/metro/line";
 import { ModePicker, OptimizationRow } from "@/components/round/mode-picker";
 import { RouteSummary } from "@/components/round/route-summary";
+import { TOO_FAR } from "@/utils/pathfinding";
 import { de } from "@/lib/de";
 import { cn } from "@/lib/utils";
+import type { AgentDistance } from "@/hooks/use-round-draft";
 import type { AgentDraft } from "@/lib/game/round-draft";
 import type { Node } from "@/types/mapTypes";
 import type { CarOptimization, PTOptimization, TransportMode } from "@/types/routeTypes";
@@ -23,6 +26,7 @@ import type { CarOptimization, PTOptimization, TransportMode } from "@/types/rou
 export function AgentRow({
   index,
   agent,
+  distance,
   nodes,
   selected,
   onSelect,
@@ -35,6 +39,8 @@ export function AgentRow({
 }: {
   index: number;
   agent: AgentDraft;
+  /** The straight line to the destination, and what it rules out. */
+  distance: AgentDistance | undefined;
   nodes: Map<number, Node>;
   selected: boolean;
   onSelect: () => void;
@@ -78,6 +84,13 @@ export function AgentRow({
             <p className="mt-1 text-sm text-muted-foreground">
               {de.round.home} → {destination ?? `#${agent.destinationNode}`}
             </p>
+            {/* Before any mode is picked, and it stays: it is the one figure
+                that does not depend on the choice. */}
+            {distance ? (
+              <p className="mt-1 font-mono text-xs tabular-nums text-muted-foreground">
+                {de.round.airDistance(de.round.distance(distance.airM))}
+              </p>
+            ) : null}
           </button>
 
           <div className="mt-4">
@@ -100,6 +113,7 @@ export function AgentRow({
                 value={agent.mode}
                 onPick={onPickMode}
                 disabled={disabled}
+                tooFar={distance?.tooFar}
               />
             )}
 
@@ -111,16 +125,23 @@ export function AgentRow({
               // Attention is the accent, and there is no red anywhere in this
               // interface. The line above it says what to do next.
               <div className="mt-3 border-l-[3px] border-brandaccent pl-4">
-                <p className="max-w-(--measure-body) text-sm">{de.round.noRoute}</p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onRetry}
-                  disabled={disabled}
-                  className="mt-1 -ml-3"
-                >
-                  {de.round.routeAgain}
-                </Button>
+                <p className="max-w-(--measure-body) text-sm">
+                  {failureLine(agent)}
+                </p>
+                {/* Retrying a route that was refused for being too long would
+                    refuse it again. The way out is another mode, and the picker
+                    is already open above. */}
+                {agent.error === TOO_FAR ? null : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onRetry}
+                    disabled={disabled}
+                    className="mt-1 -ml-3"
+                  >
+                    {de.round.routeAgain}
+                  </Button>
+                )}
               </div>
             ) : null}
 
@@ -147,4 +168,19 @@ export function AgentRow({
       </div>
     </li>
   );
+}
+
+/**
+ * Why this passenger has no route.
+ *
+ * "Too far" and "no connection" are different facts and get different
+ * sentences: one says pick another mode, the other says try another line. They
+ * used to share `noRoute`, which told a student to take a different bus when the
+ * problem was that they had asked to walk nine kilometres.
+ */
+function failureLine(agent: AgentDraft): string {
+  if (agent.error !== TOO_FAR) return de.round.noRoute;
+  if (agent.mode === "walk") return de.round.tooFar.walk(de.round.distance(MAX_WALK_M));
+  if (agent.mode === "bike") return de.round.tooFar.bike(de.round.distance(MAX_BIKE_M));
+  return de.round.noRoute;
 }

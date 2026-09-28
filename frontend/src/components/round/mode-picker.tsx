@@ -18,11 +18,20 @@ export function ModePicker({
   value,
   onPick,
   disabled = false,
+  tooFar = [],
   className,
 }: {
   value: TransportMode | null;
   onPick: (mode: TransportMode) => void;
   disabled?: boolean;
+  /**
+   * Modes the straight line already rules out for this passenger.
+   *
+   * Offered but not pickable, rather than hidden: a mode that quietly vanishes
+   * reads as a bug, and the point is that the class sees walking *is* an option
+   * in this game and *is not* an option for this commute. The label says why.
+   */
+  tooFar?: TransportMode[];
   className?: string;
 }) {
   return (
@@ -34,13 +43,14 @@ export function ModePicker({
       {modeOrder.map((mode) => {
         const style = modeStyle[mode];
         const selected = value === mode;
+        const beyond = tooFar.includes(mode);
         return (
           <button
             key={mode}
             type="button"
             role="radio"
             aria-checked={selected}
-            disabled={disabled}
+            disabled={disabled || beyond}
             onClick={() => onPick(mode)}
             className={cn(
               "flex flex-col items-start gap-2 rounded-lg border px-3 py-3 text-left text-sm transition-colors",
@@ -60,7 +70,14 @@ export function ModePicker({
                 style.stroke,
               )}
             />
-            <span>{de.modes[mode]}</span>
+            <span className="flex flex-wrap items-baseline gap-x-2">
+              {de.modes[mode]}
+              {beyond ? (
+                <span className="text-xs text-muted-foreground">
+                  {de.round.tooFarShort}
+                </span>
+              ) : null}
+            </span>
           </button>
         );
       })}
