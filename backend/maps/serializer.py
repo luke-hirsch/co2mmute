@@ -218,26 +218,6 @@ class EdgeSerializer(MapVersionsMixin, serializers.ModelSerializer):
             "name": {"required": False, "allow_blank": True},
         }
 
-    def validate(self, attrs):
-        """A bike lane implies bike access — refused, not corrected.
-
-        PATCHes arrive partial, so both values are read off the instance
-        first: ticking "Radweg" on an edge that is closed to bikes sends only
-        `bike_lane` and has to be caught all the same.
-        """
-        instance = getattr(self, "instance", None)
-        bike_lane = attrs.get("bike_lane", getattr(instance, "bike_lane", False))
-        biking = attrs.get("biking", getattr(instance, "biking", True))
-        if bike_lane and not biking:
-            raise serializers.ValidationError(
-                {
-                    "bike_lane": (
-                        "Eine Kante mit Radweg muss auch fuer Raeder freigegeben sein."
-                    )
-                }
-            )
-        return attrs
-
     def get_street_edge(self, obj):
         """Get street edge data if it exists for this edge."""
         try:
@@ -272,6 +252,19 @@ class EdgeSerializer(MapVersionsMixin, serializers.ModelSerializer):
         return obj.euclidean_2d_distance() * obj.game_map.scale
 
     def validate(self, attrs):
+        """Everything an edge has to be true about itself, in one place.
+
+        **There used to be two `validate` methods on this class.** The first
+        carried the bike-lane rule, the second the node and version rules, and
+        Python kept only the second — so the bike rule never ran on the one path
+        the map editor writes through. `Edge.clean()` carries it too and is
+        tested, but DRF does not call `full_clean()`, so a `ModelSerializer`
+        save walks straight past a model's `clean()`. Every test of that rule
+        was passing against a code path the editor does not use.
+
+        Hence one method. A second `def validate` here silently replaces this
+        one; add a check, do not add a method.
+        """
         game_map = attrs.get("game_map") or getattr(self.instance, "game_map", None)
         start_node = attrs.get("start_node") or getattr(
             self.instance, "start_node", None
@@ -282,6 +275,23 @@ class EdgeSerializer(MapVersionsMixin, serializers.ModelSerializer):
 
         if game_map is None:
             errors["game_map"] = "game_map is required."
+
+        # A bike lane implies bike access — refused, not corrected. A silent
+        # coercion would let the map say one thing in the editor and play
+        # another in the round; naming the field lets whoever drew it decide
+        # which of the two they meant.
+        #
+        # Both values come off the instance first because a PATCH is partial:
+        # ticking "Radweg" on an edge that is closed to bikes sends only
+        # `bike_lane`, and closing a bike lane's edge to bikes sends only
+        # `biking`. Either one alone has to be caught.
+        instance = getattr(self, "instance", None)
+        bike_lane = attrs.get("bike_lane", getattr(instance, "bike_lane", False))
+        biking = attrs.get("biking", getattr(instance, "biking", True))
+        if bike_lane and not biking:
+            errors["bike_lane"] = (
+                "Eine Kante mit Radweg muss auch fuer Raeder freigegeben sein."
+            )
 
         if start_node and end_node and start_node == end_node:
             errors["end_node"] = "start_node and end_node must be different."

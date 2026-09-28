@@ -20,6 +20,9 @@ Two rules live here, both from
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.test import TestCase
+from django.urls import reverse
+
+from game.tests._helpers import muted
 
 from maps.models import Edge, GameMap, MapVersion, Node, StreetEdge, TrainEdge
 
@@ -194,3 +197,112 @@ class EdgeValidationReachesTheEdgeTests(EdgeFixtureMixin, TestCase):
 
         with self.assertRaises(ValidationError):
             edge.full_clean()
+
+
+class BikeLaneOverTheApiTests(EdgeFixtureMixin, TestCase):
+    """The same rule, on the path the map editor actually writes through.
+
+    `Edge.clean()` has enforced this since the bike-lane work landed, and
+    `test_models` above proves it — but **DRF never calls `full_clean()`**, so a
+    `ModelSerializer.save()` walks straight past a model's `clean()`. The
+    serializer had a `validate()` of its own for exactly that, and it was dead:
+    `EdgeSerializer` declared `validate` **twice** and Python kept the second
+    one, which checks nodes and map versions and says nothing about bikes.
+
+    So every test of this rule was passing against a code path the editor does
+    not use, and the one path it does use enforced nothing.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.user)
+
+    def _detail(self, edge):
+        return reverse(
+            "maps:edge-detail", kwargs={"pk": self.game_map.pk, "edge_pk": edge.pk}
+        )
+
+    def test_ticking_a_bike_lane_onto_a_bike_free_edge_is_refused(self):
+        """The editor's own move: a PATCH carrying only `bike_lane`.
+
+        Partial, so the check has to read `biking` off the instance — this is
+        the case the serializer's docstring was written for.
+        """
+        edge = self.make_edge(street=True, biking=False, bike_lane=False)
+
+        with muted():
+            response = self.client.patch(
+                self._detail(edge),
+                {"bike_lane": True},
+                content_type="application/json",
+            )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("bike_lane", response.json())
+        edge.refresh_from_db()
+        self.assertFalse(edge.bike_lane)
+
+    def test_closing_a_bike_laned_edge_to_bikes_is_refused(self):
+        edge = self.make_edge(street=True, biking=True, bike_lane=True)
+
+        with muted():
+            response = self.client.patch(
+                self._detail(edge),
+                {"biking": False},
+                content_type="application/json",
+            )
+
+        self.assertEqual(response.status_code, 400)
+        edge.refresh_from_db()
+        self.assertTrue(edge.biking)
+
+    def test_both_at_once_is_refused(self):
+        edge = self.make_edge(street=True, biking=True, bike_lane=False)
+
+        with muted():
+            response = self.client.patch(
+                self._detail(edge),
+                {"biking": False, "bike_lane": True},
+                content_type="application/json",
+            )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_a_bike_lane_with_access_still_saves(self):
+        """The check must not cost the ordinary case.
+
+        The second `validate()` — the one that survived — is what keeps nodes
+        and map versions honest, so merging the two must leave that working.
+        """
+        edge = self.make_edge(street=True, biking=True, bike_lane=False)
+
+        response = self.client.patch(
+            self._detail(edge),
+            {"bike_lane": True},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        edge.refresh_from_db()
+        self.assertTrue(edge.bike_lane)
+
+    def test_the_surviving_check_still_refuses_a_foreign_node(self):
+        """The node rules live in the `validate()` that shadowed the bike one.
+
+        Pinned here because merging the two methods is exactly the change that
+        could drop them.
+        """
+        other_map = GameMap.objects.create(name="Andere", x_dim=5, y_dim=5)
+        stranger = Node.objects.create(
+            game_map=other_map, name="fremd", x_position=1, y_position=1
+        )
+        edge = self.make_edge(street=True)
+
+        with muted():
+            response = self.client.patch(
+                self._detail(edge),
+                {"end_node": stranger.pk},
+                content_type="application/json",
+            )
+
+        self.assertEqual(response.status_code, 400)
