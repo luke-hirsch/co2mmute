@@ -48,6 +48,7 @@ from maps.portability import build_export
 from maps.versions import (
     bus_chain_rows,
     combination_members,
+    combination_poll_texts,
     drop_rows_from,
     put_rows_in,
     train_chain_rows,
@@ -165,12 +166,14 @@ class GenerateCombinationsView(GenericAPIView):
                 [v for v in atomic_versions if v.pk in subset], key=lambda v: v.name
             )
             combo_name = " + ".join(v.name for v in members)
-            combo_poll_text = "Apply changes: " + ", ".join(v.name for v in members)
+            combo_poll_text, combo_revert_text = combination_poll_texts(
+                [v.name for v in members]
+            )
             combo_version = MapVersion.objects.create(
                 game_map=game_map,
                 name=combo_name,
                 poll_text=combo_poll_text,
-                revert_poll_text=f"Revert changes: {combo_name}",
+                revert_poll_text=combo_revert_text,
                 base_version=False,
             )
             existing[subset] = combo_version
