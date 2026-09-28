@@ -94,7 +94,7 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | R-05 | Fortschritt | „x von y abgeschickt", host-gesteuerte zählen mit | geht | - |
 | R-06 | letzter Spieler schickt ab | Runde wird gerechnet | geht | - |
 | R-07 | Simulation läuft | Fortschritt kommt an (`simulation.progress`) | ungeprüft | - |
-| R-08 | Auto auf einer Kante ohne Straße | wird abgelehnt (heute defekt, s. CLAUDE.md) | offen | - |
+| R-08 | Auto auf einer Kante ohne Straße | wird abgelehnt, Client wie Server | geht | `edge-rules.test.ts` |
 | R-09 | Rundenzähler | zeigt die richtige Runde (2.4-Bug) | ungeprüft | - |
 | R-10 | Spieler verlässt mitten in der Runde | Runde kann trotzdem fertig werden | offen | - |
 | R-11 | Reconnect mitten in der Runde | schon abgeschickte Wahl ist noch da | geht | - |
@@ -102,6 +102,12 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | R-13 | Chat während der Runde | erreichbar | offen | - |
 | R-14 | ÖPNV fahren und das letzte Stück laufen | Runde wird gerechnet, nicht abgebrochen | geht | - |
 | R-15 | Bus & Bahn auf der ausgelieferten Karte | findet für jedes der 36 Wohnort-Arbeitsplatz-Paare eine Verbindung (S5) | geht | `replay.spec.ts` |
+| R-16 | Auto auf einem Tor (Busspur oder Radweg nimmt die letzte Spur) | wird gar nicht erst als Route angeboten, statt beim Abschicken abgelehnt (S6) | geht | `edge-rules.test.ts` |
+| R-17 | Luftlinie | steht am Fahrgast, sobald er ausgewählt ist — vor jeder Wahl (S6) | geht | - |
+| R-18 | zu weit zu Fuß (über 5 km) oder mit dem Rad (über 15 km) | der Modus ist nicht wählbar, wenn schon die Luftlinie zu weit ist; sonst sagt die Route, dass es zu weit ist (S6) | geht | `trip-limits.test.ts` |
+| R-19 | Stau der letzten Runde auf der Karte | dickere Linie, wo es langsamer war — keine Farbskala (S6) | geht | `traffic.test.ts` |
+| R-20 | „schnellste" | rechnet mit den gemessenen Geschwindigkeiten der letzten Runde, nicht mit dem Tempolimit (S6) | geht | `maps.tests.test_traffic` |
+| R-21 | Route auf der Karte | in der Farbe und im Strich ihres Verkehrsmittels, nicht überall bernstein (S6) | geht | - |
 
 ## A — die animation
 
