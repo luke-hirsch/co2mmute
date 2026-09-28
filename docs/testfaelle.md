@@ -283,12 +283,16 @@ nicht gemessen.
 | S-04 | Spielernamen | tauchen in keinem Log auf | ungeprüft | - |
 | S-05 | Anonymisierung | nach Spielende „Spieler N", Host wird „Host" | ungeprüft | - |
 | S-06 | Rechtstexte in der SPA | Links auch im Spiel erreichbar | offen | - |
-| S-07 | Spiel im Profil löschen | fragt vorher, nimmt Runden und QR mit; laufendes Spiel: 409 | geht | - |
+| S-07 | Spiel auf der Hostseite löschen | fragt vorher und sagt, was mitgeht; laufendes Spiel wird abgelehnt | geht | `e2e/host-page.spec.ts` |
 | S-08 | Kopfzeile unter `/app` | auf den Beitreten-Screens, nicht im Spiel, nicht im Editor | geht | - |
 | S-09 | Passwort raten | nach 10 Fehlversuchen 429 mit deutscher Seite, 15 Minuten (S9) | geht | - |
 | S-10 | Platz-Code raten | nach 20 Fehlgriffen 429; gültige Codes zählen nie mit (S9) | geht | - |
 | S-11 | viele Konten anlegen | nach 10 angelegten Konten pro Stunde 429; abgelehnte Formulare zählen nicht (S9) | geht | - |
 | S-12 | `robots.txt` und `llms.txt` | beide unter `/`, nur über nginx — im Dev-Stack gibt es sie nicht | ungeprüft | - |
+| S-13 | Anmelden | landet auf `/app/host`, der eigenen Seite mit Spielen und Konto | geht | `e2e/host.spec.ts` |
+| S-14 | Kontodaten ändern | Anzeigename, Benutzername und E-Mail lassen sich speichern; ein vergebener Name wird auf Deutsch abgelehnt | geht | `e2e/host-page.spec.ts` |
+| S-15 | Konto löschen erreichbar | ein Klick von der Hostseite auf die Bestätigungsseite | geht | `e2e/host-page.spec.ts` |
+| S-16 | `/game/<id>/share/` | leitet in die Lobby, die ID und QR-Code ohnehin zeigt | geht | - |
 
 > S-09 bis S-11 zählen **Fehlversuche** (Login, Platz-Code) bzw. **Erfolge** (Konten), nie einfach
 > Anfragen: eine Klasse hängt hinter *einem* Schulanschluss, und wer richtige Codes einlöst, würde

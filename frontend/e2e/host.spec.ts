@@ -12,15 +12,14 @@ import { loginAsHost } from "./host";
  * silent change to the login form must break here rather than everywhere.
  */
 
-test("the host signs in and reaches the profile", async ({ page }) => {
+test("the host signs in and lands on their own page", async ({ page }) => {
   await loginAsHost(page);
 
-  const response = await page.goto("/accounts/profile/");
-
-  // Status first: the page's content proves nothing against the redirect an
-  // unauthenticated request would get instead.
-  expect(response?.status()).toBe(200);
-  expect(new URL(page.url()).pathname).toBe("/accounts/profile/");
+  // `LOGIN_REDIRECT_URL` defaults to `/accounts/profile/`, and since S13 that
+  // is a redirect into the SPA — so signing in is a two-hop chain now, and
+  // where it ends is worth pinning. `loginAsHost` waits for exactly this, so a
+  // change here breaks one helper rather than every spec that uses it.
+  expect(new URL(page.url()).pathname).toBe("/app/host");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });
 

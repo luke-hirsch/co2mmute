@@ -9,7 +9,7 @@ from game.views_join import (
 from game.views_rest import (
     GamePauseView,
     GameResumeView,
-    GameSessionCreateView,
+    GameSessionListCreateView,
     GameSessionDetailView,
     GameSummaryView,
     GetYourOwnGame,
@@ -27,7 +27,7 @@ app_name = "game"
 
 urlpatterns = [
     # Literal prefixes first — the dynamic patterns below would swallow them.
-    path("", GameSessionCreateView.as_view(), name="session-create"),
+    path("", GameSessionListCreateView.as_view(), name="session-list-create"),
     path("lookup/<str:game_id>/", SessionLookupView.as_view(), name="session-lookup"),
     path("join/<str:game_id>/", JoinSessionAPIView.as_view(), name="session-join-api"),
     path("seat/<str:code>/", SeatCodeView.as_view(), name="seat-code"),

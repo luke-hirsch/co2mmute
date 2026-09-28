@@ -2,7 +2,7 @@ import logging
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Avg, Count, Max, Sum
+from django.db.models import Avg, Count, F, Max, Q, Sum
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -11,8 +11,8 @@ from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import (
-    CreateAPIView,
     GenericAPIView,
+    ListCreateAPIView,
     RetrieveUpdateDestroyAPIView,
 )
 from rest_framework.mixins import ListModelMixin
@@ -56,6 +56,7 @@ from game.seats import (
 from game.serializers import (
     GameSessionCreateSerializer,
     GameSessionSerializer,
+    HostGameListSerializer,
     PlayerMoveWithRoutesInputSerializer,
     PlayerSerializer,
     SeatRequestSerializer,
@@ -176,10 +177,18 @@ class MuteUnmutePlayerView(GameScopedQuerysetMixin, GenericAPIView):
         return Response(self.get_serializer(seat).data, status=status.HTTP_200_OK)
 
 
-class GameSessionCreateView(
-    GameAccessCookieMixin, PlayerCookieMixin, CreateAPIView
+class GameSessionListCreateView(
+    GameAccessCookieMixin, PlayerCookieMixin, ListCreateAPIView
 ):
-    """`POST api/game/` — a host makes a game. S13.
+    """`api/game/` — the host's own games, and making one. S13.
+
+    **GET** is the list `/app/host` renders, scoped to the logged-in host and
+    nobody else: a game id is not a stranger's business, and the profile page
+    has always shown only your own. Both counts are annotated, because the page
+    shows every game and `game.rounds.count()` per row is how a list of
+    twenty-six becomes fifty-three queries.
+
+    **POST** is the create endpoint.
 
     This is the Django `CreateView` that used to sit behind `/game/create/`,
     with the ModelForm taken out. The screen moved to React because the two
@@ -205,10 +214,31 @@ class GameSessionCreateView(
     and it is set here from the session.
     """
 
-    serializer_class = GameSessionCreateSerializer
     authentication_classes = (SessionAuthentication,)
     permission_classes = (IsAuthenticated,)
-    queryset = GameSession.objects.all()
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return GameSessionCreateSerializer
+        return HostGameListSerializer
+
+    def get_queryset(self):
+        return (
+            GameSession.objects.filter(game_host=self.request.user)
+            .annotate(
+                round_count=Count("rounds", distinct=True),
+                # The host's own seat is not a player, and `user` is NULL for
+                # every student — `~Q(user=game_host)` alone is NULL for those
+                # rows, which is not TRUE, so it would count nobody at all.
+                player_count=Count(
+                    "player",
+                    filter=Q(player__user__isnull=True)
+                    | ~Q(player__user=F("game_host")),
+                    distinct=True,
+                ),
+            )
+            .order_by("-created_at", "-pk")
+        )
 
     def perform_create(self, serializer):
         # Kept on the view because `create()` below needs the row, and DRF
@@ -274,6 +304,20 @@ class GameSessionDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIVie
             return Response(
                 {"error": "Only the host can delete this game"},
                 status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # A running game is ended first, so `end_reason` gets written while it
+        # is still known — a game deleted mid-round records nothing, and a game
+        # vanishing under a class is not something to offer in two clicks.
+        # This rule used to live on the Django confirm page; S13 deleted that
+        # page, and a rule that only one of two doors enforces is not a rule.
+        if game.is_active and game.ended_at is None:
+            return Response(
+                {
+                    "error": "End the game before deleting it",
+                    "reason": "running",
+                },
+                status=status.HTTP_409_CONFLICT,
             )
 
         return super().destroy(request, *args, **kwargs)

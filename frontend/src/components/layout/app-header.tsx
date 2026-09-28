@@ -1,3 +1,5 @@
+import { Link } from "@tanstack/react-router";
+
 import { de } from "@/lib/de";
 import { useIdentity } from "@/lib/queries/identity";
 
@@ -10,8 +12,11 @@ import { useIdentity } from "@/lib/queries/identity";
  * this there was nothing on it to press: `__root.tsx` was a bare `<Outlet/>`,
  * and the landing page and the profile are Django pages the router cannot reach.
  *
- * Hence plain `<a href>` for both, and `window.location` semantics rather than
- * a router navigation. `showsAppChrome` decides where this renders.
+ * The landing page is still a plain `<a href>` — it is a Django template and
+ * the router cannot reach it. The host's page **is** reachable since S13
+ * (`/accounts/profile/` redirects to `/app/host`), so that one is a router
+ * link: going out to Django and back in for a screen that is already loaded is
+ * a full reload for nothing. `showsAppChrome` decides where this renders.
  *
  * The profile link only appears for someone who has an account, which in this
  * project means a host: `whoami` answers `authenticated` for a Django session
@@ -39,12 +44,12 @@ export function AppHeader() {
         {/* Nothing is rendered while identity is in flight: a profile link that
             appears a beat late is fine, one that appears and vanishes is not. */}
         {authenticated ? (
-          <a
-            href="/accounts/profile/"
+          <Link
+            to="/host"
             className="text-sm text-muted-foreground transition hover:text-foreground"
           >
             {identity.data?.username ?? de.app.header.profile}
-          </a>
+          </Link>
         ) : (
           <a
             href="/"
