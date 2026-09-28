@@ -226,6 +226,12 @@ nicht gemessen.
 | K-19 | Linie in einer Version geändert | die Version fährt über die geänderte Straße, die Ausgangsversion über die alte (S15) | geht | - |
 | K-20 | Export einer Version, deren Straße fehlt | lässt das Teilstück weg **und sagt welche Linie und welche Kante** — vorher still (S15) | geht | - |
 | K-07 | Karte importieren / exportieren | JSON rein und raus | geht | - |
+| K-21 | Ganze Karte exportieren | `/export/` schreibt alle Versionen, die Abstimmung zwischen ihnen, beide Abstimmungstexte und zu jedem Knoten, jeder Kante und jeder Linie, in welche Version sie gehört (S14) | geht | map-export |
+| K-22 | Ganze Karte importieren | dieselbe Datei ergibt dieselbe Karte mit allen Versionen: gemessen an der geseedeten Karte, 5 Versionen, je 136 Kanten, alle zehn Linien, jede `compatible_versions`-Verbindung (S14) | geht | - |
+| K-23 | Linie, die je Version anders fährt | die Datei schreibt eine Route je Strecke statt eine je Version; nach dem Import fährt die eine Version über die Busspur-Kopie, die andere über die alte Straße (S14) | geht | - |
+| K-24 | Alte, flache Kartendatei | eine Datei ohne `versions`-Block importiert unverändert in genau eine Basisversion — jede Datei in `map_examples/` ist eine (S14) | geht | - |
+| K-25 | Kaputte Kartendatei von Hand | ein Index, der ins Leere zeigt, keine oder zwei Basisversionen, eine namenlose Version: der Upload sagt was falsch ist, statt eine Karte mit einem Loch anzulegen (S14) | geht | - |
+| K-26 | Version, in der eine Linie keine Kante erreicht | steht als leere Strecke in der Datei, statt zu fehlen — auf der Kopie der Box-Karte liest Bus `100` dort 0 Kanten, `101` 6 (S14, Vorbereitung für S16) | geht | - |
 | K-09 | Export → Import derselben Karte | Bild, Maße und Platzierung kommen mit | ungeprüft | - |
 | K-13 | Export → Import: Linien | Plätze, Takt und Tempo jeder Linie kommen mit (S5) | geht | - |
 | K-14 | Export → Import: Kartenwerte | Platzzahl und die drei Geschwindigkeiten kommen mit; eine alte Datei ohne die Schlüssel behält die Vorgabewerte (S5) | geht | - |
