@@ -4,6 +4,7 @@ from game.models import GameRound, SimulationResult
 from rest_framework import serializers
 
 import maps.models as mm
+from maps.versions import bus_chain_rows, train_chain_rows
 
 logger = logging.getLogger(__name__)
 
@@ -366,6 +367,15 @@ class BusLineSerializer(MapVersionsMixin, serializers.ModelSerializer):
         read_only_fields = ("id",)
 
     def get_edges(self, obj):
+        """Every street this line runs on, across all versions — on purpose.
+
+        This is the line's own record (`api/maps/<pk>/bus-lines/`), not a
+        version's graph, and `PUT .../edges/` replaces the chain in every version
+        the line runs in. The editor draws its lines from the version graph
+        instead (`serialize_bus_line_for_graph`), which is the version-scoped
+        answer. A line whose chain differs per version therefore reads here as
+        the union, with an order repeated once per version.
+        """
         return list(
             obj.edges.order_by("buslineedge__order").values_list("pk", flat=True)
         )
@@ -448,6 +458,7 @@ class TrainLineSerializer(MapVersionsMixin, serializers.ModelSerializer):
         read_only_fields = ("id",)
 
     def get_edges(self, obj):
+        """All versions' rails, like the bus above — the line's own record."""
         return list(
             obj.edges.order_by("trainlineedge__order").values_list("pk", flat=True)
         )
@@ -521,12 +532,18 @@ def _stops_in_travel_order(edges, line_label):
 
 
 def serialize_bus_line_for_graph(bus_line, version):
-    """Serialize a bus line for graph/routing purposes."""
-    street_edges = list(
-        bus_line.edges.filter(map_versions=version)
-        .select_related("edge")
-        .order_by("buslineedge__order")
+    """Serialize a bus line for graph/routing purposes.
+
+    The chain comes from the through rows this version holds, not from the
+    street edges it happens to share with the line: a version that changes a
+    street runs the line over the clone, and only the row says which of the two
+    it is. Filtering the street edges instead read the right answer by accident
+    while the rows were shared, and no answer at all once they were not.
+    """
+    rows = list(
+        bus_chain_rows(bus_line, version).select_related("street_edge__edge")
     )
+    street_edges = [row.street_edge for row in rows]
     edge_ids = [se.edge_id for se in street_edges]
     stops = _stops_in_travel_order(
         [se.edge for se in street_edges],
@@ -546,13 +563,14 @@ def serialize_bus_line_for_graph(bus_line, version):
 
 
 def serialize_train_line_for_graph(train_line, version):
-    """Serialize a train line for graph/routing purposes."""
-    # Get edges in order and extract underlying edge IDs
-    train_edges = list(
-        train_line.edges.filter(map_versions=version)
-        .select_related("edge")
-        .order_by("trainlineedge__order")
+    """Serialize a train line for graph/routing purposes.
+
+    Same as the bus above: the version's own through rows decide the chain.
+    """
+    rows = list(
+        train_chain_rows(train_line, version).select_related("train_edge__edge")
     )
+    train_edges = [row.train_edge for row in rows]
     edge_ids = [te.edge_id for te in train_edges]
     stops = _stops_in_travel_order(
         [te.edge for te in train_edges],

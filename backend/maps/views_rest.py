@@ -46,6 +46,13 @@ from maps.serializer import (
     serialize_previous_round_traffic,
     serialize_train_line_for_graph,
 )
+from maps.versions import (
+    bus_chain_rows,
+    combination_members,
+    drop_rows_from,
+    put_rows_in,
+    train_chain_rows,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -171,26 +178,30 @@ class GenerateCombinationsView(GenericAPIView):
             created_count += 1
 
             member_versions = [existing[frozenset([p])] for p in subset]
-            for node in Node.objects.filter(
-                map_versions__in=member_versions
-            ).distinct():
-                node.map_versions.add(combo_version)
-            for edge in Edge.objects.filter(
-                map_versions__in=member_versions
-            ).distinct():
-                edge.map_versions.add(combo_version)
-            for se in StreetEdge.objects.filter(
-                map_versions__in=member_versions
-            ).distinct():
-                se.map_versions.add(combo_version)
-            for te in TrainEdge.objects.filter(
-                map_versions__in=member_versions
-            ).distinct():
-                te.map_versions.add(combo_version)
-            for bl in BusLine.objects.filter(
-                map_versions__in=member_versions
-            ).distinct():
-                bl.map_versions.add(combo_version)
+            # "Apply both changes" is base minus what each member removed plus
+            # what each member added (`maps/versions.py`), not the union of the
+            # members. The union kept a street a member had *replaced* beside its
+            # replacement: on the live box every combination containing
+            # `Busspuren` carries 15 corridors twice over, 155 edges where the
+            # whole map has 140, so the router saw two parallel roads and the bus
+            # chain had two candidates per link.
+            #
+            # `TrainLine` and the two chain models were simply missing. That is
+            # why all four combinations on the box hold no rail at all, and why
+            # three play-tested games ran on a map with no U-Bahn and no S-Bahn.
+            for model in (
+                Node,
+                Edge,
+                StreetEdge,
+                TrainEdge,
+                BusLine,
+                TrainLine,
+                BusLineEdge,
+                TrainLineEdge,
+            ):
+                members = combination_members(model, base_version, member_versions)
+                for element in model.objects.filter(pk__in=members):
+                    element.map_versions.add(combo_version)
 
         all_entries = {**existing}
         for subset, version in all_entries.items():
@@ -352,13 +363,16 @@ class BusLineListView(MapScopedQuerysetMixin, ListCreateAPIView):
         edge_ids = self.request.data.get("edges", [])  # type: ignore
         if edge_ids:
             se_by_pk = {se.pk: se for se in StreetEdge.objects.filter(pk__in=edge_ids)}
-            BusLineEdge.objects.bulk_create(
+            rows = BusLineEdge.objects.bulk_create(
                 [
                     BusLineEdge(bus_line=instance, street_edge=se_by_pk[eid], order=idx)
                     for idx, eid in enumerate(edge_ids)
                     if eid in se_by_pk
                 ]
             )
+            # The chain runs wherever the line runs. The editor draws a line on
+            # the map, not on one version — versions come from the diff endpoint.
+            put_rows_in(rows, instance.map_versions.all())
         _invalidate_map_cache(self.kwargs["pk"])
 
 
@@ -389,18 +403,25 @@ class BusLineEdgesView(GenericAPIView):
     permission_classes = (IsStaffOrReadOnly,)
 
     def put(self, request, pk, busline_pk):
+        """Replace the chain — in every version the line runs in.
+
+        The endpoint takes no version, so it cannot do less than that, and the
+        editor's line panel has always meant "this is the line's route". A
+        per-version chain edit is the diff endpoint's job.
+        """
         bus_line = get_object_or_404(BusLine, pk=busline_pk, game_map_id=pk)
         edge_ids = request.data.get("edges", [])
         BusLineEdge.objects.filter(bus_line=bus_line).delete()
         if edge_ids:
             se_by_pk = {se.pk: se for se in StreetEdge.objects.filter(pk__in=edge_ids)}
-            BusLineEdge.objects.bulk_create(
+            rows = BusLineEdge.objects.bulk_create(
                 [
                     BusLineEdge(bus_line=bus_line, street_edge=se_by_pk[eid], order=idx)
                     for idx, eid in enumerate(edge_ids)
                     if eid in se_by_pk
                 ]
             )
+            put_rows_in(rows, bus_line.map_versions.all())
         _invalidate_map_cache(pk)
         return Response(
             BusLineSerializer(bus_line).data,
@@ -451,7 +472,7 @@ class TrainLineListView(MapScopedQuerysetMixin, ListCreateAPIView):
         edge_ids = self.request.data.get("edges", [])  # type: ignore
         if edge_ids:
             te_by_pk = {te.pk: te for te in TrainEdge.objects.filter(pk__in=edge_ids)}
-            TrainLineEdge.objects.bulk_create(
+            rows = TrainLineEdge.objects.bulk_create(
                 [
                     TrainLineEdge(
                         train_line=instance, train_edge=te_by_pk[eid], order=idx
@@ -460,6 +481,7 @@ class TrainLineListView(MapScopedQuerysetMixin, ListCreateAPIView):
                     if eid in te_by_pk
                 ]
             )
+            put_rows_in(rows, instance.map_versions.all())
         _invalidate_map_cache(self.kwargs["pk"])
 
 
@@ -490,12 +512,13 @@ class TrainLineEdgesView(GenericAPIView):
     permission_classes = (IsStaffOrReadOnly,)
 
     def put(self, request, pk, trainline_pk):
+        """Replace the chain in every version the line runs in — see the bus."""
         train_line = get_object_or_404(TrainLine, pk=trainline_pk, game_map_id=pk)
         edge_ids = request.data.get("edges", [])
         TrainLineEdge.objects.filter(train_line=train_line).delete()
         if edge_ids:
             te_by_pk = {te.pk: te for te in TrainEdge.objects.filter(pk__in=edge_ids)}
-            TrainLineEdge.objects.bulk_create(
+            rows = TrainLineEdge.objects.bulk_create(
                 [
                     TrainLineEdge(
                         train_line=train_line, train_edge=te_by_pk[eid], order=idx
@@ -504,6 +527,7 @@ class TrainLineEdgesView(GenericAPIView):
                     if eid in te_by_pk
                 ]
             )
+            put_rows_in(rows, train_line.map_versions.all())
         _invalidate_map_cache(pk)
         return Response(
             TrainLineSerializer(train_line).data,
@@ -592,28 +616,14 @@ class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
                 .prefetch_related("streetedge_set", "trainedge_set")
             )
 
-            # Get PT lines for this map version (ordered by through table)
-            from django.db.models import Prefetch
-
-            bus_lines = BusLine.objects.filter(
-                game_map=map_obj, map_versions=version
-            ).prefetch_related(
-                Prefetch(
-                    "edges",
-                    queryset=StreetEdge.objects.select_related("edge").order_by(
-                        "buslineedge__order"
-                    ),
-                )
-            )
+            # PT lines of this version. Their chains are not prefetched here:
+            # the serializer asks for the through rows *this version* holds
+            # (`maps/versions.py`), which a prefetch over `edges` cannot express
+            # — and never could, since `.filter()` on a prefetched manager goes
+            # back to the database anyway.
+            bus_lines = BusLine.objects.filter(game_map=map_obj, map_versions=version)
             train_lines = TrainLine.objects.filter(
                 game_map=map_obj, map_versions=version
-            ).prefetch_related(
-                Prefetch(
-                    "edges",
-                    queryset=TrainEdge.objects.select_related("edge").order_by(
-                        "trainlineedge__order"
-                    ),
-                )
             )
 
             # Serialize the data
@@ -672,6 +682,49 @@ class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
                 {"error": "Error building graph"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+def _drop_edge_from_version(edge, version):
+    """Take an edge out of a version, links and all.
+
+    A version that does not hold the street cannot hold a line running over it:
+    the row would name a version whose graph has no such edge, which is exactly
+    the state the export drops (silently, until now) and the simulator turns into
+    riders stranded at a stop the line can never reach — and a stranded rider
+    keeps the line dispatching and paying society CO2 to the end of the clock.
+    The line itself stays; it is a link short and `_register_pt_line` truncates
+    it there, which is the honest reading of a street that is gone.
+    """
+    for se in StreetEdge.objects.filter(edge=edge, map_versions=version):
+        se.map_versions.remove(version)
+        drop_rows_from(
+            BusLineEdge.objects.filter(street_edge=se, map_versions=version), version
+        )
+    for te in TrainEdge.objects.filter(edge=edge, map_versions=version):
+        te.map_versions.remove(version)
+        drop_rows_from(
+            TrainLineEdge.objects.filter(train_edge=te, map_versions=version), version
+        )
+
+
+def _warn_dropped_chain_row(version, line_label, edge_pk):
+    """A chain link the file cannot carry, said out loud.
+
+    This is the mechanism that wrote `map_examples/Berlin_Mitte-West.json` with a
+    bus 100 that had no edges at all: the export writes edges by index into the
+    list it just built, and a link whose street is not in the exported version
+    has no index — so it used to be skipped without a word. Ten silent drops read
+    as an author who never finished drawing the line. After S15 a healthy map
+    cannot reach this branch; a damaged one now says which line and which edge.
+    """
+    logger.warning(
+        "export of version %s (%s): %s runs over edge %s, which this version "
+        "does not hold — the link is missing from the file",
+        version.pk,
+        version.name,
+        line_label,
+        edge_pk,
+    )
 
 
 class MapExportView(MapScopedQuerysetMixin, GenericAPIView):
@@ -784,13 +837,14 @@ class MapExportView(MapScopedQuerysetMixin, GenericAPIView):
         bus_lines = BusLine.objects.filter(game_map=game_map, map_versions=version)
         bus_lines_data = []
         for bl in bus_lines:
-            ble_qs = BusLineEdge.objects.filter(bus_line=bl).order_by("order")
             edge_indices = []
-            for ble in ble_qs:
+            for ble in bus_chain_rows(bl, version).select_related("street_edge"):
                 se = ble.street_edge
                 idx = edge_pk_to_idx.get(se.edge_id)  # type: ignore
                 if idx is not None:
                     edge_indices.append(idx)
+                else:
+                    _warn_dropped_chain_row(version, f"bus line {bl.name}", se.edge_id)
             bus_lines_data.append(
                 {
                     "name": bl.name,
@@ -805,13 +859,16 @@ class MapExportView(MapScopedQuerysetMixin, GenericAPIView):
         train_lines = TrainLine.objects.filter(game_map=game_map, map_versions=version)
         train_lines_data = []
         for tl in train_lines:
-            tle_qs = TrainLineEdge.objects.filter(train_line=tl).order_by("order")
             edge_indices = []
-            for tle in tle_qs:
+            for tle in train_chain_rows(tl, version).select_related("train_edge"):
                 te = tle.train_edge
                 idx = edge_pk_to_idx.get(te.edge_id)  # type: ignore
                 if idx is not None:
                     edge_indices.append(idx)
+                else:
+                    _warn_dropped_chain_row(
+                        version, f"train line {tl.name}", te.edge_id
+                    )
             train_lines_data.append(
                 {
                     "name": tl.name,
@@ -966,6 +1023,12 @@ class VersionDiffCreateView(GenericAPIView):
             bl.map_versions.add(new_version)
         for tl in TrainLine.objects.filter(map_versions=source):
             tl.map_versions.add(new_version)
+        # The chains too: a line is its links, and the new version starts as a
+        # copy of the source before the changeset moves anything.
+        for row in BusLineEdge.objects.filter(map_versions=source):
+            row.map_versions.add(new_version)
+        for row in TrainLineEdge.objects.filter(map_versions=source):
+            row.map_versions.add(new_version)
 
         # 3. Apply edge changes (clone approach)
         for change in data.get("edge_changes", []):
@@ -1008,18 +1071,23 @@ class VersionDiffCreateView(GenericAPIView):
                 )
                 cloned_se.map_versions.add(new_version)
 
-                # Update BusLines that referenced the original StreetEdge
-                for bl in BusLine.objects.filter(
-                    edges=original_se, map_versions=new_version
+                # Every bus line that runs over the original street *in this
+                # version* runs over the clone instead. The original row is
+                # kept and merely loses this version — deleting it moved the
+                # line onto the clone in every version sharing it, which is the
+                # bug that broke buslinie 100 in the base version on the box.
+                # Iterating the rows rather than the lines also handles a line
+                # that traverses the same street twice, where `.get()` raised.
+                for row in BusLineEdge.objects.filter(
+                    street_edge=original_se, map_versions=new_version
                 ):
-                    through_row = BusLineEdge.objects.get(
-                        bus_line=bl, street_edge=original_se
+                    row.map_versions.remove(new_version)
+                    clone_row = BusLineEdge.objects.create(
+                        bus_line_id=row.bus_line_id,
+                        street_edge=cloned_se,
+                        order=row.order,
                     )
-                    preserved_order = through_row.order
-                    through_row.delete()
-                    BusLineEdge.objects.create(
-                        bus_line=bl, street_edge=cloned_se, order=preserved_order
-                    )
+                    clone_row.map_versions.add(new_version)
 
             # Clone TrainEdge if original had one
             original_te = TrainEdge.objects.filter(
@@ -1030,18 +1098,19 @@ class VersionDiffCreateView(GenericAPIView):
                 cloned_te = TrainEdge.objects.create(edge=cloned_edge)
                 cloned_te.map_versions.add(new_version)
 
-                # Update TrainLines that referenced the original TrainEdge
-                for tl in TrainLine.objects.filter(
-                    edges=original_te, map_versions=new_version
+                # Same for rail — and it is not a rare case: a `"type": "both"`
+                # edge is street and rail at once, which is how drawing bus
+                # lanes on the box also took `U2` off two of its nine links.
+                for row in TrainLineEdge.objects.filter(
+                    train_edge=original_te, map_versions=new_version
                 ):
-                    through_row = TrainLineEdge.objects.get(
-                        train_line=tl, train_edge=original_te
+                    row.map_versions.remove(new_version)
+                    clone_row = TrainLineEdge.objects.create(
+                        train_line_id=row.train_line_id,
+                        train_edge=cloned_te,
+                        order=row.order,
                     )
-                    preserved_order = through_row.order
-                    through_row.delete()
-                    TrainLineEdge.objects.create(
-                        train_line=tl, train_edge=cloned_te, order=preserved_order
-                    )
+                    clone_row.map_versions.add(new_version)
 
         # 4. Apply PT line changes
         try:
@@ -1068,14 +1137,19 @@ class VersionDiffCreateView(GenericAPIView):
                             se.pk: se
                             for se in StreetEdge.objects.filter(pk__in=edge_ids)
                         }
-                        BusLineEdge.objects.bulk_create(
-                            [
-                                BusLineEdge(
-                                    bus_line=bl, street_edge=se_by_pk[eid], order=idx
-                                )
-                                for idx, eid in enumerate(edge_ids)
-                                if eid in se_by_pk
-                            ]
+                        put_rows_in(
+                            BusLineEdge.objects.bulk_create(
+                                [
+                                    BusLineEdge(
+                                        bus_line=bl,
+                                        street_edge=se_by_pk[eid],
+                                        order=idx,
+                                    )
+                                    for idx, eid in enumerate(edge_ids)
+                                    if eid in se_by_pk
+                                ]
+                            ),
+                            [new_version],
                         )
                 else:
                     tl = TrainLine.objects.create(
@@ -1092,25 +1166,45 @@ class VersionDiffCreateView(GenericAPIView):
                             te.pk: te
                             for te in TrainEdge.objects.filter(pk__in=edge_ids)
                         }
-                        TrainLineEdge.objects.bulk_create(
-                            [
-                                TrainLineEdge(
-                                    train_line=tl, train_edge=te_by_pk[eid], order=idx
-                                )
-                                for idx, eid in enumerate(edge_ids)
-                                if eid in te_by_pk
-                            ]
+                        put_rows_in(
+                            TrainLineEdge.objects.bulk_create(
+                                [
+                                    TrainLineEdge(
+                                        train_line=tl,
+                                        train_edge=te_by_pk[eid],
+                                        order=idx,
+                                    )
+                                    for idx, eid in enumerate(edge_ids)
+                                    if eid in te_by_pk
+                                ]
+                            ),
+                            [new_version],
                         )
 
             elif action == "remove" and pt_change.get("id"):
+                # A row must never name a version its line has left: after S14
+                # that would be written into the file as a link of a line that
+                # is not there.
                 if line_type == "bus":
                     bl = BusLine.objects.filter(pk=pt_change["id"]).first()
                     if bl:
                         bl.map_versions.remove(new_version)
+                        drop_rows_from(
+                            BusLineEdge.objects.filter(
+                                bus_line=bl, map_versions=new_version
+                            ),
+                            new_version,
+                        )
                 else:
                     tl = TrainLine.objects.filter(pk=pt_change["id"]).first()
                     if tl:
                         tl.map_versions.remove(new_version)
+                        drop_rows_from(
+                            TrainLineEdge.objects.filter(
+                                train_line=tl, map_versions=new_version
+                            ),
+                            new_version,
+                        )
 
             elif action == "modify" and pt_change.get("id"):
                 # Clone the line for the new version
@@ -1118,6 +1212,12 @@ class VersionDiffCreateView(GenericAPIView):
                     original = BusLine.objects.filter(pk=pt_change["id"]).first()
                     if original:
                         original.map_versions.remove(new_version)
+                        drop_rows_from(
+                            BusLineEdge.objects.filter(
+                                bus_line=original, map_versions=new_version
+                            ),
+                            new_version,
+                        )
                         cloned = BusLine.objects.create(
                             game_map=game_map,
                             name=pt_change.get("name", original.name),
@@ -1136,34 +1236,46 @@ class VersionDiffCreateView(GenericAPIView):
                                 se.pk: se
                                 for se in StreetEdge.objects.filter(pk__in=edge_ids)
                             }
-                            BusLineEdge.objects.bulk_create(
-                                [
-                                    BusLineEdge(
-                                        bus_line=cloned,
-                                        street_edge=se_by_pk[eid],
-                                        order=idx,
-                                    )
-                                    for idx, eid in enumerate(edge_ids)
-                                    if eid in se_by_pk
-                                ]
+                            put_rows_in(
+                                BusLineEdge.objects.bulk_create(
+                                    [
+                                        BusLineEdge(
+                                            bus_line=cloned,
+                                            street_edge=se_by_pk[eid],
+                                            order=idx,
+                                        )
+                                        for idx, eid in enumerate(edge_ids)
+                                        if eid in se_by_pk
+                                    ]
+                                ),
+                                [new_version],
                             )
                         else:
-                            BusLineEdge.objects.bulk_create(
-                                [
-                                    BusLineEdge(
-                                        bus_line=cloned,
-                                        street_edge=t.street_edge,
-                                        order=t.order,
-                                    )
-                                    for t in BusLineEdge.objects.filter(
-                                        bus_line=original
-                                    ).order_by("order")
-                                ]
+                            # No edge list: the clone keeps the route the
+                            # original runs on the version it was copied from.
+                            put_rows_in(
+                                BusLineEdge.objects.bulk_create(
+                                    [
+                                        BusLineEdge(
+                                            bus_line=cloned,
+                                            street_edge=t.street_edge,
+                                            order=t.order,
+                                        )
+                                        for t in bus_chain_rows(original, source)
+                                    ]
+                                ),
+                                [new_version],
                             )
                 else:
                     original = TrainLine.objects.filter(pk=pt_change["id"]).first()
                     if original:
                         original.map_versions.remove(new_version)
+                        drop_rows_from(
+                            TrainLineEdge.objects.filter(
+                                train_line=original, map_versions=new_version
+                            ),
+                            new_version,
+                        )
                         cloned = TrainLine.objects.create(
                             game_map=game_map,
                             name=pt_change.get("name", original.name),
@@ -1182,29 +1294,33 @@ class VersionDiffCreateView(GenericAPIView):
                                 te.pk: te
                                 for te in TrainEdge.objects.filter(pk__in=edge_ids)
                             }
-                            TrainLineEdge.objects.bulk_create(
-                                [
-                                    TrainLineEdge(
-                                        train_line=cloned,
-                                        train_edge=te_by_pk[eid],
-                                        order=idx,
-                                    )
-                                    for idx, eid in enumerate(edge_ids)
-                                    if eid in te_by_pk
-                                ]
+                            put_rows_in(
+                                TrainLineEdge.objects.bulk_create(
+                                    [
+                                        TrainLineEdge(
+                                            train_line=cloned,
+                                            train_edge=te_by_pk[eid],
+                                            order=idx,
+                                        )
+                                        for idx, eid in enumerate(edge_ids)
+                                        if eid in te_by_pk
+                                    ]
+                                ),
+                                [new_version],
                             )
                         else:
-                            TrainLineEdge.objects.bulk_create(
-                                [
-                                    TrainLineEdge(
-                                        train_line=cloned,
-                                        train_edge=t.train_edge,
-                                        order=t.order,
-                                    )
-                                    for t in TrainLineEdge.objects.filter(
-                                        train_line=original
-                                    ).order_by("order")
-                                ]
+                            put_rows_in(
+                                TrainLineEdge.objects.bulk_create(
+                                    [
+                                        TrainLineEdge(
+                                            train_line=cloned,
+                                            train_edge=t.train_edge,
+                                            order=t.order,
+                                        )
+                                        for t in train_chain_rows(original, source)
+                                    ]
+                                ),
+                                [new_version],
                             )
 
         # 5. Apply structural deletions
@@ -1221,12 +1337,7 @@ class VersionDiffCreateView(GenericAPIView):
                 Q(start_node=node) | Q(end_node=node)
             ):
                 edge.map_versions.remove(new_version)
-                for se in StreetEdge.objects.filter(
-                    edge=edge, map_versions=new_version
-                ):
-                    se.map_versions.remove(new_version)
-                for te in TrainEdge.objects.filter(edge=edge, map_versions=new_version):
-                    te.map_versions.remove(new_version)
+                _drop_edge_from_version(edge, new_version)
 
         deleted_edge_ids = data.get("deleted_edge_ids", [])
         for edge_id in deleted_edge_ids:
@@ -1236,10 +1347,7 @@ class VersionDiffCreateView(GenericAPIView):
             if not edge:
                 continue
             edge.map_versions.remove(new_version)
-            for se in StreetEdge.objects.filter(edge=edge, map_versions=new_version):
-                se.map_versions.remove(new_version)
-            for te in TrainEdge.objects.filter(edge=edge, map_versions=new_version):
-                te.map_versions.remove(new_version)
+            _drop_edge_from_version(edge, new_version)
 
         # 6. Apply structural additions
         temp_node_map = {}
