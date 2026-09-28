@@ -114,6 +114,33 @@ def _pks(model, version):
     return set(model.objects.filter(map_versions=version).values_list("pk", flat=True))
 
 
+def german_list(names):
+    """`»A« und »B«`, `»A«, »B« und »C«` — a list a class can read aloud."""
+    quoted = [f"»{name}«" for name in names]
+    if len(quoted) == 1:
+        return quoted[0]
+    return ", ".join(quoted[:-1]) + " und " + quoted[-1]
+
+
+def combination_poll_texts(names):
+    """The two ballot questions for a generated combination version.
+
+    The hand-drawn versions carry poll text somebody wrote for them; a
+    combination gets a template, because there are 2^n − n − 1 of them and
+    nobody is going to write prose for eleven. It was English ("Apply changes:
+    Buslinie, Umgehungsstraßen") and the class votes on it, so on the live box
+    four of eight ballot options read English to a room of school students.
+
+    Phrased as the atomics are — a question starting `Soll`/`Sollen` — so the
+    combination does not look like a different kind of object on the screen.
+    """
+    listed = german_list(list(names))
+    return (
+        f"Sollen die Änderungen {listed} zusammen umgesetzt werden?",
+        f"Sollen die Änderungen {listed} zurückgenommen werden?",
+    )
+
+
 def backfill_chain_versions(BusLine, BusLineEdge, TrainLine, TrainLineEdge):
     """Put every existing chain row in the versions that can actually run it.
 

@@ -507,6 +507,83 @@ class BikeLaneTravelsTests(MapUploadMixin, TestCase):
         self.assertIn("bike_lane", notes)
 
 
+class PathHasNoStreetUnderItTests(MapUploadMixin, TestCase):
+    """A way for bikes and pedestrians, and no car lane at all.
+
+    The map the group plays has four: three homes reaching the S-Bahn at
+    Bellevue, and the Justizministerium reaching Checkpoint Charlie. A car goes
+    round.
+
+    `type` used to have three values, so the export wrote such a link as
+    `"street"` — the `else` branch of the three-way choice — and the importer
+    answered by creating a `StreetEdge` at the default 50 km/h and one lane. The
+    map therefore could not survive its own round trip: every front door gained
+    a fast car shortcut that nobody drew, and S5 "corrected" the shipped file by
+    writing those invented numbers out.
+    """
+
+    def path_payload(self, **edge_extra):
+        payload = self.graph_payload()
+        payload["edges"] = [
+            {
+                "start_node": "1",
+                "end_node": "2",
+                "name": None,
+                "type": "path",
+                "walking": True,
+                "biking": True,
+                "max_lanes": 1,
+                **edge_extra,
+            }
+        ]
+        return payload
+
+    def test_a_path_arrives_without_a_street(self):
+        game_map = self.upload(self.path_payload(), name="Mit Weg")
+        edge = Edge.objects.get(game_map=game_map)
+
+        self.assertFalse(edge.streetedge_set.exists())
+        self.assertFalse(edge.trainedge_set.exists())
+        self.assertTrue(edge.walking)
+        self.assertTrue(edge.biking)
+
+    def test_a_path_comes_back_out_as_a_path(self):
+        game_map = self.upload(self.path_payload(), name="Weg hin und zurück")
+
+        response = self.client.get(
+            reverse("maps:map-export", kwargs={"pk": game_map.pk})
+        )
+        self.assertEqual(response.status_code, 200)
+        entry = response.json()["edges"][0]
+        self.assertEqual(entry["type"], "path")
+        self.assertNotIn("speed_limit", entry)
+        self.assertNotIn("lanes", entry)
+        self.assertNotIn("dedicated_bus_lane", entry)
+
+    def test_an_old_file_calling_it_a_street_means_the_same_thing(self):
+        """Backwards compatibility, and the bug's own history.
+
+        A file written before `"path"` existed says `"street"` and simply states
+        no street field. Reading that as "a street whose numbers were left out"
+        is what invented the car lane, so it is read as a path — which is what
+        the four links on the shipped map were, all along.
+        """
+        game_map = self.upload(
+            self.path_payload(type="street"), name="Alte Datei"
+        )
+
+        self.assertFalse(Edge.objects.get(game_map=game_map).streetedge_set.exists())
+
+    def test_a_street_that_states_one_number_is_still_a_street(self):
+        """The line is "says nothing about a street", not "says everything"."""
+        game_map = self.upload(
+            self.path_payload(type="street", lanes=2), name="Halb beschrieben"
+        )
+
+        street = Edge.objects.get(game_map=game_map).streetedge_set.get()
+        self.assertEqual(street.lanes, 2)
+
+
 class RailIsNotACycleTrackTests(MapUploadMixin, TestCase):
     """A railway is not a shortcut for bikes — unless it says it has a path.
 

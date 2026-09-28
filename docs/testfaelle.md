@@ -232,11 +232,17 @@ nicht gemessen.
 | K-24 | Alte, flache Kartendatei | eine Datei ohne `versions`-Block importiert unverändert in genau eine Basisversion — jede Datei in `map_examples/` ist eine (S14) | geht | - |
 | K-25 | Kaputte Kartendatei von Hand | ein Index, der ins Leere zeigt, keine oder zwei Basisversionen, eine namenlose Version: der Upload sagt was falsch ist, statt eine Karte mit einem Loch anzulegen (S14) | geht | - |
 | K-26 | Version, in der eine Linie keine Kante erreicht | steht als leere Strecke in der Datei, statt zu fehlen — auf der Kopie der Box-Karte liest Bus `100` dort 0 Kanten, `101` 6 (S14, Vorbereitung für S16) | geht | - |
+| K-27 | Die Karte der Box liegt als Datei vor | `map_examples/Berlin_Mitte-West.json` ist die gespielte Karte mit allen acht Versionen, den drei Eingriffen und den zwölf Abstimmungspaaren — vorher lag sie nur im pg-Dump (S16) | geht | - |
+| K-28 | Weg ohne Straße darunter | `"type": "path"`: die vier Fuß- und Radverbindungen (drei Wohnorte zur S-Bahn Bellevue, Justizministerium zum Checkpoint Charlie) kommen ohne `StreetEdge` durch Export und Import — vorher erfand der Import 50 km/h und eine Spur (S16) | geht | - |
+| K-29 | Busspuren in beide Richtungen | jede der 15 Achsen von 100 und 101 hat die Busspur hin **und** zurück; alle vier Linienrichtungen fahren in der Busspuren-Version vollständig darauf (S16) | geht | - |
+| K-30 | Bahn in jeder Kombiversion | alle sechs Bahnlinien sind in allen acht Versionen, 67,27 Linien-km überall — vorher 0 in den vier erzeugten Kombinationen (S16) | geht | - |
+| K-31 | Keine Straße doppelt in einer Kombiversion | eine Kombiversion mit Busspuren trägt die Busspur-Kopie **statt** der alten Straße; Autospur-km fallen dort von 113,2 auf 82,5 (S16) | geht | - |
+| K-32 | Abstimmungstext einer Kombiversion | ist Deutsch und eine Frage wie bei den handgezeichneten Versionen — vorher „Apply changes: ...“ auf dem Wahlzettel (S16) | geht | - |
 | K-09 | Export → Import derselben Karte | Bild, Maße und Platzierung kommen mit | ungeprüft | - |
 | K-13 | Export → Import: Linien | Plätze, Takt und Tempo jeder Linie kommen mit (S5) | geht | - |
 | K-14 | Export → Import: Kartenwerte | Platzzahl und die drei Geschwindigkeiten kommen mit; eine alte Datei ohne die Schlüssel behält die Vorgabewerte (S5) | geht | - |
-| K-15 | Linien der ausgelieferten Karte | alle zehn durchgehend, Hin- und Rückrichtung halten an denselben Bahnhöfen, Bus 85 / Bahn 1000 Plätze (S5) | geht | - |
-| K-16 | Karte neu importieren | dieselbe Datei ergibt dieselbe Karte: 136 Kanten, 4 Bus- und 6 Zuglinien, 13x10, Pendlerzahl und Budget (S5) | geht | - |
+| K-15 | Linien der ausgelieferten Karte | alle zwölf durchgehend **in jeder Version, zu der sie gehören**, Hin- und Rückrichtung halten an denselben Bahnhöfen, Bus 85 / Bahn 1000 Plätze, ein Tempo je Linienpaar (S16) | geht | - |
+| K-16 | Karte neu importieren | dieselbe Datei ergibt dieselbe Karte: 8 Versionen, 55 Knoten, 170 Kanten, 6 Bus- und 6 Zuglinien, 13x10, Pendlerzahl und Budget (S16) | geht | - |
 | K-12 | Export → Import: Pendlerzahl und CO₂-Budget der Karte (S2) | kommen mit; eine alte Datei ohne die Schlüssel behält die Vorgabewerte | geht | - |
 | K-10 | Hintergrundbild neben den Graphen geschoben | bleibt ganz sichtbar, wird nicht abgeschnitten | geht | - |
 | K-11 | Kartendetail | Hintergrundbild liegt unter dem Graphen | geht | - |

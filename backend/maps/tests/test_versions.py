@@ -432,6 +432,27 @@ class GeneratedCombinationTests(VersionFixtureMixin, TestCase):
         self.assertEqual(len(added), 1)
         self.assertTrue(added <= self.edges_in(self.combination))
 
+    def test_the_combination_asks_its_question_in_german(self):
+        """The class reads this text on the ballot.
+
+        It was `"Apply changes: Busspuren, Umgehungsstraße"` — English, on the
+        vote, in a room of school students, and four of the eight versions on
+        the live box carried it. A template rather than prose because a map with
+        n interventions has 2^n - n - 1 combinations and nobody writes prose for
+        eleven; phrased as a question so it does not read as a different kind of
+        thing beside the hand-written ones.
+        """
+        self.assertEqual(
+            self.combination.poll_text,
+            "Sollen die Änderungen »Busspuren« und »Umgehungsstraße« zusammen "
+            "umgesetzt werden?",
+        )
+        self.assertEqual(
+            self.combination.revert_poll_text,
+            "Sollen die Änderungen »Busspuren« und »Umgehungsstraße« "
+            "zurückgenommen werden?",
+        )
+
     def test_the_atomic_versions_are_untouched_by_combining(self):
         self.assertEqual(len(self.edges_in(self.busspuren)), 3)
         self.assertEqual(len(self.edges_in(self.umweg)), 4)

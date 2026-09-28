@@ -129,9 +129,15 @@ class MapUploadForm(forms.Form):
                     f"Edge {i} missing required keys: {', '.join(edge_missing)}"
                 )
             # Validate edge type specification
-            if "type" in edge and edge["type"] not in ("street", "train", "both"):
+            if "type" in edge and edge["type"] not in (
+                "street",
+                "train",
+                "both",
+                "path",
+            ):
                 raise ValidationError(
-                    f"Edge {i}: type must be 'street', 'train', or 'both', got '{edge['type']}'"
+                    f"Edge {i}: type must be 'street', 'train', 'both' or "
+                    f"'path', got '{edge['type']}'"
                 )
 
         # Validate bus lines if present
