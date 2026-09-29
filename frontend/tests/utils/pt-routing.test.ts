@@ -8,7 +8,7 @@ import type { ExtendedMapGraph, PTLine } from "@/types/routeTypes";
 /**
  * "Bus & Bahn" on the map people actually play.
  *
- * `ptRouting.ts` is the router a student meets: pick a Fahrgast, pick a mode,
+ * `ptRouting.ts` is the router a student meets: pick a Gruppe, pick a mode,
  * and this is what decides whether the answer is a route or "keine Verbindung
  * gefunden". Every other test in this tree builds a toy graph, so nothing ever
  * asked the question that matters — can you get from this map's homes to this

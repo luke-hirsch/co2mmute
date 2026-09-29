@@ -205,7 +205,7 @@ test("the chat is reachable while the round is being played", async ({
     await page.getByRole("button", { name: "Los", exact: true }).click();
 
     // On the round screen: the passenger is waiting for a mode.
-    await expect(page.getByText("Fahrgast 1")).toBeVisible();
+    await expect(page.getByText("Gruppe 1")).toBeVisible();
 
     await page.getByRole("button", { name: "Chat" }).click();
     const panel = page.getByRole("region", { name: "Chat" });

@@ -1216,7 +1216,7 @@ class SummaryPayloadTests(SimulatedRoundMixin, TestCase):
         return response.json()
 
     def test_the_payload_names_the_cohort_size(self):
-        """One Fahrgast stands for a thousand people, and only the server knows."""
+        """One Gruppe stands for a thousand people, and only the server knows."""
         self.complete_round()
 
         self.assertEqual(self._summary()["people_per_agent"], self.people_per_agent)
@@ -1784,7 +1784,7 @@ class RoundCompletedScaleTests(SimulatedRoundMixin, TestCase):
         self.assertLess(data["round_paid_eur"], data["round_cost_eur"])
 
     def test_the_time_column_is_a_mean_over_the_trips_not_a_sum(self):
-        """Anna drives the same street with two Fahrgäste, Bruno with one. The
+        """Anna drives the same street with two Gruppen, Bruno with one. The
         minutes must not double: a sum of travel times is not a quantity
         anybody has, which is why this column never gets a per-person twin."""
         from game.models import AgentRoute, RouteSegment

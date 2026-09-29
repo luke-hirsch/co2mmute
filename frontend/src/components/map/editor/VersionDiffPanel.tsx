@@ -116,7 +116,7 @@ const VersionDiffPanel = ({
 
   const getEdgeLabel = (edgeId: number) => {
     const edge = mapGraph?.edges.find((e) => e.id === edgeId);
-    if (!edge) return `Edge ${edgeId}`;
+    if (!edge) return de.editor.edge.numbered(edgeId);
     const sn = mapGraph?.nodes.find((n) => n.id === edge.start_node);
     const en = mapGraph?.nodes.find((n) => n.id === edge.end_node);
     return `${sn?.name || edge.start_node} → ${en?.name || edge.end_node}`;
@@ -124,17 +124,21 @@ const VersionDiffPanel = ({
 
   const getNodeLabel = (nodeId: number) => {
     const node = mapGraph?.nodes.find((n) => n.id === nodeId);
-    return node?.name || `Node ${nodeId}`;
+    return node?.name || de.editor.node.numbered(nodeId);
   };
 
   const getVirtualEdgeLabel = (ve: VirtualEdge) => {
     const startLabel =
       typeof ve.start_node === "string"
-        ? `New (${newNodes.find((n) => n.tempId === ve.start_node) ? "pending" : ve.start_node})`
+        ? newNodes.find((n) => n.tempId === ve.start_node)
+          ? de.editor.version.newNodePending
+          : de.editor.version.newNodeMissing(ve.start_node)
         : getNodeLabel(ve.start_node);
     const endLabel =
       typeof ve.end_node === "string"
-        ? `New (${newNodes.find((n) => n.tempId === ve.end_node) ? "pending" : ve.end_node})`
+        ? newNodes.find((n) => n.tempId === ve.end_node)
+          ? de.editor.version.newNodePending
+          : de.editor.version.newNodeMissing(ve.end_node)
         : getNodeLabel(ve.end_node);
     return `${startLabel} → ${endLabel}`;
   };
@@ -228,23 +232,24 @@ const VersionDiffPanel = ({
     setPtDraftError(null);
 
     if (ptLineEdgeIds.length === 0) {
-      setPtDraftError("Route must have at least one edge.");
+      setPtDraftError(de.editor.ptLine.needsOneEdge);
       return;
     }
 
     const type = versionDiffEditingPtLine.line_type;
     const incompatible = ptLineEdgeIds.filter((id) => !isEdgeCompatible(id, type));
     if (incompatible.length > 0) {
-      const typeLabel = type === "bus" ? "street edge" : "train edge";
       setPtDraftError(
-        `${incompatible.length} edge(s) missing a ${typeLabel}. Remove or fix them.`,
+        type === "bus"
+          ? de.editor.ptLine.missingStreet(incompatible.length)
+          : de.editor.ptLine.missingTrain(incompatible.length),
       );
       return;
     }
 
     const resolvedEdgeIds = resolveEdgeIds(type, ptLineEdgeIds);
     if (resolvedEdgeIds.length === 0) {
-      setPtDraftError("No valid edges in the route.");
+      setPtDraftError(de.editor.ptLine.noValidEdges);
       return;
     }
 
@@ -601,8 +606,13 @@ const VersionDiffPanel = ({
           <div className="border border-amber-300 dark:border-amber-700 rounded-md p-3 space-y-2 bg-body dark:bg-darkbody">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-main dark:text-darktext">
-                {versionDiffEditingPtLine.action === "add" ? de.editor.add : "Modify"}{" "}
-                {versionDiffEditingPtLine.line_type === "bus" ? "Bus" : "Train"} Line
+                {versionDiffEditingPtLine.action === "add"
+                  ? versionDiffEditingPtLine.line_type === "bus"
+                    ? de.editor.newBusLine
+                    : de.editor.newTrainLine
+                  : versionDiffEditingPtLine.line_type === "bus"
+                    ? de.editor.ptLine.editBus
+                    : de.editor.ptLine.editTrain}
               </span>
               <button
                 onClick={cancelPtDraft}
@@ -654,7 +664,7 @@ const VersionDiffPanel = ({
             </div>
             <div>
               <p className="text-xs text-mutedtext dark:text-darkmutedtext">
-                Route ({ptLineEdgeIds.length} edges) — click edges on map
+                {de.editor.ptLine.routeOnMap(ptLineEdgeIds.length)}
               </p>
               {ptLineEdgeIds.length > 0 && (
                 <div className="flex flex-col gap-0.5 mt-1 max-h-32 overflow-y-auto">
@@ -674,7 +684,11 @@ const VersionDiffPanel = ({
                         onClick={() =>
                           setPtLineEdgeIds(ptLineEdgeIds.filter((_, i) => i !== idx))
                         }
-                        title={!compatible ? "Incompatible edge — click to remove" : "Click to remove"}
+                        title={
+                          !compatible
+                            ? de.editor.ptLine.incompatibleClickToRemove
+                            : de.editor.ptLine.clickToRemove
+                        }
                       >
                         {idx + 1}: {getEdgeLabel(id)}
                         {!compatible && " !!"}
@@ -724,7 +738,7 @@ const VersionDiffPanel = ({
                               : "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100"
                           }`}
                         >
-                          {line.type}
+                          {de.editor.ptLine.kind(line.type)}
                         </span>
                         <span className="text-xs font-medium text-main dark:text-darktext">
                           {line.name}
@@ -807,7 +821,7 @@ const VersionDiffPanel = ({
           {edgeChanges.length > 0 && (
             <div>
               <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">
-                Edge Modifications ({edgeChanges.length})
+                {de.editor.version.edgeChanges(edgeChanges.length)}
               </p>
               <div className="space-y-1">
                 {edgeChanges.map((change) => {
@@ -820,7 +834,8 @@ const VersionDiffPanel = ({
                     >
                       <div>
                         <span className="text-xs font-medium text-main dark:text-darktext">
-                          {edge?.name || `Edge ${change.edge_id}`}
+                          {edge?.name ||
+                            de.editor.edge.numbered(change.edge_id)}
                         </span>
                         <span className="text-xs text-mutedtext dark:text-darkmutedtext ml-1">
                           {fields.join(", ")}
@@ -864,7 +879,8 @@ const VersionDiffPanel = ({
                         {change.action}
                       </span>
                       <span className="text-xs text-main dark:text-darktext">
-                        {change.name || `${change.line_type} line`}
+                        {change.name ||
+                          de.editor.ptLine.unnamed(change.line_type)}
                       </span>
                     </div>
                     <button
@@ -883,7 +899,7 @@ const VersionDiffPanel = ({
           {newNodes.length > 0 && (
             <div>
               <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">
-                New Nodes ({newNodes.length})
+                {de.editor.version.newNodes(newNodes.length)}
               </p>
               <div className="space-y-1">
                 {newNodes.map((node) => (
@@ -892,7 +908,10 @@ const VersionDiffPanel = ({
                     className="flex items-center justify-between bg-body dark:bg-darkbody rounded p-2"
                   >
                     <span className="text-xs text-green-700 dark:text-green-400">
-                      New node at ({node.x_position.toFixed(2)}, {node.y_position.toFixed(2)})
+                      {de.editor.version.newNodeAt(
+                        node.x_position.toFixed(2),
+                        node.y_position.toFixed(2),
+                      )}
                     </span>
                     <button
                       onClick={() => removeNewNode(node.tempId)}
@@ -910,7 +929,7 @@ const VersionDiffPanel = ({
           {newEdges.length > 0 && (
             <div>
               <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">
-                New Edges ({newEdges.length})
+                {de.editor.version.newEdges(newEdges.length)}
               </p>
               <div className="space-y-1">
                 {newEdges.map((edge) => (
@@ -938,7 +957,7 @@ const VersionDiffPanel = ({
           {deletedNodeIds.size > 0 && (
             <div>
               <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">
-                Deleted Nodes ({deletedNodeIds.size})
+                {de.editor.version.deletedNodes(deletedNodeIds.size)}
               </p>
               <div className="space-y-1">
                 {[...deletedNodeIds].map((nodeId) => (
@@ -965,7 +984,7 @@ const VersionDiffPanel = ({
           {deletedEdgeIds.size > 0 && (
             <div>
               <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">
-                Deleted Edges ({deletedEdgeIds.size})
+                {de.editor.version.deletedEdges(deletedEdgeIds.size)}
               </p>
               <div className="space-y-1">
                 {[...deletedEdgeIds].map((edgeId) => {

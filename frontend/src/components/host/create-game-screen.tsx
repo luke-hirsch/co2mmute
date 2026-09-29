@@ -21,7 +21,7 @@ import { useGameMaps, type GameMapRow } from "@/lib/queries/maps";
  * Spiel anlegen. S13, and the reason the screen moved off Django at all.
  *
  * `people_per_agent` divides the map's commuter population between the
- * Fahrgäste, so it changes whenever the seats, the Fahrgäste per seat or the
+ * Gruppen, so it changes whenever the seats, the Gruppen per seat or the
  * map change; `max_CO2_level` is the map's per-round budget times the rounds.
  * A server-rendered form derives both once per GET, which meant a host who
  * changed the Platzzahl had to pull both numbers across by hand

@@ -26,8 +26,10 @@ from ._helpers import (
     create_game_map,
     create_game_session,
     create_host,
+    english_in,
     muted,
     post_create,
+    visible_text,
 )
 
 
@@ -571,76 +573,11 @@ class LobbyHostRowTests(GameCookieMixin, TempMediaRootMixin, TestCase):
 
 # ---------------------------------------------------------------------------
 # The funnel is German (2.6)
+#
+# The detector itself moved to `_helpers.py` in S17: it had been sitting in
+# this file covering two pages while `/map/upload/` was English, and the maps
+# tests could not reach it from here.
 # ---------------------------------------------------------------------------
-
-ENGLISH_GIVEAWAYS = (
-    # Words that cannot appear in German copy. Matched whole-word, so a
-    # German word that merely contains one of them is not a hit.
-    "choose",
-    "continue",
-    "configure",
-    "display name",
-    "enter lobby",
-    "enable",
-    "idle",
-    "incorrect",
-    "join",
-    "optionally",
-    "password",
-    "please",
-    "profile",
-    "share your",
-    "already in progress",
-    "no session found",
-    # Not "session" and not "maximum" on their own: both are German words
-    # too ("die Session", "das Maximum"), and flagging them would make the
-    # detector an opinion about vocabulary rather than about language. Only
-    # the English collocations they came from are hits.
-    "session id",
-    "session name",
-    "session password",
-    "maximum players",
-    "maximum rounds",
-    "maximum co",
-    "agents per",
-    "people per",
-)
-
-
-def visible_text(html):
-    """What a reader actually sees: no markup, no code, no URLs.
-
-    strip_tags leaves the *contents* of <script> in place, and this codebase
-    inlines four of them into base.html — a detector run over the raw page
-    would trip over `sessionStorage` rather than over a label. URLs go the
-    same way: the share page prints its join link for people to type, and
-    `/join/<id>/` is a route, not a sentence. A path is never copy.
-    """
-    import re
-
-    from django.utils.html import strip_tags
-
-    without_code = re.sub(r"<(script|style)\b.*?</\1>", " ", html, flags=re.S | re.I)
-    without_urls = re.sub(r"\S*(?:https?://|/)\S*", " ", strip_tags(without_code))
-    return re.sub(r"\s+", " ", without_urls).strip()
-
-
-def english_in(text):
-    """The English in `text`, or an empty list.
-
-    Whole words only, so a German word that happens to contain an English one
-    is not a hit. The point is to catch a string nobody translated, never to
-    pin the words of one that somebody did — an assertion on exact copy would
-    make every rewording a red pipeline, which is worth less than the copy.
-    """
-    import re
-
-    pattern = re.compile(
-        r"\b(?:%s)\b" % "|".join(re.escape(w).replace(r"\ ", r"\s+") for w in ENGLISH_GIVEAWAYS),
-        re.I,
-    )
-    return sorted({match.lower() for match in pattern.findall(text)})
-
 
 class GermanFunnelTests(TempMediaRootMixin, TestCase):
     """Every page the QR code lands a student on speaks German.
@@ -1223,7 +1160,7 @@ class CalibratedCreateFormTests(TempMediaRootMixin, TestCase):
         self.assertEqual(co2_budget_kg(max_rounds=DEFAULT_MAX_ROUNDS), 48_000)
 
     def test_people_per_agent_follows_the_class_size(self):
-        """Half the seats, twice the people behind each Fahrgast."""
+        """Half the seats, twice the people behind each Gruppe."""
         from game.calibration import people_per_agent
 
         for seats, expected in ((16, 100), (8, 200), (4, 400), (2, 800)):
@@ -1366,7 +1303,7 @@ class MapCarriedCalibrationTests(TempMediaRootMixin, TestCase):
         )
 
     def test_the_scale_comes_off_the_map_that_was_chosen(self):
-        """A quieter map means fewer people behind each Fahrgast."""
+        """A quieter map means fewer people behind each Gruppe."""
         from game.calibration import people_per_agent
 
         quiet = self._map(name="Kleinstadt", district_commuters=1_600)
@@ -1394,7 +1331,7 @@ class MapCarriedCalibrationTests(TempMediaRootMixin, TestCase):
         self.assertEqual(co2_budget_kg(max_rounds=6), 48_000)
 
     def test_a_tie_rounds_down(self):
-        """800 over 64 Fahrgäste is 12.5, and Python's round() goes to even.
+        """800 over 64 Gruppen is 12.5, and Python's round() goes to even.
 
         Pinned rather than rounded up on purpose: under the corridors' capacity
         is the safe side of a tie. `frontend/src/lib/calibration.ts` mirrors

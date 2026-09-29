@@ -72,13 +72,13 @@ export type ReplayDot = {
   /** `AgentRoute` pk, or null for a line vehicle. */
   route: number | null;
   /**
-   * The Fahrgast number on the route this dot came from.
+   * The Gruppe number on the route this dot came from.
    *
    * Carried because the payload carries it, and read by nothing on screen. The
    * animation deliberately does not say whose dot a dot is: what the class needs
    * to see is *the traffic* — where it jams, who is queuing for a bus — and
    * `AgentRoute.agent_id` is unique per submitted move anyway, so every player in
-   * the room has a Fahrgast 1 and the number alone could not answer the question.
+   * the room has a Gruppe 1 and the number alone could not answer the question.
    */
   agent: number | null;
   /** The line's name ("M1"), or null for a person. */

@@ -3,8 +3,12 @@ import { cn } from "@/lib/utils";
 import { scales, type Scale } from "@/lib/game/scale";
 
 /**
- * "pro Person" / "ganze Klasse" — the switch that decides which of a figure's
+ * "pro Person" / "alle Pendler" — the switch that decides which of a figure's
  * two scales is on screen (Lukas, 2026-09-27).
+ *
+ * The wide label said "ganze Klasse" until S17, which was wrong on the merits
+ * and not only in tone: the sum over every Gruppe is `district_commuters`, a
+ * property of the map, and it does not shrink when half the class is away.
  *
  * Every kg and euro in this game exists twice: once multiplied by
  * `people_per_agent`, which is what the CO₂ budget is spent out of, and once

@@ -6,6 +6,7 @@ Named with a leading underscore so the test runner does not collect it.
 import asyncio
 import contextlib
 import logging
+import re
 import shutil
 import tempfile
 
@@ -14,6 +15,7 @@ from channels.layers import get_channel_layer
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import override_settings
+from django.utils.html import strip_tags
 
 from co2mmute.utils import sanitize_group_name, sign_value
 from game.models import GameSession
@@ -213,3 +215,97 @@ class GroupListener:
             for message in self.messages()
             if message.get("type") == "roster_update"
         ]
+
+
+# ---------------------------------------------------------------------------
+# The German detector
+# ---------------------------------------------------------------------------
+#
+# Written for the join funnel (2.6) and kept there until S17, when it turned
+# out to be covering two of nine German pages — `/map/upload/` had English
+# labels, English help text and English validation errors, live on the site,
+# with nothing watching. A detector that only reads the pages it was written
+# for is how that survives, so it lives here now and `maps/tests/` uses it too.
+ENGLISH_GIVEAWAYS = (
+    # Words that cannot appear in German copy. Matched whole-word, so a
+    # German word that merely contains one of them is not a hit.
+    "choose",
+    "continue",
+    "configure",
+    "display name",
+    "enter lobby",
+    "enable",
+    "idle",
+    "incorrect",
+    "join",
+    "optionally",
+    "password",
+    "please",
+    "profile",
+    "share your",
+    "already in progress",
+    "no session found",
+    # Not "session" and not "maximum" on their own: both are German words
+    # too ("die Session", "das Maximum"), and flagging them would make the
+    # detector an opinion about vocabulary rather than about language. Only
+    # the English collocations they came from are hits.
+    "session id",
+    "session name",
+    "session password",
+    "maximum players",
+    "maximum rounds",
+    "maximum co",
+    "agents per",
+    "people per",
+    # S17, for `/map/upload/`. Not "Import", "Upload", "Format" or "Liste":
+    # German has all four, and the nav uses them.
+    "background image",
+    "blank",
+    "contain",
+    "create a",
+    "file",
+    "map name",
+    "max players",
+    "new game",
+    "requirements",
+    "should",
+    "start with",
+    "your",
+)
+
+
+def visible_text(html):
+    """What a reader actually sees: no markup, no code, no URLs.
+
+    strip_tags leaves the *contents* of <script> in place, and this codebase
+    inlines four of them into base.html — a detector run over the raw page
+    would trip over `sessionStorage` rather than over a label. URLs go the
+    same way: the share page prints its join link for people to type, and
+    `/join/<id>/` is a route, not a sentence. A path is never copy.
+
+    <code> and <pre> go with them, added in S17 for `/map/upload/`: that page
+    documents the map file's schema, and `nodes`, `start_node` and
+    `speed_limit` are field names. They stay English by the same rule the
+    model fields do, so reading them as untranslated copy would make the
+    detector an argument for renaming the API.
+    """
+    without_code = re.sub(
+        r"<(script|style|code|pre)\b.*?</\1>", " ", html, flags=re.S | re.I
+    )
+    without_urls = re.sub(r"\S*(?:https?://|/)\S*", " ", strip_tags(without_code))
+    return re.sub(r"\s+", " ", without_urls).strip()
+
+
+def english_in(text):
+    """The English in `text`, or an empty list.
+
+    Whole words only, so a German word that happens to contain an English one
+    is not a hit. The point is to catch a string nobody translated, never to
+    pin the words of one that somebody did — an assertion on exact copy would
+    make every rewording a red pipeline, which is worth less than the copy.
+    """
+    pattern = re.compile(
+        r"\b(?:%s)\b" % "|".join(re.escape(w).replace(r"\ ", r"\s+") for w in ENGLISH_GIVEAWAYS),
+        re.I,
+    )
+    return sorted({match.lower() for match in pattern.findall(text)})

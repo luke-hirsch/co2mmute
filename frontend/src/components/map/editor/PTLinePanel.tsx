@@ -102,9 +102,10 @@ const PTLinePanel = ({
       (id) => !isEdgeCompatible(id, editingLine.type),
     );
     if (incompatible.length > 0) {
-      const typeLabel = editingLine.type === "bus" ? "street edge" : "train edge";
       setValidationError(
-        `${incompatible.length} edge(s) missing a ${typeLabel}. Remove or fix them before saving.`,
+        editingLine.type === "bus"
+          ? de.editor.ptLine.missingStreet(incompatible.length)
+          : de.editor.ptLine.missingTrain(incompatible.length),
       );
       return;
     }
@@ -112,7 +113,7 @@ const PTLinePanel = ({
     // Resolve edge IDs to StreetEdge/TrainEdge IDs
     const resolvedEdgeIds = resolveEdgeIds(editingLine.type, ptLineEdgeIds);
     if (resolvedEdgeIds.length === 0) {
-      setValidationError("No valid edges in the route.");
+      setValidationError(de.editor.ptLine.noValidEdges);
       return;
     }
 
@@ -178,16 +179,17 @@ const PTLinePanel = ({
       (id) => !isEdgeCompatible(id, ptLineCreating),
     );
     if (incompatible.length > 0) {
-      const typeLabel = ptLineCreating === "bus" ? "street edge" : "train edge";
       setValidationError(
-        `${incompatible.length} edge(s) missing a ${typeLabel}. Remove or fix them before saving.`,
+        ptLineCreating === "bus"
+          ? de.editor.ptLine.missingStreet(incompatible.length)
+          : de.editor.ptLine.missingTrain(incompatible.length),
       );
       return;
     }
 
     const resolvedEdgeIds = resolveEdgeIds(ptLineCreating, ptLineEdgeIds);
     if (resolvedEdgeIds.length === 0) {
-      setValidationError("No valid edges in the route.");
+      setValidationError(de.editor.ptLine.noValidEdges);
       return;
     }
 
@@ -258,7 +260,7 @@ const PTLinePanel = ({
 
   const getEdgeLabel = (edgeId: number) => {
     const edge = mapGraph?.edges.find((e) => e.id === edgeId);
-    if (!edge) return `Edge ${edgeId}`;
+    if (!edge) return de.editor.edge.numbered(edgeId);
     const sn = mapGraph?.nodes.find((n) => n.id === edge.start_node);
     const en = mapGraph?.nodes.find((n) => n.id === edge.end_node);
     return `${sn?.name || edge.start_node} → ${en?.name || edge.end_node}`;
@@ -313,7 +315,7 @@ const PTLinePanel = ({
                         : "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100"
                     }`}
                   >
-                    {line.type}
+                    {de.editor.ptLine.kind(line.type)}
                   </span>
                   <span className="text-sm font-medium text-main dark:text-darktext">
                     {line.name}
@@ -354,7 +356,9 @@ const PTLinePanel = ({
         <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-amber-300 dark:border-amber-700 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-main dark:text-darktext">
-              Edit {editingLine.type === "bus" ? "Bus" : "Train"} Line
+              {editingLine.type === "bus"
+                ? de.editor.ptLine.editBus
+                : de.editor.ptLine.editTrain}
             </h3>
             <button
               onClick={cancelEdit}
@@ -412,7 +416,7 @@ const PTLinePanel = ({
           {/* Editable edge list */}
           <div>
             <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">
-              Route ({ptLineEdgeIds.length} edges)
+              {de.editor.ptLine.routeCount(ptLineEdgeIds.length)}
             </p>
             {ptLineEdgeIds.length === 0 ? (
               <p className="text-xs text-amber-600 dark:text-amber-400">
@@ -446,9 +450,11 @@ const PTLinePanel = ({
                         }}
                         title={
                           !compatible
-                            ? `Missing ${editingLine?.type === "bus" ? "street" : "train"} edge`
+                            ? editingLine?.type === "bus"
+                              ? de.editor.ptLine.noStreetHere
+                              : de.editor.ptLine.noTrainHere
                             : isEnd
-                              ? "Click to remove"
+                              ? de.editor.ptLine.clickToRemove
                               : ""
                         }
                       >
@@ -497,7 +503,7 @@ const PTLinePanel = ({
             disabled={isEditPending || ptLineEdgeIds.length === 0}
             className="w-full px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
           >
-            {isEditPending ? "Saving..." : de.editor.saveChanges}
+            {isEditPending ? de.editor.saving : de.editor.saveChanges}
           </button>
         </div>
       )}
@@ -506,7 +512,9 @@ const PTLinePanel = ({
       {ptLineCreating && !editingLine && (
         <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-amber-300 dark:border-amber-700 space-y-3">
           <h3 className="text-lg font-semibold text-main dark:text-darktext">
-            New {ptLineCreating === "bus" ? "Bus" : "Train"} Line
+            {ptLineCreating === "bus"
+              ? de.editor.newBusLine
+              : de.editor.newTrainLine}
           </h3>
 
           <div>
@@ -558,7 +566,7 @@ const PTLinePanel = ({
           {/* Selected edges */}
           <div>
             <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">
-              Route ({ptLineEdgeIds.length} edges selected)
+              {de.editor.ptLine.routeSelected(ptLineEdgeIds.length)}
             </p>
             {ptLineEdgeIds.length === 0 ? (
               <p className="text-xs text-amber-600 dark:text-amber-400">
@@ -587,8 +595,8 @@ const PTLinePanel = ({
                         }
                         title={
                           !compatible
-                            ? `Missing ${ptLineCreating === "bus" ? "street" : "train"} edge — click to remove`
-                            : "Click to remove"
+                            ? de.editor.ptLine.incompatibleClickToRemove
+                            : de.editor.ptLine.clickToRemove
                         }
                       >
                         {idx + 1}: {getEdgeLabel(id)}
@@ -627,7 +635,7 @@ const PTLinePanel = ({
             disabled={isCreatePending || ptLineEdgeIds.length === 0}
             className="w-full px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
           >
-            {isCreatePending ? "Saving..." : de.editor.saveLine}
+            {isCreatePending ? de.editor.saving : de.editor.saveLine}
           </button>
         </div>
       )}

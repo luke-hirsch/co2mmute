@@ -17,7 +17,7 @@ import { useGame } from "@/components/game/game-context";
  *
  * The explain-the-numbers text is here in full, and this is the screen it was
  * written for: the class is arguing about the map with nothing to press, and the
- * two facts that decide the argument — one Fahrgast is a hundred people, a line
+ * two facts that decide the argument — one Gruppe is a hundred people, a line
  * emits whether it is ridden or not — belong in front of them **before** the
  * ballot rather than beside it (Lukas, 2026-09-22). Next to the vote it hands
  * them a conclusion; here it hands them the question.

@@ -18,7 +18,7 @@ import { playingSeats } from "@/lib/game/game-state";
  * And it is one of the two screens that carry the explain-the-numbers text in
  * full (Lukas, 2026-09-22 — never in the ballot). There is nothing to press here
  * and a round takes as long as it takes, so this is the reading time the class
- * has: that one Fahrgast is a hundred people, and that a line emits whether
+ * has: that one Gruppe is a hundred people, and that a line emits whether
  * anybody boards it or not. Read here, the class brings the argument to the
  * discussion themselves instead of finding it printed next to the vote.
  */

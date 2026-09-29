@@ -74,7 +74,7 @@ describe("de", () => {
   it("names the turn without naming a player", () => {
     // Copy rule: a player's name never reaches a log, a toast or an error.
     // These three are the strings the round screen shows while waiting.
-    expect(de.round.agent(1)).toBe("Fahrgast 1");
+    expect(de.round.agent(1)).toBe("Gruppe 1");
     expect(de.round.submittedOf(3, 5)).toBe("3 von 5 abgeschickt");
     expect(de.round.chosenOf(1, 2)).toBe("1 von 2 gewählt");
   });
@@ -294,5 +294,88 @@ describe("the map editor speaks German", () => {
 describe("the dialog close label", () => {
   it("exists, because every dialog renders it for screen readers", () => {
     expect(de.actions.close).toBe("Schließen");
+  });
+});
+
+/**
+ * S17. Three words were retired on 2026-09-29, and the reason each one went is
+ * the reason it must not come back:
+ *
+ * - **The agent's name → Gruppe.** The old one was the transit word for a
+ *   passenger, which made the create form read "Menschen pro <passenger>": a
+ *   ratio between two individuals, and exactly the confusion it caused.
+ * - **Lehrerrechner / Pult → Leitstelle.** Transit vocabulary like the rest of
+ *   the interface, and it was the one school word a student actually read.
+ * - **Klasse → alle Pendler** as the scale label, which is also wrong on the
+ *   merits: the sum over every Gruppe is `GameMap.district_commuters`, a
+ *   property of the map and constant whatever the class size.
+ *
+ * School words go everywhere (Lukas: students engage more with something that
+ * is not school), so the guard is over the whole dictionary rather than over
+ * the strings the rename happened to touch.
+ */
+describe("the retired vocabulary", () => {
+  /**
+   * The one exception, and it is deliberate: the host is naming their own game
+   * here, and "Klasse 8b, Dienstag" is an example of what a host would type,
+   * not a word the game uses for anything.
+   */
+  const ALLOWED = new Set(["create.namePlaceholder"]);
+
+  const RETIRED = [
+    /\bFahrg[äa]st/i,
+    /\bLehrerrechner\b/i,
+    /\bPult\b/i,
+    /\bKlasse[n]?\b/i,
+    /\bUnterricht\b/i,
+    /\bSch[üu]ler/i,
+    /\bLehrer/i,
+  ];
+
+  it("is gone from every string in the dictionary", () => {
+    const offenders = leaves(de as unknown as Node)
+      .filter(([path]) => !ALLOWED.has(path))
+      .filter(([, value]) => typeof value === "string")
+      .filter(([, value]) => RETIRED.some((word) => word.test(value as string)))
+      .map(([path, value]) => `${path}: ${value as string}`);
+
+    expect(offenders).toEqual([]);
+  });
+
+  /**
+   * The parameterised strings are the half a grep misses — a template literal
+   * is invisible to a search for text nodes, which is how ninety English
+   * strings once survived two passes in the map editor.
+   */
+  it("is gone from the parameterised strings too", () => {
+    const rendered = leaves(de as unknown as Node)
+      .filter(([, value]) => typeof value === "function")
+      .filter(([path]) => !ALLOWED.has(path))
+      .map(([path, value]) => {
+        const fn = value as (...args: unknown[]) => string;
+        // Every one of them takes numbers, strings or both. Feed it both and
+        // keep whatever comes back as a string.
+        const attempts = [
+          [1, 2, 3],
+          ["Ana", "Ben", "Cem"],
+          [1, "Ana"],
+          ["Ana", 1],
+        ];
+        for (const args of attempts) {
+          try {
+            const out = fn(...args);
+            if (typeof out === "string") return [path, out] as const;
+          } catch {
+            // wrong shape, try the next one
+          }
+        }
+        return [path, ""] as const;
+      });
+
+    const offenders = rendered
+      .filter(([, text]) => RETIRED.some((word) => word.test(text)))
+      .map(([path, text]) => `${path}: ${text}`);
+
+    expect(offenders).toEqual([]);
   });
 });

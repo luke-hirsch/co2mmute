@@ -90,7 +90,7 @@ export function SeatAdminList({
             action={
               /* On a phone the controls take a line of their own. Left to
                  compete for the row, the name column shrinks instead of
-                 wrapping and the buttons land on top of the "am Lehrerrechner"
+                 wrapping and the buttons land on top of the "an der Leitstelle"
                  badge — which is exactly what happened at 390px. */
               <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto">
                 {seat.controlled_by_host ? (

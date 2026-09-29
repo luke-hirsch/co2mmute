@@ -46,15 +46,15 @@ class GameMap(models.Model):
         default=6400,
         help_text=(
             "Pendler, die die Straßen dieser Karte im Berufsverkehr "
-            "verkraften. Wird auf die Fahrgäste aufgeteilt, damit auf der "
+            "verkraften. Wird auf die Gruppen aufgeteilt, damit auf der "
             "Karte gleich viel Verkehr ist, egal wie viele mitspielen."
         ),
     )
     co2_budget_kg_per_round = models.PositiveIntegerField(
         default=8000,
         help_text=(
-            "Vorschlag für das CO₂-Budget, pro Runde in kg. Genug, wenn die "
-            "Klasse umsteigt, zu wenig, wenn alle mit dem Auto fahren."
+            "Vorschlag für das CO₂-Budget, pro Runde in kg. Genug, wenn viele "
+            "umsteigen, zu wenig, wenn alle mit dem Auto fahren."
         ),
     )
 

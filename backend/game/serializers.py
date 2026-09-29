@@ -78,12 +78,12 @@ class GameSessionSerializer(serializers.ModelSerializer):
                 errors["max_players"] = "Es muss mindestens einen Platz geben."
             if agent_per_player is not None and agent_per_player > max_players:
                 errors["agent_per_player"] = (
-                    "Mehr Fahrgäste pro Person als Plätze im Spiel geht nicht."
+                    "Mehr Gruppen pro Person als Plätze im Spiel geht nicht."
                 )
 
         if agent_per_player is not None and agent_per_player < 1:
             errors["agent_per_player"] = (
-                "Jede Person braucht mindestens einen Fahrgast."
+                "Jede Person braucht mindestens eine Gruppe."
             )
 
         if max_rounds is not None and max_rounds < 1:
@@ -99,7 +99,7 @@ class GameSessionSerializer(serializers.ModelSerializer):
         )
         if people_per_agent is not None and people_per_agent < 1:
             errors["people_per_agent"] = (
-                "Ein Fahrgast muss für mindestens einen Menschen stehen."
+                "Eine Gruppe muss für mindestens einen Menschen stehen."
             )
 
         if errors:

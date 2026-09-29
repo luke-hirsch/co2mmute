@@ -3,9 +3,9 @@
 Stand 27.09.2026, ergänzt um den Kartendaten-Durchgang vom selben Tag (Abschnitt 8). Gemessen auf
 `map_examples/Berlin_Mitte-West.json`, der einzigen Karte, die jemand spielt.
 
-Zwei Einstellungen entscheiden, ob eine Runde etwas bedeutet: für wie viele Menschen ein Fahrgast
+Zwei Einstellungen entscheiden, ob eine Runde etwas bedeutet: für wie viele Menschen eine Gruppe
 steht, und wie viel CO₂ die Klasse ausgeben darf. Beide waren nie kalibriert. Ausgeliefert wurden
-**1000 Menschen pro Fahrgast gegen ein Budget von 500 kg** — auf einer Karte, deren Fahrplan allein
+**1000 Menschen pro Gruppe gegen ein Budget von 500 kg** — auf einer Karte, deren Fahrplan allein
 schon 2.449 kg pro Runde ausstößt, bevor irgendwer spielt. Jedes Spiel war nach Runde 1 vorbei.
 
 Das ist jetzt geändert. Was sich geändert hat und warum, steht hier.
@@ -14,9 +14,9 @@ Das ist jetzt geändert. Was sich geändert hat und warum, steht hier.
 
 ## 1. Was vorher passiert ist
 
-Ein Auto-Fahrgast legt auf dieser Karte im Schnitt 7,66 km zurück (Luftlinie über den kürzesten
-Weg, gemessen über alle 36 Wohnort-Arbeitsplatz-Paare). Bei 1000 Menschen pro Fahrgast sind das
-1000 Autos auf einer Strecke. Eine volle Klasse — 16 Plätze, 4 Fahrgäste — schickt also 64.000
+Eine Gruppe im Auto legt auf dieser Karte im Schnitt 7,66 km zurück (Luftlinie über den kürzesten
+Weg, gemessen über alle 36 Wohnort-Arbeitsplatz-Paare). Bei 1000 Menschen pro Gruppe sind das
+1000 Autos auf einer Strecke. Eine volle Klasse — 16 Plätze, 4 Gruppen — schickt also 64.000
 Autos über 90 Straßenkanten.
 
 Das Modell rechnet das korrekt durch. Es verklemmt nicht, es bricht nicht ab, alle kommen an. Es
@@ -32,17 +32,17 @@ Gleichzeitig lag das Budget bei 500 kg, während eine Runde je nach Modalsplit z
 ## 2. Der Maßstab folgt der Klassengröße
 
 Eine Karte bildet einen Ort ab, und ein Ort hat eine Zahl von Pendlern. Die Klasse **teilt diese
-Pendler unter ihren Fahrgästen auf** — sie erzeugt keine neuen, wenn mehr Schüler kommen. Genau so
+Pendler unter ihren Gruppen auf** — sie erzeugt keine neuen, wenn mehr Schüler kommen. Genau so
 rechnet es jetzt:
 
 ```
-Menschen pro Fahrgast = Pendler des Stadtteils / (Plätze × Fahrgäste pro Platz)
+Menschen pro Gruppe = Pendler des Stadtteils / (Plätze × Gruppen pro Platz)
 ```
 
 Dass das trägt, ist gemessen. Bei konstant 6.400 Pendlern bleibt die Runde dieselbe Runde, egal wie
 viele mitspielen:
 
-| Plätze | Fahrgäste | Menschen/Fahrgast | CO₂ Auto | Fahrzeit | Verspätung |
+| Plätze | Gruppen | Menschen/Gruppe | CO₂ Auto | Fahrzeit | Verspätung |
 | ---: | ---: | ---: | ---: | ---: | ---: |
 | 16 | 64 | 100 | 8.691 kg | 20,4 min | 11,3 min |
 | 8 | 32 | 200 | 8.630 kg | 20,2 min | 11,0 min |
@@ -53,10 +53,10 @@ CO₂ auf ±3 %, Verspätung auf ±0,5 Minuten. Nagelt man stattdessen den Maßs
 sieht eine halb besetzte Klasse auf derselben Karte **0,4 Minuten Verspätung statt 11,3** und stößt
 44 % des CO₂ aus. Dann hängt das Spiel davon ab, wer zum Unterricht erschienen ist.
 
-Was dabei hätte schiefgehen können — weniger, dafür „dickere" Fahrgäste drängen sich auf weniger
+Was dabei hätte schiefgehen können — weniger, dafür „dickere" Gruppen drängen sich auf weniger
 Strecken — passiert nicht: die kürzesten Wege der ganzen Klasse benutzen ohnehin nur **29 der 90
 Straßenkanten**. Das liegt an sechs Wohnorten und sechs Arbeitsplätzen, nicht daran, wie viele
-Fahrgäste sie sich teilen.
+Gruppen sie sich teilen.
 
 ## 3. 6.400 ist, was der Graph verkraftet
 
@@ -89,7 +89,7 @@ Schwellenphänomen dicht an der Kapazität — und es ist die Lektion, um die es
 ## 4. Das Budget gilt pro Runde
 
 Weil die Pendlerzahl konstant ist, kostet eine Runde, was sie kostet — unabhängig davon, wie viele
-Schüler spielen. Das Budget braucht deshalb **keinen Fahrgast-Term**, nur die Rundenzahl:
+Schüler spielen. Das Budget braucht deshalb **keinen Term für die Gruppengröße**, nur die Rundenzahl:
 
 ```
 CO₂-Budget = CO₂-Budget der Karte pro Runde × Runden
@@ -120,7 +120,7 @@ diese Schlüssel behält die Vorgabewerte.
 
 ---
 
-## 6. Eine Korrektur, die der Gruppe noch nicht vorlag
+## 6. Eine Korrektur, die der Forschungsgruppe noch nicht vorlag
 
 **Ein Zug stieß 3.500 g CO₂ pro Fahrzeugkilometer aus. Jetzt 1.500 g.**
 
@@ -187,7 +187,7 @@ Drei Dinge daran sind wichtig:
 
 - **Umsteigen lohnt sich jetzt.** Vorher bestrafte die Karte es doppelt: die 60er-Fahrzeuge trieben
   den Fahrplan auf 4.623 kg, und wer aufs Auto verzichten wollte, kam bei sechs von 36 Wegen gar
-  nicht an — in der 0-%-Spalte sitzen deshalb vorher elf von 64 Fahrgästen im Auto, weil ihr Weg
+  nicht an — in der 0-%-Spalte sitzen deshalb vorher elf von 64 Gruppen im Auto, weil ihr Weg
   keine Verbindung hatte: 1.313 kg, die die Klasse nicht vermeiden konnte. Eine Runde ganz ohne Auto kostet jetzt **46 % weniger**.
 - **Die Autoseite ändert sich nicht.** 100 % Auto: 10.103 → 10.150 kg (innerhalb der Streuung von
   1,4 %), Fahrzeit 22,5 min und Verspätung 12,4 min in beiden Fällen. Die zusätzlichen Busse auf der
@@ -198,9 +198,9 @@ Drei Dinge daran sind wichtig:
   fahren sprengt es weiter, umsteigen bleibt drin — aber der Abstand ist kleiner geworden, und beim
   nächsten Play-Test lohnt ein Blick darauf.
 
-Die Zahlen dieser Tabelle stammen aus einem eigenen Messaufbau (64 Fahrgäste gleichmäßig über alle
+Die Zahlen dieser Tabelle stammen aus einem eigenen Messaufbau (64 Gruppen gleichmäßig über alle
 36 Paare, Routen aus `ptRouting.ts` und `pathfinding.ts`) und sind deshalb **nicht** mit denen aus
-Abschnitt 2 und 3 mischbar: dort war die Zuordnung der Fahrgäste zu Paaren eine andere, was dieselbe
+Abschnitt 2 und 3 mischbar: dort war die Zuordnung der Gruppen zu Paaren eine andere, was dieselbe
 Karte etwas weniger stauen lässt. Vergleichbar ist jeweils vorher gegen jetzt in einer Zeile.
 
 ---

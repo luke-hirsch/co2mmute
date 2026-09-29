@@ -40,7 +40,7 @@ export type HostGame = {
   game_map: number | null;
   max_players: number;
   /**
-   * How many real people one Fahrgast stands for — derived from the class size
+   * How many real people one Gruppe stands for — derived from the class size
    * when the game is created (`game/calibration.py`). Here because the host has
    * no seat, and the seat endpoint is the only other place it is served.
    */

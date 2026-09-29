@@ -419,7 +419,7 @@ function Styleguide() {
         <Section
           title="Plätze"
           line="public"
-          note="Eine Zeile der Lobby. „Spielleitung“ ist die eigene Zeile des Hosts, „am Lehrerrechner“ ein Platz, der am Hostgerät mitgespielt wird — das ist nicht dasselbe."
+          note="Eine Zeile der Lobby. „Spielleitung“ ist die eigene Zeile des Hosts, „an der Leitstelle“ ein Platz, der am Hostgerät mitgespielt wird — das ist nicht dasselbe."
         >
           <ul className="max-w-(--measure-prose) rounded-xl border border-border bg-card px-6">
             <SeatRow name="Mia" status="waiting" online isYou />

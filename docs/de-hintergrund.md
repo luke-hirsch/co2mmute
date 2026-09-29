@@ -112,7 +112,7 @@ Die strukturelle Idee ist, dass ein Linienfahrzeug ein **ganz normales Fahrzeug 
 künstlichen Route** ist. Ein Bus steht deshalb in der Schlange, staut zurück, wiegt 3 Pkw-Einheiten
 und fährt durch eine Busschleuse, ohne eine einzige eigene Codezeile.
 
-Und es steigen wirklich Leute ein. Fahrgäste warten an einer Haltestelle, die nach Linie _und_
+Und es steigen wirklich Leute ein. Gruppen warten an einer Haltestelle, die nach Linie _und_
 Knoten unterschieden wird — wer auf die M1 wartet, steigt nicht in die U7 —, steigen bis zur freien
 Kapazität ein, steigen dort aus, wo ihre Route die Linie verlässt, und warten beim Umsteigen erneut.
 Die Wartezeit wird gemessen und **ausgewiesen, nicht addiert**: Die Uhr läuft seit der Minute, in
@@ -210,13 +210,13 @@ des Fahrers selbst gemessen.** Wer in einer 50er-Zone 45 gewählt hat, ist durch
 
 ### Einheiten
 
-Ein Agent — in der Oberfläche ein _Fahrgast_ — steht für `people_per_agent` echte Pendler, und aus
+Ein Agent — in der Oberfläche eine _Gruppe_ — steht für `people_per_agent` echte Pendler, und aus
 diesem Faktor stammen die meisten Einheitenfehler dieses Projekts. Zwei Regeln:
 
-- Eine CO₂- oder Euro-Zahl ist **extensiv**: Sie summiert über Fahrgäste und über die Menschen
-  hinter jedem Fahrgast. Pro Person heißt: durch beides teilen.
+- Eine CO₂- oder Euro-Zahl ist **extensiv**: Sie summiert über Gruppen und über die Menschen
+  hinter jeder Gruppe. Pro Person heißt: durch beides teilen.
 - Die Fahrzeit ist es **nicht**. Eine Summe von Fahrzeiten ist keine Größe, die irgendwem gehört,
-  also ist eine mittlere Fahrzeit ein Mittel über Fahrgast-Fahrten und sonst nichts.
+  also ist eine mittlere Fahrzeit ein Mittel über die Fahrten der Gruppen und sonst nichts.
 
 Der Faktor selbst ist keine Einstellung, die jemand wählt. Siehe unten.
 
@@ -264,7 +264,7 @@ Verspätung. Das ist der Anker draußen: Die Zahl hängt an einer gemessenen Sta
 Spielgefühl.
 
 Was sie ersetzt hat, ist es wert, genannt zu werden, weil es zeigt, wie unkalibriert aussieht.
-Ausgeliefert wurden 1.000 Menschen pro Fahrgast, für eine volle Klasse also 64.000 Autos auf einer
+Ausgeliefert wurden 1.000 Menschen pro Gruppe, für eine volle Klasse also 64.000 Autos auf einer
 Karte mit 82 Straßenkanten. Das Modell hat es verkraftet — kein Gridlock, keine erzwungenen
 Freigaben, alle kamen an — und meldete eine **mittlere Fahrzeit von 298 Minuten für 7,66 km**. Fünf
 Stunden. Damit die Karte diesen Verkehr aufnehmen könnte, bräuchte sie ungefähr fünfmal so viele
@@ -291,14 +291,14 @@ Die Tabelle ist für die Form da.
 ### Der Maßstab wird abgeleitet, nicht gewählt
 
 ```
-Menschen pro Fahrgast = Pendler des Stadtteils / (Plätze × Fahrgäste pro Platz)
+Menschen pro Gruppe = Pendler des Stadtteils / (Plätze × Gruppen pro Platz)
 ```
 
 Eine Karte bildet einen Ort ab, und ein Ort hat eine Zahl von Pendlern. Die Klasse **teilt** diese
-Pendler unter ihren Fahrgästen auf; sie erzeugt keine neuen, weil mehr Schüler gekommen sind. Hält
+Pendler unter ihren Gruppen auf; sie erzeugt keine neuen, weil mehr Schüler gekommen sind. Hält
 man den Stadtteil konstant, während die Platzzahl sich ändert, bleibt die Runde dieselbe Runde:
 
-| Plätze | Fahrgäste | Menschen/Fahrgast | CO₂ Auto | Fahrzeit | Verspätung |
+| Plätze | Gruppen | Menschen/Gruppe | CO₂ Auto | Fahrzeit | Verspätung |
 | -----: | --------: | ----------------: | -------: | -------: | ---------: |
 |     16 |        64 |               100 | 8.691 kg | 20,4 min |   11,3 min |
 |      8 |        32 |               200 | 8.630 kg | 20,2 min |   11,0 min |
@@ -312,7 +312,7 @@ eine feste Zahl, sieht eine halb besetzte Klasse auf derselben Karte **0,4 Minut
 ### Das Budget gilt pro Runde
 
 Weil die Nachfrage konstant ist, kostet eine Runde, was sie kostet, egal wie viele Schüler spielen.
-Das Budget braucht deshalb gar keinen Fahrgast-Term:
+Das Budget braucht deshalb gar keinen Term für die Gruppengröße:
 
 ```
 CO₂-Budget = CO₂-Budget der Karte pro Runde × Runden
@@ -387,7 +387,7 @@ ihre Fahrzeuge nie fahren konnten. Jedes Fahrzeug beider Modi hatte 60 Plätze, 
 Menschen eine 60-Plätze-U-Bahn zu Fahrt um Fahrt.
 
 Die Folge war, dass sechs der 36 Wohnort-Arbeitsplatz-Paare überhaupt keine ÖPNV-Verbindung hatten.
-Eine Klasse, die aus dem Auto wollte, konnte es nicht, und elf von 64 Fahrgästen fuhren Auto, was
+Eine Klasse, die aus dem Auto wollte, konnte es nicht, und elf von 64 Gruppen fuhren Auto, was
 auch immer entschieden wurde — 1.313 kg, die die Klasse nicht vermeiden konnte. Die Zahlen waren
 korrekt gerechnet, auf einer Karte, die nicht beschrieb, was auf dem Bildschirm stand.
 

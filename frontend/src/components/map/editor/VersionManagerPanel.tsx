@@ -148,7 +148,7 @@ function VersionEditor({
                 <span className="truncate">{v.name}</span>
                 {v.base_version && (
                   <span className="shrink-0 text-xs text-mutedtext dark:text-darkmutedtext">
-                    (base)
+                    {de.editor.version.baseSuffix}
                   </span>
                 )}
               </label>
@@ -215,7 +215,7 @@ function VersionEditor({
 
       {updateMutation.isError && (
         <p className="text-xs text-red-500 dark:text-red-400">
-          Save failed. {updateMutation.error?.message}
+          {de.editor.saveFailed} {updateMutation.error?.message}
         </p>
       )}
     </div>
@@ -288,7 +288,7 @@ const VersionManagerPanel = ({ mapId }: VersionManagerPanelProps) => {
               </span>
               {v.base_version && (
                 <span className="text-xs px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300">
-                  base
+                  {de.editor.version.base}
                 </span>
               )}
               <button
@@ -298,7 +298,7 @@ const VersionManagerPanel = ({ mapId }: VersionManagerPanelProps) => {
                 }
                 className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline shrink-0"
               >
-                {expandedId === v.id ? "Close" : de.editor.edit}
+                {expandedId === v.id ? de.actions.close : de.editor.edit}
               </button>
             </div>
 
@@ -319,7 +319,7 @@ const VersionManagerPanel = ({ mapId }: VersionManagerPanelProps) => {
       {nonBase.length >= 2 && (
         <div className="pt-2 border-t border-subtle dark:border-darksubtle space-y-2">
           <p className="text-xs text-mutedtext dark:text-darkmutedtext">
-            Select 2+ non-base versions above to generate all combination versions.
+            {de.editor.version.generateHint}
           </p>
           <button
             type="button"
@@ -338,7 +338,8 @@ const VersionManagerPanel = ({ mapId }: VersionManagerPanelProps) => {
           )}
           {generateMutation.isError && (
             <p className="text-xs text-red-500 dark:text-red-400">
-              Failed. {generateMutation.error?.message}
+              {de.editor.version.generateFailed}{" "}
+              {generateMutation.error?.message}
             </p>
           )}
         </div>

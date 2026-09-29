@@ -18,7 +18,7 @@ import { usePeoplePerAgent } from "@/components/numbers/use-people-per-agent";
  * down.
  *
  * `8 h 18 min` and `14.541,15 €` are not wrong arithmetic; they are unreadable
- * without the sentence "ein Fahrgast steht für hundert Menschen". Same for a
+ * without the sentence "eine Gruppe steht für hundert Menschen". Same for a
  * round total that is larger than the sum of its own rows, and for a cost column
  * that is not what anybody paid.
  *

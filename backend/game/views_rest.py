@@ -1272,7 +1272,7 @@ class GameSummaryView(GenericAPIView):
                 "max_rounds": game.max_rounds,
                 "total_co2_kg": round(total_co2_g / 1000, 2),
                 "max_co2_kg": game.max_CO2_level,
-                # One Fahrgast stands for this many people. Every kg and every
+                # One Gruppe stands for this many people. Every kg and every
                 # euro above is already multiplied by it, and only the server
                 # knows the factor: it reaches the SPA on no other endpoint
                 # the host can call.

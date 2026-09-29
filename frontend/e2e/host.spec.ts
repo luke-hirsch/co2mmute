@@ -27,7 +27,7 @@ test("the host signs in and lands on their own page", async ({ page }) => {
  * S2's calibration and S13's derivation, as the host actually meets them.
  *
  * Two things at once, and they belong together: the pair is the calibrated one
- * (the shipped default was 1000 people per Fahrgast against a 500 kg budget,
+ * (the shipped default was 1000 people per Gruppe against a 500 kg budget,
  * which ended every game in round one and nothing went red over it for months),
  * **and it follows the class size**. Changing the Platzzahl used to leave both
  * numbers where the page load had put them — H-13 — which is why this screen
@@ -54,12 +54,12 @@ test("the create form offers the calibrated pair, and it follows the class size"
   await expect(page.locator("#people_per_agent")).toHaveValue("100");
   await expect(page.locator("#max_CO2_level")).toHaveValue("48000");
 
-  // Half the class, twice the people behind each Fahrgast — the district's
+  // Half the class, twice the people behind each Gruppe — the district's
   // commuter population is what stays put, not the scale.
   await page.locator("#max_players").fill("8");
   await expect(page.locator("#people_per_agent")).toHaveValue("200");
 
-  // The budget is per round and carries no Fahrgast term, so it did not move.
+  // The budget is per round and carries no Gruppe term, so it did not move.
   await expect(page.locator("#max_CO2_level")).toHaveValue("48000");
   await page.locator("#max_rounds").fill("3");
   await expect(page.locator("#max_CO2_level")).toHaveValue("24000");

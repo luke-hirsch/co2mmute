@@ -77,7 +77,7 @@ export type RoundResult = {
   playerStats: RoundPlayerStats[];
   /** False when the fallback figures were used instead of the simulation. */
   simulationUsed: boolean;
-  /** How many real people one Fahrgast stood for in this round. */
+  /** How many real people one Gruppe stood for in this round. */
   peoplePerAgent: number;
   /** What the timetable emitted and cost, ridden or not. */
   networkCo2G: number;

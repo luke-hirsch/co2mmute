@@ -3,7 +3,7 @@
  * is written in.
  *
  * A round's numbers are class scale: kg and euro are multiplied by
- * `people_per_agent`, so one Fahrgast's commute arrives as a hundred or a
+ * `people_per_agent`, so one Gruppe's commute arrives as a hundred or a
  * thousand commutes. That is the right scale for the budget — the game is played
  * against a CO₂ figure for the whole district — and the wrong one for "what did
  * my way to school cost". Both are in the payload, computed on the server
