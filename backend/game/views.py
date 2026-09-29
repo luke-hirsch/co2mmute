@@ -19,7 +19,7 @@ class GameSessionCreateView(LoginRequiredMixin, RedirectView):
     The form itself is `frontend/src/routes/game/create.tsx`, because the two
     calibrated numbers it offers have to follow the class size as the host
     types it — `people_per_agent` divides the map's commuters between the
-    Fahrgäste, so changing the seats changes it. Server-rendered, that
+    Gruppen, so changing the seats changes it. Server-rendered, that
     derivation happened once per GET and a host who changed the Platzzahl had
     to pull both numbers across by hand (`docs/testfaelle.md` H-13).
 

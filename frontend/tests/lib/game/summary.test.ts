@@ -82,7 +82,7 @@ function classRound(overrides: Partial<SummaryRoundTotals>): SummaryRoundTotals 
 }
 
 /**
- * Two Fahrgäste each, one round, 100 people per Fahrgast — so a class-scale
+ * Two Gruppen each, one round, 100 people per Gruppe — so a class-scale
  * kilo is 200 per-person grams and the two scales are genuinely different
  * numbers rather than the same one twice.
  */
@@ -171,7 +171,7 @@ describe("orderBy", () => {
 
   it("does not rank a leaver first for having played less", () => {
     // The bug the per-commute figures exist for. Ada played two rounds with
-    // two Fahrgäste; Cem left after one round with one. The sums say Cem is
+    // two Gruppen; Cem left after one round with one. The sums say Cem is
     // cleaner, cheaper and faster than everybody; the per-commute figures say
     // he drove exactly like Ada, because he did.
     const cem = player({
@@ -195,7 +195,7 @@ describe("orderBy", () => {
 
   it("follows the scale the reader is looking at", () => {
     // Mira's two agents walked; Dana's one drove. Per commute Dana is far
-    // dirtier, in class scale her single Fahrgast still moved less CO2.
+    // dirtier, in class scale her single Gruppe still moved less CO2.
     const dana = player({
       player_id: "P-5",
       name: "Dana",

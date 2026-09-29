@@ -111,7 +111,7 @@ test("the round is watched before it is read", async ({ page, baseURL }) => {
 });
 
 /**
- * Give one Fahrgast a mode and wait for its route.
+ * Give one Gruppe a mode and wait for its route.
  *
  * The route is found on the client, and the row collapses onto a summary when it
  * lands — that is the only signal that the search is over. **A mode can honestly
@@ -129,7 +129,7 @@ test("the round is watched before it is read", async ({ page, baseURL }) => {
  * stack.
  */
 async function pickMode(page: Page, index: number, wanted: string) {
-  const row = page.locator("li").filter({ hasText: `Fahrgast ${index + 1}` });
+  const row = page.locator("li").filter({ hasText: `Gruppe ${index + 1}` });
   await row.getByRole("radio", { name: wanted, exact: true }).click();
 
   const routed = row.getByText("ändern");

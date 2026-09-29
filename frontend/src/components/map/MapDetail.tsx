@@ -25,7 +25,7 @@ const MapDetail = () => {
   const errorMessage = error
     ? typeof error === "string"
       ? error
-      : (error as any).message || "Failed to load map"
+      : (error as any).message || de.map.loadFailed
     : null;
 
   return (
@@ -39,7 +39,7 @@ const MapDetail = () => {
               to="/maps"
               className="text-sm text-mutedtext dark:text-darkmutedtext hover:text-main dark:hover:text-darktext"
             >
-              &larr; All maps
+              {de.map.allMaps}
             </Link>
             <Link
               to="/maps/$mapId/editor"
@@ -73,7 +73,7 @@ const MapDetail = () => {
             </button>
             <button
               onClick={async () => {
-                if (!confirm(`Delete map "${gameMap.name}"? This cannot be undone.`)) return;
+                if (!confirm(de.map.deleteConfirm(gameMap.name))) return;
                 try {
                   await apiFetch(`${API_BASE_URL}/api/maps/${mapId}/`, { method: "DELETE" });
                   navigate({ to: "/maps" });

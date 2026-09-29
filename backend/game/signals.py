@@ -368,7 +368,7 @@ def handle_round_completed(
             "simulation_used": simulation_used,
             "has_map_versions": has_map_versions,
             "map_versions": map_versions_data,
-            # One Fahrgast stands for this many people, and every kg and euro
+            # One Gruppe stands for this many people, and every kg and euro
             # in `player_stats` is already multiplied by it. Only the server
             # knows the factor — it reaches the SPA on the seat endpoint alone,
             # and the host has no seat.
@@ -508,7 +508,7 @@ def _run_simulation(game_session, game_round, moves):
                         # Class scale, like the row it adds up to.
                         "co2_g": round(agent_result.total_co2_g, 1),
                         "cost_eur": round(agent_cost, 2),
-                        # And what one commuter on this Fahrgast lived.
+                        # And what one commuter in this Gruppe lived.
                         "co2_g_per_person": round(
                             per_person(agent_result.total_co2_g, 1, people), 1
                         ),
@@ -531,11 +531,11 @@ def _run_simulation(game_session, game_round, moves):
                     "player_id": move.player.player_id,
                     "player_name": move.player.name or "Player",
                     "action": action_summary,
-                    # Class scale: this seat's Fahrgäste stand for
+                    # Class scale: this seat's Gruppen stand for
                     # agent_count x people_per_agent commuters.
                     "emissions_g": round(player_emissions, 1),
                     "cost_eur": round(player_cost, 2),
-                    # A mean over the seat's Fahrgäste, not a sum — a sum of
+                    # A mean over the seat's Gruppen, not a sum — a sum of
                     # travel times is not a quantity anybody has, which is why
                     # this column has no per-person twin and never flips scale.
                     "time_min": round(player_time / agent_count, 1)

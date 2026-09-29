@@ -448,7 +448,7 @@ const MapEditor = () => {
 
   const handleDeleteSelected = useCallback(() => {
     if (state.selectedNodeId) {
-      if (confirm("Delete this node and all its connected edges?")) {
+      if (confirm(de.editor.node.removeConfirm)) {
         deleteNodeMutation.mutate(state.selectedNodeId);
         dispatch({ type: "CLEAR_SELECTION" });
       }
@@ -463,7 +463,7 @@ const MapEditor = () => {
           )
         : null;
       const msg = reverseEdge
-        ? "Delete this edge and its reverse direction?"
+        ? de.editor.edge.removeBothConfirm
         : de.editor.deleteEdgeConfirm;
       if (confirm(msg)) {
         deleteEdgeMutation.mutate(edgeId);

@@ -34,7 +34,7 @@ const NodePropertyPanel = ({ node, mapId }: NodePropertyPanelProps) => {
   };
 
   const handleDelete = () => {
-    if (confirm("Delete this node and all connected edges?")) {
+    if (confirm(de.editor.node.removeConfirm)) {
       deleteMutation.mutate(node.id);
     }
   };
@@ -66,7 +66,7 @@ const NodePropertyPanel = ({ node, mapId }: NodePropertyPanelProps) => {
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder={`Node ${node.id}`}
+          placeholder={de.editor.node.numbered(node.id)}
           className="w-full mt-1 px-2 py-1 text-sm rounded border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext"
         />
       </div>

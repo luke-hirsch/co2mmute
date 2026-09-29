@@ -41,10 +41,10 @@ describe("what the create screen opens on", () => {
   });
 });
 
-describe("people per Fahrgast follows the class size", () => {
+describe("people per Gruppe follows the class size", () => {
   /**
    * The district's commuter population is constant, so half the seats means
-   * twice the people behind each Fahrgast. Pin the scale instead and a
+   * twice the people behind each Gruppe. Pin the scale instead and a
    * half-full class sees 0.4 min of delay where a full one sees 11.3 — a
    * different game depending on who came to the lesson.
    */
@@ -55,7 +55,7 @@ describe("people per Fahrgast follows the class size", () => {
     expect(peoplePerAgent(2, 4, BERLIN)).toBe(800);
   });
 
-  it("counts Fahrgäste, not players", () => {
+  it("counts Gruppen, not players", () => {
     expect(peoplePerAgent(16, 2, BERLIN)).toBe(200);
     expect(peoplePerAgent(32, 1, BERLIN)).toBe(200);
   });
@@ -68,7 +68,7 @@ describe("people per Fahrgast follows the class size", () => {
   /**
    * Python's `round()` is half-to-even and `Math.round` is half-up, so this is
    * the one case where a naive mirror would disagree with the server about a
-   * game either could create. 800 over 64 Fahrgäste is 12.5, and the answer is
+   * game either could create. 800 over 64 Gruppen is 12.5, and the answer is
    * 12 — under the corridors' capacity is the safe side of a tie.
    */
   it("rounds a tie down, the way Python does", () => {
@@ -82,7 +82,7 @@ describe("people per Fahrgast follows the class size", () => {
     expect(peoplePerAgent(16, 4, other)).toBe(38);
   });
 
-  /** A Fahrgast standing for nobody is not a smaller game, it is no game. */
+  /** A Gruppe standing for nobody is not a smaller game, it is no game. */
   it("never goes below one", () => {
     const empty = { district_commuters: 1, co2_budget_kg_per_round: 8_000 };
     expect(peoplePerAgent(16, 4, empty)).toBe(1);
@@ -103,7 +103,7 @@ describe("the CO2 budget follows the round count and nothing else", () => {
   });
 
   /**
-   * No Fahrgast term, on purpose: the district's population is constant, so a
+   * No Gruppe term, on purpose: the district's population is constant, so a
    * round costs what it costs however many students play.
    */
   it("does not move with the class size", () => {

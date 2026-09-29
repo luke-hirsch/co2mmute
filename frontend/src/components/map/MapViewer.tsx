@@ -425,11 +425,14 @@ const MapViewer = ({
                   <div className="flex flex-col gap-2 mt-1">
                     {selectedEdge.street_edge ? (
                       <span className="text-xs bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 px-2 py-1 rounded">
-                        Street ({selectedEdge.street_edge.speed_limit} km/h,{" "}
-                        {selectedEdge.street_edge.lanes} lane
-                        {selectedEdge.street_edge.lanes !== 1 ? "s" : ""})
+                        {de.editor.edge.streetSummary(
+                          selectedEdge.street_edge.speed_limit,
+                          selectedEdge.street_edge.lanes,
+                        )}
                         {selectedEdge.street_edge.dedicated_bus_lane && (
-                          <span className="ml-1">+ Bus Lane</span>
+                          <span className="ml-1">
+                            {de.editor.edge.busLaneSuffix}
+                          </span>
                         )}
                       </span>
                     ) : null}
@@ -440,7 +443,7 @@ const MapViewer = ({
                     ) : null}
                     {!selectedEdge.street_edge && !selectedEdge.train_edge ? (
                       <span className="text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 px-2 py-1 rounded">
-                        Path
+                        {de.editor.edge.path}
                       </span>
                     ) : null}
                   </div>

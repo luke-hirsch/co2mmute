@@ -76,9 +76,9 @@ test("the numbers name their scale, and the summary names the vote", async ({
 
     // ── Z-15: the table says which scale it is on, and starts per person ──
     const perPerson = page.getByRole("radio", { name: "pro Person" });
-    const wholeClass = page.getByRole("radio", { name: "ganze Klasse" });
+    const everyone = page.getByRole("radio", { name: "alle Pendler" });
     await expect(perPerson).toBeChecked();
-    await expect(page.getByText(/Ein Fahrgast steht für/)).toBeVisible();
+    await expect(page.getByText(/Eine Gruppe steht für/)).toBeVisible();
 
     // Ana's own CO2 cell, in both scales. The whole point of the switch is that
     // these are different numbers, and by three orders of magnitude.
@@ -92,14 +92,14 @@ test("the numbers name their scale, and the summary names the vote", async ({
     // Clicked the way a finger does it — on the label. The input itself is
     // `sr-only`, so the label sits over it and takes the tap, which is exactly
     // what a native radio is supposed to do.
-    await page.locator("label", { hasText: "ganze Klasse" }).first().click();
-    await expect(wholeClass).toBeChecked();
+    await page.locator("label", { hasText: "alle Pendler" }).first().click();
+    await expect(everyone).toBeChecked();
     await expect(anaCo2).not.toHaveText(asPerson);
-    await expect(page.getByText(/Menschen pro Fahrgast/)).toBeVisible();
+    await expect(page.getByText(/Menschen pro Gruppe/)).toBeVisible();
 
     // And back with the keyboard, because two radios sharing a name are a
     // radiogroup and arrow keys have to move between them.
-    await wholeClass.focus();
+    await everyone.focus();
     await page.keyboard.press("ArrowLeft");
     await expect(perPerson).toBeChecked();
     await expect(anaCo2).toHaveText(asPerson);
@@ -107,22 +107,22 @@ test("the numbers name their scale, and the summary names the vote", async ({
     // ── Z-17: the rows do not add up to the total, and the table says why ──
     // The shipped map carries six train lines and two bus lines; nobody in a
     // two-seat round rides all of them, so there is always an unridden rest.
-    await expect(page.getByText("Linien ohne Fahrgäste")).toBeVisible();
+    await expect(page.getByText("Leer gefahrene Linien")).toBeVisible();
     await expect(page.getByText(/auch wenn niemand einsteigt/)).toBeVisible();
 
     // ── Z-18: what it cost against what was paid ──
     // The desk has no seat, so it reads the class's line. It compares against
     // what the commutes cost, not the round — the timetable nobody rode has its
     // own row above and inside this gap would read as subsidy.
-    await expect(page.getByText(/Für die Wege der Klasse/)).toBeVisible();
+    await expect(page.getByText(/Für eure Wege/)).toBeVisible();
 
-    // The footer is class scale while the rows are per person, and says so.
-    await expect(page.getByText("ganze Klasse").last()).toBeVisible();
+    // The footer is the wide scale while the rows are per person, and says so.
+    await expect(page.getByText("alle Pendler").last()).toBeVisible();
 
     // ── Z-19: the explainer opens, and is not in the ballot ──
     await page.getByRole("button", { name: "Wie wird gerechnet?" }).click();
     const overlay = page.getByRole("dialog");
-    await expect(overlay.getByText("Ein Fahrgast ist nicht eine Person")).toBeVisible();
+    await expect(overlay.getByText("Hinter einer Gruppe stecken viele Menschen")).toBeVisible();
     await expect(overlay.getByText("Der Fahrplan fährt auch leer")).toBeVisible();
     await overlay.getByRole("button", { name: "Verstanden" }).click();
     await expect(overlay).toHaveCount(0);
@@ -161,7 +161,7 @@ test("the numbers name their scale, and the summary names the vote", async ({
 
     // E-13: the vote list. One round and a single-version map, so it is the
     // honest empty case rather than a missing section.
-    await expect(page.getByText("Was die Klasse geändert hat")).toBeVisible();
+    await expect(page.getByText("Was ihr geändert habt")).toBeVisible();
     await expect(
       page.getByText("In diesem Spiel wurde nichts abgestimmt."),
     ).toBeVisible();
@@ -173,12 +173,12 @@ test("the numbers name their scale, and the summary names the vote", async ({
 });
 
 /**
- * Give one Fahrgast a mode and wait for its route. A mode can honestly have no
+ * Give one Gruppe a mode and wait for its route. A mode can honestly have no
  * route — home and workplace are drawn at random per seat — so a refusal falls
  * back to the car, which a connected street network always has.
  */
 async function pickMode(page: Page, index: number, wanted: string) {
-  const row = page.locator("li").filter({ hasText: `Fahrgast ${index + 1}` });
+  const row = page.locator("li").filter({ hasText: `Gruppe ${index + 1}` });
   await row.getByRole("radio", { name: wanted, exact: true }).click();
 
   const routed = row.getByText("ändern");

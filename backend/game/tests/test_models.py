@@ -460,7 +460,7 @@ class CalibratedModelDefaultsTests(TestCase):
     disagrees with the form's initial on purpose, pinned rather than changed
     because flipping it is the group's call. `people_per_agent` is not that —
     the roadmap's S2 says to change the defaults, and a game created over the
-    REST API at 1000 people per Fahrgast puts 64 000 cars on a 90-edge map and
+    REST API at 1000 people per Gruppe puts 64 000 cars on a 90-edge map and
     reports a 298-minute commute.
     """
 

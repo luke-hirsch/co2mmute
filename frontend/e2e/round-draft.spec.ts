@@ -7,7 +7,7 @@ import { loginAsHost } from "./host";
  * A locked phone must not cost the turn (S7, R-22).
  *
  * The case is the ordinary one in a classroom rather than an edge case: a
- * student picks a mode for one Fahrgast, the screen goes dark while they argue
+ * student picks a mode for one Gruppe, the screen goes dark while they argue
  * with the next desk, and the phone discards the page. Before S7 the half-made
  * turn went with it.
  *
@@ -17,7 +17,7 @@ import { loginAsHost } from "./host";
  * `whoami`, so a reload lands straight back on the same turn.
  *
  * What is asserted is the shape of the thing, not just that something came
- * back: the chosen Fahrgast is routed again **and** the untouched one is still
+ * back: the chosen Gruppe is routed again **and** the untouched one is still
  * empty, with the turn still refusing to be sent. A restore that filled in both
  * would pass a weaker test and be a worse bug than the one being fixed.
  *
@@ -33,7 +33,7 @@ test("a reload keeps the half-made turn", async ({ browser, page, baseURL }) => 
   await loginAsHost(page);
   const gameId = await createGame(page, {
     name: "E2E Entwurf",
-    // Two seats, because the form refuses more Fahrgäste per person than there
+    // Two seats, because the form refuses more Gruppen per person than there
     // are seats. Only one is ever joined; the round never completes, which is
     // the point.
     agentPerPlayer: 2,
@@ -54,7 +54,7 @@ test("a reload keeps the half-made turn", async ({ browser, page, baseURL }) => 
 
     await expect(first.getByRole("radiogroup")).toBeVisible({ timeout: 30_000 });
 
-    // Half a turn: one Fahrgast chosen, one untouched.
+    // Half a turn: one Gruppe chosen, one untouched.
     const mode = await pickRoutableMode(player, 1);
     await expect(second.getByRole("radiogroup")).toBeVisible();
     await expect(player.getByRole("button", { name: "Losfahren" })).toBeDisabled();
@@ -113,9 +113,9 @@ async function stored(page: Page): Promise<string[]> {
   );
 }
 
-/** One Fahrgast's row. */
+/** One Gruppe's row. */
 function row(page: Page, index: number) {
-  return page.locator("li").filter({ hasText: `Fahrgast ${index}` });
+  return page.locator("li").filter({ hasText: `Gruppe ${index}` });
 }
 
 /**

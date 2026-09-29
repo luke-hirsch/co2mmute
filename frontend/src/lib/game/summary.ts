@@ -41,7 +41,7 @@ export const summaryMetrics: readonly SummaryMetric[] = ["co2", "cost", "time"];
  * know that the summary sends kilos where the socket sends grams.
  *
  * **Time has one scale.** `total_time_min` is a sum of agent means — two
- * Fahrgäste commuting half an hour each report an hour — so there is no class
+ * Gruppen commuting half an hour each report an hour — so there is no class
  * figure to switch to, only a mean per trip. Reading it on both branches is
  * deliberate, not an oversight: the alternative is a column that goes blank when
  * the reader flips the switch.

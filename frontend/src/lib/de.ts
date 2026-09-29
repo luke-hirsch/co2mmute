@@ -49,7 +49,7 @@ export type RevokedReason =
 const revoked: Record<RevokedReason, string> = {
   removed: "Die Spielleitung hat dich aus dem Spiel genommen.",
   left: "Du hast das Spiel verlassen.",
-  taken_over: "Die Spielleitung spielt deinen Platz jetzt am Lehrerrechner.",
+  taken_over: "Die Spielleitung spielt deinen Platz jetzt an der Leitstelle.",
   handed_over: "Dein Platz läuft jetzt auf einem anderen Gerät.",
 };
 
@@ -155,6 +155,9 @@ export const de = {
     confirm: "Bestätigen",
     retry: "Nochmal versuchen",
     submit: "Absenden",
+    /** S17: the editor rendered a read-only boolean as "Yes" / "No". */
+    yes: "ja",
+    no: "nein",
   },
 
   errors: {
@@ -239,7 +242,7 @@ export const de = {
   seat: {
     status: seatStatus,
     /** 1.6: the seat is played at the host machine, not on the student's phone. */
-    atHostMachine: "am Lehrerrechner",
+    atHostMachine: "an der Leitstelle",
     offline: "nicht verbunden",
   },
 
@@ -315,24 +318,33 @@ export const de = {
     of: (n: number, total: number) => `Runde ${n} von ${total}`,
 
     /**
-     * An agent is a *Fahrgast* to the player — transit vocabulary like the rest
-     * of the interface (Platz, Linie, Einsteigen), and it avoids the gendered
-     * "Pendler". "Agent" stays in the code, the backend and the thesis.
+     * An agent is a *Gruppe* to the player (S17, 2026-09-29).
+     *
+     * It was the transit word for a passenger until the play-test, and that
+     * made the create form read "Menschen pro <passenger>" — a ratio between
+     * two individuals, which is exactly the confusion it caused. A Gruppe is a
+     * number of people travelling the same way, which is what the thing is.
+     * `Pendelgruppe` was on the table and rejected as a compound that needs
+     * context to parse.
+     *
+     * "Agent" stays in the code, the backend and the thesis, and nothing in the
+     * database or the API changed: `agent_per_player`, `people_per_agent` and
+     * `AgentSimulationResult` keep their names.
      */
-    agent: (n: number) => `Fahrgast ${n}`,
+    agent: (n: number) => `Gruppe ${n}`,
     destination: "Ziel",
     home: "zu Hause",
 
     /** The list heading. The question below is what one picker asks. */
-    agents: "Deine Fahrgäste",
-    pickMode: "Womit fährt dieser Fahrgast?",
+    agents: "Deine Gruppen",
+    pickMode: "Womit fährt diese Gruppe?",
     carOptimization,
     ptOptimization,
     otherRoute: "andere Route",
     change: "ändern",
 
     routing: "Route wird gesucht …",
-    noRoute: "Auf diesem Weg kommt der Fahrgast nicht ans Ziel. Nimm eine andere Linie.",
+    noRoute: "Auf diesem Weg kommt die Gruppe nicht ans Ziel. Nimm eine andere Linie.",
     /**
      * Too far is not the same answer as no connection, so it does not get the
      * same sentence: one says take another line, this one says stop trying this
@@ -371,7 +383,7 @@ export const de = {
 
     submit: "Losfahren",
     submitting: "Wird abgeschickt …",
-    submitBlocked: "Erst wenn jeder Fahrgast eine Route hat.",
+    submitBlocked: "Erst wenn jede Gruppe eine Route hat.",
     submitted: "Abgeschickt",
     submittedBody: "Deine Wahl steht. Sobald alle durch sind, wird die Runde gefahren.",
     waitingFor: "Es fehlen noch",
@@ -386,12 +398,12 @@ export const de = {
     simulationFailed: "Die Simulation ist steckengeblieben. Die Spielleitung weiß Bescheid.",
 
     mapTitle: "Karte",
-    mapHint: "Tippe einen Fahrgast an, um seine Route zu sehen.",
+    mapHint: "Tippe eine Gruppe an, um ihre Route zu sehen.",
     /** The overlay drawn from the last round's measured speeds. */
     jamHint:
       "Je dicker die Straße, desto langsamer war sie in der letzten Runde. „Schnellste“ rechnet damit.",
     noAssignment:
-      "Für diesen Platz sind keine Fahrgäste hinterlegt. Die Spielleitung muss das Spiel neu anlegen.",
+      "Für diesen Platz sind keine Gruppen hinterlegt. Die Spielleitung muss das Spiel neu anlegen.",
   },
 
   /**
@@ -443,9 +455,16 @@ export const de = {
       crowd: "Menschen, die warten",
       fill: "wie voll die Straße ist",
     },
+    /**
+     * The second sentence used to say "wartet als Gruppe", which under S17's
+     * rename reads as a Gruppe waiting for itself. What it meant is where the
+     * dots are: held vehicles sit in the simulator's waiting list, so they are
+     * drawn on their origin rather than on the street.
+     */
     hint:
       "Punkte, die stehen bleiben, stecken im Stau. Wer noch nicht losfahren " +
-      "konnte, wartet als Gruppe zu Hause oder an der Haltestelle.",
+      "konnte, wartet zu Hause oder an der Haltestelle — alle zusammen auf " +
+      "einem Punkt.",
 
     /**
      * The beat at the end. Three sentences, because the three endings mean
@@ -476,7 +495,7 @@ export const de = {
     /** Stats. The round is named, because the number is the point. */
     statsTitle: (n: number) => `Runde ${n} ist gefahren`,
     statsLead:
-      "So ist die Klasse gependelt. Schau dir an, was deine Wahl gekostet hat.",
+      "So seid ihr gependelt. Schau dir an, was deine Wahl gekostet hat.",
     /** The table. "Zeit" is the average trip, not the sum. */
     player: "Wer",
     co2: "CO₂",
@@ -535,15 +554,15 @@ export const de = {
     noOptions: "Diesmal steht keine Änderung zur Wahl. Es geht direkt weiter.",
 
     /** The two class-scale rows under the table, and the switch above it. */
-    unridden: "Linien ohne Fahrgäste",
+    unridden: "Leer gefahrene Linien",
     unriddenHint:
       "Bus und Bahn fahren ihren Takt, auch wenn niemand einsteigt. Dieses CO₂ steht in der Rundensumme, aber in keiner Zeile.",
     /** The class's own commutes, not the round — the timetable nobody rode is
      *  already on its own line above and would make the gap look like subsidy. */
     paidSelf: (paid: string, cost: string) =>
-      `Für die Wege der Klasse wurden ${paid} bezahlt. Gekostet haben sie ${cost}.`,
-    /** The footer is the class's whatever the switch says. */
-    wholeClass: "ganze Klasse",
+      `Für eure Wege wurden ${paid} bezahlt. Gekostet haben sie ${cost}.`,
+    /** The footer is everyone's, on whichever scale the switch says. */
+    everyone: "alle Pendler",
     paidYou: (paid: string, cost: string) =>
       `Du hast ${paid} bezahlt. Gekostet hat dein Weg ${cost}.`,
   },
@@ -551,13 +570,20 @@ export const de = {
   /**
    * How the numbers on screen are to be read.
    *
-   * Every figure in this game has two scales: what the class did, and what one
-   * commuter did once. The class scale is what the CO₂ budget is spent out of;
-   * the per-person one is the only figure a student can hold against their own
-   * morning. Both are in the payload, and the reader switches between them.
+   * Every figure in this game has two scales: what everybody on the map did,
+   * and what one commuter did once. The wide one is what the CO₂ budget is spent
+   * out of; the per-person one is the only figure a student can hold against
+   * their own morning. Both are in the payload, and the reader switches between
+   * them.
+   *
+   * The label is **"alle Pendler"**, not "ganze Klasse" (S17): the sum over
+   * every Gruppe is `GameMap.district_commuters`, a property of the map that
+   * does not change when half the class is off sick. "Ganzer Bezirk" was on the
+   * table and rejected — Bezirk is a Berlin word and the map will not always be
+   * Berlin.
    *
    * **The explanation never goes next to the ballot** (Lukas, 2026-09-22). The
-   * class needs to know that one Fahrgast is a hundred people and that a line
+   * players need to know that one Gruppe is a hundred people and that a line
    * runs empty or not — but that sentence beside the vote hands them an argument
    * they should arrive at themselves. So it lives in an overlay of its own and
    * on the screens where there is nothing to do but wait.
@@ -566,18 +592,18 @@ export const de = {
     /** The switch. The table above it is the subject, so the legend is for screen readers. */
     scaleLegend: "Zahlen anzeigen",
     person: "pro Person",
-    class: "ganze Klasse",
+    class: "alle Pendler",
 
     /** One line above the table, so the column headings do not have to carry it. */
     perPersonNote: (people: string) =>
-      `Eine Zeile ist ein Weg, einmal gefahren. Ein Fahrgast steht für ${people} Menschen — die Summe unten ist die ganze Klasse.`,
+      `Eine Zeile ist ein Weg, einmal gefahren. Eine Gruppe steht für ${people} Menschen — die Summe unten sind alle Pendler.`,
     classNote: (people: string) =>
-      `Jede Zeile ist schon mit ${people} Menschen pro Fahrgast gerechnet.`,
+      `Jede Zeile ist schon mit ${people} Menschen pro Gruppe gerechnet.`,
     /** Without the factor: the host desk in round 1 has no seat to read it off. */
     perPersonNotePlain:
-      "Eine Zeile ist ein Weg, einmal gefahren. Die Summe unten ist die ganze Klasse.",
+      "Eine Zeile ist ein Weg, einmal gefahren. Die Summe unten sind alle Pendler.",
     classNotePlain:
-      "Jede Zeile ist mit allen Menschen gerechnet, für die ein Fahrgast steht.",
+      "Jede Zeile ist mit allen Menschen gerechnet, für die eine Gruppe steht.",
 
     /** The overlay. */
     explain: "Wie wird gerechnet?",
@@ -585,22 +611,27 @@ export const de = {
     explainLead: "Was hinter den Zahlen auf dem Schirm steht.",
     close: "Verstanden",
 
-    scaleTitle: "Ein Fahrgast ist nicht eine Person",
+    /**
+     * Under the old word the heading had to deny a misconception ("ein
+     * Fahrgast ist nicht eine Person"). Nobody thinks a Gruppe is one
+     * person, so what is left to say is how many are in it.
+     */
+    scaleTitle: "Hinter einer Gruppe stecken viele Menschen",
     scaleBody: (people: string) =>
       `Die Karte zeigt einen echten Stadtteil, und dort pendeln jeden Morgen ` +
-      `tausende Menschen. Die verteilen sich auf die Fahrgäste im Spiel: einer ` +
+      `tausende Menschen. Die verteilen sich auf die Gruppen im Spiel: eine ` +
       `steht für ${people} Menschen. Deshalb kostet eine Runde Tonnen und nicht ` +
-      `Gramm. Wenn mehr Plätze mitspielen, steht ein Fahrgast für weniger ` +
+      `Gramm. Wenn mehr Plätze mitspielen, steht eine Gruppe für weniger ` +
       `Menschen — der Stadtteil bleibt gleich groß.`,
     scaleBodyPlain:
       "Die Karte zeigt einen echten Stadtteil, und dort pendeln jeden Morgen " +
-      "tausende Menschen. Die verteilen sich auf die Fahrgäste im Spiel: einer " +
+      "tausende Menschen. Die verteilen sich auf die Gruppen im Spiel: eine " +
       "steht für viele. Deshalb kostet eine Runde Tonnen und nicht Gramm.",
 
     timeTitle: "Zeit wird nicht zusammengezählt",
     timeBody:
       "CO₂ und Kosten kann man addieren: zwei Wege kosten doppelt. Zeit nicht — " +
-      "wenn zwei Fahrgäste je 30 Minuten brauchen, dauert der Morgen 30 Minuten " +
+      "wenn zwei Gruppen je 30 Minuten brauchen, dauert der Morgen 30 Minuten " +
       "und nicht 60. In der Zeitspalte steht deshalb immer der Schnitt über die " +
       "Wege, auf beiden Skalen.",
 
@@ -614,7 +645,7 @@ export const de = {
     networkTitle: "Der Fahrplan fährt auch leer",
     networkBody:
       "Eine Buslinie fährt ihren Takt, ob jemand einsteigt oder nicht, und " +
-      "stößt dabei CO₂ aus. Benutzt niemand aus der Klasse eine Linie, steht " +
+      "stößt dabei CO₂ aus. Benutzt niemand von euch eine Linie, steht " +
       "ihr CO₂ trotzdem in der Rundensumme — aber in keiner Zeile. Genau diese " +
       "Differenz steht unter der Tabelle.",
 
@@ -675,10 +706,10 @@ export const de = {
     total: "CO₂ insgesamt",
     budget: "Budget",
 
-    /** The class's arc: one stop per round, the round's CO₂ on it. */
+    /** The game's arc: one stop per round, the round's CO₂ on it. */
     arcTitle: "Runde für Runde",
     arcLead:
-      "So viel hat die Klasse in jeder Runde ausgestoßen. Daran siehst du, was die Änderungen an der Karte gebracht haben.",
+      "So viel hat jede Runde ausgestoßen. Daran siehst du, was die Änderungen an der Karte gebracht haben.",
     arcRound: (n: number) => `Runde ${n}`,
 
     /**
@@ -719,7 +750,7 @@ export const de = {
     societyNone: "Auf dieser Karte fahren keine Linien.",
 
     /** The vote list. History, not a ballot — so it may explain itself. */
-    votesTitle: "Was die Klasse geändert hat",
+    votesTitle: "Was ihr geändert habt",
     votesLead:
       "Nach jeder Runde stand eine Änderung zur Wahl. Daran siehst du, warum die nächste Zeile anders aussieht.",
     votesNone: "In diesem Spiel wurde nichts abgestimmt.",
@@ -760,25 +791,29 @@ export const de = {
 
   /**
    * 1.6 + 1.7: the host machine runs the game and the host does not play.
-   * "Leitpult" rather than "Host-Screen" — it is the desk at the front of the
-   * room, and everything on it is something you do for somebody else.
+   *
+   * **"Leitstelle"** (S17, 2026-09-29), not "Leitpult" and not the
+   * "Lehrerrechner" it said everywhere else: transit vocabulary like the rest of
+   * the interface, and the Lehrerrechner was the one school word a student
+   * actually read. Everything on this screen is something you do for somebody
+   * else, which is what a Leitstelle is.
    */
   host: {
-    title: "Leitpult",
+    title: "Leitstelle",
     lobbyLead:
-      "Die Klasse scannt den Code. Wer kein Handy hat, bekommt von dir einen Platz am Rechner.",
-    deskLead: "Gib den Rechner reihum weiter. Jeder Platz fährt einmal.",
+      "Alle scannen den Code. Wer kein Handy hat, bekommt von dir einen Platz an der Leitstelle.",
+    deskLead: "Gib das Gerät reihum weiter. Jeder Platz fährt einmal.",
 
     seats: "Plätze",
     noSeats: "Noch niemand da.",
     /** Nothing to play here: everyone is on their own phone. */
-    noDeskSeats: "Kein Platz wird gerade an diesem Rechner gespielt.",
-    allDone: "Alle Plätze an diesem Rechner sind durch.",
+    noDeskSeats: "Kein Platz wird gerade an der Leitstelle gespielt.",
+    allDone: "Alle Plätze an der Leitstelle sind durch.",
 
     add: "Platz anlegen",
-    addTitle: "Platz am Rechner",
+    addTitle: "Platz an der Leitstelle",
     addBody:
-      "Für alle ohne eigenes Gerät. Der Platz wird hier am Rechner gespielt und zählt wie jeder andere.",
+      "Für alle ohne eigenes Gerät. Der Platz wird hier an der Leitstelle gespielt und zählt wie jeder andere.",
     addName: "Name",
     addSubmit: "Anlegen",
     adding: "Wird angelegt …",
@@ -806,7 +841,7 @@ export const de = {
 
     play: "Spielen",
     next: "Nächster Platz",
-    back: "Zurück zum Pult",
+    back: "Zurück zur Leitstelle",
     playingSeat: (name: string) => `Platz von ${name}`,
 
     mute: "Stummschalten",
@@ -921,6 +956,15 @@ export const de = {
     details: "Details",
     clearSelection: "Auswahl aufheben",
     pickHint: "Klick einen Knoten oder eine Kante an, um Details zu sehen.",
+
+    /**
+     * S17. The detail page had `← All maps` and a `confirm("Delete map …")` in
+     * it, live on the site — a browser dialog is outside every German pass
+     * because it is not a text node and not a component.
+     */
+    allMaps: "← Alle Karten",
+    deleteConfirm: (name: string) =>
+      `„${name}" löschen? Das lässt sich nicht zurücknehmen.`,
   },
 
   /**
@@ -1029,6 +1073,8 @@ export const de = {
       add: "Knoten anlegen",
       removeConfirm: "Der Knoten und alle Kanten daran werden gelöscht.",
       noTypes: "Es sind keine Knotenarten angelegt.",
+      /** S17. */
+      numbered: (id: number) => `Knoten ${id}`,
     },
 
     /** An edge, and the two kinds that hang off it. */
@@ -1049,10 +1095,29 @@ export const de = {
       type: "Art",
       direction: "Richtung",
       makeOneWay: "Zur Einbahn machen …",
+      makeBidirectional: "+ Gegenrichtung anlegen",
       whichDirection: "Welche Richtung soll bleiben?",
       maxLanes: "Spuren (höchstens)",
       accessibleBy: "Nutzbar für",
       distance: "Länge",
+
+      /** S17: these were English on both the detail page and the editor. */
+      modifyTitle: "Kante ändern",
+      numbered: (id: number) => `Kante ${id}`,
+      /** A link with neither a street nor a railway under it — see `"path"`. */
+      path: "Weg",
+      streetSummary: (speed: number, lanes: number) =>
+        `Straße (${speed} km/h, ${lanes} ${lanes === 1 ? "Spur" : "Spuren"})`,
+      busLaneSuffix: "+ Busspur",
+      addStreet: "+ Straße anlegen",
+      addTrain: "+ Bahn anlegen",
+      /**
+       * Both directions go at once, which is the part worth saying: the editor
+       * finds the reverse edge and deletes it too.
+       */
+      removeBothConfirm: "Die Kante und ihre Gegenrichtung werden gelöscht.",
+      /** The two buttons on "make this one-way": which way survives. */
+      keepDirection: (from: string, to: string) => `${from} → ${to} behalten`,
     },
 
     /** Bus and train lines. */
@@ -1078,6 +1143,41 @@ export const de = {
       addTrain: "+ Bahnlinie",
       summary: (edges: number, interval: number) =>
         `${edges} Kanten, alle ${interval} min`,
+
+      /**
+       * S17. The line editor refused a bad route in English, and the refusal is
+       * the one thing on this panel somebody has to read.
+       *
+       * A bus needs a street under the link and a train needs a railway, so the
+       * two refusals name different things rather than sharing one sentence with
+       * a noun slotted in — which is how the English one read ("missing a street
+       * edge").
+       */
+      /**
+       * The badge on a line in the list. `line.type` is the model's own value
+       * ("bus" / "train"), which went on screen raw — a data value is not copy,
+       * but it becomes copy the moment it is rendered.
+       */
+      kind: (type: string) => (type === "bus" ? "Bus" : "Bahn"),
+      unnamed: (type: string) => (type === "bus" ? "Buslinie" : "Bahnlinie"),
+      editBus: "Buslinie bearbeiten",
+      editTrain: "Bahnlinie bearbeiten",
+      routeCount: (edges: number) => `Route (${edges} Kanten)`,
+      routeSelected: (edges: number) => `Route (${edges} Kanten ausgewählt)`,
+      routeOnMap: (edges: number) =>
+        `Route (${edges} Kanten) — Kanten auf der Karte anklicken`,
+      noValidEdges: "Auf dieser Route liegt keine brauchbare Kante.",
+      needsOneEdge: "Eine Route braucht mindestens eine Kante.",
+      missingStreet: (edges: number) =>
+        `Unter ${edges} ${edges === 1 ? "Kante" : "Kanten"} liegt keine Straße. Nimm sie aus der Route oder leg die Straße an.`,
+      missingTrain: (edges: number) =>
+        `Unter ${edges} ${edges === 1 ? "Kante" : "Kanten"} liegt keine Bahn. Nimm sie aus der Route oder leg die Bahn an.`,
+      noStreetHere: "Hier liegt keine Straße",
+      noTrainHere: "Hier liegt keine Bahn",
+      clickToRemove: "Anklicken, um sie aus der Route zu nehmen",
+      incompatibleClickToRemove:
+        "Passt nicht zur Linie — anklicken, um sie aus der Route zu nehmen",
+      creatingHint: "Linie wird angelegt — klick Kanten an, um die Route zu bauen.",
     },
 
     /** Versions: what the class votes on. */
@@ -1105,7 +1205,7 @@ export const de = {
       /** Creating an alternate version out of the current changes. */
       createTitle: "Andere Version anlegen",
       createLead:
-        "Leg die Version fest, über die die Klasse abstimmen kann. Trag unten die Angaben ein und änder dann die Kanten.",
+        "Leg die Version fest, über die im Spiel abgestimmt werden kann. Trag unten die Angaben ein und änder dann die Kanten.",
       versionName: "Name der Version",
       current: (name: string) => `Aktuell (${name})`,
       baseSuffix: "(Grundversion)",
@@ -1125,6 +1225,24 @@ export const de = {
       created: "Die Version ist angelegt.",
       diffHint:
         "Änder die Karte mit den Werkzeugen oben: Kanten anklicken, um ihre Eigenschaften zu ändern, Knoten und Kanten anlegen oder löschen, oder unten eine Linie ändern.",
+
+      /** S17: the change list and the combination hint were English. */
+      edgeChanges: (n: number) => `Geänderte Kanten (${n})`,
+      newNodes: (n: number) => `Neue Knoten (${n})`,
+      newEdges: (n: number) => `Neue Kanten (${n})`,
+      newNodeAt: (x: string, y: string) => `Neuer Knoten bei (${x}, ${y})`,
+      deletedNodes: (n: number) => `Gelöschte Knoten (${n})`,
+      deletedEdges: (n: number) => `Gelöschte Kanten (${n})`,
+      /**
+       * A link in the change list can point at a node this diff has not saved
+       * yet. `newNodePending` is the normal case — it is in the draft; the other
+       * means the draft lost it, which is worth reading differently.
+       */
+      newNodePending: "neuer Knoten",
+      newNodeMissing: (ref: string) => `neuer Knoten (${ref})`,
+      generateHint:
+        "Wähl oben mindestens zwei Versionen außer der Grundversion aus. Daraus werden alle Kombinationen erzeugt.",
+      generateFailed: "Die Kombinationen ließen sich nicht erzeugen.",
     },
 
     /** The map's own settings. */
@@ -1146,11 +1264,11 @@ export const de = {
    *
    * It was a Django ModelForm, which derived the two calibrated numbers once
    * per page load: a host who changed the Platzzahl had to pull both across by
-   * hand. Here they follow the class size, the round count and the chosen map
+   * hand. Here they follow the seat count, the round count and the chosen map
    * as it is typed.
    *
    * The help texts are the form's, kept almost word for word — they are the
-   * only place the game explains what a Fahrgast stands for before a round has
+   * only place the game explains what a Gruppe stands for before a round has
    * been played, and the explain-the-numbers overlay is not this screen.
    */
   create: {
@@ -1177,13 +1295,14 @@ export const de = {
 
     mapUpdates: "Kartenänderungen zulassen",
     mapUpdatesHelp:
-      "Nach jeder Runde stimmt die Klasse über eine Änderung an der Karte ab.",
+      "Nach jeder Runde wird über eine Änderung an der Karte abgestimmt.",
 
-    classSize: "Klasse",
+    /** S21 re-cuts these groups; S17 only took the school word out of this one. */
+    classSize: "Wer mitspielt",
     maxPlayers: "Plätze insgesamt",
     maxPlayersHelp: "So viele Plätze hat das Spiel insgesamt.",
-    agentPerPlayer: "Fahrgäste pro Person",
-    agentPerPlayerHelp: "So viele Fahrgäste bekommt jede Person zu Beginn.",
+    agentPerPlayer: "Gruppen pro Person",
+    agentPerPlayerHelp: "So viele Gruppen bekommt jede Person zu Beginn.",
 
     game: "Spielverlauf",
     maxRounds: "Runden",
@@ -1194,18 +1313,18 @@ export const de = {
 
     derived: "Gerechnet",
     derivedLead:
-      "Beide Zahlen kommen aus der Karte und der Klassengröße. Du kannst sie überschreiben.",
+      "Beide Zahlen kommen aus der Karte und der Zahl der Plätze. Du kannst sie überschreiben.",
     co2Budget: "CO₂-Budget (kg)",
-    peoplePerAgent: "Menschen pro Fahrgast",
+    peoplePerAgent: "Menschen pro Gruppe",
     /** Parameterised, because the sentence has to name the map's own figures. */
     co2BudgetHelp: (perRound: number, rounds: number) =>
       `${perRound.toLocaleString("de-DE")} kg pro Runde × ${rounds} ${
         rounds === 1 ? "Runde" : "Runden"
-      }. Ist das Budget aufgebraucht, ist das Spiel vorbei – genug, wenn die Klasse umsteigt, zu wenig, wenn alle fahren.`,
+      }. Ist das Budget aufgebraucht, ist das Spiel vorbei – genug, wenn viele umsteigen, zu wenig, wenn alle fahren.`,
     peoplePerAgentHelp: (commuters: number, agents: number) =>
       `${commuters.toLocaleString("de-DE")} Pendler auf ${agents} ${
-        agents === 1 ? "Fahrgast" : "Fahrgäste"
-      } verteilt. Bei weniger Plätzen steht ein Fahrgast für mehr Menschen, damit auf der Karte gleich viel Verkehr ist.`,
+        agents === 1 ? "Gruppe" : "Gruppen"
+      } verteilt. Bei weniger Plätzen steht eine Gruppe für mehr Menschen, damit auf der Karte gleich viel Verkehr ist.`,
     /** Shown once either number no longer matches what the map would suggest. */
     overridden: "Von dir überschrieben.",
     reset: "Vorschlag übernehmen",

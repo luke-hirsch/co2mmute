@@ -193,7 +193,7 @@ const EditorToolbar = ({
       {mode === "pt-lines" && ptLineCreating && (
         <>
           <span className="text-sm text-amber-600 dark:text-amber-400">
-            Creating {ptLineCreating} line — click edges to build route
+            {de.editor.ptLine.creatingHint}
           </span>
           <button
             onClick={onCancelPtLine}

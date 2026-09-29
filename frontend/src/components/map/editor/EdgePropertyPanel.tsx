@@ -152,7 +152,7 @@ const EdgePropertyPanel = ({
   const handleDelete = () => {
     if (!mapId) return;
     const msg = reverseEdge
-      ? "Delete this edge and its reverse direction?"
+      ? de.editor.edge.removeBothConfirm
       : de.editor.deleteEdgeConfirm;
     if (confirm(msg)) {
       deleteEdgeMutation.mutate(edge.id);
@@ -215,7 +215,7 @@ const EdgePropertyPanel = ({
   return (
     <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle space-y-3">
       <h3 className="text-lg font-semibold text-main dark:text-darktext">
-        {isModifyMode ? "Modify Edge" : "Edge"}
+        {isModifyMode ? de.editor.edge.modifyTitle : de.editor.edge.title}
       </h3>
 
       {/* Direction info */}
@@ -223,7 +223,8 @@ const EdgePropertyPanel = ({
         <div>
           <p className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.edge.direction}</p>
           <p className="text-sm font-medium text-main dark:text-darktext">
-            {startNode?.name || `Node ${edge.start_node}`} → {endNode?.name || `Node ${edge.end_node}`}
+            {startNode?.name || de.editor.node.numbered(edge.start_node)} →{" "}
+            {endNode?.name || de.editor.node.numbered(edge.end_node)}
           </p>
           <div className="flex items-center gap-2 mt-1">
             <span
@@ -233,7 +234,9 @@ const EdgePropertyPanel = ({
                   : "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300"
               }`}
             >
-              {isBidirectional ? "↔ Bidirectional" : "→ One-way"}
+              {isBidirectional
+                ? `↔ ${de.editor.edge.bidirectional}`
+                : `→ ${de.editor.edge.oneWay}`}
             </span>
           </div>
           {directEdit && (
@@ -262,7 +265,10 @@ const EdgePropertyPanel = ({
                       disabled={isPending}
                       className="text-xs px-2 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 text-left"
                     >
-                      Keep {startNode?.name || `Node ${edge.start_node}`} → {endNode?.name || `Node ${edge.end_node}`}
+                      {de.editor.edge.keepDirection(
+                        startNode?.name || de.editor.node.numbered(edge.start_node),
+                        endNode?.name || de.editor.node.numbered(edge.end_node),
+                      )}
                     </button>
                     <button
                       onClick={() => {
@@ -276,7 +282,10 @@ const EdgePropertyPanel = ({
                       disabled={isPending}
                       className="text-xs px-2 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 text-left"
                     >
-                      Keep {endNode?.name || `Node ${edge.end_node}`} → {startNode?.name || `Node ${edge.start_node}`}
+                      {de.editor.edge.keepDirection(
+                        endNode?.name || de.editor.node.numbered(edge.end_node),
+                        startNode?.name || de.editor.node.numbered(edge.start_node),
+                      )}
                     </button>
                     <button
                       onClick={() => setConfirmOneWay(false)}
@@ -324,7 +333,7 @@ const EdgePropertyPanel = ({
                   disabled={isPending}
                   className="text-xs px-2 py-1 rounded border border-dashed border-indigo-400 text-mutedtext dark:text-darkmutedtext hover:border-indigo-600 disabled:opacity-50"
                 >
-                  + Make bidirectional
+                  {de.editor.edge.makeBidirectional}
                 </button>
               )}
             </div>
@@ -339,12 +348,12 @@ const EdgePropertyPanel = ({
             type="text"
             value={edgeName}
             onChange={(e) => setEdgeName(e.target.value)}
-            placeholder={`Edge ${edge.id}`}
+            placeholder={de.editor.edge.numbered(edge.id)}
             className="w-full mt-0.5 px-2 py-1 text-sm font-semibold rounded border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext"
           />
         ) : (
           <p className="font-semibold text-main dark:text-darktext">
-            {edge.name || `Edge ${edge.id}`}
+            {edge.name || de.editor.edge.numbered(edge.id)}
           </p>
         )}
       </div>
@@ -356,9 +365,12 @@ const EdgePropertyPanel = ({
           {edge.street_edge ? (
             <div className="flex items-center gap-1">
               <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 px-2 py-1 rounded flex-1">
-                Street ({edge.street_edge.speed_limit} km/h, {edge.street_edge.lanes} lane
-                {edge.street_edge.lanes !== 1 ? "s" : ""})
-                {edge.street_edge.dedicated_bus_lane && " + Bus Lane"}
+                {de.editor.edge.streetSummary(
+                  edge.street_edge.speed_limit,
+                  edge.street_edge.lanes,
+                )}
+                {edge.street_edge.dedicated_bus_lane &&
+                  ` ${de.editor.edge.busLaneSuffix}`}
               </span>
               {directEdit && (
                 <button
@@ -375,7 +387,7 @@ const EdgePropertyPanel = ({
                 onClick={handleAddStreetEdge}
                 className="text-xs px-2 py-1 rounded border border-dashed border-gray-400 text-mutedtext dark:text-darkmutedtext hover:border-gray-600"
               >
-                + Make Street
+                {de.editor.edge.addStreet}
               </button>
             )
           )}
@@ -399,13 +411,13 @@ const EdgePropertyPanel = ({
                 onClick={handleAddTrainEdge}
                 className="text-xs px-2 py-1 rounded border border-dashed border-red-400 text-mutedtext dark:text-darkmutedtext hover:border-red-600"
               >
-                + Make Train
+                {de.editor.edge.addTrain}
               </button>
             )
           )}
           {!edge.street_edge && !edge.train_edge && !directEdit && (
             <span className="text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 px-2 py-1 rounded">
-              Path
+              {de.editor.edge.path}
             </span>
           )}
         </div>
@@ -528,7 +540,9 @@ const EdgePropertyPanel = ({
                 />
               ) : (
                 <span className="text-xs text-main dark:text-darktext">
-                  {edge.street_edge.dedicated_bus_lane ? "Yes" : "No"}
+                  {edge.street_edge.dedicated_bus_lane
+                    ? de.actions.yes
+                    : de.actions.no}
                 </span>
               )}
             </div>

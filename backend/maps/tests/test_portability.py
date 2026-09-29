@@ -23,7 +23,8 @@ from django.core.files.base import ContentFile
 from django.test import TestCase
 from django.urls import reverse
 
-from game.tests._helpers import TempMediaRootMixin
+from game.tests._helpers import TempMediaRootMixin, english_in, visible_text
+from maps.forms import MapUploadForm
 from maps.models import BusLine, Edge, GameMap, MapVersion, Node, TrainLine
 
 # Two real 2x2 PNGs, blue and red. `image_file` on the upload form is an
@@ -1712,3 +1713,87 @@ class WholeMapRoundTripTests(VersionedMapMixin, TestCase):
         )
 
         self.assertEqual(map_summary(again), map_summary(self.copy))
+
+
+# ---------------------------------------------------------------------------
+# The upload page is German (S17)
+# ---------------------------------------------------------------------------
+
+
+class MapUploadIsGermanTests(TempMediaRootMixin, TestCase):
+    """`/map/upload/` speaks German, labels and refusals alike.
+
+    The detector is the join funnel's (`game/tests/_helpers.py`), and until S17
+    it ran over `/join/` and `player/create/` and nowhere else. This page had
+    English labels ("Map JSON File", "Background Image"), English help text and
+    English validation errors, live on the site, and nothing was watching — two
+    of nine German pages covered is how that survives.
+
+    It is the import door, which is why the check lives in this module: a map
+    moves between boxes through this form, and a staff member reading it is
+    reading the only German the file round trip has.
+
+    Nothing here asserts a sentence. The test is "this page is not English",
+    so the wording stays free to improve.
+    """
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="staff", password="password123", is_staff=True
+        )
+        self.client.force_login(self.user)
+
+    def test_the_upload_page_is_german(self):
+        response = self.client.get(reverse("map-upload"))
+
+        self.assertEqual(response.status_code, 200)
+        text = visible_text(response.content.decode())
+
+        self.assertEqual(english_in(text), [], f"English on /map/upload/: {text[:400]}")
+
+    def test_the_form_labels_and_help_are_german(self):
+        """The rendered page covers these, but only while they are rendered.
+
+        A label lives in `forms.py`, not in the template, so a grep of
+        `maps/templates/` does not see it — the same reason the join form's
+        labels get their own assertion.
+        """
+        form = MapUploadForm()
+
+        offenders = {
+            name: (str(field.label), str(field.help_text or ""))
+            for name, field in form.fields.items()
+            if english_in(str(field.label)) or english_in(str(field.help_text or ""))
+        }
+
+        self.assertEqual(offenders, {})
+
+    def test_a_file_that_is_not_json_is_refused_in_german(self):
+        form = MapUploadForm(
+            data={"map_name": "Kaputt", "max_players": 4},
+            files={"json_file": ContentFile(b"nicht json", name="map.json")},
+        )
+
+        self.assertFalse(form.is_valid())
+        errors = " ".join(str(m) for m in form.errors["json_file"])
+        self.assertEqual(english_in(errors), [], errors)
+
+    def test_a_graph_without_nodes_is_refused_in_german(self):
+        payload = json.dumps({"nodes": [], "edges": []}).encode("utf-8")
+        form = MapUploadForm(
+            data={"map_name": "Leer", "max_players": 4},
+            files={"json_file": ContentFile(payload, name="map.json")},
+        )
+
+        self.assertFalse(form.is_valid())
+        errors = " ".join(str(m) for m in form.errors["json_file"])
+        self.assertEqual(english_in(errors), [], errors)
+
+    def test_a_duplicate_name_is_refused_in_german(self):
+        GameMap.objects.create(name="Schon da", max_player=4)
+
+        form = MapUploadForm(data={"map_name": "Schon da", "max_players": 4})
+
+        self.assertFalse(form.is_valid())
+        errors = " ".join(str(m) for m in form.errors["map_name"])
+        self.assertEqual(english_in(errors), [], errors)

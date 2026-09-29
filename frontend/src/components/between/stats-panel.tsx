@@ -28,7 +28,7 @@ import type { RoundResult } from "@/lib/game/game-state";
  * - **what anybody actually paid**, against what the round cost. The difference
  *   is the subsidy, which is the argument the PT fare exists to make.
  *
- * Time never switches: `time_min` is already a mean over the seat's Fahrgäste,
+ * Time never switches: `time_min` is already a mean over the seat's Gruppen,
  * and a sum of travel times is not a quantity anybody has.
  *
  * Names appear because the roster is the room: everybody can see everybody. The
@@ -196,7 +196,7 @@ export function StatsPanel({
                     twice would suggest they do not. */}
                 {perPerson ? (
                   <span className="ml-2 text-xs font-normal text-muted-foreground">
-                    {de.between.wholeClass}
+                    {de.between.everyone}
                   </span>
                 ) : null}
               </th>

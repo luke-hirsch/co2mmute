@@ -197,7 +197,7 @@ free-flow time.** Somebody who chose 45 in a 50 zone is not delayed by anything.
 
 ### Units
 
-One agent — a _Fahrgast_ in the interface — stands for `people_per_agent` real commuters, and that
+One agent — a _Gruppe_ in the interface — stands for `people_per_agent` real commuters, and that
 factor is where most unit bugs in this project came from. Two rules:
 
 - A CO₂ or euro figure is **extensive**: it sums over agents and over the people behind each agent.

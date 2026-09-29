@@ -62,13 +62,13 @@ export type VoteOption = {
  * Per-player figures in `round.completed`. `game/signals.py`.
  *
  * **Two scales, both in the payload.** `emissions_g` and `cost_eur` are class
- * scale — this seat's Fahrgäste stand for `agent_count x people_per_agent`
+ * scale — this seat's Gruppen stand for `agent_count x people_per_agent`
  * commuters — and the `*_per_person` fields are the same round divided back down
  * to one commuter making one commute. Divided on the server, because a screen
  * dividing a figure already rounded for display by a thousand is dividing noise.
  *
  * `time_min` is the odd one out and always was: it is a **mean** over the seat's
- * Fahrgäste, not a sum, so it has no second scale and never switches. A sum of
+ * Gruppen, not a sum, so it has no second scale and never switches. A sum of
  * travel times is not a quantity anybody has. (Careful: the summary endpoint's
  * `time_min` is the sum, and `time_min_per_agent` beside it is this figure.)
  */
@@ -79,7 +79,7 @@ export type RoundPlayerStats = {
   /** Class scale. */
   emissions_g: number;
   cost_eur: number;
-  /** A mean over this seat's Fahrgäste — see above. */
+  /** A mean over this seat's Gruppen — see above. */
   time_min: number;
   /** How many agent-trips the class-scale figures are made of. */
   agent_count: number;
@@ -227,7 +227,7 @@ export type GameEvent =
         has_map_versions: boolean;
         map_versions: VoteOption[];
         /**
-         * One Fahrgast stands for this many real people, and every class-scale
+         * One Gruppe stands for this many real people, and every class-scale
          * figure above is already multiplied by it. Only the server knows the
          * factor — it reaches the SPA on the seat endpoint alone, and the host
          * has no seat.

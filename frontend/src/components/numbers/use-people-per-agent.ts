@@ -3,10 +3,10 @@ import { useHostGame } from "@/lib/queries/session";
 import { useSeatGame } from "@/lib/queries/seat";
 
 /**
- * How many real people one Fahrgast stands for, wherever this device can read it.
+ * How many real people one Gruppe stands for, wherever this device can read it.
  *
  * It is derived from the class size — `GameMap.district_commuters / (seats x
- * Fahrgäste)` — so it is a property of the game, not a constant, and only the
+ * Gruppen)` — so it is a property of the game, not a constant, and only the
  * server knows it. Three endpoints carry it and **no single one of them serves
  * both halves of the room**, which is why the preference order lives here in one
  * place rather than in each screen:

@@ -1,6 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import type { ReactNode } from "react";
+import { de } from "@/lib/de";
 
 interface ProtectedLayoutProps {
   children: ReactNode;
@@ -19,7 +20,7 @@ export function ProtectedLayout({
   gameId,
   requiredKind,
   fallbackTo = "/",
-  loadingComponent = <div>Loading...</div>,
+  loadingComponent = <div>{de.app.loading}</div>,
 }: ProtectedLayoutProps) {
   return (
     <AuthProvider gameId={gameId}>

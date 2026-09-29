@@ -49,7 +49,7 @@ class GameSession(models.Model):
     )
 
     # Simulation parameters
-    # 100 is DISTRICT_COMMUTERS / (16 seats x 4 Fahrgäste), the shipped class
+    # 100 is DISTRICT_COMMUTERS / (16 seats x 4 Gruppen), the shipped class
     # size — written as a literal because a model default has to be one, and
     # pinned against game.calibration.people_per_agent() by a test. The create
     # form derives it from the class size the host actually chooses; this is

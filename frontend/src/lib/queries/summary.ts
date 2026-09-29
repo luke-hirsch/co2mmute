@@ -30,12 +30,12 @@ import type { TransportMode } from "@/lib/de";
  */
 export type SummaryRound = {
   round_number: number;
-  /** Class scale: this seat's Fahrgäste x people_per_agent commuters. */
+  /** Class scale: this seat's Gruppen x people_per_agent commuters. */
   co2_kg: number;
   cost_eur: number;
   /**
    * A sum of agent means, and therefore **not a quantity anybody has** — two
-   * Fahrgäste commuting 30 min each report 60. Kept in the payload because it
+   * Gruppen commuting 30 min each report 60. Kept in the payload because it
    * was what the screen read before 2.4; read `time_min_per_agent` instead.
    */
   time_min: number;
@@ -189,9 +189,9 @@ export type GameSummary = {
   total_co2_kg: number;
   max_co2_kg: number;
   /**
-   * One Fahrgast stands for this many real people, and every kg and euro on the
+   * One Gruppe stands for this many real people, and every kg and euro on the
    * class scale is already multiplied by it. Derived from the class size
-   * (`GameMap.district_commuters / (seats x Fahrgäste)`), so it differs from
+   * (`GameMap.district_commuters / (seats x Gruppen)`), so it differs from
    * game to game, and it reaches the SPA on no other endpoint the host can call.
    */
   people_per_agent: number;

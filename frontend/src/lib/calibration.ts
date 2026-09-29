@@ -14,11 +14,11 @@
  *
  * - **`people_per_agent` is derived from the class size, never picked.** A map
  *   depicts a place and a place has a commuter population. The class divides
- *   that population between its Fahrgäste; it does not summon new commuters
+ *   that population between its Gruppen; it does not summon new commuters
  *   when more students turn up. Pin the scale instead and a half-full class
  *   sees 0.4 min of delay where a full one sees 11.3 — a different game
  *   depending on who came to the lesson.
- * - **The budget carries no Fahrgast term**, for the same reason: the district's
+ * - **The budget carries no Gruppe term**, for the same reason: the district's
  *   population is constant, so a round costs what it costs however many play.
  *
  * Neither is a rule. Both are written into fields the host can type over, and
@@ -53,7 +53,7 @@ export type CalibrationInputs = {
  * half-up.
  *
  * It matters exactly once and the backend pins it: 800 commuters over 64
- * Fahrgäste is 12.5, and the answer is 12. Rounding down at a tie is the safe
+ * Gruppen is 12.5, and the answer is 12. Rounding down at a tie is the safe
  * side — it puts less traffic on the corridors than the map was measured for,
  * not more. `Math.round` would answer 13 and the two halves would disagree
  * about a game either could have created.
@@ -69,9 +69,9 @@ function roundHalfToEven(value: number): number {
 }
 
 /**
- * How many real people one Fahrgast stands for, for this class size.
+ * How many real people one Gruppe stands for, for this class size.
  *
- * Floored at 1: a game with more Fahrgäste than the district has commuters is
+ * Floored at 1: a game with more Gruppen than the district has commuters is
  * nonsense, but it must not be a game where each one stands for nobody.
  */
 export function peoplePerAgent(

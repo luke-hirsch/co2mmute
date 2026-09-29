@@ -5,12 +5,22 @@ from maps.models import GameMap
 
 
 class MapUploadForm(forms.Form):
-    """Form for uploading a JSON file containing a graph structure to create a map."""
+    """Form for uploading a JSON file containing a graph structure to create a map.
+
+    German since S17. It was the last form on the site with English labels,
+    English help text and English refusals — staff-only, which is why nobody
+    reported it, but `/map/upload/` is the door a map comes back through and the
+    only German the file round trip has. `maps/tests/test_portability.py` pins it
+    with the join funnel's own detector.
+
+    The JSON keys stay English: `nodes`, `start_node` and `speed_limit` are the
+    file's field names, and renaming them would mean renaming the API.
+    """
 
     json_file = forms.FileField(
-        label="Map JSON File",
+        label="Kartendatei (JSON)",
         required=False,
-        help_text="Optional — upload a JSON file with the map graph structure, or leave empty to create a blank map.",
+        help_text="Optional — lad eine JSON-Datei mit dem Kartengraphen hoch, oder lass das Feld leer für eine leere Karte.",
         widget=forms.FileInput(
             attrs={
                 "accept": ".json",
@@ -20,9 +30,9 @@ class MapUploadForm(forms.Form):
     )
 
     image_file = forms.ImageField(
-        label="Background Image",
+        label="Hintergrundbild",
         required=False,
-        help_text="Optional background image for the map (PNG, JPG, etc.)",
+        help_text="Optional — das Bild, auf dem der Graph liegt (PNG, JPG).",
         widget=forms.FileInput(
             attrs={
                 "accept": "image/*",
@@ -32,30 +42,30 @@ class MapUploadForm(forms.Form):
     )
 
     map_name = forms.CharField(
-        label="Map Name",
+        label="Name der Karte",
         max_length=100,
         widget=forms.TextInput(
             attrs={
                 "class": "block w-full px-3 py-2 border border-subtle dark:border-darksubtle rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-body dark:bg-darkbody text-main dark:text-darktext",
-                "placeholder": "e.g., Downtown Map",
+                "placeholder": "z. B. Berlin Mitte-West",
             }
         ),
     )
 
     description = forms.CharField(
-        label="Description",
+        label="Beschreibung",
         required=False,
         widget=forms.Textarea(
             attrs={
                 "rows": 3,
                 "class": "block w-full px-3 py-2 border border-subtle dark:border-darksubtle rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-body dark:bg-darkbody text-main dark:text-darktext",
-                "placeholder": "Optional description of the map",
+                "placeholder": "Optional — worum es auf dieser Karte geht",
             }
         ),
     )
 
     max_players = forms.IntegerField(
-        label="Max Players",
+        label="Plätze",
         initial=4,
         min_value=1,
         max_value=20,
@@ -75,58 +85,58 @@ class MapUploadForm(forms.Form):
 
         # Check file extension
         if not file.name.endswith(".json"):
-            raise ValidationError("File must be a JSON file (.json)")
+            raise ValidationError("Die Datei muss eine JSON-Datei sein (.json).")
 
         try:
             file.seek(0)
             content = file.read().decode("utf-8")
             data = json.loads(content)
         except UnicodeDecodeError:
-            raise ValidationError("File must be valid UTF-8 encoded.")
+            raise ValidationError("Die Datei muss UTF-8 kodiert sein.")
         except json.JSONDecodeError as e:
-            raise ValidationError(f"Invalid JSON format: {str(e)}")
+            raise ValidationError(f"Das ist kein gültiges JSON: {str(e)}")
 
         # Validate required structure
         required_keys = {"nodes", "edges"}
         if not isinstance(data, dict):
-            raise ValidationError("JSON root must be an object/dictionary.")
+            raise ValidationError("Die JSON-Datei muss auf oberster Ebene ein Objekt sein.")
 
         missing_keys = required_keys - set(data.keys())
         if missing_keys:
             raise ValidationError(
-                f"JSON must contain the following keys: {', '.join(required_keys)}. "
-                f"Missing: {', '.join(missing_keys)}"
+                f"Die Datei braucht diese Schlüssel: {', '.join(required_keys)}. "
+                f"Es fehlen: {', '.join(missing_keys)}"
             )
 
         # Validate nodes structure
         if not isinstance(data["nodes"], list):
-            raise ValidationError("'nodes' must be a list.")
+            raise ValidationError("'nodes' muss eine Liste sein.")
 
         if len(data["nodes"]) == 0:
-            raise ValidationError("Map must contain at least one node.")
+            raise ValidationError("Eine Karte braucht mindestens einen Knoten.")
 
         for i, node in enumerate(data["nodes"]):
             if not isinstance(node, dict):
-                raise ValidationError(f"Node {i} must be a dictionary.")
+                raise ValidationError(f"Knoten {i} muss ein Objekt sein.")
             node_required = {"id", "x", "y"}
             node_missing = node_required - set(node.keys())
             if node_missing:
                 raise ValidationError(
-                    f"Node {i} missing required keys: {', '.join(node_missing)}"
+                    f"Knoten {i} fehlen Angaben: {', '.join(node_missing)}"
                 )
 
         # Validate edges structure
         if not isinstance(data["edges"], list):
-            raise ValidationError("'edges' must be a list.")
+            raise ValidationError("'edges' muss eine Liste sein.")
 
         for i, edge in enumerate(data["edges"]):
             if not isinstance(edge, dict):
-                raise ValidationError(f"Edge {i} must be a dictionary.")
+                raise ValidationError(f"Kante {i} muss ein Objekt sein.")
             edge_required = {"start_node", "end_node"}
             edge_missing = edge_required - set(edge.keys())
             if edge_missing:
                 raise ValidationError(
-                    f"Edge {i} missing required keys: {', '.join(edge_missing)}"
+                    f"Kante {i} fehlen Angaben: {', '.join(edge_missing)}"
                 )
             # Validate edge type specification
             if "type" in edge and edge["type"] not in (
@@ -136,15 +146,15 @@ class MapUploadForm(forms.Form):
                 "path",
             ):
                 raise ValidationError(
-                    f"Edge {i}: type must be 'street', 'train', 'both' or "
-                    f"'path', got '{edge['type']}'"
+                    f"Kante {i}: 'type' muss 'street', 'train', 'both' oder "
+                    f"'path' sein, hier steht '{edge['type']}'"
                 )
 
         # Validate bus lines if present
-        self._check_lines(data, "bus_lines", "Bus line")
+        self._check_lines(data, "bus_lines", "Buslinie")
 
         # Validate train lines if present
-        self._check_lines(data, "train_lines", "Train line")
+        self._check_lines(data, "train_lines", "Bahnlinie")
 
         return file
 
@@ -160,21 +170,21 @@ class MapUploadForm(forms.Form):
         if key not in data:
             return
         if not isinstance(data[key], list):
-            raise ValidationError(f"'{key}' must be a list.")
+            raise ValidationError(f"'{key}' muss eine Liste sein.")
         for i, line in enumerate(data[key]):
             if not isinstance(line, dict):
-                raise ValidationError(f"{label} {i} must be a dictionary.")
+                raise ValidationError(f"{label} {i} muss ein Objekt sein.")
             if "name" not in line or not ("edges" in line or "chains" in line):
                 raise ValidationError(
-                    f"{label} {i} must have 'name' and either 'edges' or 'chains'"
+                    f"{label} {i} braucht 'name' und entweder 'edges' oder 'chains'."
                 )
             if "edges" in line and not isinstance(line["edges"], list):
                 raise ValidationError(
-                    f"{label} {i} 'edges' must be a list of edge indices"
+                    f"{label} {i}: 'edges' muss eine Liste von Kantennummern sein."
                 )
             if "chains" in line and not isinstance(line["chains"], list):
                 raise ValidationError(
-                    f"{label} {i} 'chains' must be a list of routes"
+                    f"{label} {i}: 'chains' muss eine Liste von Routen sein."
                 )
 
     def clean_map_name(self):
@@ -182,12 +192,12 @@ class MapUploadForm(forms.Form):
         map_name = self.cleaned_data.get("map_name", "").strip()
 
         if not map_name:
-            raise ValidationError("Map name is required.")
+            raise ValidationError("Die Karte braucht einen Namen.")
 
         if GameMap.objects.filter(name__iexact=map_name).exists():
             raise ValidationError(
-                f"A map with the name '{map_name}' already exists. "
-                f"Please choose a different name."
+                f"Eine Karte mit dem Namen „{map_name}“ gibt es schon. "
+                f"Nimm einen anderen Namen."
             )
 
         return map_name

@@ -1,8 +1,8 @@
 """The numbers a game is played against, and where they come from.
 
 S2. Two settings decide whether a round means anything: how many real people
-one Fahrgast stands for, and how much CO2 the class may spend. Neither had ever
-been calibrated — the shipped pair was 1000 people per Fahrgast against a
+one Gruppe stands for, and how much CO2 the class may spend. Neither had ever
+been calibrated — the shipped pair was 1000 people per Gruppe against a
 500 kg budget, on a map whose public transport timetable alone emits 2 449 kg
 a round before anybody plays. Every game ended in round 1.
 
@@ -20,7 +20,7 @@ Measured on `map_examples/Berlin_Mitte-West.json` (55 nodes, 90 street edges,
 
 **The scale follows the class size, because the district does not.**
 A map depicts a place, and a place has a commuter population. The class divides
-that population between its Fahrgäste — it does not summon a new population
+that population between its Gruppen — it does not summon a new population
 when more students turn up. Holding `district_commuters` fixed while the seats
 vary keeps a round the same round:
 
@@ -35,7 +35,7 @@ class 0.4 min of delay against 11.3, and 44 % of the CO2 — a different game
 depending on who came to the lesson. The route concentration that might have
 broken this does not: the class's shortest paths only ever use 29 of the 90
 street edges, which is a property of having six homes and six workplaces, not
-of how many Fahrgäste share them.
+of how many Gruppen share them.
 
 **6 400 is what the graph can carry, not what the district holds.**
 Far below Berlin Mitte-West's real commuter count, and deliberately so: the
@@ -45,11 +45,11 @@ the busiest links (Hansaplatz — Großer Stern — Brandenburger Tor) at about
 115 % of their flow capacity and gives a 7.66 km commute 20.4 min against
 9.5 min free flow. Inner Berlin's morning peak runs at roughly 24 km/h, which
 is the same 11 minutes of delay. Raise it and the model reports commutes no
-city has: 1 000 people per Fahrgast at 64 Fahrgäste is 298 min, with no
+city has: 1 000 people per Gruppe at 64 Gruppen is 298 min, with no
 deadlock and no forced release — the model is fine, the demand is not, and
 64 000 cars would need about five times the lanes the map has.
 
-**The budget is per round, and carries no Fahrgast term.**
+**The budget is per round, and carries no Gruppe term.**
 Because the district's population is constant, a round costs what it costs
 however many students play. On the shipped map, with the corrected train
 emission factor, measured before the S5 map data pass (see below):
@@ -92,14 +92,14 @@ seeds with the routes the real client router returns:
 
 The 0 % row is the point: 60-seat vehicles forced enough extra runs to put the
 timetable at 4 623 kg, and six of the 36 commutes had no PT route at all, so
-eleven of 64 Fahrgäste had to drive whatever the class decided. A round with
+eleven of 64 Gruppen had to drive whatever the class decided. A round with
 nobody in a car is 46 % cheaper than it was. The budget still sits in the range
 — all-car busts it, an improving class finishes — but by less than it did, which
 is worth a look at the next play-test.
 
-Those five rows come from a harness of their own (64 Fahrgäste spread evenly
+Those five rows come from a harness of their own (64 Gruppen spread evenly
 over all 36 home/workplace pairs) and are **not** comparable with the tables
-above, whose Fahrgast-to-pair assignment was a different one and whose network
+above, whose assignment of Gruppen to pairs was a different one and whose network
 therefore jams a little less. Compare before against after within a row.
 
 Re-deriving these after a model change means replaying rounds on the map in
@@ -131,19 +131,19 @@ def _map_value(game_map, field_name: str) -> int:
 def people_per_agent(
     max_players: int, agent_per_player: int, game_map=None
 ) -> int:
-    """How many real people one Fahrgast stands for, for this class size.
+    """How many real people one Gruppe stands for, for this class size.
 
-    Floored at 1: a game with more Fahrgäste than the district has commuters is
+    Floored at 1: a game with more Gruppen than the district has commuters is
     nonsense, but it must not be a game where each one stands for nobody.
 
     Args:
         max_players: Seats the game has in total.
-        agent_per_player: Fahrgäste each seat starts with.
+        agent_per_player: Gruppen each seat starts with.
         game_map: The map being played, for its `district_commuters`. Omitted
             before a map is chosen, which falls back to the field default.
 
     Returns:
-        People per Fahrgast, so that max_players * agent_per_player * this is
+        People per Gruppe, so that max_players * agent_per_player * this is
         about the map's commuter population.
     """
     commuters = _map_value(game_map, "district_commuters")
