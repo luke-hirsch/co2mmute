@@ -66,6 +66,10 @@ class IndexView(TemplateView):
     template_name = "index.html"
 
 
+class HintergrundView(TemplateView):
+    template_name = "hintergrund.html"
+
+
 class SpaView(TemplateView):
     template_name = "app.html"
 

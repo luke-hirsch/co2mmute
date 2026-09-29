@@ -344,6 +344,53 @@
     </div>
   </section>
 
+  {# --- detour: the PT line branches off to the background page and rejoins, the other three keep running straight --- #}
+  <section>
+    <div class="relative mx-auto max-w-7xl py-20 pr-6 lg:py-28 lg:pr-8">
+      <div class="relative bg-body dark:bg-darkbody">
+        <div aria-hidden="true" class="pointer-events-none absolute inset-0">
+          <span class="metro-lane metro-car"></span>
+          <span class="metro-lane metro-bike"></span>
+          <span class="metro-lane metro-walk"></span>
+        </div>
+
+        {# the pt line bending out of the gutter into the card's top-left corner #}
+        <div class="metro-pt relative h-[calc(var(--r0)+var(--lane-w))]" aria-hidden="true">
+          <span class="absolute top-0 left-[calc(var(--track-x)+var(--i)*var(--lane-gap))] h-full w-[calc(var(--gutter)-var(--track-x)-var(--i)*var(--lane-gap))] rounded-bl-[length:var(--r0)] border-(--lane-color) border-l-[length:var(--lane-w)] border-b-[length:var(--lane-w)]"></span>
+        </div>
+
+        <div class="pl-(--gutter)">
+          <div class="rounded-xl border border-subtle bg-surface p-6 dark:border-darksubtle dark:bg-darksurface sm:p-7">
+            <p class="text-sm font-medium text-soft dark:text-darksofttext">Kleiner Umweg</p>
+            <h2 class="mt-1 flex items-center gap-3 text-xl font-semibold text-main sm:text-2xl dark:text-darktext">
+              <span class="metro-pt flex size-8 shrink-0 items-center justify-center rounded-md bg-(--lane-color) text-white" aria-hidden="true">
+                <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6 2 7" /><path d="M10 6h4" /><path d="m22 7-2-1" /><rect width="16" height="16" x="4" y="3" rx="2" /><path d="M4 11h16" /><path d="M8 15h.01" /><path d="M16 15h.01" /><path d="M6 19v2" /><path d="M18 21v-2" /></svg>
+              </span>
+              Wie die Simulation eigentlich rechnet
+            </h2>
+            <p class="mt-3 max-w-(--measure-body) text-base/7 text-muted dark:text-darkmutedtext">
+              Ein Warteschlangenmodell statt einer von Hand angepassten Kurve,
+              ein Fahrplan, der Gesellschaftskosten verursacht, ob nun jemand
+              mitfährt oder nicht, und zwei Kartenzahlen, die gemessen und
+              nicht geschätzt sind.
+            </p>
+            <a
+              href="{% url 'hintergrund' %}"
+              class="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-primary-600 transition hover:text-primary-700 dark:text-primary-300 dark:hover:text-primary-200"
+            >
+              Zum Hintergrund <span aria-hidden="true">→</span>
+            </a>
+          </div>
+        </div>
+
+        {# the pt line re-emerging from the card's bottom-left corner, back into the gutter #}
+        <div class="metro-pt relative h-[calc(var(--r0)+var(--lane-w))]" aria-hidden="true">
+          <span class="absolute bottom-0 left-[calc(var(--track-x)+var(--i)*var(--lane-gap))] h-full w-[calc(var(--gutter)-var(--track-x)-var(--i)*var(--lane-gap))] rounded-tl-[length:var(--r0)] border-(--lane-color) border-l-[length:var(--lane-w)] border-t-[length:var(--lane-w)]"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
   {# --- end of the line: school --- #}
   <section>
     <div class="relative mx-auto max-w-7xl pt-16 pr-6 pb-24 sm:pt-24 lg:pr-8 lg:pb-32">

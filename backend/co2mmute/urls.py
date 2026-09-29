@@ -18,6 +18,7 @@ from .views import (
     AccountView,
     CookiesView,
     DsgvoView,
+    HintergrundView,
     ImpressumView,
     IndexView,
     LoginView,
@@ -31,6 +32,7 @@ from .views import (
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", IndexView.as_view(), name="index"),
+    path("hintergrund/", HintergrundView.as_view(), name="hintergrund"),
     # Above the auth include, which is what routes it: the first match wins,
     # so this replaces the stock LoginView with the rate-limited one without
     # the include having to know.

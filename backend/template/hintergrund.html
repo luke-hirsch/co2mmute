@@ -1,0 +1,357 @@
+{% extends "base.html" %}
+
+{% block title %}CO2MMUTE – Hintergrund{% endblock %}
+
+{% block extra_head %}
+<meta
+  name="description"
+  content="Wie die Verkehrssimulation hinter CO2mmute rechnet: ein Warteschlangenmodell statt einer BPR-Kurve, ein ÖPNV-Fahrplan mit echten Fahrgästen und Kartenzahlen, die gemessen und nicht geschätzt sind."
+/>
+{% endblock %}
+
+{# full-width sections, same grid as index.html; no new pattern, so no new .claude/design note needed #}
+{% block main_class %}{% endblock %}
+
+{% block main %}
+<div class="metro relative bg-body dark:bg-darkbody">
+
+  {# --- start --- #}
+  <section>
+    <div class="relative mx-auto max-w-7xl pt-16 pr-6 pb-16 sm:pt-24 lg:pr-8 lg:pb-20">
+      <div class="pl-(--gutter)">
+        <p class="relative text-sm/6 font-medium tracking-wide text-muted uppercase dark:text-darkmutedtext">
+          <span class="metro-terminus" aria-hidden="true">
+            <svg class="size-5 text-main dark:text-darktext" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></svg>
+          </span>
+          Start: die Simulation
+        </p>
+
+        <h1 class="mt-10 max-w-3xl text-[2.25rem]/[1.05] font-medium tracking-tight text-balance text-main sm:text-5xl/[1.05] lg:text-6xl/[1.02] dark:text-darktext">
+          Was hinter einer Runde steckt
+        </h1>
+        <p class="mt-6 max-w-(--measure-lead) text-lg/8 text-pretty text-muted dark:text-darkmutedtext">
+          Die Idee zu CO<sub>2</sub>mmute stammt aus der Masterarbeit von
+          Sebastian Werblinski an der TU Berlin. Der Code hier ist eine
+          vollständige Neuentwicklung und keine Fortsetzung seines Prototyps –
+          auch das Verkehrsmodell ist neu gebaut. Diese Seite sagt, was es tut
+          und woher seine Zahlen kommen.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  {# --- why this model --- #}
+  <section>
+    <div class="relative mx-auto max-w-7xl py-20 pr-6 lg:py-28 lg:pr-8">
+      <div class="pl-(--gutter)">
+        <h2 class="relative text-3xl/10 font-semibold tracking-tight text-main sm:text-4xl/10 dark:text-darktext">
+          <span class="metro-station" aria-hidden="true"></span>
+          Drei Ebenen, eine Wahl
+        </h2>
+        <p class="mt-4 max-w-2xl text-lg/8 text-muted dark:text-darkmutedtext">
+          Stau muss als Ergebnis herauskommen, nicht als Annahme – sonst geht
+          es bei der Abstimmung zwischen den Runden um nichts. Verkehr lässt
+          sich auf drei Ebenen simulieren.
+        </p>
+
+        <dl class="mt-12 grid gap-x-12 gap-y-10 sm:grid-cols-3">
+          <div class="border-t-2 border-main pt-5 dark:border-darktext">
+            <dt class="text-lg font-semibold text-main dark:text-darktext">
+              Makroskopisch
+            </dt>
+            <dd class="mt-2 text-base/7 text-muted dark:text-darkmutedtext">
+              Flussgleichungen über das Netz, keine einzelnen Fahrzeuge.
+              Billig, aber es sitzt niemand darin – und hier geht es um einen
+              Menschen, der ein Verkehrsmittel wählt.
+            </dd>
+          </div>
+          <div class="border-t-2 border-main pt-5 dark:border-darktext">
+            <dt class="text-lg font-semibold text-main dark:text-darktext">
+              Mikroskopisch
+            </dt>
+            <dd class="mt-2 text-base/7 text-muted dark:text-darkmutedtext">
+              Folgeverhalten, Spurwechsel, Beschleunigung je Fahrzeug. Jeder
+              Parameter braucht Daten, die für eine von Hand gezeichnete
+              Spielkarte niemand hat.
+            </dd>
+          </div>
+          <div class="border-t-2 border-main pt-5 dark:border-darktext">
+            <dt class="text-lg font-semibold text-main dark:text-darktext">
+              Mesoskopisch
+            </dt>
+            <dd class="mt-2 text-base/7 text-muted dark:text-darkmutedtext">
+              Einzelne Fahrzeuge, aber eine Straße ist eine Warteschlange und
+              kein Streckenabschnitt mit Positionen darauf. Das benutzt
+              CO<sub>2</sub>mmute.
+            </dd>
+          </div>
+        </dl>
+
+        <p class="mt-10 max-w-(--measure-body) text-base/7 text-muted dark:text-darkmutedtext">
+          Genauer: ein
+          <strong class="font-semibold text-main dark:text-darktext"
+            >Link-Queue-Modell</strong
+          >, dieselbe Familie, die MATSim benutzt – die Arbeitslinie von Kai
+          Nagel, am selben Institut. Diese Herkunft ist der Grund, es einer
+          von Hand angepassten Kurve vorzuziehen: Es ist ein veröffentlichtes
+          Modell, das sich nachschlagen und bestreiten lässt, keine Formel,
+          an der so lange gedreht wurde, bis das Ergebnis plausibel aussah.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  {# --- the queue mechanics --- #}
+  <section>
+    <div class="relative mx-auto max-w-7xl py-20 pr-6 lg:py-28 lg:pr-8">
+      <div class="pl-(--gutter)">
+        <h2 class="relative text-3xl/10 font-semibold tracking-tight text-main sm:text-4xl/10 dark:text-darktext">
+          <span class="metro-station" aria-hidden="true"></span>
+          Eine Straße ist eine Warteschlange
+        </h2>
+        <p class="mt-4 max-w-2xl text-lg/8 text-muted dark:text-darkmutedtext">
+          Jede Kante im Netz hat eine Freiflusszeit, eine Abflusskapazität und
+          einen Speicherplatz. Ein Fahrzeug darf sie nicht schneller
+          verlassen, als das Tempolimit erlaubt, reiht sich dann in eine
+          Schlange ein und wartet auf Budget – und darf erst weiter, wenn die
+          nächste Kante noch Platz hat. Ist sie voll, bleibt es stehen, und
+          alles dahinter auch. Das ist Rückstau, und es ist keine Formel,
+          sondern zwei Mechanismen.
+        </p>
+        <p class="mt-8 max-w-(--measure-body) text-base/7 text-muted dark:text-darkmutedtext">
+          Ein Modell dieser Art errechnet nirgends eine Geschwindigkeit aus
+          Belastung und muss deshalb auch keinen künstlichen Boden dagegen
+          setzen. Der Preis dafür: Es kann sich wirklich verklemmen – ein
+          Ring aus Kanten, jede voll mit Fahrzeugen, die auf die nächste
+          wollen. Ein Knoten, der länger nichts bewegt hat, gibt dann
+          trotzdem frei, über die Speichergrenze hinweg, und die Simulation
+          zählt das mit.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  {# --- who queues, reusing the landing page's four mode icons --- #}
+  <section>
+    <div class="relative mx-auto max-w-7xl py-20 pr-6 lg:py-28 lg:pr-8">
+      <div class="pl-(--gutter)">
+        <h2 class="relative text-3xl/10 font-semibold tracking-tight text-main sm:text-4xl/10 dark:text-darktext">
+          <span class="metro-station" aria-hidden="true"></span>
+          Wer sich anstellt
+        </h2>
+        <p class="mt-4 max-w-2xl text-lg/8 text-muted dark:text-darkmutedtext">
+          Nicht jedes Verkehrsmittel wartet auf dieselbe Weise.
+        </p>
+
+        <ul class="mt-12 space-y-10 lg:space-y-12">
+          <li class="flex gap-4">
+            <span class="metro-car flex size-9 shrink-0 items-center justify-center rounded-md bg-(--lane-color) text-darkbody" aria-hidden="true">
+              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 8-2 2-1.5-3.7A2 2 0 0 0 15.646 5H8.4a2 2 0 0 0-1.903 1.257L5 10 3 8" /><path d="M7 14h.01" /><path d="M17 14h.01" /><rect width="18" height="8" x="3" y="10" rx="2" /><path d="M5 18v2" /><path d="M19 18v2" /></svg>
+            </span>
+            <div>
+              <h3 class="text-lg font-semibold text-main dark:text-darktext">Auto</h3>
+              <p class="mt-1 max-w-(--measure-body) text-base/7 text-muted dark:text-darkmutedtext">
+                Immer in der Schlange, immer betroffen, wenn die Kante vor
+                ihm voll ist.
+              </p>
+            </div>
+          </li>
+          <li class="flex gap-4">
+            <span class="metro-pt flex size-9 shrink-0 items-center justify-center rounded-md bg-(--lane-color) text-white" aria-hidden="true">
+              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6 2 7" /><path d="M10 6h4" /><path d="m22 7-2-1" /><rect width="16" height="16" x="4" y="3" rx="2" /><path d="M4 11h16" /><path d="M8 15h.01" /><path d="M16 15h.01" /><path d="M6 19v2" /><path d="M18 21v-2" /></svg>
+            </span>
+            <div>
+              <h3 class="text-lg font-semibold text-main dark:text-darktext">Bus &amp; Bahn</h3>
+              <p class="mt-1 max-w-(--measure-body) text-base/7 text-muted dark:text-darkmutedtext">
+                Ein Bus steht im Mischverkehr und zählt drei Pkw-Einheiten in
+                der gemeinsamen Schlange – nur mit eigener Spur fährt er
+                frei. Eine Bahn hat kein Pendant zur Straße und läuft am Stau
+                vorbei.
+              </p>
+            </div>
+          </li>
+          <li class="flex gap-4">
+            <span class="metro-bike flex size-9 shrink-0 items-center justify-center rounded-md bg-(--lane-color) text-white" aria-hidden="true">
+              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5" /><circle cx="5.5" cy="17.5" r="3.5" /><circle cx="15" cy="5" r="1" /><path d="M12 17.5V14l-3-3 4-3 2 3h2" /></svg>
+            </span>
+            <div>
+              <h3 class="text-lg font-semibold text-main dark:text-darktext">Fahrrad</h3>
+              <p class="mt-1 max-w-(--measure-body) text-base/7 text-muted dark:text-darkmutedtext">
+                Steht nur dort im Verkehr, wo es sich die Straße mit Autos
+                teilt, und hat dort eine eigene Linie mit eigenem Budget: Ein
+                Autostau hält keinen Radfahrer auf, und ein Radfahrer nie ein
+                Auto. Abgewiesen wird ein Rad nie.
+              </p>
+            </div>
+          </li>
+          <li class="flex gap-4">
+            <span class="flex size-9 shrink-0 items-center justify-center rounded-md border-2 border-dotted border-main text-main dark:border-darktext dark:text-darktext" aria-hidden="true">
+              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z" /><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z" /><path d="M16 17h4" /><path d="M4 13h4" /></svg>
+            </span>
+            <div>
+              <h3 class="text-lg font-semibold text-main dark:text-darktext">Zu Fuß</h3>
+              <p class="mt-1 max-w-(--measure-body) text-base/7 text-muted dark:text-darkmutedtext">
+                Steht komplett außerhalb des Warteschlangenmodells.
+              </p>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  {# --- the timetable, and who pays for it --- #}
+  <section>
+    <div class="relative mx-auto max-w-7xl py-20 pr-6 lg:py-28 lg:pr-8">
+      <div class="pl-(--gutter)">
+        <h2 class="relative text-3xl/10 font-semibold tracking-tight text-main sm:text-4xl/10 dark:text-darktext">
+          <span class="metro-station" aria-hidden="true"></span>
+          Der Fahrplan fährt so oder so
+        </h2>
+        <p class="mt-4 max-w-2xl text-lg/8 text-muted dark:text-darkmutedtext">
+          Ein Linienfahrzeug ist im Modell ein ganz normales Fahrzeug auf
+          einer künstlichen Route – es steht in der Schlange, staut zurück
+          und fährt durch eine Busschleuse, ohne eine einzige eigene
+          Codezeile. Und es steigen wirklich Leute ein: an einer Haltestelle,
+          bis zur freien Kapazität, mit gemessener statt addierter
+          Wartezeit.
+        </p>
+        <p class="mt-6 flex max-w-2xl gap-3 rounded-md bg-accent px-4 py-3 text-sm/6 font-medium text-darkbody">
+          <svg class="mt-0.5 size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2 9 3-3 3 3" /><path d="M13 18H7a2 2 0 0 1-2-2V6" /><path d="m22 15-3 3-3-3" /><path d="M11 6h6a2 2 0 0 1 2 2v10" /></svg>
+          <span>
+            Die Gesellschaft bezahlt den Fahrplan: Eine Linie stößt Fahrzeuge
+            × Linienkilometer × Faktor aus, nie geteilt durch Sitzplätze. Ein
+            leerer Bus ist nicht sauber, und eine Linie, die niemand benutzt
+            hat, kostet die Runde trotzdem.
+          </span>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  {# --- the speed-dependent emission curve --- #}
+  <section>
+    <div class="relative mx-auto max-w-7xl py-20 pr-6 lg:py-28 lg:pr-8">
+      <div class="pl-(--gutter)">
+        <h2 class="relative text-3xl/10 font-semibold tracking-tight text-main sm:text-4xl/10 dark:text-darktext">
+          <span class="metro-station" aria-hidden="true"></span>
+          CO<sub>2</sub> hängt an der Geschwindigkeit
+        </h2>
+        <p class="mt-4 max-w-2xl text-lg/8 text-muted dark:text-darkmutedtext">
+          Emissionen sind kein fester Wert pro Kilometer. Ein Auto im
+          Stop-and-go verbrennt Kraftstoff, den es nicht in Strecke umsetzt,
+          und eines bei hohem Tempo kämpft gegen den Luftwiderstand –
+          dazwischen liegt ein Minimum bei 70 km/h. 50 km/h ist der Anker:
+          der Wert, auf den die Kurve gelegt wird, nicht einer, den sie zufällig trifft.
+        </p>
+
+        <div class="mt-10 max-w-2xl overflow-x-auto">
+          <table class="w-full border-collapse text-left text-sm">
+            <thead>
+              <tr class="border-b-2 border-main dark:border-darktext">
+                <th scope="col" class="py-2 pr-4 font-semibold text-main dark:text-darktext">km/h</th>
+                <th scope="col" class="py-2 pr-4 text-right font-mono font-medium text-main dark:text-darktext">10</th>
+                <th scope="col" class="py-2 pr-4 text-right font-mono font-medium text-main dark:text-darktext">20</th>
+                <th scope="col" class="py-2 pr-4 text-right font-mono font-medium text-main dark:text-darktext">30</th>
+                <th scope="col" class="py-2 pr-4 text-right font-mono font-medium text-main dark:text-darktext">40</th>
+                <th scope="col" class="py-2 pr-4 text-right font-mono font-medium text-primary-600 dark:text-primary-300">50</th>
+                <th scope="col" class="py-2 pr-4 text-right font-mono font-medium text-main dark:text-darktext">70</th>
+                <th scope="col" class="py-2 text-right font-mono font-medium text-main dark:text-darktext">100</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="py-2 pr-4 text-muted dark:text-darkmutedtext">g CO<sub>2</sub>/km</td>
+                <td class="py-2 pr-4 text-right font-mono text-muted dark:text-darkmutedtext">317</td>
+                <td class="py-2 pr-4 text-right font-mono text-muted dark:text-darkmutedtext">220</td>
+                <td class="py-2 pr-4 text-right font-mono text-muted dark:text-darkmutedtext">188</td>
+                <td class="py-2 pr-4 text-right font-mono text-muted dark:text-darkmutedtext">174</td>
+                <td class="py-2 pr-4 text-right font-mono font-medium text-primary-600 dark:text-primary-300">166,8</td>
+                <td class="py-2 pr-4 text-right font-mono text-muted dark:text-darkmutedtext">162,5</td>
+                <td class="py-2 text-right font-mono text-muted dark:text-darkmutedtext">169</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="mt-8 max-w-(--measure-body) text-base/7 text-muted dark:text-darkmutedtext">
+          Eine Tempo-30-Straße stößt pro Kilometer rund 13 % mehr aus als
+          eine 50er – auch leer. Das ist in jedem geschwindigkeitsabhängigen
+          Modell so: real, nicht Zufall, und ein Grund, warum eine Straße im
+          Spiel mehr sein kann als nur „frei“ oder „voll“.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  {# --- calibration, not guesswork --- #}
+  <section>
+    <div class="relative mx-auto max-w-7xl py-20 pr-6 lg:py-28 lg:pr-8">
+      <div class="pl-(--gutter)">
+        <h2 class="relative text-3xl/10 font-semibold tracking-tight text-main sm:text-4xl/10 dark:text-darktext">
+          <span class="metro-station" aria-hidden="true"></span>
+          Gemessen, nicht geschätzt
+        </h2>
+        <p class="mt-4 max-w-2xl text-lg/8 text-muted dark:text-darkmutedtext">
+          Die Physik – Kapazitäten, Emissionskurve – war nicht der Teil, über
+          den entschieden werden musste; das sind Messwerte. Gewählt werden
+          musste, wie groß die Welt ist: wie viele Menschen auf einer Karte
+          unterwegs sind und was eine Runde kosten darf. Beide Zahlen hängen
+          an der Karte, nicht am Code, denn eine andere Stadt ist ein anderes
+          Paar.
+        </p>
+        <p class="mt-8 max-w-(--measure-body) text-base/7 text-muted dark:text-darkmutedtext">
+          Was das ersetzt hat, zeigt, wie unkalibriert aussieht: Mit 1.000
+          Menschen pro Fahrgast fuhr eine volle Klasse 64.000 Autos auf 82
+          Straßenkanten – keine Blockade, alle kamen an, aber die mittlere
+          Fahrzeit für 7,66 km lag bei 298 Minuten. Fünf Stunden. Das Modell
+          war richtig, die Nachfrage nicht. Mit der gemessenen Zahl dieser
+          Karte – 6.400 Pendler – sind es 20,4 Minuten, ungefähr so viel wie
+          der reale Berufsverkehr in der Berliner Innenstadt braucht.
+        </p>
+        <p class="mt-6 max-w-(--measure-body) text-base/7 text-muted dark:text-darkmutedtext">
+          Steigt die Hälfte der Klasse auf ein anderes Verkehrsmittel um, ist
+          der Stau vollständig weg – kein Verlauf, sondern eine Schwelle
+          dicht an der Kapazität. Genau das ist der Punkt der Übung.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  {# --- end: back into the game --- #}
+  <section>
+    <div class="relative mx-auto max-w-7xl pt-16 pr-6 pb-24 sm:pt-24 lg:pr-8 lg:pb-32">
+      <div class="pl-(--gutter)">
+        <p class="relative text-sm/6 font-medium tracking-wide text-muted uppercase dark:text-darkmutedtext">
+          <span class="metro-terminus" aria-hidden="true">
+            <svg class="size-5 text-main dark:text-darktext" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></svg>
+          </span>
+          Ziel: zurück ins Spiel
+        </p>
+        <h2 class="mt-6 max-w-3xl text-4xl/[1.05] font-medium tracking-tight text-balance text-main sm:text-5xl/[1.05] dark:text-darktext">
+          Jetzt sehen, was das für eine Runde bedeutet
+        </h2>
+        <p class="mt-6 max-w-2xl text-lg/8 text-muted dark:text-darkmutedtext">
+          Der Rest steht auf der Karte: wie viele Menschen ein Fahrgast
+          vertritt, welches Budget eine Runde hat und welche Linien
+          tatsächlich fahren.
+        </p>
+        <div class="mt-10 flex flex-wrap items-center gap-x-6 gap-y-4">
+          <a
+            href="{% url 'session-create' %}"
+            class="rounded-lg bg-primary-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-primary-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 dark:bg-primary-500 dark:hover:bg-primary-400"
+          >
+            Spiel erstellen
+          </a>
+          <a
+            href="{% url 'index' %}"
+            class="text-sm/6 font-semibold text-main transition hover:text-primary-600 dark:text-darktext dark:hover:text-primary-300"
+          >
+            Zur Startseite <span aria-hidden="true">→</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}
