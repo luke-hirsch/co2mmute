@@ -232,9 +232,12 @@ class BaseTemplateTests(TestCase):
         ):
             self.assertIn(f'href="{href}"', footer)
 
-    def test_the_lockup_is_drawn_from_the_shared_file(self):
+    def test_the_lockup_is_the_shared_mark_and_the_name_as_text(self):
         html = self._page()
 
+        # Header and phone menu, both from the one drawing.
         uses = re.findall(r'<use href="([^"]+)"', html)
-        self.assertEqual(uses, ["/static/img/lockup.svg#lockup"] * 2)
+        self.assertEqual(uses, ["/static/img/mark.svg#mark"] * 2)
         self.assertNotIn("logo.svg", html)
+        # The rest of the name is text in the page's font, not paths.
+        self.assertEqual(html.count("O<sub>2</sub>mmute</span>"), 2)
