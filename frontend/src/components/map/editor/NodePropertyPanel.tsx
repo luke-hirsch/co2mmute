@@ -1,8 +1,17 @@
+import { useEffect, useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import {
+  EditorFact,
+  EditorField,
+  EditorNote,
+  EditorPanel,
+  editorControl,
+} from "@/components/map/editor/editor-panel";
 import { de } from "@/lib/de";
-import { useState, useEffect } from "react";
-import type { Node, NodeType } from "../../../types/mapTypes";
 import { useNodeTypes } from "@/lib/queries/map-graph";
-import { useUpdateNode, useDeleteNode } from "@/lib/queries/map-editor";
+import { useDeleteNode, useUpdateNode } from "@/lib/queries/map-editor";
+import type { Node, NodeType } from "../../../types/mapTypes";
 
 interface NodePropertyPanelProps {
   node: Node;
@@ -57,77 +66,71 @@ const NodePropertyPanel = ({ node, mapId }: NodePropertyPanelProps) => {
     node.node_type.some((t) => !selectedTypeIds.has(t.id));
 
   return (
-    <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle space-y-3">
-      <h3 className="text-lg font-semibold text-main dark:text-darktext">{de.editor.node.title}</h3>
-
-      <div>
-        <label className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.node.name}</label>
+    <EditorPanel title={de.editor.node.title}>
+      <EditorField label={de.editor.node.name}>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder={de.editor.node.numbered(node.id)}
-          className="w-full mt-1 px-2 py-1 text-sm rounded border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext"
+          className={editorControl}
         />
-      </div>
+      </EditorField>
 
-      <div>
-        <p className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.node.position}</p>
-        <p className="text-sm text-main dark:text-darktext">
+      <EditorFact label={de.editor.node.position}>
+        <span className="font-mono">
           ({node.x_position.toFixed(2)}, {node.y_position.toFixed(2)})
-        </p>
-      </div>
+        </span>
+      </EditorFact>
 
-      <div>
-        <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">{de.editor.node.types}</p>
-        <div className="flex flex-wrap gap-1">
+      <EditorFact label={de.editor.node.types}>
+        <div className="flex flex-wrap gap-1.5">
+          {/* A type is on or off, so the button that sets it is filled or
+              outlined — the same filled-vs-hollow the map marks use, and the
+              reason `bg-indigo-600` had nothing to be. */}
           {(allNodeTypes ?? []).map((t: NodeType) => (
-            <button
+            <Button
               key={t.id}
+              size="xs"
+              variant={selectedTypeIds.has(t.id) ? "default" : "outline"}
               onClick={() => toggleType(t.id)}
-              className={`text-xs px-2 py-0.5 rounded transition-colors ${
-                selectedTypeIds.has(t.id)
-                  ? "bg-indigo-600 text-white"
-                  : "bg-body dark:bg-darkbody text-mutedtext dark:text-darkmutedtext border border-subtle dark:border-darksubtle"
-              }`}
             >
               {t.short} — {t.name}
-            </button>
+            </Button>
           ))}
           {(!allNodeTypes || allNodeTypes.length === 0) && (
-            <span className="text-xs text-mutedtext dark:text-darkmutedtext">
-              {de.editor.node.noTypes}
-            </span>
+            <EditorNote>{de.editor.node.noTypes}</EditorNote>
           )}
         </div>
-      </div>
+      </EditorFact>
 
-      <div className="flex gap-2 pt-2">
-        <button
+      <div className="flex gap-2 pt-1">
+        <Button
+          size="sm"
+          className="flex-1"
           onClick={handleSave}
           disabled={updateMutation.isPending || !hasChanges}
-          className="flex-1 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
         >
-          {updateMutation.isPending ? "Saving..." : de.editor.save}
-        </button>
-        <button
+          {updateMutation.isPending ? de.editor.saving : de.editor.save}
+        </Button>
+        <Button
+          size="sm"
+          variant="destructive"
           onClick={handleDelete}
           disabled={deleteMutation.isPending}
-          className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
         >
           {de.editor.delete}
-        </button>
+        </Button>
       </div>
-      {updateMutation.isSuccess && (
-        <p className="text-xs text-green-600 dark:text-green-400">{de.editor.saved}</p>
-      )}
+
+      {updateMutation.isSuccess && <EditorNote>{de.editor.saved}</EditorNote>}
       {updateMutation.isError && (
-        <p className="text-xs text-red-600 dark:text-red-400">{updateMutation.error?.message}</p>
+        <EditorNote tone="attention">{updateMutation.error?.message}</EditorNote>
       )}
       {deleteMutation.isError && (
-        <p className="text-xs text-red-600 dark:text-red-400">{deleteMutation.error?.message}</p>
+        <EditorNote tone="attention">{deleteMutation.error?.message}</EditorNote>
       )}
-    </div>
+    </EditorPanel>
   );
 };
 

@@ -1,12 +1,26 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+
+import { ProtectedLayout } from "@/components/ProtectedLayout";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { MapIndex } from "@/components/map/map-index";
 
 /**
- * `/app/maps/` has no list of its own — the map list is a Django page
- * (`/map/list/`). This route only ever bounced elsewhere; it keeps doing that,
- * now without leaving the router. F7 gives the editor a real index.
+ * `/app/maps` — a real list since S18.
+ *
+ * It used to be `beforeLoad: () => { throw redirect({ to: "/join" }) }`, which
+ * is why "alle Karten", `/app/maps` and the landing spot after deleting a map
+ * all put a logged-in host on a student's join screen. See `map-index.tsx`.
  */
+function MapIndexRoute() {
+  return (
+    <ProtectedLayout>
+      <ProtectedRoute staff>
+        <MapIndex />
+      </ProtectedRoute>
+    </ProtectedLayout>
+  );
+}
+
 export const Route = createFileRoute("/maps/")({
-  beforeLoad: () => {
-    throw redirect({ to: "/join" });
-  },
+  component: MapIndexRoute,
 });

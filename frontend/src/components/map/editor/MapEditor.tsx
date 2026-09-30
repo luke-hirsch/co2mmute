@@ -14,10 +14,13 @@ import {
   useCreateEdge,
   useDeleteEdge,
 } from "@/lib/queries/map-editor";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import Loading from "../../Loading";
 import EditorToolbar from "./EditorToolbar";
 import EditorCanvas from "./EditorCanvas";
 import EditorSidebar from "./EditorSidebar";
+import { EditorViewportGate } from "./viewport-gate";
 import type {
   EditorState,
   EditorAction,
@@ -481,36 +484,46 @@ const MapEditor = () => {
     mapGraph?.edges,
   ]);
 
-  if (mapLoading || graphLoading) return <Loading />;
+  if (mapLoading || graphLoading) {
+    return (
+      <div className="min-h-dvh bg-background">
+        <Loading label={de.editor.loading} />
+      </div>
+    );
+  }
   if (!gameMap) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg text-red-600 dark:text-red-400">
-          {de.editor.notFound}
+      <main className="flex min-h-dvh items-center bg-background px-4 text-foreground">
+        <div className="mx-auto max-w-(--measure-body)">
+          <Alert variant="destructive">
+            <AlertDescription>{de.editor.notFound}</AlertDescription>
+          </Alert>
+          <Button asChild variant="outline" className="mt-6">
+            <Link to="/maps">{de.map.allMaps}</Link>
+          </Button>
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-body to-surface dark:from-darkbody dark:to-darksurface">
-      <div className="max-w-[1600px] mx-auto px-4 py-4">
+    <EditorViewportGate>
+    <div className="min-h-dvh bg-background text-foreground">
+      <div className="mx-auto max-w-[1600px] px-4 py-4">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-4">
-            <Link
-              to="/maps/$mapId"
-              params={{ mapId }}
-              className="text-sm text-mutedtext dark:text-darkmutedtext hover:text-main dark:hover:text-darktext"
-            >
-              &larr; {de.editor.back}
-            </Link>
-            <h1 className="text-2xl font-bold text-main dark:text-darktext">
+            <Button asChild variant="link" size="sm" className="-ml-4">
+              <Link to="/maps/$mapId" params={{ mapId }}>
+                &larr; {de.editor.back}
+              </Link>
+            </Button>
+            <h1 className="text-2xl font-semibold">
               {de.editor.title(gameMap.name)}
             </h1>
           </div>
           {state.isDirty && (
-            <span className="text-sm text-amber-600 dark:text-amber-400">
+            <span className="text-sm font-medium text-destructive">
               {de.editor.unsaved}
             </span>
           )}
@@ -549,11 +562,13 @@ const MapEditor = () => {
         {(createNodeMutation.error ||
           updateNodeMutation.error ||
           createEdgeMutation.error) && (
-          <div className="mt-2 px-3 py-2 text-sm bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-md border border-red-300 dark:border-red-700">
-            {(createNodeMutation.error ||
-              updateNodeMutation.error ||
-              createEdgeMutation.error)?.message}
-          </div>
+          <Alert variant="destructive" className="mt-2">
+            <AlertDescription>
+              {(createNodeMutation.error ||
+                updateNodeMutation.error ||
+                createEdgeMutation.error)?.message}
+            </AlertDescription>
+          </Alert>
         )}
 
         {/* Main content */}
@@ -617,6 +632,7 @@ const MapEditor = () => {
         </div>
       </div>
     </div>
+    </EditorViewportGate>
   );
 };
 

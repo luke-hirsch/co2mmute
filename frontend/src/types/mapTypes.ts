@@ -47,10 +47,19 @@ export interface Edge {
   } | null;
 }
 
+/**
+ * A map's own row, as `GameMapSerializer` actually sends it.
+ *
+ * Two fields were wrong here until S18 and both rendered as nothing rather than
+ * as an error: `author` is a **primary key**, not a nested user — the serializer
+ * declares no nested one, so `gameMap.author.username` on the detail page read
+ * `undefined` and printed an empty "Angelegt von" — and `description` is not a
+ * column on `GameMap` at all, so the block that rendered it never ran. The
+ * Django list template printed the same non-existent field.
+ */
 export interface GameMap {
   id: number;
   name: string;
-  description?: string;
   x_dim: number;
   y_dim: number;
   scale: number;
@@ -58,10 +67,15 @@ export interface GameMap {
   walk_speed_kmh: number;
   bike_speed_kmh: number;
   default_car_speed_kmh: number;
+  /** The calibration, per map because it is a property of the graph. */
+  district_commuters: number;
+  co2_budget_kg_per_round: number;
+  /** Whether a game on this map can ever reach a ballot. */
+  offers_map_changes: boolean;
   created: string;
   updated: string;
-  author: User;
-  updated_by?: User;
+  author: number | null;
+  updated_by?: number | null;
   background_image_url?: string | null;
   image_offset_x?: number;
   image_offset_y?: number;

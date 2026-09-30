@@ -1,5 +1,13 @@
-import { de } from "@/lib/de";
 import { useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import {
+  EditorField,
+  EditorNote,
+  EditorPanel,
+  editorControl,
+} from "@/components/map/editor/editor-panel";
+import { de } from "@/lib/de";
 import type { GameMap } from "../../../types/mapTypes";
 import { useUpdateMapSettings } from "@/lib/queries/map-editor";
 
@@ -78,29 +86,18 @@ const MapSettingsPanel = ({ mapId, gameMap }: MapSettingsPanelProps) => {
   ];
 
   return (
-    <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle space-y-3">
-      <h3 className="text-lg font-semibold text-main dark:text-darktext">
-        {de.editor.settings.title}
-      </h3>
-
-      <div>
-        <label className="block text-xs text-mutedtext dark:text-darkmutedtext mb-1">
-          {de.editor.settings.name}
-        </label>
+    <EditorPanel title={de.editor.settings.title}>
+      <EditorField label={de.editor.settings.name}>
         <input
           type="text"
           value={values.name}
           onChange={(e) => setValues((prev) => ({ ...prev, name: e.target.value }))}
-          className="w-full px-2 py-1.5 text-sm rounded-md border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext"
+          className={editorControl}
         />
-      </div>
+      </EditorField>
 
       {numberFields.map(({ field, label, min, max, step }) => (
-        <div key={field}>
-          <label className="flex justify-between text-xs text-mutedtext dark:text-darkmutedtext mb-1">
-            <span>{label}</span>
-            <span>{values[field]}</span>
-          </label>
+        <EditorField key={field} label={label} value={values[field]}>
           <input
             type="number"
             min={min}
@@ -110,24 +107,29 @@ const MapSettingsPanel = ({ mapId, gameMap }: MapSettingsPanelProps) => {
             onChange={(e) =>
               setValues((prev) => ({ ...prev, [field]: Number(e.target.value) }))
             }
-            className="w-full px-2 py-1.5 text-sm rounded-md border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext"
+            className={editorControl}
           />
-        </div>
+        </EditorField>
       ))}
 
-      <div className="pt-2">
-        <button
-          onClick={handleSave}
-          disabled={updateMutation.isPending}
-          className="w-full px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
-        >
-          {updateMutation.isPending ? "Saving..." : de.editor.saveSettings}
-        </button>
-      </div>
-      {updateMutation.isSuccess && (
-        <p className="text-xs text-green-600 dark:text-green-400">{de.editor.saved}</p>
+      <Button
+        size="sm"
+        className="w-full"
+        onClick={handleSave}
+        disabled={updateMutation.isPending}
+      >
+        {/* Was `"Saving..."`, live, in a German-only SPA. A one-word literal is
+            skipped by `german.test.ts` on purpose, so five of these survived
+            S17 across the editor's panels. */}
+        {updateMutation.isPending ? de.editor.saving : de.editor.saveSettings}
+      </Button>
+      {updateMutation.isSuccess && <EditorNote>{de.editor.saved}</EditorNote>}
+      {updateMutation.isError && (
+        <EditorNote tone="attention">
+          {updateMutation.error?.message ?? de.editor.saveFailed}
+        </EditorNote>
       )}
-    </div>
+    </EditorPanel>
   );
 };
 

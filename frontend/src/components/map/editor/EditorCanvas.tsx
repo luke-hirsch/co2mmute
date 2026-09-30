@@ -4,8 +4,18 @@ import type { ExtendedMapGraph } from "../../../types/routeTypes";
 import type { EditorState, EdgeChange, VirtualNode, VirtualEdge } from "../../../types/editorTypes";
 import { imageRect, viewBox, type ImageFields } from "@/lib/map/view-box";
 import { EdgeHitArea } from "@/components/map/edge-hit-area";
-import { MapLegend, type LegendItem } from "@/components/map/map-legend";
+import { MapLegend } from "@/components/map/map-legend";
 import { de } from "@/lib/de";
+import {
+  bundleKey,
+  bundleLines,
+  edgeLayers,
+  editorPaint,
+  nodeMark,
+  offsetLine,
+  PT_LINE_PAINT,
+  type EdgeLayer,
+} from "@/lib/map/palette";
 
 interface EditorCanvasProps {
   gameMap: GameMap;
@@ -25,56 +35,50 @@ interface EditorCanvasProps {
   onVirtualNodeClick?: (tempId: string) => void;
 }
 
-const getEdgeColorAndStyle = (edge: any) => {
-  const hasStreetEdge = edge.street_edge !== null;
-  const hasTrainEdge = edge.train_edge !== null;
-  if (hasTrainEdge && !hasStreetEdge)
-    return { stroke: "#ef4444", strokeDasharray: "5,5" };
-  if (hasStreetEdge && hasTrainEdge)
-    return { stroke: "#f97316", strokeDasharray: "0" };
-  if (hasStreetEdge) return { stroke: "#475569", strokeDasharray: "0" };
-  if (edge.biking && !edge.walking)
-    return { stroke: "#3b82f6", strokeDasharray: "0" };
-  if (edge.walking && !edge.biking)
-    return { stroke: "#10b981", strokeDasharray: "0" };
-  return { stroke: "#8b5cf6", strokeDasharray: "0" };
-};
-
-const getNodeColor = (nodeTypes: any[]) => {
-  const typeNames = nodeTypes.map((t: any) => t.name);
-  if (typeNames.includes("home")) return "#10b981";
-  if (typeNames.includes("workplace")) return "#3b82f6";
-  if (typeNames.includes("station")) return "#f59e0b";
-  if (typeNames.includes("bus_stop")) return "#ef4444";
-  return "#6b7280";
-};
-
-// All edge colors used by getEdgeColorAndStyle
-const EDGE_COLORS = ["#ef4444", "#f97316", "#475569", "#3b82f6", "#10b981", "#8b5cf6"];
-
 /**
- * The legend, read straight off the two colour functions above. Kept next to
- * them on purpose: if a colour changes there, this is the line that has to
- * change with it, and it is in the same screenful.
+ * The editor's own paint comes from `lib/map/palette.ts` now, like the detail
+ * page's. This file used to carry eleven hexes, an eight-colour PT palette and
+ * two legend arrays restating them — and its street was `#475569` where the
+ * detail page drew `#6b7280`, the same edge in two colours depending on which
+ * screen you had open.
+ *
+ * Two rules from the rulebook decide what is left:
+ *
+ * - **Primary is what you are adding**, accent is what you are removing or what
+ *   the editor is waiting on. That replaces green-for-proposed, red-for-deleted
+ *   and three separate ambers with one pair a reader can hold.
+ * - **A line is not a colour.** Twelve lines on the shipped map had eight hues
+ *   between them, and two lines sharing a street were drawn on the same
+ *   coordinates — so whichever came last was the only one you could see, which
+ *   is most corridors. They are all the accent and they sit side by side.
  */
-const LEGEND_EDGES: LegendItem[] = [
-  { color: "#475569", label: de.map.legend.street },
-  { color: "#ef4444", label: de.map.legend.train, dash: "5,5" },
-  { color: "#f97316", label: de.map.legend.streetAndTrain },
-  { color: "#3b82f6", label: de.map.legend.bike },
-  { color: "#10b981", label: de.map.legend.walk },
-  { color: "#8b5cf6", label: de.map.legend.bikeAndWalk },
-];
 
-const LEGEND_NODES: LegendItem[] = [
-  { color: "#10b981", label: de.map.legend.home },
-  { color: "#3b82f6", label: de.map.legend.workplace },
-  { color: "#f59e0b", label: de.map.legend.station },
-  { color: "#ef4444", label: de.map.legend.busStop },
-  { color: "#6b7280", label: de.map.legend.other },
+/** The arrowhead for one layer, so a marker id is a name and not a hex. */
+const ARROW_ID: Record<EdgeLayer["kind"] | "proposed", string> = {
+  street: "arrow-street",
+  rail: "arrow-rail",
+  bikeway: "arrow-bikeway",
+  footway: "arrow-footway",
+  proposed: "arrow-proposed",
+};
+
+/** Every paint an arrowhead is needed in, with the id it is filed under. */
+const ARROWS: { id: string; paint: string }[] = [
+  ...(["street", "rail", "bikeway", "footway"] as const).map((kind) => ({
+    id: ARROW_ID[kind],
+    // One example of each kind, drawn by the same function the edges use.
+    paint: edgeLayers(
+      kind === "street"
+        ? { street_edge: {} }
+        : kind === "rail"
+          ? { train_edge: {} }
+          : kind === "bikeway"
+            ? { biking: true }
+            : { walking: true },
+    )[0].color,
+  })),
+  { id: ARROW_ID.proposed, paint: editorPaint.proposed },
 ];
-// Green color for virtual (proposed) nodes and edges
-const VIRTUAL_COLOR = "#22c55e";
 
 const shortenLine = (
   p1: { x: number; y: number },
@@ -91,12 +95,6 @@ const shortenLine = (
     y2: p2.y - dy * ratio,
   };
 };
-
-// Color palette for PT lines
-const PT_LINE_COLORS = [
-  "#8b5cf6", "#06b6d4", "#f59e0b", "#ec4899",
-  "#14b8a6", "#f97316", "#6366f1", "#84cc16",
-];
 
 interface DragState {
   nodeId: number;
@@ -244,7 +242,7 @@ const EditorCanvas = ({
     const h = gameMap.y_dim * 100;
     const img = mapGraph ? getImageGeometry(mapGraph) : null;
     return (
-      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-lg border border-subtle dark:border-darksubtle overflow-hidden">
+      <div className="overflow-hidden rounded-xl border bg-card">
         <svg
           ref={svgRef}
           viewBox={`-60 -60 ${w + 120} ${h + 120}`}
@@ -262,7 +260,12 @@ const EditorCanvas = ({
         >
           <defs>
             <pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse">
-              <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#e5e7eb" strokeWidth="0.5" />
+              <path
+                d="M 100 0 L 0 0 0 100"
+                fill="none"
+                stroke={editorPaint.grid}
+                strokeWidth="0.5"
+              />
             </pattern>
             {img?.hasCrop && (
               <clipPath id="bg-img-clip">
@@ -289,7 +292,7 @@ const EditorCanvas = ({
             y={h / 2}
             textAnchor="middle"
             fontSize="16"
-            fill="#9ca3af"
+            fill={editorPaint.muted}
           >
             {de.editor.emptyMap}
           </text>
@@ -317,9 +320,14 @@ const EditorCanvas = ({
   // Build edge lookup for PT line overlay
   const nodeById = new Map(mapGraph.nodes.map((n) => [n.id, n]));
   const changedEdgeIds = new Set(edgeChanges.map((c) => c.edge_id));
+  const allPtLines = [
+    ...(mapGraph.bus_lines ?? []),
+    ...(mapGraph.train_lines ?? []),
+  ];
+  const ptBundles = bundleLines(allPtLines);
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-lg shadow-lg border border-subtle dark:border-darksubtle overflow-hidden">
+    <div className="overflow-hidden rounded-xl border bg-card">
       <svg
         ref={svgRef}
         viewBox={`${minX} ${minY} ${width} ${height}`}
@@ -347,17 +355,26 @@ const EditorCanvas = ({
           return (
             <defs>
               <pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse">
-                <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#e5e7eb" strokeWidth="0.5" />
+                <path
+                d="M 100 0 L 0 0 0 100"
+                fill="none"
+                stroke={editorPaint.grid}
+                strokeWidth="0.5"
+              />
               </pattern>
               {img.hasCrop && (
                 <clipPath id="bg-img-clip">
                   <rect x={img.clipX} y={img.clipY} width={img.clipW} height={img.clipH} />
                 </clipPath>
               )}
-              {[...EDGE_COLORS, VIRTUAL_COLOR].map((color) => (
+              {/* One arrowhead per paint, keyed by the layer's name. It used
+                  to be keyed by the hex — `arrowhead-ef4444` — which a `var()`
+                  cannot produce a legal id from, and which is why the palette
+                  had to name its layers before this file could use it. */}
+              {ARROWS.map((arrow) => (
                 <marker
-                  key={`arrow-${color}`}
-                  id={`arrowhead-${color.replace("#", "")}`}
+                  key={arrow.id}
+                  id={arrow.id}
                   markerWidth="8"
                   markerHeight="6"
                   refX="7"
@@ -365,7 +382,7 @@ const EditorCanvas = ({
                   orient="auto"
                   markerUnits="strokeWidth"
                 >
-                  <polygon points="0 0, 8 3, 0 6" fill={color} />
+                  <polygon points="0 0, 8 3, 0 6" fill={arrow.paint} />
                 </marker>
               ))}
             </defs>
@@ -400,36 +417,41 @@ const EditorCanvas = ({
           );
         })()}
 
-        {/* PT Line Overlay — existing lines */}
-        {[...(mapGraph.bus_lines ?? []), ...(mapGraph.train_lines ?? [])].map(
-          (line, lineIdx) => {
-            const color = PT_LINE_COLORS[lineIdx % PT_LINE_COLORS.length];
-            return (
-              <g key={`ptline-${line.type}-${line.id}`} pointerEvents="none">
-                {line.edges.map((edgeId: number) => {
-                  const edge = mapGraph.edges.find((e) => e.id === edgeId);
-                  if (!edge) return null;
-                  const sn = nodeById.get(edge.start_node);
-                  const en = nodeById.get(edge.end_node);
-                  if (!sn || !en) return null;
-                  const p1 = getNodePos(sn);
-                  const p2 = getNodePos(en);
-                  return (
-                    <line
-                      key={`ptline-edge-${line.id}-${edgeId}`}
-                      x1={p1.x} y1={p1.y}
-                      x2={p2.x} y2={p2.y}
-                      stroke={color}
-                      strokeWidth="6"
-                      opacity={0.35}
-                      strokeLinecap="round"
-                    />
-                  );
-                })}
-              </g>
-            );
-          }
-        )}
+        {/* PT Line Overlay — existing lines.
+
+            Every line is the accent; what tells two apart is where they run.
+            `bundleLines` says how many lines share a link and which place this
+            one has in the bundle, so several run beside each other on the same
+            street instead of one hiding the rest. */}
+        {allPtLines.map((line) => (
+          <g key={`ptline-${line.type}-${line.id}`} pointerEvents="none">
+            {line.edges.map((edgeId: number) => {
+              const edge = mapGraph.edges.find((e) => e.id === edgeId);
+              if (!edge) return null;
+              const sn = nodeById.get(edge.start_node);
+              const en = nodeById.get(edge.end_node);
+              if (!sn || !en) return null;
+              const place = ptBundles.get(bundleKey(line, edgeId));
+              const at = offsetLine(
+                getNodePos(sn),
+                getNodePos(en),
+                place?.index ?? 0,
+                place?.count ?? 1,
+              );
+              return (
+                <line
+                  key={`ptline-edge-${line.id}-${edgeId}`}
+                  x1={at.x1} y1={at.y1}
+                  x2={at.x2} y2={at.y2}
+                  stroke={PT_LINE_PAINT}
+                  strokeWidth="6"
+                  opacity={0.45}
+                  strokeLinecap="round"
+                />
+              );
+            })}
+          </g>
+        ))}
 
         {/* PT Line creation overlay — edges being selected */}
         {ptLineEdgeIds.map((edgeId, idx) => {
@@ -445,7 +467,7 @@ const EditorCanvas = ({
               <line
                 x1={p1.x} y1={p1.y}
                 x2={p2.x} y2={p2.y}
-                stroke="#fbbf24"
+                stroke={editorPaint.routed}
                 strokeWidth="8"
                 opacity={0.6}
                 strokeLinecap="round"
@@ -456,8 +478,8 @@ const EditorCanvas = ({
                 y={(p1.y + p2.y) / 2 - 8}
                 textAnchor="middle"
                 fontSize="10"
-                fill="#fbbf24"
-                fontWeight="bold"
+                fill={editorPaint.routed}
+                fontWeight="600"
               >
                 {idx + 1}
               </text>
@@ -484,7 +506,7 @@ const EditorCanvas = ({
           const isInPtRoute = ptLineEdgeIds.includes(edge.id);
           const isChanged = changedEdgeIds.has(edge.id);
           const isDeleted = deletedEdgeIds.has(edge.id);
-          const { stroke, strokeDasharray } = getEdgeColorAndStyle(edge);
+          const layers = edgeLayers(edge);
 
           return (
             <g key={`edge-${edge.id}`}>
@@ -492,17 +514,18 @@ const EditorCanvas = ({
               {isChanged && state.mode === "version-diff" && !isDeleted && (
                 <line
                   x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
-                  stroke="#fbbf24"
+                  stroke={editorPaint.changed}
                   strokeWidth="10"
                   opacity={0.4}
                   strokeLinecap="round"
                 />
               )}
-              {/* Red deletion overlay */}
+              {/* What this version takes away: the accent, over an edge drawn
+                  at a quarter opacity below. */}
               {isDeleted && state.mode === "version-diff" && (
                 <line
                   x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
-                  stroke="#ef4444"
+                  stroke={editorPaint.removed}
                   strokeWidth="8"
                   opacity={0.5}
                   strokeLinecap="round"
@@ -523,15 +546,22 @@ const EditorCanvas = ({
               )}
               {(() => {
                 const shortened = shortenLine(p1, p2);
-                return (
+                // One stroke per layer, and the arrowhead on the topmost one
+                // only — two heads on one link read as two links.
+                return layers.map((layer, index) => (
                   <line
+                    key={layer.kind}
                     x1={p1.x} y1={p1.y} x2={shortened.x2} y2={shortened.y2}
-                    stroke={stroke}
+                    stroke={layer.color}
                     strokeWidth={isSelected ? "5" : "3"}
-                    strokeDasharray={strokeDasharray}
+                    strokeDasharray={layer.dash}
                     strokeLinecap="round"
                     opacity={isDeleted ? 0.25 : isSelected || isInPtRoute ? 1 : 0.7}
-                    markerEnd={isDeleted ? undefined : `url(#arrowhead-${stroke.replace("#", "")})`}
+                    markerEnd={
+                      isDeleted || index !== layers.length - 1
+                        ? undefined
+                        : `url(#${ARROW_ID[layer.kind]})`
+                    }
                     className={`${edgesClickable && !isDeleted ? "cursor-pointer hover:opacity-100" : ""} transition-all`}
                     pointerEvents={edgesClickable && !isDeleted ? "auto" : "none"}
                     onClick={(e) => {
@@ -540,7 +570,7 @@ const EditorCanvas = ({
                       onEdgeClick(edge.id);
                     }}
                   />
-                );
+                ));
               })()}
               {/* Edge label */}
               {edge.name && !isDeleted && (
@@ -549,7 +579,7 @@ const EditorCanvas = ({
                   y={(p1.y + p2.y) / 2 - 6}
                   textAnchor="middle"
                   fontSize="8"
-                  fill={stroke}
+                  fill={layers[layers.length - 1].color}
                   className="pointer-events-none select-none"
                   opacity={0.8}
                 >
@@ -578,12 +608,12 @@ const EditorCanvas = ({
             <g key={`virtual-edge-${ve.tempId}`} pointerEvents="none">
               <line
                 x1={p1.x} y1={p1.y} x2={shortened.x2} y2={shortened.y2}
-                stroke={VIRTUAL_COLOR}
+                stroke={editorPaint.proposed}
                 strokeWidth="3"
                 strokeDasharray="8,4"
                 strokeLinecap="round"
                 opacity={0.9}
-                markerEnd={`url(#arrowhead-${VIRTUAL_COLOR.replace("#", "")})`}
+                markerEnd={`url(#${ARROW_ID.proposed})`}
               />
             </g>
           );
@@ -595,7 +625,8 @@ const EditorCanvas = ({
           const isSelected = state.selectedNodeId === node.id;
           const isDragging = dragOffset?.nodeId === node.id;
           const isDeleted = deletedNodeIds.has(node.id);
-          const radius = isSelected ? 14 : 10;
+          const mark = nodeMark(node.node_type);
+          const radius = (isSelected ? 14 : 10) * mark.scale;
 
           return (
             <g key={`node-${node.id}`}>
@@ -603,9 +634,9 @@ const EditorCanvas = ({
                 cx={pos.x}
                 cy={pos.y}
                 r={radius}
-                fill={getNodeColor(node.node_type)}
-                stroke={isSelected ? "#000" : "none"}
-                strokeWidth={isSelected ? "2" : "0"}
+                fill={mark.filled ? mark.color : editorPaint.surface}
+                stroke={isSelected ? editorPaint.ink : mark.color}
+                strokeWidth={isSelected ? "3" : "2.5"}
                 opacity={isDeleted ? 0.25 : 1}
                 className={
                   isDragMode
@@ -639,7 +670,7 @@ const EditorCanvas = ({
               {isDeleted && isVersionDiffMode && (
                 <circle
                   cx={pos.x} cy={pos.y} r={radius + 2}
-                  fill="#ef4444"
+                  fill={editorPaint.removed}
                   opacity={0.5}
                   className="pointer-events-none"
                 />
@@ -648,7 +679,7 @@ const EditorCanvas = ({
               {isAddEdgeMode && state.edgeSourceNodeId === node.id && (
                 <circle
                   cx={pos.x} cy={pos.y} r={18}
-                  fill="none" stroke="#f59e0b" strokeWidth="3"
+                  fill="none" stroke={editorPaint.pending} strokeWidth="3"
                   strokeDasharray="6,3"
                   className="pointer-events-none"
                 />
@@ -657,7 +688,7 @@ const EditorCanvas = ({
                 <text
                   x={pos.x} y={pos.y + radius + 15}
                   textAnchor="middle" fontSize="11" fill="currentColor"
-                  className="text-main dark:text-darktext pointer-events-none font-semibold"
+                  className="pointer-events-none font-medium text-foreground"
                   style={{ transition: isDragging ? "none" : "all 0.15s" }}
                 >
                   {node.name}
@@ -683,15 +714,15 @@ const EditorCanvas = ({
             >
               <circle
                 cx={x} cy={y} r={10}
-                fill="white"
-                stroke={VIRTUAL_COLOR}
+                fill={editorPaint.surface}
+                stroke={editorPaint.proposed}
                 strokeWidth="2.5"
                 strokeDasharray="5,3"
               />
               {isEdgeSource && (
                 <circle
                   cx={x} cy={y} r={18}
-                  fill="none" stroke="#f59e0b" strokeWidth="3"
+                  fill="none" stroke={editorPaint.pending} strokeWidth="3"
                   strokeDasharray="6,3"
                   className="pointer-events-none"
                 />
@@ -703,11 +734,7 @@ const EditorCanvas = ({
 
       {/* "Legende fehlt" on the old README list: you draw a map in six colours
           and nothing says which is a tram track and which is a footpath. */}
-      <MapLegend
-        edges={LEGEND_EDGES}
-        nodes={LEGEND_NODES}
-        className="border-t border-subtle px-5 py-4 dark:border-darksubtle"
-      />
+      <MapLegend className="border-t px-5 py-4" />
     </div>
   );
 };

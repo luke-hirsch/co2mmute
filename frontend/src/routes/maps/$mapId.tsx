@@ -1,7 +1,8 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
-import { ProtectedLayout } from "../../components/ProtectedLayout";
 
-function MapDetailLayout() {
+import { ProtectedLayout } from "@/components/ProtectedLayout";
+
+function MapLayout() {
   return (
     <ProtectedLayout>
       <Outlet />
@@ -10,5 +11,5 @@ function MapDetailLayout() {
 }
 
 export const Route = createFileRoute("/maps/$mapId")({
-  component: MapDetailLayout,
+  component: MapLayout,
 });

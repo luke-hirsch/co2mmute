@@ -158,6 +158,8 @@ export const de = {
     /** S17: the editor rendered a read-only boolean as "Yes" / "No". */
     yes: "ja",
     no: "nein",
+    /** S18: five `Undo` buttons on the version panel's change list. */
+    undo: "Zurücknehmen",
   },
 
   errors: {
@@ -965,6 +967,38 @@ export const de = {
     allMaps: "← Alle Karten",
     deleteConfirm: (name: string) =>
       `„${name}" löschen? Das lässt sich nicht zurücknehmen.`,
+
+    /** S18: the two things the action bar can fail at, which it used to swallow
+     * into `console.error` and leave the button looking like it had worked. */
+    exporting: "Wird gesichert …",
+    exportFailed: "Die Karte ließ sich nicht sichern.",
+    deleteFailed: "Die Karte ließ sich nicht löschen.",
+
+    /**
+     * `/app/maps` — the list, new in S18. It replaces the Django page at
+     * `/map/list/`, which was still in English and printed a description field
+     * the model does not have.
+     */
+    index: {
+      title: "Karten",
+      lead: "Auf diesen Karten kann gespielt werden.",
+      upload: "Karte hochladen",
+      loading: "Karten werden geladen …",
+      failed: "Die Karten ließen sich nicht laden.",
+      empty: "Es gibt noch keine Karte.",
+      open: "Ansehen",
+      /**
+       * Whether a game on this map can ever reach a ballot. A map with only one
+       * version removes the discussion and the vote from the whole game without
+       * saying so; the create screen says it at the select, this says it one
+       * step earlier, where the map is made.
+       */
+      votable: "mit Abstimmung",
+      noVote: "ohne Abstimmung",
+      size: (x: number, y: number) => `${x} × ${y} Felder`,
+      seats: (n: number) => `${n} Plätze`,
+      commuters: (n: number) => `${n.toLocaleString("de-DE")} Pendler`,
+    },
   },
 
   /**
@@ -1172,6 +1206,9 @@ export const de = {
         `Unter ${edges} ${edges === 1 ? "Kante" : "Kanten"} liegt keine Straße. Nimm sie aus der Route oder leg die Straße an.`,
       missingTrain: (edges: number) =>
         `Unter ${edges} ${edges === 1 ? "Kante" : "Kanten"} liegt keine Bahn. Nimm sie aus der Route oder leg die Bahn an.`,
+      /** S18: the create form's two placeholders were `"e.g. M1"` / `"e.g. S1"`. */
+      namePlaceholder: (type: string) =>
+        type === "bus" ? "z. B. M1" : "z. B. S1",
       noStreetHere: "Hier liegt keine Straße",
       noTrainHere: "Hier liegt keine Bahn",
       clickToRemove: "Anklicken, um sie aus der Route zu nehmen",
@@ -1243,6 +1280,55 @@ export const de = {
       generateHint:
         "Wähl oben mindestens zwei Versionen außer der Grundversion aus. Daraus werden alle Kombinationen erzeugt.",
       generateFailed: "Die Kombinationen ließen sich nicht erzeugen.",
+
+      /**
+       * S18. Four English strings sat on the Versionen tab: `"Generating..."`,
+       * `Generate combinations (n selected)`, `Created n combination version(s).`
+       * and an `alt="change preview"`. The first slipped the detector for being
+       * one word; the others carried none of its giveaway words.
+       */
+      generating: "Wird erzeugt …",
+
+      /**
+       * S18. The change list was almost entirely English — `Changes (n)`,
+       * `PT Line Changes (n)`, five `Undo`s, `(cascade)`, `"Creating..."` and
+       * `Create Version (n changes)` — and it rendered the raw action value
+       * ("add" / "modify" / "remove") straight onto the screen as a badge. A
+       * data value is not copy until something renders it, and then it is.
+       */
+      changeset: (n: number) => `Änderungen (${n})`,
+      lineChanges: (n: number) => `Geänderte Linien (${n})`,
+      creating: "Wird angelegt …",
+      createWithCount: (n: number) =>
+        `Version anlegen (${n} ${n === 1 ? "Änderung" : "Änderungen"})`,
+      /** What a pending change does to a line, in place of the model's word. */
+      action: (action: string) =>
+        action === "add" ? "neu" : action === "remove" ? "gelöscht" : "geändert",
+      /**
+       * An edge that goes because its node goes. It cannot be taken back on its
+       * own, which is what the note has to say — "(cascade)" said the mechanism
+       * instead of the consequence.
+       */
+      cascadeSuffix: "mit dem Knoten",
+      generateWithCount: (n: number) =>
+        `Kombinationen erzeugen (${n} ausgewählt)`,
+      generated: (n: number) =>
+        `${n} ${n === 1 ? "Kombination" : "Kombinationen"} angelegt.`,
+      changeImageAlt: "Vorschau der Änderung",
+    },
+
+    /**
+     * The editor is a desktop tool and stays one (Lukas, 2026-09-29: a UI pass,
+     * not a UX pass — no mobile layout). What it lacked was a way of *saying*
+     * so: on a phone the toolbar, the canvas and the sidebar stack into a
+     * column and the whole thing reads as broken rather than as out of place.
+     * The way through is deliberate — somebody on a tablet may know exactly
+     * what they are doing.
+     */
+    tooSmall: {
+      title: "Dafür ist der Bildschirm zu klein",
+      body: "Zum Zeichnen brauchst du Platz: Leiste, Fläche und Seitenleiste liegen sonst übereinander. Am besten geht das am Rechner.",
+      anyway: "Trotzdem anzeigen",
     },
 
     /** The map's own settings. */

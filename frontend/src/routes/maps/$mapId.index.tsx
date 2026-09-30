@@ -1,10 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import MapDetailRoute from "../../components/map/MapDetailRoute";
 
-function MapDetailWrapper() {
-  return <MapDetailRoute />;
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import MapDetail from "@/components/map/MapDetail";
+
+function MapDetailRoute() {
+  return (
+    <ProtectedRoute staff>
+      <MapDetail />
+    </ProtectedRoute>
+  );
 }
 
 export const Route = createFileRoute("/maps/$mapId/")({
-  component: MapDetailWrapper,
+  component: MapDetailRoute,
 });

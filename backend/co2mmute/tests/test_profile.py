@@ -446,3 +446,40 @@ class HostPageRedirectTests(TempMediaRootMixin, TestCase):
 
                 self.assertEqual(response.status_code, 302)
                 self.assertIn("/accounts/login/", response["Location"])
+
+
+class MapPageRedirectTests(TestCase):
+    """`/map/list/` and `/map/<pk>/` are doorways into the SPA. S18.
+
+    Both pages were Django's, in English, and the list printed a `description`
+    `GameMap` does not have. `/app/maps` is the list now and `/app/maps/<pk>/`
+    the detail. The URLs stay because `base.html` names `map-list` in both of
+    its menus and a bookmark might name either.
+    """
+
+    def setUp(self):
+        self.staff = _host(username="staff", is_staff=True)
+
+    def test_the_list_goes_to_the_spa_index(self):
+        self.client.force_login(self.staff)
+
+        response = self.client.get(reverse("map-list"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], "/app/maps/")
+
+    def test_a_detail_page_goes_to_its_spa_page(self):
+        self.client.force_login(self.staff)
+
+        response = self.client.get("/map/7/")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], "/app/maps/7/")
+
+    def test_a_visitor_is_sent_to_the_login(self):
+        for path in ("/map/list/", "/map/7/"):
+            with self.subTest(path=path):
+                response = self.client.get(path)
+
+                self.assertEqual(response.status_code, 302)
+                self.assertIn("/accounts/login/", response["Location"])

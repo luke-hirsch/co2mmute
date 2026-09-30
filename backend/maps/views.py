@@ -7,7 +7,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.files.base import ContentFile
 from django.db import transaction
-from django.views.generic import DetailView, FormView, ListView
+from django.views.generic import FormView, RedirectView
 
 from maps.forms import MapUploadForm
 from maps.models import (
@@ -774,143 +774,29 @@ class MapUploadView(LoginRequiredMixin, UserPassesTestMixin, FormView):
             put_rows_in(rows, group)
 
 
-class MapListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
-    model = GameMap
-    template_name = "maps/map_list.html"
-    login_url = "login"
+class MapListView(LoginRequiredMixin, RedirectView):
+    """`/map/list/` — the staff map list, which `/app/maps` is now. S18.
 
-    def test_func(self):
-        """Only allow staff users to upload maps."""
-        return self.request.user.is_staff
+    The template was English and printed a `description` `GameMap` has no
+    column for. The URL stays because both menus in `base.html` name
+    `map-list`. Staff gating is the SPA's, as it is for the detail page.
+    """
+
+    pattern_name = None
+    url = "/app/maps/"
+    permanent = False
 
 
-class MapDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
-    model = GameMap
-    template_name = "maps/map_detail.html"
-    login_url = "login"
+class MapDetailView(LoginRequiredMixin, RedirectView):
+    """`/map/<pk>/` — a map's page, which `/app/maps/<pk>/` is now. S18.
 
-    def test_func(self):
-        return self.request.user.is_staff
+    Nothing linked here any more: the old list already pointed at the SPA. Its
+    version browser is the editor's version panel. Nothing is looked up, so an
+    unknown pk is the SPA's to refuse.
+    """
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        game_map = self.get_object()
+    pattern_name = None
+    permanent = False
 
-        all_versions = list(MapVersion.objects.filter(game_map=game_map).order_by("pk"))
-        context["all_versions"] = all_versions
-        context["version_count"] = len(all_versions)
-
-        version_pk = self.request.GET.get("version")
-        if version_pk:
-            try:
-                current_version = MapVersion.objects.get(
-                    pk=version_pk, game_map=game_map
-                )
-            except MapVersion.DoesNotExist:
-                current_version = None
-        else:
-            # Default to base version
-            current_version = MapVersion.objects.filter(
-                game_map=game_map, base_version=True
-            ).first()
-
-        if not current_version and all_versions:
-            current_version = all_versions[0]
-
-        if current_version:
-            try:
-                current_index = all_versions.index(current_version)
-            except ValueError:
-                current_index = 0
-
-            context["current_version"] = current_version
-            context["current_index"] = current_index + 1  # 1-based for display
-            context["prev_version"] = (
-                all_versions[current_index - 1] if current_index > 0 else None
-            )
-            context["next_version"] = (
-                all_versions[current_index + 1]
-                if current_index < len(all_versions) - 1
-                else None
-            )
-
-            nodes = Node.objects.filter(
-                game_map=game_map, map_versions=current_version
-            ).prefetch_related("node_type")
-
-            edges = Edge.objects.filter(
-                game_map=game_map, map_versions=current_version
-            ).select_related("start_node", "end_node")
-
-            bus_lines = BusLine.objects.filter(
-                game_map=game_map, map_versions=current_version
-            )
-            train_lines = TrainLine.objects.filter(
-                game_map=game_map, map_versions=current_version
-            )
-
-            nodes_json = json.dumps(
-                [
-                    {
-                        "id": node.pk,
-                        "name": node.name,
-                        "x_position": float(node.x_position),
-                        "y_position": float(node.y_position),
-                        "node_type": [
-                            {"id": nt.id, "name": nt.name, "short": nt.short}
-                            for nt in node.node_type.all()
-                        ],
-                    }
-                    for node in nodes
-                ]
-            )
-
-            edge_pks = [edge.pk for edge in edges]
-            street_edges_map = {
-                se.edge.pk: se for se in StreetEdge.objects.filter(edge_id__in=edge_pks)
-            }
-            train_edges_map = {
-                te.edge.pk: te for te in TrainEdge.objects.filter(edge_id__in=edge_pks)
-            }
-
-            edges_json = json.dumps(
-                [
-                    {
-                        "id": edge.pk,
-                        "name": edge.name,
-                        "start_node": edge.start_node.pk,
-                        "end_node": edge.end_node.pk,
-                        "biking": edge.biking,
-                        "walking": edge.walking,
-                        "max_lanes": edge.max_lanes,
-                        "street_edge": {
-                            "id": street_edges_map[edge.pk].pk,
-                            "speed_limit": street_edges_map[edge.pk].speed_limit,
-                            "lanes": street_edges_map[edge.pk].lanes,
-                            "dedicated_bus_lane": street_edges_map[
-                                edge.pk
-                            ].dedicated_bus_lane,
-                        }
-                        if edge.pk in street_edges_map
-                        else None,
-                        "train_edge": {"id": train_edges_map[edge.pk].pk}
-                        if edge.pk in train_edges_map
-                        else None,
-                    }
-                    for edge in edges
-                ]
-            )
-
-            context["base_version"] = current_version
-            context["nodes"] = nodes
-            context["edges"] = edges
-            context["bus_lines"] = bus_lines
-            context["train_lines"] = train_lines
-            context["node_count"] = nodes.count()
-            context["edge_count"] = edges.count()
-            context["bus_line_count"] = bus_lines.count()
-            context["train_line_count"] = train_lines.count()
-            context["nodes_json"] = nodes_json
-            context["edges_json"] = edges_json
-
-        return context
+    def get_redirect_url(self, *args, **kwargs):
+        return f"/app/maps/{kwargs['pk']}/"

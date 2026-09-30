@@ -1,6 +1,16 @@
-import { de } from "@/lib/de";
-import { defaultPtCapacity } from "@/lib/map/pt-defaults";
 import { useState } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  EditorField,
+  EditorNote,
+  EditorPanel,
+  editorControl,
+} from "@/components/map/editor/editor-panel";
+import { de } from "@/lib/de";
+import { cn } from "@/lib/utils";
+import { defaultPtCapacity } from "@/lib/map/pt-defaults";
 import type { Dispatch } from "react";
 import type { MapVersion, Edge } from "../../../types/mapTypes";
 import type { ExtendedMapGraph, PTLine } from "../../../types/routeTypes";
@@ -15,6 +25,30 @@ import type {
 } from "../../../types/editorTypes";
 import { useCreateVersionFromDiff } from "@/lib/queries/map-editor";
 import EdgePropertyPanel from "./EdgePropertyPanel";
+
+/**
+ * Building an alternate version: the metadata, then the changes, then submit.
+ *
+ * ### S18: it was the most English screen left in the SPA
+ *
+ * `Changes (n)`, `PT Line Changes (n)`, five `Undo` buttons, `(cascade)`,
+ * `"Creating..."`, `Create Version (n changes)` — and a badge that rendered
+ * `change.action` **raw**, so the class's own vocabulary for a pending change was
+ * `add`, `modify`, `remove`. S17's detector saw none of it: `Undo` and
+ * `"Creating..."` are one word, and none of the rest carried a word from its
+ * giveaway list. That list has grown and the detector reads two more shapes now
+ * — see `tests/design/german.test.ts`.
+ *
+ * A data value is not copy. It becomes copy the moment something renders it,
+ * which is what `de.editor.version.action` is for.
+ *
+ * ### Colour
+ *
+ * The rulebook's pair, and this panel is the clearest case for it: **primary is
+ * what this version adds, the accent is what it takes away**. Where the old code
+ * had green-for-new, red-for-deleted, amber-for-changed and a second amber for
+ * "undo", there are now two.
+ */
 
 interface VersionDiffPanelProps {
   mapId: string;
@@ -436,120 +470,103 @@ const VersionDiffPanel = ({
     setVersionMetadata({ ...versionMetadata, [field]: value });
   };
 
-  const inputClass =
-    "w-full mt-1 px-2 py-1 text-sm rounded border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext";
-
   // ─── Step 1: Version Metadata Form ─────────────────────────────────
   if (versionDiffStep === 1) {
     return (
-      <div className="space-y-4">
-        <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle space-y-3">
-          <h3 className="text-lg font-semibold text-main dark:text-darktext">
-            {de.editor.version.createTitle}
-          </h3>
-          <p className="text-xs text-mutedtext dark:text-darkmutedtext">
-            {de.editor.version.createLead}
-          </p>
+      <EditorPanel title={de.editor.version.createTitle}>
+        <EditorNote>{de.editor.version.createLead}</EditorNote>
 
-          {/* Source version selector */}
-          <div>
-            <label className="text-xs text-mutedtext dark:text-darkmutedtext">
-              {de.editor.version.sourceVersion}
-            </label>
-            <select
-              value={selectedVersionId ?? ""}
-              onChange={(e) => {
-                const val = e.target.value;
-                onVersionChange(val ? Number(val) : undefined);
-                setEdgeChanges([]);
-                setPtLineChanges([]);
-                dispatch({ type: "CLEAR_SELECTION" });
-                dispatch({ type: "MARK_CLEAN" });
-              }}
-              className={inputClass}
-            >
-              <option value="">
-                {mapGraph
-                  ? de.editor.version.current(mapGraph.version_name)
-                  : de.editor.loading}
-              </option>
-              {versions?.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.name} {v.base_version ? de.editor.version.baseSuffix : ""}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Version Name */}
-          <div>
-            <label className="text-xs text-mutedtext dark:text-darkmutedtext">
-              {de.editor.version.versionName}{" "}
-              <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={versionMetadata.versionName}
-              onChange={(e) => updateField("versionName", e.target.value)}
-              placeholder={de.editor.version.namePlaceholder}
-              className={inputClass}
-            />
-          </div>
-
-          {/* Poll Text */}
-          <div>
-            <label className="text-xs text-mutedtext dark:text-darkmutedtext">
-              {de.editor.version.pollText}{" "}
-              <span className="text-red-500">*</span>
-            </label>
-            <p className="text-xs text-mutedtext dark:text-darkmutedtext mt-0.5 mb-1">
-              {de.editor.version.pollQuestion}
-            </p>
-            <textarea
-              value={versionMetadata.pollText}
-              onChange={(e) => updateField("pollText", e.target.value)}
-              placeholder={de.editor.version.pollPlaceholder}
-              rows={2}
-              className={inputClass}
-            />
-          </div>
-
-          {/* Revert Poll Text */}
-          <div>
-            <label className="text-xs text-mutedtext dark:text-darkmutedtext">
-              {de.editor.version.pollRevert}
-            </label>
-            <input
-              type="text"
-              value={versionMetadata.revertPollText}
-              onChange={(e) => updateField("revertPollText", e.target.value)}
-              placeholder={de.editor.version.revertPlaceholder}
-              className={inputClass}
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="text-xs text-mutedtext dark:text-darkmutedtext">
-              {de.editor.version.description}
-            </label>
-            <textarea
-              value={versionMetadata.description}
-              onChange={(e) => updateField("description", e.target.value)}
-              rows={2}
-              className={inputClass}
-            />
-          </div>
-
-          <button
-            onClick={() => dispatch({ type: "SET_VERSION_DIFF_STEP", step: 2 })}
-            disabled={!canProceed}
-            className="w-full px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+        <EditorField label={de.editor.version.sourceVersion}>
+          <select
+            value={selectedVersionId ?? ""}
+            onChange={(e) => {
+              const val = e.target.value;
+              onVersionChange(val ? Number(val) : undefined);
+              setEdgeChanges([]);
+              setPtLineChanges([]);
+              dispatch({ type: "CLEAR_SELECTION" });
+              dispatch({ type: "MARK_CLEAN" });
+            }}
+            className={editorControl}
           >
-            {de.editor.version.startEditing}
-          </button>
-        </div>
-      </div>
+            <option value="">
+              {mapGraph
+                ? de.editor.version.current(mapGraph.version_name)
+                : de.editor.loading}
+            </option>
+            {versions?.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.name} {v.base_version ? de.editor.version.baseSuffix : ""}
+              </option>
+            ))}
+          </select>
+        </EditorField>
+
+        <EditorField
+          label={
+            <>
+              {de.editor.version.versionName}{" "}
+              <span className="text-destructive">*</span>
+            </>
+          }
+        >
+          <input
+            type="text"
+            value={versionMetadata.versionName}
+            onChange={(e) => updateField("versionName", e.target.value)}
+            placeholder={de.editor.version.namePlaceholder}
+            className={editorControl}
+          />
+        </EditorField>
+
+        <EditorField
+          label={
+            <>
+              {de.editor.version.pollText}{" "}
+              <span className="text-destructive">*</span>
+            </>
+          }
+        >
+          <p className="mb-1 text-xs text-muted-foreground">
+            {de.editor.version.pollQuestion}
+          </p>
+          <textarea
+            value={versionMetadata.pollText}
+            onChange={(e) => updateField("pollText", e.target.value)}
+            placeholder={de.editor.version.pollPlaceholder}
+            rows={2}
+            className={editorControl}
+          />
+        </EditorField>
+
+        <EditorField label={de.editor.version.pollRevert}>
+          <input
+            type="text"
+            value={versionMetadata.revertPollText}
+            onChange={(e) => updateField("revertPollText", e.target.value)}
+            placeholder={de.editor.version.revertPlaceholder}
+            className={editorControl}
+          />
+        </EditorField>
+
+        <EditorField label={de.editor.version.description}>
+          <textarea
+            value={versionMetadata.description}
+            onChange={(e) => updateField("description", e.target.value)}
+            rows={2}
+            className={editorControl}
+          />
+        </EditorField>
+
+        <Button
+          size="sm"
+          className="w-full"
+          onClick={() => dispatch({ type: "SET_VERSION_DIFF_STEP", step: 2 })}
+          disabled={!canProceed}
+        >
+          {de.editor.version.startEditing}
+        </Button>
+      </EditorPanel>
     );
   }
 
@@ -557,32 +574,34 @@ const VersionDiffPanel = ({
   return (
     <div className="space-y-4">
       {/* Collapsed metadata summary */}
-      <div className="bg-subtle dark:bg-darksubtle rounded-lg p-3 border border-subtle dark:border-darksubtle">
-        <div className="flex items-start justify-between">
+      <div className="rounded-xl border bg-card p-3">
+        <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-main dark:text-darktext truncate">
+            <p className="truncate text-sm font-semibold">
               {versionMetadata.versionName}
             </p>
-            <p className="text-xs text-mutedtext dark:text-darkmutedtext mt-0.5 line-clamp-2">
+            <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
               {versionMetadata.pollText}
             </p>
           </div>
-          <button
+          <Button
+            size="xs"
+            variant="ghost"
+            className="shrink-0"
             onClick={() => dispatch({ type: "SET_VERSION_DIFF_STEP", step: 1 })}
-            className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline ml-2 shrink-0"
           >
             {de.editor.edit}
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Instructions when nothing is happening */}
       {!selectedEdge && !versionDiffEditingPtLine && totalChanges === 0 && (
-        <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle">
-          <p className="text-sm text-mutedtext dark:text-darkmutedtext">
+        <EditorPanel>
+          <p className="text-sm text-muted-foreground">
             {de.editor.version.diffHint}
           </p>
-        </div>
+        </EditorPanel>
       )}
 
       {/* Selected edge editing (when select tool is active) */}
@@ -596,16 +615,12 @@ const VersionDiffPanel = ({
       )}
 
       {/* ── PT Lines Section ── */}
-      <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle space-y-3">
-        <h3 className="text-sm font-semibold text-main dark:text-darktext">
-          {de.editor.version.ptLines}
-        </h3>
-
+      <EditorPanel title={de.editor.version.ptLines}>
         {/* PT line draft form */}
         {versionDiffEditingPtLine && (
-          <div className="border border-amber-300 dark:border-amber-700 rounded-md p-3 space-y-2 bg-body dark:bg-darkbody">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-main dark:text-darktext">
+          <div className="space-y-2 rounded-md border border-destructive p-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold">
                 {versionDiffEditingPtLine.action === "add"
                   ? versionDiffEditingPtLine.line_type === "bus"
                     ? de.editor.newBusLine
@@ -614,60 +629,53 @@ const VersionDiffPanel = ({
                     ? de.editor.ptLine.editBus
                     : de.editor.ptLine.editTrain}
               </span>
-              <button
-                onClick={cancelPtDraft}
-                className="text-xs text-mutedtext dark:text-darkmutedtext hover:text-main dark:hover:text-darktext"
-              >
+              <Button size="xs" variant="ghost" onClick={cancelPtDraft}>
                 {de.editor.cancel}
-              </button>
+              </Button>
             </div>
-            <div>
-              <label className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.ptLine.name}</label>
+            <EditorField label={de.editor.ptLine.name}>
               <input
                 type="text"
                 value={ptDraftName}
                 onChange={(e) => setPtDraftName(e.target.value)}
-                className="w-full mt-0.5 px-2 py-1 text-xs rounded border border-subtle dark:border-darksubtle bg-subtle dark:bg-darksubtle text-main dark:text-darktext"
+                className={editorControl}
               />
-            </div>
+            </EditorField>
             <div className="grid grid-cols-3 gap-1">
-              <div>
-                <label className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.ptLine.interval}</label>
+              <EditorField label={de.editor.ptLine.interval}>
                 <input
                   type="number"
                   min={1}
                   value={ptDraftInterval}
                   onChange={(e) => setPtDraftInterval(parseInt(e.target.value) || 1)}
-                  className="w-full mt-0.5 px-1 py-1 text-xs rounded border border-subtle dark:border-darksubtle bg-subtle dark:bg-darksubtle text-main dark:text-darktext"
+                  className={editorControl}
                 />
-              </div>
-              <div>
-                <label className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.ptLine.capacity}</label>
+              </EditorField>
+              <EditorField label={de.editor.ptLine.capacity}>
                 <input
                   type="number"
                   min={1}
                   value={ptDraftCapacity}
                   onChange={(e) => setPtDraftCapacity(parseInt(e.target.value) || 1)}
-                  className="w-full mt-0.5 px-1 py-1 text-xs rounded border border-subtle dark:border-darksubtle bg-subtle dark:bg-darksubtle text-main dark:text-darktext"
+                  className={editorControl}
                 />
-              </div>
-              <div>
-                <label className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.ptLine.speed}</label>
+              </EditorField>
+              <EditorField label={de.editor.ptLine.speed}>
                 <input
                   type="number"
                   min={1}
                   value={ptDraftSpeed}
                   onChange={(e) => setPtDraftSpeed(parseInt(e.target.value) || 1)}
-                  className="w-full mt-0.5 px-1 py-1 text-xs rounded border border-subtle dark:border-darksubtle bg-subtle dark:bg-darksubtle text-main dark:text-darktext"
+                  className={editorControl}
                 />
-              </div>
+              </EditorField>
             </div>
             <div>
-              <p className="text-xs text-mutedtext dark:text-darkmutedtext">
+              <p className="text-xs text-muted-foreground">
                 {de.editor.ptLine.routeOnMap(ptLineEdgeIds.length)}
               </p>
               {ptLineEdgeIds.length > 0 && (
-                <div className="flex flex-col gap-0.5 mt-1 max-h-32 overflow-y-auto">
+                <div className="mt-1 flex max-h-32 flex-col gap-0.5 overflow-y-auto">
                   {ptLineEdgeIds.map((id, idx) => {
                     const compatible = isEdgeCompatible(
                       id,
@@ -676,11 +684,12 @@ const VersionDiffPanel = ({
                     return (
                       <span
                         key={`${id}-${idx}`}
-                        className={`text-xs px-1.5 py-0.5 rounded cursor-pointer hover:line-through ${
-                          !compatible
-                            ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300"
-                            : "bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-100"
-                        }`}
+                        className={cn(
+                          "cursor-pointer rounded px-1.5 py-0.5 text-xs hover:line-through",
+                          compatible
+                            ? "border border-input"
+                            : "bg-destructive font-medium text-destructive-foreground",
+                        )}
                         onClick={() =>
                           setPtLineEdgeIds(ptLineEdgeIds.filter((_, i) => i !== idx))
                         }
@@ -699,14 +708,11 @@ const VersionDiffPanel = ({
               )}
             </div>
             {ptDraftError && (
-              <p className="text-xs text-red-600 dark:text-red-400">{ptDraftError}</p>
+              <EditorNote tone="attention">{ptDraftError}</EditorNote>
             )}
-            <button
-              onClick={savePtDraft}
-              className="w-full px-2 py-1 text-xs bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-            >
+            <Button size="xs" className="w-full" onClick={savePtDraft}>
               {de.editor.version.savePtLine}
-            </button>
+            </Button>
           </div>
         )}
 
@@ -714,7 +720,7 @@ const VersionDiffPanel = ({
         {!versionDiffEditingPtLine && (
           <>
             {allPtLines.length === 0 ? (
-              <p className="text-xs text-mutedtext dark:text-darkmutedtext">
+              <p className="text-xs text-muted-foreground">
                 {de.editor.version.noPtLines}
               </p>
             ) : (
@@ -724,64 +730,59 @@ const VersionDiffPanel = ({
                   return (
                     <div
                       key={`${line.type}-${line.id}`}
-                      className={`flex items-center justify-between rounded p-2 ${
-                        changeAction
-                          ? "bg-amber-50 dark:bg-amber-950 border border-amber-300 dark:border-amber-700"
-                          : "bg-body dark:bg-darkbody"
-                      }`}
+                      className={cn(
+                        "flex items-center justify-between gap-1 rounded p-2",
+                        changeAction && "bg-destructive/10",
+                      )}
                     >
-                      <div className="min-w-0 flex-1">
-                        <span
-                          className={`inline-block text-xs px-1.5 py-0.5 rounded mr-1 ${
-                            line.type === "bus"
-                              ? "bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100"
-                              : "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100"
-                          }`}
-                        >
+                      <div className="min-w-0 flex-1 space-x-1">
+                        <Badge variant="outline">
                           {de.editor.ptLine.kind(line.type)}
-                        </span>
-                        <span className="text-xs font-medium text-main dark:text-darktext">
-                          {line.name}
-                        </span>
+                        </Badge>
+                        <span className="text-xs font-medium">{line.name}</span>
                         {changeAction && (
-                          <span
-                            className={`inline-block text-xs px-1 py-0.5 rounded ml-1 ${
-                              changeAction === "remove"
-                                ? "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100"
-                                : "bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-100"
-                            }`}
+                          /* The badge rendered `change.action` raw — so a class
+                             looking at the projector read "modify". */
+                          <Badge
+                            variant={
+                              changeAction === "remove" ? "destructive" : "default"
+                            }
                           >
-                            {changeAction}
-                          </span>
+                            {de.editor.version.action(changeAction)}
+                          </Badge>
                         )}
                       </div>
-                      <div className="flex gap-1 shrink-0 ml-1">
+                      <div className="ml-1 flex shrink-0 gap-1">
                         {changeAction === "remove" ? (
-                          <button
+                          <Button
+                            size="xs"
+                            variant="ghost"
                             onClick={() => {
                               const idx = ptLineChanges.findIndex(
                                 (c) => c.id === line.id && c.line_type === line.type,
                               );
                               if (idx >= 0) removePtLineChange(idx);
                             }}
-                            className="text-xs text-amber-600 dark:text-amber-400 hover:underline"
                           >
-                            Undo
-                          </button>
+                            {de.actions.undo}
+                          </Button>
                         ) : (
                           <>
-                            <button
+                            <Button
+                              size="xs"
+                              variant="ghost"
                               onClick={() => startModifyPtLine(line)}
-                              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
                             >
                               {de.editor.modify}
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                              size="xs"
+                              variant="ghost"
+                              className="text-destructive"
                               onClick={() => addRemovePtLine(line)}
-                              className="text-xs text-red-600 dark:text-red-400 hover:underline"
                             >
                               {de.editor.remove}
-                            </button>
+                            </Button>
                           </>
                         )}
                       </div>
@@ -791,268 +792,246 @@ const VersionDiffPanel = ({
               </div>
             )}
 
-            {/* Add new PT line buttons */}
+            {/* Add new PT line buttons. Bus and Bahn were blue and red; they are
+                one line here and the label says which. */}
             <div className="flex gap-2">
-              <button
+              <Button
+                size="xs"
+                className="flex-1"
                 onClick={() => startAddPtLine("bus")}
-                className="flex-1 px-2 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700"
               >
                 {de.editor.ptLine.addBus}
-              </button>
-              <button
+              </Button>
+              <Button
+                size="xs"
+                className="flex-1"
                 onClick={() => startAddPtLine("train")}
-                className="flex-1 px-2 py-1 text-xs bg-red-600 text-white rounded-md hover:bg-red-700"
               >
                 {de.editor.ptLine.addTrain}
-              </button>
+              </Button>
             </div>
           </>
         )}
-      </div>
+      </EditorPanel>
 
-      {/* ── Changeset Summary ── */}
+      {/* ── Changeset Summary ──
+
+          Six lists of "a thing that changed, and a way to take it back", written
+          out six times with six different colours: green for a new node, red for
+          a deleted one, amber for the undo, red for the other undo. `ChangeRow`
+          is the one shape, and it carries the palette's two: **primary for what
+          this version adds, the accent for what it removes.** */}
       {totalChanges > 0 && (
-        <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-amber-300 dark:border-amber-700 space-y-3">
-          <h3 className="text-sm font-semibold text-main dark:text-darktext">
-            Changes ({totalChanges})
-          </h3>
-
+        <EditorPanel attention title={de.editor.version.changeset(totalChanges)}>
           {/* Edge property changes */}
           {edgeChanges.length > 0 && (
-            <div>
-              <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">
-                {de.editor.version.edgeChanges(edgeChanges.length)}
-              </p>
-              <div className="space-y-1">
-                {edgeChanges.map((change) => {
-                  const edge = mapGraph?.edges.find((e) => e.id === change.edge_id);
-                  const fields = Object.keys(change).filter((k) => k !== "edge_id");
-                  return (
-                    <div
-                      key={change.edge_id}
-                      className="flex items-center justify-between bg-body dark:bg-darkbody rounded p-2"
-                    >
-                      <div>
-                        <span className="text-xs font-medium text-main dark:text-darktext">
-                          {edge?.name ||
-                            de.editor.edge.numbered(change.edge_id)}
-                        </span>
-                        <span className="text-xs text-mutedtext dark:text-darkmutedtext ml-1">
-                          {fields.join(", ")}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => removeEdgeChange(change.edge_id)}
-                        className="text-xs text-red-600 hover:text-red-800 dark:text-red-400"
-                      >
-                        Undo
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <ChangeGroup title={de.editor.version.edgeChanges(edgeChanges.length)}>
+              {edgeChanges.map((change) => {
+                const edge = mapGraph?.edges.find((e) => e.id === change.edge_id);
+                const fields = Object.keys(change).filter((k) => k !== "edge_id");
+                return (
+                  <ChangeRow
+                    key={change.edge_id}
+                    onUndo={() => removeEdgeChange(change.edge_id)}
+                  >
+                    <span className="font-medium">
+                      {edge?.name || de.editor.edge.numbered(change.edge_id)}
+                    </span>{" "}
+                    <span className="text-muted-foreground">
+                      {fields.join(", ")}
+                    </span>
+                  </ChangeRow>
+                );
+              })}
+            </ChangeGroup>
           )}
 
           {/* PT line changes */}
           {ptLineChanges.length > 0 && (
-            <div>
-              <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">
-                PT Line Changes ({ptLineChanges.length})
-              </p>
-              <div className="space-y-1">
-                {ptLineChanges.map((change, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between bg-body dark:bg-darkbody rounded p-2"
+            <ChangeGroup
+              title={de.editor.version.lineChanges(ptLineChanges.length)}
+            >
+              {ptLineChanges.map((change, idx) => (
+                <ChangeRow key={idx} onUndo={() => removePtLineChange(idx)}>
+                  <Badge
+                    variant={
+                      change.action === "remove" ? "destructive" : "default"
+                    }
+                    className="mr-1"
                   >
-                    <div>
-                      <span
-                        className={`inline-block text-xs px-1.5 py-0.5 rounded mr-1 ${
-                          change.action === "add"
-                            ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100"
-                            : change.action === "remove"
-                              ? "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100"
-                              : "bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-100"
-                        }`}
-                      >
-                        {change.action}
-                      </span>
-                      <span className="text-xs text-main dark:text-darktext">
-                        {change.name ||
-                          de.editor.ptLine.unnamed(change.line_type)}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => removePtLineChange(idx)}
-                      className="text-xs text-red-600 hover:text-red-800 dark:text-red-400"
-                    >
-                      Undo
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
+                    {de.editor.version.action(change.action)}
+                  </Badge>
+                  {change.name || de.editor.ptLine.unnamed(change.line_type)}
+                </ChangeRow>
+              ))}
+            </ChangeGroup>
           )}
 
           {/* New nodes */}
           {newNodes.length > 0 && (
-            <div>
-              <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">
-                {de.editor.version.newNodes(newNodes.length)}
-              </p>
-              <div className="space-y-1">
-                {newNodes.map((node) => (
-                  <div
-                    key={node.tempId}
-                    className="flex items-center justify-between bg-body dark:bg-darkbody rounded p-2"
-                  >
-                    <span className="text-xs text-green-700 dark:text-green-400">
-                      {de.editor.version.newNodeAt(
-                        node.x_position.toFixed(2),
-                        node.y_position.toFixed(2),
-                      )}
-                    </span>
-                    <button
-                      onClick={() => removeNewNode(node.tempId)}
-                      className="text-xs text-red-600 hover:text-red-800 dark:text-red-400"
-                    >
-                      {de.editor.remove}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <ChangeGroup title={de.editor.version.newNodes(newNodes.length)}>
+              {newNodes.map((node) => (
+                <ChangeRow
+                  key={node.tempId}
+                  undoLabel={de.editor.remove}
+                  onUndo={() => removeNewNode(node.tempId)}
+                >
+                  <span className="text-primary">
+                    {de.editor.version.newNodeAt(
+                      node.x_position.toFixed(2),
+                      node.y_position.toFixed(2),
+                    )}
+                  </span>
+                </ChangeRow>
+              ))}
+            </ChangeGroup>
           )}
 
           {/* New edges */}
           {newEdges.length > 0 && (
-            <div>
-              <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">
-                {de.editor.version.newEdges(newEdges.length)}
-              </p>
-              <div className="space-y-1">
-                {newEdges.map((edge) => (
-                  <div
-                    key={edge.tempId}
-                    className="flex items-center justify-between bg-body dark:bg-darkbody rounded p-2"
-                  >
-                    <span className="text-xs text-green-700 dark:text-green-400">
-                      {getVirtualEdgeLabel(edge)}
-                      {edge.bidirectional && " (↔)"}
-                    </span>
-                    <button
-                      onClick={() => removeNewEdge(edge.tempId)}
-                      className="text-xs text-red-600 hover:text-red-800 dark:text-red-400"
-                    >
-                      {de.editor.remove}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <ChangeGroup title={de.editor.version.newEdges(newEdges.length)}>
+              {newEdges.map((edge) => (
+                <ChangeRow
+                  key={edge.tempId}
+                  undoLabel={de.editor.remove}
+                  onUndo={() => removeNewEdge(edge.tempId)}
+                >
+                  <span className="text-primary">
+                    {getVirtualEdgeLabel(edge)}
+                    {edge.bidirectional && " (↔)"}
+                  </span>
+                </ChangeRow>
+              ))}
+            </ChangeGroup>
           )}
 
           {/* Deleted nodes */}
           {deletedNodeIds.size > 0 && (
-            <div>
-              <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">
-                {de.editor.version.deletedNodes(deletedNodeIds.size)}
-              </p>
-              <div className="space-y-1">
-                {[...deletedNodeIds].map((nodeId) => (
-                  <div
-                    key={nodeId}
-                    className="flex items-center justify-between bg-body dark:bg-darkbody rounded p-2"
-                  >
-                    <span className="text-xs text-red-700 dark:text-red-400 line-through">
-                      {getNodeLabel(nodeId)}
-                    </span>
-                    <button
-                      onClick={() => undoDeletedNode(nodeId)}
-                      className="text-xs text-amber-600 hover:text-amber-800 dark:text-amber-400"
-                    >
-                      Undo
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <ChangeGroup
+              title={de.editor.version.deletedNodes(deletedNodeIds.size)}
+            >
+              {[...deletedNodeIds].map((nodeId) => (
+                <ChangeRow key={nodeId} onUndo={() => undoDeletedNode(nodeId)}>
+                  <span className="line-through">{getNodeLabel(nodeId)}</span>
+                </ChangeRow>
+              ))}
+            </ChangeGroup>
           )}
 
-          {/* Deleted edges (non-cascade only in display) */}
+          {/* Deleted edges. An edge that goes because its node goes cannot be
+              taken back on its own, which is what the note says now — the old
+              one said "(cascade)", which is the mechanism, not the consequence. */}
           {deletedEdgeIds.size > 0 && (
-            <div>
-              <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">
-                {de.editor.version.deletedEdges(deletedEdgeIds.size)}
-              </p>
-              <div className="space-y-1">
-                {[...deletedEdgeIds].map((edgeId) => {
-                  const isCascade = [...cascadeDeletedEdgeIds.values()].some(
-                    (s) => s.has(edgeId),
-                  );
-                  return (
-                    <div
-                      key={edgeId}
-                      className="flex items-center justify-between bg-body dark:bg-darkbody rounded p-2"
-                    >
-                      <span className="text-xs text-red-700 dark:text-red-400 line-through">
-                        {getEdgeLabel(edgeId)}
-                        {isCascade && (
-                          <span className="text-xs text-mutedtext dark:text-darkmutedtext ml-1 no-underline">
-                            (cascade)
-                          </span>
-                        )}
+            <ChangeGroup
+              title={de.editor.version.deletedEdges(deletedEdgeIds.size)}
+            >
+              {[...deletedEdgeIds].map((edgeId) => {
+                const isCascade = [...cascadeDeletedEdgeIds.values()].some((set) =>
+                  set.has(edgeId),
+                );
+                return (
+                  <ChangeRow
+                    key={edgeId}
+                    onUndo={isCascade ? undefined : () => undoDeletedEdge(edgeId)}
+                  >
+                    <span className="line-through">{getEdgeLabel(edgeId)}</span>
+                    {isCascade && (
+                      <span className="ml-1 text-muted-foreground no-underline">
+                        ({de.editor.version.cascadeSuffix})
                       </span>
-                      {!isCascade && (
-                        <button
-                          onClick={() => undoDeletedEdge(edgeId)}
-                          className="text-xs text-amber-600 hover:text-amber-800 dark:text-amber-400"
-                        >
-                          Undo
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+                    )}
+                  </ChangeRow>
+                );
+              })}
+            </ChangeGroup>
           )}
-        </div>
+        </EditorPanel>
       )}
 
       {/* Create Version button */}
       <div className="space-y-2">
-        <button
+        <Button
+          size="sm"
+          className="w-full"
           onClick={handleCreateVersion}
-          disabled={createMutation.isPending || totalChanges === 0 || !!versionDiffEditingPtLine}
-          className="w-full px-3 py-1.5 text-sm bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50"
+          disabled={
+            createMutation.isPending ||
+            totalChanges === 0 ||
+            !!versionDiffEditingPtLine
+          }
         >
           {createMutation.isPending
-            ? "Creating..."
-            : `Create Version (${totalChanges} change${totalChanges !== 1 ? "s" : ""})`}
-        </button>
+            ? de.editor.version.creating
+            : de.editor.version.createWithCount(totalChanges)}
+        </Button>
 
         {versionDiffEditingPtLine && (
-          <p className="text-xs text-amber-600 dark:text-amber-400">
+          <EditorNote tone="attention">
             {de.editor.version.finishPtLineFirst}
-          </p>
+          </EditorNote>
         )}
 
         {createMutation.isError && (
-          <p className="text-xs text-red-600 dark:text-red-400">
+          <EditorNote tone="attention">
             {de.editor.version.createFailed}
-          </p>
+          </EditorNote>
         )}
 
         {createMutation.isSuccess && (
-          <p className="text-xs text-green-600 dark:text-green-400">
-            {de.editor.version.created}
-          </p>
+          <EditorNote>{de.editor.version.created}</EditorNote>
         )}
       </div>
     </div>
   );
 };
+
+/** One kind of change, with its count. */
+function ChangeGroup({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <p className="mb-1 text-xs text-muted-foreground">{title}</p>
+      <div className="space-y-1">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * One pending change, and the way back out of it.
+ *
+ * `onUndo` is optional because a cascade-deleted edge has none: it goes when its
+ * node goes and comes back the same way. The old code left the button off and
+ * said nothing, so the row just looked different for no stated reason.
+ */
+function ChangeRow({
+  children,
+  undoLabel,
+  onUndo,
+}: {
+  children: React.ReactNode;
+  undoLabel?: string;
+  onUndo?: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2 rounded bg-secondary/60 p-2 text-xs">
+      <span className="min-w-0">{children}</span>
+      {onUndo ? (
+        <Button
+          size="xs"
+          variant="ghost"
+          className="shrink-0 text-destructive"
+          onClick={onUndo}
+        >
+          {undoLabel ?? de.actions.undo}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
 
 export default VersionDiffPanel;

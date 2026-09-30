@@ -1,6 +1,16 @@
-import { de } from "@/lib/de";
-import { defaultPtCapacity } from "@/lib/map/pt-defaults";
 import { useState, useEffect } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  EditorField,
+  EditorNote,
+  EditorPanel,
+  editorControl,
+} from "@/components/map/editor/editor-panel";
+import { de } from "@/lib/de";
+import { cn } from "@/lib/utils";
+import { defaultPtCapacity } from "@/lib/map/pt-defaults";
 import type { ExtendedMapGraph } from "../../../types/routeTypes";
 import type { PTLine } from "../../../types/routeTypes";
 import {
@@ -287,360 +297,353 @@ const PTLinePanel = ({
 
   return (
     <div className="space-y-4">
-      {/* Existing lines */}
-      <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle">
-        <h3 className="text-lg font-semibold text-main dark:text-darktext mb-3">
-          {de.editor.ptLine.countTitle(allLines.length)}
-        </h3>
+      {/* Existing lines.
+
+          Bus and Bahn used to be a blue badge and a red one. They are one line
+          in this palette and the badge already says which — and red on this
+          panel is the delete button two columns over. */}
+      <EditorPanel title={de.editor.ptLine.countTitle(allLines.length)}>
         {allLines.length === 0 ? (
-          <p className="text-sm text-mutedtext dark:text-darkmutedtext">
+          <p className="text-sm text-muted-foreground">
             {de.editor.ptLine.none}
           </p>
         ) : (
-          <div className="space-y-2">
-            {allLines.map((line) => (
-              <div
-                key={`${line.type}-${line.id}`}
-                className={`flex items-center justify-between rounded p-2 ${
-                  editingLine?.id === line.id && editingLine?.type === line.type
-                    ? "bg-amber-50 dark:bg-amber-950 border border-amber-300 dark:border-amber-700"
-                    : "bg-body dark:bg-darkbody"
-                }`}
-              >
-                <div>
-                  <span
-                    className={`inline-block text-xs px-1.5 py-0.5 rounded mr-2 ${
-                      line.type === "bus"
-                        ? "bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100"
-                        : "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100"
-                    }`}
-                  >
-                    {de.editor.ptLine.kind(line.type)}
-                  </span>
-                  <span className="text-sm font-medium text-main dark:text-darktext">
-                    {line.name}
-                  </span>
-                  <span className="text-xs text-mutedtext dark:text-darkmutedtext ml-2">
-                    {de.editor.ptLine.summary(line.edges.length, line.interval)}
-                  </span>
-                </div>
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => startEdit(line)}
-                    disabled={!!ptLineCreating || (!!editingLine && editingLine.id !== line.id)}
-                    className="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 disabled:opacity-30"
-                  >
-                    {de.editor.edit}
-                  </button>
-                  <button
-                    onClick={() =>
-                      deleteMutation.mutate({
-                        lineId: line.id,
-                        lineType: line.type as "bus" | "train",
-                      })
-                    }
-                    disabled={!!editingLine || !!ptLineCreating}
-                    className="text-xs text-red-600 hover:text-red-800 dark:text-red-400 disabled:opacity-30"
-                  >
-                    {de.editor.delete}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+          <ul className="divide-y divide-border">
+            {allLines.map((line) => {
+              const isEditing =
+                editingLine?.id === line.id && editingLine?.type === line.type;
+              return (
+                <li
+                  key={`${line.type}-${line.id}`}
+                  className={cn(
+                    "flex flex-wrap items-center justify-between gap-2 py-2",
+                    isEditing && "rounded-md bg-destructive/10 px-2",
+                  )}
+                >
+                  <div className="flex flex-wrap items-baseline gap-2">
+                    <Badge variant="outline">
+                      {de.editor.ptLine.kind(line.type)}
+                    </Badge>
+                    <span className="text-sm font-medium">{line.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {de.editor.ptLine.summary(line.edges.length, line.interval)}
+                    </span>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      onClick={() => startEdit(line)}
+                      disabled={
+                        !!ptLineCreating ||
+                        (!!editingLine && editingLine.id !== line.id)
+                      }
+                    >
+                      {de.editor.edit}
+                    </Button>
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      className="text-destructive"
+                      onClick={() =>
+                        deleteMutation.mutate({
+                          lineId: line.id,
+                          lineType: line.type as "bus" | "train",
+                        })
+                      }
+                      disabled={!!editingLine || !!ptLineCreating}
+                    >
+                      {de.editor.delete}
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         )}
-      </div>
+      </EditorPanel>
 
-      {/* Edit form */}
+      {/* Edit form. `attention` because it is a live mode: the canvas is taking
+          clicks into this line's route until it is saved or cancelled. */}
       {editingLine && (
-        <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-amber-300 dark:border-amber-700 space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-main dark:text-darktext">
-              {editingLine.type === "bus"
-                ? de.editor.ptLine.editBus
-                : de.editor.ptLine.editTrain}
-            </h3>
-            <button
-              onClick={cancelEdit}
-              className="text-xs text-mutedtext dark:text-darkmutedtext hover:text-main dark:hover:text-darktext"
-            >
+        <EditorPanel
+          attention
+          title={
+            editingLine.type === "bus"
+              ? de.editor.ptLine.editBus
+              : de.editor.ptLine.editTrain
+          }
+          action={
+            <Button size="xs" variant="ghost" onClick={cancelEdit}>
               {de.editor.cancel}
-            </button>
-          </div>
-
-          <div>
-            <label className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.ptLine.name}</label>
+            </Button>
+          }
+        >
+          <EditorField label={de.editor.ptLine.name}>
             <input
               type="text"
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
-              className="w-full mt-1 px-2 py-1 text-sm rounded border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext"
+              className={editorControl}
             />
-          </div>
+          </EditorField>
 
           <div className="grid grid-cols-3 gap-2">
-            <div>
-              <label className="text-xs text-mutedtext dark:text-darkmutedtext">
-                {de.editor.ptLine.interval}
-              </label>
+            <EditorField label={de.editor.ptLine.interval}>
               <input
                 type="number"
                 min={1}
                 value={editInterval}
                 onChange={(e) => setEditInterval(parseInt(e.target.value) || 1)}
-                className="w-full mt-1 px-2 py-1 text-sm rounded border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext"
+                className={editorControl}
               />
-            </div>
-            <div>
-              <label className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.ptLine.capacity}</label>
+            </EditorField>
+            <EditorField label={de.editor.ptLine.capacity}>
               <input
                 type="number"
                 min={1}
                 value={editCapacity}
                 onChange={(e) => setEditCapacity(parseInt(e.target.value) || 1)}
-                className="w-full mt-1 px-2 py-1 text-sm rounded border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext"
+                className={editorControl}
               />
-            </div>
-            <div>
-              <label className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.ptLine.speed}</label>
+            </EditorField>
+            <EditorField label={de.editor.ptLine.speed}>
               <input
                 type="number"
                 min={1}
                 value={editSpeed}
                 onChange={(e) => setEditSpeed(parseInt(e.target.value) || 1)}
-                className="w-full mt-1 px-2 py-1 text-sm rounded border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext"
+                className={editorControl}
               />
-            </div>
+            </EditorField>
           </div>
 
-          {/* Editable edge list */}
           <div>
-            <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">
+            <p className="mb-1 text-xs text-muted-foreground">
               {de.editor.ptLine.routeCount(ptLineEdgeIds.length)}
             </p>
-            {ptLineEdgeIds.length === 0 ? (
-              <p className="text-xs text-amber-600 dark:text-amber-400">
-                {de.editor.ptLine.pickEdges}
-              </p>
-            ) : (
-              <div className="flex flex-col gap-1">
-                {ptLineEdgeIds.map((id, idx) => {
-                  const isEnd = idx === 0 || idx === ptLineEdgeIds.length - 1;
-                  const hasReverse = findReverseEdgeId(id) !== null;
-                  const compatible = isEdgeCompatible(id, editingLine?.type ?? null);
-                  return (
-                    <div
-                      key={`${id}-${idx}`}
-                      className="flex items-center gap-1"
-                    >
-                      <span
-                        className={`text-xs px-1.5 py-0.5 rounded flex-1 ${
-                          !compatible
-                            ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300"
-                            : isEnd
-                              ? "bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-100 cursor-pointer hover:line-through"
-                              : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-                        }`}
-                        onClick={() => {
-                          if (isEnd) {
-                            setPtLineEdgeIds(
-                              ptLineEdgeIds.filter((_, i) => i !== idx)
-                            );
-                          }
-                        }}
-                        title={
-                          !compatible
-                            ? editingLine?.type === "bus"
-                              ? de.editor.ptLine.noStreetHere
-                              : de.editor.ptLine.noTrainHere
-                            : isEnd
-                              ? de.editor.ptLine.clickToRemove
-                              : ""
-                        }
-                      >
-                        {idx + 1}: {getEdgeLabel(id)}
-                        {!compatible && " !!"}
-                      </span>
-                      {hasReverse && (
-                        <button
-                          onClick={() => handleFlipEdge(idx)}
-                          className="text-xs px-1 py-0.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 rounded"
-                          title={de.editor.ptLine.flipDirection}
-                        >
-                          ↔
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            <p className="text-xs text-mutedtext dark:text-darkmutedtext mt-1">
-              {de.editor.ptLine.extendHint}
-            </p>
+            <RouteEdgeList
+              edgeIds={ptLineEdgeIds}
+              lineType={editingLine.type as "bus" | "train"}
+              removable="ends"
+              getEdgeLabel={getEdgeLabel}
+              isEdgeCompatible={isEdgeCompatible}
+              findReverseEdgeId={findReverseEdgeId}
+              onRemove={(idx) =>
+                setPtLineEdgeIds(ptLineEdgeIds.filter((_, i) => i !== idx))
+              }
+              onFlip={handleFlipEdge}
+            />
+            <EditorNote>{de.editor.ptLine.extendHint}</EditorNote>
           </div>
 
           {validationError && (
-            <p className="text-xs text-red-600 dark:text-red-400">
-              {validationError}
-            </p>
+            <EditorNote tone="attention">{validationError}</EditorNote>
           )}
           {(updateBusMutation.isError ||
             updateTrainMutation.isError ||
             updateBusEdgesMutation.isError ||
             updateTrainEdgesMutation.isError) && (
-            <p className="text-xs text-red-600 dark:text-red-400">
+            <EditorNote tone="attention">
               {(updateBusMutation.error ||
                 updateTrainMutation.error ||
                 updateBusEdgesMutation.error ||
                 updateTrainEdgesMutation.error)?.message ??
                 de.editor.saveFailed}
-            </p>
+            </EditorNote>
           )}
 
-          <button
+          <Button
+            size="sm"
+            className="w-full"
             onClick={handleSaveEdit}
             disabled={isEditPending || ptLineEdgeIds.length === 0}
-            className="w-full px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
           >
             {isEditPending ? de.editor.saving : de.editor.saveChanges}
-          </button>
-        </div>
+          </Button>
+        </EditorPanel>
       )}
 
       {/* Create form */}
       {ptLineCreating && !editingLine && (
-        <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-amber-300 dark:border-amber-700 space-y-3">
-          <h3 className="text-lg font-semibold text-main dark:text-darktext">
-            {ptLineCreating === "bus"
+        <EditorPanel
+          attention
+          title={
+            ptLineCreating === "bus"
               ? de.editor.newBusLine
-              : de.editor.newTrainLine}
-          </h3>
-
-          <div>
-            <label className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.ptLine.name}</label>
+              : de.editor.newTrainLine
+          }
+        >
+          <EditorField label={de.editor.ptLine.name}>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder={ptLineCreating === "bus" ? "e.g. M1" : "e.g. S1"}
-              className="w-full mt-1 px-2 py-1 text-sm rounded border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext"
+              placeholder={de.editor.ptLine.namePlaceholder(ptLineCreating)}
+              className={editorControl}
             />
-          </div>
+          </EditorField>
 
           <div className="grid grid-cols-3 gap-2">
-            <div>
-              <label className="text-xs text-mutedtext dark:text-darkmutedtext">
-                {de.editor.ptLine.interval}
-              </label>
+            <EditorField label={de.editor.ptLine.interval}>
               <input
                 type="number"
                 min={1}
                 value={interval}
                 onChange={(e) => setInterval(parseInt(e.target.value) || 1)}
-                className="w-full mt-1 px-2 py-1 text-sm rounded border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext"
+                className={editorControl}
               />
-            </div>
-            <div>
-              <label className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.ptLine.capacity}</label>
+            </EditorField>
+            <EditorField label={de.editor.ptLine.capacity}>
               <input
                 type="number"
                 min={1}
                 value={capacity}
                 onChange={(e) => setCapacity(parseInt(e.target.value) || 1)}
-                className="w-full mt-1 px-2 py-1 text-sm rounded border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext"
+                className={editorControl}
               />
-            </div>
-            <div>
-              <label className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.ptLine.speed}</label>
+            </EditorField>
+            <EditorField label={de.editor.ptLine.speed}>
               <input
                 type="number"
                 min={1}
                 value={speed}
                 onChange={(e) => setSpeed(parseInt(e.target.value) || 1)}
-                className="w-full mt-1 px-2 py-1 text-sm rounded border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext"
+                className={editorControl}
               />
-            </div>
+            </EditorField>
           </div>
 
-          {/* Selected edges */}
           <div>
-            <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">
+            <p className="mb-1 text-xs text-muted-foreground">
               {de.editor.ptLine.routeSelected(ptLineEdgeIds.length)}
             </p>
-            {ptLineEdgeIds.length === 0 ? (
-              <p className="text-xs text-amber-600 dark:text-amber-400">
-                {de.editor.ptLine.pickEdges}
-              </p>
-            ) : (
-              <div className="flex flex-col gap-1">
-                {ptLineEdgeIds.map((id, idx) => {
-                  const hasReverse = findReverseEdgeId(id) !== null;
-                  const compatible = isEdgeCompatible(id, ptLineCreating);
-                  return (
-                    <div
-                      key={`${id}-${idx}`}
-                      className="flex items-center gap-1"
-                    >
-                      <span
-                        className={`text-xs px-1.5 py-0.5 rounded cursor-pointer hover:line-through flex-1 ${
-                          !compatible
-                            ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300"
-                            : "bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-100"
-                        }`}
-                        onClick={() =>
-                          setPtLineEdgeIds(
-                            ptLineEdgeIds.filter((_, i) => i !== idx)
-                          )
-                        }
-                        title={
-                          !compatible
-                            ? de.editor.ptLine.incompatibleClickToRemove
-                            : de.editor.ptLine.clickToRemove
-                        }
-                      >
-                        {idx + 1}: {getEdgeLabel(id)}
-                        {!compatible && " !!"}
-                      </span>
-                      {hasReverse && (
-                        <button
-                          onClick={() => handleFlipEdge(idx)}
-                          className="text-xs px-1 py-0.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 rounded"
-                          title={de.editor.ptLine.flipDirection}
-                        >
-                          ↔
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            <RouteEdgeList
+              edgeIds={ptLineEdgeIds}
+              lineType={ptLineCreating}
+              removable="any"
+              getEdgeLabel={getEdgeLabel}
+              isEdgeCompatible={isEdgeCompatible}
+              findReverseEdgeId={findReverseEdgeId}
+              onRemove={(idx) =>
+                setPtLineEdgeIds(ptLineEdgeIds.filter((_, i) => i !== idx))
+              }
+              onFlip={handleFlipEdge}
+            />
           </div>
 
           {validationError && (
-            <p className="text-xs text-red-600 dark:text-red-400">
-              {validationError}
-            </p>
+            <EditorNote tone="attention">{validationError}</EditorNote>
           )}
           {(createBusMutation.isError || createTrainMutation.isError) && (
-            <p className="text-xs text-red-600 dark:text-red-400">
+            <EditorNote tone="attention">
               {(createBusMutation.error || createTrainMutation.error)?.message ??
                 de.editor.ptLine.createFailed}
-            </p>
+            </EditorNote>
           )}
 
-          <button
+          <Button
+            size="sm"
+            className="w-full"
             onClick={handleSaveCreate}
             disabled={isCreatePending || ptLineEdgeIds.length === 0}
-            className="w-full px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
           >
             {isCreatePending ? de.editor.saving : de.editor.saveLine}
-          </button>
-        </div>
+          </Button>
+        </EditorPanel>
       )}
     </div>
   );
 };
+
+/**
+ * The line's route as a list of links.
+ *
+ * It was written out twice, once in each form, with three differences that were
+ * all accidents: the create list let you drop any link and the edit list only
+ * the two ends (deliberate — a hole in the middle breaks the chain), but the
+ * create list also had no `hover:line-through` on an incompatible chip and used
+ * a different title for it. Once is once.
+ *
+ * The three states are the palette's: **a link the line cannot use is the
+ * accent**, because it is the one thing here that has to be read; a link you may
+ * drop is outlined, because it is a control; a link in the middle of the chain is
+ * a filled neutral, because it is only context.
+ */
+function RouteEdgeList({
+  edgeIds,
+  lineType,
+  removable,
+  getEdgeLabel,
+  isEdgeCompatible,
+  findReverseEdgeId,
+  onRemove,
+  onFlip,
+}: {
+  edgeIds: number[];
+  lineType: "bus" | "train";
+  removable: "ends" | "any";
+  getEdgeLabel: (edgeId: number) => string;
+  isEdgeCompatible: (edgeId: number, type: "bus" | "train" | null) => boolean;
+  findReverseEdgeId: (edgeId: number) => number | null;
+  onRemove: (index: number) => void;
+  onFlip: (index: number) => void;
+}) {
+  if (edgeIds.length === 0) {
+    return <EditorNote tone="attention">{de.editor.ptLine.pickEdges}</EditorNote>;
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      {edgeIds.map((id, idx) => {
+        const isEnd = idx === 0 || idx === edgeIds.length - 1;
+        const canRemove = removable === "any" || isEnd;
+        const hasReverse = findReverseEdgeId(id) !== null;
+        const compatible = isEdgeCompatible(id, lineType);
+
+        return (
+          <div key={`${id}-${idx}`} className="flex items-center gap-1">
+            <span
+              className={cn(
+                "flex-1 rounded px-1.5 py-0.5 text-xs",
+                !compatible
+                  ? "bg-destructive font-medium text-destructive-foreground"
+                  : canRemove
+                    ? "border border-input"
+                    : "bg-secondary text-secondary-foreground",
+                canRemove && "cursor-pointer hover:line-through",
+              )}
+              onClick={() => {
+                if (canRemove) onRemove(idx);
+              }}
+              title={
+                !compatible
+                  ? lineType === "bus"
+                    ? de.editor.ptLine.noStreetHere
+                    : de.editor.ptLine.noTrainHere
+                  : canRemove
+                    ? de.editor.ptLine.clickToRemove
+                    : undefined
+              }
+            >
+              {idx + 1}: {getEdgeLabel(id)}
+              {!compatible && " !!"}
+            </span>
+            {hasReverse && (
+              <Button
+                size="icon-xs"
+                variant="ghost"
+                onClick={() => onFlip(idx)}
+                title={de.editor.ptLine.flipDirection}
+              >
+                ↔
+              </Button>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default PTLinePanel;
