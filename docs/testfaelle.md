@@ -305,7 +305,7 @@ nicht gemessen.
 | S-17 | Wortwahl                        | eine Gruppe heißt überall Gruppe, der Hostrechner ist die Leitstelle, der weite Maßstab „alle Pendler"    | geht      | `numbers.spec.ts`       |
 | S-18 | keine Schulwörter               | kein „Klasse", „Unterricht", „Lehrer" oder „Pult" im Wörterbuch — außer im Beispiel im Namensfeld (S17)   | geht      | -                       |
 | S-19 | Kopfzeile der Django-Seiten     | Menüs öffnen unter ihrem Knopf, Esc und Klick daneben schließen; Handy-Menü mit Unterlisten; nichts von fremden Servern | geht      | -                       |
-| S-20 | Schriftzug                      | das Zeichen ist das C von CO₂mmute; beide Hälften zeichnen ihn aus derselben Datei, hell wie dunkel lesbar (S20) | geht      | -                       |
+| S-20 | Schriftzug                      | das Zeichen ist das C von CO₂mmute, der Rest steht in derselben Schrift wie die Seite; auf beiden Hälften gleich groß, hell wie dunkel lesbar (S20) | geht      | -                       |
 | S-21 | Quellcode                       | Link aufs Repository in der Fußzeile beider Hälften (S20)                                                  | geht      | `chrome.spec.ts`        |
 | S-22 | Breite von Kopf- und Fußzeile   | auf beiden Hälften gleich breit und gleich eingerückt; ein Screen unter `/app` ist nie breiter (S20)       | geht      | -                       |
 | S-23 | Menü ohne Konto                 | wer mitspielt, sieht keine Karten und kein Abmelden, nur Anmelden (S20)                                            | geht      | `chrome.spec.ts`        |

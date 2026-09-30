@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="22 20 155 160">
+  <title>CO₂mmute</title>
+  <!--
+    The mark is the C of the name. The lockup is this, followed by "O₂mmute" as
+    text in the page's own font — the system sans every other word on the site
+    is set in — so the name never looks like it came from another typeface.
+
+    Cropped to the C's outer edges, so a height of one cap-height makes it the
+    size of a capital; the lockup makes it a little taller, the way a round
+    letter overshoots. Referenced as `<use href="/static/img/mark.svg#mark">` by
+    both halves; the viewBox above is repeated there and
+    `frontend/tests/design/lockup.test.ts` keeps them equal.
+  -->
+  <g id="mark">
+    <path d="M140 40 A70 70 0 1 0 140 160" fill="none" stroke="#1e88e5" stroke-width="20" stroke-linecap="round"/>
+    <rect x="85" y="85" width="30" height="30" rx="4" fill="#1e88e5" transform="rotate(45 100 100)"/>
+    <line x1="121" y1="100" x2="165" y2="100" stroke="#1e88e5" stroke-width="20" stroke-linecap="round"/>
+  </g>
+</svg>

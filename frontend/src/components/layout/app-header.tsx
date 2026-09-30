@@ -1,9 +1,9 @@
 import { useEffect, useRef } from "react";
-import { ChevronDown, Menu, X } from "lucide-react";
 
 import { Lockup } from "@/components/layout/lockup";
 import { NavLink } from "@/components/layout/nav-link";
 import { de } from "@/lib/de";
+import { cn } from "@/lib/utils";
 import { placeBelow } from "@/lib/nav-href";
 import { type NavItem, useNavigation } from "@/lib/queries/navigation";
 
@@ -58,7 +58,7 @@ export function AppHeader() {
             className="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5"
           >
             <span className="sr-only">{de.app.header.menu}</span>
-            <Menu aria-hidden="true" className="size-6" strokeWidth={1.5} />
+            <MenuIcon />
           </button>
         </div>
 
@@ -75,7 +75,9 @@ export function AppHeader() {
         </div>
 
         <div className="hidden lg:flex lg:flex-1 lg:items-center lg:justify-end lg:gap-x-6">
-          {nav?.account ? <NavLink item={nav.account} className={TOP_LINK} /> : null}
+          {nav?.account ? (
+            <NavLink item={nav.account} className={TOP_LINK} />
+          ) : null}
           {nav ? (
             <a href={nav.session.href ?? "/"} className={TOP_LINK}>
               {nav.session.label} <span aria-hidden="true">&rarr;</span>
@@ -111,7 +113,7 @@ export function AppHeader() {
                 className="-m-2.5 rounded-md p-2.5"
               >
                 <span className="sr-only">{de.app.header.closeMenu}</span>
-                <X aria-hidden="true" className="size-6" strokeWidth={1.5} />
+                <CloseIcon />
               </button>
             </div>
             <div className="mt-6 flow-root">
@@ -122,10 +124,7 @@ export function AppHeader() {
                       <details key={item.id} className="group -mx-3">
                         <summary className="flex w-full cursor-pointer list-none items-center justify-between rounded-lg py-2 pr-3.5 pl-3 text-base/7 font-medium transition hover:bg-muted [&::-webkit-details-marker]:hidden">
                           {item.label}
-                          <ChevronDown
-                            aria-hidden="true"
-                            className="size-5 flex-none text-soft group-open:rotate-180 dark:text-darksofttext"
-                          />
+                          <Chevron className="group-open:rotate-180" />
                         </summary>
                         <div className="mt-2 space-y-2">
                           {item.children.map((child) => (
@@ -151,9 +150,15 @@ export function AppHeader() {
                 </div>
                 <div className="py-6">
                   {nav?.account ? (
-                    <NavLink item={nav.account} onFollow={closeMenu} className={MENU_ROW} />
+                    <NavLink
+                      item={nav.account}
+                      onFollow={closeMenu}
+                      className={MENU_ROW}
+                    />
                   ) : null}
-                  {nav ? <NavLink item={nav.session} className={MENU_ROW} /> : null}
+                  {nav ? (
+                    <NavLink item={nav.session} className={MENU_ROW} />
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -217,7 +222,7 @@ function Flyout({ item }: { item: NavItem }) {
         className="flex items-center gap-x-1 text-sm/6 font-medium text-foreground transition hover:text-primary"
       >
         {item.label}
-        <ChevronDown aria-hidden="true" className="size-5 flex-none text-soft dark:text-darksofttext" />
+        <Chevron />
       </button>
       <div
         ref={panel}
@@ -235,5 +240,69 @@ function Flyout({ item }: { item: NavItem }) {
         ))}
       </div>
     </div>
+  );
+}
+
+/*
+ * The same three icons, path for path, that `base.html` draws. They were
+ * lucide's here and heroicons' there, and side by side the menu bars were
+ * visibly a different weight — the one place the two headers still differed.
+ */
+
+function MenuIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      aria-hidden="true"
+      className="size-6"
+    >
+      <path
+        d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      aria-hidden="true"
+      className="size-6"
+    >
+      <path
+        d="M6 18 18 6M6 6l12 12"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function Chevron({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      aria-hidden="true"
+      className={cn(
+        "size-5 flex-none text-soft dark:text-darksofttext",
+        className,
+      )}
+    >
+      <path
+        d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
+        fillRule="evenodd"
+        clipRule="evenodd"
+      />
+    </svg>
   );
 }

@@ -133,6 +133,12 @@ const endReason: Record<GameEndReason, string> = {
 export const de = {
   app: {
     name: "CO₂mmute",
+    /**
+     * The lockup's letters after the mark, which *is* the C. Split so the 2 can
+     * be a `<sub>`, the way the landing page sets CO₂: the Unicode subscript
+     * digit is missing from some system fonts and falls back to another face.
+     */
+    wordmark: { before: "O", sub: "2", after: "mmute" },
     loading: "Lädt …",
     saving: "Wird gespeichert …",
     empty: "Nichts da.",
