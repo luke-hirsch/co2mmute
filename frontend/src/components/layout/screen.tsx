@@ -16,6 +16,11 @@ import { cn } from "@/lib/utils";
  * a graph capped at a text measure is a graph you cannot read. It is a width,
  * not a licence — the rhythm and the gutter still apply, and body text on such
  * a screen still caps itself with `max-w-(--measure-body)`.
+ *
+ * The gutter is the header's, `px-4 sm:px-6 lg:px-8`, so a `wide` screen lines
+ * up with it exactly. On its own a screen fills the viewport; under the header
+ * and footer (`data-chrome`, set in `__root.tsx`) it fills the space between
+ * them instead, or the footer would always sit a whole screen further down.
  */
 export function Screen({
   children,
@@ -31,7 +36,7 @@ export function Screen({
   return (
     <main
       className={cn(
-        "min-h-dvh bg-background px-4 py-20 text-foreground sm:px-6 lg:py-28",
+        "min-h-dvh bg-background px-4 py-20 text-foreground sm:px-6 lg:px-8 lg:py-28 in-data-chrome:min-h-0 in-data-chrome:flex-1",
         className,
       )}
     >

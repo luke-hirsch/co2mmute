@@ -30,8 +30,8 @@ class ProfileRedirectTests(TestCase):
 
     The page followed the create form across, because the host's own pages
     belong together (Lukas, 2026-09-28). The URL stays because Django's
-    `LOGIN_REDIRECT_URL` defaults to it and because the footer, the app header
-    and the account-deletion pages all point at it.
+    `LOGIN_REDIRECT_URL` defaults to it and the account-deletion pages point at
+    it. Both headers link `/app/host` directly since S20.
     """
 
     def setUp(self):

@@ -287,14 +287,14 @@ nicht gemessen.
 
 | ID   | Fall                            | Erwartet                                                                                                   | Status    | E2E                     |
 | ---- | ------------------------------- | ---------------------------------------------------------------------------------------------------------- | --------- | ----------------------- |
-| S-01 | Impressum, Datenschutz, Cookies | von jeder Seite erreichbar                                                                                 | ungeprüft | -                       |
+| S-01 | Impressum, Datenschutz, Cookies | von jeder Seite außerhalb des Spiels erreichbar, in der Fußzeile beider Hälften (S20)                      | geht      | `chrome.spec.ts`        |
 | S-02 | heller und dunkler Modus        | auf beiden Hälften, ein Schalter                                                                           | ungeprüft | -                       |
 | S-03 | 390px                           | kein horizontales Scrollen, nirgends                                                                       | geht      | -                       |
 | S-04 | Spielernamen                    | tauchen in keinem Log auf                                                                                  | ungeprüft | -                       |
 | S-05 | Anonymisierung                  | nach Spielende „Spieler N", Host wird „Host"                                                               | ungeprüft | -                       |
 | S-06 | Rechtstexte in der SPA          | Links auch im Spiel erreichbar                                                                             | offen     | -                       |
 | S-07 | Spiel auf der Hostseite löschen | fragt vorher und sagt, was mitgeht; laufendes Spiel wird abgelehnt                                         | geht      | `e2e/host-page.spec.ts` |
-| S-08 | Kopfzeile unter `/app`          | auf den Beitreten-Screens, nicht im Spiel, nicht im Editor                                                 | geht      | -                       |
+| S-08 | Kopf- und Fußzeile unter `/app` | dieselben Punkte wie auf den Django-Seiten, Karten nur für Staff, Abmelden; nicht im Spiel, nicht im Editor (S20) | geht      | `chrome.spec.ts`        |
 | S-09 | Passwort raten                  | nach 10 Fehlversuchen 429 mit deutscher Seite, 15 Minuten (S9)                                             | geht      | -                       |
 | S-10 | Platz-Code raten                | nach 20 Fehlgriffen 429; gültige Codes zählen nie mit (S9)                                                 | geht      | -                       |
 | S-11 | viele Konten anlegen            | nach 10 angelegten Konten pro Stunde 429; abgelehnte Formulare zählen nicht (S9)                           | geht      | -                       |
@@ -306,6 +306,10 @@ nicht gemessen.
 | S-17 | Wortwahl                        | eine Gruppe heißt überall Gruppe, der Hostrechner ist die Leitstelle, der weite Maßstab „alle Pendler"    | geht      | `numbers.spec.ts`       |
 | S-18 | keine Schulwörter               | kein „Klasse", „Unterricht", „Lehrer" oder „Pult" im Wörterbuch — außer im Beispiel im Namensfeld (S17)   | geht      | -                       |
 | S-19 | Kopfzeile der Django-Seiten     | Menüs öffnen unter ihrem Knopf, Esc und Klick daneben schließen; Handy-Menü mit Unterlisten; nichts von fremden Servern | geht      | -                       |
+| S-20 | Schriftzug                      | das Zeichen ist das C von CO₂mmute; beide Hälften zeichnen ihn aus derselben Datei, hell wie dunkel lesbar (S20) | geht      | -                       |
+| S-21 | Quellcode                       | Link aufs Repository in der Fußzeile beider Hälften (S20)                                                  | geht      | `chrome.spec.ts`        |
+| S-22 | Breite von Kopf- und Fußzeile   | auf beiden Hälften gleich breit und gleich eingerückt; ein Screen unter `/app` ist nie breiter (S20)       | geht      | -                       |
+| S-23 | Menü ohne Konto                 | wer mitspielt, sieht keine Karten und kein Abmelden, nur Anmelden (S20)                                            | geht      | `chrome.spec.ts`        |
 
 > S-09 bis S-11 zählen **Fehlversuche** (Login, Platz-Code) bzw. **Erfolge** (Konten), nie einfach
 > Anfragen: eine Klasse hängt hinter _einem_ Schulanschluss, und wer richtige Codes einlöst, würde

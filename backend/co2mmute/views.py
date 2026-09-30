@@ -22,10 +22,11 @@ from game.cache import get_cached_game_session
 from game.models import GameSession, Player
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from co2mmute import navigation
 from co2mmute.throttle import (
     LOGIN_LIMIT,
     LOGIN_WINDOW,
@@ -195,10 +196,10 @@ class ProfileView(LoginRequiredMixin, RedirectView):
     the reason Lukas gave on 2026-09-28, that the host's own pages belong
     together.
 
-    The URL stays because Django's `LOGIN_REDIRECT_URL` defaults to it, the
-    footer and the app header point at it, and so do the account-deletion pages
-    that were deliberately *not* ported — re-authentication and the goodbye
-    page are credential flows, and those stay server-rendered.
+    The URL stays because Django's `LOGIN_REDIRECT_URL` defaults to it, and so
+    do the account-deletion pages that were deliberately *not* ported —
+    re-authentication and the goodbye page are credential flows, and those stay
+    server-rendered.
     """
 
     pattern_name = None
@@ -358,6 +359,21 @@ class WhoAmIView(APIView):
         if cached_game and player:
             return "player"
         return "user"
+
+
+class NavigationView(APIView):
+    """`GET api/navigation/` — the header and footer for the SPA. S20.
+
+    The same dictionary `base.html` renders, from `co2mmute.navigation.build`,
+    so the two halves cannot offer different items. Open to anyone: an
+    anonymous visitor gets the anonymous header, which is exactly what a player
+    on the join screen should see.
+    """
+
+    permission_classes = [AllowAny]
+
+    def get(self, request, format=None):
+        return Response(navigation.build(request))
 
 
 class AccountDeleteView(LoginRequiredMixin, FormView):

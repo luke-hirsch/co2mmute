@@ -21,22 +21,16 @@
     </script>
     {% block extra_head %}{% endblock %}
   </head>
-  <body class="flex min-h-dvh flex-col bg-body dark:bg-darkbody text-main dark:text-darktext">
-    <header
-      class="bg-surface dark:bg-darksurface border-b border-subtle dark:border-darksubtle"
-    >
+  <body class="flex min-h-dvh flex-col bg-body text-main antialiased dark:bg-darkbody dark:text-darktext">
+    {# The items come from co2mmute/navigation.py, which also feeds the SPA's header through api/navigation/. Add or rename an item there, never here — the two halves used to carry a list each and disagreed about most of it. #}
+    <header class="border-b border-subtle bg-surface dark:border-darksubtle dark:bg-darksurface">
       <nav
-        aria-label="Global"
-        class="mx-auto flex max-w-7xl items-center justify-between p-6 text-main dark:text-darktext lg:px-8"
+        aria-label="Hauptmenü"
+        class="mx-auto flex max-w-7xl items-center justify-between gap-6 px-4 py-5 text-main sm:px-6 lg:px-8 dark:text-darktext"
       >
         <div class="flex lg:flex-1">
-          <a href="/" class="-m-1.5 p-1.5">
-            <span class="sr-only">CO<sub>2</sub>mmute</span>
-            <img
-              src="{% static 'img/logo.svg' %}"
-              alt="logo"
-              class="h-8 w-auto"
-            />
+          <a href="/" class="-m-1.5 p-1.5 text-main dark:text-darktext">
+            {% include "partials/lockup.html" %}
           </a>
         </div>
         <div class="flex lg:hidden">
@@ -45,392 +39,107 @@
             data-dialog-open="mobile-menu"
             aria-haspopup="dialog"
             aria-controls="mobile-menu"
-            class="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-muted dark:text-darkmutedtext"
+            class="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-main dark:text-darktext"
           >
             <span class="sr-only">Menü</span>
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              data-slot="icon"
-              aria-hidden="true"
-              class="size-6"
-            >
-              <path
-                d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" class="size-6">
+              <path d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
           </button>
         </div>
-  <div class="hidden lg:flex lg:gap-x-12">
-
-  {# --- Spielen (bestehend) --- #}
-  <div class="relative">
-    <button
-      popovertarget="desktop-menu-game"
-      class="flex items-center gap-x-1 text-sm/6 font-medium text-main dark:text-darktext"
-    >
-      Spielen
-      <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
-           class="size-5 flex-none text-soft dark:text-darksofttext">
-        <path
-          d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
-          fill-rule="evenodd" clip-rule="evenodd"
-        />
-      </svg>
-    </button>
-
-    <div
-      id="desktop-menu-game"
-      popover
-      data-anchor-below
-      class="absolute inset-auto w-screen max-w-md overflow-hidden rounded-3xl bg-elevated text-main shadow-lg outline-1 outline-border-subtle translate-y-1 opacity-0 transition transition-discrete duration-150 ease-out open:translate-y-0 open:opacity-100 starting:open:translate-y-1 starting:open:opacity-0 dark:bg-darkelevated dark:text-darktext dark:shadow-none dark:-outline-offset-1 dark:outline-darksubtle"
-    >
-      <div class="p-4">
-
-        {# DB Items für game_menu #}
-        {% with navigation_items.game_menu as game_items %}
-          {% for item in game_items %}
-            <div class="group relative flex items-center gap-x-6 rounded-lg p-4 text-sm/6 hover:bg-elevated dark:hover:bg-darkelevated">
-              <div class="flex-auto">
-                {% if item.page_key %}
-                  <a href="{% url 'content:static-page' key=item.page_key %}"
-                     class="block font-semibold text-main dark:text-darktext">
-                    {{ item.label }}
-                    <span class="absolute inset-0"></span>
-                  </a>
-                {% else %}
-                  <span class="block font-semibold text-main dark:text-darktext">
-                    {{ item.label }}
-                  </span>
-                {% endif %}
+        <div class="hidden lg:flex lg:items-center lg:gap-x-10">
+          {% for item in navigation.header %}
+            {% if item.children %}
+              <div class="relative">
+                <button
+                  type="button"
+                  popovertarget="nav-{{ item.id }}"
+                  class="flex items-center gap-x-1 text-sm/6 font-medium text-main transition hover:text-primary-600 dark:text-darktext dark:hover:text-primary-400"
+                >
+                  {{ item.label }}
+                  <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" class="size-5 flex-none text-soft dark:text-darksofttext">
+                    <path d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" fill-rule="evenodd" clip-rule="evenodd" />
+                  </svg>
+                </button>
+                <div
+                  id="nav-{{ item.id }}"
+                  popover
+                  data-anchor-below
+                  class="absolute inset-auto m-0 w-56 rounded-lg border border-subtle bg-surface p-2 text-main opacity-0 shadow-sm translate-y-1 transition transition-discrete duration-150 ease-out open:translate-y-0 open:opacity-100 starting:open:translate-y-1 starting:open:opacity-0 dark:border-darksubtle dark:bg-darksurface dark:text-darktext"
+                >
+                  {% for child in item.children %}
+                    {% include "partials/nav_link.html" with item=child link_class="block rounded-md px-3 py-2 text-sm/6 font-medium text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated" %}
+                  {% endfor %}
+                </div>
               </div>
-            </div>
+            {% else %}
+              {% include "partials/nav_link.html" with link_class="text-sm/6 font-medium text-main transition hover:text-primary-600 dark:text-darktext dark:hover:text-primary-400" %}
+            {% endif %}
           {% endfor %}
-        {% endwith %}
-
-        {# deine festen Links (optional) #}
-        <div class="group relative flex items-center gap-x-6 rounded-lg p-4 text-sm/6 hover:bg-elevated dark:hover:bg-darkelevated">
-          <div class="flex-auto">
-            <a href="{% url 'session-create' %}" class="block font-semibold text-main dark:text-darktext">
-              Erstellen
-              <span class="absolute inset-0"></span>
-            </a>
-          </div>
         </div>
-
-        <div class="group relative flex items-center gap-x-6 rounded-lg p-4 text-sm/6 hover:bg-elevated dark:hover:bg-darkelevated">
-          <div class="flex-auto">
-            <a href="{% url 'session-join' %}" class="block font-semibold text-main dark:text-darktext">
-              Beitreten
-              <span class="absolute inset-0"></span>
-            </a>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  </div>
-
-  {# --- Karten (bestehend + DB Items) --- #}
-  {% if request.user.is_authenticated and request.user.is_staff %}
-    <div class="relative">
-      <button
-        popovertarget="desktop-menu-maps"
-        class="flex items-center gap-x-1 text-sm/6 font-medium text-main dark:text-darktext"
-      >
-        Karten
-        <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
-             class="size-5 flex-none text-soft dark:text-darksofttext">
-          <path
-            d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
-            fill-rule="evenodd" clip-rule="evenodd"
-          />
-        </svg>
-      </button>
-
-      <div
-        id="desktop-menu-maps"
-        popover
-        data-anchor-below
-        class="absolute inset-auto w-screen max-w-md overflow-hidden rounded-3xl bg-elevated text-main shadow-lg outline-1 outline-border-subtle translate-y-1 opacity-0 transition transition-discrete duration-150 ease-out open:translate-y-0 open:opacity-100 starting:open:translate-y-1 starting:open:opacity-0 dark:bg-darkelevated dark:text-darktext dark:shadow-none dark:-outline-offset-1 dark:outline-darksubtle"
-      >
-        <div class="p-4">
-
-          {# DB Items für map_menu #}
-          {% with navigation_items.map_menu as map_items %}
-            {% for item in map_items %}
-              <div class="group relative flex items-center gap-x-6 rounded-lg p-4 text-sm/6 hover:bg-elevated dark:hover:bg-darkelevated">
-                <div class="flex-auto">
-                  {% if item.page_key %}
-                    <a href="{% url 'content:static-page' key=item.page_key %}"
-                       class="block font-semibold text-main dark:text-darktext">
-                      {{ item.label }}
-                      <span class="absolute inset-0"></span>
-                    </a>
-                  {% else %}
-                    <span class="block font-semibold text-main dark:text-darktext">
-                      {{ item.label }}
-                    </span>
-                  {% endif %}
-                </div>
-              </div>
-            {% endfor %}
-          {% endwith %}
-
-          {# deine festen Links (optional) #}
-          <div class="group relative flex items-center gap-x-6 rounded-lg p-4 text-sm/6 hover:bg-elevated dark:hover:bg-darkelevated">
-            <div class="flex-auto">
-              <a href="{% url 'map-upload' %}" class="block font-semibold text-main dark:text-darktext">
-                Hochladen
-                <span class="absolute inset-0"></span>
-              </a>
-            </div>
-          </div>
-
-          <div class="group relative flex items-center gap-x-6 rounded-lg p-4 text-sm/6 hover:bg-elevated dark:hover:bg-darkelevated">
-            <div class="flex-auto">
-              <a href="{% url 'map-list' %}" class="block font-semibold text-main dark:text-darktext">
-                Karten
-                <span class="absolute inset-0"></span>
-              </a>
-            </div>
-          </div>
-
-        </div>
-      </div>
-    </div>
-  {% endif %}
-
-  {# --- Hintergrund zur Simulation --- #}
-  <a
-    href="{% url 'hintergrund' %}"
-    class="text-sm/6 font-medium text-main dark:text-darktext"
-  >
-    Hintergrund
-  </a>
-
-  {# --- Header-Items aus DB (location="header") --- #}
-  {% with navigation_items.header as header_items %}
-    {% for item in header_items %}
-      {% if item.children %}
-        <div class="relative">
-          <button
-            popovertarget="nav-{{ item.id }}"
-            class="flex items-center gap-x-1 text-sm/6 font-medium text-main dark:text-darktext"
-          >
-            {{ item.label }}
-            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
-                 class="size-5 flex-none text-soft dark:text-darksofttext">
-              <path
-                d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
-                fill-rule="evenodd" clip-rule="evenodd"
-              />
-            </svg>
-          </button>
-
-          <div
-            id="nav-{{ item.id }}"
-            popover
-            data-anchor-below
-            class="absolute inset-auto w-screen max-w-md overflow-hidden rounded-3xl bg-elevated text-main shadow-lg outline-1 outline-border-subtle translate-y-1 opacity-0 transition transition-discrete duration-150 ease-out open:translate-y-0 open:opacity-100 starting:open:translate-y-1 starting:open:opacity-0 dark:bg-darkelevated dark:text-darktext dark:shadow-none dark:-outline-offset-1 dark:outline-darksubtle"
-          >
-            <div class="p-4">
-              {% for child in item.children %}
-                <div class="group relative flex items-center gap-x-6 rounded-lg p-4 text-sm/6 hover:bg-elevated dark:hover:bg-darkelevated">
-                  <div class="flex-auto">
-                    {% if child.page_key %}
-                      <a href="{% url 'content:static-page' key=child.page_key %}"
-                         class="block font-semibold text-main dark:text-darktext">
-                        {{ child.label }}
-                        <span class="absolute inset-0"></span>
-                      </a>
-                    {% else %}
-                      <span class="block font-semibold text-main dark:text-darktext">
-                        {{ child.label }}
-                      </span>
-                    {% endif %}
-                  </div>
-                </div>
-              {% endfor %}
-            </div>
-          </div>
-        </div>
-      {% else %}
-        {% if item.page_key %}
-          <a href="{% url 'content:static-page' key=item.page_key %}"
-             class="text-sm/6 font-medium text-main dark:text-darktext">
-            {{ item.label }}
-          </a>
-        {% else %}
-          <span class="text-sm/6 font-medium text-main dark:text-darktext">
-            {{ item.label }}
-          </span>
-        {% endif %}
-      {% endif %}
-    {% endfor %}
-  {% endwith %}
-
-</div>
-        <div class="hidden lg:flex lg:flex-1 lg:justify-end">
-          {% if request.user.is_authenticated %}
-          <a
-            href="{% url 'profile' %}"
-            class="pe-4 text-sm/6 uppercase font-semibold text-main transition hover:text-primary-600 dark:text-darktext dark:hover:text-primary-300"
-            >{{ request.user.username }}
-          </a>
-          <a
-            href="{% url 'logout' %}"
-            class="text-sm/6 font-medium text-main transition hover:text-primary-600 dark:text-darktext dark:hover:text-primary-300"
-            >Abmelden <span aria-hidden="true">&rarr;</span></a
-          >
-          {% else %}
-          <a
-            href="{% url 'login' %}"
-            class="text-sm/6 font-medium text-main transition hover:text-primary-600 dark:text-darktext dark:hover:text-primary-300"
-            >Anmelden <span aria-hidden="true">&rarr;</span></a
-          >
+        <div class="hidden lg:flex lg:flex-1 lg:items-center lg:justify-end lg:gap-x-6">
+          {% if navigation.account %}
+            {% include "partials/nav_link.html" with item=navigation.account link_class="text-sm/6 font-medium text-main transition hover:text-primary-600 dark:text-darktext dark:hover:text-primary-400" %}
           {% endif %}
+          <a
+            href="{{ navigation.session.href }}"
+            class="text-sm/6 font-medium text-main transition hover:text-primary-600 dark:text-darktext dark:hover:text-primary-400"
+            >{{ navigation.session.label }} <span aria-hidden="true">&rarr;</span></a
+          >
         </div>
       </nav>
       <dialog id="mobile-menu" aria-label="Menü" class="backdrop:bg-transparent lg:hidden">
         <div tabindex="0" data-dialog-backdrop class="fixed inset-0 focus:outline-none">
           <div
-            class="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-surface p-6 sm:max-w-sm sm:ring-1 sm:ring-border-subtle dark:bg-darksurface dark:sm:ring-darksubtle"
+            class="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-surface px-4 py-5 sm:max-w-sm sm:px-6 sm:ring-1 sm:ring-subtle dark:bg-darksurface dark:sm:ring-darksubtle"
           >
             <div class="flex items-center justify-between">
-              <a href="/" class="-m-1.5 p-1.5">
-                <span class="sr-only">CO<sub>2</sub>mmute</span>
-                <img
-                  src="{% static 'img/logo.svg' %}"
-                  alt="logo"
-                  class="h-8 w-auto"
-                />
+              <a href="/" class="-m-1.5 p-1.5 text-main dark:text-darktext">
+                {% include "partials/lockup.html" %}
               </a>
               <button
                 type="button"
                 data-dialog-close
-                class="-m-2.5 rounded-md p-2.5 text-muted dark:text-darkmutedtext"
+                class="-m-2.5 rounded-md p-2.5 text-main dark:text-darktext"
               >
                 <span class="sr-only">Menü schließen</span>
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  data-slot="icon"
-                  aria-hidden="true"
-                  class="size-6"
-                >
-                  <path
-                    d="M6 18 18 6M6 6l12 12"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" class="size-6">
+                  <path d="M6 18 18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
               </button>
             </div>
             <div class="mt-6 flow-root">
-              <div
-                class="-my-6 divide-y divide-border-subtle dark:divide-darksubtle"
-              >
+              <div class="-my-6 divide-y divide-subtle dark:divide-darksubtle">
                 <div class="space-y-2 py-6">
-                  <details class="group -mx-3">
-                    <summary
-                      class="flex w-full cursor-pointer list-none items-center justify-between rounded-lg py-2 pr-3.5 pl-3 text-base/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated [&::-webkit-details-marker]:hidden"
-                    >
-                      Spielen
-                      <svg
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                        data-slot="icon"
-                        aria-hidden="true"
-                        class="size-5 flex-none group-open:rotate-180"
-                      >
-                        <path
-                          d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
-                          clip-rule="evenodd"
-                          fill-rule="evenodd"
-                        />
-                      </svg>
-                    </summary>
-                    <div class="mt-2 space-y-2">
-                      <a
-                        href="{% url 'session-create' %}"
-                        class="block rounded-lg py-2 pr-3 pl-6 text-sm/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
-                        >Erstellen</a
-                      >
-                      <a
-                        href="{% url 'session-join' %}"
-                        class="block rounded-lg py-2 pr-3 pl-6 text-sm/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
-                        >Beitreten</a
-                      >
-                    </div>
-                  </details>
-                  {% if request.user.is_staff %}
-                  <details class="group -mx-3">
-                    <summary
-                      class="flex w-full cursor-pointer list-none items-center justify-between rounded-lg py-2 pr-3.5 pl-3 text-base/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated [&::-webkit-details-marker]:hidden"
-                    >
-                      Karten
-                      <svg
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                        data-slot="icon"
-                        aria-hidden="true"
-                        class="size-5 flex-none group-open:rotate-180"
-                      >
-                        <path
-                          d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
-                          clip-rule="evenodd"
-                          fill-rule="evenodd"
-                        />
-                      </svg>
-                    </summary>
-                    <div class="mt-2 space-y-2">
-                      <a
-                        href="{% url 'map-upload' %}"
-                        class="block rounded-lg py-2 pr-3 pl-6 text-sm/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
-                        >Upload</a
-                      >
-                      <a
-                        href="{% url 'map-list' %}"
-                        class="block rounded-lg py-2 pr-3 pl-6 text-sm/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
-                        >Liste</a
-                      >
-                    </div>
-                  </details>
-                  {% endif %}
-                  <div class="-mx-3">
-                    <a
-                      href="{% url 'hintergrund' %}"
-                      class="block rounded-lg py-2 pr-3.5 pl-3 text-base/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
-                      >Hintergrund</a
-                    >
-                  </div>
+                  {% for item in navigation.header %}
+                    {% if item.children %}
+                      <details class="group -mx-3">
+                        <summary
+                          class="flex w-full cursor-pointer list-none items-center justify-between rounded-lg py-2 pr-3.5 pl-3 text-base/7 font-medium text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated [&::-webkit-details-marker]:hidden"
+                        >
+                          {{ item.label }}
+                          <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" class="size-5 flex-none text-soft group-open:rotate-180 dark:text-darksofttext">
+                            <path d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" fill-rule="evenodd" />
+                          </svg>
+                        </summary>
+                        <div class="mt-2 space-y-2">
+                          {% for child in item.children %}
+                            {% include "partials/nav_link.html" with item=child link_class="block rounded-lg py-2 pr-3 pl-6 text-sm/7 font-medium text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated" %}
+                          {% endfor %}
+                        </div>
+                      </details>
+                    {% else %}
+                      <div class="-mx-3">
+                        {% include "partials/nav_link.html" with link_class="block rounded-lg py-2 pr-3.5 pl-3 text-base/7 font-medium text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated" %}
+                      </div>
+                    {% endif %}
+                  {% endfor %}
                 </div>
                 <div class="py-6">
-                  {% if request.user.is_authenticated %}<a
-                    href="{% url 'profile' %}"
-                    class="-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
-                    >Mein Profil</a
-                  >
-                  <a
-                    href="{% url 'logout' %}"
-                    class="-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
-                    >Abmelden</a
-                  >
-                  {% else %}
-                  <a
-                    href="{% url 'login' %}"
-                    class="-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
-                    >Anmelden</a
-                  >
-
+                  {% if navigation.account %}
+                    {% include "partials/nav_link.html" with item=navigation.account link_class="-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-medium text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated" %}
                   {% endif %}
+                  {% include "partials/nav_link.html" with item=navigation.session link_class="-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-medium text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated" %}
                 </div>
               </div>
             </div>
@@ -441,42 +150,16 @@
 
     <main class="flex-1 {% block main_class %}p-5{% endblock %}">{% block main %}{% endblock %}</main>
 
-    <footer
-      class="bg-surface dark:bg-darksurface border-t border-subtle dark:border-darksubtle mt-12"
-    >
+    <footer class="mt-12 border-t border-subtle bg-surface dark:border-darksubtle dark:bg-darksurface">
       <div
-        class="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-8 sm:flex-row sm:items-center sm:justify-between sm:py-10 lg:px-8"
+        class="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-10 lg:px-8"
       >
         <p class="text-sm text-muted dark:text-darkmutedtext">
           &copy; {% now 'Y' %} CO<sub>2</sub>mmute
         </p>
-        {# the legal pages are fixed links: they must always be reachable, whatever the CMS holds #}
-        <nav aria-label="Rechtliches" class="flex flex-wrap gap-x-6 gap-y-2">
-          <a
-            href="{% url 'impressum' %}"
-            class="text-sm text-muted dark:text-darkmutedtext transition hover:text-main dark:hover:text-darktext"
-            >Impressum</a
-          >
-          <a
-            href="{% url 'dsgvo' %}"
-            class="text-sm text-muted dark:text-darkmutedtext transition hover:text-main dark:hover:text-darktext"
-            >Datenschutz</a
-          >
-          <a
-            href="{% url 'cookies' %}"
-            class="text-sm text-muted dark:text-darkmutedtext transition hover:text-main dark:hover:text-darktext"
-            >Cookies</a
-          >
-          {% for item in navigation_items.footer %}
-            {% if item.page_key %}
-          <a
-            href="{% url 'content:static-page' key=item.page_key %}"
-            class="text-sm text-muted dark:text-darkmutedtext transition hover:text-main dark:hover:text-darktext"
-            >{{ item.label }}</a
-          >
-            {% else %}
-          <span class="text-sm text-muted dark:text-darkmutedtext">{{ item.label }}</span>
-            {% endif %}
+        <nav aria-label="Rechtliches und Quellcode" class="flex flex-wrap gap-x-6 gap-y-2">
+          {% for item in navigation.footer %}
+            {% include "partials/nav_link.html" with link_class="text-sm text-muted transition hover:text-main dark:text-darkmutedtext dark:hover:text-darktext" %}
           {% endfor %}
         </nav>
       </div>
