@@ -1,5 +1,16 @@
+import { useEffect, useState } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  EditorFact,
+  EditorField,
+  EditorNote,
+  EditorPanel,
+  editorControl,
+  editorControlNarrow,
+} from "@/components/map/editor/editor-panel";
 import { de } from "@/lib/de";
-import { useState, useEffect } from "react";
 import type { Edge, Node } from "../../../types/mapTypes";
 import {
   useUpdateEdge,
@@ -11,6 +22,36 @@ import {
   useCreateTrainEdge,
   useDeleteTrainEdge,
 } from "@/lib/queries/map-editor";
+
+/**
+ * One link's properties — the densest panel in the editor, and the one that held
+ * forty off-palette classes.
+ *
+ * ### What S18 changed, and what it did not
+ *
+ * Presentation only. Every handler, every mutation and the reverse-edge
+ * bookkeeping are byte-for-byte what they were: this panel writes to the map, so
+ * it is the part of the sweep where nothing structural was allowed to move.
+ *
+ * What went:
+ *
+ * - `bg-indigo-100` / `bg-amber-100` on the direction badge, `bg-gray-100` on
+ *   the street, `bg-red-100` on the railway and `bg-green-100` on a path — four
+ *   hues for four facts, none of which is good or bad news. They are outline
+ *   badges now, and what a link carries is read off the words.
+ * - `border-dashed border-amber-400`, `border-dashed border-indigo-400`,
+ *   `border-dashed border-gray-400`, `border-dashed border-red-400` — four
+ *   dashed buttons meaning "add the thing that is not here yet". One outline
+ *   button.
+ * - `text-red-600` on the two small `x`es that take a street or a railway off
+ *   the link. Those are destructive and they are the accent now, which is the
+ *   colour the palette has for that.
+ * - **`"Yes"` / `"No"`**, rendered for `biking` and `walking` in the read-only
+ *   branch. `de.actions.yes` / `.no` have existed since S17 and the bus-lane row
+ *   three lines below already used them; these two were missed because a
+ *   one-word literal is invisible to `german.test.ts`.
+ * - `"Saving..."`, for the same reason.
+ */
 
 interface EdgeChangeFields {
   biking: boolean;
@@ -212,65 +253,78 @@ const EdgePropertyPanel = ({
     createTrainEdgeMutation.isPending ||
     deleteTrainEdgeMutation.isPending;
 
-  return (
-    <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle space-y-3">
-      <h3 className="text-lg font-semibold text-main dark:text-darktext">
-        {isModifyMode ? de.editor.edge.modifyTitle : de.editor.edge.title}
-      </h3>
+  const anyError =
+    updateEdgeMutation.error ||
+    updateStreetEdgeMutation.error ||
+    deleteEdgeMutation.error ||
+    createEdgeMutation.error ||
+    createStreetEdgeMutation.error ||
+    deleteStreetEdgeMutation.error ||
+    createTrainEdgeMutation.error ||
+    deleteTrainEdgeMutation.error;
 
+  /** A boolean the reader may only look at. */
+  const readOnlyFlag = (value: boolean | undefined) =>
+    value ? de.actions.yes : de.actions.no;
+
+  return (
+    <EditorPanel
+      title={isModifyMode ? de.editor.edge.modifyTitle : de.editor.edge.title}
+    >
       {/* Direction info */}
       {allNodes && (
         <div>
-          <p className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.edge.direction}</p>
-          <p className="text-sm font-medium text-main dark:text-darktext">
+          <p className="text-xs text-muted-foreground">
+            {de.editor.edge.direction}
+          </p>
+          <p className="mt-0.5 text-sm font-medium">
             {startNode?.name || de.editor.node.numbered(edge.start_node)} →{" "}
             {endNode?.name || de.editor.node.numbered(edge.end_node)}
           </p>
-          <div className="flex items-center gap-2 mt-1">
-            <span
-              className={`text-xs px-2 py-0.5 rounded ${
-                isBidirectional
-                  ? "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300"
-                  : "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300"
-              }`}
-            >
+          <div className="mt-1.5">
+            <Badge variant="outline">
               {isBidirectional
                 ? `↔ ${de.editor.edge.bidirectional}`
                 : `→ ${de.editor.edge.oneWay}`}
-            </span>
+            </Badge>
           </div>
           {directEdit && (
             <div className="mt-2">
               {isBidirectional && !confirmOneWay && (
-                <button
+                <Button
+                  size="xs"
+                  variant="outline"
                   onClick={() => setConfirmOneWay(true)}
                   disabled={isPending}
-                  className="text-xs px-2 py-1 rounded border border-dashed border-amber-400 text-mutedtext dark:text-darkmutedtext hover:border-amber-600 disabled:opacity-50"
                 >
                   {de.editor.edge.makeOneWay}
-                </button>
+                </Button>
               )}
               {isBidirectional && confirmOneWay && reverseEdge && (
                 <div className="space-y-1.5">
-                  <p className="text-xs text-mutedtext dark:text-darkmutedtext">
+                  <p className="text-xs text-muted-foreground">
                     {de.editor.edge.whichDirection}
                   </p>
-                  <div className="flex flex-col gap-1">
-                    <button
+                  <div className="flex flex-col items-stretch gap-1">
+                    <Button
+                      size="xs"
+                      className="justify-start"
+                      disabled={isPending}
                       onClick={() => {
                         deleteEdgeMutation.mutate(reverseEdge.id, {
                           onSuccess: () => setConfirmOneWay(false),
                         });
                       }}
-                      disabled={isPending}
-                      className="text-xs px-2 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 text-left"
                     >
                       {de.editor.edge.keepDirection(
                         startNode?.name || de.editor.node.numbered(edge.start_node),
                         endNode?.name || de.editor.node.numbered(edge.end_node),
                       )}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      size="xs"
+                      className="justify-start"
+                      disabled={isPending}
                       onClick={() => {
                         deleteEdgeMutation.mutate(edge.id, {
                           onSuccess: () => {
@@ -279,25 +333,27 @@ const EdgePropertyPanel = ({
                           },
                         });
                       }}
-                      disabled={isPending}
-                      className="text-xs px-2 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 text-left"
                     >
                       {de.editor.edge.keepDirection(
                         endNode?.name || de.editor.node.numbered(edge.end_node),
                         startNode?.name || de.editor.node.numbered(edge.start_node),
                       )}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      size="xs"
+                      variant="ghost"
                       onClick={() => setConfirmOneWay(false)}
-                      className="text-xs px-2 py-1 text-mutedtext dark:text-darkmutedtext hover:text-main dark:hover:text-darktext"
                     >
                       {de.editor.cancel}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}
               {!isBidirectional && (
-                <button
+                <Button
+                  size="xs"
+                  variant="outline"
+                  disabled={isPending}
                   onClick={() => {
                     createEdgeMutation.mutate(
                       {
@@ -330,103 +386,101 @@ const EdgePropertyPanel = ({
                       },
                     );
                   }}
-                  disabled={isPending}
-                  className="text-xs px-2 py-1 rounded border border-dashed border-indigo-400 text-mutedtext dark:text-darkmutedtext hover:border-indigo-600 disabled:opacity-50"
                 >
                   {de.editor.edge.makeBidirectional}
-                </button>
+                </Button>
               )}
             </div>
           )}
         </div>
       )}
 
-      <div>
-        <p className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.edge.name}</p>
-        {directEdit ? (
+      {directEdit ? (
+        <EditorField label={de.editor.edge.name}>
           <input
             type="text"
             value={edgeName}
             onChange={(e) => setEdgeName(e.target.value)}
             placeholder={de.editor.edge.numbered(edge.id)}
-            className="w-full mt-0.5 px-2 py-1 text-sm font-semibold rounded border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext"
+            className={editorControl}
           />
-        ) : (
-          <p className="font-semibold text-main dark:text-darktext">
+        </EditorField>
+      ) : (
+        <EditorFact label={de.editor.edge.name}>
+          <span className="font-medium">
             {edge.name || de.editor.edge.numbered(edge.id)}
-          </p>
-        )}
-      </div>
+          </span>
+        </EditorFact>
+      )}
 
-      {/* Edge type badges + toggle buttons */}
-      <div>
-        <p className="text-xs text-mutedtext dark:text-darkmutedtext mb-1">{de.editor.edge.type}</p>
-        <div className="flex flex-col gap-1">
+      {/* What the corridor carries, and what can be added to it */}
+      <EditorFact label={de.editor.edge.type}>
+        <div className="flex flex-col items-start gap-1.5">
           {edge.street_edge ? (
-            <div className="flex items-center gap-1">
-              <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 px-2 py-1 rounded flex-1">
+            <div className="flex w-full items-center gap-1">
+              <Badge variant="outline" className="flex-1">
                 {de.editor.edge.streetSummary(
                   edge.street_edge.speed_limit,
                   edge.street_edge.lanes,
                 )}
                 {edge.street_edge.dedicated_bus_lane &&
                   ` ${de.editor.edge.busLaneSuffix}`}
-              </span>
+              </Badge>
               {directEdit && (
-                <button
+                <Button
+                  size="icon-xs"
+                  variant="ghost"
+                  className="text-destructive"
+                  aria-label={de.editor.remove}
                   onClick={handleRemoveStreetEdge}
-                  className="text-xs text-red-600 hover:text-red-800 dark:text-red-400"
                 >
-                  x
-                </button>
+                  ×
+                </Button>
               )}
             </div>
           ) : (
             directEdit && (
-              <button
-                onClick={handleAddStreetEdge}
-                className="text-xs px-2 py-1 rounded border border-dashed border-gray-400 text-mutedtext dark:text-darkmutedtext hover:border-gray-600"
-              >
+              <Button size="xs" variant="outline" onClick={handleAddStreetEdge}>
                 {de.editor.edge.addStreet}
-              </button>
+              </Button>
             )
           )}
           {edge.train_edge ? (
-            <div className="flex items-center gap-1">
-              <span className="text-xs bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100 px-2 py-1 rounded flex-1">
+            <div className="flex w-full items-center gap-1">
+              <Badge variant="outline" className="flex-1">
                 {de.editor.edge.train}
-              </span>
+              </Badge>
               {directEdit && (
-                <button
+                <Button
+                  size="icon-xs"
+                  variant="ghost"
+                  className="text-destructive"
+                  aria-label={de.editor.remove}
                   onClick={handleRemoveTrainEdge}
-                  className="text-xs text-red-600 hover:text-red-800 dark:text-red-400"
                 >
-                  x
-                </button>
+                  ×
+                </Button>
               )}
             </div>
           ) : (
             directEdit && (
-              <button
-                onClick={handleAddTrainEdge}
-                className="text-xs px-2 py-1 rounded border border-dashed border-red-400 text-mutedtext dark:text-darkmutedtext hover:border-red-600"
-              >
+              <Button size="xs" variant="outline" onClick={handleAddTrainEdge}>
                 {de.editor.edge.addTrain}
-              </button>
+              </Button>
             )
           )}
           {!edge.street_edge && !edge.train_edge && !directEdit && (
-            <span className="text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 px-2 py-1 rounded">
-              {de.editor.edge.path}
-            </span>
+            <Badge variant="outline">{de.editor.edge.path}</Badge>
           )}
         </div>
-      </div>
+      </EditorFact>
 
       {/* Properties */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.edge.biking}</span>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs text-muted-foreground">
+            {de.editor.edge.biking}
+          </span>
           {editable || isModifyMode ? (
             <input
               type="checkbox"
@@ -435,16 +489,16 @@ const EdgePropertyPanel = ({
                 if (useLocalState) setBiking(e.target.checked);
                 else onChange?.({ biking: e.target.checked });
               }}
-              className="rounded"
+              className="size-4 rounded accent-primary"
             />
           ) : (
-            <span className="text-xs text-main dark:text-darktext">
-              {edge.biking ? "Yes" : "No"}
-            </span>
+            <span className="text-xs">{readOnlyFlag(edge.biking)}</span>
           )}
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.edge.walking}</span>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs text-muted-foreground">
+            {de.editor.edge.walking}
+          </span>
           {editable || isModifyMode ? (
             <input
               type="checkbox"
@@ -453,16 +507,16 @@ const EdgePropertyPanel = ({
                 if (useLocalState) setWalking(e.target.checked);
                 else onChange?.({ walking: e.target.checked });
               }}
-              className="rounded"
+              className="size-4 rounded accent-primary"
             />
           ) : (
-            <span className="text-xs text-main dark:text-darktext">
-              {edge.walking ? "Yes" : "No"}
-            </span>
+            <span className="text-xs">{readOnlyFlag(edge.walking)}</span>
           )}
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.edge.maxLanes}</span>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs text-muted-foreground">
+            {de.editor.edge.maxLanes}
+          </span>
           {editable || isModifyMode ? (
             <input
               type="number"
@@ -474,17 +528,19 @@ const EdgePropertyPanel = ({
                 if (useLocalState) setMaxLanes(v);
                 else onChange?.({ max_lanes: v });
               }}
-              className="w-16 text-xs px-2 py-1 rounded border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext"
+              className={editorControlNarrow}
             />
           ) : (
-            <span className="text-xs text-main dark:text-darktext">{edge.max_lanes}</span>
+            <span className="font-mono text-xs">{edge.max_lanes}</span>
           )}
         </div>
 
         {edge.street_edge && (
           <>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.edge.speedLimit}</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-muted-foreground">
+                {de.editor.edge.speedLimit}
+              </span>
               {editable || isModifyMode ? (
                 <input
                   type="number"
@@ -497,16 +553,18 @@ const EdgePropertyPanel = ({
                     if (useLocalState) setSpeedLimit(v);
                     else onChange?.({ speed_limit: v });
                   }}
-                  className="w-16 text-xs px-2 py-1 rounded border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext"
+                  className={editorControlNarrow}
                 />
               ) : (
-                <span className="text-xs text-main dark:text-darktext">
+                <span className="font-mono text-xs">
                   {edge.street_edge.speed_limit} km/h
                 </span>
               )}
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.edge.lanes}</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-muted-foreground">
+                {de.editor.edge.lanes}
+              </span>
               {editable || isModifyMode ? (
                 <input
                   type="number"
@@ -518,16 +576,16 @@ const EdgePropertyPanel = ({
                     if (useLocalState) setLanes(v);
                     else onChange?.({ lanes: v });
                   }}
-                  className="w-16 text-xs px-2 py-1 rounded border border-subtle dark:border-darksubtle bg-body dark:bg-darkbody text-main dark:text-darktext"
+                  className={editorControlNarrow}
                 />
               ) : (
-                <span className="text-xs text-main dark:text-darktext">
-                  {edge.street_edge.lanes}
-                </span>
+                <span className="font-mono text-xs">{edge.street_edge.lanes}</span>
               )}
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.edge.busLane}</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-muted-foreground">
+                {de.editor.edge.busLane}
+              </span>
               {editable || isModifyMode ? (
                 <input
                   type="checkbox"
@@ -536,13 +594,11 @@ const EdgePropertyPanel = ({
                     if (useLocalState) setBusLane(e.target.checked);
                     else onChange?.({ dedicated_bus_lane: e.target.checked });
                   }}
-                  className="rounded"
+                  className="size-4 rounded accent-primary"
                 />
               ) : (
-                <span className="text-xs text-main dark:text-darktext">
-                  {edge.street_edge.dedicated_bus_lane
-                    ? de.actions.yes
-                    : de.actions.no}
+                <span className="text-xs">
+                  {readOnlyFlag(edge.street_edge.dedicated_bus_lane)}
                 </span>
               )}
             </div>
@@ -551,68 +607,46 @@ const EdgePropertyPanel = ({
       </div>
 
       {edge.distance_m != null && (
-        <div>
-          <p className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.edge.distance}</p>
-          <p className="text-sm text-main dark:text-darktext">
-            {edge.distance_m.toFixed(0)} m
-          </p>
-        </div>
+        <EditorFact label={de.editor.edge.distance}>
+          <span className="font-mono">{edge.distance_m.toFixed(0)} m</span>
+        </EditorFact>
       )}
 
       {/* Save / Delete in direct edit mode */}
       {directEdit && (
-        <div className="flex gap-2 pt-2">
-          <button
+        <div className="flex gap-2 pt-1">
+          <Button
+            size="sm"
+            className="flex-1"
             onClick={handleSave}
             disabled={isPending}
-            className="flex-1 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
           >
-            {updateEdgeMutation.isPending ? "Saving..." : de.editor.save}
-          </button>
-          <button
+            {updateEdgeMutation.isPending ? de.editor.saving : de.editor.save}
+          </Button>
+          <Button
+            size="sm"
+            variant="destructive"
             onClick={handleDelete}
             disabled={isPending}
-            className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
           >
             {de.editor.delete}
-          </button>
+          </Button>
         </div>
       )}
       {updateEdgeMutation.isSuccess && !updateStreetEdgeMutation.isPending && (
-        <p className="text-xs text-green-600 dark:text-green-400">{de.editor.saved}</p>
+        <EditorNote>{de.editor.saved}</EditorNote>
       )}
-      {(updateEdgeMutation.isError ||
-        updateStreetEdgeMutation.isError ||
-        deleteEdgeMutation.isError ||
-        createEdgeMutation.isError ||
-        createStreetEdgeMutation.isError ||
-        deleteStreetEdgeMutation.isError ||
-        createTrainEdgeMutation.isError ||
-        deleteTrainEdgeMutation.isError) && (
-        <p className="text-xs text-red-600 dark:text-red-400">
-          {(updateEdgeMutation.error ||
-            updateStreetEdgeMutation.error ||
-            deleteEdgeMutation.error ||
-            createEdgeMutation.error ||
-            createStreetEdgeMutation.error ||
-            deleteStreetEdgeMutation.error ||
-            createTrainEdgeMutation.error ||
-            deleteTrainEdgeMutation.error)?.message}
-        </p>
+      {anyError && (
+        <EditorNote tone="attention">{anyError.message}</EditorNote>
       )}
 
       {/* Modify button in version-diff mode */}
       {isModifyMode && (
-        <div className="pt-2">
-          <button
-            onClick={handleModify}
-            className="w-full px-3 py-1.5 text-sm bg-amber-600 text-white rounded-md hover:bg-amber-700"
-          >
-            {de.editor.modify}
-          </button>
-        </div>
+        <Button size="sm" className="w-full" onClick={handleModify}>
+          {de.editor.modify}
+        </Button>
       )}
-    </div>
+    </EditorPanel>
   );
 };
 

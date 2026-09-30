@@ -1,5 +1,33 @@
 import { useEffect, useMemo, useState } from "react";
 
+import { de } from "@/lib/de";
+
+/**
+ * The waiting state, for the screens that fetch a whole map before they can
+ * draw anything.
+ *
+ * ### What S18 changed
+ *
+ * Three things, none of them the animation:
+ *
+ * - **It was English.** `label = "Loading…"` and a subtitle reading "Adapting
+ *   to the network. Modal shift, but make it latency." — live on the map detail
+ *   page and in the editor, through two German passes. `german.test.ts` saw
+ *   neither: a one-word literal is skipped on purpose (`type === "street"` must
+ *   not read as a sentence) and the subtitle carried none of the giveaway
+ *   words. The default is `de.app.loading` now, and the subtitle is gone rather
+ *   than translated — a spinner does not need a second line, and inventing a
+ *   German joke for someone else's voice is not a colour sweep's job.
+ * - **The dark theme never applied.** The rule was `:global(.dark) .iconStage`,
+ *   which is styled-jsx / CSS-modules syntax; inside a plain `<style>` element
+ *   the browser drops the whole selector as invalid. So the vehicle kept its
+ *   light hull on `#0b1120`. The colours are tokens now and flip themselves,
+ *   which is also why there is no dark rule left to get wrong.
+ * - **The hull was `gray-800`, the label `gray-900`.** Palette, like everything
+ *   else this sweep touched: the ring is the primary, the vehicle is ink, and
+ *   the glass is the page colour rather than `#fff` — white glass on a dark
+ *   hull is fine, white glass on a dark *page* is a hole.
+ */
 type LoadingProps = {
   label?: string;
   className?: string;
@@ -9,7 +37,7 @@ type LoadingProps = {
 type Mode = "train" | "car" | "bus";
 
 export default function Loading({
-  label = "Loading…",
+  label = de.app.loading,
   className = "",
   intervalMs = 1000,
 }: LoadingProps) {
@@ -55,14 +83,7 @@ export default function Loading({
         </div>
       </div>
 
-      <div className="flex flex-col items-center gap-1 text-center">
-        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-          {label}
-        </div>
-        <div className="text-xs text-gray-500 dark:text-gray-400">
-          Adapting to the network. Modal shift, but make it latency.
-        </div>
-      </div>
+      <p className="text-sm font-medium text-foreground">{label}</p>
 
       <style>{`
         .iconStage {
@@ -71,28 +92,19 @@ export default function Loading({
           height: 170px;
           display: grid;
           place-items: center;
-        }
-
-        /* Theme vars */
-        .iconStage {
-          --fg: rgb(17 24 39);         /* gray-900 */
-          --fgSoft: rgba(17,24,39,.35);
-          --hull: rgb(31 41 55);       /* gray-800 */
-          --hullDarkMode: rgb(107 114 128); /* gray-500 */
-          color: var(--fg);
-        }
-        :global(.dark) .iconStage {
-          --fg: rgb(229 231 235);      /* gray-200 */
-          --fgSoft: rgba(229,231,235,.28);
-          --hull: var(--hullDarkMode); /* lighten hull in dark mode */
-          color: var(--fg);
+          /* Tokens, so the theme is handled by the theme and this element has
+             no dark rule of its own. The hull is ink at a step below the text
+             so the vehicle reads as an illustration rather than as a heading. */
+          --hull: var(--color-muted-foreground);
+          --glass: var(--color-card);
+          color: var(--color-foreground);
         }
 
         .swirl {
           position: absolute;
           inset: 18px;
           border-radius: 999px;
-          border: 3px solid var(--fgSoft);
+          border: 3px solid var(--color-primary);
           border-top-color: transparent;
           border-right-color: transparent;
           filter: blur(.1px);
@@ -143,7 +155,7 @@ export default function Loading({
   );
 }
 
-/** Shared helpers: all icons use currentColor + CSS var hull */
+/** Shared helpers: all icons use currentColor plus the two CSS vars above. */
 function TrainIcon() {
   return (
     <svg width="150" height="150" viewBox="0 0 160 160" fill="none">
@@ -164,7 +176,7 @@ function TrainIcon() {
         width="56"
         height="12"
         rx="6"
-        fill="#fff"
+        fill="var(--glass)"
         opacity="0.9"
       />
       {/* windshield */}
@@ -174,12 +186,12 @@ function TrainIcon() {
         width="72"
         height="40"
         rx="10"
-        fill="#fff"
+        fill="var(--glass)"
         opacity="0.95"
       />
       {/* headlights */}
-      <circle cx="50" cy="104" r="5" fill="#fff" />
-      <circle cx="110" cy="104" r="5" fill="#fff" />
+      <circle cx="50" cy="104" r="5" fill="var(--glass)" />
+      <circle cx="110" cy="104" r="5" fill="var(--glass)" />
       {/* coupler */}
       <rect
         x="72"
@@ -187,7 +199,7 @@ function TrainIcon() {
         width="16"
         height="8"
         rx="2"
-        fill="#000"
+        fill="currentColor"
         opacity="0.35"
       />
       {/* face */}
@@ -225,19 +237,19 @@ function CarIcon() {
       {/* windshield */}
       <path
         d="M66 78c2-4 5-6 9-6h10c4 0 7 2 9 6l4 10H62l4-10z"
-        fill="#fff"
+        fill="var(--glass)"
         opacity="0.95"
       />
 
       {/* headlights */}
-      <circle cx="56" cy="102" r="4.5" fill="#fff" />
-      <circle cx="104" cy="102" r="4.5" fill="#fff" />
+      <circle cx="56" cy="102" r="4.5" fill="var(--glass)" />
+      <circle cx="104" cy="102" r="4.5" fill="var(--glass)" />
 
       {/* wheels */}
       <circle cx="62" cy="116" r="8" fill="currentColor" opacity="0.9" />
       <circle cx="98" cy="116" r="8" fill="currentColor" opacity="0.9" />
-      <circle cx="62" cy="116" r="3" fill="#fff" opacity="0.85" />
-      <circle cx="98" cy="116" r="3" fill="#fff" opacity="0.85" />
+      <circle cx="62" cy="116" r="3" fill="var(--glass)" opacity="0.85" />
+      <circle cx="98" cy="116" r="3" fill="var(--glass)" opacity="0.85" />
 
       {/* face */}
       <circle cx="74" cy="98" r="2.6" fill="currentColor" opacity="0.9" />
@@ -266,7 +278,7 @@ function BusIcon() {
         width="48"
         height="10"
         rx="5"
-        fill="#fff"
+        fill="var(--glass)"
         opacity="0.9"
       />
 
@@ -277,7 +289,7 @@ function BusIcon() {
         width="60"
         height="24"
         rx="8"
-        fill="#fff"
+        fill="var(--glass)"
         opacity="0.95"
       />
       <rect
@@ -286,7 +298,7 @@ function BusIcon() {
         width="28"
         height="16"
         rx="6"
-        fill="#fff"
+        fill="var(--glass)"
         opacity="0.9"
       />
       <rect
@@ -295,19 +307,19 @@ function BusIcon() {
         width="28"
         height="16"
         rx="6"
-        fill="#fff"
+        fill="var(--glass)"
         opacity="0.9"
       />
 
       {/* wheels */}
       <circle cx="58" cy="124" r="8" fill="currentColor" opacity="0.9" />
       <circle cx="102" cy="124" r="8" fill="currentColor" opacity="0.9" />
-      <circle cx="58" cy="124" r="3" fill="#fff" opacity="0.85" />
-      <circle cx="102" cy="124" r="3" fill="#fff" opacity="0.85" />
+      <circle cx="58" cy="124" r="3" fill="var(--glass)" opacity="0.85" />
+      <circle cx="102" cy="124" r="3" fill="var(--glass)" opacity="0.85" />
 
       {/* headlights */}
-      <circle cx="46" cy="110" r="4" fill="#fff" opacity="0.9" />
-      <circle cx="114" cy="110" r="4" fill="#fff" opacity="0.9" />
+      <circle cx="46" cy="110" r="4" fill="var(--glass)" opacity="0.9" />
+      <circle cx="114" cy="110" r="4" fill="var(--glass)" opacity="0.9" />
 
       {/* face */}
       <circle cx="72" cy="110" r="2.6" fill="currentColor" opacity="0.9" />

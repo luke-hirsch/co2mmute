@@ -1,8 +1,33 @@
-import { de } from "@/lib/de";
 import { useRef } from "react";
+
+import { Button } from "@/components/ui/button";
+import { de } from "@/lib/de";
+import { cn } from "@/lib/utils";
 import type { EditorMode, GraphTool } from "../../../types/editorTypes";
 import type { GameMap } from "../../../types/mapTypes";
 import { useUploadBackgroundImage } from "@/lib/queries/map-editor";
+
+/**
+ * The bar above the canvas: which mode, which tool, and what to do next.
+ *
+ * ### What S18 changed
+ *
+ * It had five colours doing four jobs. The selected mode tab was
+ * `bg-indigo-600`; the selected *tool* was `bg-emerald-600`, except the delete
+ * tool, which was `bg-red-600`; "+ Buslinie" was `bg-blue-600` and "+ Bahnlinie"
+ * `bg-red-600`, which made a train look like a deletion; every hint was
+ * `text-amber-600`; and "Bild geladen." was `text-green-600`.
+ *
+ * Now: **selection is filled versus outlined**, which is the language the rest
+ * of the app uses for on-versus-off and costs no colour, and a hint is the accent
+ * only when the editor is *waiting on a click* — which is what those hints
+ * actually are. `Auswählen` and the version step counter are not waiting on
+ * anything, so they stay muted.
+ *
+ * Bus and Bahn get the same button. They are one line in this palette ("Bus &
+ * Bahn"), the labels already say which, and colouring the train red was the one
+ * that mattered: red is the delete tool's colour, on the same bar.
+ */
 
 interface EditorToolbarProps {
   mode: EditorMode;
@@ -37,6 +62,55 @@ const graphTools: { key: GraphTool; label: string }[] = [
   { key: "delete", label: de.editor.tools.delete },
 ];
 
+/**
+ * A line of small print on the bar.
+ *
+ * `waiting` means the editor cannot do anything until you click on the canvas,
+ * which is the one thing on this bar that has to be read. Everything else is
+ * context.
+ */
+function Hint({
+  waiting = false,
+  children,
+}: {
+  waiting?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <span
+      className={cn(
+        "text-xs",
+        waiting ? "font-medium text-destructive" : "text-muted-foreground",
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+/** A tool button: filled while it is the active tool, outlined otherwise. */
+function Tool({
+  active,
+  destructive = false,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  destructive?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Button
+      size="xs"
+      variant={active ? (destructive ? "destructive" : "default") : "outline"}
+      onClick={onClick}
+    >
+      {children}
+    </Button>
+  );
+}
+
 const EditorToolbar = ({
   mode,
   onModeChange,
@@ -65,29 +139,44 @@ const EditorToolbar = ({
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  /** The one-way / both-ways toggle, on the two tools that draw an edge. */
+  const directionToggle = (
+    <Button
+      size="xs"
+      variant={bidirectional ? "default" : "outline"}
+      onClick={() => onBidirectionalChange(!bidirectional)}
+      title={
+        bidirectional
+          ? de.editor.tools.bidirectionalHint
+          : de.editor.tools.oneWayHint
+      }
+    >
+      {bidirectional
+        ? `↔ ${de.editor.tools.bidirectional}`
+        : `→ ${de.editor.tools.oneWay}`}
+    </Button>
+  );
+
   return (
-    <div className="relative z-30 flex flex-wrap items-center gap-2 bg-subtle dark:bg-darksubtle rounded-lg p-3 border border-subtle dark:border-darksubtle">
+    <div className="relative z-30 flex flex-wrap items-center gap-2 rounded-xl border bg-card p-3">
       {/* Mode tabs */}
       {/* wrap: the five German tab labels are 465px wide, which is more than a
           phone has. The editor is a desktop tool, but a row that runs off the
           screen is a bug wherever it happens. */}
       <div className="flex flex-wrap gap-1">
         {modes.map((m) => (
-          <button
+          <Button
             key={m.key}
+            size="sm"
+            variant={mode === m.key ? "default" : "ghost"}
             onClick={() => onModeChange(m.key)}
-            className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-              mode === m.key
-                ? "bg-indigo-600 text-white"
-                : "text-mutedtext dark:text-darkmutedtext hover:bg-body dark:hover:bg-darkbody"
-            }`}
           >
             {m.label}
-          </button>
+          </Button>
         ))}
       </div>
 
-      <div className="w-px h-6 bg-subtle dark:bg-darksubtle mx-2" />
+      <div className="mx-2 h-6 w-px bg-border" />
 
       {/* Image mode actions */}
       {mode === "image" && (
@@ -99,17 +188,17 @@ const EditorToolbar = ({
             onChange={handleImageUpload}
             className="hidden"
           />
-          <button
+          <Button
+            size="sm"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploadMutation.isPending}
-            className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
           >
-            {uploadMutation.isPending ? de.editor.image.uploading : de.editor.image.upload}
-          </button>
+            {uploadMutation.isPending
+              ? de.editor.image.uploading
+              : de.editor.image.upload}
+          </Button>
           {gameMap.background_image_url && (
-            <span className="text-xs text-green-600 dark:text-green-400">
-              {de.editor.imageLoaded}
-            </span>
+            <Hint>{de.editor.imageLoaded}</Hint>
           )}
         </>
       )}
@@ -118,55 +207,30 @@ const EditorToolbar = ({
       {mode === "graph" && (
         <>
           <div className="flex gap-1">
-            {graphTools.filter((t) => t.key !== "delete").map((t) => (
-              <button
-                key={t.key}
-                onClick={() => onGraphToolChange(t.key)}
-                className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
-                  graphTool === t.key
-                    ? "bg-emerald-600 text-white"
-                    : "text-mutedtext dark:text-darkmutedtext hover:bg-body dark:hover:bg-darkbody border border-subtle dark:border-darksubtle"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
+            {graphTools
+              .filter((t) => t.key !== "delete")
+              .map((t) => (
+                <Tool
+                  key={t.key}
+                  active={graphTool === t.key}
+                  onClick={() => onGraphToolChange(t.key)}
+                >
+                  {t.label}
+                </Tool>
+              ))}
           </div>
           {hasSelection && (
-            <button
-              onClick={onDeleteSelected}
-              className="px-2.5 py-1 text-xs bg-red-600 text-white rounded-md hover:bg-red-700"
-            >
+            <Button size="xs" variant="destructive" onClick={onDeleteSelected}>
               {de.editor.delete}
-            </button>
+            </Button>
           )}
           {graphTool === "add-node" && (
-            <span className="text-xs text-amber-600 dark:text-amber-400">
-              {de.editor.tools.addNodeHint}
-            </span>
+            <Hint waiting>{de.editor.tools.addNodeHint}</Hint>
           )}
           {graphTool === "add-edge" && (
             <>
-              <span className="text-xs text-amber-600 dark:text-amber-400">
-                {de.editor.tools.addEdgeHint}
-              </span>
-              <button
-                onClick={() => onBidirectionalChange(!bidirectional)}
-                className={`px-2.5 py-1 text-xs rounded-md transition-colors border ${
-                  bidirectional
-                    ? "bg-indigo-600 text-white border-indigo-600"
-                    : "text-mutedtext dark:text-darkmutedtext border-subtle dark:border-darksubtle hover:bg-body dark:hover:bg-darkbody"
-                }`}
-                title={
-                  bidirectional
-                    ? de.editor.tools.bidirectionalHint
-                    : de.editor.tools.oneWayHint
-                }
-              >
-                {bidirectional
-                  ? `↔ ${de.editor.tools.bidirectional}`
-                  : `→ ${de.editor.tools.oneWay}`}
-              </button>
+              <Hint waiting>{de.editor.tools.addEdgeHint}</Hint>
+              {directionToggle}
             </>
           )}
         </>
@@ -175,40 +239,27 @@ const EditorToolbar = ({
       {/* PT Lines mode actions */}
       {mode === "pt-lines" && !ptLineCreating && (
         <>
-          <button
-            onClick={() => onStartPtLine("bus")}
-            className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
+          <Button size="sm" onClick={() => onStartPtLine("bus")}>
             {de.editor.ptLine.addBus}
-          </button>
-          <button
-            onClick={() => onStartPtLine("train")}
-            className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-md hover:bg-red-700"
-          >
+          </Button>
+          <Button size="sm" onClick={() => onStartPtLine("train")}>
             {de.editor.ptLine.addTrain}
-          </button>
+          </Button>
         </>
       )}
 
       {mode === "pt-lines" && ptLineCreating && (
         <>
-          <span className="text-sm text-amber-600 dark:text-amber-400">
-            {de.editor.ptLine.creatingHint}
-          </span>
-          <button
-            onClick={onCancelPtLine}
-            className="px-3 py-1.5 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700"
-          >
+          <Hint waiting>{de.editor.ptLine.creatingHint}</Hint>
+          <Button size="sm" variant="outline" onClick={onCancelPtLine}>
             {de.editor.cancel}
-          </button>
+          </Button>
         </>
       )}
 
       {/* Version mode step indicator */}
       {mode === "version-diff" && versionDiffStep === 1 && (
-        <span className="text-sm text-mutedtext dark:text-darkmutedtext">
-          {de.editor.versionStep1}
-        </span>
+        <Hint>{de.editor.versionStep1}</Hint>
       )}
 
       {/* Version-diff Step 2: show graph editing tools */}
@@ -216,64 +267,33 @@ const EditorToolbar = ({
         <>
           <div className="flex gap-1">
             {graphTools.map((t) => (
-              <button
+              <Tool
                 key={t.key}
+                active={graphTool === t.key}
+                destructive={t.key === "delete"}
                 onClick={() => onGraphToolChange(t.key)}
-                className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
-                  graphTool === t.key
-                    ? t.key === "delete"
-                      ? "bg-red-600 text-white"
-                      : "bg-emerald-600 text-white"
-                    : "text-mutedtext dark:text-darkmutedtext hover:bg-body dark:hover:bg-darkbody border border-subtle dark:border-darksubtle"
-                }`}
               >
                 {t.label}
-              </button>
+              </Tool>
             ))}
           </div>
           {versionDiffEditingPtLine && (
-            <span className="text-sm text-amber-600 dark:text-amber-400">
-              {de.editor.tools.editingPtLine}
-            </span>
+            <Hint waiting>{de.editor.tools.editingPtLine}</Hint>
           )}
           {!versionDiffEditingPtLine && graphTool === "select" && (
-            <span className="text-xs text-mutedtext dark:text-darkmutedtext">
-              {de.editor.tools.selectHint}
-            </span>
+            <Hint>{de.editor.tools.selectHint}</Hint>
           )}
           {!versionDiffEditingPtLine && graphTool === "add-node" && (
-            <span className="text-xs text-amber-600 dark:text-amber-400">
-              {de.editor.tools.proposeNodeHint}
-            </span>
+            <Hint waiting>{de.editor.tools.proposeNodeHint}</Hint>
           )}
           {!versionDiffEditingPtLine && graphTool === "add-edge" && (
             <>
-              <span className="text-xs text-amber-600 dark:text-amber-400">
-                {de.editor.tools.proposeEdgeHint}
-              </span>
-              <button
-                onClick={() => onBidirectionalChange(!bidirectional)}
-                className={`px-2.5 py-1 text-xs rounded-md transition-colors border ${
-                  bidirectional
-                    ? "bg-indigo-600 text-white border-indigo-600"
-                    : "text-mutedtext dark:text-darkmutedtext border-subtle dark:border-darksubtle hover:bg-body dark:hover:bg-darkbody"
-                }`}
-                title={
-                  bidirectional
-                    ? de.editor.tools.bidirectionalHint
-                    : de.editor.tools.oneWayHint
-                }
-              >
-                {bidirectional
-                  ? `↔ ${de.editor.tools.bidirectional}`
-                  : `→ ${de.editor.tools.oneWay}`}
-              </button>
+              <Hint waiting>{de.editor.tools.proposeEdgeHint}</Hint>
+              {directionToggle}
             </>
           )}
           {!versionDiffEditingPtLine && graphTool === "delete" && (
-            <span className="text-xs text-red-600 dark:text-red-400">
-              {de.editor.tools.deleteHint}
-            </span>
+            <Hint waiting>{de.editor.tools.deleteHint}</Hint>
           )}
         </>
       )}

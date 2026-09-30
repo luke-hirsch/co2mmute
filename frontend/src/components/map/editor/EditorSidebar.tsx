@@ -1,5 +1,8 @@
-import { de } from "@/lib/de";
 import { useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import { EditorPanel } from "@/components/map/editor/editor-panel";
+import { de } from "@/lib/de";
 import type { Dispatch } from "react";
 import type { GameMap, MapVersion } from "../../../types/mapTypes";
 import type { ExtendedMapGraph } from "../../../types/routeTypes";
@@ -125,11 +128,9 @@ const EditorSidebar = ({
         />
       )}
       {state.mode === "graph" && !selectedNode && !selectedEdge && (
-        <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle">
-          <p className="text-sm text-mutedtext dark:text-darkmutedtext">
-            {de.editor.pickHint}
-          </p>
-        </div>
+        <EditorPanel>
+          <p className="text-sm text-muted-foreground">{de.editor.pickHint}</p>
+        </EditorPanel>
       )}
 
       {/* PT Lines mode */}
@@ -148,30 +149,30 @@ const EditorSidebar = ({
       {/* Version Diff mode */}
       {state.mode === "version-diff" && (
         <>
-          {/* Sub-tab bar */}
-          <div className="flex rounded-lg overflow-hidden border border-subtle dark:border-darksubtle">
-            <button
-              type="button"
+          {/* Sub-tab bar.
+
+              It reached for `bg-darkaccent` and `dark:hover:bg-darkbg`, and
+              **neither is a token** — the tokens are `brandaccent` and
+              `darkbody`. Tailwind emits nothing for a colour it cannot resolve,
+              so in dark mode the selected tab had no background at all and the
+              two tabs were indistinguishable. Two `Button`s now, filled versus
+              ghost like every other on/off pair in the app; there is no class
+              string left to misspell. */}
+          <div className="grid grid-cols-2 gap-1 rounded-xl border bg-card p-1">
+            <Button
+              size="sm"
+              variant={versionTab === "create" ? "default" : "ghost"}
               onClick={() => setVersionTab("create")}
-              className={`flex-1 py-1.5 text-sm font-medium transition-colors ${
-                versionTab === "create"
-                  ? "bg-brandaccent dark:bg-darkaccent text-white"
-                  : "bg-subtle dark:bg-darksubtle text-main dark:text-darktext hover:bg-white dark:hover:bg-darkbg"
-              }`}
             >
               {de.editor.create}
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              size="sm"
+              variant={versionTab === "manage" ? "default" : "ghost"}
               onClick={() => setVersionTab("manage")}
-              className={`flex-1 py-1.5 text-sm font-medium transition-colors ${
-                versionTab === "manage"
-                  ? "bg-brandaccent dark:bg-darkaccent text-white"
-                  : "bg-subtle dark:bg-darksubtle text-main dark:text-darktext hover:bg-white dark:hover:bg-darkbg"
-              }`}
             >
               {de.editor.manage}
-            </button>
+            </Button>
           </div>
 
           {versionTab === "create" && (

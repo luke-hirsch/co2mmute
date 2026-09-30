@@ -10,14 +10,22 @@ import { cn } from "@/lib/utils";
  * survives a 390px phone. `narrow` is for the screens that are a single column
  * of text and one control — join, lobby, the revoked notice — where a full
  * content width would leave the form floating in the middle of nothing.
+ *
+ * `wide` is the opposite case and there is exactly one of it: a screen whose
+ * subject is **a drawing**. The map detail page puts a graph beside a panel, and
+ * a graph capped at a text measure is a graph you cannot read. It is a width,
+ * not a licence — the rhythm and the gutter still apply, and body text on such
+ * a screen still caps itself with `max-w-(--measure-body)`.
  */
 export function Screen({
   children,
   narrow = false,
+  wide = false,
   className,
 }: {
   children: ReactNode;
   narrow?: boolean;
+  wide?: boolean;
   className?: string;
 }) {
   return (
@@ -27,7 +35,12 @@ export function Screen({
         className,
       )}
     >
-      <div className={cn("mx-auto w-full", narrow ? "max-w-xl" : "max-w-5xl")}>
+      <div
+        className={cn(
+          "mx-auto w-full",
+          narrow ? "max-w-xl" : wide ? "max-w-7xl" : "max-w-5xl",
+        )}
+      >
         {children}
       </div>
     </main>

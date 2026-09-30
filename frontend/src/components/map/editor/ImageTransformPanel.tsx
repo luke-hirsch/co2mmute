@@ -1,5 +1,12 @@
-import { de } from "@/lib/de";
 import { useState, useEffect, useCallback } from "react";
+
+import { Button } from "@/components/ui/button";
+import {
+  EditorField,
+  EditorNote,
+  EditorPanel,
+} from "@/components/map/editor/editor-panel";
+import { de } from "@/lib/de";
 import type { GameMap } from "../../../types/mapTypes";
 import type { ExtendedMapGraph } from "../../../types/routeTypes";
 import type { ImageTransformValues } from "../../../types/editorTypes";
@@ -56,14 +63,9 @@ const ImageTransformPanel = ({ mapId, gameMap, mapGraph }: ImageTransformPanelPr
 
   if (!hasImage) {
     return (
-      <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle">
-        <h3 className="text-lg font-semibold text-main dark:text-darktext mb-2">
-          {de.editor.image.title}
-        </h3>
-        <p className="text-sm text-mutedtext dark:text-darkmutedtext">
-          {de.editor.image.none}
-        </p>
-      </div>
+      <EditorPanel title={de.editor.image.title}>
+        <p className="text-sm text-muted-foreground">{de.editor.image.none}</p>
+      </EditorPanel>
     );
   }
 
@@ -84,20 +86,18 @@ const ImageTransformPanel = ({ mapId, gameMap, mapGraph }: ImageTransformPanelPr
   ];
 
   return (
-    <div className="bg-subtle dark:bg-darksubtle rounded-lg p-4 border border-subtle dark:border-darksubtle space-y-3">
-      <h3 className="text-lg font-semibold text-main dark:text-darktext">
-        {de.editor.image.title}
-      </h3>
-      <p className="text-xs text-mutedtext dark:text-darkmutedtext">
-        {de.editor.image.hint}
-      </p>
+    <EditorPanel title={de.editor.image.title}>
+      <EditorNote>{de.editor.image.hint}</EditorNote>
 
       {sliders.map(({ field, label, min, max, step }) => (
-        <div key={field}>
-          <label className="flex justify-between text-xs text-mutedtext dark:text-darkmutedtext mb-1">
-            <span>{label}</span>
-            <span>{values[field].toFixed(field === "image_scale" ? 2 : 1)}</span>
-          </label>
+        <EditorField
+          key={field}
+          label={label}
+          value={values[field].toFixed(field === "image_scale" ? 2 : 1)}
+        >
+          {/* The track is `accent-primary` rather than a grey of its own: a
+              range input paints its own filled half, and `bg-gray-300` fought
+              the theme instead of following it. */}
           <input
             type="range"
             min={min}
@@ -105,31 +105,31 @@ const ImageTransformPanel = ({ mapId, gameMap, mapGraph }: ImageTransformPanelPr
             step={step}
             value={values[field]}
             onChange={(e) => handleChange(field, parseFloat(e.target.value))}
-            className="w-full h-1.5 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
+            className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-secondary accent-primary"
           />
-        </div>
+        </EditorField>
       ))}
 
-      <div className="flex gap-2 pt-2">
-        <button
+      <div className="flex gap-2 pt-1">
+        <Button
+          size="sm"
+          className="flex-1"
           onClick={handleSave}
           disabled={updateMutation.isPending}
-          className="flex-1 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
         >
           {updateMutation.isPending ? de.editor.saving : de.editor.save}
-        </button>
-        <button
+        </Button>
+        <Button
+          size="sm"
+          variant="destructive"
           onClick={() => deleteMutation.mutate()}
           disabled={deleteMutation.isPending}
-          className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
         >
           {de.editor.image.remove}
-        </button>
+        </Button>
       </div>
-      {updateMutation.isSuccess && (
-        <p className="text-xs text-mutedtext dark:text-darkmutedtext">{de.editor.saved}</p>
-      )}
-    </div>
+      {updateMutation.isSuccess && <EditorNote>{de.editor.saved}</EditorNote>}
+    </EditorPanel>
   );
 };
 

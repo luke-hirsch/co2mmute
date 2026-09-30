@@ -1,106 +1,131 @@
 import { de } from "@/lib/de";
 import { cn } from "@/lib/utils";
+import { edgeLayers, nodeMark, type EdgeLayer, type NodeMark } from "@/lib/map/palette";
 
 /**
- * What the colours on a map mean.
+ * What the marks on a map mean.
  *
  * "Legende fehlt" is on the old README list, and the editor is where it was
- * missing outright — you draw a map in five colours with nothing saying which
- * is a tram track and which is a footpath.
+ * missing outright — you draw a map in six colours with nothing saying which is
+ * a tram track and which is a footpath.
  *
- * **The items come from the caller, not from here.** Each renderer has its own
- * colour function (`EditorCanvas` and `MapViewer` agree; `GameMapViewer` uses a
- * blue/slate scheme so its edges do not collide with the traffic heatmap), and
- * recolouring any of them is redesign — 2.6's explicit exclusion, and a
- * decision about what node types *mean* that the UX pass has to make. So this
- * component is the layout and the wording; the colours stay the renderer's own
- * and the legend cannot drift from what is actually drawn.
+ * **It takes no items any more.** They used to come from the caller, because
+ * each renderer carried a colour function of its own and handing the legend its
+ * own copy of the colours was the only way to keep it honest. It did not work:
+ * `MapViewer` passed `#22c55e` for the walk path while its renderer drew
+ * `#10b981`, and `#a855f7` against a drawn `#8b5cf6`. The legend and the map
+ * disagreed on four of eleven entries, live, with a comment above them claiming
+ * they could not.
  *
- * Dashes matter as much as hue here: a train track is dashed, and on a map with
- * five similar colours the pattern is often what you actually read.
+ * Now there is one palette (`lib/map/palette.ts`) and the entries below are
+ * built by running the *same functions the renderers run*, on an edge or a node
+ * that is an example of the case. So the swatch is not a copy of the colour —
+ * it is the colour, and the drift has nowhere to happen.
  */
 
-export type LegendItem = {
-  /** The colour as the renderer draws it. */
-  color: string;
-  label: string;
-  /** SVG `stroke-dasharray`, for edge entries that are drawn dashed. */
-  dash?: string;
-  /** Nodes are dots, edges are strokes. */
-  shape?: "line" | "dot";
-};
+type EdgeEntry = { label: string; layers: EdgeLayer[] };
+type NodeEntry = { label: string; mark: NodeMark };
 
-export function MapLegend({
-  edges,
-  nodes,
-  className,
-}: {
-  edges: LegendItem[];
-  nodes: LegendItem[];
-  className?: string;
-}) {
+/** One example of each case, drawn by `edgeLayers` exactly as the map draws it. */
+const EDGE_ENTRIES: EdgeEntry[] = [
+  { label: de.map.legend.street, layers: edgeLayers({ street_edge: {} }) },
+  { label: de.map.legend.train, layers: edgeLayers({ train_edge: {} }) },
+  {
+    label: de.map.legend.streetAndTrain,
+    layers: edgeLayers({ street_edge: {}, train_edge: {} }),
+  },
+  { label: de.map.legend.bike, layers: edgeLayers({ biking: true }) },
+  { label: de.map.legend.walk, layers: edgeLayers({ walking: true }) },
+  {
+    label: de.map.legend.bikeAndWalk,
+    layers: edgeLayers({ biking: true, walking: true }),
+  },
+];
+
+const NODE_ENTRIES: NodeEntry[] = [
+  { label: de.map.legend.home, mark: nodeMark([{ name: "home" }]) },
+  { label: de.map.legend.workplace, mark: nodeMark([{ name: "workplace" }]) },
+  { label: de.map.legend.station, mark: nodeMark([{ name: "station" }]) },
+  { label: de.map.legend.busStop, mark: nodeMark([{ name: "bus_stop" }]) },
+  { label: de.map.legend.other, mark: nodeMark([]) },
+];
+
+export function MapLegend({ className }: { className?: string }) {
   return (
     <section className={cn("text-sm", className)}>
       <h3 className="font-medium">{de.map.legend.title}</h3>
 
       <div className="mt-3 grid gap-x-8 gap-y-4 sm:grid-cols-2">
-        <Group title={de.map.legend.edges} items={edges} fallbackShape="line" />
-        <Group title={de.map.legend.nodes} items={nodes} fallbackShape="dot" />
+        <div>
+          <p className="text-xs text-muted-foreground">{de.map.legend.edges}</p>
+          <ul className="mt-2 space-y-1.5">
+            {EDGE_ENTRIES.map((entry) => (
+              <li key={entry.label} className="flex items-center gap-2.5">
+                <EdgeSwatch layers={entry.layers} />
+                <span>{entry.label}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <p className="text-xs text-muted-foreground">{de.map.legend.nodes}</p>
+          <ul className="mt-2 space-y-1.5">
+            {NODE_ENTRIES.map((entry) => (
+              <li key={entry.label} className="flex items-center gap-2.5">
+                <NodeSwatch mark={entry.mark} />
+                <span>{entry.label}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     </section>
   );
 }
 
-function Group({
-  title,
-  items,
-  fallbackShape,
-}: {
-  title: string;
-  items: LegendItem[];
-  fallbackShape: "line" | "dot";
-}) {
-  if (items.length === 0) return null;
-
+/**
+ * An SVG rather than a bordered span, so a dashed entry reads as the dash it is
+ * drawn with on the map — and so a corridor carrying two things can show both
+ * strokes, stacked the way the renderer stacks them.
+ */
+function EdgeSwatch({ layers }: { layers: EdgeLayer[] }) {
+  const stacked = layers.length > 1;
   return (
-    <div>
-      <p className="text-xs text-muted-foreground">{title}</p>
-      <ul className="mt-2 space-y-1.5">
-        {items.map((item) => (
-          <li key={item.label} className="flex items-center gap-2.5">
-            <Swatch item={item} shape={item.shape ?? fallbackShape} />
-            <span>{item.label}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <svg aria-hidden width="24" height="10" className="shrink-0 overflow-visible">
+      {layers.map((layer, index) => {
+        // Two layers sit either side of the middle, one sits on it.
+        const y = stacked ? 3 + index * 4 : 5;
+        return (
+          <line
+            key={layer.kind}
+            x1="0"
+            y1={y}
+            x2="24"
+            y2={y}
+            stroke={layer.color}
+            strokeWidth={stacked ? "2.5" : "3"}
+            strokeDasharray={layer.dash}
+            strokeLinecap="round"
+          />
+        );
+      })}
+    </svg>
   );
 }
 
-function Swatch({ item, shape }: { item: LegendItem; shape: "line" | "dot" }) {
-  if (shape === "dot") {
-    return (
-      <span
-        aria-hidden
-        className="size-3 shrink-0 rounded-full"
-        style={{ backgroundColor: item.color }}
-      />
-    );
-  }
-
-  // An SVG rather than a bordered span, so a dashed entry actually reads as
-  // the dash it is drawn with on the map.
+/** Filled or hollow, the same way the map draws the mark. */
+function NodeSwatch({ mark }: { mark: NodeMark }) {
+  const r = 5 * mark.scale;
   return (
-    <svg aria-hidden width="24" height="6" className="shrink-0 overflow-visible">
-      <line
-        x1="0"
-        y1="3"
-        x2="24"
-        y2="3"
-        stroke={item.color}
-        strokeWidth="3"
-        strokeDasharray={item.dash}
-        strokeLinecap="round"
+    <svg aria-hidden width="12" height="12" viewBox="0 0 12 12" className="shrink-0">
+      <circle
+        cx="6"
+        cy="6"
+        r={r}
+        fill={mark.filled ? mark.color : "var(--color-card)"}
+        stroke={mark.color}
+        strokeWidth="2"
       />
     </svg>
   );
