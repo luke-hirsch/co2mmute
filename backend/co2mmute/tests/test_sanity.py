@@ -1,5 +1,6 @@
 import ast
 import pathlib
+import re
 
 from django.test import SimpleTestCase
 
@@ -94,4 +95,78 @@ class NoShadowedMethodsTests(SimpleTestCase):
             failures,
             [],
             msg="Methods shadowed by a later definition:\n  " + "\n  ".join(failures),
+        )
+
+
+class NoThirdPartyLoadsTests(SimpleTestCase):
+    """No page may load anything from another origin.
+
+    A script, stylesheet, image or frame fetched from someone else's server
+    hands them the visitor's IP address on every page view — and the visitors
+    are school students under a data-minimisation design. `base.html` loaded
+    `@tailwindplus/elements` from cdn.jsdelivr.net on every Django page for the
+    header's two dropdowns and the mobile menu, and the DSGVO page never
+    mentioned it. The design rules refuse a webfont for exactly this reason; a
+    script is the same leak.
+
+    Links are fine — an `<a href>` to tu.berlin loads nothing until somebody
+    clicks it. What this reads is every element that *fetches* on render.
+
+    `frontend/index.html` is the SPA's only HTML and is read when it is there:
+    CI checks out the whole repo, but the backend image copies only `backend/`.
+    """
+
+    FETCHING_ELEMENT = re.compile(
+        r"<(?:script|img|iframe|source|video|audio|embed)\b[^>]*?\bsrc\s*=\s*[\"']?(?:https?:)?//"
+        r"|<link\b[^>]*?\bhref\s*=\s*[\"']?(?:https?:)?//",
+        re.IGNORECASE,
+    )
+    REMOTE_CSS_URL = re.compile(r"(?:@import|url\()\s*[\"']?(?:https?:)?//", re.IGNORECASE)
+
+    def _html_sources(self):
+        paths = sorted((BACKEND_ROOT / "template").rglob("*.html"))
+        spa_index = BACKEND_ROOT.parent / "frontend" / "index.html"
+        if spa_index.exists():
+            paths.append(spa_index)
+        return paths
+
+    def test_no_page_loads_anything_from_another_origin(self):
+        failures = []
+
+        for path in self._html_sources():
+            text = path.read_text(encoding="utf-8")
+            for match in self.FETCHING_ELEMENT.finditer(text):
+                lineno = text.count("\n", 0, match.start()) + 1
+                failures.append(f"{path.relative_to(BACKEND_ROOT.parent)}:{lineno}")
+
+        # The stylesheet sources, not the built bundle: tailwind.css is output.
+        for path in sorted((BACKEND_ROOT / "static" / "css").glob("*.css")):
+            if path.name == "tailwind.css":
+                continue
+            text = path.read_text(encoding="utf-8")
+            for match in self.REMOTE_CSS_URL.finditer(text):
+                lineno = text.count("\n", 0, match.start()) + 1
+                failures.append(f"{path.relative_to(BACKEND_ROOT.parent)}:{lineno}")
+
+        self.assertEqual(
+            failures,
+            [],
+            msg="loaded from another origin:\n  " + "\n  ".join(failures),
+        )
+
+    def test_no_template_uses_an_element_nothing_defines(self):
+        """`<el-popover>`, `<el-dialog>` and friends were defined by that CDN
+        script. Without it they are inert unknown tags, so Tailwind UI markup
+        pasted in later would render and silently do nothing."""
+        failures = []
+
+        for path in sorted((BACKEND_ROOT / "template").rglob("*.html")):
+            for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                if re.search(r"<el-[a-z-]+", line):
+                    failures.append(f"{path.relative_to(BACKEND_ROOT)}:{lineno}")
+
+        self.assertEqual(
+            failures,
+            [],
+            msg="tailwindplus elements nothing defines:\n  " + "\n  ".join(failures),
         )

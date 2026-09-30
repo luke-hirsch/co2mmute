@@ -3,134 +3,84 @@
   const colorScheme = storeSystemColorScheme(COLOR_MODE_STORAGE_KEY);
   setColorScheme(colorScheme);
 
-  const initMobileMenus = () => {
-    const toggleButtons = document.querySelectorAll(
-      '[command="--toggle"][commandfor]'
-    );
+  // The header's flyouts are native popovers (`popovertarget` in base.html),
+  // so light dismiss, Escape and one-open-at-a-time come from the browser.
+  // They replaced @tailwindplus/elements, which was loaded from a CDN on every
+  // page and handed each visitor's IP to it. What the platform does not do
+  // everywhere yet is put a popover under its button — CSS anchor positioning
+  // is Safari 26+ — so that is the one thing done here. It is placed on
+  // `toggle`, after it opens, which the fade-in (from opacity 0) hides.
+  const initHeaderPopovers = () => {
+    const GAP = 12;
+    const EDGE = 16;
 
-    toggleButtons.forEach((button) => {
-      const targetId = button.getAttribute("commandfor");
-      if (!targetId) {
+    document.querySelectorAll("[popover][data-anchor-below]").forEach((panel) => {
+      const button = document.querySelector(`[popovertarget="${panel.id}"]`);
+      if (!button) {
         return;
       }
 
-      const target = document.getElementById(targetId);
-      if (!target) {
-        return;
-      }
+      const place = () => {
+        const anchor = button.getBoundingClientRect();
+        const width = panel.offsetWidth;
+        const viewport = document.documentElement.clientWidth;
+        const centred = anchor.left + anchor.width / 2 - width / 2;
+        const left = Math.max(EDGE, Math.min(centred, viewport - width - EDGE));
 
-      const isHidden = target.hasAttribute("hidden");
-      button.setAttribute("aria-controls", targetId);
-      button.setAttribute("aria-expanded", isHidden ? "false" : "true");
+        panel.style.top = `${anchor.bottom + GAP + window.scrollY}px`;
+        panel.style.left = `${left + window.scrollX}px`;
+      };
 
-      button.addEventListener("click", (event) => {
-        event.preventDefault();
-        const currentlyHidden = target.hasAttribute("hidden");
-
-        if (currentlyHidden) {
-          target.removeAttribute("hidden");
-          button.setAttribute("aria-expanded", "true");
-        } else {
-          target.setAttribute("hidden", "");
-          button.setAttribute("aria-expanded", "false");
+      panel.addEventListener("toggle", (event) => {
+        if (event.newState === "open") {
+          place();
+        }
+      });
+      window.addEventListener("resize", () => {
+        if (panel.matches(":popover-open")) {
+          place();
         }
       });
     });
   };
 
-  const initDropdowns = () => {
-    const dropdowns = document.querySelectorAll("el-dropdown");
-    if (!dropdowns.length) {
-      return;
-    }
-
-    const closeDropdown = (dropdown) => {
-      const button = dropdown.querySelector("button");
-      const menu = dropdown.querySelector("el-menu");
-      if (!button || !menu) {
+  // The mobile menu is a native <dialog>: showModal() gives focus trapping,
+  // Escape and the top layer. The buttons name it by data attribute rather
+  // than the newer `command`/`commandfor`, which older iPads do not have.
+  const initDialogs = () => {
+    document.querySelectorAll("[data-dialog-open]").forEach((button) => {
+      const dialog = document.getElementById(button.dataset.dialogOpen);
+      if (!(dialog instanceof HTMLDialogElement)) {
         return;
       }
 
-      menu.setAttribute("hidden", "");
-      menu.dataset.state = "closed";
-      button.setAttribute("aria-expanded", "false");
-      dropdown.dataset.state = "closed";
-    };
-
-    const openDropdown = (dropdown) => {
-      const button = dropdown.querySelector("button");
-      const menu = dropdown.querySelector("el-menu");
-      if (!button || !menu) {
-        return;
-      }
-
-      menu.removeAttribute("hidden");
-      menu.dataset.state = "open";
-      button.setAttribute("aria-expanded", "true");
-      dropdown.dataset.state = "open";
-    };
-
-    const closeAll = (exception) => {
-      dropdowns.forEach((dropdown) => {
-        if (exception && dropdown === exception) {
-          return;
-        }
-        closeDropdown(dropdown);
-      });
-    };
-
-    dropdowns.forEach((dropdown) => {
-      const button = dropdown.querySelector("button");
-      const menu = dropdown.querySelector("el-menu");
-      if (!button || !menu) {
-        return;
-      }
-
-      closeDropdown(dropdown);
-      button.setAttribute("aria-haspopup", "menu");
-
-      button.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-
-        const isExpanded = button.getAttribute("aria-expanded") === "true";
-        if (isExpanded) {
-          closeDropdown(dropdown);
-        } else {
-          closeAll(dropdown);
-          openDropdown(dropdown);
-        }
+      button.addEventListener("click", () => {
+        dialog.showModal();
+        // The page behind a side panel must not scroll under a finger.
+        document.documentElement.style.overflow = "hidden";
       });
 
-      menu.addEventListener("click", (event) => {
+      dialog.addEventListener("click", (event) => {
         const target = event.target;
         if (
-          target instanceof HTMLElement &&
-          (target.matches("a") || target.matches("button"))
+          target instanceof Element &&
+          (target.hasAttribute("data-dialog-backdrop") ||
+            target.closest("[data-dialog-close]"))
         ) {
-          closeDropdown(dropdown);
+          dialog.close();
         }
       });
-    });
 
-    document.addEventListener("click", (event) => {
-      dropdowns.forEach((dropdown) => {
-        if (!dropdown.contains(event.target)) {
-          closeDropdown(dropdown);
-        }
+      // Escape closes it without passing through the click handler.
+      dialog.addEventListener("close", () => {
+        document.documentElement.style.overflow = "";
       });
-    });
-
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") {
-        closeAll();
-      }
     });
   };
 
   window.addEventListener("DOMContentLoaded", () => {
-    initMobileMenus();
-    initDropdowns();
+    initHeaderPopovers();
+    initDialogs();
     initCookieBanner();
   });
 })();
