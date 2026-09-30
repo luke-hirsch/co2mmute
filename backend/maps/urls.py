@@ -7,6 +7,7 @@ urlpatterns = [
     # GameMap endpoints - no pk required in path
     path("", views_rest.GameMapListView.as_view(), name="gamemap-list"),
     path("<int:pk>/", views_rest.GameMapDetailView.as_view(), name="gamemap-detail"),
+    path("import/", views_rest.MapImportView.as_view(), name="map-import"),
     # MapVersion endpoints - scoped to specific map
     path(
         "<int:pk>/versions/",

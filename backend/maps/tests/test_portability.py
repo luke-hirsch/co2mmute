@@ -23,7 +23,7 @@ from django.core.files.base import ContentFile
 from django.test import TestCase
 from django.urls import reverse
 
-from game.tests._helpers import TempMediaRootMixin, english_in, visible_text
+from game.tests._helpers import TempMediaRootMixin, english_in, muted
 from maps.forms import MapUploadForm
 from maps.models import BusLine, Edge, GameMap, MapVersion, Node, TrainLine
 
@@ -173,8 +173,21 @@ class MapExportPortabilityTests(TempMediaRootMixin, TestCase):
         self.assertEqual(block["offset_x"], 0.5)
 
 
+def refusal_of(response):
+    """Everything the import said no with, as one string."""
+    try:
+        body = response.json()
+    except ValueError:
+        return f"HTTP {response.status_code}, no JSON"
+    fields = [str(m) for msgs in body.get("fields", {}).values() for m in msgs]
+    return " ".join(fields + [str(m) for m in body.get("graph", [])])
+
+
 class MapUploadMixin(TempMediaRootMixin):
-    """Posting `/map/upload/` the way the page does.
+    """Posting `api/maps/import/` the way the upload screen does.
+
+    It was `/map/upload/` until S19 moved the page into the SPA; the endpoint
+    reads the same form, so every test here moved with it unchanged.
 
     Extracted so the bike and rail tests below can upload a map without
     inheriting a test class and re-running its assertions under a second name.
@@ -201,30 +214,25 @@ class MapUploadMixin(TempMediaRootMixin):
         if image is not None:
             files["image_file"] = image
         response = self.client.post(
-            reverse("map-upload"),
+            reverse("maps:map-import"),
             {"map_name": name, "max_players": max_players, "description": "", **files},
-            follow=True,
         )
-        self.assertIn(response.status_code, (200, 302))
+        self.assertIn(response.status_code, (201, 400))
         return self.uploaded_map(name, response)
 
     def uploaded_map(self, name, response):
-        """The map the upload made — or why the form refused it.
+        """The map the upload made — or why the import refused it.
 
-        A bare DoesNotExist here says nothing; the upload view answers an
-        invalid form by re-rendering it and a rejected JSON by adding a message,
-        so both are worth printing when the map is missing.
+        A bare DoesNotExist here says nothing; the endpoint answers 400 with
+        the form's field errors and the file's graph errors, so both are worth
+        printing when the map is missing.
         """
         game_map = GameMap.objects.filter(name=name).order_by("-created").first()
         if game_map is not None:
             return game_map
 
-        context = getattr(response, "context", None) or {}
-        form = context.get("form")
-        notes = [str(m) for m in context.get("messages", [])]
         raise AssertionError(
-            f"upload created no map named {name!r}. "
-            f"form errors: {getattr(form, 'errors', None)}; messages: {notes}"
+            f"upload created no map named {name!r}: {refusal_of(response)}"
         )
 
     def graph_payload(self, **extra):
@@ -344,7 +352,7 @@ class MapRoundTripTests(TempMediaRootMixin, TestCase):
         ).json()
 
         response = self.client.post(
-            reverse("map-upload"),
+            reverse("maps:map-import"),
             {
                 "map_name": "Berlin 3 (Kopie)",
                 "max_players": 4,
@@ -353,17 +361,12 @@ class MapRoundTripTests(TempMediaRootMixin, TestCase):
                     json.dumps(exported).encode("utf-8"), name="map.json"
                 ),
             },
-            follow=True,
         )
-        self.assertIn(response.status_code, (200, 302))
 
         copy = GameMap.objects.filter(name="Berlin 3 (Kopie)").order_by("-created").first()
         if copy is None:
-            context = getattr(response, "context", None) or {}
             raise AssertionError(
-                "the exported file did not import. "
-                f"form errors: {getattr(context.get('form'), 'errors', None)}; "
-                f"messages: {[str(m) for m in context.get('messages', [])]}"
+                f"the exported file did not import: {refusal_of(response)}"
             )
 
         with copy.background_image.open("rb") as fh:
@@ -487,7 +490,7 @@ class BikeLaneTravelsTests(MapUploadMixin, TestCase):
 
         with muted():
             response = self.client.post(
-                reverse("map-upload"),
+                reverse("maps:map-import"),
                 {
                     "map_name": "Widerspruch",
                     "max_players": 4,
@@ -496,13 +499,8 @@ class BikeLaneTravelsTests(MapUploadMixin, TestCase):
                         json.dumps(payload).encode("utf-8"), name="map.json"
                     ),
                 },
-                follow=True,
             )
-        notes = " ".join(
-            str(m) for m in (getattr(response, "context", None) or {}).get(
-                "messages", []
-            )
-        )
+        notes = refusal_of(response)
 
         self.assertFalse(GameMap.objects.filter(name="Widerspruch").exists())
         self.assertIn("bike_lane", notes)
@@ -1567,7 +1565,7 @@ class VersionedFileValidationTests(VersionedMapMixin, TestCase):
         from maps.models import GameMap
 
         response = self.client.post(
-            reverse("map-upload"),
+            reverse("maps:map-import"),
             {
                 "map_name": name,
                 "max_players": 4,
@@ -1576,11 +1574,10 @@ class VersionedFileValidationTests(VersionedMapMixin, TestCase):
                     json.dumps(payload).encode("utf-8"), name="map.json"
                 ),
             },
-            follow=True,
         )
+        self.assertEqual(response.status_code, 400)
         self.assertFalse(GameMap.objects.filter(name=name).exists())
-        context = getattr(response, "context", None) or {}
-        return " ".join(str(m) for m in context.get("messages", []))
+        return refusal_of(response)
 
     def base_payload(self):
         payload = self.seed_payload()
@@ -1721,7 +1718,7 @@ class WholeMapRoundTripTests(VersionedMapMixin, TestCase):
 
 
 class MapUploadIsGermanTests(TempMediaRootMixin, TestCase):
-    """`/map/upload/` speaks German, labels and refusals alike.
+    """The map import speaks German, labels and refusals alike.
 
     The detector is the join funnel's (`game/tests/_helpers.py`), and until S17
     it ran over `/join/` and `player/create/` and nowhere else. This page had
@@ -1743,13 +1740,71 @@ class MapUploadIsGermanTests(TempMediaRootMixin, TestCase):
         )
         self.client.force_login(self.user)
 
-    def test_the_upload_page_is_german(self):
-        response = self.client.get(reverse("map-upload"))
+    def test_the_import_refuses_in_german(self):
+        """What the file got wrong, read out on the upload screen.
 
-        self.assertEqual(response.status_code, 200)
-        text = visible_text(response.content.decode())
+        S17 translated the form and missed these: they are
+        `_validate_graph_data`'s and `validate_versions`'s, and they only
+        appear after a failed upload, so a check of the rendered page never
+        saw one. Since S19 the SPA prints them as they come, which makes them
+        copy. Key names stay English (`start_node`, `base_version`): they are
+        the file's field names, the same rule as the form's help text.
+        """
+        node = {"id": "a", "x": 0, "y": 0}
+        broken = {
+            "no edges": {"nodes": [node], "edges": []},
+            "unknown node": {
+                "nodes": [node],
+                "edges": [{"start_node": "a", "end_node": "z"}],
+            },
+            "duplicate node": {
+                "nodes": [node, dict(node)],
+                "edges": [{"start_node": "a", "end_node": "a"}],
+            },
+            "bike lane without bikes": {
+                "nodes": [node, {"id": "b", "x": 1, "y": 0}],
+                "edges": [
+                    {
+                        "start_node": "a",
+                        "end_node": "b",
+                        "type": "street",
+                        "bike_lane": True,
+                        "biking": False,
+                    }
+                ],
+            },
+            "line off the map": {
+                "nodes": [node, {"id": "b", "x": 1, "y": 0}],
+                "edges": [{"start_node": "a", "end_node": "b"}],
+                "bus_lines": [{"name": "100", "edges": [5]}],
+            },
+            "two base versions": {
+                "nodes": [node, {"id": "b", "x": 1, "y": 0}],
+                "edges": [{"start_node": "a", "end_node": "b"}],
+                "versions": [
+                    {"name": "A", "base_version": True},
+                    {"name": "B", "base_version": True, "compatible_versions": [7]},
+                ],
+            },
+        }
+        for label, payload in broken.items():
+            with self.subTest(label):
+                with muted():
+                    response = self.client.post(
+                        reverse("maps:map-import"),
+                        {
+                            "map_name": f"Kaputt {label}",
+                            "max_players": 4,
+                            "json_file": ContentFile(
+                                json.dumps(payload).encode("utf-8"), name="map.json"
+                            ),
+                        },
+                    )
 
-        self.assertEqual(english_in(text), [], f"English on /map/upload/: {text[:400]}")
+                self.assertEqual(response.status_code, 400)
+                said = refusal_of(response)
+                self.assertTrue(said, "refused without saying why")
+                self.assertEqual(english_in(said), [], said)
 
     def test_the_form_labels_and_help_are_german(self):
         """The rendered page covers these, but only while they are rendered.
@@ -1797,3 +1852,119 @@ class MapUploadIsGermanTests(TempMediaRootMixin, TestCase):
         self.assertFalse(form.is_valid())
         errors = " ".join(str(m) for m in form.errors["map_name"])
         self.assertEqual(english_in(errors), [], errors)
+
+
+class MapImportEndpointTests(TempMediaRootMixin, TestCase):
+    """`POST api/maps/import/`, the one door a map file comes in through. S19.
+
+    `/map/upload/` was a Django form page; the SPA's upload screen replaced it,
+    and the page's URL is a redirect now. Two doors taking the same file would
+    be two places for a rule to be enforced in one of — so the form, the graph
+    validation and the importer are this endpoint's and nobody else's.
+    """
+
+    def setUp(self):
+        User = get_user_model()
+        self.staff = User.objects.create_user(
+            username="staff", password="password123", is_staff=True
+        )
+        self.host = User.objects.create_user(username="host", password="password123")
+
+    def post(self, payload=None, **fields):
+        data = {"map_name": "Neu", "max_players": 6, **fields}
+        if payload is not None:
+            data["json_file"] = ContentFile(
+                json.dumps(payload).encode("utf-8"), name="map.json"
+            )
+        return self.client.post(reverse("maps:map-import"), data)
+
+    def graph(self):
+        return {
+            "nodes": [{"id": "a", "x": 0, "y": 0}, {"id": "b", "x": 1, "y": 0}],
+            "edges": [{"start_node": "a", "end_node": "b", "type": "street"}],
+        }
+
+    def test_a_good_file_answers_with_the_new_map(self):
+        self.client.force_login(self.staff)
+
+        response = self.post(self.graph())
+
+        self.assertEqual(response.status_code, 201)
+        game_map = GameMap.objects.get(name="Neu")
+        self.assertEqual(response.json(), {"id": game_map.pk})
+        self.assertEqual(Node.objects.filter(game_map=game_map).count(), 2)
+        self.assertEqual(game_map.author, self.staff)
+
+    def test_no_file_makes_an_empty_map(self):
+        self.client.force_login(self.staff)
+
+        response = self.post()
+
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(MapVersion.objects.filter(game_map__name="Neu").exists())
+
+    def test_a_bad_field_is_named(self):
+        GameMap.objects.create(name="Neu", max_player=4)
+        self.client.force_login(self.staff)
+
+        response = self.post(self.graph())
+
+        self.assertEqual(response.status_code, 400)
+        body = response.json()
+        self.assertIn("map_name", body["fields"])
+        self.assertEqual(body["graph"], [])
+        self.assertEqual(GameMap.objects.filter(name="Neu").count(), 1)
+
+    def test_a_bad_graph_is_listed_and_nothing_is_made(self):
+        self.client.force_login(self.staff)
+        payload = self.graph()
+        payload["edges"][0]["end_node"] = "z"
+
+        with muted():
+            response = self.post(payload)
+
+        self.assertEqual(response.status_code, 400)
+        body = response.json()
+        self.assertEqual(body["fields"], {})
+        self.assertEqual(len(body["graph"]), 1)
+        self.assertIn("z", body["graph"][0])
+        self.assertFalse(GameMap.objects.filter(name="Neu").exists())
+
+    def test_only_staff_may_import(self):
+        self.client.force_login(self.host)
+
+        response = self.post(self.graph())
+
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(GameMap.objects.exists())
+
+    def test_a_visitor_may_not_import(self):
+        response = self.post(self.graph())
+
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(GameMap.objects.exists())
+
+    def test_the_old_page_goes_to_the_upload_screen(self):
+        self.client.force_login(self.staff)
+
+        response = self.client.get(reverse("map-upload"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], "/app/maps/upload")
+
+    def test_the_old_page_takes_no_file_any_more(self):
+        """One door. A POST to the old URL must not still import."""
+        self.client.force_login(self.staff)
+
+        self.client.post(
+            reverse("map-upload"),
+            {
+                "map_name": "Neu",
+                "max_players": 6,
+                "json_file": ContentFile(
+                    json.dumps(self.graph()).encode("utf-8"), name="map.json"
+                ),
+            },
+        )
+
+        self.assertFalse(GameMap.objects.filter(name="Neu").exists())

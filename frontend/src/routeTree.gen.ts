@@ -17,6 +17,7 @@ import { Route as MapsIndexRouteImport } from './routes/maps/index'
 import { Route as JoinIndexRouteImport } from './routes/join/index'
 import { Route as GameIndexRouteImport } from './routes/game/index'
 import { Route as SeatCodeRouteImport } from './routes/seat/$code'
+import { Route as MapsUploadRouteImport } from './routes/maps/upload'
 import { Route as MapsMapIdRouteImport } from './routes/maps/$mapId'
 import { Route as JoinGameIdRouteImport } from './routes/join/$gameId'
 import { Route as GameCreateRouteImport } from './routes/game/create'
@@ -65,6 +66,11 @@ const SeatCodeRoute = SeatCodeRouteImport.update({
   path: '/seat/$code',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MapsUploadRoute = MapsUploadRouteImport.update({
+  id: '/maps/upload',
+  path: '/maps/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MapsMapIdRoute = MapsMapIdRouteImport.update({
   id: '/maps/$mapId',
   path: '/maps/$mapId',
@@ -109,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/game/create': typeof GameCreateRoute
   '/join/$gameId': typeof JoinGameIdRoute
   '/maps/$mapId': typeof MapsMapIdRouteWithChildren
+  '/maps/upload': typeof MapsUploadRoute
   '/seat/$code': typeof SeatCodeRoute
   '/game': typeof GameIndexRoute
   '/join': typeof JoinIndexRoute
@@ -124,6 +131,7 @@ export interface FileRoutesByTo {
   '/styleguide': typeof StyleguideRoute
   '/game/create': typeof GameCreateRoute
   '/join/$gameId': typeof JoinGameIdRoute
+  '/maps/upload': typeof MapsUploadRoute
   '/seat/$code': typeof SeatCodeRoute
   '/game': typeof GameIndexRoute
   '/join': typeof JoinIndexRoute
@@ -142,6 +150,7 @@ export interface FileRoutesById {
   '/game/create': typeof GameCreateRoute
   '/join/$gameId': typeof JoinGameIdRoute
   '/maps/$mapId': typeof MapsMapIdRouteWithChildren
+  '/maps/upload': typeof MapsUploadRoute
   '/seat/$code': typeof SeatCodeRoute
   '/game/': typeof GameIndexRoute
   '/join/': typeof JoinIndexRoute
@@ -161,6 +170,7 @@ export interface FileRouteTypes {
     | '/game/create'
     | '/join/$gameId'
     | '/maps/$mapId'
+    | '/maps/upload'
     | '/seat/$code'
     | '/game'
     | '/join'
@@ -176,6 +186,7 @@ export interface FileRouteTypes {
     | '/styleguide'
     | '/game/create'
     | '/join/$gameId'
+    | '/maps/upload'
     | '/seat/$code'
     | '/game'
     | '/join'
@@ -193,6 +204,7 @@ export interface FileRouteTypes {
     | '/game/create'
     | '/join/$gameId'
     | '/maps/$mapId'
+    | '/maps/upload'
     | '/seat/$code'
     | '/game/'
     | '/join/'
@@ -211,6 +223,7 @@ export interface RootRouteChildren {
   GameCreateRoute: typeof GameCreateRoute
   JoinGameIdRoute: typeof JoinGameIdRoute
   MapsMapIdRoute: typeof MapsMapIdRouteWithChildren
+  MapsUploadRoute: typeof MapsUploadRoute
   SeatCodeRoute: typeof SeatCodeRoute
   GameIndexRoute: typeof GameIndexRoute
   JoinIndexRoute: typeof JoinIndexRoute
@@ -274,6 +287,13 @@ declare module '@tanstack/react-router' {
       path: '/seat/$code'
       fullPath: '/seat/$code'
       preLoaderRoute: typeof SeatCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/maps/upload': {
+      id: '/maps/upload'
+      path: '/maps/upload'
+      fullPath: '/maps/upload'
+      preLoaderRoute: typeof MapsUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/maps/$mapId': {
@@ -362,6 +382,7 @@ const rootRouteChildren: RootRouteChildren = {
   GameCreateRoute: GameCreateRoute,
   JoinGameIdRoute: JoinGameIdRoute,
   MapsMapIdRoute: MapsMapIdRouteWithChildren,
+  MapsUploadRoute: MapsUploadRoute,
   SeatCodeRoute: SeatCodeRoute,
   GameIndexRoute: GameIndexRoute,
   JoinIndexRoute: JoinIndexRoute,

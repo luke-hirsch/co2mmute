@@ -115,7 +115,7 @@ DJANGO_SUPERUSER_PASSWORD='e2e-local-only' docker compose -f devops/docker-compo
   ./manage.py createsuperuser --noinput --username e2e --email e2e@example.invalid
 ```
 
-Dann die Karte — von Hand unter `/map/upload/` mit `map_examples/Berlin_Mitte-West.json`, oder per
+Dann die Karte — von Hand unter `/app/maps/upload` mit `map_examples/Berlin_Mitte-West.json`, oder per
 Skript, das dasselbe über HTTP tut und wiederholbar ist:
 
 ```bash
@@ -287,7 +287,7 @@ DJANGO_SUPERUSER_PASSWORD='e2e-local-only' docker compose -f devops/docker-compo
   ./manage.py createsuperuser --noinput --username e2e --email e2e@example.invalid
 ```
 
-Then the map — by hand at `/map/upload/` with `map_examples/Berlin_Mitte-West.json`, or with the
+Then the map — by hand at `/app/maps/upload` with `map_examples/Berlin_Mitte-West.json`, or with the
 script, which does the same thing over HTTP and is idempotent:
 
 ```bash

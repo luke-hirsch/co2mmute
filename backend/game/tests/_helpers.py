@@ -271,6 +271,18 @@ ENGLISH_GIVEAWAYS = (
     "should",
     "start with",
     "your",
+    # S19, for the import's refusals, which S17 never saw because they only
+    # appear after a failed upload. "found" alone is the tell in "not found",
+    # "found 2"; none of these is a German word.
+    "found",
+    "missing",
+    "must",
+    "duplicate",
+    "invalid",
+    "available",
+    "exactly",
+    "required",
+    "but",
 )
 
 

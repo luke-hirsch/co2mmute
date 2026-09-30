@@ -55,9 +55,8 @@ export function MapIndex() {
 
       {isStaff ? (
         <div className="mb-10">
-          {/* Django's, and it stays there until S19 brings the upload across. */}
           <Button asChild>
-            <a href="/map/upload/">{de.map.index.upload}</a>
+            <Link to="/maps/upload">{de.map.index.upload}</Link>
           </Button>
         </div>
       ) : null}

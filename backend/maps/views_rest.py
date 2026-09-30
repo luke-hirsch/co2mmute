@@ -14,6 +14,8 @@ from rest_framework.generics import (
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
+from maps.forms import MapUploadForm
+from maps.importer import ImportRefused, MapImporter
 from maps.mixins import MapScopedQuerysetMixin
 from maps.models import (
     BusLine,
@@ -741,6 +743,50 @@ class MapExportView(MapScopedQuerysetMixin, GenericAPIView):
             )
 
         return Response(build_export(game_map, version), status=status.HTTP_200_OK)
+
+
+class MapImportView(GenericAPIView):
+    """`POST api/maps/import/` — a map file in, a new map out. S19.
+
+    The door the SPA's upload screen uses, and the only one: `/map/upload/`
+    was a Django form page doing the same job, and it is a redirect now. The
+    form (`MapUploadForm`) and the importer (`maps/importer.py`) are unchanged,
+    so what a file has to say is exactly what it had to say before.
+
+    **201 `{"id": <pk>}`**, or **400 `{"fields": {...}, "graph": [...]}`**:
+    `fields` is the form's own errors per field — a taken name, a file that is
+    not JSON — and `graph` is everything wrong inside a file that parsed, all
+    at once, because a hand-edited file is fixed in one pass or in twenty
+    uploads. Both are German and both are shown as they come.
+    """
+
+    authentication_classes = (SessionAuthentication,)
+    permission_classes = (IsStaffOrReadOnly,)
+    parser_classes = (MultiPartParser, FormParser)
+
+    def post(self, request):
+        form = MapUploadForm(data=request.POST, files=request.FILES)
+        if not form.is_valid():
+            return Response(
+                {
+                    "fields": {
+                        name: [str(message) for message in messages]
+                        for name, messages in form.errors.items()
+                    },
+                    "graph": [],
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            game_map = MapImporter(request.user).run(form.cleaned_data)
+        except ImportRefused as refused:
+            return Response(
+                {"fields": {}, "graph": refused.errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response({"id": game_map.pk}, status=status.HTTP_201_CREATED)
 
 
 def _invalidate_map_cache(map_pk):

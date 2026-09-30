@@ -90,7 +90,15 @@ export async function apiFetch<T = unknown>(
   const method = (options.method ?? "GET").toUpperCase();
   const headers = new Headers(options.headers);
 
-  if (options.body !== undefined && !headers.has("Content-Type")) {
+  // A FormData body is multipart, and its Content-Type carries a boundary only
+  // fetch knows — so it is left for fetch to write. The map import (S19) is
+  // the first caller; the two older uploads in `map-editor.ts` and
+  // `map-graph.ts` still build their own fetch, and are the editor's save path.
+  if (
+    options.body !== undefined &&
+    !(options.body instanceof FormData) &&
+    !headers.has("Content-Type")
+  ) {
     headers.set("Content-Type", "application/json");
   }
   if (UNSAFE_METHODS.has(method)) {

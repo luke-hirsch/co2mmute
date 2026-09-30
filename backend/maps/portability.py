@@ -449,16 +449,16 @@ def validate_versions(graph_data):
     if block is None:
         return []
     if not isinstance(block, list) or not block:
-        return ["'versions' must be a non-empty list of version objects"]
+        return ["'versions' muss eine nicht leere Liste von Versionen sein."]
 
     errors = []
     count = len(block)
     for idx, entry in enumerate(block):
         if not isinstance(entry, dict):
-            errors.append(f"Version {idx}: must be an object")
+            errors.append(f"Version {idx}: muss ein Objekt sein.")
             continue
         if not str(entry.get("name", "")).strip():
-            errors.append(f"Version {idx}: missing or empty 'name'")
+            errors.append(f"Version {idx}: 'name' fehlt oder ist leer.")
         errors += _index_errors(
             entry.get("compatible_versions"),
             count,
@@ -474,13 +474,14 @@ def validate_versions(graph_data):
     bases = [i for i, entry in enumerate(block) if entry.get("base_version")]
     if len(bases) != 1:
         errors.append(
-            f"Exactly one version must have base_version set, found {len(bases)}"
+            f"Genau eine Version braucht base_version, in der Datei sind es "
+            f"{len(bases)}."
         )
 
     edge_count = len(graph_data.get("edges") or [])
     for label, items in (
-        ("Node", graph_data.get("nodes") or []),
-        ("Edge", graph_data.get("edges") or []),
+        ("Knoten", graph_data.get("nodes") or []),
+        ("Kante", graph_data.get("edges") or []),
     ):
         for idx, item in enumerate(items):
             if not isinstance(item, dict):
@@ -489,7 +490,7 @@ def validate_versions(graph_data):
             for key in ("street_versions", "train_versions"):
                 errors += _index_errors(item.get(key), count, f"{label} {idx}: {key}")
 
-    for label, key in (("Bus line", "bus_lines"), ("Train line", "train_lines")):
+    for label, key in (("Buslinie", "bus_lines"), ("Bahnlinie", "train_lines")):
         for idx, line in enumerate(graph_data.get(key) or []):
             if not isinstance(line, dict):
                 continue
@@ -498,12 +499,12 @@ def validate_versions(graph_data):
             if chains is None:
                 continue
             if not isinstance(chains, list):
-                errors.append(f"{label} {idx}: 'chains' must be a list")
+                errors.append(f"{label} {idx}: 'chains' muss eine Liste sein.")
                 continue
             for chain_idx, chain in enumerate(chains):
-                where = f"{label} {idx}: chain {chain_idx}"
+                where = f"{label} {idx}: Strecke {chain_idx}"
                 if not isinstance(chain, dict):
-                    errors.append(f"{where}: must be an object")
+                    errors.append(f"{where}: muss ein Objekt sein.")
                     continue
                 errors += _index_errors(chain.get("versions"), count, where)
                 for edge_idx in chain.get("edges") or []:
@@ -511,8 +512,8 @@ def validate_versions(graph_data):
                         0 <= edge_idx < edge_count
                     ):
                         errors.append(
-                            f"{where}: edge index {edge_idx} not found "
-                            f"(only {edge_count} edges available)"
+                            f"{where}: Kante {edge_idx} gibt es nicht "
+                            f"(die Datei hat {edge_count} Kanten)."
                         )
     return errors
 
@@ -521,12 +522,12 @@ def _index_errors(raw, count, where):
     if raw is None:
         return []
     if not isinstance(raw, list):
-        return [f"{where}: must be a list of version indices"]
+        return [f"{where}: muss eine Liste von Versionsnummern sein."]
     out = []
     for value in raw:
         if not isinstance(value, int) or not (0 <= value < count):
             out.append(
-                f"{where}: version index {value} not found "
-                f"(only {count} versions in the file)"
+                f"{where}: Version {value} gibt es nicht "
+                f"(die Datei hat {count} Versionen)."
             )
     return out
