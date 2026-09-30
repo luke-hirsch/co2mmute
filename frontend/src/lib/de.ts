@@ -132,19 +132,23 @@ const endReason: Record<GameEndReason, string> = {
 
 export const de = {
   app: {
-    name: "co2mmute",
+    name: "CO₂mmute",
     loading: "Lädt …",
     saving: "Wird gespeichert …",
     empty: "Nichts da.",
 
     /**
-     * The header on the screens under `/app/` that are not a game. Both links
-     * leave the SPA — the landing page and the profile are Django pages — so
-     * they are plain `<a href>` and not router links.
+     * The header and footer on the screens under `/app/` that are not a game.
+     * Their items and labels come from the server (`api/navigation/`), the same
+     * list `base.html` renders; only the words the SPA draws itself are here.
      */
     header: {
-      home: "Startseite",
-      profile: "Mein Profil",
+      label: "Hauptmenü",
+      menu: "Menü",
+      closeMenu: "Menü schließen",
+    },
+    footer: {
+      label: "Rechtliches und Quellcode",
     },
   },
 

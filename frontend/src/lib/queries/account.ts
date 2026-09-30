@@ -15,6 +15,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiFetch } from "@/lib/api";
+import { navigationKeys } from "@/lib/queries/navigation";
 
 export type HostAccount = {
   first_name: string;
@@ -45,10 +46,12 @@ export function useSaveAccount() {
       }),
     onSuccess: (saved) => {
       client.setQueryData(accountKeys.self(), saved);
-      // The header greets the host by username, and `whoami` is where it reads
-      // it. A rename that leaves the old name in the corner of every screen
-      // until the next full page load looks like the save did not take.
+      // The header greets the host by username (from `api/navigation/`), and
+      // `whoami` answers with it too. A rename that leaves the old name in the
+      // corner of every screen until the next full page load looks like the
+      // save did not take.
       client.invalidateQueries({ queryKey: ["identity"] });
+      client.invalidateQueries({ queryKey: navigationKeys.all() });
     },
   });
 }

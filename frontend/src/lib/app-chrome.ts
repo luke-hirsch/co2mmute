@@ -1,5 +1,5 @@
 /**
- * Which screens under `/app/` get a header.
+ * Which screens under `/app/` get a header and a footer.
  *
  * `__root.tsx` was a bare `<Outlet/>`, so the SPA had no chrome anywhere. That
  * only mattered once you noticed where its redirects go: `/app/`, `/app/game/`
@@ -8,7 +8,9 @@
  * — a screen built for a student with a QR code — with no link back to the
  * landing page or their own profile, and nothing on it to press.
  *
- * So: a header on those screens, and on nothing else.
+ * So: a header on those screens, and on nothing else. Since S20 the footer
+ * follows the same rule — it carries the legal links, which a game screen
+ * still lacks (`docs/testfaelle.md` S-06).
  *
  * **S18 moved the map area onto the chrome side.** `/maps` was listed as both
  * full-bleed and redirect-only, which was true while it was a stub that threw a
@@ -53,9 +55,9 @@ const REDIRECT_ONLY = ["/", "/game", "/game/"];
  * Screens that sit under a full-bleed prefix but are not that screen.
  *
  * `/game/create` is the funnel, not a game: it is where `/game/create/` sends a
- * logged-in host, it runs before any game exists, and both of the header's
- * links (the landing page, the profile) are exactly what somebody who opened it
- * by accident needs. Listed rather than reasoned about, because "is this path a
+ * logged-in host, it runs before any game exists, and the header's way back to
+ * the landing page and the profile is exactly what somebody who opened it by
+ * accident needs. Listed rather than reasoned about, because "is this path a
  * game id" is the kind of guess that starts matching the wrong thing.
  */
 const CHROME_ANYWAY = ["/game/create"];

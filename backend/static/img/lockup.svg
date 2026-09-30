@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="20 16 1114 184">
+  <title>CO₂mmute</title>
+  <!--
+    The mark is the C of the name, so the lockup is the mark followed by the
+    rest of the word, drawn in the mark's own stroke: 20 units, round caps, on
+    a 140-unit cap height. Paths rather than text, because a <text> element
+    would be set in whatever sans the visitor's system has and no two halves
+    of the site would draw the same word.
+
+    Both halves use it by reference, `<use href="/static/img/lockup.svg#lockup">`,
+    so it inherits `currentColor` for the letters: ink in light mode, near-white
+    in dark. The mark keeps the primary in both. The viewBox above is repeated
+    at every place that references it; `frontend/tests/design/lockup.test.ts`
+    keeps those in step.
+  -->
+  <g id="lockup">
+    <g id="mark">
+      <path d="M140 40 A70 70 0 1 0 140 160" fill="none" stroke="#1e88e5" stroke-width="20" stroke-linecap="round"/>
+      <rect x="85" y="85" width="30" height="30" rx="4" fill="#1e88e5" transform="rotate(45 100 100)"/>
+      <line x1="121" y1="100" x2="165" y2="100" stroke="#1e88e5" stroke-width="20" stroke-linecap="round"/>
+    </g>
+    <g id="wordmark" fill="none" stroke="currentColor" stroke-width="20" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="287" cy="100" r="70"/>
+      <path stroke-width="14" d="M384 139 A24 24 0 1 1 426 158 L384 190 H432"/>
+      <path d="M484 80 V170 M484 110 A30 30 0 0 1 544 110 V170 M544 110 A30 30 0 0 1 604 110 V170"/>
+      <path d="M656 80 V170 M656 110 A30 30 0 0 1 716 110 V170 M716 110 A30 30 0 0 1 776 110 V170"/>
+      <path d="M828 80 V140 A30 30 0 0 0 888 140 M888 80 V170"/>
+      <path d="M961 45 V170 M936 80 H986"/>
+      <path d="M1030 125 H1120 A45 45 0 1 0 1109.5 153.9"/>
+    </g>
+  </g>
+</svg>
