@@ -965,8 +965,19 @@ export const de = {
      * because it is not a text node and not a component.
      */
     allMaps: "← Alle Karten",
-    deleteConfirm: (name: string) =>
-      `„${name}" löschen? Das lässt sich nicht zurücknehmen.`,
+
+    /**
+     * S19: a dialog rather than `window.confirm`. It says what goes and what
+     * stays — the games do, because `GameSession.game_map` is `SET_NULL`, and a
+     * researcher deleting a test map should know the thesis data is not in it.
+     */
+    deleteTitle: "Karte löschen?",
+    deleteBody: (name: string) =>
+      `„${name}“ mit allen Versionen, Linien und dem Hintergrundbild. Das lässt sich nicht zurücknehmen.`,
+    deleteKeeps:
+      "Spiele auf dieser Karte bleiben mit ihren Ergebnissen erhalten, nur ohne Karte. Sichere sie vorher als JSON, wenn du sie noch brauchst.",
+    deleteConfirm: "Endgültig löschen",
+    deleting: "Wird gelöscht …",
 
     /** S18: the two things the action bar can fail at, which it used to swallow
      * into `console.error` and leave the button looking like it had worked. */
@@ -998,6 +1009,113 @@ export const de = {
       size: (x: number, y: number) => `${x} × ${y} Felder`,
       seats: (n: number) => `${n} Plätze`,
       commuters: (n: number) => `${n.toLocaleString("de-DE")} Pendler`,
+    },
+
+    /**
+     * `/app/maps/upload` — S19. It was the Django page at `/map/upload/`, the
+     * last staff tool on the server side. The labels and help texts are the
+     * ones `MapUploadForm` carries (S17); the form now only validates.
+     */
+    upload: {
+      title: "Karte hochladen",
+      lead: "Leer anfangen, oder eine Kartendatei einlesen. Hochladen legt immer eine neue Karte an — eine vorhandene wird nie überschrieben.",
+      back: "← Alle Karten",
+      name: "Name der Karte",
+      namePlaceholder: "z. B. Berlin Mitte-West",
+      maxPlayers: "Plätze",
+      maxPlayersHelp:
+        "Steht in der Datei eine Platzzahl, gilt die. Sonst diese, zwischen 1 und 20.",
+      description: "Beschreibung",
+      descriptionPlaceholder: "Optional — worum es auf dieser Karte geht",
+      jsonFile: "Kartendatei (JSON)",
+      jsonFileHelp:
+        "Optional — lad eine Datei hoch, wie „Karte sichern (JSON)“ sie schreibt, oder lass das Feld leer für eine leere Karte.",
+      imageFile: "Hintergrundbild",
+      imageFileHelp:
+        "Optional — das Bild, auf dem der Graph liegt (PNG, JPG). Eine gesicherte Karte bringt ihres selbst mit.",
+      pickFile: "Datei wählen",
+      noFile: "keine Datei gewählt",
+      submit: "Karte anlegen",
+      submitting: "Wird angelegt …",
+      graphErrors: "In der Datei stimmt etwas nicht:",
+      failed: "Die Karte ließ sich nicht anlegen. Versuch es nochmal.",
+      showFormat: "So ist die Datei aufgebaut",
+      hideFormat: "Aufbau der Datei ausblenden",
+
+      /**
+       * The file format, carried across from the Django page — which named the
+       * keys of 2025 and missed six the importer has read since (`scale`,
+       * `map`, `bike_lane`, `speed_kmh`, `versions`, `background_image`), and
+       * gave a train line a default interval of 10 where the importer uses 5.
+       * The keys stay English: they are the file's field names.
+       */
+      format: {
+        intro:
+          "Die Datei beschreibt einen Graphen aus Knoten und Kanten. Die Schlüssel bleiben englisch — das sind die Feldnamen der Karte.",
+        exportHint:
+          "Eine Karte mit mehreren Versionen und einer Abstimmung schreibt man nicht von Hand: die Datei dafür kommt aus „Karte sichern (JSON)“ auf der Seite einer Karte, und sie trägt zu jedem Knoten, jeder Kante und jeder Linie, in welcher Version sie liegt.",
+        example: "Beispiel",
+        sections: [
+          {
+            title: "Die Datei",
+            fields: [
+              ["nodes", "Pflicht — die Liste der Knoten"],
+              ["edges", "Pflicht — die Liste der Kanten"],
+              ["scale", "Meter je Karteneinheit (Vorgabe: 1)"],
+              ["map", "Name, Maße und Werte der Karte, siehe unten"],
+              ["bus_lines", "die Buslinien"],
+              ["train_lines", "die Bahnlinien"],
+              ["versions", "die Versionen der Karte und welche zur Wahl stehen"],
+              ["background_image", "das Hintergrundbild und wo es liegt"],
+            ],
+          },
+          {
+            title: "Der Block „map“",
+            fields: [
+              ["x_dim, y_dim", "die Maße in Karteneinheiten"],
+              ["max_player", "Plätze — geht vor der Zahl im Formular"],
+              ["walk_speed_kmh", "Gehtempo (Vorgabe: 5)"],
+              ["bike_speed_kmh", "Radtempo (Vorgabe: 20)"],
+              ["default_car_speed_kmh", "Autotempo ohne Tempolimit (Vorgabe: 50)"],
+              ["district_commuters", "wie viele Pendler die Karte trägt (Vorgabe: 6.400)"],
+              ["co2_budget_kg_per_round", "was eine Runde an CO₂ kosten darf (Vorgabe: 8.000)"],
+            ],
+          },
+          {
+            title: "Ein Knoten",
+            fields: [
+              ["id", "Pflicht — eindeutige Kennung, Text oder Zahl"],
+              ["x, y", "Pflicht — die Koordinaten"],
+              ["name", "der angezeigte Name (sonst die id)"],
+              ["types", "die Arten: home, workplace, intersection, bus_stop, station"],
+            ],
+          },
+          {
+            title: "Eine Kante",
+            fields: [
+              ["start_node, end_node", "Pflicht — die ids der beiden Knoten"],
+              ["name", "der angezeigte Name"],
+              ["type", "street, train, both oder path (Vorgabe: both) — path ist ein Weg ohne Straße und ohne Gleis darunter"],
+              ["biking, walking", "ob Räder fahren und Fußgänger gehen dürfen (Vorgabe: ja, auf einem reinen Gleis nein)"],
+              ["bike_lane", "ein Radweg; nimmt eine Autospur weg und braucht biking (Vorgabe: nein)"],
+              ["speed_limit", "Tempolimit in km/h (Vorgabe: 50)"],
+              ["lanes", "Spuren der ganzen Straße, Bus- und Radspur eingeschlossen (Vorgabe: 1)"],
+              ["dedicated_bus_lane", "eine Busspur; nimmt eine Autospur weg (Vorgabe: nein)"],
+              ["max_lanes", "wie viele Spuren die Straße höchstens haben kann (Vorgabe: 2)"],
+            ],
+          },
+          {
+            title: "Eine Bus- oder Bahnlinie",
+            fields: [
+              ["name", "der Name der Linie, z. B. M1 oder U6"],
+              ["edges", "die Nummern der Kanten, über die sie fährt, gezählt ab 0"],
+              ["interval", "der Takt in Minuten (Vorgabe: 5)"],
+              ["capacity", "Plätze im Fahrzeug (Vorgabe: Bus 85, Bahn 1.000)"],
+              ["speed_kmh", "Reisetempo (Vorgabe: Bus 30, Bahn 40)"],
+            ],
+          },
+        ] as { title: string; fields: [string, string][] }[],
+      },
     },
   },
 

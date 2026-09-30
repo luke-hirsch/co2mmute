@@ -15,53 +15,33 @@ class MapUploadForm(forms.Form):
 
     The JSON keys stay English: `nodes`, `start_node` and `speed_limit` are the
     file's field names, and renaming them would mean renaming the API.
+
+    Nothing renders it since S19: the SPA's upload screen draws its own fields
+    and posts them to `api/maps/import/`, which runs this form for the
+    validation. That is why it carries no widgets — the labels and help text
+    stay, because `MapUploadIsGermanTests` holds them German.
     """
 
     json_file = forms.FileField(
         label="Kartendatei (JSON)",
         required=False,
         help_text="Optional — lad eine JSON-Datei mit dem Kartengraphen hoch, oder lass das Feld leer für eine leere Karte.",
-        widget=forms.FileInput(
-            attrs={
-                "accept": ".json",
-                "class": "block w-full text-sm text-muted dark:text-darkmutedtext file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700",
-            }
-        ),
     )
 
     image_file = forms.ImageField(
         label="Hintergrundbild",
         required=False,
         help_text="Optional — das Bild, auf dem der Graph liegt (PNG, JPG).",
-        widget=forms.FileInput(
-            attrs={
-                "accept": "image/*",
-                "class": "block w-full text-sm text-muted dark:text-darkmutedtext file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700",
-            }
-        ),
     )
 
     map_name = forms.CharField(
         label="Name der Karte",
         max_length=100,
-        widget=forms.TextInput(
-            attrs={
-                "class": "block w-full px-3 py-2 border border-subtle dark:border-darksubtle rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-body dark:bg-darkbody text-main dark:text-darktext",
-                "placeholder": "z. B. Berlin Mitte-West",
-            }
-        ),
     )
 
     description = forms.CharField(
         label="Beschreibung",
         required=False,
-        widget=forms.Textarea(
-            attrs={
-                "rows": 3,
-                "class": "block w-full px-3 py-2 border border-subtle dark:border-darksubtle rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-body dark:bg-darkbody text-main dark:text-darktext",
-                "placeholder": "Optional — worum es auf dieser Karte geht",
-            }
-        ),
     )
 
     max_players = forms.IntegerField(
@@ -69,11 +49,6 @@ class MapUploadForm(forms.Form):
         initial=4,
         min_value=1,
         max_value=20,
-        widget=forms.NumberInput(
-            attrs={
-                "class": "block w-full px-3 py-2 border border-subtle dark:border-darksubtle rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-body dark:bg-darkbody text-main dark:text-darktext"
-            }
-        ),
     )
 
     def clean_json_file(self):

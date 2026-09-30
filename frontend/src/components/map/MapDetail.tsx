@@ -4,6 +4,14 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
 import MapViewer from "@/components/map/MapViewer";
 import Loading from "@/components/Loading";
@@ -50,6 +58,7 @@ const MapDetail = () => {
 
   const [busy, setBusy] = useState<"export" | "delete" | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
+  const [asking, setAsking] = useState(false);
 
   const loadError = mapError || graphError;
 
@@ -78,9 +87,14 @@ const MapDetail = () => {
     }
   };
 
+  /**
+   * Asked in a dialog since S19, not `window.confirm`: the browser's own box
+   * cannot say what stays, and what stays is the point — the games played on
+   * the map keep their results (`game_map` is `SET_NULL`).
+   */
   const handleDelete = async () => {
     if (!gameMap) return;
-    if (!confirm(de.map.deleteConfirm(gameMap.name))) return;
+    setAsking(false);
     setBusy("delete");
     setFailure(null);
     try {
@@ -135,12 +149,30 @@ const MapDetail = () => {
         </Button>
         <Button
           variant="destructive"
-          onClick={handleDelete}
+          onClick={() => setAsking(true)}
           disabled={busy !== null}
         >
-          {de.editor.deleteMap}
+          {busy === "delete" ? de.map.deleting : de.editor.deleteMap}
         </Button>
       </div>
+
+      <Dialog open={asking} onOpenChange={setAsking}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{de.map.deleteTitle}</DialogTitle>
+            <DialogDescription>{de.map.deleteBody(gameMap.name)}</DialogDescription>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{de.map.deleteKeeps}</p>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setAsking(false)}>
+              {de.actions.cancel}
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              {de.map.deleteConfirm}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {failure ? (
         <Alert variant="destructive" className="mb-8">

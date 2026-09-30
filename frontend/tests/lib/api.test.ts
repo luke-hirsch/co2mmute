@@ -113,6 +113,27 @@ describe("apiFetch", () => {
     expect(headers.get("Content-Type")).toBe("application/json");
   });
 
+  it("leaves the content type of a FormData body to the browser", async () => {
+    // A multipart body needs a boundary in its Content-Type, and only fetch
+    // knows it. Setting "application/json" over it made every file upload
+    // hand-roll its own fetch, and the map import (S19) would have been the
+    // third.
+    vi.stubGlobal("document", { cookie: "csrftoken=tok" });
+    const spy = stubFetch(jsonResponse(201, { id: 7 }));
+    const body = new FormData();
+    body.set("map_name", "Neu");
+
+    await expect(
+      apiFetch("/api/maps/import/", { method: "POST", body }),
+    ).resolves.toEqual({ id: 7 });
+
+    const init = spy.mock.calls[0][1] as RequestInit;
+    const headers = init.headers as Headers;
+    expect(init.body).toBe(body);
+    expect(headers.has("Content-Type")).toBe(false);
+    expect(headers.get("X-CSRFToken")).toBe("tok");
+  });
+
   it("does not add CSRF on GET", async () => {
     vi.stubGlobal("document", { cookie: "csrftoken=tok" });
     const spy = stubFetch(jsonResponse(200, {}));

@@ -6,7 +6,7 @@
  *   node e2e/seed.mjs
  *
  * Talks HTTP only. There is no seed management command and there does not need
- * to be: `/map/upload/` already imports a whole graph — nodes, node types,
+ * to be: `api/maps/import/` already imports a whole graph — nodes, node types,
  * edges, bus and train lines — in a single POST, and that is the same path a
  * human uses, so the seed exercises the real importer rather than a second
  * copy of it that could drift.
@@ -143,15 +143,11 @@ async function findMap(name) {
 }
 
 async function uploadMap() {
-  const page = await request(`${BASE}/map/upload/`);
-  if (page.status === 302) {
-    throw new Error("/map/upload/ redirected — the account is not staff");
-  }
-  const token = tokenFrom(await page.text());
-
+  // The endpoint the upload screen posts to (S19). `/map/upload/` was a Django
+  // form page and is a redirect now, so the token comes from the jar rather
+  // than out of a rendered form.
   const json = await readFile(MAP_FILE);
   const form = new FormData();
-  form.set("csrfmiddlewaretoken", token);
   form.set("map_name", MAP_NAME);
   form.set("description", "Angelegt von e2e/seed.mjs. Loeschbar.");
   form.set("max_players", "6");
@@ -161,17 +157,23 @@ async function uploadMap() {
     path.basename(MAP_FILE),
   );
 
-  const response = await request(`${BASE}/map/upload/`, {
+  const response = await request(`${BASE}/api/maps/import/`, {
     method: "POST",
+    headers: { "X-CSRFToken": jar.get("csrftoken") ?? "" },
     body: form,
   });
-  // The view redirects to the new map on success and re-renders with messages
-  // on failure, so a 200 here means it refused.
-  if (response.status !== 302) {
-    const html = await response.text();
-    const errors = [...html.matchAll(/•\s*([^<]+)/g)].map((m) => m[1].trim());
+  if (response.status === 403) {
+    throw new Error("map import refused (HTTP 403) — the account is not staff");
+  }
+  // 201 with the new map, 400 with what the form or the file got wrong.
+  if (response.status !== 201) {
+    const body = await response.json().catch(() => ({}));
+    const errors = [
+      ...Object.values(body.fields ?? {}).flat(),
+      ...(body.graph ?? []),
+    ];
     throw new Error(
-      `map upload refused (HTTP ${response.status})` +
+      `map import refused (HTTP ${response.status})` +
         (errors.length ? `:\n  ${errors.slice(0, 8).join("\n  ")}` : ""),
     );
   }

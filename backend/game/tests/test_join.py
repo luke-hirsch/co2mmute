@@ -1436,7 +1436,7 @@ class MapCalibrationRoundTripTests(TempMediaRootMixin, TestCase):
         self.client.force_login(self.host)
 
         response = self.client.post(
-            "/map/upload/",
+            "/api/maps/import/",
             {
                 "map_name": "Reimport",
                 "description": "",
@@ -1445,9 +1445,8 @@ class MapCalibrationRoundTripTests(TempMediaRootMixin, TestCase):
             },
         )
 
-        # The view redirects on success and re-renders with messages on
-        # failure, so a 200 here would mean it refused.
-        self.assertEqual(response.status_code, 302)
+        # 201 with the new map, 400 with what the file got wrong.
+        self.assertEqual(response.status_code, 201)
         game_map = GameMap.objects.get(name="Reimport")
         self.assertEqual(game_map.district_commuters, 3_200)
         self.assertEqual(game_map.co2_budget_kg_per_round, 5_000)
@@ -1478,7 +1477,7 @@ class MapCalibrationRoundTripTests(TempMediaRootMixin, TestCase):
         self.client.force_login(self.host)
 
         response = self.client.post(
-            "/map/upload/",
+            "/api/maps/import/",
             {
                 "map_name": "Alt",
                 "description": "",
@@ -1487,7 +1486,7 @@ class MapCalibrationRoundTripTests(TempMediaRootMixin, TestCase):
             },
         )
 
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 201)
         game_map = GameMap.objects.get(name="Alt")
         self.assertEqual(game_map.district_commuters, 6_400)
         self.assertEqual(game_map.co2_budget_kg_per_round, 8_000)

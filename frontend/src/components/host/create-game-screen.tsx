@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field } from "@/components/layout/field";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
 import { apiErrorMessage, ApiError } from "@/lib/api";
 import {
@@ -380,47 +380,6 @@ const selectClass =
   "text-base shadow-xs outline-none transition-[color,box-shadow] md:text-sm " +
   "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 " +
   "disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30";
-
-function Field({
-  id,
-  label,
-  help,
-  errors,
-  children,
-}: {
-  id: string;
-  label: string;
-  help?: string;
-  errors?: string[];
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
-      {children}
-      {help ? (
-        <p
-          id={`${id}-help`}
-          className="max-w-(--measure-body) text-sm text-muted-foreground"
-        >
-          {help}
-        </p>
-      ) : null}
-      {errors?.length ? (
-        // `role="alert"` so a screen reader hears the refusal when it appears,
-        // and `id` so the input can point at it — both of which also make it
-        // something a test can find without pinning the sentence.
-        <ul id={`${id}-error`} role="alert" className="space-y-1">
-          {errors.map((message) => (
-            <li key={message} className="text-sm text-destructive">
-              {message}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
-  );
-}
 
 /**
  * `inputMode="numeric"` rather than `type="number"`: the numeric keypad without

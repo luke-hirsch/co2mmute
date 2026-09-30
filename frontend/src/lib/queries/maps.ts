@@ -21,7 +21,7 @@
  *   label; a flag lets the screen put the sentence where it belongs.
  */
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiFetch } from "@/lib/api";
 
@@ -45,5 +45,21 @@ export function useGameMaps() {
     // while a host fills in a form would only move the select under them.
     staleTime: 5 * 60_000,
     refetchOnWindowFocus: false,
+  });
+}
+
+/**
+ * `POST api/maps/import/` — a map file in, a new map out (S19).
+ *
+ * Always a *new* map: the importer never overwrites one, because
+ * `GameSession.game_map` would take the games with it. Invalidates `["maps"]`,
+ * which covers this module's list key and `map-graph.ts`'s alike.
+ */
+export function useImportMap() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: FormData) =>
+      apiFetch<{ id: number }>("/api/maps/import/", { method: "POST", body }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["maps"] }),
   });
 }
