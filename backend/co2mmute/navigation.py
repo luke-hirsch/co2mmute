@@ -87,7 +87,7 @@ def build(request):
             "label": "Spielen",
             "children": [
                 _link("erstellen", "Erstellen", "/app/game/create"),
-                _link("beitreten", "Beitreten", reverse("session-join")),
+                _link("beitreten", "Beitreten", "/app/join"),
             ],
         },
     ]

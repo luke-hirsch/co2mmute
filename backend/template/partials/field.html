@@ -1,0 +1,6 @@
+{# A labelled control, its help and its refusals — `Field` in frontend/src/components/layout/field.tsx. The widget carries `field-input` from co2mmute/forms.py:StyledForm; the ids are the ones Django's own aria-describedby points at. #}<div class="space-y-2">
+  <label for="{{ field.id_for_label }}" class="field-label">{{ field.label }}</label>
+  {{ field }}
+  {% if field.help_text %}<p id="{{ field.auto_id }}_helptext" class="field-help">{{ field.help_text }}</p>{% endif %}
+  {% if field.errors %}<ul id="{{ field.auto_id }}_error" role="alert" class="field-error">{% for error in field.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+</div>

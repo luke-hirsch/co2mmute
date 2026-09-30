@@ -276,6 +276,12 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+# Where a login lands when nothing asked for somewhere else. Django's default
+# is /accounts/profile/, which since S13 is itself a redirect into the SPA —
+# so signing in was a two-hop chain. S22.
+LOGIN_REDIRECT_URL = "/app/host"
+
+
 # Internationalization
 
 LANGUAGE_CODE = "en-us"

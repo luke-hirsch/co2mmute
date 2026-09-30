@@ -1,32 +1,9 @@
-{% extends "base.html" %}
-<!-- even more comments -->
-{% block title %}Logout &ndash; CO2MMUTE {%endblock %}
-<!-- even more comments -->
-{% block main %}
-<section class="mx-auto w-full max-w-xl px-6 py-20 text-center">
-  <div class="rounded-3xl border border-subtle bg-surface p-12 shadow-xl">
-    <span
-      class="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-100 text-2xl text-primary-700 shadow-lg"
-    >
-      ✅
-    </span>
-    <h1 class="mt-6 text-3xl font-semibold text-primary-700">
-      Du bist abgemeldet
-    </h1>
-    <p class="mt-4 text-sm text-muted">
-      Danke, dass du CO2MMUTE erkundet hast. Deine Sitzung wurde sicher
-      geschlossen.
-    </p>
-    <div
-      class="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center"
-    >
-      <a class="btn-primary w-full sm:w-auto" href="{% url 'login' %}"
-        >Erneut anmelden</a
-      >
-      <a class="btn-secondary w-full sm:w-auto" href="{% url 'index' %}"
-        >Zurück zur Startseite</a
-      >
-    </div>
-  </div>
-</section>
+{% extends "narrow.html" %}
+{% block title %}Abgemeldet – CO₂mmute{% endblock %}
+{% block screen %}
+{% include "partials/screen_heading.html" with title="Du bist abgemeldet" lead="Auf diesem Rechner ist jetzt niemand mehr angemeldet. Deine Spiele laufen weiter; um sie zu steuern, meldest du dich wieder an." %}
+<div class="flex flex-wrap gap-3">
+  <a href="{% url 'login' %}" class="btn btn-primary">Wieder anmelden</a>
+  <a href="{% url 'index' %}" class="btn btn-outline">Zur Startseite</a>
+</div>
 {% endblock %}

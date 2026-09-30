@@ -944,3 +944,71 @@ class AccountAnonymisationTests(TempMediaRootMixin, TestCase):
 
         self.host.refresh_from_db()
         self.assertEqual(self.host.username, username_after_one)
+
+
+@override_settings(**TEST_BACKENDS)
+class NamesStayOutOfTheLogTests(TempMediaRootMixin, TestCase):
+    """A player's name reaches no log line. `docs/testfaelle.md` S-04.
+
+    Binding since the start — the players are school students, some of them
+    minors — and never tested, which is how `PlayerCreateView` came to log
+    `creating player: {'name': …}` on every Django join until S22 deleted it.
+    This catches every record at DEBUG on the root logger, so a new
+    `logger.info(f"… {player.name}")` anywhere on the path fails here, not in
+    a log file on the box.
+    """
+
+    NAME = "Zaunkoenigin-7"
+
+    def setUp(self):
+        import logging
+
+        self.host = create_host()
+        with muted():
+            self.game = create_game_session(self.host, game_name="Leise")
+
+        self.records = []
+
+        class Keep(logging.Handler):
+            def emit(handler, record):
+                self.records.append(record.getMessage())
+
+        root = logging.getLogger()
+        self.handler = Keep(level=logging.DEBUG)
+        self.previous_level = root.level
+        root.addHandler(self.handler)
+        root.setLevel(logging.DEBUG)
+
+    def tearDown(self):
+        import logging
+
+        root = logging.getLogger()
+        root.removeHandler(self.handler)
+        root.setLevel(self.previous_level)
+
+    def _assert_name_unlogged(self):
+        leaked = [line for line in self.records if self.NAME in line]
+        self.assertEqual(leaked, [])
+
+    def test_joining_logs_no_name(self):
+        response = self.client.post(
+            f"/api/game/join/{self.game.game_id}/",
+            {"name": self.NAME},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(self.records, "nothing was logged at all — is the handler attached?")
+        self._assert_name_unlogged()
+
+    def test_a_seat_at_the_leitstelle_logs_no_name(self):
+        self.client.force_login(self.host)
+
+        response = self.client.post(
+            f"/api/game/{self.game.game_id}/player/",
+            {"name": self.NAME},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self._assert_name_unlogged()

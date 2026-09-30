@@ -489,47 +489,85 @@ class SessionsRouteRemovedTests(TempMediaRootMixin, TestCase):
 
 
 @override_settings(**TEST_BACKENDS)
-class JoinSessionFormPasswordTests(TempMediaRootMixin, TestCase):
-    """The template join view checks the password only for *started* games.
+class OneJoinFunnelTests(TempMediaRootMixin, TestCase):
+    """There is one way into a game: `/app/join/<ID>`. S22.
 
-    game/views.py:148-159 nests the whole password block inside
-    `if game_session.started_at:` — so every game anyone actually joins skips it.
-    Lobby passwords currently do nothing.
+    There used to be two. Django's `/join/<id>/` asked for the id and the
+    password, then `game/<id>/player/create/` for the name, with
+    `request.session["joined_game_ids"]` carrying the permission between them;
+    the SPA's `JoinForm` asks the lookup first and takes name and password in
+    one `POST api/game/join/<id>/`. The QR code and the landing page pointed at
+    the Django one, which had drifted: it never checked `max_players`, it took
+    no lock, its `messages.error` calls went to pages that did not render them,
+    and it logged the player's name.
+
+    The SPA won because it is the one with the seat rule under a lock. The
+    Django pages are **deleted, not redirected** — Lukas, 2026-09-30: no running
+    game is worth keeping a door for, so an old QR image answers 404.
     """
 
     def setUp(self):
         self.host = create_host()
         with muted():
-            self.game = create_game_session(self.host, game_name="Form join")
-            self.game.game_password = "geheim"
-            self.game.save()
+            self.game = create_game_session(self.host, game_name="Ein Eingang")
 
-    def post_join_form(self, password):
-        with muted():
-            return self.client.post(
-                reverse("session-join"),
-                {"game_id": self.game.game_id, "game_password": password},
-            )
+    def test_the_django_join_is_gone(self):
+        from django.urls import Resolver404
 
-    def test_a_wrong_password_does_not_get_you_in(self):
-        response = self.post_join_form("falsch")
+        for path in (
+            "/join/",
+            f"/join/{self.game.game_id}/",
+            f"/game/{self.game.game_id}/player/create/",
+            f"/game/{self.game.game_id}/player/P-01/update/",
+        ):
+            with self.subTest(path):
+                with self.assertRaises(Resolver404):
+                    resolve(path)
+                self.assertEqual(self.client.get(path).status_code, 404)
 
+    def test_nothing_of_it_is_left_importable(self):
+        """`game/forms.py` held the two join forms and nothing else, so the
+        module itself is gone."""
+        from importlib.util import find_spec
+
+        import game.views as views
+
+        for name in ("JoinSessionView", "PlayerCreateView", "PlayerUpdateView"):
+            with self.subTest(name):
+                self.assertFalse(hasattr(views, name))
+        self.assertIsNone(find_spec("game.forms"))
+
+    def test_its_templates_are_gone(self):
+        from django.template import TemplateDoesNotExist
+        from django.template.loader import get_template
+
+        for name in ("game/join_session.html", "game/create_player.html", "game/update_player.html"):
+            with self.subTest(name):
+                with self.assertRaises(TemplateDoesNotExist):
+                    get_template(name)
+
+    def test_the_qr_code_points_into_the_spa(self):
         self.assertEqual(
-            response.status_code,
-            200,
-            msg="a wrong password must re-render the form, not redirect onwards",
-        )
-        self.assertNotIn(
-            "joined_game_ids",
-            self.client.session.keys(),
-            msg="a wrong password must not mark the session as joined",
+            self.game.join_url, f"{settings.BASE_URL}/app/join/{self.game.game_id}"
         )
 
-    def test_the_right_password_still_gets_you_in(self):
-        response = self.post_join_form("geheim")
+    def test_the_qr_image_carries_that_address(self):
+        """What the phone camera reads, not just the property beside it."""
+        from unittest import mock
 
-        self.assertEqual(response.status_code, 302)
-        self.assertIn(self.game.game_id, self.client.session["joined_game_ids"])
+        import qrcode
+
+        with mock.patch.object(qrcode.QRCode, "add_data", autospec=True) as add_data:
+            self.game.generate_qr_code()
+
+        add_data.assert_called_once()
+        self.assertEqual(add_data.call_args.args[1], self.game.join_url)
+
+    def test_the_landing_page_sends_its_id_into_the_spa(self):
+        html = self.client.get("/").content.decode()
+
+        self.assertIn('action="/app/join"', html)
+        self.assertNotRegex(html, r"(?<!/app)/join/", "a link into the deleted Django join")
 
 
 @override_settings(**TEST_BACKENDS)
@@ -580,13 +618,16 @@ class LobbyHostRowTests(GameCookieMixin, TempMediaRootMixin, TestCase):
 # ---------------------------------------------------------------------------
 
 class GermanFunnelTests(TempMediaRootMixin, TestCase):
-    """Every page the QR code lands a student on speaks German.
+    """What the funnel around a game says, and what the create endpoint refuses
+    with, is German.
 
-    The SPA behind these pages is fully German; the three in front of it are
-    not, which makes the join flow the one place a class meets English. The
-    detector is the frontend's idea ported over: assert on the rendered text,
-    because a label built in `Meta.labels` is invisible to a grep of the
-    template.
+    It started as the three Django pages in front of the SPA — `/join/`,
+    `player/create/` and `/share/` — which made the join flow the one place a
+    class met English. S13 and S22 deleted all three; the join screens are the
+    SPA's now and `frontend/tests/design/german.test.ts` reads them. What is
+    left here is what still comes off the server. The detector is the
+    frontend's idea ported over: assert on the rendered text, because a label
+    built in `Meta.labels` is invisible to a grep of the template.
 
     Nothing in here asserts an exact sentence. The test is "this page is not
     English", never "this page says what the guide said" — the wording stays
@@ -598,66 +639,6 @@ class GermanFunnelTests(TempMediaRootMixin, TestCase):
         with muted():
             self.game = create_game_session(self.host, game_name="Testspiel")
         invalidate_game_session(self.game.game_id)
-
-    def test_the_join_page_is_german(self):
-        response = self.client.get(f"/join/{self.game.game_id}/")
-
-        text = visible_text(response.content.decode())
-
-        self.assertEqual(english_in(text), [], f"English on /join/: {text[:400]}")
-
-    def test_an_unknown_id_is_refused_in_german(self):
-        """The refusal lands on the field and is not English.
-
-        Which sentence it is, is copy. Asserting it here would mean every
-        reword breaks the suite, and the suite would then be an argument
-        against improving the copy.
-        """
-        response = self.client.post("/join/", {"game_id": "NOPE42"})
-
-        errors = response.context["form"].errors["game_id"]
-
-        self.assertEqual(len(errors), 1)
-        self.assertEqual(english_in(" ".join(errors)), [])
-
-    def test_the_qr_code_of_a_started_game_still_renders(self):
-        """Not copy: `add_error` on an unbound form raises, so this GET 500s.
-
-        The QR code points at this page, so a class arriving late at a game
-        that has already started meets a server error rather than a sentence.
-        """
-        self.game.started_at = timezone.now()
-        with muted():
-            self.game.save()
-        invalidate_game_session(self.game.game_id)
-
-        response = self.client.get(f"/join/{self.game.game_id}/")
-
-        self.assertEqual(response.status_code, 200)
-
-    def test_a_started_game_is_refused_in_german(self):
-        self.game.started_at = timezone.now()
-        with muted():
-            self.game.save()
-        invalidate_game_session(self.game.game_id)
-
-        response = self.client.get(f"/join/{self.game.game_id}/")
-
-        errors = response.context["form"].errors["game_id"]
-
-        self.assertEqual(english_in(" ".join(errors)), [])
-
-    def test_the_player_create_page_is_german(self):
-        session = self.client.session
-        session["joined_game_ids"] = [self.game.game_id]
-        session.save()
-
-        response = self.client.get(f"/game/{self.game.game_id}/player/create/")
-
-        text = visible_text(response.content.decode())
-        self.assertEqual(
-            english_in(text), [], f"English on player/create/: {text[:400]}"
-        )
 
     def test_the_create_endpoint_refuses_in_german(self):
         """The create screen renders what comes back, so these are copy.
@@ -729,15 +710,6 @@ class GermanFunnelTests(TempMediaRootMixin, TestCase):
         self.assertEqual(response.status_code, 400)
         messages = response.json()["game_map"]
         self.assertEqual(english_in(" ".join(str(m) for m in messages)), [])
-
-    def test_the_player_form_is_german(self):
-        from game.forms import PlayerCreateForm
-
-        form = PlayerCreateForm()
-        field = form.fields["name"]
-
-        self.assertEqual(english_in(str(field.label)), [])
-        self.assertEqual(english_in(str(field.help_text or "")), [])
 
     def test_the_share_page_is_german(self):
         self.client.force_login(self.host)
@@ -1139,11 +1111,13 @@ class CreateFormRedirectTests(TempMediaRootMixin, TestCase):
 
     def test_the_form_is_gone(self):
         """A second create form is the two-sources-of-truth bug this project
-        keeps having. The Django one is deleted, not left beside the React one."""
-        import game.forms as forms
+        keeps having. The Django one is deleted, not left beside the React one.
 
-        self.assertFalse(hasattr(forms, "GameSessionCreateForm"))
-        self.assertFalse(hasattr(forms, "MapChoiceField"))
+        Since S22 the module that held it is gone too — its last two forms were
+        the Django join's."""
+        from importlib.util import find_spec
+
+        self.assertIsNone(find_spec("game.forms"))
 
 
 class CalibratedCreateFormTests(TempMediaRootMixin, TestCase):

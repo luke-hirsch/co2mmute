@@ -170,3 +170,85 @@ class NoThirdPartyLoadsTests(SimpleTestCase):
             [],
             msg="tailwindplus elements nothing defines:\n  " + "\n  ".join(failures),
         )
+
+
+class EveryTemplateCompilesTests(SimpleTestCase):
+    """Every Django template parses — all of them, not the ones a test renders.
+
+    S22 found three pages of the password-reset flow answering a 500 on every
+    request: a formatter had wrapped `{% if not forloop.last %}` across two
+    lines, and a template tag cannot span a line break. "Passwort vergessen?"
+    on the login page led straight into it. No test had ever requested those
+    pages, so the suite was green over a broken door.
+
+    Compiling is what a request would have done first, so this compiles every
+    `.html` under `template/` — a page nobody tests is still covered, which is
+    the point: a detector scoped to the pages that prompted it misses the next one.
+    """
+
+    def test_every_template_compiles(self):
+        from django.template import TemplateSyntaxError
+        from django.template.loader import get_template
+
+        root = BACKEND_ROOT / "template"
+        failures = []
+
+        for path in sorted(root.rglob("*.html")):
+            name = path.relative_to(root).as_posix()
+            try:
+                get_template(name)
+            except TemplateSyntaxError as error:
+                failures.append(f"template/{name}: {error}")
+
+        self.assertEqual(
+            failures,
+            [],
+            msg="templates that do not compile:\n  " + "\n  ".join(failures),
+        )
+
+
+class TemplatesStayOnThePaletteTests(SimpleTestCase):
+    """The Django half paints from the design system, like the SPA does.
+
+    The palette is two colours and ink (`/app/styleguide` renders it), and
+    the SPA has `frontend/tests/design/palette.test.ts` to keep it that way.
+    The Django half had nothing: `registration/` and the join pages were
+    Tailwind UI boilerplate in indigo, gray, red and green, with emoji for
+    icons, and nothing noticed. This reads every template and every form
+    that sets a widget class, so a page added tomorrow is covered.
+
+    What it refuses is what the rulebook names: Tailwind's stock palettes
+    (none of them is a token here), weights above 600, the heavy drop shadows
+    that stand in for a line, and emoji standing in for a word.
+    """
+
+    STOCK_PALETTE = re.compile(
+        r"\b[a-z-]*(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|"
+        r"green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)"
+        r"-(?:50|[1-9]00|950)\b"
+    )
+    TOO_HEAVY = re.compile(r"\bfont-(?:bold|extrabold|black)\b|\bshadow-(?:lg|xl|2xl)\b")
+    EMOJI = re.compile("[\U0001f300-\U0001faff☀-➿⭐✅]")
+
+    def _sources(self):
+        yield from sorted((BACKEND_ROOT / "template").rglob("*.html"))
+        for path in sorted(BACKEND_ROOT.rglob("forms.py")):
+            if not SKIP_PARTS.intersection(path.parts):
+                yield path
+
+    def test_nothing_paints_outside_the_palette(self):
+        failures = []
+
+        for path in self._sources():
+            for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                for pattern in (self.STOCK_PALETTE, self.TOO_HEAVY, self.EMOJI):
+                    for match in pattern.finditer(line):
+                        failures.append(
+                            f"{path.relative_to(BACKEND_ROOT)}:{lineno}: {match.group(0)}"
+                        )
+
+        self.assertEqual(
+            failures,
+            [],
+            msg="off the palette:\n  " + "\n  ".join(failures),
+        )

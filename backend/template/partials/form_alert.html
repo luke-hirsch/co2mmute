@@ -1,0 +1,1 @@
+{# What the form refuses as a whole — a wrong password, two passwords that differ. An amber rule beside ink text, like a field's refusal. #}{% if form.non_field_errors %}<div role="alert" class="form-alert mb-8">{% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}</div>{% endif %}

@@ -8,6 +8,8 @@ describe("routerPath", () => {
     expect(routerPath("/app/maps/upload")).toBe("/maps/upload");
     expect(routerPath("/app/game/create")).toBe("/game/create");
     expect(routerPath("/app/host")).toBe("/host");
+    // The header's "Beitreten" since S22, when Django's /join/ was deleted.
+    expect(routerPath("/app/join")).toBe("/join");
   });
 
   it("maps the app's own root to the router's", () => {
@@ -16,7 +18,7 @@ describe("routerPath", () => {
   });
 
   it("leaves Django pages and other sites to the browser", () => {
-    expect(routerPath("/join/")).toBeNull();
+    expect(routerPath("/legal/impressum/")).toBeNull();
     expect(routerPath("/hintergrund/")).toBeNull();
     expect(routerPath("/accounts/logout/")).toBeNull();
     expect(routerPath("https://github.com/luke-hirsch/co2mmute")).toBeNull();

@@ -1,22 +1,11 @@
-{% extends "base.html" %}
-{% block title %}Zu viele Versuche{% endblock %}
-{% block main %}
-<section class="mx-auto w-full max-w-3xl px-6 py-20">
-  <h1 class="mb-4 text-2xl font-semibold text-main dark:text-darktext">
-    Zu viele Versuche
-  </h1>
-  <p class="mb-6 max-w-(--measure-body) text-mutedtext dark:text-darkmutedtext">
-    {{ throttle_message }}
-  </p>
-  <p class="max-w-(--measure-body) text-mutedtext dark:text-darkmutedtext">
-    Warte {{ throttle_minutes }} Minuten und versuch es dann noch einmal.
-  </p>
-  <p class="mt-8">
-    <a
-      href="{% url 'index' %}"
-      class="text-primary-600 underline hover:no-underline dark:text-primary-400"
-      >Zurück zur Startseite</a
-    >
-  </p>
-</section>
+{% extends "narrow.html" %}
+{% block title %}Zu viele Versuche – CO₂mmute{% endblock %}
+{% block screen %}
+{% include "partials/screen_heading.html" with title="Zu viele Versuche" lead=throttle_message %}
+<p class="max-w-(--measure-body)">
+  Warte {{ throttle_minutes }} Minuten und versuch es dann noch einmal.
+</p>
+<div class="mt-10">
+  <a href="{% url 'index' %}" class="btn btn-outline">Zur Startseite</a>
+</div>
 {% endblock %}

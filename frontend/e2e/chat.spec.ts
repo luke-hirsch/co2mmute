@@ -1,6 +1,6 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
-import { createGame } from "./game";
+import { createGame, joinAsPlayer } from "./game";
 import { loginAsHost } from "./host";
 
 /**
@@ -9,7 +9,7 @@ import { loginAsHost } from "./host";
  * Two browser contexts, because the headline case cannot be proved with one:
  * C-01 is "a message reaches everyone", and a seat played at the host machine
  * shares the host's cookies and the host's socket. So the second context joins
- * through the real funnel — `/join/<id>/`, a screen name, no account — which is
+ * through the real funnel — `/app/join/<id>`, a screen name, no account — which is
  * also the only student-shaped path there is.
  *
  * It runs in the lobby rather than mid-round on purpose. `GameFrame` mounts the
@@ -267,19 +267,6 @@ async function send(page: Page, text: string) {
 }
 
 
-/**
- * Join as a student: no account, a screen name, two signed cookies.
- *
- * The two-step Django funnel — `/join/<id>/` confirms the game, then the next
- * form takes the name — and it ends in the SPA at `/app/game/<id>`.
- */
-async function joinAsPlayer(page: Page, gameId: string, name: string) {
-  await page.goto(`/join/${gameId}/`);
-  await page.getByRole("button", { name: "Weiter" }).click();
-  await page.locator("form input[type=text]").first().fill(name);
-  await page.locator('form button[type="submit"]').first().click();
-  await page.waitForURL(/\/app\/game\/[^/]+\/?$/);
-}
 
 /** End the game and delete it, so a run leaves no row behind. */
 async function endAndDelete(page: Page, gameId: string, baseURL: string) {

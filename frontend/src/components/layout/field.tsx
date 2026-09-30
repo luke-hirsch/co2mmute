@@ -37,11 +37,17 @@ export function Field({
         // `role="alert"` so a screen reader hears the refusal when it appears,
         // and `id` so the input can point at it — both of which also make it
         // something a test can find without pinning the sentence.
-        <ul id={`${id}-error`} role="alert" className="space-y-1">
+        //
+        // An amber rule beside ink text, not amber text: amber on the light
+        // ground is hard to read, which the map notes found first (S19). The
+        // Django pages' `field-error` is the same thing (S22).
+        <ul
+          id={`${id}-error`}
+          role="alert"
+          className="max-w-(--measure-body) space-y-1 border-l-[3px] border-brandaccent pl-4 text-sm text-foreground"
+        >
           {errors.map((message) => (
-            <li key={message} className="text-sm text-destructive">
-              {message}
-            </li>
+            <li key={message}>{message}</li>
           ))}
         </ul>
       ) : null}

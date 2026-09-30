@@ -1,147 +1,22 @@
-{% extends "base.html" %} {% load static %}
-<!-- even more comments -->
-{% block title %} Sign Up {% endblock %}
-<!-- some comment  -->
-{% block main %}
-<section class="mx-auto w-full max-w-3xl px-6 py-20">
-  <div class="flex min-h-full">
-    <div
-      class="flex flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24"
-    >
-      <div class="mx-auto w-full max-w-sm lg:w-96">
-        <div>
-          <h2
-            class="mt-8 text-2xl/9 font-bold tracking-tight text-gray-900 dark:text-white"
-          >
-            Werde Teil von CO₂mmute
-          </h2>
-          {% if form.non_field_errors %}
-          <div
-            class="mt-6 rounded-md border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-400/40 dark:bg-red-500/10 dark:text-red-200"
-          >
-            {% for error in form.non_field_errors %}
-            <p>{{ error }}</p>
-            {% endfor %}
-          </div>
-          {% endif %}
-          <div class="mt-6 flex items-center justify-between">
-            <div class="text-sm/6">
-              <a
-                href="{% url 'login' %}{% if next %}?next={{ next|urlencode }}{% endif %}"
-                class="font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
-                >Schon dabei?</a
-              >
-            </div>
-          </div>
-        </div>
+{% extends "narrow.html" %}
+{% block title %}Konto anlegen – CO₂mmute{% endblock %}
+{% block screen %}
+{% include "partials/screen_heading.html" with title="Konto anlegen" lead="Mit einem Konto legst du Spiele an und leitest sie. Wer mitspielt, braucht keins — nur die Spiel‑ID." %}
 
-        <div class="mt-10">
-          <div>
-            <form method="post" class="space-y-6">
-              {% csrf_token %}
-              <input type="hidden" name="next" value="{{ next }}" />
-              <div>
-                <label
-                  for="username"
-                  class="block text-sm/6 font-medium text-gray-900 dark:text-gray-100"
-                  >Username</label
-                >
-                <div class="mt-2">
-                  <input
-                    id="username"
-                    type="text"
-                    name="username"
-                    required
-                    autocomplete="username"
-                    value="{{ form.username.value|default_if_none:'' }}"
-                    class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6 dark:bg-white/5 dark:text-white dark:outline-white/10 dark:placeholder:text-gray-500 dark:focus:outline-indigo-500 {% if form.username.errors %}!outline-red-500 focus:outline-red-500{% endif %}"
-                  />
-                </div>
-                {% if form.username.errors %}
-                <div
-                  class="mt-2 space-y-1 text-sm text-red-600 dark:text-red-400"
-                >
-                  {% for error in form.username.errors %}
-                  <p>{{ error }}</p>
-                  {% endfor %}
-                </div>
-                {% endif %}
-              </div>
-              <div>
-                <label
-                  for="email"
-                  class="block text-sm/6 font-medium text-gray-900 dark:text-gray-100"
-                  >Email address</label
-                >
-                <div class="mt-2">
-                  <input
-                    id="email"
-                    type="email"
-                    name="email"
-                    required
-                    autocomplete="email"
-                    value="{{ form.email.value|default_if_none:'' }}"
-                    class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6 dark:bg-white/5 dark:text-white dark:outline-white/10 dark:placeholder:text-gray-500 dark:focus:outline-indigo-500 {% if form.email.errors %}!outline-red-500 focus:outline-red-500{% endif %}"
-                  />
-                </div>
-                {% if form.email.errors %}
-                <div
-                  class="mt-2 space-y-1 text-sm text-red-600 dark:text-red-400"
-                >
-                  {% for error in form.email.errors %}
-                  <p>{{ error }}</p>
-                  {% endfor %}
-                </div>
-                {% endif %}
-              </div>
-
-              <div>
-                <label
-                  for="password"
-                  class="block text-sm/6 font-medium text-gray-900 dark:text-gray-100"
-                  >Password</label
-                >
-                <div class="mt-2">
-                  <input
-                    id="password"
-                    type="password"
-                    name="password"
-                    required
-                    autocomplete="new-password"
-                    class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6 dark:bg-white/5 dark:text-white dark:outline-white/10 dark:placeholder:text-gray-500 dark:focus:outline-indigo-500 {% if form.password.errors %}!outline-red-500 focus:outline-red-500{% endif %}"
-                  />
-                </div>
-                {% if form.password.errors %}
-                <div
-                  class="mt-2 space-y-1 text-sm text-red-600 dark:text-red-400"
-                >
-                  {% for error in form.password.errors %}
-                  <p>{{ error }}</p>
-                  {% endfor %}
-                </div>
-                {% endif %}
-              </div>
-
-              <div>
-                <button
-                  type="submit"
-                  class="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:shadow-none dark:hover:bg-indigo-400 dark:focus-visible:outline-indigo-500"
-                >
-                  Los geht's
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="relative hidden w-0 flex-1 lg:block">
-      <img
-        src="{% static 'img/index_1.png' %}"
-        alt=""
-        class="absolute inset-0 size-full object-cover"
-      />
-    </div>
+{% include "partials/form_alert.html" %}
+<form method="post" class="space-y-6" novalidate>
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ next }}" />
+  {% include "partials/field.html" with field=form.username %}
+  {% include "partials/field.html" with field=form.email %}
+  {% include "partials/field.html" with field=form.password %}
+  <div class="pt-2">
+    <button type="submit" class="btn btn-primary">Konto anlegen</button>
   </div>
-</section>
+</form>
+
+<p class="mt-12 border-t border-subtle pt-6 text-sm text-muted dark:border-darksubtle dark:text-darkmutedtext">
+  Schon ein Konto?
+  <a href="{% url 'login' %}{% if next %}?next={{ next|urlencode }}{% endif %}" class="text-link">Anmelden</a>
+</p>
 {% endblock %}

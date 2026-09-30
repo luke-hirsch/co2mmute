@@ -14,28 +14,43 @@ logger = logging.getLogger(__name__)
 
 
 class CustomPasswordValidator:
+    """Digit, both cases, a special character — the rules Django does not have.
+
+    German at the source, because this one is ours: the stock validators are
+    translated where they are shown (`co2mmute.forms.german_password_errors`),
+    and each rule carries its own `code` so that function can tell them apart.
+    """
+
     def validate(self, password, user=None):
         errors = []
 
         if not any(char.isdigit() for char in password):
-            errors.append("The password must contain at least one digit.")
+            errors.append(
+                ValidationError(
+                    "Es fehlt eine Ziffer.", code="password_no_digit"
+                )
+            )
         if not any(char.isalpha() and char.islower() for char in password) or not any(
             char.isalpha() and char.isupper() for char in password
         ):
             errors.append(
-                "The password must contain both lowercase and uppercase letters."
+                ValidationError(
+                    "Es braucht Groß- und Kleinbuchstaben.", code="password_no_case_mix"
+                )
             )
         if not any(not char.isalnum() for char in password):
-            errors.append("The password must contain at least one special character.")
+            errors.append(
+                ValidationError(
+                    "Es fehlt ein Sonderzeichen, etwa ! oder -.",
+                    code="password_no_special",
+                )
+            )
 
         if errors:
             raise ValidationError(errors)
 
     def get_help_text(self):
-        return (
-            "Your password must include at least one digit, one lowercase and uppercase "
-            "letter, and one special character."
-        )
+        return "mit Ziffer, Groß- und Kleinbuchstaben und einem Sonderzeichen"
 
 
 def game_map_clean(map_versions, base_game_map):
