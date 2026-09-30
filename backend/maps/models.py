@@ -57,6 +57,21 @@ class GameMap(models.Model):
             "umsteigen, zu wenig, wenn alle mit dem Auto fahren."
         ),
     )
+    # Whether the two numbers above were measured on THIS map. S21. Every map
+    # starts at the Berlin defaults, and comparing against them cannot tell a
+    # small map that inherited them from the one map they were measured on —
+    # so the map says it. False until somebody who replayed rounds on it says
+    # otherwise; the create form warns while it is. It travels in the file,
+    # and only an explicit `true` beside both numbers counts
+    # (`maps/importer.py`).
+    calibrated = models.BooleanField(
+        default=False,
+        help_text=(
+            "Ob Pendlerzahl und CO₂-Budget für diese Karte gemessen sind. "
+            "Solange nicht, warnt das Formular „Spiel anlegen“, dass die "
+            "Vorschläge nicht zur Karte passen müssen."
+        ),
+    )
 
     created = models.DateTimeField(auto_now_add=True)
     author = models.ForeignKey(

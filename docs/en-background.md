@@ -233,6 +233,11 @@ its distances and its timetable. Another city is another pair, and a module cons
 frozen one neighbourhood's measurements into the software. Both travel through the map's JSON export
 and come back on import.
 
+The map also says whether the pair was measured on _it_. Every new map inherits Berlin Mitte-West's
+values, and the numbers alone cannot tell a measured pair from an inherited one — Berlin Mitte-West
+itself carries exactly these. Until the flag is set, the create form warns that both are too high
+for a small map.
+
 For Berlin Mitte-West they are **6400 commuters** and **8000 kg per round**.
 
 ### 6400 is what the graph can carry

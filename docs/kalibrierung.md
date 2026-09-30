@@ -207,9 +207,6 @@ Karte etwas weniger stauen lässt. Vergleichbar ist jeweils vorher gegen jetzt i
 
 ## 9. Was offen bleibt
 
-- **Der Vorschlag folgt der Klassengröße noch nicht live.** Das Formular „Spiel erstellen" ist
-  serverseitig gerendert, die Ableitung passiert also einmal pro Seitenaufruf. Wer die Platzzahl
-  ändert, muss die beiden Zahlen von Hand nachziehen. Das gehört in den React-Port des Formulars.
 - **Die Abfahrten liegen sehr eng beieinander.** `departure_std_dev_min = 10` heißt, dass praktisch
   alle innerhalb von 20 Minuten losfahren; real verteilt sich ein Berufsverkehr über eine Stunde und
   mehr. Bei σ = 45 statt 10 sinkt die Verspätung im 100-%-Auto-Fall von 56,9 auf 16,5 Minuten. Das
@@ -217,7 +214,11 @@ Karte etwas weniger stauen lässt. Vergleichbar ist jeweils vorher gegen jetzt i
 - **Der Abendverkehr wird nach wie vor nicht simuliert**, und beide Richtungen einer Straße teilen
   sich eine Warteschlange. Solange alle morgens zur Arbeit fahren, ist das egal.
 - **Die Vorgabewerte anderer Karten sind ungeprüft.** Jede neue Karte startet mit 6.400 und 8.000 —
-  den Werten von Berlin Mitte-West. Für eine kleinere Karte sind beide zu hoch.
+  den Werten von Berlin Mitte-West. Für eine kleinere Karte sind beide zu hoch. Die Karte sagt
+  inzwischen selbst, ob ihre Zahlen gemessen sind (`GameMap.calibrated`, geht mit der JSON-Datei
+  mit), und „Spiel anlegen" warnt, solange sie es nicht sind. Gemessen ist damit noch nichts: das
+  heißt weiterhin Runden auf der Karte nachspielen (Abschnitt 10), die beiden Zahlen im Admin
+  eintragen und dort den Haken setzen. Die mitgelieferte Datei hat ihn gesetzt.
 
 ## 10. Nachrechnen
 

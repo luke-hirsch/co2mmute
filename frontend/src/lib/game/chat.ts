@@ -76,9 +76,10 @@ export function asChatEvent(payload: unknown): ChatEvent | null {
 /**
  * The German for a refusal.
  *
- * `ChatConsumer` answers a refused message with an English sentence — the four
+ * `ChatConsumer` answers a refused message with an English sentence — the five
  * literals below are the whole set (`_validate_message_content`,
- * `_check_rate_limits` and, since S9, the mute check that runs before both).
+ * `_check_rate_limits`, since S9 the mute check that runs before both, and
+ * since S21 the chat-off check before that).
  * They are written for a log and reach the player unchanged, so the
  * translation has to happen at this end.
  *
@@ -96,6 +97,10 @@ export function chatErrorText(raw: string): string {
       return de.chat.errors.roomTooFast;
     case "You are muted":
       return de.chat.errors.muted;
+    // The host switched the chat off while this socket was open. The same
+    // sentence the dock shows when a fresh load finds it off.
+    case "Chat is off":
+      return de.chat.disabled;
     default:
       return de.chat.errors.unknown;
   }

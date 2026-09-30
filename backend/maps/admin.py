@@ -18,7 +18,15 @@ from .models import (
 
 @admin.register(GameMap)
 class GameMapAdmin(admin.ModelAdmin):
-    list_display = ("name", "x_dim", "y_dim", "scale", "author", "created")
+    list_display = (
+        "name",
+        "calibrated",
+        "x_dim",
+        "y_dim",
+        "scale",
+        "author",
+        "created",
+    )
     search_fields = ("name", "author__username", "author__email")
     list_filter = ("created", "author")
     ordering = ("name",)

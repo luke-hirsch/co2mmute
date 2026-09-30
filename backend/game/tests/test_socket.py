@@ -1250,3 +1250,92 @@ class MutedPlayerCannotChatTests(GameWithSeatsMixin, TransactionTestCase):
                 sent = consumer.sent
 
         self.assertEqual([p for p in sent if p.get("error") == "You are muted"], [])
+
+
+@override_settings(**TEST_BACKENDS, **NO_REDIS)
+class ChatOffRefusesTheSocketTests(GameWithSeatsMixin, TransactionTestCase):
+    """`chat_enabled` is a rule the server keeps, not a hint to the client — S21.
+
+    The field has existed since 1.x and only the client read it: `use-chat.ts`
+    opens no socket when it is false. `ChatConsumer` never looked, so a socket
+    built by hand chatted in a game whose host had switched the chat off. That
+    did not matter while no screen could switch it off; S21 puts the switch on
+    the create form, and a rule only one of two doors enforces is not a rule.
+
+    Refused at connect, with 4403 like every other permanent no, so the client
+    does not retry it — and again per message, like mute, because the host may
+    switch it off in a running game (`PATCH api/game/<id>/` allows it) and a
+    socket opened before that must not keep talking until it reconnects.
+    """
+
+    def socket(self, player):
+        return WebsocketCommunicator(
+            AuthMiddlewareStack(URLRouter(websocket_urlpatterns)),
+            f"/ws/chat/{self.game.game_id}/",
+            headers=[
+                (b"cookie", player_cookie_header(self.game.game_id, player.player_id))
+            ],
+        )
+
+    def test_a_game_with_the_chat_off_refuses_the_socket(self):
+        GameSession.objects.filter(pk=self.game.pk).update(chat_enabled=False)
+
+        async def scenario():
+            anna = self.socket(self.anna)
+            connected, _ = await anna.connect()
+            self.assertTrue(connected, msg="refused after accept, so the code arrives")
+            seen = await read_until(anna, is_type("websocket.close"))
+            self.assertEqual(
+                [output.get("type") for output in seen],
+                ["websocket.close"],
+                msg=f"a refused chat socket sent something first: {seen}",
+            )
+            self.assertEqual(seen[-1].get("code"), 4403)
+            await anna.disconnect()
+
+        with muted():
+            async_to_sync(scenario)()
+
+    def test_a_game_with_the_chat_on_lets_the_socket_in(self):
+        """The guard is about the flag. The history read is Redis, which no
+        test run has, so it is stubbed; the first frame is the history."""
+        from game.consumers import ChatConsumer
+
+        async def no_history(consumer):
+            return []
+
+        async def scenario():
+            anna = self.socket(self.anna)
+            connected, _ = await anna.connect()
+            self.assertTrue(connected)
+            first = await anna.receive_json_from(timeout=2)
+            self.assertEqual(first["type"], "chat.history")
+            await anna.disconnect()
+
+        with patch.object(ChatConsumer, "_load_message_history", no_history):
+            with muted():
+                async_to_sync(scenario)()
+
+    def test_a_socket_opened_before_the_switch_is_refused_per_message(self):
+        """No socket needed: the check runs before the rate limits, so a bare
+        consumer reaches it without Redis — the same shape as the mute tests."""
+        from game.consumers import ChatConsumer
+
+        GameSession.objects.filter(pk=self.game.pk).update(chat_enabled=False)
+        consumer = ChatConsumer()
+        consumer.game_id = self.game.game_id
+        consumer.player_pk = self.anna.pk
+        consumer.player_id = self.anna.player_id
+        consumer.player_name = self.anna.name
+        consumer.last_message_sent_timestamp = 0.0
+        consumer.channel_layer = None  # a group_send here would raise
+        sent = []
+
+        async def capture(payload):
+            sent.append(payload)
+
+        consumer.send_json = capture
+
+        async_to_sync(consumer._handle_chat_message)({"message": "hallo"})
+
+        self.assertEqual(sent, [{"type": "chat.error", "error": "Chat is off"}])

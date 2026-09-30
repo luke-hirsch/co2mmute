@@ -2,6 +2,27 @@ from rest_framework import serializers
 
 import game.models as gm
 
+# Django's and DRF's own refusals for a number are English — "Ensure this value
+# is less than or equal to 365." — and the create screen renders whatever comes
+# back beside the field. `validate()` below words the lower bounds that mean
+# something in the game; these are the column's range, `idle_end_days`'s 365
+# and anything that is not a number at all. S21 met the first one by typing
+# 99 999 into "Ende nach Tagen ohne Spiel".
+NUMBER_ERRORS = {
+    "invalid": "Hier gehört eine ganze Zahl hin.",
+    "max_value": "Höchstens {max_value}.",
+    "min_value": "Mindestens {min_value}.",
+    "max_string_length": "Diese Zahl ist zu lang.",
+}
+NUMBER_FIELDS = (
+    "max_players",
+    "agent_per_player",
+    "max_rounds",
+    "max_CO2_level",
+    "people_per_agent",
+    "idle_end_days",
+)
+
 
 class GameSessionSerializer(serializers.ModelSerializer):
     """The game row, read and written by the SPA and by nothing else.
@@ -58,6 +79,9 @@ class GameSessionSerializer(serializers.ModelSerializer):
             "paused_at",
             "ended_at",
         )
+        extra_kwargs = {
+            name: {"error_messages": NUMBER_ERRORS} for name in NUMBER_FIELDS
+        }
 
     def validate(self, attrs):
         max_players = attrs.get(
@@ -126,6 +150,7 @@ class GameSessionCreateSerializer(GameSessionSerializer):
 
     class Meta(GameSessionSerializer.Meta):
         extra_kwargs = {
+            **GameSessionSerializer.Meta.extra_kwargs,
             "game_map": {
                 "required": True,
                 "allow_null": False,

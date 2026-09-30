@@ -109,7 +109,8 @@ export function useResumeGame(gameId: string) {
  * Every field the Django form had, minus `lobby_open`: that one was collected,
  * validated and thrown away — `GameSession` has no such column and nothing
  * anywhere read it — so carrying it across would have been carrying a promise
- * the app does not keep.
+ * the app does not keep. Plus `chat_enabled`, which the Django form never had:
+ * the model defaulted it on and no screen could switch it off until S21.
  *
  * `people_per_agent` and `max_CO2_level` are derived by `lib/calibration.ts`
  * and written into their fields as the host changes the class size, the round
@@ -127,6 +128,7 @@ export type CreateGameBody = {
   max_CO2_level: number;
   people_per_agent: number;
   idle_end_days: number;
+  chat_enabled: boolean;
 };
 
 /**

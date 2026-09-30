@@ -218,7 +218,7 @@ export const de = {
     leaveConfirm: "Willst du das Spiel wirklich verlassen?",
     settings: {
       title: "Einstellungen",
-      agentsPerPlayer: "Agenten pro Person",
+      agentsPerPlayer: "Gruppen pro Person",
       maxRounds: "Runden",
       co2Budget: "CO₂-Budget",
       chat: "Chat",
@@ -1089,6 +1089,7 @@ export const de = {
               ["default_car_speed_kmh", "Autotempo ohne Tempolimit (Vorgabe: 50)"],
               ["district_commuters", "wie viele Pendler die Karte trägt (Vorgabe: 6.400)"],
               ["co2_budget_kg_per_round", "was eine Runde an CO₂ kosten darf (Vorgabe: 8.000)"],
+              ["calibrated", "true, wenn die beiden Zahlen darüber für diese Karte gemessen sind — sonst warnt „Spiel anlegen“"],
             ],
           },
           {
@@ -1487,7 +1488,6 @@ export const de = {
    */
   create: {
     title: "Spiel anlegen",
-    lead: "Stell das Spiel ein. Die beiden gerechneten Zahlen passen sich an, du kannst sie aber überschreiben.",
 
     name: "Name des Spiels",
     namePlaceholder: "z. B. Klasse 8b, Dienstag",
@@ -1506,42 +1506,58 @@ export const de = {
      */
     mapNoChanges:
       "Diese Karte hat nur eine Version. Es gibt also nichts abzustimmen, und die Diskussion zwischen den Runden fällt weg.",
+    /**
+     * S21. `GameMap.calibrated` is false: nobody replayed rounds on this map,
+     * so both offers below are whatever it was given — as a rule the field
+     * defaults, measured on Berlin Mitte-West, which is the bigger map. Says
+     * which way they are likely wrong, because "may not fit" alone gives a
+     * host nothing to do.
+     */
+    mapUncalibrated:
+      "Für diese Karte ist nicht gemessen, wie viel Verkehr sie trägt und was eine Runde kostet. Menschen pro Gruppe und CO₂-Budget sind deshalb nur Vorgabewerte – auf einer kleinen Karte sind beide zu hoch.",
 
-    mapUpdates: "Kartenänderungen zulassen",
+    /** The box beside both switches; the label above it names the thing. */
+    allow: "zulassen",
+    mapUpdates: "Kartenänderungen",
     mapUpdatesHelp:
       "Nach jeder Runde wird über eine Änderung an der Karte abgestimmt.",
 
-    /** S21 re-cuts these groups; S17 only took the school word out of this one. */
-    classSize: "Wer mitspielt",
+    /** The three numbers that decide how many people are on the map. */
+    groupPeople: "Wie viele unterwegs sind",
     maxPlayers: "Plätze insgesamt",
-    maxPlayersHelp: "So viele Plätze hat das Spiel insgesamt.",
+    maxPlayersHelp:
+      "So viele Personen können mitspielen, am eigenen Gerät oder an der Leitstelle.",
     agentPerPlayer: "Gruppen pro Person",
-    agentPerPlayerHelp: "So viele Gruppen bekommt jede Person zu Beginn.",
-
-    game: "Spielverlauf",
-    maxRounds: "Runden",
-    maxRoundsHelp: "So viele Runden werden gefahren, wenn das Budget reicht.",
-    idleEndDays: "Ende nach Tagen ohne Spiel",
-    idleEndDaysHelp:
-      "Ein Spiel, das so lange niemand spielt, endet von selbst – angehalten oder nicht. Einen Tag später werden die Spielernamen entfernt.",
-
-    derived: "Gerechnet",
-    derivedLead:
-      "Beide Zahlen kommen aus der Karte und der Zahl der Plätze. Du kannst sie überschreiben.",
-    co2Budget: "CO₂-Budget (kg)",
+    agentPerPlayerHelp:
+      "Für jede Gruppe wählt ihre Person jede Runde Verkehrsmittel und Weg.",
     peoplePerAgent: "Menschen pro Gruppe",
     /** Parameterised, because the sentence has to name the map's own figures. */
-    co2BudgetHelp: (perRound: number, rounds: number) =>
-      `${perRound.toLocaleString("de-DE")} kg pro Runde × ${rounds} ${
-        rounds === 1 ? "Runde" : "Runden"
-      }. Ist das Budget aufgebraucht, ist das Spiel vorbei – genug, wenn viele umsteigen, zu wenig, wenn alle fahren.`,
     peoplePerAgentHelp: (commuters: number, agents: number) =>
       `${commuters.toLocaleString("de-DE")} Pendler auf ${agents} ${
         agents === 1 ? "Gruppe" : "Gruppen"
       } verteilt. Bei weniger Plätzen steht eine Gruppe für mehr Menschen, damit auf der Karte gleich viel Verkehr ist.`,
+
+    /** The two that decide when it ends. */
+    groupEnd: "Wann das Spiel endet",
+    maxRounds: "Runden",
+    maxRoundsHelp: "So viele Runden werden gefahren, wenn das Budget reicht.",
+    co2Budget: "CO₂-Budget (kg)",
+    co2BudgetHelp: (perRound: number, rounds: number) =>
+      `${perRound.toLocaleString("de-DE")} kg pro Runde × ${rounds} ${
+        rounds === 1 ? "Runde" : "Runden"
+      }. Ist das Budget aufgebraucht, ist das Spiel vorbei – genug, wenn viele umsteigen, zu wenig, wenn alle fahren.`,
     /** Shown once either number no longer matches what the map would suggest. */
     overridden: "Von dir überschrieben.",
     reset: "Vorschlag übernehmen",
+
+    /** Closed by default; the two settings a first game never needs. */
+    advanced: "Weitere Einstellungen",
+    idleEndDays: "Ende nach Tagen ohne Spiel",
+    idleEndDaysHelp:
+      "Ein Spiel, das so lange niemand spielt, endet von selbst – angehalten oder nicht. Einen Tag später werden die Spielernamen entfernt.",
+    chat: "Chat",
+    chatHelp:
+      "Alle im Spiel können sich schreiben. Einzelne Plätze kannst du jederzeit stummschalten.",
 
     submit: "Spiel anlegen",
     submitting: "Wird angelegt …",

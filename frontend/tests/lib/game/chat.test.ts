@@ -8,6 +8,7 @@ import {
   chatSocketUrl,
   type ChatEvent,
 } from "@/lib/game/chat";
+import { de } from "@/lib/de";
 
 describe("asChatEvent", () => {
   it("passes the four frames the consumer can send", () => {
@@ -74,12 +75,14 @@ describe("chatErrorText", () => {
       // S9: `is_muted` finally means something, and a muted player has to be
       // told *why* nothing they send arrives — silence reads as a broken chat.
       "You are muted",
+      // S21: the host switched the chat off while this socket was open.
+      "Chat is off",
     ];
     const texts = raw.map(chatErrorText);
 
     // Each says something of its own — one shared "es hat nicht geklappt" for
-    // all four would tell a rate-limited class nothing about what to do.
-    expect(new Set(texts).size).toBe(4);
+    // all five would tell a rate-limited class nothing about what to do.
+    expect(new Set(texts).size).toBe(5);
     // And none of them is the backend's own wording handed straight through.
     for (const sentence of raw) {
       expect(texts).not.toContain(sentence);
@@ -92,6 +95,13 @@ describe("chatErrorText", () => {
     // all lesson. Pinned separately because the set-size check above would
     // still pass if two of the four collapsed onto the fallback.
     expect(chatErrorText("You are muted")).not.toBe(chatErrorText("Invalid JSON"));
+  });
+
+  it("says the chat is off in the words the dock already uses for it", () => {
+    // One sentence for one fact: a socket opened before the switch hears it
+    // from the server, a fresh load hears it from the snapshot, and both
+    // should read the same.
+    expect(chatErrorText("Chat is off")).toBe(de.chat.disabled);
   });
 
   it("falls back rather than showing the player an English sentence", () => {
