@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { createGame } from "./game";
+import { createGame, joinAsPlayer } from "./game";
 import { loginAsHost } from "./host";
 
 /**
@@ -141,19 +141,6 @@ async function pickRoutableMode(page: Page, index: number): Promise<string> {
 }
 
 
-/**
- * Join as a student: no account, a screen name, two signed cookies.
- *
- * The two-step Django funnel — `/join/<id>/` confirms the game, then the next
- * form takes the name — and it ends in the SPA at `/app/game/<id>`.
- */
-async function joinAsPlayer(page: Page, gameId: string, name: string) {
-  await page.goto(`/join/${gameId}/`);
-  await page.getByRole("button", { name: "Weiter" }).click();
-  await page.locator("form input[type=text]").first().fill(name);
-  await page.locator('form button[type="submit"]').first().click();
-  await page.waitForURL(/\/app\/game\/[^/]+\/?$/);
-}
 
 /** End the game and delete it, so a run leaves no row behind. */
 async function endAndDelete(page: Page, gameId: string, baseURL: string) {

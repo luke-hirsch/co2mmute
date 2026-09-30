@@ -2,8 +2,8 @@
  * Links the SPA can follow without a reload.
  *
  * The header's items come from the server as plain hrefs, some into Django
- * (`/join/`, `/hintergrund/`, the legal pages, the repository) and some into
- * this app (`/app/maps`). The router is mounted at `/app` and wants the path
+ * (`/hintergrund/`, the legal pages, the repository) and some into this app
+ * (`/app/maps`, `/app/join`). The router is mounted at `/app` and wants the path
  * *inside* it, so an href under `/app/` becomes that path and everything else
  * is `null` — a document navigation, which is exactly right for a Django page.
  *

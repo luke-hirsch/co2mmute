@@ -34,12 +34,15 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | J-08 | Passwort nötig, keins eingegeben             | wie falsches Passwort                                   | geht      | -   |
 | J-09 | kein Name eingegeben                         | Meldung, gar kein Request                               | geht      | -   |
 | J-10 | Spiel füllt sich während des Tippens         | erst beim Absenden 409 `full`                           | offen     | -   |
-| J-11 | QR-Code scannen                              | landet direkt auf `/app/join/<ID>`                      | offen     | -   |
+| J-11 | QR-Code scannen                              | landet direkt auf `/app/join/<ID>` (S22)                | geht      | -   |
 | J-12 | „Sitzung fortsetzen" mit Platz-Code (1.7)    | Platz übernommen, neue `player_id`                      | geht      | -   |
 | J-13 | Code abgelaufen oder schon benutzt           | 404, sagt dass der Code weg ist                         | geht      | -   |
 | J-14 | Code, aber der Browser hat schon einen Platz | 409 `seated`                                            | ungeprüft | -   |
 | J-15 | Code, aber man ist der Host des Spiels       | 409 `host`                                              | geht      | -   |
 | J-16 | zweimal aus demselben Browser beitreten      | kein zweiter Platz                                      | offen     | -   |
+| J-17 | alte Beitrittsseite `/join/`                 | 404 — der einzige Eingang ist `/app/join` (S22)         | geht      | `credentials.spec.ts` |
+| J-18 | „Los“ auf der Startseite, mit ID             | landet auf `/app/join/<ID>` (S22)                       | geht      | `credentials.spec.ts` |
+| J-19 | „Los“ auf der Startseite, ohne ID            | landet auf `/app/join`, das nach der ID fragt (S22)     | geht      | `credentials.spec.ts` |
 
 ## L — lobby
 
@@ -299,7 +302,7 @@ nicht gemessen.
 | S-01 | Impressum, Datenschutz, Cookies | von jeder Seite außerhalb des Spiels erreichbar, in der Fußzeile beider Hälften (S20)                      | geht      | `chrome.spec.ts`        |
 | S-02 | heller und dunkler Modus        | auf beiden Hälften, ein Schalter                                                                           | ungeprüft | -                       |
 | S-03 | 390px                           | kein horizontales Scrollen, nirgends                                                                       | geht      | -                       |
-| S-04 | Spielernamen                    | tauchen in keinem Log auf                                                                                  | ungeprüft | -                       |
+| S-04 | Spielernamen                    | tauchen beim Beitreten und beim Anlegen eines Platzes in keinem Log auf (S22)                              | geht      | -                       |
 | S-05 | Anonymisierung                  | nach Spielende „Spieler N", Host wird „Host"                                                               | ungeprüft | -                       |
 | S-07 | Spiel auf der Hostseite löschen | fragt vorher und sagt, was mitgeht; laufendes Spiel wird abgelehnt                                         | geht      | `e2e/host-page.spec.ts` |
 | S-08 | Kopf- und Fußzeile unter `/app` | dieselben Punkte wie auf den Django-Seiten, Karten nur für Staff, Abmelden; nicht im Spiel, nicht im Editor (S20) | geht      | `chrome.spec.ts`        |
@@ -307,7 +310,7 @@ nicht gemessen.
 | S-10 | Platz-Code raten                | nach 20 Fehlgriffen 429; gültige Codes zählen nie mit (S9)                                                 | geht      | -                       |
 | S-11 | viele Konten anlegen            | nach 10 angelegten Konten pro Stunde 429; abgelehnte Formulare zählen nicht (S9)                           | geht      | -                       |
 | S-12 | `robots.txt` und `llms.txt`     | beide unter `/`, nur über nginx — im Dev-Stack gibt es sie nicht                                           | ungeprüft | -                       |
-| S-13 | Anmelden                        | landet auf `/app/host`, der eigenen Seite mit Spielen und Konto                                            | geht      | `e2e/host.spec.ts`      |
+| S-13 | Anmelden                        | landet direkt auf `/app/host`, der eigenen Seite mit Spielen und Konto — ein Sprung, nicht zwei (S22)      | geht      | `e2e/host.spec.ts`      |
 | S-14 | Kontodaten ändern               | Anzeigename, Benutzername und E-Mail lassen sich speichern; ein vergebener Name wird auf Deutsch abgelehnt | geht      | `e2e/host-page.spec.ts` |
 | S-15 | Konto löschen erreichbar        | ein Klick von der Hostseite auf die Bestätigungsseite                                                      | geht      | `e2e/host-page.spec.ts` |
 | S-16 | `/game/<id>/share/`             | leitet in die Lobby, die ID und QR-Code ohnehin zeigt                                                      | geht      | -                       |
@@ -318,6 +321,13 @@ nicht gemessen.
 | S-21 | Quellcode                       | Link aufs Repository in der Fußzeile beider Hälften (S20)                                                  | geht      | `chrome.spec.ts`        |
 | S-22 | Breite von Kopf- und Fußzeile   | auf beiden Hälften gleich breit und gleich eingerückt; ein Screen unter `/app` ist nie breiter (S20)       | geht      | -                       |
 | S-23 | Menü ohne Konto                 | wer mitspielt, sieht keine Karten und kein Abmelden, nur Anmelden (S20)                                            | geht      | `chrome.spec.ts`        |
+| S-24 | falsches Passwort               | Meldung auf Deutsch über dem Formular, der Name bleibt stehen; ein unbekannter Name liest sich genauso (S22) | geht      | -                       |
+| S-25 | Konto mit schwachem Passwort    | jede verletzte Regel als eigener deutscher Satz; die Regeln stehen schon vor dem Tippen unter dem Feld (S22) | geht      | `credentials.spec.ts`   |
+| S-26 | Passwort vergessen              | Formular statt Serverfehler, deutsche Mail mit Link, der Link setzt ein neues Passwort; eine unbekannte Adresse sieht gleich aus (S22) | geht | `credentials.spec.ts` |
+| S-27 | Passwort ändern                 | erst das bisherige, dann zweimal das neue; man bleibt angemeldet (S22)                                      | geht      | -                       |
+| S-28 | „Angemeldet bleiben“            | ohne Haken endet die Anmeldung mit dem Browser, mit Haken nach 14 Tagen (S22)                               | geht      | -                       |
+| S-29 | Abmelden                        | eigene Seite im Design, sagt dass die Spiele weiterlaufen (S22)                                            | geht      | -                       |
+| S-30 | Django-Seiten im Design         | Anmelden, Konto und Passwort-Seiten so breit, so gesetzt und so gefärbt wie die SPA; hell und dunkel, 390px (S22) | geht | -                       |
 
 > S-09 bis S-11 zählen **Fehlversuche** (Login, Platz-Code) bzw. **Erfolge** (Konten), nie einfach
 > Anfragen: eine Klasse hängt hinter _einem_ Schulanschluss, und wer richtige Codes einlöst, würde

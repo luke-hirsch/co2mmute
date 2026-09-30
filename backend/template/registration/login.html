@@ -1,138 +1,37 @@
-{% extends "base.html" %}<!-- even more comments -->
-{% load static %}
-<!-- even more comments -->
-{% block title %} Login {% endblock %}
-<!-- some comment  -->
-{% block main %}
-<section class="mx-auto w-full max-w-3xl px-6 py-20">
-  <div class="flex min-h-full">
-    <div
-      class="flex flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24"
-    >
-      <div class="mx-auto w-full max-w-sm lg:w-96">
-        <div>
-          <h2
-            class="mt-8 text-2xl/9 font-bold tracking-tight text-gray-900 dark:text-white"
-          >
-            Log dich bei CO₂mmute ein
-          </h2>
-          <div class="flex items-center justify-between">
-            <div class="text-sm/6">
-              <a
-                href="{% url 'signup' %}"
-                class="font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
-                >Noch kein Konto?</a
-              >
-            </div>
-          </div>
-        </div>
+{% extends "narrow.html" %}
+{% block title %}Anmelden – CO₂mmute{% endblock %}
+{% block screen %}
+{% include "partials/screen_heading.html" with title="Anmelden" lead="Ein Konto braucht nur, wer ein Spiel leitet. Zum Mitspielen reicht die Spiel‑ID." %}
 
-        <div class="mt-10">
-          <div>
-            <form method="post" class="space-y-6">
-              {% csrf_token %}
-              <div>
-                <label
-                  for="username"
-                  class="block text-sm/6 font-medium text-gray-900 dark:text-gray-100"
-                  >Username</label
-                >
-                <div class="mt-2">
-                  <input
-                    id="username"
-                    type="username"
-                    name="username"
-                    required
-                    autocomplete="username"
-                    class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6 dark:bg-white/5 dark:text-white dark:outline-white/10 dark:placeholder:text-gray-500 dark:focus:outline-indigo-500"
-                  />
-                </div>
-              </div>
+{% include "partials/form_alert.html" %}
+<form method="post" class="space-y-6" novalidate>
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ next }}" />
+  {% include "partials/field.html" with field=form.username %}
+  {% include "partials/field.html" with field=form.password %}
 
-              <div>
-                <label
-                  for="password"
-                  class="block text-sm/6 font-medium text-gray-900 dark:text-gray-100"
-                  >Passwort</label
-                >
-                <div class="mt-2">
-                  <input
-                    id="password"
-                    type="password"
-                    name="password"
-                    required
-                    autocomplete="current-password"
-                    class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6 dark:bg-white/5 dark:text-white dark:outline-white/10 dark:placeholder:text-gray-500 dark:focus:outline-indigo-500"
-                  />
-                </div>
-              </div>
-              <div class="flex items-center justify-between">
-                <div class="flex gap-3">
-                  <div class="flex h-6 shrink-0 items-center">
-                    <div class="group grid size-4 grid-cols-1">
-                      <input
-                        id="remember-me"
-                        type="checkbox"
-                        name="remember-me"
-                        class="col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 bg-white checked:border-indigo-600 checked:bg-indigo-600 indeterminate:border-indigo-600 indeterminate:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 dark:border-white/10 dark:bg-white/5 dark:checked:border-indigo-500 dark:checked:bg-indigo-500 dark:indeterminate:border-indigo-500 dark:indeterminate:bg-indigo-500 dark:focus-visible:outline-indigo-500 forced-colors:appearance-auto"
-                      />
-                      <svg
-                        viewBox="0 0 14 14"
-                        fill="none"
-                        class="pointer-events-none col-start-1 row-start-1 size-3.5 self-center justify-self-center stroke-white group-has-disabled:stroke-gray-950/25"
-                      >
-                        <path
-                          d="M3 8L6 11L11 3.5"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          class="opacity-0 group-has-checked:opacity-100"
-                        />
-                        <path
-                          d="M3 7H11"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          class="opacity-0 group-has-indeterminate:opacity-100"
-                        />
-                      </svg>
-                    </div>
-                  </div>
-                  <label
-                    for="remember-me"
-                    class="block text-sm/6 text-gray-900 dark:text-gray-300"
-                    >Login speichern</label
-                  >
-                </div>
-
-                <div class="text-sm/6">
-                  <a
-                    href="{% url 'password_reset' %}"
-                    class="font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
-                    >Passwort vergessen?</a
-                  >
-                </div>
-              </div>
-              <div>
-                <button
-                  type="submit"
-                  class="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:shadow-none dark:hover:bg-indigo-400 dark:focus-visible:outline-indigo-500"
-                >
-                  Los geht's
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="relative hidden w-0 flex-1 lg:block">
-      <img
-        src="{% static 'img/index_1.png' %}"
-        alt=""
-        class="absolute inset-0 size-full object-cover"
-      />
+  <div class="flex items-start gap-3">
+    {{ form.remember_me }}
+    <div class="space-y-1.5">
+      <label for="{{ form.remember_me.id_for_label }}" class="field-label">{{ form.remember_me.label }}</label>
+      <p class="field-help">
+        Sonst meldet dich das Schließen des Browsers ab — besser an einem
+        Rechner, an dem nach dir noch andere sitzen.
+      </p>
     </div>
   </div>
-</section>
+
+  <div class="flex flex-wrap items-center gap-x-6 gap-y-4 pt-2">
+    <button type="submit" class="btn btn-primary">Anmelden</button>
+    <a href="{% url 'password_reset' %}" class="text-link text-sm">Passwort vergessen?</a>
+  </div>
+</form>
+
+<p class="mt-12 border-t border-subtle pt-6 text-sm text-muted dark:border-darksubtle dark:text-darkmutedtext">
+  Noch kein Konto?
+  <a href="{% url 'signup' %}{% if next %}?next={{ next|urlencode }}{% endif %}" class="text-link">Konto anlegen</a>
+  <span aria-hidden="true">·</span>
+  Du willst nur mitspielen?
+  <a href="/app/join" class="text-link">Spiel-ID eingeben</a>
+</p>
 {% endblock %}

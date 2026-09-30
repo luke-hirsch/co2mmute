@@ -20,7 +20,7 @@ import { showsAppChrome } from "@/lib/app-chrome";
  * a staff list now and the detail page is a page; only the editor stays bare.
  */
 describe("which screens carry the app header", () => {
-  it("shows it on the join screens, which is where every redirect lands", () => {
+  it("shows it on the join screens, where the QR code and every redirect land", () => {
     expect(showsAppChrome("/join")).toBe(true);
     expect(showsAppChrome("/join/")).toBe(true);
     expect(showsAppChrome("/join/ABC123")).toBe(true);

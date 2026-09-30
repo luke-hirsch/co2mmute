@@ -4,6 +4,7 @@ import jwt
 from django.conf import settings
 from django.contrib.auth import login, logout
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth import views as auth_views
 from django.contrib.auth.views import LoginView as DjangoLoginView
 from django.contrib.auth.views import LogoutView as DjangoLogoutView
 from django.shortcuts import redirect, resolve_url
@@ -39,7 +40,14 @@ from co2mmute.throttle import (
 )
 from co2mmute.utils import set_game_access_cookie, set_player_cookie
 
-from .forms import AccountDeleteForm, SignupForm
+from .forms import (
+    AccountDeleteForm,
+    ChangePasswordForm,
+    LoginForm,
+    NewPasswordForm,
+    ResetRequestForm,
+    SignupForm,
+)
 from .serializers import HostAccountSerializer
 
 THROTTLED_TEMPLATE = "registration/throttled.html"
@@ -93,6 +101,8 @@ class LoginView(DjangoLoginView):
     attack nobody is mounting on a thesis prototype.
     """
 
+    form_class = LoginForm
+
     def post(self, request, *args, **kwargs):
         key = client_key(request)
         if over_limit("login", key, LOGIN_LIMIT):
@@ -104,8 +114,20 @@ class LoginView(DjangoLoginView):
         return super().post(request, *args, **kwargs)
 
     def form_valid(self, form):
+        """Log in, and decide how long for.
+
+        **"Angemeldet bleiben" is the long one, and it is opt-in.** The host
+        machine stands in a room, often projected and often still logged in
+        after the lesson, so an unticked box ends the session with the browser.
+        Ticked, it lasts `SESSION_COOKIE_AGE` — which is what every login did
+        before S22, when the checkbox existed and nothing read it.
+        `legal/cookies.html` §2.1 says both.
+        """
         clear("login", client_key(self.request))
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        if not form.cleaned_data.get("remember_me"):
+            self.request.session.set_expiry(0)
+        return response
 
     def form_invalid(self, form):
         record("login", client_key(self.request), LOGIN_WINDOW)
@@ -175,6 +197,27 @@ class SignUpView(CreateView):
         return (next_url or "").strip()
 
 
+class PasswordResetView(auth_views.PasswordResetView):
+    """"Passwort vergessen?" — the stock view with German, and a real HTML mail.
+
+    Django sends `email_template_name` as the *plain-text* body. This project
+    had pointed it at an HTML file, so the mail arrived as markup to read
+    through; the HTML now goes in its own slot and a text version beside it.
+    """
+
+    form_class = ResetRequestForm
+    email_template_name = "registration/password_reset_email.txt"
+    html_email_template_name = "registration/password_reset_email.html"
+
+
+class PasswordResetConfirmView(auth_views.PasswordResetConfirmView):
+    form_class = NewPasswordForm
+
+
+class PasswordChangeView(auth_views.PasswordChangeView):
+    form_class = ChangePasswordForm
+
+
 class DsgvoView(TemplateView):
     template_name = "legal/dsgvo.html"
 
@@ -196,10 +239,10 @@ class ProfileView(LoginRequiredMixin, RedirectView):
     the reason Lukas gave on 2026-09-28, that the host's own pages belong
     together.
 
-    The URL stays because Django's `LOGIN_REDIRECT_URL` defaults to it, and so
-    do the account-deletion pages that were deliberately *not* ported —
-    re-authentication and the goodbye page are credential flows, and those stay
-    server-rendered.
+    Since S22 a login no longer passes through here — `LOGIN_REDIRECT_URL` is
+    `/app/host` itself. The URL stays for the account-deletion page's way back,
+    which was deliberately *not* ported (re-authentication and the goodbye page
+    are credential flows, and those stay server-rendered), and for bookmarks.
     """
 
     pattern_name = None

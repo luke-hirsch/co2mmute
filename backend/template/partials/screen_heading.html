@@ -1,0 +1,4 @@
+{# A screen heading and its lead — `ScreenHeading` in frontend/src/components/layout/screen.tsx. Weight 500 at display size; hyphens-auto because German compounds do not fit 390px otherwise. #}<header class="mb-10">
+  <h1 class="text-3xl font-medium hyphens-auto sm:text-4xl">{{ title }}</h1>
+  {% if lead %}<p class="mt-4 max-w-(--measure-lead) text-muted dark:text-darkmutedtext">{{ lead }}</p>{% endif %}
+</header>

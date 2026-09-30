@@ -341,3 +341,58 @@
     border-top-left-radius: var(--r);
   }
 }
+
+/*
+ * Forms and buttons for the Django pages — the twins of the SPA's `Input`,
+ * `Label`, `Button` and `Field` (frontend/src/components/ui/, layout/field.tsx),
+ * value for value, so a Django form and a React one cannot be told apart. S22.
+ *
+ * Classes rather than utility lists because a stock auth form renders its own
+ * <input> from {{ field }}: co2mmute/forms.py hangs `field-input` on every
+ * widget, and a utility named only in Python would never be generated — this
+ * build scans template/, not .py files.
+ *
+ * shadcn's `rounded-md` over there is calc(0.625rem - 2px), which is 8px, and
+ * that is `rounded-lg` here. Errors are an amber rule beside ink text, not
+ * amber text: amber on the light ground is hard to read, which S19 found on the
+ * map notes first.
+ */
+@layer components {
+  .field-label {
+    @apply block text-sm leading-none font-medium;
+  }
+  .field-input {
+    @apply h-10 w-full min-w-0 rounded-lg border border-subtle bg-transparent px-3.5 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none placeholder:text-soft md:text-sm;
+    @apply focus-visible:border-primary-500 focus-visible:ring-[3px] focus-visible:ring-primary-500/50;
+    @apply aria-invalid:border-accent aria-invalid:ring-accent/20;
+    @apply dark:border-darkstrong dark:bg-darkstrong/30 dark:focus-visible:border-primary-400 dark:focus-visible:ring-primary-400/50 dark:aria-invalid:border-accent dark:aria-invalid:ring-accent/40;
+  }
+  .field-checkbox {
+    @apply mt-0.5 size-4 shrink-0 accent-primary-600 dark:accent-primary-400;
+  }
+  .field-help {
+    @apply max-w-(--measure-body) text-sm text-muted dark:text-darkmutedtext;
+  }
+  .field-error,
+  .form-alert {
+    @apply max-w-(--measure-body) space-y-1 border-l-[3px] border-accent pl-4 text-sm text-main dark:text-darktext;
+  }
+
+  .btn {
+    @apply inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg px-5 py-2 text-sm font-medium whitespace-nowrap transition-all outline-none;
+    @apply focus-visible:ring-[3px] focus-visible:ring-primary-500/50 dark:focus-visible:ring-primary-400/50;
+  }
+  .btn-primary {
+    @apply bg-primary-600 text-surface hover:bg-primary-600/90 dark:bg-primary-400 dark:text-primary-900 dark:hover:bg-primary-400/90;
+  }
+  .btn-outline {
+    @apply border border-subtle bg-body shadow-xs hover:bg-subtle dark:border-darkstrong dark:bg-darkstrong/30 dark:hover:bg-darkstrong/50;
+  }
+  /* the irreversible one: amber with ink on it, in both themes */
+  .btn-attention {
+    @apply bg-accent text-main hover:bg-accent/90;
+  }
+  .text-link {
+    @apply font-medium text-primary-600 underline-offset-4 hover:underline dark:text-primary-400;
+  }
+}

@@ -21,13 +21,13 @@ export async function loginAsHost(page: Page): Promise<void> {
   await page.locator('input[name="username"]').fill(HOST_USER);
   await page.locator('input[name="password"]').fill(HOST_PASSWORD);
   await Promise.all([
-    // Wait for the *end* of the chain, not the first hop off the login page.
-    // Django's `LOGIN_REDIRECT_URL` defaults to `/accounts/profile/`, and since
-    // S13 that is itself a redirect into the SPA — so "not on /accounts/login
-    // any more" was true while the browser was still moving, and the next
-    // `page.goto` in a spec collided with it ("interrupted by another
-    // navigation"). Waiting for where a host actually ends up also says what
-    // that place is.
+    // Wait for where a host actually ends up, not for "off the login page".
+    // Until S22 that was a two-hop chain — `LOGIN_REDIRECT_URL` defaulted to
+    // `/accounts/profile/`, itself a redirect into the SPA — and "not on
+    // /accounts/login any more" was true while the browser was still moving,
+    // so the next `page.goto` collided with it ("interrupted by another
+    // navigation"). It is one hop now; waiting for the destination still says
+    // what that place is.
     page.waitForURL(/\/app\/host\/?$/),
     page.locator('form button[type="submit"], form input[type="submit"]').click(),
   ]);

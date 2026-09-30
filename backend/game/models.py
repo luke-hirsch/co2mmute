@@ -108,6 +108,16 @@ class GameSession(models.Model):
         logger.error("Failed to generate unique game_id after multiple retries.")
         raise RuntimeError("Could not assign unique game_id.")
 
+    @property
+    def join_url(self):
+        """Where the QR code sends a phone: the SPA's join screen for this game.
+
+        It pointed at Django's `/join/<id>/` until S22, which the React join
+        (F1) had been built to replace and never did, because this one line
+        was not moved. No trailing slash: that is how the router spells it.
+        """
+        return f"{settings.BASE_URL}/app/join/{self.game_id}"
+
     def generate_qr_code(self):
         qr = qrcode.QRCode(
             version=1,
@@ -115,8 +125,7 @@ class GameSession(models.Model):
             border=4,
         )
 
-        join_url = f"{settings.BASE_URL}/join/{self.game_id}/"
-        qr.add_data(join_url)
+        qr.add_data(self.join_url)
         qr.make(fit=True)
 
         img = qr.make_image(fill_color="black", back_color="white")

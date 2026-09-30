@@ -84,13 +84,14 @@ class SessionLookupView(APIView):
 
 
 class JoinSessionAPIView(APIView):
-    """POST /api/game/join/<game_id>/ — one call replaces two form views.
+    """POST /api/game/join/<game_id>/ — the only way a player gets a seat.
 
-    The template flow is two steps (JoinSessionView, then PlayerCreateView, with
-    request.session["joined_game_ids"] carrying permission between them). The SPA
-    does not need that hop: name and password arrive together, so the player row
-    and both cookies are created in one request and the session-key handshake
-    disappears.
+    It replaced a two-step template flow (JoinSessionView, then PlayerCreateView,
+    with request.session["joined_game_ids"] carrying permission between them),
+    and since S22 it is the only one: the QR code and the landing page point at
+    the SPA's join screen, and the template flow is deleted. Name and password
+    arrive together, so the player row and both cookies are created in one
+    request, under the lock that keeps two phones from taking the last seat.
 
     authentication_classes is empty on purpose. DRF's SessionAuthentication
     enforces CSRF only for an authenticated user, and APIView is csrf_exempt, so

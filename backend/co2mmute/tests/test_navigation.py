@@ -47,7 +47,7 @@ class NavigationListTests(TestCase):
         spielen = nav["header"][0]
         self.assertEqual(
             [(child["label"], child["href"]) for child in spielen["children"]],
-            [("Erstellen", "/app/game/create"), ("Beitreten", "/join/")],
+            [("Erstellen", "/app/game/create"), ("Beitreten", "/app/join")],
         )
         self.assertIsNone(nav["account"])
         self.assertEqual(nav["session"]["label"], "Anmelden")

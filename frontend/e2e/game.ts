@@ -100,3 +100,23 @@ export async function createGame(
   expect(gameId).toBeTruthy();
   return gameId!;
 }
+
+/**
+ * Join as a student: no account, a screen name, two signed cookies.
+ *
+ * Through the one door there is — `/app/join/<ID>`, where the QR code lands:
+ * the lookup, then name (and password, when the game has one) in a single
+ * form, ending on the game screen. Until S22 three specs each carried a copy
+ * of this that went through Django's two-page `/join/<id>/` funnel instead,
+ * which the QR code pointed at and which is deleted now.
+ */
+export async function joinAsPlayer(
+  page: Page,
+  gameId: string,
+  name: string,
+): Promise<void> {
+  await page.goto(`/app/join/${gameId}`);
+  await page.getByLabel("Dein Name").fill(name);
+  await page.getByRole("button", { name: "Beitreten", exact: true }).click();
+  await page.waitForURL(/\/app\/game\/[^/]+\/?$/);
+}

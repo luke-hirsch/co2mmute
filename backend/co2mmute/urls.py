@@ -2,14 +2,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path, re_path
-from game.views import (
-    GameDeleteView,
-    GameSessionCreateView,
-    JoinSessionView,
-    PlayerCreateView,
-    PlayerUpdateView,
-    ShareSessionView,
-)
+from game.views import GameDeleteView, GameSessionCreateView, ShareSessionView
 from maps.views import MapDetailView, MapListView, MapUploadView
 
 from .views import (
@@ -24,6 +17,9 @@ from .views import (
     LoginView,
     LogoutView,
     NavigationView,
+    PasswordChangeView,
+    PasswordResetConfirmView,
+    PasswordResetView,
     ProfileView,
     SignUpView,
     SpaView,
@@ -47,6 +43,23 @@ urlpatterns = [
         name="account-delete",
     ),
     path("accounts/deleted/", AccountDeletedView.as_view(), name="account-deleted"),
+    # The three password views that take a form, with German ones — S22. Same
+    # trick as the login above: declared before the include, so they win.
+    path(
+        "accounts/password_change/",
+        PasswordChangeView.as_view(),
+        name="password_change",
+    ),
+    path(
+        "accounts/password_reset/",
+        PasswordResetView.as_view(),
+        name="password_reset",
+    ),
+    path(
+        "accounts/reset/<uidb64>/<token>/",
+        PasswordResetConfirmView.as_view(),
+        name="password_reset_confirm",
+    ),
     path("accounts/", include("django.contrib.auth.urls")),
     path("legal/dsgvo/", DsgvoView.as_view(), name="dsgvo"),
     path("legal/impressum/", ImpressumView.as_view(), name="impressum"),
@@ -54,18 +67,6 @@ urlpatterns = [
     path("game/create/", GameSessionCreateView.as_view(), name="session-create"),
     path("game/<game_id>/share/", ShareSessionView.as_view(), name="session-share"),
     path("game/<game_id>/delete/", GameDeleteView.as_view(), name="session-delete"),
-    path("join/", JoinSessionView.as_view(), name="session-join"),
-    path("join/<game_id>/", JoinSessionView.as_view(), name="session-join-direct"),
-    path(
-        "game/<game_id>/player/create/",
-        PlayerCreateView.as_view(),
-        name="player-create",
-    ),
-    path(
-        "game/<game_id>/player/<player_id>/update/",
-        PlayerUpdateView.as_view(),
-        name="player-update",
-    ),
     path("map/upload/", MapUploadView.as_view(), name="map-upload"),
     path("map/list/", MapListView.as_view(), name="map-list"),
     path("map/<int:pk>/", MapDetailView.as_view(), name="map-detail"),

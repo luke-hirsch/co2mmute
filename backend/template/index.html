@@ -78,7 +78,7 @@
           {# the join box, dressed as a departure display #}
           <form
             id="join-form"
-            action="{% url 'session-join' %}"
+            action="/app/join"
             method="get"
             class="rounded-xl bg-darkbody p-5 text-accent shadow-[inset_0_0_0_1px_rgb(255_255_255/0.08)] dark:bg-black"
           >
@@ -433,14 +433,13 @@
 </div>
 
 <script>
-  // the join view takes the id from the path, not the query string
+  // The SPA's join screen takes the id from the path: /app/join/<ID> looks the
+  // game up and asks for a name. An empty field goes to /app/join, which asks
+  // for the id itself — never to a query string the router would ignore.
   document.getElementById("join-form").addEventListener("submit", (event) => {
-    const code = event.target.elements.game_id.value.trim().toUpperCase();
-    if (!code) return;
     event.preventDefault();
-    window.location.assign(
-      "{% url 'session-join' %}" + encodeURIComponent(code) + "/"
-    );
+    const code = event.target.elements.game_id.value.trim().toUpperCase();
+    window.location.assign(code ? "/app/join/" + encodeURIComponent(code) : "/app/join");
   });
 </script>
 {% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% comment %}
+  One column of text and a form — the Django twin of the SPA's
+  `<Screen narrow>` (frontend/src/components/layout/screen.tsx): the same
+  rhythm (py-20 lg:py-28), the gutter the header uses, max-w-xl. Every
+  credential page sits in it, so a Django form and a React one are the same
+  width at the same distance from the header. S22.
+
+  A page fills `screen`; its heading comes from partials/screen_heading.html.
+{% endcomment %}
+{% block main_class %}{% endblock %}
+{% block main %}
+<div class="px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+  <div class="mx-auto w-full max-w-xl">{% block screen %}{% endblock %}</div>
+</div>
+{% endblock %}

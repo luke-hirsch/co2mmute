@@ -288,6 +288,26 @@ ENGLISH_GIVEAWAYS = (
     # "A valid integer is required."), which no screen had provoked yet.
     "ensure",
     "valid",
+    # S22, for the credential pages: Django's own labels and refusals, which
+    # reach the page wherever a stock auth form is used unchanged. Not "Login"
+    # or "Reset": German copy uses both.
+    "username",
+    "email address",
+    "this field",
+    "too short",
+    "too common",
+    "numeric",
+    "similar",
+    "sign up",
+    "log in",
+    "forgot",
+    "new password",
+    "old password",
+    "confirmation",
+    "didn",
+    "incorrectly",
+    "inactive",
+    "send",
 )
 
 
