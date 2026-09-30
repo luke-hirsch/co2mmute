@@ -5,13 +5,17 @@
     text in the page's own font — the system sans every other word on the site
     is set in — so the name never looks like it came from another typeface.
 
-    Cropped to the C's outer edges. The lockup makes it 1.7 capital heights tall
-    and centres it on the O, so the arrow points at the O's middle. Referenced as `<use href="/static/img/mark.svg#mark">` by
+    The C itself takes currentColor — ink, like the letters after it — and
+    only the node and the edge through it are the primary: a station on a
+    line, which is what the game is made of.
+
+    Cropped to the C's outer edges. The lockup sizes it to run from the top of
+    the O to the foot of the subscript 2. Referenced as `<use href="/static/img/mark.svg#mark">` by
     both halves; the viewBox above is repeated there and
     `frontend/tests/design/lockup.test.ts` keeps them equal.
   -->
   <g id="mark">
-    <path d="M140 40 A70 70 0 1 0 140 160" fill="none" stroke="#1e88e5" stroke-width="20" stroke-linecap="round"/>
+    <path d="M140 40 A70 70 0 1 0 140 160" fill="none" stroke="currentColor" stroke-width="20" stroke-linecap="round"/>
     <rect x="85" y="85" width="30" height="30" rx="4" fill="#1e88e5" transform="rotate(45 100 100)"/>
     <line x1="121" y1="100" x2="165" y2="100" stroke="#1e88e5" stroke-width="20" stroke-linecap="round"/>
   </g>
