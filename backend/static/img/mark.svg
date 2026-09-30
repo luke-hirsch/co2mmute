@@ -5,9 +5,8 @@
     text in the page's own font — the system sans every other word on the site
     is set in — so the name never looks like it came from another typeface.
 
-    Cropped to the C's outer edges, so a height of one cap-height makes it the
-    size of a capital; the lockup makes it a little taller, the way a round
-    letter overshoots. Referenced as `<use href="/static/img/mark.svg#mark">` by
+    Cropped to the C's outer edges. The lockup makes it 1.7 capital heights tall
+    and centres it on the O, so the arrow points at the O's middle. Referenced as `<use href="/static/img/mark.svg#mark">` by
     both halves; the viewBox above is repeated there and
     `frontend/tests/design/lockup.test.ts` keeps them equal.
   -->
