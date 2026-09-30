@@ -292,7 +292,6 @@ nicht gemessen.
 | S-03 | 390px                           | kein horizontales Scrollen, nirgends                                                                       | geht      | -                       |
 | S-04 | Spielernamen                    | tauchen in keinem Log auf                                                                                  | ungeprüft | -                       |
 | S-05 | Anonymisierung                  | nach Spielende „Spieler N", Host wird „Host"                                                               | ungeprüft | -                       |
-| S-06 | Rechtstexte in der SPA          | Links auch im Spiel erreichbar                                                                             | offen     | -                       |
 | S-07 | Spiel auf der Hostseite löschen | fragt vorher und sagt, was mitgeht; laufendes Spiel wird abgelehnt                                         | geht      | `e2e/host-page.spec.ts` |
 | S-08 | Kopf- und Fußzeile unter `/app` | dieselben Punkte wie auf den Django-Seiten, Karten nur für Staff, Abmelden; nicht im Spiel, nicht im Editor (S20) | geht      | `chrome.spec.ts`        |
 | S-09 | Passwort raten                  | nach 10 Fehlversuchen 429 mit deutscher Seite, 15 Minuten (S9)                                             | geht      | -                       |
