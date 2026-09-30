@@ -19,10 +19,6 @@
       // the page would show a light flash on every dark-mode phone.
       setColorScheme(storeSystemColorScheme());
     </script>
-    <script
-      src="https://cdn.jsdelivr.net/npm/@tailwindplus/elements@1"
-      type="module"
-    ></script>
     {% block extra_head %}{% endblock %}
   </head>
   <body class="flex min-h-dvh flex-col bg-body dark:bg-darkbody text-main dark:text-darktext">
@@ -46,8 +42,9 @@
         <div class="flex lg:hidden">
           <button
             type="button"
-            command="show-modal"
-            commandfor="mobile-menu"
+            data-dialog-open="mobile-menu"
+            aria-haspopup="dialog"
+            aria-controls="mobile-menu"
             class="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-muted dark:text-darkmutedtext"
           >
             <span class="sr-only">Menü</span>
@@ -68,7 +65,7 @@
             </svg>
           </button>
         </div>
-  <el-popover-group class="hidden lg:flex lg:gap-x-12">
+  <div class="hidden lg:flex lg:gap-x-12">
 
   {# --- Spielen (bestehend) --- #}
   <div class="relative">
@@ -86,11 +83,11 @@
       </svg>
     </button>
 
-    <el-popover
+    <div
       id="desktop-menu-game"
-      anchor="bottom"
       popover
-      class="w-screen max-w-md overflow-hidden rounded-3xl bg-elevated shadow-lg outline-1 outline-border-subtle transition transition-discrete [--anchor-gap:--spacing(3)] backdrop:bg-transparent open:block data-closed:translate-y-1 data-closed:opacity-0 data-enter:duration-200 data-enter:ease-out data-leave:duration-150 data-leave:ease-in dark:bg-darkelevated dark:shadow-none dark:-outline-offset-1 dark:outline-darksubtle"
+      data-anchor-below
+      class="absolute inset-auto w-screen max-w-md overflow-hidden rounded-3xl bg-elevated text-main shadow-lg outline-1 outline-border-subtle translate-y-1 opacity-0 transition transition-discrete duration-150 ease-out open:translate-y-0 open:opacity-100 starting:open:translate-y-1 starting:open:opacity-0 dark:bg-darkelevated dark:text-darktext dark:shadow-none dark:-outline-offset-1 dark:outline-darksubtle"
     >
       <div class="p-4">
 
@@ -135,7 +132,7 @@
         </div>
 
       </div>
-    </el-popover>
+    </div>
   </div>
 
   {# --- Karten (bestehend + DB Items) --- #}
@@ -155,11 +152,11 @@
         </svg>
       </button>
 
-      <el-popover
+      <div
         id="desktop-menu-maps"
-        anchor="bottom"
         popover
-        class="w-screen max-w-md overflow-hidden rounded-3xl bg-elevated shadow-lg outline-1 outline-border-subtle transition transition-discrete [--anchor-gap:--spacing(3)] backdrop:bg-transparent open:block data-closed:translate-y-1 data-closed:opacity-0 data-enter:duration-200 data-enter:ease-out data-leave:duration-150 data-leave:ease-in dark:bg-darkelevated dark:shadow-none dark:-outline-offset-1 dark:outline-darksubtle"
+        data-anchor-below
+        class="absolute inset-auto w-screen max-w-md overflow-hidden rounded-3xl bg-elevated text-main shadow-lg outline-1 outline-border-subtle translate-y-1 opacity-0 transition transition-discrete duration-150 ease-out open:translate-y-0 open:opacity-100 starting:open:translate-y-1 starting:open:opacity-0 dark:bg-darkelevated dark:text-darktext dark:shadow-none dark:-outline-offset-1 dark:outline-darksubtle"
       >
         <div class="p-4">
 
@@ -204,7 +201,7 @@
           </div>
 
         </div>
-      </el-popover>
+      </div>
     </div>
   {% endif %}
 
@@ -235,11 +232,11 @@
             </svg>
           </button>
 
-          <el-popover
+          <div
             id="nav-{{ item.id }}"
-            anchor="bottom"
             popover
-            class="w-screen max-w-md overflow-hidden rounded-3xl bg-elevated shadow-lg outline-1 outline-border-subtle transition transition-discrete [--anchor-gap:--spacing(3)] backdrop:bg-transparent open:block data-closed:translate-y-1 data-closed:opacity-0 data-enter:duration-200 data-enter:ease-out data-leave:duration-150 data-leave:ease-in dark:bg-darkelevated dark:shadow-none dark:-outline-offset-1 dark:outline-darksubtle"
+            data-anchor-below
+            class="absolute inset-auto w-screen max-w-md overflow-hidden rounded-3xl bg-elevated text-main shadow-lg outline-1 outline-border-subtle translate-y-1 opacity-0 transition transition-discrete duration-150 ease-out open:translate-y-0 open:opacity-100 starting:open:translate-y-1 starting:open:opacity-0 dark:bg-darkelevated dark:text-darktext dark:shadow-none dark:-outline-offset-1 dark:outline-darksubtle"
           >
             <div class="p-4">
               {% for child in item.children %}
@@ -260,7 +257,7 @@
                 </div>
               {% endfor %}
             </div>
-          </el-popover>
+          </div>
         </div>
       {% else %}
         {% if item.page_key %}
@@ -277,7 +274,7 @@
     {% endfor %}
   {% endwith %}
 
-</el-popover-group>
+</div>
         <div class="hidden lg:flex lg:flex-1 lg:justify-end">
           {% if request.user.is_authenticated %}
           <a
@@ -299,164 +296,147 @@
           {% endif %}
         </div>
       </nav>
-      <el-dialog>
-        <dialog id="mobile-menu" class="backdrop:bg-transparent lg:hidden">
-          <div tabindex="0" class="fixed inset-0 focus:outline-none">
-            <el-dialog-panel
-              class="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-surface p-6 sm:max-w-sm sm:ring-1 sm:ring-border-subtle dark:bg-darksurface dark:sm:ring-darksubtle"
-            >
-              <div class="flex items-center justify-between">
-                <a href="/" class="-m-1.5 p-1.5">
-                  <span class="sr-only">CO<sub>2</sub>mmute</span>
-                  <img
-                    src="{% static 'img/logo.svg' %}"
-                    alt="logo"
-                    class="h-8 w-auto"
+      <dialog id="mobile-menu" aria-label="Menü" class="backdrop:bg-transparent lg:hidden">
+        <div tabindex="0" data-dialog-backdrop class="fixed inset-0 focus:outline-none">
+          <div
+            class="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-surface p-6 sm:max-w-sm sm:ring-1 sm:ring-border-subtle dark:bg-darksurface dark:sm:ring-darksubtle"
+          >
+            <div class="flex items-center justify-between">
+              <a href="/" class="-m-1.5 p-1.5">
+                <span class="sr-only">CO<sub>2</sub>mmute</span>
+                <img
+                  src="{% static 'img/logo.svg' %}"
+                  alt="logo"
+                  class="h-8 w-auto"
+                />
+              </a>
+              <button
+                type="button"
+                data-dialog-close
+                class="-m-2.5 rounded-md p-2.5 text-muted dark:text-darkmutedtext"
+              >
+                <span class="sr-only">Menü schließen</span>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  data-slot="icon"
+                  aria-hidden="true"
+                  class="size-6"
+                >
+                  <path
+                    d="M6 18 18 6M6 6l12 12"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
                   />
-                </a>
-                <button
-                  type="button"
-                  command="close"
-                  commandfor="mobile-menu"
-                  class="-m-2.5 rounded-md p-2.5 text-muted dark:text-darkmutedtext"
-                >
-                  <span class="sr-only">Menü schließen</span>
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    data-slot="icon"
-                    aria-hidden="true"
-                    class="size-6"
-                  >
-                    <path
-                      d="M6 18 18 6M6 6l12 12"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
-                  </svg>
-                </button>
-              </div>
-              <div class="mt-6 flow-root">
-                <div
-                  class="-my-6 divide-y divide-border-subtle dark:divide-darksubtle"
-                >
-                  <div class="space-y-2 py-6">
-                    <div class="-mx-3">
-                      <button
-                        type="button"
-                        command="--toggle"
-                        commandfor="products-game"
-                        class="flex w-full items-center justify-between rounded-lg py-2 pr-3.5 pl-3 text-base/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
+                </svg>
+              </button>
+            </div>
+            <div class="mt-6 flow-root">
+              <div
+                class="-my-6 divide-y divide-border-subtle dark:divide-darksubtle"
+              >
+                <div class="space-y-2 py-6">
+                  <details class="group -mx-3">
+                    <summary
+                      class="flex w-full cursor-pointer list-none items-center justify-between rounded-lg py-2 pr-3.5 pl-3 text-base/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated [&::-webkit-details-marker]:hidden"
+                    >
+                      Spielen
+                      <svg
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        data-slot="icon"
+                        aria-hidden="true"
+                        class="size-5 flex-none group-open:rotate-180"
                       >
-                        Spielen
-                        <svg
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                          data-slot="icon"
-                          aria-hidden="true"
-                          class="size-5 flex-none in-aria-expanded:rotate-180"
-                        >
-                          <path
-                            d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
-                            clip-rule="evenodd"
-                            fill-rule="evenodd"
-                          />
-                        </svg>
-                      </button>
-                      <el-disclosure
-                        id="products-game"
-                        hidden
-                        class="mt-2 block space-y-2"
-                      >
-                        <a
-                          href="{% url 'session-create' %}"
-                          class="block rounded-lg py-2 pr-3 pl-6 text-sm/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
-                          >Erstellen</a
-                        >
-                        <a
-                          href="{% url 'session-join' %}"
-                          class="block rounded-lg py-2 pr-3 pl-6 text-sm/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
-                          >Beitreten</a
-                        >
-                      </el-disclosure>
-                    </div>
-                    {% if request.user.is_staff %}
-                    <div class="-mx-3">
-                      <button
-                        type="button"
-                        command="--toggle"
-                        commandfor="products-maps"
-                        class="flex w-full items-center justify-between rounded-lg py-2 pr-3.5 pl-3 text-base/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
-                      >
-                        Karten
-                        <svg
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                          data-slot="icon"
-                          aria-hidden="true"
-                          class="size-5 flex-none in-aria-expanded:rotate-180"
-                        >
-                          <path
-                            d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
-                            clip-rule="evenodd"
-                            fill-rule="evenodd"
-                          />
-                        </svg>
-                      </button>
-                      <el-disclosure
-                        id="products-maps"
-                        hidden
-                        class="mt-2 block space-y-2"
-                      >
-                        <a
-                          href="{% url 'map-upload' %}"
-                          class="block rounded-lg py-2 pr-3 pl-6 text-sm/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
-                          >Upload</a
-                        >
-                        <a
-                          href="{% url 'map-list' %}"
-                          class="block rounded-lg py-2 pr-3 pl-6 text-sm/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
-                          >Liste</a
-                        >
-                      </el-disclosure>
-                    </div>
-                    {% endif %}
-                    <div class="-mx-3">
+                        <path
+                          d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
+                          clip-rule="evenodd"
+                          fill-rule="evenodd"
+                        />
+                      </svg>
+                    </summary>
+                    <div class="mt-2 space-y-2">
                       <a
-                        href="{% url 'hintergrund' %}"
-                        class="block rounded-lg py-2 pr-3.5 pl-3 text-base/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
-                        >Hintergrund</a
+                        href="{% url 'session-create' %}"
+                        class="block rounded-lg py-2 pr-3 pl-6 text-sm/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
+                        >Erstellen</a
+                      >
+                      <a
+                        href="{% url 'session-join' %}"
+                        class="block rounded-lg py-2 pr-3 pl-6 text-sm/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
+                        >Beitreten</a
                       >
                     </div>
-                  </div>
-                  <div class="py-6">
-                    {% if request.user.is_authenticated %}<a
-                      href="{% url 'profile' %}"
-                      class="-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
-                      >Mein Profil</a
+                  </details>
+                  {% if request.user.is_staff %}
+                  <details class="group -mx-3">
+                    <summary
+                      class="flex w-full cursor-pointer list-none items-center justify-between rounded-lg py-2 pr-3.5 pl-3 text-base/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated [&::-webkit-details-marker]:hidden"
                     >
+                      Karten
+                      <svg
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        data-slot="icon"
+                        aria-hidden="true"
+                        class="size-5 flex-none group-open:rotate-180"
+                      >
+                        <path
+                          d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
+                          clip-rule="evenodd"
+                          fill-rule="evenodd"
+                        />
+                      </svg>
+                    </summary>
+                    <div class="mt-2 space-y-2">
+                      <a
+                        href="{% url 'map-upload' %}"
+                        class="block rounded-lg py-2 pr-3 pl-6 text-sm/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
+                        >Upload</a
+                      >
+                      <a
+                        href="{% url 'map-list' %}"
+                        class="block rounded-lg py-2 pr-3 pl-6 text-sm/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
+                        >Liste</a
+                      >
+                    </div>
+                  </details>
+                  {% endif %}
+                  <div class="-mx-3">
                     <a
-                      href="{% url 'logout' %}"
-                      class="-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
-                      >Abmelden</a
+                      href="{% url 'hintergrund' %}"
+                      class="block rounded-lg py-2 pr-3.5 pl-3 text-base/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
+                      >Hintergrund</a
                     >
-                    {% else %}
-                    <a
-                      href="{% url 'login' %}"
-                      class="-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
-                      >Anmelden</a
-                    >
-
-                    {% endif %}
                   </div>
                 </div>
+                <div class="py-6">
+                  {% if request.user.is_authenticated %}<a
+                    href="{% url 'profile' %}"
+                    class="-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
+                    >Mein Profil</a
+                  >
+                  <a
+                    href="{% url 'logout' %}"
+                    class="-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
+                    >Abmelden</a
+                  >
+                  {% else %}
+                  <a
+                    href="{% url 'login' %}"
+                    class="-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-semibold text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated"
+                    >Anmelden</a
+                  >
+
+                  {% endif %}
+                </div>
               </div>
-            </el-dialog-panel>
+            </div>
           </div>
-        </dialog>
-      </el-dialog>
+        </div>
+      </dialog>
     </header>
 
     <main class="flex-1 {% block main_class %}p-5{% endblock %}">{% block main %}{% endblock %}</main>
