@@ -680,6 +680,13 @@ class ShippedMapImportsTests(MapUploadMixin, TestCase):
         self.assertEqual(game_map.district_commuters, 6400)
         self.assertEqual(game_map.co2_budget_kg_per_round, 8000)
 
+    def test_the_shipped_map_arrives_measured(self):
+        """S2 measured the pair on this map, so the create form must not
+        warn about it. Every other map starts unmeasured."""
+        game_map = self.upload_shipped_map()
+
+        self.assertTrue(game_map.calibrated)
+
     def test_the_ballot_survives_the_import(self):
         """`compatible_versions` is the one thing the flattened export lost.
 

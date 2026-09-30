@@ -283,6 +283,11 @@ ENGLISH_GIVEAWAYS = (
     "exactly",
     "required",
     "but",
+    # S21, for the create endpoint's range and type refusals: Django's and
+    # DRF's own defaults ("Ensure this value is less than or equal to 365.",
+    # "A valid integer is required."), which no screen had provoked yet.
+    "ensure",
+    "valid",
 )
 
 

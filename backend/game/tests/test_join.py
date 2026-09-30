@@ -690,6 +690,36 @@ class GermanFunnelTests(TempMediaRootMixin, TestCase):
         }
         self.assertEqual(offenders, {})
 
+    def test_every_number_is_refused_in_german_at_both_ends(self):
+        """The zeros above are `validate()`'s own German. What is past a
+        column's range — `idle_end_days` stops at 365 on the model, the small
+        integers at 32 767 — and what is not a number at all were refused by
+        Django's and DRF's defaults, in English, and went straight onto the
+        form. S21 found it by typing 99 999 into "Ende nach Tagen ohne Spiel".
+        """
+        self.client.force_login(self.host)
+        numbers = (
+            "max_players",
+            "agent_per_player",
+            "max_rounds",
+            "max_CO2_level",
+            "people_per_agent",
+            "idle_end_days",
+        )
+
+        offenders = {}
+        for field in numbers:
+            for value in (10**12, "viele"):
+                with muted():
+                    response = post_create(self.client, **{field: value})
+                self.assertEqual(response.status_code, 400, (field, value))
+                messages = " ".join(response.json().get(field, []))
+                self.assertTrue(messages, (field, value, response.json()))
+                if english_in(messages):
+                    offenders[(field, value)] = messages
+
+        self.assertEqual(offenders, {})
+
     def test_a_missing_map_is_refused_in_german(self):
         self.client.force_login(self.host)
 
@@ -1490,3 +1520,138 @@ class MapCalibrationRoundTripTests(TempMediaRootMixin, TestCase):
         game_map = GameMap.objects.get(name="Alt")
         self.assertEqual(game_map.district_commuters, 6_400)
         self.assertEqual(game_map.co2_budget_kg_per_round, 8_000)
+
+
+class MapSaysWhetherItsPairWasMeasuredTests(TempMediaRootMixin, TestCase):
+    """S21: a map says whether its two numbers were measured on it.
+
+    Every map starts at Berlin Mitte-West's 6 400 commuters and 8 000 kg a
+    round, because those are the field defaults. On a smaller map both are too
+    high, and the create form used to offer them without a word. Comparing a
+    map's pair against the defaults cannot tell the two cases apart — the one
+    map where 6 400 / 8 000 *is* measured carries exactly those — so the map
+    says it: `calibrated`, false until somebody who measured it says otherwise.
+
+    It travels in the file, because the file is how a map moves between boxes.
+    The export has written both numbers on every map since S2, measured or not,
+    so a file stating the pair is not a file stating it was measured; only the
+    flag is.
+    """
+
+    def setUp(self):
+        self.host = create_host()
+        self.host.is_staff = True
+        self.host.save(update_fields=["is_staff"])
+
+    def _import(self, map_block):
+        import json
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from maps.models import GameMap
+
+        graph = {
+            "scale": 1000.0,
+            "map": {"name": "Kiez", "x_dim": 13, "y_dim": 10, **map_block},
+            "nodes": [
+                {"id": "a", "name": "A", "x": 0, "y": 0, "types": []},
+                {"id": "b", "name": "B", "x": 1, "y": 0, "types": []},
+            ],
+            "edges": [
+                {"start_node": "a", "end_node": "b", "type": "street"},
+            ],
+            "bus_lines": [],
+            "train_lines": [],
+        }
+        upload = SimpleUploadedFile(
+            "kiez.json", json.dumps(graph).encode(), content_type="application/json"
+        )
+        self.client.force_login(self.host)
+        with muted():
+            response = self.client.post(
+                "/api/maps/import/",
+                {
+                    "map_name": "Kiez",
+                    "description": "",
+                    "max_players": 16,
+                    "json_file": upload,
+                },
+            )
+        self.assertEqual(response.status_code, 201, response.content)
+        return GameMap.objects.get(pk=response.json()["id"])
+
+    def test_a_new_map_is_not_measured(self):
+        from maps.models import GameMap
+
+        game_map = GameMap.objects.create(name="Kiez")
+
+        self.assertFalse(game_map.calibrated)
+
+    def test_the_flag_reaches_the_create_screen(self):
+        """The warning is drawn in the browser, from the map list."""
+        from maps.models import GameMap
+
+        measured = GameMap.objects.create(name="Gemessen", calibrated=True)
+        guessed = GameMap.objects.create(name="Geschätzt")
+        self.client.force_login(self.host)
+
+        response = self.client.get("/api/maps/")
+
+        self.assertEqual(response.status_code, 200)
+        rows = {r["id"]: r for r in response.json()}
+        self.assertIs(rows[measured.pk]["calibrated"], True)
+        self.assertIs(rows[guessed.pk]["calibrated"], False)
+
+    def test_the_export_carries_the_flag(self):
+        from maps.models import GameMap, MapVersion
+
+        game_map = GameMap.objects.create(name="Gemessen", calibrated=True)
+        MapVersion.objects.create(game_map=game_map, name="Base", base_version=True)
+        self.client.force_login(self.host)
+
+        response = self.client.get(f"/api/maps/{game_map.pk}/export/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIs(response.json()["map"]["calibrated"], True)
+
+    def test_an_import_reads_the_flag_back(self):
+        game_map = self._import(
+            {
+                "district_commuters": 1_600,
+                "co2_budget_kg_per_round": 2_000,
+                "calibrated": True,
+            }
+        )
+
+        self.assertTrue(game_map.calibrated)
+        self.assertEqual(game_map.district_commuters, 1_600)
+
+    def test_a_file_stating_the_pair_without_the_flag_is_not_measured(self):
+        """The case the flag exists for: a map exported after S2 carries
+        Berlin's defaults as plainly as Berlin itself does."""
+        game_map = self._import(
+            {"district_commuters": 6_400, "co2_budget_kg_per_round": 8_000}
+        )
+
+        self.assertFalse(game_map.calibrated)
+
+    def test_the_flag_without_the_pair_is_not_honoured(self):
+        """"Measured" names two numbers. A file that says so and gives neither
+        would mark the field defaults as this map's measurements."""
+        with muted():
+            game_map = self._import({"calibrated": True})
+
+        self.assertFalse(game_map.calibrated)
+        self.assertEqual(game_map.district_commuters, 6_400)
+
+    def test_only_true_is_true(self):
+        """A hand-edited file saying "ja" or 1 is not a statement anybody
+        should be held to."""
+        game_map = self._import(
+            {
+                "district_commuters": 1_600,
+                "co2_budget_kg_per_round": 2_000,
+                "calibrated": "ja",
+            }
+        )
+
+        self.assertFalse(game_map.calibrated)

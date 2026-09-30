@@ -206,6 +206,8 @@ nicht gemessen.
 | H-14 | Vorschlag überschreiben                                  | eigene Zahl bleibt stehen, auch wenn sich die Klassengröße danach ändert; „Vorschlag übernehmen" holt sie zurück | geht      | `e2e/host.spec.ts` |
 | H-15 | Karte ohne Abstimmung auswählen                          | die Auswahl sagt, dass es auf dieser Karte nichts abzustimmen gibt                                               | geht      | -                  |
 | H-16 | `/game/create/` aufrufen                                 | leitet in die SPA weiter; ohne Login erst zum Login                                                              | geht      | `e2e/host.spec.ts` |
+| H-17 | Karte mit ungemessenen Zahlen auswählen (S21)            | Warnung: Menschen pro Gruppe und CO₂-Budget sind nur Vorgabewerte; die mitgelieferte Karte hat keine             | geht      | `e2e/host.spec.ts` |
+| H-18 | „Weitere Einstellungen" (S21)                            | zu, bis man es aufmacht; lehnt der Server ein Feld darin ab, geht es von selbst auf                              | geht      | -                  |
 
 ## C — chat
 
@@ -217,19 +219,26 @@ nicht gemessen.
 | C-04 | Chat ist aus                    | kein Chat sichtbar                                                              | geht   | `chat.spec.ts` |
 | C-05 | Chat auf dem neuen Spielscreen  | erreichbar wie auf dem alten                                                    | geht   | `chat.spec.ts` |
 | C-06 | ungelesene Nachrichten          | Zähler am Knopf, solange der Chat zu ist (S8)                                   | geht   | `chat.spec.ts` |
-| C-07 | Chat an- oder ausschalten       | es gibt keinen Schalter — weder im Formular noch in der Lobby, nur über die API | offen  | -              |
+| C-07 | Chat an- oder ausschalten       | im Formular unter „Weitere Einstellungen" (S21); in der Lobby nur über die API  | geht   | `chat.spec.ts` |
 | C-08 | Platz stummschalten             | fragt vorher, Kennzeichen am Platz, Nachricht wird abgelehnt (S9)               | geht   | `mute.spec.ts` |
 | C-09 | stummgeschaltet schreiben       | deutsche Begründung, Zeile kommt bei niemandem an (S9)                          | geht   | `mute.spec.ts` |
 | C-10 | Stummschaltung aufheben         | ohne Rückfrage, ohne Neuverbinden wirksam (S9)                                  | geht   | `mute.spec.ts` |
 | C-11 | eigene Host-Zeile stummschalten | gibt es nicht — der Host steht nicht in der Platzliste, die API sagt 409 `host` | geht   | -              |
+| C-12 | Chat aus, Socket von Hand       | Server weist ab (4403), offener Socket bekommt „Chat ausgeschaltet" (S21)       | geht   | -              |
 
 > Seit S8 (28.09.26) ist der Chat wieder da, neu gegen `ChatConsumer` gebaut und auf jedem
 > Spielscreen erreichbar (`GameFrame` hängt ihn einmal ein). Von F5 (18.09.26) bis dahin gab es
 > **gar keinen Chat**: er hing am alten Screen, der mit F5 gelöscht wurde.
 >
 > C-04 hängt am REST-Snapshot: `chat_enabled` kommt nur dort an, `game.state` trägt es nicht und
-> kein Event meldet eine Änderung. Ein laufender Client merkt das Ausschalten also erst beim
-> nächsten Neuladen.
+> kein Event meldet eine Änderung. Ein laufender Client zeigt den Chat also bis zum nächsten
+> Neuladen weiter an — schreiben kann er seit S21 aber nicht mehr.
+>
+> C-12: bis S21 hat **nur der Client** `chat_enabled` gelesen. `ChatConsumer` hat nie
+> nachgesehen, ein von Hand gebauter Socket konnte in einem Spiel mit ausgeschaltetem Chat
+> weiterschreiben. Jetzt weist der Server beim Verbinden ab und prüft jede Nachricht noch einmal,
+> wie beim Stummschalten. Geprüft in `game/tests/test_socket.py`, nicht im Browser — der Client
+> öffnet in diesem Fall ja gar keinen Socket.
 >
 > C-08 bis C-11 sind neu mit S9 (28.09.26). `Player.is_muted` und `MuteUnmutePlayerView` gab es
 > vorher schon, beides wirkungslos: die View hing an keiner URL und **kein Consumer hat das Feld

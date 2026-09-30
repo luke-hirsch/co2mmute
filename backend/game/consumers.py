@@ -10,6 +10,7 @@ from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from co2mmute.utils import sanitize_group_name
 from django.conf import settings
 
+from game.models import GameSession
 from game.phases import (
     ack_host_seats,
     ack_stats,
@@ -80,6 +81,14 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             await refuse(self, close_code)
             return
 
+        # The client opens no chat socket when the host switched the chat off,
+        # and that used to be the only thing keeping one closed. Refused like
+        # every other permanent no — and checked again per message below,
+        # because the host can switch it off in a running game.
+        if not await self._chat_is_on():
+            await refuse(self, self.CLOSE_CODE_FORBIDDEN)
+            return
+
         self.player_id = player.player_id
         self.player_pk = player.pk
         self.player_name = player.name or "Player"
@@ -144,6 +153,13 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             await self.send_json({"type": "chat.error", "error": validation_error})
             return
 
+        # The host may switch the chat off while this socket is open — the
+        # PATCH allows it on a running game — and a check made only at connect
+        # would let every open socket keep talking until it reconnected.
+        if not await self._chat_is_on():
+            await self.send_json({"type": "chat.error", "error": "Chat is off"})
+            return
+
         # Before the rate limits on purpose: a muted seat must not spend the
         # room's global budget, and the check then costs nothing when the host
         # has muted nobody. Read per message rather than kept from connect() —
@@ -165,6 +181,12 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             self.group_name,
             {"type": "chat.broadcast", "message_data": message_object},
         )
+
+    @database_sync_to_async
+    def _chat_is_on(self) -> bool:
+        return GameSession.objects.filter(
+            game_id=self.game_id, chat_enabled=True
+        ).exists()
 
     @database_sync_to_async
     def _is_muted(self) -> bool:

@@ -32,6 +32,11 @@ export type CreateGameOptions = {
    * S13 is about: the screen derives it from the class size.
    */
   peoplePerAgent?: number;
+  /**
+   * Switch the chat off. It sits behind "Weitere Einstellungen" (S21), closed
+   * by default, so leaving this out never touches the disclosure at all.
+   */
+  chat?: boolean;
 };
 
 /** Create a game on the seeded map and return its id. Requires a host session. */
@@ -45,6 +50,7 @@ export async function createGame(
     agentPerPlayer = 1,
     maxRounds = 2,
     peoplePerAgent,
+    chat,
   } = options;
 
   await page.goto("/game/create/");
@@ -60,6 +66,11 @@ export async function createGame(
   // Last, because typing in either of the three above re-derives it.
   if (peoplePerAgent !== undefined) {
     await page.locator("#people_per_agent").fill(String(peoplePerAgent));
+  }
+
+  if (chat !== undefined) {
+    await page.getByText("Weitere Einstellungen").click();
+    await page.getByLabel("Chat").setChecked(chat);
   }
 
   await page.getByRole("button", { name: "Spiel anlegen" }).click();

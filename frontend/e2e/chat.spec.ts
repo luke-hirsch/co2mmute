@@ -180,6 +180,26 @@ test("no chat is offered when the chat is switched off", async ({
 });
 
 /**
+ * The same switch, thrown on the create form (S21) rather than by PATCH — the
+ * form never offered it before, so the chat could only ever start on.
+ */
+test("a game made with the chat off offers none", async ({ page, baseURL }) => {
+  await loginAsHost(page);
+  const gameId = await createGame(page, {
+    name: "E2E Chat aus",
+    agentPerPlayer: 1,
+    chat: false,
+  });
+
+  try {
+    await expect(page.getByRole("button", { name: "Chat" })).toHaveCount(0);
+    await expect(page.getByText("aus").first()).toBeVisible();
+  } finally {
+    await endAndDelete(page, gameId, baseURL!);
+  }
+});
+
+/**
  * R-13, and it is deliberately not inferred from the lobby.
  *
  * "Reachable from every screen" is a claim about `GameFrame`, and the round

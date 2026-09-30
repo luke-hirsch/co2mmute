@@ -180,6 +180,23 @@ class MapImporter:
                             if value > 0:
                                 setattr(game_map, key, value)
                                 changed.append(key)
+                    # Whether that pair was measured on this map (S21). Only an
+                    # explicit `true` counts, and only beside both numbers: the
+                    # export has written the pair on every map since S2,
+                    # measured or not, so the pair alone says nothing — and a
+                    # flag with no pair would certify the field defaults as
+                    # this map's measurements.
+                    if map_meta.get("calibrated") is True:
+                        pair = {"district_commuters", "co2_budget_kg_per_round"}
+                        if pair <= set(changed):
+                            game_map.calibrated = True
+                            changed.append("calibrated")
+                        else:
+                            logger.warning(
+                                "Map %s: says calibrated but does not state "
+                                "both numbers, keeping it unmeasured",
+                                game_map.pk,
+                            )
                     if changed:
                         game_map.save(update_fields=changed)
                     logger.info(f"Created {len(node_mapping)} nodes")

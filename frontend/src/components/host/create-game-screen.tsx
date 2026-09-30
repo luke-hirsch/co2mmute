@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { ChevronDown } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,12 @@ export function CreateGameScreen() {
   );
   const [maxRounds, setMaxRounds] = useState(String(DEFAULT_MAX_ROUNDS));
   const [idleEndDays, setIdleEndDays] = useState("30");
+  const [chatEnabled, setChatEnabled] = useState(true);
+  /**
+   * "Weitere Einstellungen" is closed until the host opens it — or until the
+   * server refuses a field inside it, which a closed disclosure would hide.
+   */
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [co2Override, setCo2Override] = useState<string | null>(null);
   const [peopleOverride, setPeopleOverride] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
@@ -120,19 +127,22 @@ export function CreateGameScreen() {
         max_CO2_level: Number(co2Value),
         people_per_agent: Number(peopleValue),
         idle_end_days: Number(idleEndDays),
+        chat_enabled: chatEnabled,
       });
       // A full navigation rather than a router one: the response set both
       // signed cookies, and the game screen's very first request has to carry
       // them. `/app/game/<id>/` is inside the SPA either way.
       window.location.assign(`/app/game/${game.game_id}/`);
     } catch (failure) {
-      setErrors(fieldErrors(failure));
+      const next = fieldErrors(failure);
+      setErrors(next);
+      if (ADVANCED_FIELDS.some((name) => next[name])) setAdvancedOpen(true);
     }
   }
 
   return (
     <Screen>
-      <ScreenHeading title={de.create.title} lead={de.create.lead} />
+      <ScreenHeading title={de.create.title} />
 
       {maps.isError ? (
         <Alert variant="destructive" className="mb-8">
@@ -145,12 +155,18 @@ export function CreateGameScreen() {
         </Alert>
       ) : null}
 
+      {/*
+        S21's grouping, which is Lukas's: what the game is, then the numbers
+        that decide how many people are on the map, then the two that decide
+        when it ends, then what a first game never needs. Every group is the
+        same two-column grid and nothing in it is wider than a column or the
+        whole of it — text at a third width, between the two, was what made
+        the old "Gerechnet" paragraph read as a mistake.
+
+        Each derived number sits in the group of the numbers it is derived
+        from, after them, so the host reads cause before effect.
+      */}
       <form onSubmit={submit} noValidate className="space-y-12">
-        {/*
-          The same two-column rhythm as the sections below, so a text input is
-          about as wide as a line of text rather than as wide as the page. The
-          checkbox spans both because its help text is a sentence.
-        */}
         <section className="grid gap-6 sm:grid-cols-2">
           <Field
             id="game_name"
@@ -203,32 +219,37 @@ export function CreateGameScreen() {
                 </option>
               ))}
             </select>
+            {/*
+              Both notes are about the map, so both sit under the select and
+              appear the moment a host picks it — the uncalibrated one names
+              the two fields further down rather than repeating itself there.
+              Ink with an accent rule, not amber text: the accent is a signage
+              colour and three lines of it on the page ground are hard to read.
+            */}
+            {selected && !selected.calibrated ? (
+              <p className={mapNoteClass}>
+                {de.create.mapUncalibrated}
+              </p>
+            ) : null}
             {selected && !selected.offers_map_changes ? (
-              <p className="mt-2 max-w-(--measure-body) text-sm text-brandaccent">
+              <p className={mapNoteClass}>
                 {de.create.mapNoChanges}
               </p>
             ) : null}
           </Field>
 
-          <label className="flex max-w-(--measure-body) items-start gap-3 sm:col-span-2">
-            <input
-              type="checkbox"
-              name="map_updates"
-              checked={mapUpdates}
-              onChange={(event) => setMapUpdates(event.target.checked)}
-              className="mt-1 size-4 accent-primary"
-            />
-            <span>
-              <span className="text-sm font-medium">{de.create.mapUpdates}</span>
-              <span className="mt-1 block text-sm text-muted-foreground">
-                {de.create.mapUpdatesHelp}
-              </span>
-            </span>
-          </label>
+          <CheckField
+            id="map_updates"
+            label={de.create.mapUpdates}
+            help={de.create.mapUpdatesHelp}
+            checked={mapUpdates}
+            onChange={setMapUpdates}
+            errors={errors.map_updates}
+          />
         </section>
 
         <section className="space-y-6">
-          <h2 className="text-2xl font-medium">{de.create.classSize}</h2>
+          <h2 className="text-2xl font-medium">{de.create.groupPeople}</h2>
           <div className="grid gap-6 sm:grid-cols-2">
             <Field
               id="max_players"
@@ -254,73 +275,6 @@ export function CreateGameScreen() {
                 value={agentPerPlayer}
                 onChange={setAgentPerPlayer}
                 invalid={!!errors.agent_per_player}
-              />
-            </Field>
-          </div>
-        </section>
-
-        <section className="space-y-6">
-          <h2 className="text-2xl font-medium">{de.create.game}</h2>
-          <div className="grid gap-6 sm:grid-cols-2">
-            <Field
-              id="max_rounds"
-              label={de.create.maxRounds}
-              help={de.create.maxRoundsHelp}
-              errors={errors.max_rounds}
-            >
-              <NumberInput
-                id="max_rounds"
-                value={maxRounds}
-                onChange={setMaxRounds}
-                invalid={!!errors.max_rounds}
-              />
-            </Field>
-            <Field
-              id="idle_end_days"
-              label={de.create.idleEndDays}
-              help={de.create.idleEndDaysHelp}
-              errors={errors.idle_end_days}
-            >
-              <NumberInput
-                id="idle_end_days"
-                value={idleEndDays}
-                onChange={setIdleEndDays}
-                invalid={!!errors.idle_end_days}
-              />
-            </Field>
-          </div>
-        </section>
-
-        <section className="space-y-6">
-          <div>
-            <h2 className="text-2xl font-medium">{de.create.derived}</h2>
-            <p className="mt-2 max-w-(--measure-body) text-muted-foreground">
-              {de.create.derivedLead}
-            </p>
-          </div>
-          <div className="grid gap-6 sm:grid-cols-2">
-            <Field
-              id="max_CO2_level"
-              label={de.create.co2Budget}
-              help={
-                selected
-                  ? de.create.co2BudgetHelp(
-                      selected.co2_budget_kg_per_round,
-                      Math.max(1, Math.trunc(Number(maxRounds)) || 0),
-                    )
-                  : undefined
-              }
-              errors={errors.max_CO2_level}
-            >
-              <NumberInput
-                id="max_CO2_level"
-                value={co2Value}
-                onChange={setCo2Override}
-                invalid={!!errors.max_CO2_level}
-              />
-              <Suggestion
-                overridden={co2Override !== null}
-                onReset={() => setCo2Override(null)}
               />
             </Field>
             <Field
@@ -350,6 +304,91 @@ export function CreateGameScreen() {
           </div>
         </section>
 
+        <section className="space-y-6">
+          <h2 className="text-2xl font-medium">{de.create.groupEnd}</h2>
+          <div className="grid gap-6 sm:grid-cols-2">
+            <Field
+              id="max_rounds"
+              label={de.create.maxRounds}
+              help={de.create.maxRoundsHelp}
+              errors={errors.max_rounds}
+            >
+              <NumberInput
+                id="max_rounds"
+                value={maxRounds}
+                onChange={setMaxRounds}
+                invalid={!!errors.max_rounds}
+              />
+            </Field>
+            <Field
+              id="max_CO2_level"
+              label={de.create.co2Budget}
+              help={
+                selected
+                  ? de.create.co2BudgetHelp(
+                      selected.co2_budget_kg_per_round,
+                      Math.max(1, Math.trunc(Number(maxRounds)) || 0),
+                    )
+                  : undefined
+              }
+              errors={errors.max_CO2_level}
+            >
+              <NumberInput
+                id="max_CO2_level"
+                value={co2Value}
+                onChange={setCo2Override}
+                invalid={!!errors.max_CO2_level}
+              />
+              <Suggestion
+                overridden={co2Override !== null}
+                onReset={() => setCo2Override(null)}
+              />
+            </Field>
+          </div>
+        </section>
+
+        {/*
+          A native disclosure: keyboard and screen reader behaviour for free,
+          and the fields inside are still in the form when it is closed, so
+          what the host never opened is sent at its default.
+        */}
+        <details
+          open={advancedOpen}
+          onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}
+          className="group"
+        >
+          <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-md [&::-webkit-details-marker]:hidden">
+            <h2 className="text-2xl font-medium">{de.create.advanced}</h2>
+            <ChevronDown
+              aria-hidden="true"
+              className="size-6 text-muted-foreground transition-transform group-open:rotate-180"
+            />
+          </summary>
+          <div className="mt-6 grid gap-6 sm:grid-cols-2">
+            <Field
+              id="idle_end_days"
+              label={de.create.idleEndDays}
+              help={de.create.idleEndDaysHelp}
+              errors={errors.idle_end_days}
+            >
+              <NumberInput
+                id="idle_end_days"
+                value={idleEndDays}
+                onChange={setIdleEndDays}
+                invalid={!!errors.idle_end_days}
+              />
+            </Field>
+            <CheckField
+              id="chat_enabled"
+              label={de.create.chat}
+              help={de.create.chatHelp}
+              checked={chatEnabled}
+              onChange={setChatEnabled}
+              errors={errors.chat_enabled}
+            />
+          </div>
+        </details>
+
         {formLevelError ? (
           <Alert variant="destructive">
             <AlertDescription>{formLevelError}</AlertDescription>
@@ -369,6 +408,11 @@ export function CreateGameScreen() {
     </Screen>
   );
 }
+
+const mapNoteClass = "border-l-2 border-brandaccent pl-3 text-sm";
+
+/** The fields inside "Weitere Einstellungen", which opens when one is refused. */
+const ADVANCED_FIELDS = ["idle_end_days", "chat_enabled"] as const;
 
 /**
  * The map select. A native `<select>`, not the radix one that is also in the
@@ -410,6 +454,50 @@ function NumberInput({
       aria-describedby={invalid ? `${id}-error` : `${id}-help`}
       onChange={(event) => onChange(event.target.value.replace(/[^\d]/g, ""))}
     />
+  );
+}
+
+/**
+ * A switch, shaped like every other field: its name as the label on top, then
+ * a control as tall as an input, then the help. So it lines up with the field
+ * beside it in the grid rather than floating as a sentence of its own width —
+ * which the old "Kartenänderungen zulassen" did, at a measure that was neither
+ * a column nor the grid.
+ *
+ * Both labels point at the box, so a tap on the word beside it toggles it.
+ */
+function CheckField({
+  id,
+  label,
+  help,
+  checked,
+  onChange,
+  errors,
+}: {
+  id: string;
+  label: string;
+  help: string;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  errors?: string[];
+}) {
+  return (
+    <Field id={id} label={label} help={help} errors={errors}>
+      <div className="flex h-10 items-center gap-3">
+        <input
+          id={id}
+          name={id}
+          type="checkbox"
+          checked={checked}
+          onChange={(event) => onChange(event.target.checked)}
+          aria-describedby={errors?.length ? `${id}-error` : `${id}-help`}
+          className="size-4 accent-primary"
+        />
+        <label htmlFor={id} className="text-sm">
+          {de.create.allow}
+        </label>
+      </div>
+    </Field>
   );
 }
 

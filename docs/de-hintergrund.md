@@ -249,6 +249,11 @@ Stadt ist ein anderes Paar, und als Konstante im Code hätten die Messwerte eine
 Eigenschaft der Software festgeschrieben. Beide gehen mit dem JSON-Export der Karte mit und kommen
 beim Import zurück.
 
+Dazu steht an der Karte, ob die beiden für _sie_ gemessen sind. Jede neue Karte erbt die Werte von
+Berlin Mitte-West, und an den Zahlen allein ist nicht zu erkennen, ob sie gemessen oder nur geerbt
+sind — Berlin Mitte-West selbst hat genau diese. Solange der Haken fehlt, warnt „Spiel anlegen",
+dass beide auf einer kleinen Karte zu hoch sind.
+
 Für Berlin Mitte-West sind es **6.400 Pendler** und **8.000 kg pro Runde**.
 
 ### 6.400 ist, was der Graph verkraftet

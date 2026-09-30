@@ -49,6 +49,9 @@ test("the create form offers the calibrated pair, and it follows the class size"
   await page.waitForURL(/\/app\/game\/create\/?$/);
 
   await page.locator("#game_map").selectOption({ label: MAP_NAME });
+  // The seed uploads the shipped file, which says its pair was measured (S21),
+  // so the form offers it without the warning a new map gets.
+  await expect(page.getByText(/nicht gemessen/)).toHaveCount(0);
   await expect(page.locator("#max_players")).toHaveValue("16");
   await expect(page.locator("#max_rounds")).toHaveValue("6");
   await expect(page.locator("#people_per_agent")).toHaveValue("100");
