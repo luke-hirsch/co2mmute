@@ -9,8 +9,7 @@
  * landing page or their own profile, and nothing on it to press.
  *
  * So: a header on those screens, and on nothing else. Since S20 the footer
- * follows the same rule — it carries the legal links, which a game screen
- * still lacks (`docs/testfaelle.md` S-06).
+ * follows the same rule. A game screen needs neither, legal links included.
  *
  * **S18 moved the map area onto the chrome side.** `/maps` was listed as both
  * full-bleed and redirect-only, which was true while it was a stub that threw a
