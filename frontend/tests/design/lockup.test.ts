@@ -60,9 +60,16 @@ describe("the lockup", () => {
     expect(de.app.name).toBe(`C${before}${String.fromCharCode(0x2080 + Number(sub))}${after}`);
   });
 
-  it("keeps the mark in the primary, which is the car line", () => {
+  it("draws the C in the text colour and only the node and edge in the primary", () => {
+    const arc = svg.match(/<path[^>]*A70 70[^>]*>/)?.[0] ?? "";
+    expect(arc).toContain('stroke="currentColor"');
+
+    const node = svg.match(/<rect[^>]*>/)?.[0] ?? "";
+    const edge = svg.match(/<line[^>]*>/)?.[0] ?? "";
+    // The primary is the car line (tokens.test.ts), and nothing else is used.
+    expect(node).toContain('fill="#1e88e5"');
+    expect(edge).toContain('stroke="#1e88e5"');
     const hexes = svg.match(/#[0-9a-f]{6}/gi) ?? [];
-    expect(hexes.length).toBeGreaterThan(0);
     expect(hexes.every((hex) => hex.toLowerCase() === "#1e88e5")).toBe(true);
   });
 });

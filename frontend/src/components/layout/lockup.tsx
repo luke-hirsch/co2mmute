@@ -15,18 +15,19 @@ export const MARK_VIEWBOX = "22 20 155 160";
  * Django's `template/partials/lockup.html` carries these same two class lists,
  * and `tests/design/lockup.test.ts` compares them.
  *
- * The mark is 1.7 capital heights tall and centred on the O, so its arrow
- * points at the O's middle: a capital is 0.705 em in SF (0.714 Helvetica,
- * 0.716 Arial), so 1.2 em tall with its foot 0.25 em under the baseline. At
- * exactly a capital's height, as a letter among letters, the C read as too
- * small and the name as too big (Lukas, 2026-09-30); 1.6, 1.7 and 1.8 were
- * compared in the header and 1.7 is the one that matches the drawn version's
- * C at 20 px type.
+ * The C runs from the top of the O to the foot of the subscript 2 — the whole
+ * height of the word — so both its edges line up with a letter. Measured from
+ * the rendered ink in WebKit at 200 px: the O's top is 0.71 em above the
+ * baseline and the 2's foot 0.19 em below it, so 0.9 em; on the page at 22 px
+ * the top then came out a quarter pixel short, hence 0.91. Both edges meet to
+ * the device pixel at 4x, on both halves. Its arrow lands on the middle of the
+ * lowercase letters. Sized to a capital it read as a letter among letters and
+ * too small; centred on the O at 1.7 capitals no edge met anything.
  */
 export const LOCKUP_CLASS =
-  "whitespace-nowrap text-xl/none font-semibold tracking-[-0.02em]";
+  "whitespace-nowrap text-[1.375rem]/none font-semibold tracking-[-0.02em]";
 export const MARK_CLASS =
-  "mr-[0.08em] inline-block aspect-[155/160] h-[1.2em] w-auto align-[-0.25em]";
+  "mr-[0.08em] inline-block aspect-[155/160] h-[0.91em] w-auto align-[-0.19em]";
 
 /**
  * The mark as the C of the name, followed by the rest of it as text.
