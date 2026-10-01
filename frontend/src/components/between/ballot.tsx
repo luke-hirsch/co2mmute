@@ -2,6 +2,8 @@ import { Button } from "@/components/ui/button";
 import { MapChangeCard } from "@/components/between/map-change-card";
 import { cn } from "@/lib/utils";
 import { de } from "@/lib/de";
+import { KeyHint } from "@/components/between/key-hint";
+import { useVoteKeys } from "@/hooks/use-vote-keys";
 import type { VoteOption } from "@/lib/game/events";
 
 /**
@@ -17,6 +19,11 @@ import type { VoteOption } from "@/lib/game/events";
  * towards the tally like any other — which is exactly how a tie happens. It is
  * therefore a button of equal standing, below the cards rather than beside
  * them, because it is the one choice that is always available.
+ *
+ * **It can be filled in from the keyboard** (S24): `1`, `2`, … for the cards,
+ * `0` for "so lassen". A mouse crossing a projected screen tells the room how
+ * you are about to vote; a key press does not. The keys are printed on the
+ * buttons so nobody has to be told.
  *
  * Only versions on this round's ballot are accepted (`vote_options`), so the
  * options are rendered from `voteOptions` in the reducer and never from
@@ -40,10 +47,12 @@ export function Ballot({
   changeShownId?: number | null;
   onToggleChange?: (versionId: number) => void;
 }) {
+  useVoteKeys(options, onPick, disabled);
+
   return (
     <div>
       <div className={cn("grid gap-10 sm:grid-cols-2", stacked && "lg:grid-cols-1")}>
-        {options.map((option) => (
+        {options.map((option, index) => (
           <MapChangeCard
             key={option.id}
             option={option}
@@ -57,8 +66,10 @@ export function Ballot({
                 onClick={() => onPick(option.id)}
                 disabled={disabled}
                 className="w-full sm:w-auto"
+                aria-keyshortcuts={String(index + 1)}
               >
                 {de.vote.pick}
+                <KeyHint>{index + 1}</KeyHint>
               </Button>
             </div>
           </MapChangeCard>
@@ -70,8 +81,10 @@ export function Ballot({
           variant="outline"
           onClick={() => onPick(null)}
           disabled={disabled}
+          aria-keyshortcuts="0"
         >
           {de.vote.keep}
+          <KeyHint>0</KeyHint>
         </Button>
         <p className="mt-3 text-sm text-muted-foreground">{de.vote.keepHint}</p>
       </div>

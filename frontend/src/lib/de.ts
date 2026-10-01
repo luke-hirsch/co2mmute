@@ -433,13 +433,19 @@ export const de = {
     mapLabel: "Karte mit den Fahrten dieser Runde",
 
     /**
-     * Simulated time, not a time of day. The model has no wall clock — the
-     * departure window simply starts at zero — so claiming "7:48 Uhr" would put
-     * a number on screen that nothing in the simulation stands behind.
+     * Elapsed time, not a time of day (decided S24). The model has no wall
+     * clock — the departure window simply starts at zero — so "7:48 Uhr" would
+     * put a number on screen that nothing in the simulation stands behind. It is
+     * written the way every other duration on screen is ("8 h 18 min"), because
+     * a bare "0:48" reads as a clock face and says nothing about what ran out.
      */
-    clockLabel: "Simulationszeit",
-    clock: (minute: number) =>
-      `${Math.floor(minute / 60)}:${String(Math.floor(minute % 60)).padStart(2, "0")}`,
+    clockLabel: "Vergangene Zeit",
+    clock: (minute: number) => {
+      const whole = Math.floor(minute);
+      return whole < 60
+        ? `${whole} min`
+        : `${Math.floor(whole / 60)} h ${String(whole % 60).padStart(2, "0")} min`;
+    },
 
     play: "Abspielen",
     pause: "Anhalten",
@@ -771,6 +777,8 @@ export const de = {
       "Bus und Bahn fahren ihren Takt, ob jemand einsteigt oder nicht. Dieses CO₂ zählt gegen das Budget wie jedes andere.",
     societyTimetable: "Fahrplan insgesamt",
     societyUnridden: "davon auf Linien, die niemand genutzt hat",
+    /** Replaces the row above when it would repeat the total. */
+    societyAllUnridden: "Niemand ist mitgefahren: Der ganze Fahrplan lief leer.",
     /** Nothing to say: a map without bus or train lines. */
     societyNone: "Auf dieser Karte fahren keine Linien.",
 
@@ -809,8 +817,6 @@ export const de = {
      */
     kgExact: (kg: number) =>
       `${kg.toLocaleString("de-DE", { maximumFractionDigits: 1 })} kg`,
-    /** Names stay until anonymisation runs, 24 h after the end (1.3). */
-    lead: "Das war's. Hier steht, was am Ende zusammengekommen ist.",
     home: "Zurück zum Start",
   },
 

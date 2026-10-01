@@ -9,6 +9,7 @@ import { SeatAdminList } from "@/components/host/seat-admin-list";
 import { useRoundDesk } from "@/hooks/use-desk";
 import { useGame } from "@/components/game/game-context";
 import { de } from "@/lib/de";
+import { seatsFull } from "@/lib/game/game-state";
 
 /**
  * The desk, while a round is running (H-03, H-09).
@@ -65,7 +66,7 @@ export function HostDeskScreen() {
             {desk.hasNext ? (
               <Button onClick={desk.playNext}>{de.host.next}</Button>
             ) : null}
-            <AddSeatDialog gameId={state.gameId} />
+            <AddSeatDialog gameId={state.gameId} full={seatsFull(state)} />
           </div>
         </div>
 

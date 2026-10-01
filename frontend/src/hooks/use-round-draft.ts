@@ -27,6 +27,7 @@ import {
   initialRoundDraft,
   roundDraftReducer,
 } from "@/lib/game/round-draft";
+import { createTraceRecorder, type SearchTrace } from "@/lib/map/search-trace";
 import { airDistanceM, exceedsModeLimit } from "@/lib/map/trip-limits";
 import { useMapGraph } from "@/lib/queries/map-graph";
 import { useSeatGame } from "@/lib/queries/seat";
@@ -205,6 +206,17 @@ export function useRoundDraft({
     return byAgent;
   }, [draft.agents, draft.homeNode, extended]);
 
+  /**
+   * What the last search looked at, for the map to play back (S24). Only the
+   * latest: it is a flourish on the route that was just found, not state the
+   * turn depends on, so it is neither stored nor sent. Public transport has none
+   * — its router is a search over lines and stops, not over links.
+   */
+  const [trace, setTrace] = useReducer(
+    (_: SearchTrace | null, next: SearchTrace | null) => next,
+    null,
+  );
+
   const findRoute = useCallback(
     async (agentId: number) => {
       const agent = draft.agents.find((a) => a.agentId === agentId);
@@ -216,6 +228,7 @@ export function useRoundDraft({
       dispatch({ kind: "routing", agentId });
 
       try {
+        const recorder = createTraceRecorder(agentId);
         const result =
           agent.mode === "public"
             ? await findBestPTRoute(extended, home, agent.destinationNode, {
@@ -228,6 +241,7 @@ export function useRoundDraft({
                 // Only "schnellste" reads it — the other two optimise for
                 // quantities a jam does not change.
                 trafficData: extended.previous_round_traffic,
+                onStateChange: recorder.onStateChange,
               });
 
         if (runs.current.get(agentId) !== token) return;
@@ -263,6 +277,7 @@ export function useRoundDraft({
           segments,
         };
         dispatch({ kind: "routed", agentId, route });
+        setTrace(agent.mode === "public" ? null : recorder.trace());
       } catch (error) {
         if (runs.current.get(agentId) !== token) return;
         dispatch({
@@ -312,6 +327,7 @@ export function useRoundDraft({
   return {
     draft,
     graph: extended,
+    trace,
     /** Straight-line distance per passenger, and what it already rules out. */
     distances,
     /** The assignment or the map is still in flight; the turn cannot be drawn yet. */

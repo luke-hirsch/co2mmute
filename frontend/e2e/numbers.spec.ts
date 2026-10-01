@@ -138,9 +138,14 @@ test("the numbers name their scale, and the summary names the vote", async ({
     // E-11: the timetable's own cost, named, class scale.
     await expect(page.getByText("Was der Fahrplan gekostet hat")).toBeVisible();
     await expect(page.getByText("Fahrplan insgesamt")).toBeVisible();
+    // Nobody in this round rides, so the unridden share *is* the timetable and
+    // the second row would repeat the first number (S24): one sentence instead.
+    await expect(
+      page.getByText("Niemand ist mitgefahren: Der ganze Fahrplan lief leer."),
+    ).toBeVisible();
     await expect(
       page.getByText("davon auf Linien, die niemand genutzt hat"),
-    ).toBeVisible();
+    ).toHaveCount(0);
 
     // E-12: the three lists are per commute, and the switch is on them too.
     await expect(

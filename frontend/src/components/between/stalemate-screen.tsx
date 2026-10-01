@@ -3,7 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
 import { de } from "@/lib/de";
 import { useGame } from "@/components/game/game-context";
+import { KeyHint } from "@/components/between/key-hint";
 import { usePhase } from "@/hooks/use-phase";
+import { useTieKeys } from "@/hooks/use-vote-keys";
 
 /**
  * The vote tied: vote again, or leave the map as it is (Z-06, Z-07, Z-08).
@@ -23,6 +25,12 @@ export function StalemateScreen() {
 
   const answered = phase.hasAnswered(seatId);
   const blocked = !seatId || !!state.pausedAt;
+
+  // The keys of the ballot, for the same reason: a mouse on a projector shows
+  // the room which way you are leaning (S24).
+  useTieKeys((revote) => {
+    if (seatId) phase.answerTie(seatId, revote);
+  }, answered || blocked);
 
   return (
     <Screen narrow>
@@ -52,6 +60,7 @@ export function StalemateScreen() {
             disabled={blocked}
           >
             {de.vote.revote}
+            <KeyHint>1</KeyHint>
           </Button>
           <Button
             variant="outline"
@@ -60,6 +69,7 @@ export function StalemateScreen() {
             disabled={blocked}
           >
             {de.vote.leaveAsIs}
+            <KeyHint>0</KeyHint>
           </Button>
         </div>
       )}
