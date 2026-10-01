@@ -15,19 +15,25 @@ export const MARK_VIEWBOX = "22 20 155 160";
  * Django's `template/partials/lockup.html` carries these same two class lists,
  * and `tests/design/lockup.test.ts` compares them.
  *
- * The C runs from the top of the O to the foot of the subscript 2 — the whole
- * height of the word — so both its edges line up with a letter. Measured from
- * the rendered ink in WebKit at 200 px: the O's top is 0.71 em above the
- * baseline and the 2's foot 0.19 em below it, so 0.9 em; on the page at 22 px
- * the top then came out a quarter pixel short, hence 0.91. Both edges meet to
- * the device pixel at 4x, on both halves. Its arrow lands on the middle of the
- * lowercase letters. Sized to a capital it read as a letter among letters and
- * too small; centred on the O at 1.7 capitals no edge met anything.
+ * The C runs from the top of the O to its baseline — the O's own cap height,
+ * not the whole word — so both its edges line up with the O, and the
+ * subscript 2's foot is left to hang below on its own, the way it does after
+ * every other letter. The icon's own bottom sits on the baseline with no
+ * offset, so `align` carries none; the O's top needed 0.75 em of height to
+ * reach it exactly, checked pixel-for-pixel against a WebKit render at 8x —
+ * 0.71 em (the O's cap height alone) came out a pixel short at 22 px, the
+ * same rounding the old shape also had to correct for. Its arrow lands on
+ * the middle of the lowercase letters. Sized to a capital it read as a
+ * letter among letters and too small; centred on the O at 1.7 capitals no
+ * edge met anything; run down to the 2's foot it overshot the O on both
+ * ends. **`h-[…]em` and `align-[…]em` are the two numbers this shape comes
+ * down to** — everything else in this class list is fixed by the artwork or
+ * the type.
  */
 export const LOCKUP_CLASS =
   "whitespace-nowrap text-[1.375rem]/none font-semibold tracking-[-0.02em]";
 export const MARK_CLASS =
-  "mr-[0.08em] inline-block aspect-[155/160] h-[0.91em] w-auto align-[-0.19em]";
+  "mr-[0.08em] inline-block aspect-[155/160] h-[0.75em] w-auto align-[0em]";
 
 /**
  * The mark as the C of the name, followed by the rest of it as text.

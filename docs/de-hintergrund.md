@@ -3,36 +3,28 @@
 Die Idee zum Spiel stammt aus der [Masterarbeit](./../master_thesis.pdf) von Sebastian Werblinski an der
 Freien Universität Berlin (2025).
 Der Code hier ist eine vollständige Neuentwicklung an der TU Berlin und keine Fortsetzung seines
-Prototyps; das Verkehrsmodell ist dabei neu gebaut worden. Dieser Abschnitt sagt, was es tut und
-woher seine Zahlen kommen.
+Prototyps; das Verkehrsmodell ist dabei neu gebaut worden. Hier steht, wie es rechnet und woher
+seine Zahlen kommen.
 
 ## Simulation
 
-Eine Runde hat eine einzige Frage zu beantworten. Ein paar tausend Menschen wollen ungefähr zur
-selben Zeit bei der Arbeit sein, jeder von ihnen unterwegs so, wie ein Spieler es entschieden hat —
-was kostet dieser Morgen, und wie lange dauert er?
+Eine Runde simuliert das Pendelverhalten von tausenden Menschen. Dabei muss die Simulation folgende
+Fragen beantworten:
 
-Stau muss dabei als **Ergebnis** herauskommen. Setzte das Modell ihn voraus, ginge die Abstimmung
-zwischen den Runden um nichts: Wer spielt, ändert die Karte, und die Karte muss antworten.
+1. Mit welchem Verkehrsmittel ist man am schnellsten?
+2. Mit welchem Verkehrsmittel ist man am kostengünstigsten unterwegs?
+3. Mit welchem Verkehrsmittel setzt man am wenigsten CO₂ in die Atmosphäre frei?
 
-## Welches Modell, und warum dieses
+## Modell
 
-Verkehr lässt sich auf drei Ebenen simulieren.
-
-- **Makroskopisch** — Flussgleichungen über das Netz, keine einzelnen Fahrzeuge. Billig, aber es
-  sitzt niemand darin, und in diesem Spiel geht es um einen Menschen, der ein Verkehrsmittel wählt.
-- **Mikroskopisch** — Folgeverhalten, Spurwechsel, Beschleunigung, je Fahrzeug. Jeder Parameter
-  braucht Daten, die für eine von Hand gezeichnete Spielkarte niemand hat, und es wird nicht fertig,
-  während alle darauf warten.
-- **Mesoskopisch** — einzelne Fahrzeuge, aber eine Straße ist eine Warteschlange und kein
-  Streckenabschnitt mit Positionen darauf.
-
-co2mmute ist das dritte. Genauer: ein **Link-Queue-Modell**, dieselbe Familie, die MATSim benutzt —
-die Arbeitslinie von Kai Nagel, am selben Institut. Diese Herkunft ist der Grund, es einer von Hand
-angepassten BPR-Kurve vorzuziehen: Es ist ein veröffentlichtes Modell, das jemand nachschlagen und
-bestreiten kann, keine Formel, an der so lange gedreht wurde, bis das Ergebnis plausibel aussah.
+CO2mmute simuliert den Verkehr mit einem mesoskopischen Modell. Dabei bilden Fahrzeuge eine Schlange
+auf einem Streckenabschnitt, ohne eine genaue Position auf diesem Abschnitt zu haben.
+Streckenabschnitte sind die Kanten (Edges) eines Graphen. Wo Streckenabschnitte zusammenlaufen,
+liegen Knoten (Nodes).
 
 ### Eine Kante sind drei Zahlen
+
+Für die Simulation hat jede Kante drei Kernzahlen:
 
 ```
 Freiflusszeit      t0 = Länge / Tempolimit
@@ -40,21 +32,19 @@ Abflusskapazität   Q  = 1.800 Fahrzeuge/h je Autospur
 Speicherkapazität  S  = 133 Fahrzeuge/km je Autospur × Länge
 ```
 
-1.800 Fz/h und Spur ist die Sättigungsverkehrsstärke einer städtischen Spur, der Standardwert aus
-HCM und HBS. 133 Fz/km und Spur ist die Dichte im Stillstand: ein Fahrzeug je 7,5 m, Stoßstange an
-Stoßstange. Eine 900 m lange einspurige Straße fasst also rund 120 stehende Fahrzeuge und lässt in
-einem Fünf-Minuten-Tick rund 150 durch.
+Wir nehmen 1.800 Fz/h und Spur als die Sättigungsverkehrsstärke einer städtischen Spur. 133 Fz/km
+und Spur ist die Dichte im Stillstand: ein Fahrzeug je 7,5 m, Stoßstange an Stoßstange. Eine 900 m
+lange einspurige Straße fasst also rund 120 stehende Fahrzeuge und lässt in einem Fünf-Minuten-Tick
+rund 150 durch.
 
-Spuren werden gezählt, wie sie auf der Straße liegen, und Infrastruktur nimmt sich davon:
+Spuren werden gezählt, wie sie auf der Straße liegen. Dabei gilt:
 
 ```
 Autospuren = Spuren − (1 bei Busspur) − (1 bei Radspur)
 ```
 
-nach unten auf null begrenzt. **Null Autospuren ist erlaubt**: Die Straße wird zur _Busschleuse_ —
-für Autos gesperrt, offen für Busse, Räder und Fußgänger. Das ist die ganze Antwort des Modells auf
-„was macht eine Busspur“ — es bremst Autos nicht über einen Strafterm, es nimmt ihnen eine Spur, und
-der Rückstau dahinter ergibt sich von selbst.
+Die Zahl ist nach unten auf null begrenzt, und **null Autospuren sind erlaubt**: Die Straße wird
+zur _Busschleuse_ – für Autos gesperrt, offen für Busse und wahlweise auch für Räder und Fußgänger.
 
 ### Ein Tick
 
@@ -64,13 +54,13 @@ der Rückstau dahinter ergibt sich von selbst.
    Untergrenze der Fahrt; schneller als das Tempolimit geht nie.
 4. Danach reiht es sich in die FIFO-Schlange der Kante ein und wartet auf Budget.
 5. Weiter darf es nur, wenn die **nächste** Kante noch Speicher frei hat. Wenn nicht, bleibt es
-   stehen, und alles dahinter auch. Das ist der Rückstau.
-6. Innerhalb des Ticks wiederholen, bis sich nichts mehr bewegt — ein Fahrzeug schafft in fünf
+   stehen, und alles dahinter auch. Ein Stau entsteht.
+6. Innerhalb des Ticks wiederholen, bis sich nichts mehr bewegt. Ein Fahrzeug schafft in fünf
    Minuten mehrere kurze Kanten.
 
-Stau ist damit zwei Mechanismen und keine Formel: Eine Kante lässt nur `Q` pro Stunde ab, und eine
-volle Kante hält die auf, die sie speist. Schlangen wachsen rückwärts durch das Netz, so wie auf der
-Straße.
+Stau entsteht also aus zwei Mechanismen: Eine Kante lässt nur `Q` Fahrzeuge pro Stunde ab, und eine
+volle Kante hält die Kante auf, die sie speist. So wachsen Schlangen rückwärts durch das Netz, wie
+auf einer echten Straße.
 
 ![Eine Kante im freien Fluss und im Rückstau](../backend/template/hintergrund/kante.svg)
 
@@ -78,68 +68,71 @@ _Oben fährt jedes Auto seine Freiflusszeit `t0` ab und reiht sich am Ende kurz 
 es mit `Q` abgibt. Unten ist die nächste Kante voll: Niemand fährt ab, die Schlange füllt den
 ganzen Speicher `S`, und wer ankommt, kommt nicht mehr hinein._
 
-### Rechnerisch kann sich nichts verklemmen, also gibt es keine Mindestgeschwindigkeit
+### Die Mindestgeschwindigkeit
 
-Ein Modell vom BPR-Typ rechnet eine Geschwindigkeit aus dem Verhältnis von Belastung zu Kapazität
-und muss deshalb daran gehindert werden, null zu erreichen — sonst teilt die ganze Runde dadurch.
-Ein Warteschlangenmodell hat diesen Term nicht. Ein Fahrzeug wird freigegeben oder nicht, und auf
-der Eingabeseite steht nirgends eine Geschwindigkeit.
+Viele Verkehrsmodelle rechnen eine Geschwindigkeit aus dem Verhältnis von Belastung zu Kapazität und
+müssen deshalb verhindern, dass sie null erreicht. Wir erinnern uns: Durch null teilen sollte man
+vermeiden. Ein Warteschlangenmodell hat diesen Term nicht. Ein Fahrzeug wird freigegeben oder nicht,
+und auf der Eingabeseite steht nirgends eine Geschwindigkeit. Eine Mindestgeschwindigkeit braucht es
+deshalb nicht.
 
-Der Preis dafür ist, dass es sich wirklich verklemmen kann: ein Ring aus Kanten, jede voll mit
-Fahrzeugen, die auf die nächste wollen. Ein Knoten, der vier Ticks hintereinander nichts bewegt hat,
-gibt trotzdem frei, über die Speichergrenze hinweg, und die Freigabe wird gezählt. Ein
-`forced_releases` über null im Tick-Log ist kein Fehler, aber ein Grund, das Log zu lesen.
+Dafür kann sich das Netz wirklich verklemmen: ein Ring aus Kanten, jede voll mit Fahrzeugen, die
+auf die nächste wollen.
+
+Ein Knoten, der vier Ticks hintereinander nichts bewegt hat, gibt deshalb trotzdem frei, über die
+Speichergrenze hinweg, und die Freigabe wird gezählt. Ein `forced_releases` über null im Tick-Log
+ist kein Fehler, aber ein Grund, das Log zu lesen.
 
 ### Geschwindigkeit ist ein Ergebnis
 
-Das ist der Unterschied, auf den es beim Lesen eines Ergebnisses am meisten ankommt. Die mittlere
-Geschwindigkeit einer Kante ist ihre Länge geteilt durch die **tatsächlich auf ihr beobachteten**
-Fahrzeiten, und zwar nur über Autos — ein Fußgänger braucht zehn Minuten für eine Kante, die ein
-Auto in einer überquert, und ließe man ihn in den Mittelwert, meldete eine leere Straße Stau.
-Nirgends wird eine Freiflussgeschwindigkeit mit einem Stau-Faktor multipliziert.
+Die mittlere Geschwindigkeit einer Kante ist ihre Länge geteilt durch die **tatsächlich auf ihr
+beobachteten** Fahrzeiten. Gezählt werden dabei nur Autos: Ein Fußgänger braucht zehn Minuten für
+eine Kante, die ein Auto in einer Minute schafft, und ließe man ihn in den Mittelwert, meldete eine
+leere Straße Stau. Einen Stau-Faktor, mit dem eine Freiflussgeschwindigkeit multipliziert wird, gibt
+es nicht.
 
 Die Geschwindigkeit auf der Karte, der CO₂-Faktor einer Fahrt und die Routenvorschau, die ein
-Spieler in der nächsten Runde bekommt, lesen also alle dieselbe gemessene Zahl.
+Spieler in der nächsten Runde bekommt, beruhen also alle auf derselben gemessenen Zahl.
 
-### Wer sich anstellt
+### Wer trägt alles zum Stau bei?
 
 - **Autos** immer.
 - **Busse** stehen im Mischverkehr und fahren auf einer eigenen Busspur frei. Ein Bus zählt 3
   Pkw-Einheiten, nimmt in der gemeinsamen Schlange also den Platz von drei Autos ein.
 - **Räder** stehen nur dort im Verkehr, wo sie sich die Straße mit Autos teilen. Ein Rad hat auf der
-  Kante eine eigene Linie: ein eigenes Abflussbudget von 2.000 Rädern/h, damit ein Autostau nie
-  einen Radfahrer aufhält und ein Radfahrer nie einen Autofahrer — aber es teilt sich den _Speicher_
-  der Kante, mit 0,2 Pkw-Einheiten, und genau so nehmen tausend Radfahrer den Autos Platz weg.
-  Abgewiesen wird ein Rad nie; eine volle Straße schickt keinen Radfahrer zurück.
+  Kante eine eigene Schlange mit eigenem Abflussbudget von 2.000 Rädern/h. Ein Autostau hält also
+  keinen Radfahrer auf und ein Radfahrer keinen Autofahrer. Den _Speicher_ der Kante teilen sie sich
+  aber: Ein Rad zählt 0,2 Pkw-Einheiten, und so nehmen tausend Radfahrer den Autos Platz weg.
+  Abgewiesen wird ein Rad nie, auch nicht von einer vollen Straße.
 - **Fußgänger** stehen ganz außerhalb des Warteschlangenmodells.
 
 ## Der ÖPNV fährt einen Fahrplan
 
-Die strukturelle Idee ist, dass ein Linienfahrzeug ein **ganz normales Fahrzeug auf einer
-künstlichen Route** ist. Ein Bus steht deshalb in der Schlange, staut zurück, wiegt 3 Pkw-Einheiten
-und fährt durch eine Busschleuse, ohne eine einzige eigene Codezeile.
+Ein Linienfahrzeug ist in der Simulation ein **ganz normales Fahrzeug auf einer künstlichen Route**.
+Ein Bus steht deshalb in der Schlange und staut zurück wie jedes Auto, es sei denn, er hat eine
+eigene Busspur.
 
-Und es steigen wirklich Leute ein. Gruppen warten an einer Haltestelle, die nach Linie _und_
-Knoten unterschieden wird — wer auf die M1 wartet, steigt nicht in die U7 —, steigen bis zur freien
-Kapazität ein, steigen dort aus, wo ihre Route die Linie verlässt, und warten beim Umsteigen erneut.
-Die Wartezeit wird gemessen und **ausgewiesen, nicht addiert**: Die Uhr läuft seit der Minute, in
-der die Person losfahren wollte, das Stehen an der Haltestelle steckt also schon in der Fahrzeit.
-Haltezeiten sind nicht modelliert; ein Fahrzeug bedient seine Haltestelle in dem Augenblick, in dem
-es ankommt.
+Menschen steigen an Haltestellen ein, die nach Linie _und_ Knoten unterschieden werden: Wer auf die
+M1 wartet, steigt nicht in die U7. Einsteigen kann man nur, wenn Platz ist, sonst wartet man weiter.
+Plätze werden frei, wenn jemand aussteigt. Beim Umsteigen wartet man erneut, diesmal auf die neue
+Linie. Die Wartezeit wird gemessen und **ausgewiesen, nicht addiert**: Die Uhr läuft seit der
+Minute, in der die Person losfahren wollte, das Stehen an der Haltestelle steckt also schon in der
+Fahrzeit. Haltezeiten sind nicht modelliert; ein Fahrzeug bedient seine Haltestelle in dem
+Augenblick, in dem es ankommt.
 
-Eine Linie fährt, ob jemand mitfährt oder nicht, und genau darum wird sie überhaupt modelliert:
+Eine Linie fährt ihren Fahrplan, ob jemand mitfährt oder nicht:
 
 > **Die Gesellschaft bezahlt den Fahrplan.** Eine Linie stößt `Fahrzeuge × Linienkilometer × Faktor`
-> aus, nie geteilt durch Sitzplätze. Ein leerer Bus ist nicht sauber, und eine Linie, die niemand
-> benutzt hat, kostet die Runde trotzdem.
+> aus. Auch ein leerer Bus stößt CO₂ aus, und eine Linie, die niemand benutzt hat, kostet die Runde
+> trotzdem.
 
-Der persönliche Anteil daran ist die Summe der Gesellschaft, gewichtet nach **Personenkilometern**,
-und nicht pro Kopf geteilt — auf einer 13 km langen Linie darf wer eine Station fährt nicht den
-Anteil einer ganzen Fahrt tragen, während das Auto daneben nach Kilometern abgerechnet wird. So
-gewichtet gilt `Σ persönlich = Gesellschaft` exakt.
+Auf die Mitfahrenden verteilt wird diese Summe nach **Personenkilometern**, nicht pro Kopf: Wer auf
+einer 13 km langen Linie eine Station fährt, soll nicht den Anteil einer ganzen Fahrt tragen,
+während das Auto daneben nach Kilometern abgerechnet wird. Die persönlichen Anteile ergeben zusammen
+genau die Summe der Linie: `Σ persönlich = Gesellschaft`.
 
-Die Folge, die ein Bildschirm benennen muss: Die Summe einer Runde sind die Zeilen der Spieler
-**plus** die Gesellschaftskosten der Linien, die niemand benutzt hat.
+Die Summe einer Runde sind deshalb die Zeilen der Spieler **plus** die Gesellschaftskosten der
+Linien, die niemand benutzt hat.
 
 ## CO₂ und Kosten hängen an einer Geschwindigkeitskurve
 
@@ -153,141 +146,197 @@ EF(v) = a/v + b + c·v²          Gramm CO₂ pro Fahrzeugkilometer
 
 `a/v` ist Leerlauf und Stop-and-go, ein fester Verbrauch, verteilt auf weniger Kilometer; `c·v²` ist
 der Luftwiderstand; `b` ist alles, was allein mit der Strecke skaliert. `a` und `b` sind **keine
-freien Parameter** — sie folgen aus `c` und zwei Bedingungen:
+freien Parameter**, sie folgen aus `c` und zwei Bedingungen:
 
 ```
 1.  das Minimum der Kurve liegt bei 70 km/h  →  a = 2c · v_min³           = 1962,3 g/h
 2.  EF(50) = 166,8 g/km, der Autofaktor      →  b = 166,8 − a/50 − c·50²  = 120,4 g/km
 ```
 
-mit `c = 0,0028605`. So festgelegt gilt der Ankerwert bei 50 km/h als Identität und nicht auf vier
-Nachkommastellen, und es gibt eine Zahl zu diskutieren statt drei.
+mit `c = 0,0028605`. So gilt der Ankerwert bei 50 km/h exakt, und frei gewählt ist nur noch eine
+Zahl statt drei.
 
 | km/h        | 10   | 20   | 30   | 40   | 50    | 70    | 100  |
 | ----------- | ---- | ---- | ---- | ---- | ----- | ----- | ---- |
 | g CO₂/km    | 317  | 220  | 188  | 174  | 166,8 | 162,5 | 169  |
 | × Basiswert | 1,90 | 1,32 | 1,13 | 1,04 | 1,00  | 0,97  | 1,01 |
 
-`a/v` divergiert, wenn die Geschwindigkeit gegen null geht, deshalb ist **der Faktor bei 2,00×
-gedeckelt** und nicht die Geschwindigkeit nach unten begrenzt. Ein Deckel ist eine Zahl, die man im
-Kopf behalten kann — „schlimmstenfalls doppelt so schlecht“ — und er hält den divergierenden Term
-aus der Rechnung heraus. Er greift unterhalb von 9,2 km/h.
+`a/v` wächst ohne Grenze, wenn die Geschwindigkeit gegen null geht. Deshalb ist **der Faktor bei
+2,00× gedeckelt**, statt die Geschwindigkeit nach unten zu begrenzen: Schlimmstenfalls stößt ein Auto
+doppelt so viel aus wie bei 50 km/h. Der Deckel greift unterhalb von 9,2 km/h.
 
 ![Die Emissionskurve eines Autos über der Geschwindigkeit](../backend/template/hintergrund/co2-kurve.svg)
 
 _Gramm CO₂ pro Kilometer über der mittleren Geschwindigkeit auf einer Kante. Der Anker liegt bei
 50 km/h, das Minimum bei 70 km/h, und unterhalb von 9,2 km/h hält der Deckel die Kurve bei 333,6 g._
 
-Zwei Folgen, die überraschen:
+Daraus folgt:
 
 - **Eine Tempo-30-Straße stößt pro Kilometer rund 13 % mehr aus als eine 50er, auch leer.** Das ist
   in jedem geschwindigkeitsabhängigen Modell so, und 34 der 82 Straßenkanten der ausgelieferten
-  Karte sind 30er-Zonen — es verschiebt also den Boden einer echten Runde.
+  Karte sind 30er-Zonen. Das hebt die Emissionen einer Runde schon ohne Stau an.
 - **Die Kosten hängen mit halbem Gewicht an derselben Kurve.** Die Hälfte der 0,32 €/km ist
-  Kraftstoff und Verschleiß im Stop-and-go und folgt dem Emissionsfaktor; die andere Hälfte —
-  Abschreibung, Versicherung, Steuer — fällt an, ob das Auto heute fährt oder nicht. Geld ist
-  deshalb bei 1,50× gedeckelt, wo CO₂ bei 2,00× gedeckelt ist.
+  Kraftstoff und Verschleiß im Stop-and-go und folgt dem Emissionsfaktor; die andere Hälfte
+  (Abschreibung, Versicherung, Steuer) fällt an, ob das Auto heute fährt oder nicht. Die Kosten sind
+  deshalb bei 1,50× gedeckelt, CO₂ bei 2,00×.
 
-Der ÖPNV liegt flach bei den Fahrzeugkilometern: 1.200 g für einen Bus, 1.500 g für einen Zug. Auf
-dieser Seite gibt es keine Geschwindigkeitskurve, weil das Fahrzeug nach Fahrplan fährt und nicht
+Beim ÖPNV gilt ein fester Wert pro Fahrzeugkilometer: 1.200 g für einen Bus, 1.500 g für einen Zug.
+Eine Geschwindigkeitskurve gibt es hier nicht, weil die Fahrzeuge nach Fahrplan fahren und nicht
 nach Verkehrslage.
 
 Neben den Kosten steht der **Fahrpreis**: 1,30 € pro Fahrt, Umstiege eingeschlossen, und beim Auto
-der Teil der Kosten, den man aus der eigenen Tasche zahlt. _Was du zahlst_ neben _was es kostet_ ist
-auf beiden Seiten derselbe Gegensatz, und der Abstand dazwischen ist beim ÖPNV die Subvention.
+der Teil der Kosten, den man aus der eigenen Tasche zahlt. Es gibt also einen Unterschied zwischen
+_was du zahlst_ und _was es kostet_, den man bei der Rundenauswertung benennen sollte.
 
-## Die Runde ist stochastisch, mit festem Seed
+## Zufälle gibt's
 
-Dieselben Entscheidungen zweimal ergeben nicht ganz dieselbe Zahl, und das sollen sie auch nicht.
-Jede Runde zieht aus einem Generator, der aus der Runde geseedet ist, also läuft eine Runde immer
-identisch nach — im Test, im Debugger oder nach einem Worker-Neustart.
+Dieselben Entscheidungen ergeben in zwei Runden nicht ganz dieselben Zahlen. Das ist gewollt. Jede
+Runde zieht ihre Zufallszahlen aus einem Generator, dessen Seed aus der Runde abgeleitet wird;
+dieselbe Runde lässt sich also jederzeit identisch nachspielen.
 
-Es gibt genau zwei Stellschrauben:
+Zufällig sind genau zwei Dinge:
 
 - **Die Kapazität einer Kante, einmal je Kante und Runde gezogen** (σ = 0,14, begrenzt auf
   0,6–1,4×). Nur sie sorgt dafür, dass sich Runde 2 von Runde 1 unterscheidet, weil sich Rauschen
   pro Fahrer über tausende Menschen herausmittelt.
 - **Die Wunschgeschwindigkeit, einmal je Fahrer gezogen** (σ = 0,12, begrenzt auf 0,7–1,4×), für die
   Streuung _innerhalb_ einer Runde. Auf einer mehrspurigen Straße ist die Schlange danach geordnet,
-  wann ein Fahrzeug bereit ist, und nicht streng nach dem Eintreffen — das ist Überholen, ohne einen
-  eigenen Mechanismus dafür.
+  wann ein Fahrzeug bereit ist, und nicht streng nach dem Eintreffen. So entsteht Überholen, ohne
+  dass es dafür einen eigenen Mechanismus braucht.
 
-Nirgends wird das _Ergebnis_ mit einer Zufallszahl multipliziert. Die Eingaben wackeln, und die
-Nichtlinearität des Modells nahe der Kapazität verstärkt das — deshalb hat die Streuung die richtige
-Form: rund 0,3 % Variationskoeffizient im freien Fluss, 16–18 % unter Last. Ein Stau ist
-unvorhersehbar, eine leere Straße nicht.
+Das _Ergebnis_ wird nie mit einer Zufallszahl multipliziert. Zufällig sind nur die Eingaben, und nahe
+der Kapazität verstärkt das Modell ihre Schwankungen. Im freien Fluss streut eine Runde deshalb kaum
+(Variationskoeffizient rund 0,3 %), unter Last deutlich (16–18 %). Wie im echten Verkehr ist eine
+leere Straße vorhersehbar und ein Stau nicht.
 
-Eine Einzelheit lohnt sich beim Lesen einer Verspätung: **Verspätung wird gegen die Freiflusszeit
-des Fahrers selbst gemessen.** Wer in einer 50er-Zone 45 gewählt hat, ist durch nichts verspätet.
+**Verspätung wird gegen die eigene Freiflusszeit des Fahrers gemessen.** Wer in einer 50er-Zone
+lieber 45 fährt, ist dadurch nicht verspätet.
 
 ## Einheiten
 
-Ein Agent — in der Oberfläche eine _Gruppe_ — steht für `people_per_agent` echte Pendler, und aus
-diesem Faktor stammen die meisten Einheitenfehler dieses Projekts. Zwei Regeln:
+Eine Gruppe (in der Forschung Agent genannt) steht für viele Pendler, und aus diesem Faktor stammen
+die meisten Einheitenfehler dieses Projekts. Zwei Regeln:
 
 - Eine CO₂- oder Euro-Zahl ist **extensiv**: Sie summiert über Gruppen und über die Menschen
   hinter jeder Gruppe. Pro Person heißt: durch beides teilen.
-- Die Fahrzeit ist es **nicht**. Eine Summe von Fahrzeiten ist keine Größe, die irgendwem gehört,
-  also ist eine mittlere Fahrzeit ein Mittel über die Fahrten der Gruppen und sonst nichts.
+- Eine Fahrzeit ist es **nicht**: Zwei Wege zu je 30 Minuten dauern zusammen nicht 60 Minuten.
+  Eine mittlere Fahrzeit ist deshalb ein Mittel über die Fahrten der Gruppen.
 
-Der Faktor selbst ist keine Einstellung, die jemand wählt. Siehe unten.
+Wie groß der Faktor, wird aus der Karte abgeleitet.
 
 ## Kalibrierung
 
-Die Physik war nicht der Teil, über den entschieden werden musste. 1.800 Fz/h und Spur und 133 Fz/km
-und Spur sind Messwerte, die jemand anders erhoben hat, und die Form der Emissionskurve folgt aus
-ihren zwei Ankerbedingungen. **Gewählt** werden musste alles, was sagt, wie groß die Welt ist: wie
-viele Menschen auf dieser Karte unterwegs sind, was eine Runde kosten darf und was ein Fahrzeug
-ausstößt.
+Die Verkehrsphysik oben gilt für jede Karte: 1.800 Fz/h und 133 Fz/km pro Spur sind Messwerte aus
+der Verkehrstechnik, und die Emissionskurve hängt an ihren zwei Ankerbedingungen. Was sich von Karte
+zu Karte ändert, ist die Größe der Welt: wie viele Menschen auf der Karte pendeln und wie viel CO₂
+eine Runde kosten darf. Beides muss für jede Karte gemessen werden. Liegen die Zahlen daneben,
+verliert das Spiel seinen Spass:
 
-Diese Entscheidungen sind die Kalibrierung, und die Methode war bei allen dieselbe.
+- **Zu viele Pendler**, und das Netz steht still, egal was gespielt wird. Berlin Mitte-West wurde
+  anfangs mit 1.000 Menschen pro Gruppe gespielt, bei voller Besetzung also mit 64.000 Autos. Das
+  Modell kam damit zurecht und meldete eine mittlere Fahrzeit von **298 Minuten für 7,66 km**.
+- **Zu wenige Pendler**, und es gibt keinen Stau, den man durch Umsteigen auflösen könnte.
+- **Ein zu knappes Budget** ist schon in der ersten Runde aufgebraucht, **ein zu großes** spielt
+  keine Rolle.
 
-### Die Methode
+Wie man die beiden Zahlen für eine Karte findet, steht in diesem Kapitel. Als Beispiel dient Berlin
+Mitte-West.
 
-Kein Play-Test. Eine fertige Runde lässt sich mit festem Seed unter dem Simulator nachspielen, ohne
-dass dabei etwas geschrieben wird. Ein Kandidatenwert wird also über die ausgelieferte Karte
-gefahren und als Folgen gelesen — mittlere Fahrzeit, mittlere Verspätung, CO₂ nach Modalsplit — und
-dann gegen etwas außerhalb des Spiels gehalten.
+### Zwei Zahlen pro Karte
 
-Wo es einen Anker draußen gibt, entscheidet er. Wo es keinen gibt, wird die Zahl danach gewählt, was
-sie mit einer Runde macht, und das wird ausgesprochen statt als Messung verkleidet.
+Jede Karte trägt:
 
-### Zwei Zahlen gehören zur Karte, nicht zum Code
+```
+district_commuters        Pendler, die die Karte trägt
+co2_budget_kg_per_round   CO₂-Budget pro Runde in kg
+calibrated                ob beide für diese Karte gemessen sind
+```
 
-`district_commuters` und `co2_budget_kg_per_round` stehen an der Karte, nicht in einer
-Konstantendatei. Beides sind Eigenschaften _dieses Graphen_: wie viel Verkehr seine Achsen tragen,
-und was eine spielbare Runde auf seinen Entfernungen und mit seinem Fahrplan kostet. Eine andere
-Stadt ist ein anderes Paar, und als Konstante im Code hätten die Messwerte eines Stadtteils eine
-Eigenschaft der Software festgeschrieben. Beide gehen mit dem JSON-Export der Karte mit und kommen
-beim Import zurück.
+Die Werte stehen in der JSON-Datei der Karte, lassen sich im Admin ändern und gehen beim Export mit.
+Eine neue Karte übernimmt 6.400 und 8.000 von Berlin Mitte-West, bis jemand für sie misst. Erst wenn
+`calibrated` gesetzt ist, verschwindet der Hinweis bei „Spiel anlegen“.
 
-Dazu steht an der Karte, ob die beiden für _sie_ gemessen sind. Jede neue Karte erbt die Werte von
-Berlin Mitte-West, und an den Zahlen allein ist nicht zu erkennen, ob sie gemessen oder nur geerbt
-sind — Berlin Mitte-West selbst hat genau diese. Solange der Haken fehlt, warnt „Spiel anlegen“,
-dass beide auf einer kleinen Karte zu hoch sind.
+Alles andere wird daraus abgeleitet:
 
-Für Berlin Mitte-West sind es **6.400 Pendler** und **8.000 kg pro Runde**.
+```
+Menschen pro Gruppe = Pendler / (Plätze × Gruppen pro Platz)
+CO₂-Budget          = CO₂-Budget pro Runde × Runden
+```
 
-### 6.400 ist, was der Graph verkraftet
+Wer mitspielt, **teilt** die Pendler der Karte unter den Gruppen auf; mehr Plätze erzeugen keine
+neuen. Eine Runde kostet deshalb gleich viel, egal wie viele mitspielen, und das Budget braucht
+keinen Term für die Plätze. Gemessen wird also einmal pro Karte und nicht für jede Spielerzahl neu.
 
-Nicht, was der Stadtteil hat — Berlin Mitte-West hat weit mehr Pendler. Aber der Graph abstrahiert
-den Stadtteil auf seine Hauptachsen, also ist die Zahl, die er tragen kann, die Zahl, die **diese
-Achsen** tragen.
+### Erst die Kartendaten prüfen
 
-Bei 6.400 und 100 % Autoanteil dauern 7,66 km Arbeitsweg 22,5 Minuten, 12,5 davon Verspätung
-gegen die eigene Freiflusszeit. Der Berufsverkehr in der Berliner Innenstadt läuft mit rund 24 km/h;
-das wären 19 Minuten für dieselbe Strecke. Das ist der Anker draußen: Die Zahl hängt an einer
-gemessenen Stadt, nicht am Spielgefühl, und das Modell liegt damit eher auf der staureichen Seite.
+Gemessen wird die Karte, wie sie in der Datei steht. Ist dort etwas kaputt, misst die Kalibrierung
+den Fehler mit. Vorher prüfen:
 
-Was sie ersetzt hat, ist es wert, genannt zu werden, weil es zeigt, wie unkalibriert aussieht.
-Ausgeliefert wurden 1.000 Menschen pro Gruppe, bei voller Besetzung also 64.000 Autos auf einer
-Karte mit 82 Straßenkanten. Das Modell hat es verkraftet — kein Gridlock, keine erzwungenen
-Freigaben, alle kamen an — und meldete eine **mittlere Fahrzeit von 298 Minuten für 7,66 km**. Fünf
-Stunden. Damit die Karte diesen Verkehr aufnehmen könnte, bräuchte sie ungefähr fünfmal so viele
-Spuren, und Berlin-Mitte ist kein zehnspuriges Raster. Das Modell war richtig, die Nachfrage nicht.
+- Jede Linie fährt ihre Strecke ohne Lücke.
+- Hin- und Rückrichtung einer Linie halten an denselben Haltestellen.
+- Busse haben 85 Plätze, Züge 1.000.
+- Jedes Paar aus Wohnort und Arbeitsplatz ist mit Bus und Bahn erreichbar.
 
-Stau bleibt so eine Folge von Entscheidungen statt einer Gewissheit, und genau darum herum ist das
-Spiel gebaut:
+Auf Berlin Mitte-West hatte eine Buslinie anfangs gar keine Kanten, eine andere riss in der Mitte,
+und jedes Fahrzeug hatte 60 Plätze. Sechs der 36 Paare hatten dadurch keine ÖPNV-Verbindung, und eine
+Runde ganz ohne Auto kostete fast doppelt so viel wie heute. Wie man das prüft, zeigt
+`backend/maps/tests/test_example_map.py` für die mitgelieferte Karte.
+
+### Mit Testrunden messen
+
+Gemessen wird mit Testrunden, nicht mit einem Play-Test. Ein Play-Test zeigt, wie sich ein Spiel
+anfühlt, aber nicht, wie viel Verkehr eine Karte trägt.
+
+1. Die Karte auf einer lokalen Instanz hochladen (`devops/dev.sh up`), nicht auf dem Server, auf dem
+   gespielt wird.
+2. Ein Spiel mit wenigen Plätzen anlegen. Kartenänderungen nicht zulassen, damit jede Runde auf der
+   Basisversion fährt, und das CO₂-Budget so hoch setzen, dass das Spiel nicht endet.
+3. Bei „Menschen pro Gruppe“ den Kandidaten eintragen: Pendler ÷ (Plätze × Gruppen pro Platz).
+4. Die Plätze an der Leitstelle anlegen und für jede Gruppe Verkehrsmittel und Weg selbst wählen.
+5. Nach jeder Runde CO₂ und mittlere Fahrzeit ablesen. Unter Last streut eine Runde um 16–18 %,
+   also mehrere Runden mit derselben Wahl spielen und mitteln.
+
+Wer programmiert, kann eine fertige Runde auch mit `TrafficSimulator` aus
+`backend/game/simulation.py` und festem Seed nachspielen und über beliebig viele Seeds mitteln.
+
+Weil sich der Maßstab aus der Platzzahl ergibt, reichen dafür wenige Plätze. Auf Berlin Mitte-West
+ergeben zwei Plätze fast dieselbe Runde wie sechzehn:
+
+| Plätze | Gruppen | Menschen/Gruppe |  CO₂ Auto | Fahrzeit | Verspätung |
+| -----: | ------: | --------------: | --------: | -------: | ---------: |
+|     16 |      64 |             100 | 10.194 kg | 22,5 min |   12,5 min |
+|      8 |      32 |             200 | 10.211 kg | 22,6 min |   12,6 min |
+|      4 |      16 |             400 |  9.857 kg | 21,0 min |   11,0 min |
+|      2 |       8 |             800 |  9.784 kg | 22,3 min |   12,5 min |
+
+![Dieselben 6.400 Pendler, verschieden aufgeteilt](../backend/template/hintergrund/massstab.svg)
+
+_Jede Zeile sind dieselben 6.400 Pendler, nur anders auf Gruppen verteilt. Die letzte Zeile hält
+die Gruppe bei 100 Menschen fest: Mit acht Plätzen ist dann nur der halbe Stadtteil unterwegs._
+
+CO₂ stimmt auf gut 4 %, die Verspätung auf anderthalb Minuten. Hält man die Gruppe dagegen bei einer
+festen Zahl von Menschen, wird ein halb besetztes Spiel zu einem anderen Spiel: 1,0 Minuten
+Verspätung statt 12,5 und nur 42 % des CO₂.
+
+### Die Pendlerzahl
+
+Die Pendlerzahl soll so gewählt sein, dass ein Morgen, an dem alle Auto fahren, ungefähr so lange
+dauert wie der Berufsverkehr in der echten Stadt.
+
+1. Die mittlere Länge eines Arbeitswegs auf der Karte bestimmen. Auf Berlin Mitte-West sind es
+   7,66 km.
+2. Nachschlagen, wie schnell der Berufsverkehr in der abgebildeten Stadt fließt. In der Berliner
+   Innenstadt sind es rund 24 km/h, für 7,66 km also 19 Minuten.
+3. Testrunden spielen, in denen alle Auto fahren, und die Pendlerzahl anpassen, bis die mittlere
+   Fahrzeit in dieser Gegend liegt.
+
+Das Ergebnis ist nicht die echte Pendlerzahl des Stadtteils, die ist viel höher. Der Graph bildet
+aber nur die Hauptachsen ab, und gesucht ist, wie viel Verkehr **diese Achsen** tragen. Für Berlin
+Mitte-West sind es **6.400 Pendler**: Fahren alle Auto, dauern 7,66 km dann 22,5 Minuten, 12,5 davon
+Verspätung. Das Modell liegt damit etwas über der echten Stadt.
+
+Danach prüfen, ob der Stau von den Entscheidungen abhängt. Darum geht es im Spiel. Dafür Runden mit
+weniger Autos spielen, etwa mit drei Vierteln, der Hälfte und einem Viertel:
 
 | Autoanteil | Runde gesamt |      Auto | Fahrplan | Fahrzeit Auto | Verspätung |
 | ---------: | -----------: | --------: | -------: | ------------: | ---------: |
@@ -303,72 +352,37 @@ _Jeder Balken ist eine Runde: Auto in Blau, der Fahrplan in Gelb. Der Fahrplan f
 wird nur etwas teurer, wenn mehr Leute einsteigen; das Auto bestimmt, wie lang der Balken wird. Die
 Linie ist das Budget von 8.000 kg pro Runde._
 
-Steigt die Hälfte um, ist der Stau vollständig weg. Das ist physikalisch richtig — Stau ist ein
-Schwellenphänomen dicht an der Kapazität und kein Verlauf — und es ist der Punkt der Übung.
+Auf Berlin Mitte-West ist der Stau weg, wenn die Hälfte umsteigt. Stau ist ein Schwellenphänomen
+dicht an der Kapazität: Knapp darunter fließt der Verkehr, knapp darüber staut er. Bleibt der Stau
+auch bei halbem Autoanteil, ist die Pendlerzahl zu hoch. Staut es schon dann kaum, wenn alle Auto
+fahren, ist sie zu niedrig.
 
-Wer Bus und Bahn nimmt, braucht dafür 33 bis 44 Minuten, und länger, je mehr einsteigen wollen: Die
-Wartezeit an der Haltestelle wächst von 9 auf 22 Minuten, weil die Fahrzeuge voll sind. Fahren auf
-denselben Wegen nur ein Viertel so viele Menschen, bleibt sie bei 8 Minuten. Der volle Bus ist der
-Stau des ÖPNV.
+Beim ÖPNV zeigt sich zu viel Nachfrage als Wartezeit. Auf Berlin Mitte-West brauchen Bus und Bahn 33
+bis 44 Minuten, und die Wartezeit an der Haltestelle wächst von 9 auf 22 Minuten, je mehr Leute
+umsteigen, weil die Fahrzeuge voll sind.
 
-Gemessen auf der ausgelieferten Karte, Basisversion, mit den Routen, die der Router des Spiels
-liefert: 64 Gruppen zu je 100 Menschen, gleichmäßig über die 36 Paare aus Wohnort und Arbeitsplatz
-verteilt, wer nicht Auto fährt, fährt Bus und Bahn, gemittelt über sechs Seeds. Die Streuung
-zwischen den Seeds liegt unter 2 %.
+Die Tabelle ist auf der Basisversion von Berlin Mitte-West gemessen: 64 Gruppen zu je 100 Menschen,
+gleichmäßig über die 36 Paare aus Wohnort und Arbeitsplatz verteilt, wer nicht Auto fährt, fährt Bus
+und Bahn, gemittelt über sechs Seeds. Die Streuung zwischen den Seeds liegt unter 2 %.
 
-### Der Maßstab wird abgeleitet, nicht gewählt
+### Das Budget
 
-```
-Menschen pro Gruppe = Pendler des Stadtteils / (Plätze × Gruppen pro Platz)
-```
+Für das Budget zwei Spiele über die geplante Rundenzahl messen: eines, in dem niemand aus dem Auto
+steigt, und eines, das sich herunterarbeitet, zum Beispiel mit 100 / 75 / 50 / 50 / 25 / 25 %
+Autoanteil. Das Budget muss zwischen beiden liegen: Das erste Spiel soll es sprengen, das zweite
+damit auskommen. Nach unten begrenzt es der Fahrplan, der auch fährt, wenn niemand einsteigt, auf Berlin
+Mitte-West 2.864 kg pro Runde. Die Zahl sollte rund sein, damit alle sie im Kopf behalten.
 
-Eine Karte bildet einen Ort ab, und ein Ort hat eine Zahl von Pendlern. Wer mitspielt, **teilt**
-diese Pendler unter den Gruppen auf; mehr Plätze erzeugen keine neuen. Hält man den Stadtteil
-konstant, während die Platzzahl sich ändert, bleibt die Runde dieselbe Runde:
+Auf Berlin Mitte-West kostet das erste Spiel über sechs Runden 78.354 kg, das zweite 48.001 kg. Die
+eingetragenen 8.000 kg pro Runde, 48.000 für sechs, liegen genau am Rand: Wer durchgehend fährt, ist
+in Runde 4 raus, und wer sich verbessert, landet auf das Kilogramm genau auf dem Budget. Mit
+9.000 kg pro Runde wäre durchgehend Fahren erst in Runde 5 vorbei, und wer umsteigt, behielte rund
+sechs Tonnen. Welche Zahl bleibt, soll der nächste Play-Test zeigen.
 
-| Plätze | Gruppen | Menschen/Gruppe |  CO₂ Auto | Fahrzeit | Verspätung |
-| -----: | ------: | --------------: | --------: | -------: | ---------: |
-|     16 |      64 |             100 | 10.194 kg | 22,5 min |   12,5 min |
-|      8 |      32 |             200 | 10.211 kg | 22,6 min |   12,6 min |
-|      4 |      16 |             400 |  9.857 kg | 21,0 min |   11,0 min |
-|      2 |       8 |             800 |  9.784 kg | 22,3 min |   12,5 min |
+### Emissionsfaktoren nachrechnen
 
-![Dieselben 6.400 Pendler, verschieden aufgeteilt](../backend/template/hintergrund/massstab.svg)
-
-_Jede Zeile sind dieselben 6.400 Pendler, nur anders auf Gruppen verteilt. Die letzte Zeile nagelt
-die Gruppe auf 100 Menschen fest: Mit acht Plätzen ist dann nur der halbe Stadtteil unterwegs._
-
-CO₂ auf gut 4 % genau, Verspätung auf anderthalb Minuten. Nagelt man `people_per_agent` stattdessen
-auf eine feste Zahl, sieht ein halb besetztes Spiel auf derselben Karte **1,0 Minuten Verspätung
-statt 12,5** und stößt 42 % des CO₂ aus — ein anderes Spiel, je nachdem, wie viele gekommen sind.
-
-### Das Budget gilt pro Runde
-
-Weil die Nachfrage konstant ist, kostet eine Runde, was sie kostet, egal wie viele mitspielen. Das
-Budget braucht deshalb gar keinen Term für die Gruppengröße:
-
-```
-CO₂-Budget = CO₂-Budget der Karte pro Runde × Runden
-```
-
-Über sechs Runden kostet ein Spiel, in dem niemand aus dem Auto steigt, 78.354 kg; eines, das sich
-herunterarbeitet — 100 / 75 / 50 / 50 / 25 / 25 % Autoanteil — 48.001 kg. Ein Budget muss zwischen
-diesen beiden liegen, sonst ist es keins.
-
-8.000 kg pro Runde, 48.000 für sechs, war die rundeste Zahl innerhalb dieser Spanne, gemessen auf
-der Karte vor ihrer Reparatur: Wer durchgehend fuhr, war in Runde 5 raus, und wer sich verbesserte,
-kam mit etwa sieben Tonnen Rest durch. Auf der reparierten Karte liegt sie am unteren Rand der
-Spanne. Wer durchgehend fährt, ist schon in Runde 4 raus, und wer sich verbessert, landet auf das
-Kilogramm genau auf dem Budget.
-
-Mit 9.000 kg pro Runde wäre die alte Geschichte wieder da: Durchgehend fahren endet in Runde 5, und
-wer umsteigt, behält rund sechs Tonnen. Rund muss die Zahl bleiben, weil alle sie im Kopf behalten
-können müssen. Welche es wird, entscheidet der nächste Play-Test auf dieser Karte.
-
-### Die Emissionsfaktoren, und einer, der falsch war
-
-Jeder Faktor gilt pro Fahrzeugkilometer, und jeder muss nachprüfbar sein für alle, die ihn
-nachprüfen wollen:
+Die Emissionsfaktoren gelten für alle Karten und stehen in `backend/sim/constants.py`. Jeder gilt
+pro Fahrzeugkilometer und muss sich nachrechnen lassen:
 
 | Modus | Faktor         | woher er kommt                                                   |
 | ----- | -------------- | ---------------------------------------------------------------- |
@@ -376,85 +390,49 @@ nachprüfen wollen:
 | Bus   | 1.200 g/Bus-km | ein 12-m-Stadtbus mit ~45 l/100 km Diesel × 2,64 kg CO₂ je Liter |
 | Zug   | 1.500 g/Zug-km | ~4 kWh/Zug-km mit Nebenverbrauchern × 363 g CO₂/kWh (UBA 2024)   |
 
-Der Zugfaktor ist der, den man erzählen sollte, weil er zeigt, wofür Kalibrierung da ist.
-Ausgeliefert wurde er mit **3.500 g/Zug-km**, und im Spiel sah nichts kaputt aus. 3.500 entsprechen
-aber rund 9,6 kWh pro Zugkilometer, und das ist ein dieselgeführter Fernzug — eine Berliner U- oder
-S-Bahn braucht etwa 4, und der deutsche Strommix macht daraus 1.450, gerundet 1.500.
+Nachgerechnet wird über den Verbrauch: Energie pro Fahrzeugkilometer mal CO₂ pro Energieeinheit. So
+fiel der Zugfaktor auf, der anfangs bei 3.500 g/Zug-km stand. Das entspricht rund 9,6 kWh pro
+Zugkilometer, also einem dieselgeführten Fernzug. Eine Berliner U- oder S-Bahn braucht etwa 4 kWh,
+mit dem deutschen Strommix sind das 1.450 g, gerundet 1.500.
 
-Es fiel weit stärker ins Gewicht als seine Größe vermuten lässt, weil der Fahrplan fährt, ob jemand
-mitfährt oder nicht. Auf einer Karte mit sechs Zuglinien war diese eine Zahl **39 % einer
-100-%-Auto-Runde**; bei 1.500 sind es 22 %. Vorher bestimmte der Fahrplan fast vier Zehntel jeder
-Runde, ohne dass jemand am Tisch daran etwas ändern konnte. Jetzt liegen 78 % einer Runde in der
-Hand derer, die spielen.
+Ein falscher ÖPNV-Faktor wiegt schwer, weil der Fahrplan auch fährt, wenn niemand einsteigt. Bei 3.500 g
+machte der Fahrplan 39 % einer Runde aus, in der alle Auto fahren; bei 1.500 g sind es 22 %. An
+diesem Anteil kann beim Spielen niemand etwas ändern.
 
-In dieser einen Zahl stecken zwei Entscheidungen, und bei beiden geht es um Verteidigbarkeit, nicht
-um Genauigkeit:
+Zwei Regeln:
 
-- **Der Strommix, nicht der Ökostromtarif des Betreibers.** Das ist die konservative Zahl und die,
-  die jeder nachschlagen kann.
-- **Der CO₂-Faktor wurde korrigiert und die Kosten blieben unangetastet.** Sie stammen aus
-  verschiedenen Quellen. Den einen dem anderen nachzuziehen ist genau der Weg, auf dem zwei Metriken
-  aufhören, sich darüber einig zu sein, welcher Modus teuer ist.
+- **Den Strommix nehmen, nicht den Ökostromtarif des Betreibers.** Das ist die vorsichtige Zahl,
+  und jeder kann sie nachschlagen.
+- **CO₂ und Kosten getrennt korrigieren.** Sie kommen aus verschiedenen Quellen. Zieht man die
+  Kosten einem korrigierten CO₂-Faktor nach, sind sich die beiden Kennzahlen bald nicht mehr einig,
+  welches Verkehrsmittel teuer ist.
 
-### Die Streuung ist auf eine Form kalibriert, nicht auf einen Literaturwert
+### Die Streuung bleibt
 
-σ = 0,14 auf der Kantenkapazität ist über zwanzig Seeds gefahren worden: 0,10 ergibt 12,7 % Streuung
-unter Last, 0,18 ergibt 22,1 %, und 0,14 landet auf den 16–18 %, auf die das Modell zielt.
+Die Zufallsstreuung der Kantenkapazität (σ = 0,14) ist für alle Karten gleich und wird für eine neue
+Karte nicht nachgestellt. Sie wurde über zwanzig Seeds auf 16–18 % Streuung unter Last eingestellt:
+0,10 ergibt 12,7 %, 0,18 ergibt 22,1 %.
 
-Die Verkehrsliteratur läge eher bei 25 %. Das wird **bewusst nicht benutzt.** Mehr als die Hälfte
-des realen Staus sind Störfälle und Wetter, und davon steckt nichts in diesem Modell. Die
-Kapazitätsstreuung aufzublasen, um das abzudecken, hieße, eine realistisch aussehende Zahl aus dem
-falschen Grund auf den Bildschirm zu schreiben — und das Modell wäre nicht mehr mit dem erklärbar,
-was darin steht.
+Die Verkehrsliteratur nennt eher 25 %. Mehr als die Hälfte des echten Staus kommt aber von Unfällen
+und Wetter, und davon steckt nichts im Modell. Würde man die Kapazitätsstreuung aufblasen, um das
+abzudecken, stünde eine realistisch aussehende Zahl aus dem falschen Grund auf dem Bildschirm.
 
-Wo ein Mechanismus fehlt, ist der ehrliche Zug, die Lücke zu benennen, und nicht, an einem Parameter
-zu drehen, bis das Ergebnis der Wirklichkeit ähnelt. Aus demselben Grund ist Überholen auf
-mehrspurigen Straßen eine Ordnung in der Warteschlange und kein kleineres σ: Die Streuung zu
-verkleinern hätte den fehlenden Mechanismus versteckt, statt ihn zu bauen.
+Allgemein gilt: Fehlt dem Modell ein Mechanismus, wird die Lücke benannt und nicht an einem
+Parameter gedreht, bis das Ergebnis passt. Aus demselben Grund ist Überholen auf mehrspurigen
+Straßen eine Ordnung in der Warteschlange und kein kleineres σ.
 
-### Was Kalibrierung nicht repariert: die Kartendaten
+### Wann neu gemessen werden muss
 
-Der erste Kalibrierungsdurchgang wurde auf einer Karte gemessen, deren Daten kaputt waren. Eine
-Buslinie hatte **gar keine Kanten** — vier Haltestellen auf dem Plan und kein Fahrzeug, das sie
-erreicht. Eine andere riss in der Mitte und wurde mit Gesellschafts-CO₂ für Kilometer belastet, die
-ihre Fahrzeuge nie fahren konnten. Jedes Fahrzeug beider Modi hatte 60 Plätze, also zwangen 6.400
-Menschen eine 60-Plätze-U-Bahn zu Fahrt um Fahrt.
+Die beiden Zahlen gelten für eine Karte und ein Modell. Neu messen, wenn
 
-Die Folge war, dass sechs der 36 Wohnort-Arbeitsplatz-Paare überhaupt keine ÖPNV-Verbindung hatten.
-Wer aus dem Auto wollte, konnte es nicht, und elf von 64 Gruppen fuhren Auto, was auch immer
-entschieden wurde — 1.313 kg, die niemand vermeiden konnte. Die Zahlen waren
-korrekt gerechnet, auf einer Karte, die nicht beschrieb, was auf dem Bildschirm stand.
+- sich die Kapazität der Karte ändert: neue Straßen, andere Spuren, neue Linien;
+- sich die Nachfrage im Modell ändert. Die Abfahrten streuen heute mit σ = 10 Minuten um die
+  Abfahrtsstunde, viel enger als echter Berufsverkehr. Verteilen sie sich breiter, tragen dieselben
+  Achsen mehr Pendler;
+- der Abendverkehr dazukommt. Heute teilen sich beide Richtungen einer Straße eine Warteschlange.
+  Das geht nur, solange alle morgens zur Arbeit fahren, und muss vorher getrennt werden;
+- sich ein Emissionsfaktor ändert. Dann verschiebt sich das Budget.
 
-Die Reparatur der Daten änderte auf der Autoseite **nichts**: 10.103 → 10.150 kg bei 100 % Auto,
-innerhalb der 1,4 % Streuung von sechs Seeds, bei gleicher Fahrzeit und gleicher Verspätung. Sie
-änderte den Lohn fürs Umsteigen vollständig — eine Runde ohne ein einziges Auto kostet jetzt 3.191
-kg, wo sie 5.936 kg gekostet hat.
-
-Also: die Daten vor den Konstanten prüfen. Eine Kartendatei ist Produktionsdaten und verdient
-dasselbe Misstrauen wie Code.
-
-### Nachrechnen
-
-Runden auf der betreffenden Karte mit festen Seeds nachspielen und lesen, was ein Kandidat tut.
-Nicht an den Werten drehen, bis sich ein Play-Test gut anfühlt — das passt das Modell an einen
-Nachmittag an.
-
-- `backend/game/calibration.py` — die Herleitung und jeder Messwert hinter den ausgelieferten
-  Vorgabewerten.
-- `docs/kalibrierung.md` — dieselbe Aufzeichnung, mit den vollständigen Vorher-Nachher-Tabellen.
-- `backend/game/tests/test_join.py` — wofür jede Zahl da ist, als Testfall festgehalten.
-
-### Was nicht kalibriert ist
-
-- **Jede neue Karte startet bei 6.400 und 8.000.** Das sind die Zahlen von Berlin Mitte-West. Für
-  eine kleinere Karte sind beide zu hoch; „Spiel anlegen“ warnt davor, solange an der Karte nicht
-  steht, dass sie für sie gemessen sind.
-- **Das Budget ist auf der reparierten Karte nicht neu gewählt.** Es liegt am Rand seiner Spanne
-  (siehe oben), und 9.000 kg pro Runde wären der Vorschlag, den der nächste Play-Test prüft.
-- **Die Abfahrten werden mit σ = 10 Minuten** um die Abfahrtsstunde gezogen, praktisch alle fahren
-  also innerhalb von zwanzig Minuten los. Ein echter Berufsverkehr verteilt sich über eine Stunde
-  und mehr; bei σ = 45 sinkt die Verspätung einer 100-%-Auto-Runde von 56,9 auf 16,5 Minuten. Das
-  ist eine Modellfrage und keine Kalibrierungsfrage, und sie bleibt bewusst offen.
-- **Der Abendverkehr wird nicht simuliert**, und beide Richtungen einer Straße teilen sich eine
-  Warteschlange. Harmlos, solange alle morgens zur Arbeit fahren; falsch an dem Tag, an dem der
-  Rückweg dazukommt.
+Danach beide Zahlen in die Kartendatei oder in den Admin eintragen, `calibrated` setzen und die
+Karte exportieren, damit die Messung mit der Datei mitgeht. Die Messungen für Berlin Mitte-West
+stehen mit allen Tabellen in `docs/kalibrierung.md` und `backend/game/calibration.py`.

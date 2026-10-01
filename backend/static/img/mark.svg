@@ -10,7 +10,8 @@
     line, which is what the game is made of.
 
     Cropped to the C's outer edges. The lockup sizes it to run from the top of
-    the O to the foot of the subscript 2. Referenced as `<use href="/static/img/mark.svg#mark">` by
+    the O to the O's own baseline — the subscript 2 hangs its foot below that
+    on its own. Referenced as `<use href="/static/img/mark.svg#mark">` by
     both halves; the viewBox above is repeated there and
     `frontend/tests/design/lockup.test.ts` keeps them equal.
   -->

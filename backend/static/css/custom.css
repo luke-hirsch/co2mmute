@@ -484,19 +484,23 @@
       @apply font-medium text-primary-600 underline decoration-primary-600/30 underline-offset-4 hover:decoration-primary-600 dark:text-primary-300 dark:decoration-primary-300/30;
     }
 
-    /* a notice on a platform, as on the landing page: amber with ink on it in
-       both themes, so everything inside takes the ink rather than its own */
+    /* a notice on a platform, as on the landing page: amber with ink on it, so
+       everything inside takes the ink rather than its own. Light theme only —
+       on the dark ground a filled amber block glared and was barely readable
+       (Lukas, 2026-10-01), so there it is an amber bar beside light text, the
+       way a form marks a refusal */
     & blockquote {
       @apply mt-6 flex max-w-(--measure-body) gap-3 rounded-md bg-accent px-4 py-3 text-sm/6 font-medium text-darkbody;
+      @apply dark:rounded-none dark:border-l-[3px] dark:border-accent dark:bg-transparent dark:py-1 dark:pr-0 dark:pl-4 dark:text-darktext;
       & > svg {
         @apply mt-0.5 size-5 shrink-0;
       }
       & p {
-        @apply mt-0 max-w-none text-sm/6 text-darkbody;
+        @apply mt-0 max-w-none text-sm/6 text-darkbody dark:text-darktext;
       }
       & strong,
       & code {
-        @apply bg-transparent p-0 text-darkbody;
+        @apply bg-transparent p-0 text-darkbody dark:text-darktext;
       }
     }
 

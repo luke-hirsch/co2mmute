@@ -4,19 +4,52 @@ CO2MMUTE is a multiplayer game. It lets groups discover, how their daily commute
 
 ## How to Play
 
+This game is a roundbased traffic simulation game. Each game has one game host and can have multiple players. You can play this game over the network or local on one machine. To play this game you have multiple options. You can either visit the official [site](https://co2mmute.stsds.tu-berlin.de/) or you can [install](#how-to-set-up-the-game-on-your-computerserver) the game on you computer or server.
+
 ### Singing Up
+
+Lets say you have the landingpage of the game open in your browser (this is true for the official website as well as your own installation). To create a game, you need to sign up. Fear not, only the game host needs an account. The players don't have to sign up.
+
+Data we need for signup:
+
+- _username_: we don't care how you call yourself, but this is the name you type in for the login. So make it memorable if you don't use a password manager.
+- _email_: we will not use your email. This is a pure security feature for you. To reset passwords we just need some kind of way to contact you. That's all. No notification and definitely no marketing. If you really dont like us to have that email, you can use notyour@email.com or any other made up email. But please don't come crying, if you can't reset your password then.
+- _password_: In really don't know, if this needs an explanation. But in case it does: Your password should be strong. That means, it should be at least 8 characters long, contain at least one uppercase letter, one lowercase letter. Throw in s special character OOOOOORRRR just use a freaking password manager that will take care of that for you.
 
 ### Create A Session
 
-### Invite Players
+Now that you have an account you can create games. Super. Lets go through each field of the create game form:
+
+#### Basics
+
+- name: the name of the game. If you plan to host multiple sessions, we would advise you to use a descriptive name. E.g. as a teacher playing it multiple classes i would jsut use the class name as the game name. Anthing other than that is pure madness.
+- lobby password: now the internet has become a dangerous place. If you intent on playing over the internet, you should set a lobby password. Depending on the intelekt of the people you want to play with you will have to way security with easy to type.
+- map select: choose which map you want to play on. Hopefully the selection of maps will grow over time.
+- map changes toggle: Maps can have multiple version like versions with short cuts for cars, or additional bus lines. During the game, players will have to vote on those changes. If you dont like that, deselct this and play only with the base version of the map.
+
+#### How Many WHAT?!?
+
+- seats: how many players you want to allow? It doesn't matter if local or over the internet, you can't have more players than this.
+- groups per person: the amount of groups the player have to manage.
+-
 
 #### Remote
 
 #### Local
 
-### Controlling the Lobby
+### Controlling The Lobby
 
 ### Hosting The Game
+
+#### Choosing transportation
+
+#### Evaluating The Round
+
+#### Discuss Changes
+
+#### Vote
+
+#### Do It Again
 
 ### Finishing Up
 
