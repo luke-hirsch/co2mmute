@@ -1822,6 +1822,40 @@ class RoundCompletedScaleTests(SimulatedRoundMixin, TestCase):
             delta=stats["Bruno"]["co2_g_per_person"] * 0.2,
         )
 
+    def test_the_time_column_is_the_round_trip(self):
+        """Anna's Gruppe drives there and back, Bruno's only there.
+
+        Time is per round trip, so her figure is both ways — about twice his —
+        and it is still a mean over her Gruppen, not a sum, which the test
+        above holds. The way home reuses the street (a one-way ring does), so
+        the two trips are comparable.
+        """
+        from game.models import AgentRoute, RouteSegment
+
+        move = PlayerMove.objects.get(session_round=self.round, player=self.player)
+        with muted():
+            route = AgentRoute.objects.create(
+                player_move=move,
+                agent_id=1,
+                direction="home",
+                transport_mode="car",
+                total_distance_m=2000,
+                estimated_time_min=3,
+            )
+            RouteSegment.objects.create(
+                agent_route=route, order=1, edge=self.edge, mode="car"
+            )
+
+        stats = {s["player_name"]: s for s in self.complete_round().data(
+            "round.completed"
+        )["player_stats"]}
+
+        self.assertEqual((stats["Anna"]["agent_count"], stats["Bruno"]["agent_count"]),
+                         (1, 1))
+        self.assertAlmostEqual(
+            stats["Anna"]["time_min"] / stats["Bruno"]["time_min"], 2.0, delta=0.4
+        )
+
     def test_a_round_with_no_lines_on_the_map_reports_no_network_cost(self):
         """The control for the class below: this map is one street, so the
         timetable figures must be exactly zero rather than absent."""
@@ -2038,3 +2072,149 @@ class SummaryUnriddenFigureTests(SimulatedRoundMixin, TestCase):
         self.assertIs(rounds[1]["simulation_used"], False)
         self.assertEqual(rounds[1]["unridden_co2_kg"], 0.0)
         self.assertEqual(rounds[1]["unridden_cost_eur"], 0.0)
+
+
+@override_settings(**TEST_BACKENDS)
+class WayHomeSubmitTests(RoundFixtureMixin, TestCase):
+    """A turn is a round trip: the way home comes with the way to work.
+
+    It is a route of its own, found on the directed graph — a one-way street has
+    no reverse edge — so the server stores it as it is sent and validates it by
+    the same rules as the way to work, from the destination back to the door.
+    """
+
+    def setUp(self):
+        from maps.models import Edge, GameMap, MapVersion, Node, StreetEdge
+
+        super().setUp()
+        game_map = GameMap.objects.create(name="Pendeln", x_dim=10, y_dim=10)
+        version = MapVersion.objects.create(
+            game_map=game_map, name="Base", base_version=True
+        )
+        self.home = Node.objects.create(game_map=game_map, x_position=0, y_position=0)
+        self.work = Node.objects.create(game_map=game_map, x_position=3, y_position=0)
+        for node in (self.home, self.work):
+            node.map_versions.add(version)
+
+        def street(start, end):
+            edge = Edge.objects.create(game_map=game_map, start_node=start, end_node=end)
+            edge.map_versions.add(version)
+            StreetEdge.objects.create(edge=edge, speed_limit=50, lanes=1).map_versions.add(
+                version
+            )
+            return edge
+
+        self.there = street(self.home, self.work)
+        self.back = street(self.work, self.home)
+        self.player.agent_assignments = {
+            "home_node": self.home.pk,
+            "agents": [{"id": 1, "destination_node": self.work.pk}],
+        }
+        self.player.save()
+
+        self.client.cookies[f"{settings.COOKIE_GAME_PREFIX}{self.game.game_id}"] = (
+            sign_value(f"{self.game.game_id}:test-token", settings.COOKIE_GAME_SALT)
+        )
+        self.client.cookies[f"{settings.COOKIE_PLAYER_PREFIX}{self.game.game_id}"] = (
+            sign_value(
+                f"{self.game.game_id}:{self.player.player_id}",
+                settings.COOKIE_PLAYER_SALT,
+            )
+        )
+
+    def leg(self, edge, start, end):
+        return {
+            "total_distance_m": 300.0,
+            "estimated_time_min": 1.0,
+            "segments": [
+                {
+                    "edge_id": edge.pk,
+                    "start_node": start.pk,
+                    "end_node": end.pk,
+                    "mode": "car",
+                }
+            ],
+        }
+
+    def post(self, **agent):
+        body = {
+            "id": 1,
+            "transport_mode": "car",
+            "route": self.leg(self.there, self.home, self.work),
+        }
+        body.update(agent)
+        with muted():
+            return self.client.post(
+                f"/api/game/{self.game.game_id}/player/{self.player.player_id}/move/",
+                {"action": "route_submission", "payload": {"agents": [body]}},
+                content_type="application/json",
+            )
+
+    def test_a_turn_without_a_way_home_is_refused(self):
+        response = self.post()
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("return_route", response.json()["details"]["agents"][0])
+        self.assertFalse(PlayerMove.objects.exists())
+
+    def test_both_ways_are_stored_as_routes_of_one_agent(self):
+        from game.models import AgentRoute
+
+        response = self.post(return_route=self.leg(self.back, self.work, self.home))
+
+        self.assertEqual(response.status_code, 200, response.content)
+        routes = AgentRoute.objects.order_by("direction")
+        self.assertEqual(
+            [(r.direction, r.agent_id, r.transport_mode) for r in routes],
+            [("home", 1, "car"), ("out", 1, "car")],
+        )
+        home = AgentRoute.objects.get(direction="home")
+        self.assertEqual([s.edge_id for s in home.segments.all()], [self.back.pk])
+
+    def test_submitting_again_replaces_both(self):
+        from game.models import AgentRoute
+
+        self.post(return_route=self.leg(self.back, self.work, self.home))
+        self.post(return_route=self.leg(self.back, self.work, self.home))
+
+        self.assertEqual(AgentRoute.objects.count(), 2)
+
+    def test_a_way_home_that_ends_somewhere_else_is_refused(self):
+        response = self.post(return_route=self.leg(self.there, self.home, self.work))
+
+        self.assertEqual(response.status_code, 400)
+        errors = response.json()["error"]
+        self.assertTrue(
+            any("way home" in e and "must start from destination" in e for e in errors),
+            msg=errors,
+        )
+        self.assertTrue(
+            any("way home" in e and "must end at home node" in e for e in errors),
+            msg=errors,
+        )
+
+    def test_a_one_way_street_cannot_be_driven_the_wrong_way(self):
+        """The way home over the way-there edge, travelled backwards.
+
+        The graph is directed. The client's router never does this, but the
+        server used to accept an edge in either direction for every mode, which
+        put the car on the other direction's queue.
+        """
+        response = self.post(return_route=self.leg(self.there, self.work, self.home))
+
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(
+            any("does not lead from node" in e for e in response.json()["error"]),
+            msg=response.json(),
+        )
+
+    def test_a_way_home_over_a_street_closed_to_cars_is_refused(self):
+        """The same permission rules as the way there, not a lighter set."""
+        street = self.back.streetedge_set.first()
+        street.dedicated_bus_lane = True
+        street.save()
+
+        response = self.post(return_route=self.leg(self.back, self.work, self.home))
+
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(any("way home" in e for e in response.json()["error"]))

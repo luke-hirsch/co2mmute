@@ -468,6 +468,13 @@ export async function dijkstra(
  */
 export const TOO_FAR = "too-far";
 
+/**
+ * Found a way to work and none back. A refusal of its own, because it needs its
+ * own sentence: the graph is directed, so a one-way street can make the
+ * destination a place you can reach and not leave.
+ */
+export const NO_WAY_HOME = "no-way-home";
+
 export async function findPath(
   graph: MapGraph,
   startNodeId: number,

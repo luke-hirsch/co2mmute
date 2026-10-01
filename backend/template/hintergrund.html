@@ -165,6 +165,23 @@ Speicherkapazität  S  = 133 Fahrzeuge/km je Autospur × Länge</pre>
             Rad nie, auch nicht von einer vollen Straße.</li>
             <li><strong>Fußgänger</strong> stehen ganz außerhalb des Warteschlangenmodells.</li>
           </ul>
+          <h3>Hin und zurück</h3>
+          <p>Ein Pendelweg besteht aus Hin- und Rückweg, und eine Runde rechnet beide. Der Rückweg ist
+          keine Umkehrung des Hinwegs, sondern eine eigene Suche auf dem Graphen, mit demselben
+          Verkehrsmittel und derselben Wahl: Der Graph ist gerichtet, eine Einbahnstraße ist eine
+          Kante ohne Gegenkante, und der Weg zurück kann dann ein anderer sein, im Extremfall ein
+          Kreis. Auf Berlin Mitte-West hat jede Kante ihre Gegenkante, dort ist der Rückweg derselbe
+          Weg andersherum. Gibt es keinen Weg zurück, lässt sich der Weg hin nicht abschicken.</p>
+          <p>Zwischen den beiden Spitzen liegen Stunden. Der Abend ist deshalb ein zweiter Durchlauf auf
+          einem frischen Netz und kein zweiter Teil derselben Uhr. Auf einer Uhr würden die Linien den
+          ganzen Tag weiterfahren, weil die Leute vom Abend schon in der Liste warten, und die
+          Gesellschaft würde CO<sub>2</sub> für Busse zahlen, die niemand besteigen kann. So fährt der
+          Fahrplan zweimal, und beide Fahrpläne zählen. CO<sub>2</sub> und Kosten einer Gruppe sind die
+          Summe beider Wege, ihre Fahrzeit ist die für Hin- und Rückweg zusammen, gemittelt über die
+          Gruppen. Weil in einer Runde damit alles zweimal anfällt, ist das Budget pro Runde doppelt so
+          groß wie für einen Weg.</p>
+          <p>Der Abend ist heute ein Abbild des Morgens, mit derselben Streuung der Abfahrten. Die
+          Wiedergabe zeigt nur den Hinweg.</p>
         </section>
         <section id="fahrplan" data-station>
           <h2>Der ÖPNV fährt einen Fahrplan</h2>
@@ -279,9 +296,9 @@ Speicherkapazität  S  = 133 Fahrzeuge/km je Autospur × Länge</pre>
             <li>Eine CO<sub>2</sub>- oder Euro-Zahl ist <strong>extensiv</strong>: Sie summiert über
             Gruppen und über die Menschen hinter jeder Gruppe. Pro Person heißt: durch beides
             teilen.</li>
-            <li>Eine Fahrzeit ist es <strong>nicht</strong>: Zwei Wege zu je 30&nbsp;Minuten dauern
-            zusammen nicht 60&nbsp;Minuten. Eine mittlere Fahrzeit ist deshalb ein Mittel über die
-            Fahrten der Gruppen.</li>
+            <li>Eine Fahrzeit ist es <strong>nicht</strong>: Zwei Gruppen mit je 30&nbsp;Minuten
+            Fahrzeit brauchen zusammen nicht 60. Die Fahrzeit einer Gruppe ist Hin- und Rückweg
+            zusammen, eine mittlere Fahrzeit ein Mittel über die Gruppen.</li>
           </ul>
           <p>Wie groß der Faktor ist, wählt niemand; er wird aus der Karte abgeleitet.</p>
         </section>

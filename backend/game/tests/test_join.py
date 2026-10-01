@@ -1161,7 +1161,7 @@ class CalibratedCreateFormTests(TempMediaRootMixin, TestCase):
             ),
             100,
         )
-        self.assertEqual(co2_budget_kg(max_rounds=DEFAULT_MAX_ROUNDS), 48_000)
+        self.assertEqual(co2_budget_kg(max_rounds=DEFAULT_MAX_ROUNDS), 96_000)
 
     def test_people_per_agent_follows_the_class_size(self):
         """Half the seats, twice the people behind each Gruppe."""
@@ -1190,7 +1190,7 @@ class CalibratedCreateFormTests(TempMediaRootMixin, TestCase):
         """
         from game.calibration import co2_budget_kg
 
-        for rounds, expected in ((6, 48_000), (3, 24_000), (10, 80_000)):
+        for rounds, expected in ((6, 96_000), (3, 48_000), (10, 160_000)):
             with self.subTest(rounds=rounds):
                 self.assertEqual(co2_budget_kg(max_rounds=rounds), expected)
 
@@ -1219,17 +1219,19 @@ class CalibratedCreateFormTests(TempMediaRootMixin, TestCase):
     def test_the_budget_is_beatable_and_losable(self):
         """What the two numbers are FOR, in one assertion.
 
-        Measured on the shipped map with the corrected train factor: an
-        all-car round is 11 140 kg and a round nobody drives is 2 449 kg, the
-        timetable's own floor. So over six rounds a class that never gets out
-        of the car spends 66 840 kg and one that improves spends about 41 000.
-        The budget has to sit between them or it is not a budget.
+        Measured on the shipped map, there and back (F2, six seeds): an all-car
+        round trip is 25 614 kg and a round nobody drives is 6 582 kg, the
+        timetables' own floor. So over six rounds a class that never gets out
+        of the car spends 153 684 kg, and one that goes 100/75/50/50/25/25 %
+        spends 95 946 — the budget sits on that edge, as it did one trip ago
+        (48 001 against 48 000). The budget has to sit between them or it is
+        not a budget.
         """
         from game.calibration import co2_budget_kg
 
         budget = co2_budget_kg(max_rounds=6)
-        all_car_six_rounds = 6 * 11_140
-        improving_six_rounds = 40_998
+        all_car_six_rounds = 6 * 25_614
+        improving_six_rounds = 95_946
 
         self.assertLess(budget, all_car_six_rounds)
         self.assertGreater(budget, improving_six_rounds)
@@ -1253,7 +1255,7 @@ class CalibratedCreateFormTests(TempMediaRootMixin, TestCase):
         self.assertEqual(response.status_code, 200)
         row = {r["id"]: r for r in response.json()}[game_map.pk]
         self.assertEqual(row["district_commuters"], 6_400)
-        self.assertEqual(row["co2_budget_kg_per_round"], 8_000)
+        self.assertEqual(row["co2_budget_kg_per_round"], 16_000)
 
 
 class MapCarriedCalibrationTests(TempMediaRootMixin, TestCase):
@@ -1303,7 +1305,7 @@ class MapCarriedCalibrationTests(TempMediaRootMixin, TestCase):
             GameMap._meta.get_field("district_commuters").default, 6_400
         )
         self.assertEqual(
-            GameMap._meta.get_field("co2_budget_kg_per_round").default, 8_000
+            GameMap._meta.get_field("co2_budget_kg_per_round").default, 16_000
         )
 
     def test_the_scale_comes_off_the_map_that_was_chosen(self):
@@ -1332,7 +1334,7 @@ class MapCarriedCalibrationTests(TempMediaRootMixin, TestCase):
         self.assertEqual(
             people_per_agent(max_players=16, agent_per_player=4), 100
         )
-        self.assertEqual(co2_budget_kg(max_rounds=6), 48_000)
+        self.assertEqual(co2_budget_kg(max_rounds=6), 96_000)
 
     def test_a_tie_rounds_down(self):
         """800 over 64 Gruppen is 12.5, and Python's round() goes to even.
@@ -1493,17 +1495,17 @@ class MapCalibrationRoundTripTests(TempMediaRootMixin, TestCase):
         self.assertEqual(response.status_code, 201)
         game_map = GameMap.objects.get(name="Alt")
         self.assertEqual(game_map.district_commuters, 6_400)
-        self.assertEqual(game_map.co2_budget_kg_per_round, 8_000)
+        self.assertEqual(game_map.co2_budget_kg_per_round, 16_000)
 
 
 class MapSaysWhetherItsPairWasMeasuredTests(TempMediaRootMixin, TestCase):
     """S21: a map says whether its two numbers were measured on it.
 
-    Every map starts at Berlin Mitte-West's 6 400 commuters and 8 000 kg a
+    Every map starts at Berlin Mitte-West's 6 400 commuters and 16 000 kg a
     round, because those are the field defaults. On a smaller map both are too
     high, and the create form used to offer them without a word. Comparing a
     map's pair against the defaults cannot tell the two cases apart — the one
-    map where 6 400 / 8 000 *is* measured carries exactly those — so the map
+    map where 6 400 / 16 000 *is* measured carries exactly those — so the map
     says it: `calibrated`, false until somebody who measured it says otherwise.
 
     It travels in the file, because the file is how a map moves between boxes.
@@ -1603,7 +1605,7 @@ class MapSaysWhetherItsPairWasMeasuredTests(TempMediaRootMixin, TestCase):
         """The case the flag exists for: a map exported after S2 carries
         Berlin's defaults as plainly as Berlin itself does."""
         game_map = self._import(
-            {"district_commuters": 6_400, "co2_budget_kg_per_round": 8_000}
+            {"district_commuters": 6_400, "co2_budget_kg_per_round": 16_000}
         )
 
         self.assertFalse(game_map.calibrated)

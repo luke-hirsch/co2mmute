@@ -64,6 +64,8 @@ test("a reload keeps the half-made turn", async ({ browser, page, baseURL }) => 
     // R-22: the tap is back, and the route with it — found again, not restored.
     await expect(first.getByText("ändern")).toBeVisible({ timeout: 60_000 });
     await expect(first.getByText(mode, { exact: true })).toBeVisible();
+    // R-23: the way home was found with it, and is on the card.
+    await expect(first.getByText(/^zurück \d+/)).toBeVisible();
 
     // …and nothing was invented for the one that was never chosen.
     await expect(second.getByRole("radiogroup")).toBeVisible();

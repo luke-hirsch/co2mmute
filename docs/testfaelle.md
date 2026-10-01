@@ -112,6 +112,9 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | R-20 | „schnellste"                                                   | rechnet mit den gemessenen Geschwindigkeiten der letzten Runde, nicht mit dem Tempolimit (S6)                                | geht      | `maps.tests.test_traffic` |
 | R-21 | Route auf der Karte                                            | in der Farbe und im Strich ihres Verkehrsmittels, nicht überall bernstein (S6)                                               | geht      | -                         |
 | R-22 | Seite neu laden mitten in einer angefangenen Runde             | die schon gewählten Verkehrsmittel sind wieder da, die Routen werden neu gesucht; nicht gewählte Gruppen bleiben leer (S7) | geht      | `round-draft.spec.ts`     |
+| R-23 | Hin- und Rückweg pro Gruppe                                    | unter der gefundenen Route steht „zurück x min“; abgeschickt werden beide Wege, der Rückweg mit demselben Verkehrsmittel gesucht | geht      | `round-draft.spec.ts`     |
+| R-24 | Ziel erreichbar, aber kein Weg zurück (Einbahnstraße)          | „Die Gruppe kommt hin, aber nicht wieder nach Hause.“, kein Neu-Versuch, Losfahren bleibt gesperrt                         | ungeprüft | -                         |
+| R-25 | Runde ohne Rückweg abschicken (direkt an der API)              | 400, `return_route` fehlt; ein Rückweg, der nicht am Zuhause endet oder gegen eine Einbahnstraße fährt, wird abgelehnt     | geht      | -                         |
 
 ## A — die animation
 
@@ -168,6 +171,7 @@ nicht gemessen.
 | Z-18 | bezahlt gegen gekostet             | steht unter der Tabelle; am eigenen Platz persönlich, an der Leitstelle für alle Pendler                                         | geht      | numbers.spec.ts |
 | Z-19 | „Wie wird gerechnet?"              | Overlay mit Maßstab, Zeit, Kosten, Fahrplan und Stau                                                                     | geht      | numbers.spec.ts |
 | Z-20 | Wartebildschirme                   | Erklärtext steht voll ausgeschrieben da — beim Warten auf die Runde und in der Diskussion, **nie** neben dem Stimmzettel | ungeprüft | -               |
+| Z-21 | Zeit im Ergebnis                   | Hin- und Rückweg zusammen, als Mittel über die Gruppen; CO₂ und Kosten sind die Summe beider Wege                        | geht      | -               |
 
 ## E — spielende
 

@@ -382,10 +382,23 @@ class AgentRoute(models.Model):
         DISTANCE = "distance", "Shortest"
         CO2 = "co2", "Lowest CO2"
 
+    class Direction(models.TextChoices):
+        OUT = "out", "Hinweg"
+        HOME = "home", "Rückweg"
+
     player_move = models.ForeignKey(
         PlayerMove, on_delete=models.CASCADE, related_name="routes"
     )
     agent_id = models.PositiveSmallIntegerField()
+    # A commute is a round trip: the way to work is the `out` route and the way
+    # home a second row of its own, found on the directed graph (a one-way
+    # street is a street with no reverse edge, so the way back is not the way
+    # there reversed). `out` is the default so every route written before the
+    # evening trip existed, and every test that builds one by hand, is a way to
+    # work and nothing else.
+    direction = models.CharField(
+        max_length=4, choices=Direction.choices, default=Direction.OUT
+    )
     transport_mode = models.CharField(max_length=20, choices=TransportMode.choices)
     optimization = models.CharField(
         max_length=20, choices=Optimization.choices, null=True, blank=True
@@ -394,8 +407,8 @@ class AgentRoute(models.Model):
     estimated_time_min = models.FloatField()
 
     class Meta:
-        unique_together = (("player_move", "agent_id"),)
-        ordering = ("player_move", "agent_id")
+        unique_together = (("player_move", "agent_id", "direction"),)
+        ordering = ("player_move", "agent_id", "direction")
 
     def __str__(self):
         return f"Route for agent {self.agent_id} in {self.player_move}"
@@ -487,6 +500,16 @@ class AgentSimulationResult(models.Model):
 
     class Meta:
         unique_together = (("simulation", "agent_route"),)
+
+    @property
+    def round_trip_time_min(self) -> float:
+        """There and back — what a commuter spends in a day, the figure shown.
+
+        `mean_trip_time_min` is the way to work and `mean_return_time_min` the
+        way home. A round with no way home has a return time of zero, so this
+        is the old figure for it.
+        """
+        return self.mean_trip_time_min + self.mean_return_time_min
 
     def __str__(self):
         return f"Result for {self.agent_route}"

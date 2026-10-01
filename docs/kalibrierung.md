@@ -95,7 +95,9 @@ Schüler spielen. Das Budget braucht deshalb **keinen Term für die Gruppengrö�
 CO₂-Budget = CO₂-Budget der Karte pro Runde × Runden
 ```
 
-Für diese Karte: **8.000 kg pro Runde, also 48.000 kg für sechs Runden.**
+Für diese Karte: **16.000 kg pro Runde, also 96.000 kg für sechs Runden.** Seit dem 1. Oktober 2026
+rechnet eine Runde Hin- und Rückweg (Abschnitt 10). Die Rechnung hier und bis Abschnitt 9 ist die
+des Hinwegs allein, mit 8.000 kg pro Runde und 48.000 kg für sechs.
 
 Warum diese Zahl. Über sechs Runden gibt eine Klasse, die nie aus dem Auto steigt, 66.839 kg aus;
 eine, die sich herunterarbeitet (100/75/50/50/25/25 % Autoanteil), 40.998 kg. Ein Budget muss
@@ -244,24 +246,65 @@ Drei Dinge daran sind neu:
 
 ---
 
-## 10. Was offen bleibt
+## 10. Hin und zurück
+
+Bis hierhin rechnete eine Runde nur den Weg zur Arbeit. Seit dem 1. Oktober 2026 rechnet sie auch den
+Heimweg, als zweiten Durchlauf auf einem frischen Netz (`docs/de-hintergrund.md`, „Hin und zurück“).
+Jede Gruppe hat dafür eine zweite Route, die der Client mit demselben Verkehrsmittel auf dem
+gerichteten Graphen sucht. Auf Berlin Mitte-West ist sie in allen 36 Paaren und allen drei
+Verkehrsmitteln der Hinweg andersherum, weil jede Kante ihre Gegenkante hat.
+
+Alles, was eine Runde kostet, fällt damit zweimal an, und der Fahrplan fährt zweimal. Das Budget
+musste mit. Es wurde nicht an einem anderen Parameter gedreht, sondern verdoppelt, und die Messung
+zeigt, dass das ungefähr stimmt. Gleiches Verfahren wie in Abschnitt 9, 64 Gruppen zu je 100
+Menschen, sechs Seeds, Routen aus dem echten Client-Router, am 1. Oktober 2026:
+
+| Autoanteil | Runde gesamt |      Auto | Fahrplan | Fahrzeit Auto hin / zurück | Verspätung hin + zurück |
+| ---------: | -----------: | --------: | -------: | -------------------------: | ----------------------: |
+|      100 % |    25.614 kg | 19.885 kg | 5.729 kg |             22,5 / 19,8 min |                22,2 min |
+|       75 % |    19.626 kg | 13.673 kg | 5.953 kg |             15,4 / 14,3 min |                 9,7 min |
+|       50 % |    14.470 kg |  8.337 kg | 6.134 kg |             10,6 / 10,7 min |                 1,5 min |
+|       25 % |    10.883 kg |  4.415 kg | 6.468 kg |             10,8 / 10,9 min |                 0,3 min |
+|        0 % |     6.582 kg |         — | 6.582 kg |                           — |                       — |
+
+Die Zeilen ohne Rückweg, im selben Lauf gemessen, sind die Tabelle aus Abschnitt 9 auf das Kilogramm
+genau (13.059 / 9.884 / 7.184 / 5.345 / 3.194 kg). Das zeigt, dass die Umstellung der Simulation eine
+Runde ohne Rückweg nicht verändert hat.
+
+Das Verhältnis zur Runde mit Hinweg allein liegt je nach Autoanteil zwischen 1,96 und 2,06. Die Autoseite
+verdoppelt sich auf 2,5 % genau (1,95 bis 2,00). Der Fahrplan-Boden verdoppelt sich, weil der
+Fahrplan zweimal fährt, und ein wenig mehr, wo mehr Zusatzfahrten nötig werden. Der Heimweg läuft
+auf den Gegenkanten, und jede Kante zieht ihre Kapazität neu; bei 100 % Auto ist er 2,7 Minuten
+kürzer als der Hinweg.
+
+**Das Budget liegt weiter am Rand**, jetzt knapp auf der anderen Seite. Wer sich herunterarbeitet
+(100 / 75 / 50 / 50 / 25 / 25 %), kommt über sechs Runden auf **95.946 kg** gegen 96.000, vorher 48.001
+gegen 48.000. Wer durchgehend fährt, kommt auf 153.684 kg und ist in Runde 4 raus (nach Runde 3 liegt
+er bei 76.842, nach Runde 4 bei 102.456 kg). **18.000 kg pro Runde** wäre der Vorschlag für den
+nächsten Play-Test, so wie 9.000 vorher: durchgehend fahren endet in Runde 5, wer umsteigt, behält
+rund zwölf Tonnen. Die Zahl steht in der Kartendatei.
+
+Was die Doppelung nicht ist: eine Messung des Abends. Er ist heute ein Abbild des Morgens.
+
+## 11. Was offen bleibt
 
 - **Die Abfahrten liegen sehr eng beieinander.** `departure_std_dev_min = 10` heißt, dass praktisch
   alle innerhalb von 20 Minuten losfahren; real verteilt sich ein Berufsverkehr über eine Stunde und
   mehr. Bei σ = 45 statt 10 sinkt die Verspätung im 100-%-Auto-Fall von 56,9 auf 16,5 Minuten. Das
   ist eine Modellfrage, keine Kalibrierungsfrage — hier bewusst nicht angefasst.
-- **Der Abendverkehr wird nach wie vor nicht simuliert**, und beide Richtungen einer Straße teilen
-  sich eine Warteschlange. Solange alle morgens zur Arbeit fahren, ist das egal.
+- **Der Abend ist ein Abbild des Morgens.** Dieselbe Streuung der Abfahrten, dieselbe Spitze:
+  `evening_departure_hour` verschiebt in der Simulation nichts, weil die Zeit ab Fensterbeginn läuft.
+  Eine eigene Abendspitze wäre eine Modellfrage. Die Wiedergabe zeigt nur den Hinweg.
 - **Das Budget von Berlin Mitte-West** liegt auf der reparierten Karte am Rand seiner Spanne
   (Abschnitt 9); 9.000 kg pro Runde ist der Vorschlag für den nächsten Play-Test.
-- **Die Vorgabewerte anderer Karten sind ungeprüft.** Jede neue Karte startet mit 6.400 und 8.000 —
+- **Die Vorgabewerte anderer Karten sind ungeprüft.** Jede neue Karte startet mit 6.400 und 16.000 —
   den Werten von Berlin Mitte-West. Für eine kleinere Karte sind beide zu hoch. Die Karte sagt
   inzwischen selbst, ob ihre Zahlen gemessen sind (`GameMap.calibrated`, geht mit der JSON-Datei
   mit), und „Spiel anlegen" warnt, solange sie es nicht sind. Gemessen ist damit noch nichts: das
-  heißt weiterhin Runden auf der Karte nachspielen (Abschnitt 11), die beiden Zahlen im Admin
+  heißt weiterhin Runden auf der Karte nachspielen (Abschnitt 12), die beiden Zahlen im Admin
   eintragen und dort den Haken setzen. Die mitgelieferte Datei hat ihn gesetzt.
 
-## 11. Nachrechnen
+## 12. Nachrechnen
 
 Die Zahlen oben stammen nicht aus einem Play-Test, sondern aus wiederholten Läufen mit festem Seed
 auf der ausgelieferten Karte. Wer sie nach einer Modelländerung neu braucht, spielt Runden auf der

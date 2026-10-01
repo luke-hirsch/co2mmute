@@ -3,7 +3,7 @@ import { MAX_BIKE_M, MAX_WALK_M } from "@/lib/map/trip-limits";
 import { ModeBadge } from "@/components/metro/line";
 import { ModePicker, OptimizationRow } from "@/components/round/mode-picker";
 import { RouteSummary } from "@/components/round/route-summary";
-import { TOO_FAR } from "@/utils/pathfinding";
+import { NO_WAY_HOME, TOO_FAR } from "@/utils/pathfinding";
 import { de } from "@/lib/de";
 import { cn } from "@/lib/utils";
 import type { AgentDistance } from "@/hooks/use-round-draft";
@@ -131,7 +131,7 @@ export function AgentRow({
                 {/* Retrying a route that was refused for being too long would
                     refuse it again. The way out is another mode, and the picker
                     is already open above. */}
-                {agent.error === TOO_FAR ? null : (
+                {agent.error === TOO_FAR || agent.error === NO_WAY_HOME ? null : (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -179,6 +179,7 @@ export function AgentRow({
  * problem was that they had asked to walk nine kilometres.
  */
 function failureLine(agent: AgentDraft): string {
+  if (agent.error === NO_WAY_HOME) return de.round.noWayHome;
   if (agent.error !== TOO_FAR) return de.round.noRoute;
   if (agent.mode === "walk") return de.round.tooFar.walk(de.round.distance(MAX_WALK_M));
   if (agent.mode === "bike") return de.round.tooFar.bike(de.round.distance(MAX_BIKE_M));

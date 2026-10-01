@@ -55,7 +55,7 @@ test("the create form offers the calibrated pair, and it follows the class size"
   await expect(page.locator("#max_players")).toHaveValue("16");
   await expect(page.locator("#max_rounds")).toHaveValue("6");
   await expect(page.locator("#people_per_agent")).toHaveValue("100");
-  await expect(page.locator("#max_CO2_level")).toHaveValue("48000");
+  await expect(page.locator("#max_CO2_level")).toHaveValue("96000");
 
   // Half the class, twice the people behind each Gruppe — the district's
   // commuter population is what stays put, not the scale.
@@ -63,9 +63,9 @@ test("the create form offers the calibrated pair, and it follows the class size"
   await expect(page.locator("#people_per_agent")).toHaveValue("200");
 
   // The budget is per round and carries no Gruppe term, so it did not move.
-  await expect(page.locator("#max_CO2_level")).toHaveValue("48000");
+  await expect(page.locator("#max_CO2_level")).toHaveValue("96000");
   await page.locator("#max_rounds").fill("3");
-  await expect(page.locator("#max_CO2_level")).toHaveValue("24000");
+  await expect(page.locator("#max_CO2_level")).toHaveValue("48000");
 });
 
 /**

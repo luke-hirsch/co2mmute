@@ -25,6 +25,7 @@ export function RouteSummary({
     <dl className={cn("flex flex-wrap gap-x-6 gap-y-1 text-sm", className)}>
       <Figure value={de.round.duration(route.estimatedTimeMin)} />
       <Figure value={de.round.distance(route.totalDistanceM)} />
+      <Figure value={de.round.wayHome(de.round.duration(route.wayHome.estimatedTimeMin))} />
       {route.transportMode === "public" && transfers > 0 ? (
         <Figure value={de.round.transfers(transfers)} />
       ) : null}

@@ -100,6 +100,24 @@ next round all rest on the same measured number.
   entry, not even by a full street.
 - **Pedestrians** are outside the queue model entirely.
 
+### There and back
+
+A commute is a way there and a way back, and a round simulates both. The way back is not the way
+there reversed but a search of its own on the graph, with the same mode and the same choice: the
+graph is directed, a one-way street is an edge with no reverse edge, and the way back can then be a
+different one, in the extreme a circle. On Berlin Mitte-West every edge has its reverse, so the way
+back is the same way the other direction. If there is no way back, the way there cannot be sent.
+
+Hours lie between the two peaks. The evening is therefore a second pass on a fresh network, not a
+second half of the same clock. On one clock the lines would keep running all day because the
+evening's riders are already waiting in the list, and society would pay CO₂ for buses nobody can
+board. So the timetable runs twice, and both timetables count. A Gruppe's CO₂ and cost are the sum of
+both ways, its travel time is there and back together, averaged over the Gruppen. Since everything
+in a round now happens twice, the budget per round is twice what it is for one way.
+
+Today the evening is a copy of the morning, with the same spread of departures. The replay shows only
+the way there.
+
 ## Public transport runs a timetable
 
 In the simulation a line vehicle is an **ordinary vehicle on a synthetic route**. A bus therefore
@@ -205,8 +223,8 @@ bugs in this project came from. Two rules:
 
 - A CO₂ or euro figure is **extensive**: it sums over agents and over the people behind each agent.
   Per-person means dividing by both.
-- A trip time is **not**: two trips of 30 minutes each do not take 60 minutes together. So a mean
-  trip time is a mean over the agents' trips.
+- A trip time is **not**: two Gruppen with 30 minutes each do not take 60 together. A Gruppe's trip
+  time is there and back together, and a mean trip time is a mean over the Gruppen.
 
 Nobody picks how big the factor is; it is derived from the map.
 
@@ -238,7 +256,7 @@ calibrated                whether both were measured on this map
 ```
 
 The values are in the map's JSON file, can be changed in the admin, and travel with an export. A new
-map takes 6400 and 8000 from Berlin Mitte-West until somebody measures it. Only once `calibrated` is
+map takes 6400 and 16 000 from Berlin Mitte-West until somebody measures it. Only once `calibrated` is
 set does the notice on the create form go away.
 
 Everything else is derived from them:
@@ -334,7 +352,7 @@ with fewer cars, say three quarters, half and a quarter:
 
 _Each bar is a round: the car in blue, the timetable in amber. The timetable runs either way and
 only gets a little dearer as more people board; the car decides how long the bar is. The line is the
-budget of 8000 kg a round._
+half the budget of 16 000 kg a round, which is the budget for one way._
 
 On Berlin Mitte-West the jam is gone once half switch. Congestion is a threshold phenomenon close to
 capacity: just below it traffic flows, just above it jams. If the jam stays at half the car share,
@@ -344,7 +362,7 @@ On public transport, too much demand shows up as waiting. On Berlin Mitte-West b
 to 44 minutes, and the wait at the stop grows from 9 to 22 minutes as more people switch, because
 the vehicles are full.
 
-The table was measured on the base version of Berlin Mitte-West: 64 agents of 100 people each,
+The table holds for one way, the way there. It was measured on the base version of Berlin Mitte-West: 64 agents of 100 people each,
 spread evenly over the 36 home-and-workplace pairs, everybody not driving on public transport,
 averaged over six seeds. The spread between seeds is under 2 %.
 
@@ -356,11 +374,23 @@ The budget has to lie between the two: the first game should break it, the secon
 it. The floor is the timetable, which runs without passengers too, on Berlin Mitte-West 2864 kg a
 round. The number should be round so that everybody can keep it in their head.
 
-On Berlin Mitte-West the first game costs 78 354 kg over six rounds, the second 48 001 kg. The
-8000 kg a round on the map, 48 000 for six, sits right at the edge: driving throughout runs out in
-round 4, and improving lands on the budget to the kilogram. At 9000 kg a round driving throughout
-would only end in round 5, and switching would keep about six tonnes in hand. The next play-test is
-to decide which number stays.
+A round simulates there and back, and the table above holds for one way. Measured on Berlin
+Mitte-West (the same 64 agents, six seeds), a round with both ways costs 1.96 to 2.06 times what the
+way there costs alone:
+
+| car share | round total |       car | timetable |
+| --------: | ----------: | --------: | --------: |
+|     100 % |   25 614 kg | 19 885 kg |  5 729 kg |
+|      75 % |   19 626 kg | 13 673 kg |  5 953 kg |
+|      50 % |   14 470 kg |  8 337 kg |  6 134 kg |
+|      25 % |   10 883 kg |  4 415 kg |  6 468 kg |
+|       0 % |    6 582 kg |         — |  6 582 kg |
+
+So the first game costs 153 684 kg over six rounds, the second 95 946 kg. The 16 000 kg a round on
+the map, 96 000 for six, sits at the edge as before: driving throughout runs out in round 4, and
+improving stays 54 kg under the budget. At 18 000 kg a round driving throughout would only end in
+round 5, and switching would keep about twelve tonnes in hand. The next play-test is to decide which
+number stays.
 
 ### Checking the emission factors
 
@@ -411,8 +441,8 @@ The two numbers hold for one map and one model. Measure again when
 - demand in the model changes. Departures are spread σ = 10 minutes around the departure hour today,
   far tighter than a real morning peak. Spread them wider and the same corridors carry more
   commuters;
-- the evening commute is added. Today both directions of a street share one queue. That only works
-  while everybody drives to work in the morning, and has to be split first;
+- the evening gets a peak of its own. Today it is a copy of the morning, with the same spread of
+  departures; a different peak would have the same network carry more or fewer commuters;
 - an emission factor changes. That moves the budget.
 
 Then enter both numbers in the map file or in the admin, set `calibrated`, and export the map so the
