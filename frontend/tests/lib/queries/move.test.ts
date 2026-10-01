@@ -40,6 +40,13 @@ const payload: MovePayload = {
           { edge_id: 101, start_node: 10, end_node: 20, mode: "car", pt_line_id: undefined },
         ],
       },
+      return_route: {
+        total_distance_m: 4300,
+        estimated_time_min: 12,
+        segments: [
+          { edge_id: 102, start_node: 20, end_node: 10, mode: "car", pt_line_id: undefined },
+        ],
+      },
     },
   ],
 };

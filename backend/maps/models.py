@@ -51,7 +51,7 @@ class GameMap(models.Model):
         ),
     )
     co2_budget_kg_per_round = models.PositiveIntegerField(
-        default=8000,
+        default=16000,
         help_text=(
             "Vorschlag für das CO₂-Budget, pro Runde in kg. Genug, wenn viele "
             "umsteigen, zu wenig, wenn alle mit dem Auto fahren."

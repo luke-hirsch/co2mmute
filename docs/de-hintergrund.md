@@ -106,6 +106,26 @@ Spieler in der nächsten Runde bekommt, beruhen also alle auf derselben gemessen
   Abgewiesen wird ein Rad nie, auch nicht von einer vollen Straße.
 - **Fußgänger** stehen ganz außerhalb des Warteschlangenmodells.
 
+### Hin und zurück
+
+Ein Pendelweg besteht aus Hin- und Rückweg, und eine Runde rechnet beide. Der Rückweg ist keine
+Umkehrung des Hinwegs, sondern eine eigene Suche auf dem Graphen, mit demselben Verkehrsmittel und
+derselben Wahl: Der Graph ist gerichtet, eine Einbahnstraße ist eine Kante ohne Gegenkante, und der
+Weg zurück kann dann ein anderer sein, im Extremfall ein Kreis. Auf Berlin Mitte-West hat jede Kante
+ihre Gegenkante, dort ist der Rückweg derselbe Weg andersherum. Gibt es keinen Weg zurück, lässt
+sich der Weg hin nicht abschicken.
+
+Zwischen den beiden Spitzen liegen Stunden. Der Abend ist deshalb ein zweiter Durchlauf auf einem
+frischen Netz und kein zweiter Teil derselben Uhr. Auf einer Uhr würden die Linien den ganzen Tag
+weiterfahren, weil die Leute vom Abend schon in der Liste warten, und die Gesellschaft würde CO₂
+für Busse zahlen, die niemand besteigen kann. So fährt der Fahrplan zweimal, und beide Fahrpläne
+zählen. CO₂ und Kosten einer Gruppe sind die Summe beider Wege, ihre Fahrzeit ist die für Hin- und
+Rückweg zusammen, gemittelt über die Gruppen. Weil in einer Runde damit alles zweimal anfällt, ist
+das Budget pro Runde doppelt so groß wie für einen Weg.
+
+Der Abend ist heute ein Abbild des Morgens, mit derselben Streuung der Abfahrten. Die Wiedergabe
+zeigt nur den Hinweg.
+
 ## Der ÖPNV fährt einen Fahrplan
 
 Ein Linienfahrzeug ist in der Simulation ein **ganz normales Fahrzeug auf einer künstlichen Route**.
@@ -219,8 +239,9 @@ die meisten Einheitenfehler dieses Projekts. Zwei Regeln:
 
 - Eine CO₂- oder Euro-Zahl ist **extensiv**: Sie summiert über Gruppen und über die Menschen
   hinter jeder Gruppe. Pro Person heißt: durch beides teilen.
-- Eine Fahrzeit ist es **nicht**: Zwei Wege zu je 30 Minuten dauern zusammen nicht 60 Minuten.
-  Eine mittlere Fahrzeit ist deshalb ein Mittel über die Fahrten der Gruppen.
+- Eine Fahrzeit ist es **nicht**: Zwei Gruppen mit je 30 Minuten Fahrzeit brauchen zusammen nicht
+  60. Die Fahrzeit einer Gruppe ist Hin- und Rückweg zusammen, eine mittlere Fahrzeit ein Mittel über
+  die Gruppen.
 
 Wie groß der Faktor, wird aus der Karte abgeleitet.
 
@@ -253,7 +274,7 @@ calibrated                ob beide für diese Karte gemessen sind
 ```
 
 Die Werte stehen in der JSON-Datei der Karte, lassen sich im Admin ändern und gehen beim Export mit.
-Eine neue Karte übernimmt 6.400 und 8.000 von Berlin Mitte-West, bis jemand für sie misst. Erst wenn
+Eine neue Karte übernimmt 6.400 und 16.000 von Berlin Mitte-West, bis jemand für sie misst. Erst wenn
 `calibrated` gesetzt ist, verschwindet der Hinweis bei „Spiel anlegen“.
 
 Alles andere wird daraus abgeleitet:
@@ -350,7 +371,7 @@ weniger Autos spielen, etwa mit drei Vierteln, der Hälfte und einem Viertel:
 
 _Jeder Balken ist eine Runde: Auto in Blau, der Fahrplan in Gelb. Der Fahrplan fährt so oder so und
 wird nur etwas teurer, wenn mehr Leute einsteigen; das Auto bestimmt, wie lang der Balken wird. Die
-Linie ist das Budget von 8.000 kg pro Runde._
+Linie ist das halbe Budget von 16.000 kg pro Runde, also das für einen Weg._
 
 Auf Berlin Mitte-West ist der Stau weg, wenn die Hälfte umsteigt. Stau ist ein Schwellenphänomen
 dicht an der Kapazität: Knapp darunter fließt der Verkehr, knapp darüber staut er. Bleibt der Stau
@@ -361,7 +382,7 @@ Beim ÖPNV zeigt sich zu viel Nachfrage als Wartezeit. Auf Berlin Mitte-West bra
 bis 44 Minuten, und die Wartezeit an der Haltestelle wächst von 9 auf 22 Minuten, je mehr Leute
 umsteigen, weil die Fahrzeuge voll sind.
 
-Die Tabelle ist auf der Basisversion von Berlin Mitte-West gemessen: 64 Gruppen zu je 100 Menschen,
+Die Tabelle gilt für einen Weg, den Hinweg. Sie ist auf der Basisversion von Berlin Mitte-West gemessen: 64 Gruppen zu je 100 Menschen,
 gleichmäßig über die 36 Paare aus Wohnort und Arbeitsplatz verteilt, wer nicht Auto fährt, fährt Bus
 und Bahn, gemittelt über sechs Seeds. Die Streuung zwischen den Seeds liegt unter 2 %.
 
@@ -373,11 +394,23 @@ Autoanteil. Das Budget muss zwischen beiden liegen: Das erste Spiel soll es spre
 damit auskommen. Nach unten begrenzt es der Fahrplan, der auch fährt, wenn niemand einsteigt, auf Berlin
 Mitte-West 2.864 kg pro Runde. Die Zahl sollte rund sein, damit alle sie im Kopf behalten.
 
-Auf Berlin Mitte-West kostet das erste Spiel über sechs Runden 78.354 kg, das zweite 48.001 kg. Die
-eingetragenen 8.000 kg pro Runde, 48.000 für sechs, liegen genau am Rand: Wer durchgehend fährt, ist
-in Runde 4 raus, und wer sich verbessert, landet auf das Kilogramm genau auf dem Budget. Mit
-9.000 kg pro Runde wäre durchgehend Fahren erst in Runde 5 vorbei, und wer umsteigt, behielte rund
-sechs Tonnen. Welche Zahl bleibt, soll der nächste Play-Test zeigen.
+Eine Runde rechnet Hin- und Rückweg, die Tabelle oben gilt für einen Weg. Gemessen auf Berlin
+Mitte-West (dieselben 64 Gruppen, sechs Seeds) kostet eine Runde mit Hin- und Rückweg 1,96- bis
+2,06-mal so viel wie der Hinweg allein:
+
+| Autoanteil | Runde gesamt |      Auto | Fahrplan |
+| ---------: | -----------: | --------: | -------: |
+|      100 % |    25.614 kg | 19.885 kg | 5.729 kg |
+|       75 % |    19.626 kg | 13.673 kg | 5.953 kg |
+|       50 % |    14.470 kg |  8.337 kg | 6.134 kg |
+|       25 % |    10.883 kg |  4.415 kg | 6.468 kg |
+|        0 % |     6.582 kg |         — | 6.582 kg |
+
+Das erste Spiel kostet damit über sechs Runden 153.684 kg, das zweite 95.946 kg. Die eingetragenen
+16.000 kg pro Runde, 96.000 für sechs, liegen wie vorher am Rand: Wer durchgehend fährt, ist in
+Runde 4 raus, und wer sich verbessert, bleibt 54 kg unter dem Budget. Mit 18.000 kg pro Runde wäre
+durchgehend Fahren erst in Runde 5 vorbei, und wer umsteigt, behielte rund zwölf Tonnen. Welche Zahl
+bleibt, soll der nächste Play-Test zeigen.
 
 ### Emissionsfaktoren nachrechnen
 
@@ -429,8 +462,8 @@ Die beiden Zahlen gelten für eine Karte und ein Modell. Neu messen, wenn
 - sich die Nachfrage im Modell ändert. Die Abfahrten streuen heute mit σ = 10 Minuten um die
   Abfahrtsstunde, viel enger als echter Berufsverkehr. Verteilen sie sich breiter, tragen dieselben
   Achsen mehr Pendler;
-- der Abendverkehr dazukommt. Heute teilen sich beide Richtungen einer Straße eine Warteschlange.
-  Das geht nur, solange alle morgens zur Arbeit fahren, und muss vorher getrennt werden;
+- der Abend eine eigene Spitze bekommt. Heute ist er ein Abbild des Morgens, mit derselben Streuung
+  der Abfahrten; eine andere Spitze trägt dasselbe Netz mit mehr oder weniger Pendlern;
 - sich ein Emissionsfaktor ändert. Dann verschiebt sich das Budget.
 
 Danach beide Zahlen in die Kartendatei oder in den Admin eintragen, `calibrated` setzen und die

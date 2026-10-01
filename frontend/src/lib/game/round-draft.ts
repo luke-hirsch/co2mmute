@@ -30,6 +30,8 @@ import type {
   AgentRoute,
   CarOptimization,
   PTOptimization,
+  RouteLeg,
+  RouteSubmissionLeg,
   RouteSubmissionPayload,
   TransportMode,
 } from "@/types/routeTypes";
@@ -306,17 +308,22 @@ export function draftPayload(draft: RoundDraft): RouteSubmissionPayload | null {
       // `optimization` is a ChoiceField over the car's options. Sending the PT
       // one — or one for a bike — is a 400.
       optimization: agent.mode === "car" ? agent.carOptimization : undefined,
-      route: {
-        total_distance_m: agent.route!.totalDistanceM,
-        estimated_time_min: agent.route!.estimatedTimeMin,
-        segments: agent.route!.segments.map((segment) => ({
-          edge_id: segment.edgeId,
-          start_node: segment.startNode,
-          end_node: segment.endNode,
-          mode: segment.mode,
-          pt_line_id: segment.ptLineId,
-        })),
-      },
+      route: legPayload(agent.route!),
+      return_route: legPayload(agent.route!.wayHome),
+    })),
+  };
+}
+
+function legPayload(leg: RouteLeg): RouteSubmissionLeg {
+  return {
+    total_distance_m: leg.totalDistanceM,
+    estimated_time_min: leg.estimatedTimeMin,
+    segments: leg.segments.map((segment) => ({
+      edge_id: segment.edgeId,
+      start_node: segment.startNode,
+      end_node: segment.endNode,
+      mode: segment.mode,
+      pt_line_id: segment.ptLineId,
     })),
   };
 }

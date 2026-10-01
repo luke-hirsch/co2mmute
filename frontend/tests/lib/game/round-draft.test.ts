@@ -67,6 +67,32 @@ function route(overrides: Partial<AgentRoute> = {}): AgentRoute {
         ptLineId: undefined,
       },
     ],
+    // Not the way there turned round: other edges, another length. A payload
+    // that sent the first leg twice would still pass with a mirror.
+    wayHome: {
+      totalDistanceM: 4300,
+      estimatedTimeMin: 12,
+      segments: [
+        {
+          edgeId: 112,
+          startNode: 20,
+          endNode: 15,
+          mode: "car",
+          distanceM: 2200,
+          estimatedTimeMin: 6,
+          ptLineId: undefined,
+        },
+        {
+          edgeId: 111,
+          startNode: 15,
+          endNode: 10,
+          mode: "car",
+          distanceM: 2100,
+          estimatedTimeMin: 6,
+          ptLineId: undefined,
+        },
+      ],
+    },
     ...overrides,
   } as AgentRoute;
 }
@@ -101,6 +127,21 @@ function readyDraft(): RoundDraft {
             ptLineId: undefined,
           },
         ],
+        wayHome: {
+          totalDistanceM: 1500,
+          estimatedTimeMin: 7,
+          segments: [
+            {
+              edgeId: 202,
+              startNode: 30,
+              endNode: 10,
+              mode: "bike",
+              distanceM: 1500,
+              estimatedTimeMin: 7,
+              ptLineId: undefined,
+            },
+          ],
+        },
       }),
     },
   );
@@ -322,6 +363,26 @@ describe("round draft selectors", () => {
               },
             ],
           },
+          return_route: {
+            total_distance_m: 4300,
+            estimated_time_min: 12,
+            segments: [
+              {
+                edge_id: 112,
+                start_node: 20,
+                end_node: 15,
+                mode: "car",
+                pt_line_id: undefined,
+              },
+              {
+                edge_id: 111,
+                start_node: 15,
+                end_node: 10,
+                mode: "car",
+                pt_line_id: undefined,
+              },
+            ],
+          },
         },
         {
           id: 2,
@@ -335,6 +396,19 @@ describe("round draft selectors", () => {
                 edge_id: 201,
                 start_node: 10,
                 end_node: 30,
+                mode: "bike",
+                pt_line_id: undefined,
+              },
+            ],
+          },
+          return_route: {
+            total_distance_m: 1500,
+            estimated_time_min: 7,
+            segments: [
+              {
+                edge_id: 202,
+                start_node: 30,
+                end_node: 10,
                 mode: "bike",
                 pt_line_id: undefined,
               },

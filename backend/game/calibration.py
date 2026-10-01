@@ -122,6 +122,23 @@ not a change: the number lives in the map file. PT waits grow with riders (9 to
 22 min) because vehicles fill; the same pairs at a quarter of the people wait
 7.6 min. docs/kalibrierung.md §9 has the full table.
 
+**Everything above is one way: the walk to work.** A round has simulated the
+way home as well since 2026-10-01, as a second pass on a fresh network, so what
+a round costs doubled and the budget doubled with it — 16 000 kg a round, 96 000
+for six, not 8 000 and 48 000. Measured the same way, a round trip is 1.96 to
+2.06 times the way there:
+
+    car share   round total     car   timetable
+         100 %    25 614 kg  19 885     5 729
+          75 %    19 626 kg  13 673     5 953
+          50 %    14 470 kg   8 337     6 134
+          25 %    10 883 kg   4 415     6 468
+           0 %     6 582 kg       0     6 582
+
+The improving class spends 95 946 kg over six rounds against 96 000, all-car is
+out in round 4: the same edge as one trip ago. The way-there rows of that run
+reproduce the table above to the kilogram. docs/kalibrierung.md §10.
+
 Re-deriving these after a model change means replaying rounds on the map in
 question, not adjusting them until a play-test feels right. What each number is
 FOR is asserted in `game/tests/test_join.py`.

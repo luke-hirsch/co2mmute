@@ -357,6 +357,8 @@ export const de = {
 
     routing: "Route wird gesucht …",
     noRoute: "Auf diesem Weg kommt die Gruppe nicht ans Ziel. Nimm eine andere Linie.",
+    noWayHome:
+      "Die Gruppe kommt hin, aber nicht wieder nach Hause. Nimm ein anderes Verkehrsmittel.",
     /**
      * Too far is not the same answer as no connection, so it does not get the
      * same sentence: one says take another line, this one says stop trying this
@@ -386,6 +388,7 @@ export const de = {
       meters < 1000
         ? `${Math.round(meters)} m`
         : `${(meters / 1000).toFixed(1)} km`,
+    wayHome: (duration: string) => `zurück ${duration}`,
     transfers: (n: number) => (n === 1 ? "1 Umstieg" : `${n} Umstiege`),
 
     /** How far this seat has got, and how far the game has. Two different counts. */
@@ -1109,7 +1112,7 @@ export const de = {
               ["bike_speed_kmh", "Radtempo (Vorgabe: 20)"],
               ["default_car_speed_kmh", "Autotempo ohne Tempolimit (Vorgabe: 50)"],
               ["district_commuters", "wie viele Pendler die Karte trägt (Vorgabe: 6.400)"],
-              ["co2_budget_kg_per_round", "was eine Runde an CO₂ kosten darf (Vorgabe: 8.000)"],
+              ["co2_budget_kg_per_round", "was eine Runde an CO₂ kosten darf (Vorgabe: 16.000, Hin- und Rückweg)"],
               ["calibrated", "true, wenn die beiden Zahlen darüber für diese Karte gemessen sind — sonst warnt „Spiel anlegen“"],
             ],
           },

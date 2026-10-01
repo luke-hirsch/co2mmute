@@ -20,14 +20,24 @@ export interface RouteSegment {
   estimatedTimeMin: number;
 }
 
-// Complete route for an agent
-export interface AgentRoute {
-  agentId: number;
-  transportMode: TransportMode;
-  optimization?: CarOptimization;
+// One trip: a way to work, or a way home
+export interface RouteLeg {
   totalDistanceM: number;
   estimatedTimeMin: number;
   segments: RouteSegment[];
+}
+
+// Complete route for an agent: the way to work, and the way home
+export interface AgentRoute extends RouteLeg {
+  agentId: number;
+  transportMode: TransportMode;
+  optimization?: CarOptimization;
+  /**
+   * Found on the directed graph with the same mode and the same optimisation,
+   * from the destination back to the door. Not the way there reversed: a
+   * one-way street has no reverse edge, so a circle is a legitimate answer.
+   */
+  wayHome: RouteLeg;
 }
 
 // Payload for route submission to backend
@@ -39,11 +49,14 @@ export interface AgentRouteSubmission {
   id: number; // agent_id
   transport_mode: TransportMode;
   optimization?: CarOptimization;
-  route: {
-    total_distance_m: number;
-    estimated_time_min: number;
-    segments: RouteSegmentSubmission[];
-  };
+  route: RouteSubmissionLeg;
+  return_route: RouteSubmissionLeg;
+}
+
+export interface RouteSubmissionLeg {
+  total_distance_m: number;
+  estimated_time_min: number;
+  segments: RouteSegmentSubmission[];
 }
 
 export interface RouteSegmentSubmission {

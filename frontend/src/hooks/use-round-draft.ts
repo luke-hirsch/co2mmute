@@ -31,15 +31,16 @@ import { createTraceRecorder, type SearchTrace } from "@/lib/map/search-trace";
 import { airDistanceM, exceedsModeLimit } from "@/lib/map/trip-limits";
 import { useMapGraph } from "@/lib/queries/map-graph";
 import { useSeatGame } from "@/lib/queries/seat";
-import { findPath } from "@/utils/pathfinding";
+import { findPath, NO_WAY_HOME } from "@/utils/pathfinding";
 import { findBestPTRoute } from "@/utils/ptRouting";
 import type {
   AgentRoute,
   CarOptimization,
   ExtendedMapGraph,
+  PathfindingResult,
   PTOptimization,
   PTRoutingResult,
-  RouteSegment,
+  RouteLeg,
   TransportMode,
 } from "@/types/routeTypes";
 
@@ -51,6 +52,25 @@ export type AgentDistance = {
   /** Modes the straight line already rules out. A lower bound, so it is sound. */
   tooFar: TransportMode[];
 };
+
+/**
+ * The two routers answer in different shapes: the PT one splits the walk to the
+ * stop, the ride and the walk off again.
+ */
+function toLeg(result: PathfindingResult | PTRoutingResult): RouteLeg {
+  if ("ptSegments" in result) {
+    return {
+      segments: [...result.walkToStation, ...result.ptSegments, ...result.walkFromStation],
+      totalDistanceM: result.totalDistanceM,
+      estimatedTimeMin: result.totalTimeMin,
+    };
+  }
+  return {
+    segments: result.segments,
+    totalDistanceM: result.totalDistanceM,
+    estimatedTimeMin: result.estimatedTimeMin,
+  };
+}
 
 export function useRoundDraft({
   gameId,
@@ -229,55 +249,52 @@ export function useRoundDraft({
 
       try {
         const recorder = createTraceRecorder(agentId);
-        const result =
-          agent.mode === "public"
-            ? await findBestPTRoute(extended, home, agent.destinationNode, {
+        const mode = agent.mode;
+
+        // The same router, mode and optimisation both ways. The way home is a
+        // search of its own on the directed graph, never the way there turned
+        // round: a one-way street has no reverse edge, so on such a map the
+        // trip is a circle. Only the way there is traced — it is the flourish
+        // on the route the player just asked for.
+        const search = (from: number, to: number, trace: boolean) =>
+          mode === "public"
+            ? findBestPTRoute(extended, from, to, {
                 scale: extended.scale,
                 ptOptimization: agent.ptOptimization,
               })
-            : await findPath(extended, home, agent.destinationNode, agent.mode, {
+            : findPath(extended, from, to, mode, {
                 optimization: agent.carOptimization,
                 scale: extended.scale,
                 // Only "schnellste" reads it — the other two optimise for
                 // quantities a jam does not change.
                 trafficData: extended.previous_round_traffic,
-                onStateChange: recorder.onStateChange,
+                onStateChange: trace ? recorder.onStateChange : undefined,
               });
 
+        const there = await search(home, agent.destinationNode, true);
         if (runs.current.get(agentId) !== token) return;
-
-        if (!result.success) {
-          dispatch({ kind: "route-failed", agentId, error: result.error ?? "no-route" });
+        if (!there.success) {
+          dispatch({ kind: "route-failed", agentId, error: there.error ?? "no-route" });
           return;
         }
 
-        // The two routers answer in different shapes: the PT one splits the
-        // walk to the stop, the ride and the walk off again.
-        let segments: RouteSegment[];
-        let totalDistanceM: number;
-        let estimatedTimeMin: number;
-
-        if ("ptSegments" in result) {
-          const pt = result as PTRoutingResult;
-          segments = [...pt.walkToStation, ...pt.ptSegments, ...pt.walkFromStation];
-          totalDistanceM = pt.totalDistanceM;
-          estimatedTimeMin = pt.totalTimeMin;
-        } else {
-          segments = result.segments;
-          totalDistanceM = result.totalDistanceM;
-          estimatedTimeMin = result.estimatedTimeMin;
+        const back = await search(agent.destinationNode, home, false);
+        if (runs.current.get(agentId) !== token) return;
+        if (!back.success) {
+          // They can get there and cannot get back: say that, not "no route".
+          dispatch({ kind: "route-failed", agentId, error: NO_WAY_HOME });
+          return;
         }
 
         const route: AgentRoute = {
           agentId,
-          transportMode: agent.mode,
-          optimization: agent.mode === "car" ? agent.carOptimization : undefined,
-          totalDistanceM,
-          estimatedTimeMin,
-          segments,
+          transportMode: mode,
+          optimization: mode === "car" ? agent.carOptimization : undefined,
+          ...toLeg(there),
+          wayHome: toLeg(back),
         };
         dispatch({ kind: "routed", agentId, route });
-        setTrace(agent.mode === "public" ? null : recorder.trace());
+        setTrace(mode === "public" ? null : recorder.trace());
       } catch (error) {
         if (runs.current.get(agentId) !== token) return;
         dispatch({

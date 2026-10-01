@@ -495,7 +495,7 @@ def _run_simulation(game_session, game_round, moves):
                 agent_cost = agent_result.mean_cost_eur * people
                 player_emissions += agent_result.total_co2_g
                 player_cost += agent_cost
-                player_time += agent_result.mean_trip_time_min
+                player_time += agent_result.round_trip_time_min
                 # mean_paid_eur is per person already, so it is never
                 # multiplied by `people`.
                 player_paid += agent_result.mean_paid_eur
@@ -503,7 +503,7 @@ def _run_simulation(game_session, game_round, moves):
                     {
                         "agent_id": agent_result.agent_route.agent_id,
                         "mode": agent_result.agent_route.transport_mode,
-                        "trip_time_min": round(agent_result.mean_trip_time_min, 1),
+                        "trip_time_min": round(agent_result.round_trip_time_min, 1),
                         "delay_min": round(agent_result.congestion_delay_min, 1),
                         # Class scale, like the row it adds up to.
                         "co2_g": round(agent_result.total_co2_g, 1),
@@ -627,7 +627,11 @@ def _unsimulated_stats(moves):
                 "cost_eur_per_person": 0.0,
                 "paid_eur_per_person": 0.0,
             }
-            for route in AgentRoute.objects.filter(player_move=move)
+            # One entry per agent, which is its way to work; the way home is
+            # the same agent's second trip.
+            for route in AgentRoute.objects.filter(
+                player_move=move, direction=AgentRoute.Direction.OUT
+            )
         ]
         modes_used = list({agent["mode"] for agent in agents})
         player_stats.append(

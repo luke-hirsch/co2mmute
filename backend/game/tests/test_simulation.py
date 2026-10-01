@@ -654,13 +654,22 @@ def _session(host, game_map, people_per_agent=10, std_dev=10):
     )
 
 
-def _route(game_round, player, edges, mode="car", agent_id=1, distance=None):
+def _route(
+    game_round,
+    player,
+    edges,
+    mode="car",
+    agent_id=1,
+    distance=None,
+    direction="out",
+):
     move, _ = PlayerMove.objects.get_or_create(
         session_round=game_round, player=player, action="route_submit"
     )
     route = AgentRoute.objects.create(
         player_move=move,
         agent_id=agent_id,
+        direction=direction,
         transport_mode=mode,
         total_distance_m=distance or (300.0 * len(edges)),
         estimated_time_min=1.0,
@@ -2159,7 +2168,9 @@ class PTScenarioMixin:
         session.save(update_fields=["active_map_version"])
         return session
 
-    def _pt_route(self, game_round, player, edges, mode, line, agent_id=1):
+    def _pt_route(
+        self, game_round, player, edges, mode, line, agent_id=1, direction="out"
+    ):
         """A route whose segments name a PT line, which `_route` cannot do."""
         move, _ = PlayerMove.objects.get_or_create(
             session_round=game_round, player=player, action="route_submit"
@@ -2167,6 +2178,7 @@ class PTScenarioMixin:
         route = AgentRoute.objects.create(
             player_move=move,
             agent_id=agent_id,
+            direction=direction,
             transport_mode="public",
             total_distance_m=1000.0 * len(edges),
             estimated_time_min=5.0,
@@ -4735,3 +4747,188 @@ class PTEmissionFactorTests(SimpleTestCase):
 
         self.assertAlmostEqual(BUS_COST_PER_VEHICLE_KM, 4.5, places=6)
         self.assertAlmostEqual(TRAIN_COST_PER_VEHICLE_KM, 12.0, places=6)
+
+
+class RoundTripTests(TestCase):
+    """A commute is there and back, and the evening is a round of its own.
+
+    The evening trip is a second pass over a fresh network, not a second half of
+    one long clock: eight hours separate the two peaks, so nothing of the
+    morning is still on the road, and a single clock would have kept every line
+    dispatching empty through the day while the evening riders waited in the
+    list — society CO2 for buses nobody could board.
+
+    One result row per round trip, on the way-to-work route: the time of the way
+    home is `mean_return_time_min` (the column was there from the start and
+    nothing ever wrote it), and CO2 and cost are both trips'.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="roundtrip", password="12345")
+        self.game_map, self.version, self.nodes = _grid_map("Round trip map", 4)
+        # Two-way street: every direction is an Edge row of its own, which is
+        # also how a one-way street is the absence of one.
+        self.there = [
+            _street(self.game_map, self.version, self.nodes[i], self.nodes[i + 1])
+            for i in range(3)
+        ]
+        self.back = [
+            _street(self.game_map, self.version, self.nodes[i + 1], self.nodes[i])
+            for i in reversed(range(3))
+        ]
+        self.session = _session(self.user, self.game_map, people_per_agent=5)
+        self.game_round = GameRound.objects.create(game=self.session, round_number=1)
+        self.player = Player.objects.create(name="Pendler", game=self.session)
+
+    def _run(self, seed=7):
+        from game.tests._helpers import muted
+
+        simulator = TrafficSimulator(self.game_round, scale=100.0, seed=seed)
+        with muted():
+            result = simulator.run_simulation(max_ticks=200)
+        return simulator, result
+
+    def _rows(self, result):
+        return list(result.agent_results.select_related("agent_route"))
+
+    def test_the_way_home_is_simulated_and_reported_on_the_same_row(self):
+        out = _route(self.game_round, self.player, self.there)
+        _route(self.game_round, self.player, self.back, direction="home")
+
+        _simulator, result = self._run()
+
+        rows = self._rows(result)
+        self.assertEqual([row.agent_route_id for row in rows], [out.pk])
+        # 900 m at 50 km/h is about 1.1 min each way.
+        self.assertGreater(rows[0].mean_trip_time_min, 0.5)
+        self.assertGreater(rows[0].mean_return_time_min, 0.5)
+        self.assertLess(rows[0].mean_return_time_min, 5.0)
+
+    def test_a_round_with_no_way_home_reports_none(self):
+        _route(self.game_round, self.player, self.there)
+
+        _simulator, result = self._run()
+
+        self.assertEqual(self._rows(result)[0].mean_return_time_min, 0.0)
+
+    def test_the_evening_is_charged_on_top_of_the_morning(self):
+        _route(self.game_round, self.player, self.there)
+        _simulator, one_way = self._run()
+
+        AgentRoute.objects.all().delete()
+        SimulationResult.objects.all().delete()
+        _route(self.game_round, self.player, self.there)
+        _route(self.game_round, self.player, self.back, direction="home")
+        _simulator, both_ways = self._run()
+
+        # The same 900 m, driven the other way — so twice, give or take the
+        # speed spread of five drivers.
+        self.assertAlmostEqual(
+            both_ways.total_co2_g / one_way.total_co2_g, 2.0, delta=0.1
+        )
+        self.assertAlmostEqual(
+            both_ways.total_cost_eur / one_way.total_cost_eur, 2.0, delta=0.1
+        )
+        row = self._rows(both_ways)[0]
+        self.assertAlmostEqual(row.total_co2_g, both_ways.total_co2_g, places=3)
+
+    def test_the_evening_runs_on_a_fresh_network(self):
+        """The same streets, driven twice: the morning leaves nothing behind.
+
+        400 cars take a one-lane street in the morning; if the evening started
+        on that state the second wave would queue behind the first.
+        """
+        self.session.people_per_agent = 400
+        self.session.save()
+        _route(self.game_round, self.player, self.there)
+        _route(self.game_round, self.player, self.there, direction="home")
+
+        simulator, result = self._run()
+
+        row = self._rows(result)[0]
+        self.assertAlmostEqual(
+            row.mean_return_time_min, row.mean_trip_time_min,
+            delta=0.5 * row.mean_trip_time_min,
+        )
+        self.assertEqual(
+            simulator.home_pass.edge_states[self.there[0].pk].traversal_count, 400
+        )
+
+    def test_the_street_speeds_come_from_both_directions(self):
+        _route(self.game_round, self.player, self.there)
+        _route(self.game_round, self.player, self.back, direction="home")
+
+        _simulator, _result = self._run()
+
+        from maps.models import StreetPerRound
+
+        driven = set(
+            StreetPerRound.objects.filter(game_round=self.game_round).values_list(
+                "edge__edge_id", flat=True
+            )
+        )
+        self.assertEqual(driven, {e.pk for e in self.there + self.back})
+
+
+class RoundTripPTTests(PTScenarioMixin, TestCase):
+    """The timetable runs in the evening too, and the society pays for it twice.
+
+    The fixture's lines only run one way, which is the New York case a circle
+    line is: the way home is the same line again. Both passes board their own
+    people on their own network, and the network's CO2 is the two timetables
+    added — which is why the round's budget doubles with the trip, instead of
+    the people being halved.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="rtpt", password="12345")
+        self.game_map, self.version, self.edges, self.bus, _train = self._pt_map(
+            "Round trip PT"
+        )
+        self.session = self._pt_session(self.game_map, self.version, people=100)
+        self.game_round = GameRound.objects.create(game=self.session, round_number=1)
+        self.player = Player.objects.create(name="Fahrgast", game=self.session)
+
+    def _home_ride(self):
+        return self._pt_route(
+            self.game_round,
+            self.player,
+            self.edges,
+            "bus",
+            self.bus,
+            direction="home",
+        )
+
+    def test_the_timetable_is_charged_for_both_trips(self):
+        self._pt_route(self.game_round, self.player, self.edges, "bus", self.bus)
+        one_way = self._run(self.game_round).simulation_result
+
+        AgentRoute.objects.all().delete()
+        SimulationResult.objects.all().delete()
+        self._pt_route(self.game_round, self.player, self.edges, "bus", self.bus)
+        self._home_ride()
+        both = self._run(self.game_round).simulation_result
+
+        self.assertGreater(one_way.network_co2_g, 0)
+        self.assertAlmostEqual(
+            both.network_co2_g / one_way.network_co2_g, 2.0, places=6
+        )
+        self.assertAlmostEqual(
+            both.total_co2_g / one_way.total_co2_g, 2.0, delta=0.01
+        )
+
+    def test_the_evening_riders_board_in_the_evening(self):
+        self._pt_route(self.game_round, self.player, self.edges, "bus", self.bus)
+        self._home_ride()
+
+        simulator = self._run(self.game_round)
+
+        row = simulator.simulation_result.agent_results.get()
+        self.assertGreater(row.mean_trip_time_min, 0)
+        self.assertGreater(row.mean_return_time_min, 0)
+        self.assertEqual(
+            sum(line.boarded for line in simulator.home_pass.pt_lines.values()),
+            100,
+        )
+        # Two Tickets' worth: one per person per trip.
+        self.assertAlmostEqual(row.mean_paid_eur, 2 * 1.30, places=6)

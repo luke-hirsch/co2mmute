@@ -455,6 +455,11 @@ class AgentRouteInputSerializer(serializers.Serializer):
         choices=gm.AgentRoute.Optimization.choices, required=False, allow_null=True
     )
     route = RouteInputSerializer()
+    # The way home. Required: a commute is a round trip, and a turn without one
+    # would be simulated as half a commute. It is a route of its own because
+    # the graph is directed — a one-way street has no reverse edge, so the way
+    # back is not the way there turned round.
+    return_route = RouteInputSerializer()
 
 
 class PlayerMoveWithRoutesInputSerializer(serializers.Serializer):

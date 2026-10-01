@@ -688,138 +688,179 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
                 errors.append(f"Invalid agent ID: {agent_id}")
                 continue
 
-            route = agent_data["route"]
-            segments = route["segments"]
-
-            if not segments:
-                errors.append(f"Agent {agent_id} route has no segments")
-                continue
-
-            # Validate first segment starts from home
-            first_segment = segments[0]
-            if first_segment["start_node"] != home_node:
-                errors.append(
-                    f"Agent {agent_id} route must start from home node {home_node}"
-                )
-
-            # Validate last segment ends at destination
             destination = assigned_agents[agent_id]["destination_node"]
-            last_segment = segments[-1]
-            if last_segment["end_node"] != destination:
-                errors.append(
-                    f"Agent {agent_id} route must end at destination {destination}"
+            self._check_route(
+                f"Agent {agent_id}",
+                agent_data["route"]["segments"],
+                home_node,
+                "home node",
+                destination,
+                "destination",
+                errors,
+            )
+            # The way home starts where the way to work ended and ends at the
+            # door it left from. It is its own route — found on the directed
+            # graph, so a one-way street can make it a different one.
+            if agent_data.get("return_route"):
+                self._check_route(
+                    f"Agent {agent_id} (way home)",
+                    agent_data["return_route"]["segments"],
+                    destination,
+                    "destination",
+                    home_node,
+                    "home node",
+                    errors,
                 )
-
-            # Validate segment connectivity and edge existence
-            for i, segment in enumerate(segments):
-                mode = segment["mode"]
-                edge_id = segment["edge_id"]
-
-                # edge_id = -1 signals a segment with no dedicated underlying edge.
-                # Valid for walk (no walk edge between two PT stops) and for
-                # bus/train (PT stop pair with no mapped street/rail edge).
-                if edge_id == -1:
-                    if mode not in ("walk", "bus", "train"):
-                        errors.append(
-                            f"Agent {agent_id}: edge -1 is only valid for walk/PT segments, got mode '{mode}'"
-                        )
-                    continue
-
-                try:
-                    edge = Edge.objects.get(id=edge_id)
-                except Edge.DoesNotExist:
-                    errors.append(f"Agent {agent_id}: edge {edge_id} does not exist")
-                    continue
-
-                # Validate edge matches start/end nodes.
-                # Skip connectivity check for bus/train: edge IDs on PT lines are
-                # used for simulation properties (bus lane, speed) rather than
-                # strict routing, and may be stored in either direction or differ
-                # slightly from the traversed stop pair.
-                if mode not in ("bus", "train"):
-                    forward_ok = (
-                        edge.start_node_id == segment["start_node"]  # type: ignore
-                        and edge.end_node_id == segment["end_node"]  # type: ignore
-                    )
-                    reverse_ok = (
-                        edge.start_node_id == segment["end_node"]  # type: ignore
-                        and edge.end_node_id == segment["start_node"]  # type: ignore
-                    )
-                    if not forward_ok and not reverse_ok:
-                        errors.append(
-                            f"Agent {agent_id}: edge {edge_id} does not connect nodes {segment['start_node']} → {segment['end_node']}"
-                        )
-
-                # Validate transport mode is allowed on this edge
-                if mode == "walk" and not edge.walking:
-                    errors.append(
-                        f"Agent {agent_id}: walking not allowed on edge {edge_id}"
-                    )
-                if mode == "bike" and not edge.biking:
-                    errors.append(
-                        f"Agent {agent_id}: biking not allowed on edge {edge_id}"
-                    )
-                # StreetEdge.edge is a ForeignKey, so hasattr(edge,
-                # "streetedge_set") is always true — the old condition here
-                # short-circuited and this check never fired once.
-                if mode == "car":
-                    street_edge = edge.streetedge_set.first()  # type: ignore
-                    if street_edge is None:
-                        errors.append(
-                            f"Agent {agent_id}: cars not allowed on edge {edge_id}"
-                        )
-                    else:
-                        # `lanes` counts the whole street, so every reservation
-                        # takes one off the cars. On a one-lane street a single
-                        # one leaves no car lane at all: the street is a gate
-                        # and cars have to go round. Counted rather than asked
-                        # about by name, or the two-reservation case falls
-                        # through both branches.
-                        reserved = []
-                        if street_edge.dedicated_bus_lane:
-                            reserved.append("bus lane")
-                        if edge.bike_lane:
-                            reserved.append("bike lane")
-                        if reserved and street_edge.lanes - len(reserved) <= 0:
-                            errors.append(
-                                f"Agent {agent_id}: edge {edge_id} is a "
-                                f"{' and '.join(reserved)}, cars cannot use it"
-                            )
-                if mode in ("bus", "train"):
-                    pass
-
-                # Validate connectivity with previous segment
-                if i > 0:
-                    prev_segment = segments[i - 1]
-                    if prev_segment["end_node"] != segment["start_node"]:
-                        errors.append(
-                            f"Agent {agent_id}: route discontinuity at segment {i}: {prev_segment['end_node']} != {segment['start_node']}"
-                        )
 
         return errors if errors else None
 
-    def _store_routes(self, move, agents_data):
-        """Store agent routes and segments in the database."""
-        for agent_data in agents_data:
-            route_data = agent_data["route"]
+    def _check_route(
+        self,
+        who,
+        segments,
+        start_node,
+        start_label,
+        end_node,
+        end_label,
+        errors,
+    ):
+        """One trip's connectivity and permissions, appended to `errors`.
 
-            agent_route = AgentRoute.objects.create(
-                player_move=move,
-                agent_id=agent_data["id"],
-                transport_mode=agent_data["transport_mode"],
-                optimization=agent_data.get("optimization"),
-                total_distance_m=route_data["total_distance_m"],
-                estimated_time_min=route_data["estimated_time_min"],
-            )
+        The way to work and the way home are checked by the same rules, so one
+        method — a rule only one of two legs enforces is not a rule.
+        """
 
-            for i, segment_data in enumerate(route_data["segments"]):
-                RouteSegment.objects.create(
-                    agent_route=agent_route,
-                    order=i,
-                    edge_id=segment_data["edge_id"],
-                    mode=segment_data["mode"],
-                    pt_line_id=segment_data.get("pt_line_id"),
+        if not segments:
+            errors.append(f"{who} route has no segments")
+            return
+
+        # Validate first segment starts where the trip starts
+        first_segment = segments[0]
+        if first_segment["start_node"] != start_node:
+            errors.append(f"{who} route must start from {start_label} {start_node}")
+
+        # Validate last segment ends where it ends
+        last_segment = segments[-1]
+        if last_segment["end_node"] != end_node:
+            errors.append(f"{who} route must end at {end_label} {end_node}")
+
+        # Validate segment connectivity and edge existence
+        for i, segment in enumerate(segments):
+            mode = segment["mode"]
+            edge_id = segment["edge_id"]
+
+            # edge_id = -1 signals a segment with no dedicated underlying edge.
+            # Valid for walk (no walk edge between two PT stops) and for
+            # bus/train (PT stop pair with no mapped street/rail edge).
+            if edge_id == -1:
+                if mode not in ("walk", "bus", "train"):
+                    errors.append(
+                        f"{who}: edge -1 is only valid for walk/PT segments, got mode '{mode}'"
+                    )
+                continue
+
+            try:
+                edge = Edge.objects.get(id=edge_id)
+            except Edge.DoesNotExist:
+                errors.append(f"{who}: edge {edge_id} does not exist")
+                continue
+
+            # Validate edge matches start/end nodes.
+            # Skip connectivity check for bus/train: edge IDs on PT lines are
+            # used for simulation properties (bus lane, speed) rather than
+            # strict routing, and may be stored in either direction or differ
+            # slightly from the traversed stop pair.
+            if mode not in ("bus", "train"):
+                # Forward only. The graph is directed — a two-way street is two
+                # edges, a one-way street one — and the client's router never
+                # takes an edge against its direction. Accepting the reverse
+                # here let a request drive a car the wrong way down a one-way
+                # street, onto the queue of the other direction's link.
+                if not (
+                    edge.start_node_id == segment["start_node"]  # type: ignore
+                    and edge.end_node_id == segment["end_node"]  # type: ignore
+                ):
+                    errors.append(
+                        f"{who}: edge {edge_id} does not lead from node "
+                        f"{segment['start_node']} to {segment['end_node']}"
+                    )
+
+            # Validate transport mode is allowed on this edge
+            if mode == "walk" and not edge.walking:
+                errors.append(
+                    f"{who}: walking not allowed on edge {edge_id}"
                 )
+            if mode == "bike" and not edge.biking:
+                errors.append(
+                    f"{who}: biking not allowed on edge {edge_id}"
+                )
+            # StreetEdge.edge is a ForeignKey, so hasattr(edge,
+            # "streetedge_set") is always true — the old condition here
+            # short-circuited and this check never fired once.
+            if mode == "car":
+                street_edge = edge.streetedge_set.first()  # type: ignore
+                if street_edge is None:
+                    errors.append(
+                        f"{who}: cars not allowed on edge {edge_id}"
+                    )
+                else:
+                    # `lanes` counts the whole street, so every reservation
+                    # takes one off the cars. On a one-lane street a single
+                    # one leaves no car lane at all: the street is a gate
+                    # and cars have to go round. Counted rather than asked
+                    # about by name, or the two-reservation case falls
+                    # through both branches.
+                    reserved = []
+                    if street_edge.dedicated_bus_lane:
+                        reserved.append("bus lane")
+                    if edge.bike_lane:
+                        reserved.append("bike lane")
+                    if reserved and street_edge.lanes - len(reserved) <= 0:
+                        errors.append(
+                            f"{who}: edge {edge_id} is a "
+                            f"{' and '.join(reserved)}, cars cannot use it"
+                        )
+            if mode in ("bus", "train"):
+                pass
+
+            # Validate connectivity with previous segment
+            if i > 0:
+                prev_segment = segments[i - 1]
+                if prev_segment["end_node"] != segment["start_node"]:
+                    errors.append(
+                        f"{who}: route discontinuity at segment {i}: {prev_segment['end_node']} != {segment['start_node']}"
+                    )
+
+    def _store_routes(self, move, agents_data):
+        """Store agent routes and segments in the database.
+
+        Two rows per agent when a way home came with it: the same transport
+        mode, `direction` telling them apart.
+        """
+        for agent_data in agents_data:
+            legs = [(AgentRoute.Direction.OUT, agent_data["route"])]
+            if agent_data.get("return_route"):
+                legs.append((AgentRoute.Direction.HOME, agent_data["return_route"]))
+
+            for direction, route_data in legs:
+                agent_route = AgentRoute.objects.create(
+                    player_move=move,
+                    agent_id=agent_data["id"],
+                    direction=direction,
+                    transport_mode=agent_data["transport_mode"],
+                    optimization=agent_data.get("optimization"),
+                    total_distance_m=route_data["total_distance_m"],
+                    estimated_time_min=route_data["estimated_time_min"],
+                )
+
+                for i, segment_data in enumerate(route_data["segments"]):
+                    RouteSegment.objects.create(
+                        agent_route=agent_route,
+                        order=i,
+                        edge_id=segment_data["edge_id"],
+                        mode=segment_data["mode"],
+                        pt_line_id=segment_data.get("pt_line_id"),
+                    )
 
 
 class RoundTrafficHeatmapView(GenericAPIView):
@@ -1048,7 +1089,8 @@ class GameSummaryView(GenericAPIView):
         route_counts = {
             row["player_move__session_round"]: row["n"]
             for row in AgentRoute.objects.filter(
-                player_move__session_round__in=completed_rounds
+                player_move__session_round__in=completed_rounds,
+                direction=AgentRoute.Direction.OUT,
             )
             .values("player_move__session_round")
             .annotate(n=Count("id"))
@@ -1147,14 +1189,18 @@ class GameSummaryView(GenericAPIView):
                             round_cost += result.mean_cost_eur * (
                                 game.people_per_agent or 1
                             )
-                            round_time += result.mean_trip_time_min
+                            round_time += result.round_trip_time_min
                             round_paid += result.mean_paid_eur
                             modes_used.add(result.agent_route.transport_mode)
 
                     else:
                         # Fallback
                         agent_routes = AgentRoute.objects.filter(player_move=round_move)
-                        round_agents = agent_routes.count()
+                        # Agents, not trips: the way home is a second route
+                        # of the same one, and the estimates below add both.
+                        round_agents = agent_routes.filter(
+                            direction=AgentRoute.Direction.OUT
+                        ).count()
                         fallback_emissions = {
                             "car": 166.8,
                             "public": 60.0,

@@ -110,6 +110,23 @@ class PTLeg:
     alight_node: int
 
 
+@dataclass
+class RouteOutcome:
+    """What one pass worked out for one route, kept until both passes are done.
+
+    The way to work's row in the database carries the way home's time as well,
+    so nothing is written until the evening has run. Cost and CO2 are for the
+    whole Gruppe, time and delay are the mean over its people.
+    """
+
+    mean_trip_time_min: float
+    mean_delay_min: float
+    mean_wait_min: float
+    co2_g: float
+    cost_eur: float
+    paid_eur: float
+
+
 class TrafficSimulator:
     """
     Main simulation engine for traffic simulation.
@@ -123,6 +140,8 @@ class TrafficSimulator:
         game_round: GameRound,
         scale: float = 100.0,
         seed: int | None = None,
+        direction: str = AgentRoute.Direction.OUT,
+        rng: random.Random | None = None,
     ):
         """
         Initialize the simulator.
@@ -135,15 +154,34 @@ class TrafficSimulator:
                 after a worker restart. Pass one explicitly to sweep the same
                 round over many seeds (calibration), which is the only reason
                 the argument exists.
+            direction: Which trip this pass simulates, `out` (the way to work)
+                or `home`. A round trip is two passes over two fresh networks —
+                see `run_simulation`. Only the routes of this direction load.
+            rng: The generator to continue, for the home pass, so one round is
+                still one seeded stream and replays identically.
         """
         self.game_round = game_round
         self.scale = scale
+        self.direction = direction
         self.simulation_result: SimulationResult | None = None
+        # The evening pass, once the way to work has run. Kept so a test (and
+        # the log) can read what the second network saw.
+        self.home_pass: "TrafficSimulator | None" = None
+        # What this pass worked out per route, before anything is written: the
+        # way to work needs the way home's numbers to make its row.
+        self.outcomes: dict[int, RouteOutcome] = {}
+        self.pass_total_co2_g = 0.0
+        self.pass_total_cost_eur = 0.0
+        self.pass_network_co2_g = 0.0
+        self.pass_network_cost_eur = 0.0
+        # Added to every snapshot's tick, so the evening's rows sit after the
+        # morning's under one (simulation, edge, time_tick) key.
+        self.tick_offset = 0
         # A generator of its own rather than module-level `random`: the module
         # generator is process-wide shared state, so anything else drawing from
         # it would shift this round's departures.
         self.seed = game_round.pk if seed is None else seed
-        self.rng = random.Random(self.seed)
+        self.rng = rng if rng is not None else random.Random(self.seed)
         self.held_at_origin: dict[int, int] = {}
         # Load simulation parameters from GameSession
         game_session = game_round.game
@@ -288,7 +326,9 @@ class TrafficSimulator:
         route_labels = {}
         for move in player_moves:
             player_name = move.player.name or f"Player {move.player.player_id}"
-            routes = AgentRoute.objects.filter(player_move=move).prefetch_related(
+            routes = AgentRoute.objects.filter(
+                player_move=move, direction=self.direction
+            ).prefetch_related(
                 "segments", "segments__edge"
             )
             for route in routes:
@@ -1484,7 +1524,7 @@ class TrafficSimulator:
                     EdgeTrafficSnapshot(
                         simulation=self.simulation_result,
                         edge_id=edge_id,
-                        time_tick=self.current_tick,
+                        time_tick=self.tick_offset + self.current_tick,
                         vehicle_count=len(state.queue),
                         waiting_count=held,
                         speed_kmh=state.mean_speed_kmh,
@@ -1788,17 +1828,28 @@ class TrafficSimulator:
         on_progress: Callable[[int, int], None] | None = None,
     ) -> SimulationResult:
         """
-        Run the full simulation.
+        Run the full simulation: the way to work, and the way home.
+
+        A commute is a round trip, so a round is two passes. The morning is
+        this simulator; the evening is a sibling built for the `home` routes —
+        a fresh network, not a second half of one long clock. Eight hours lie
+        between the two peaks, so nothing of the morning is still on the road,
+        and a single clock would have kept every line dispatching through the
+        day for the evening riders waiting in the list, charging society CO2
+        for buses nobody could board. The sibling continues this pass's random
+        stream, so the round is still one seeded run.
+
+        A round with no way home — every route written before the evening
+        existed, and every one a test builds by hand — runs the morning alone,
+        exactly as before.
 
         Args:
-            max_ticks: Maximum number of ticks before stopping
+            max_ticks: Maximum number of ticks per pass before stopping
             on_progress: Callback for progress updates (tick, total_ticks)
 
         Returns:
             SimulationResult with computed statistics
         """
-        self.on_progress = on_progress
-
         logger.info(
             f"[SIM] Starting simulation for round {self.game_round.round_number}, "
             f"scale={self.scale}, max_ticks={max_ticks}"
@@ -1811,248 +1862,25 @@ class TrafficSimulator:
         )
 
         try:
-            # Write log header
-            self.sim_log.header(
-                f"SIMULATION LOG — Round {self.game_round.round_number} "
-                f"(Game: {self.game_round.game.game_name})"
-            )
-            self.sim_log.write(f"Scale: {self.scale} m/unit")
-            self.sim_log.write(f"People per agent: {self.people_per_agent}")
-            self.sim_log.write(f"Tick duration: {self.tick_duration_min} min")
-            self.sim_log.write(f"Max ticks: {max_ticks}")
-            self.sim_log.write(f"Walk speed: {self.walk_speed_kmh} km/h")
-            self.sim_log.write(f"Bike speed: {self.bike_speed_kmh} km/h")
-            self.sim_log.write(f"Default car speed: {self.default_car_speed_kmh} km/h")
+            self._run_pass(max_ticks, on_progress)
+            self._compute_outcomes()
 
-            # Log routes
-            self.sim_log.header("ROUTES")
-            for route_pk, route in self.agent_routes.items():
-                segments = self.route_segments.get(route_pk, [])
-                legs = self.route_pt_legs.get(route_pk, [])
-                route_line = (
-                    f"  {self.sim_log._route_label(route_pk)}: "
-                    f"distance={route.total_distance_m:.0f}m, "
-                    f"est_time={route.estimated_time_min:.1f}min, "
-                    f"segments={len(segments)}, "
-                    f"people={self.people_per_agent}"
+            if self._has_way_home():
+                self.home_pass = TrafficSimulator(
+                    self.game_round,
+                    scale=self.scale,
+                    seed=self.seed,
+                    direction=AgentRoute.Direction.HOME,
+                    rng=self.rng,
                 )
-                for leg in legs:
-                    line = self.pt_lines.get(leg.line_key)
-                    route_line += (
-                        f", rides {line.name if line else leg.line_key[1]} "
-                        f"{leg.board_node}→{leg.alight_node}"
-                    )
-                self.sim_log.write(route_line)
+                self.home_pass.simulation_result = self.simulation_result
+                self.home_pass.tick_offset = max_ticks
+                self.home_pass._run_pass(max_ticks, on_progress)
+                self.home_pass._compute_outcomes()
+                self.sim_log.header("THE WAY HOME")
+                self.sim_log.write(self.home_pass.sim_log.get_text())
 
-            # Log edges
-            self.sim_log.header("EDGES")
-            for eid, es in sorted(self.edge_states.items()):
-                self.sim_log.write(
-                    f"  {self.sim_log._edge_label(eid)}: "
-                    f"dist={es.distance_m:.0f}m, speed={es.free_flow_speed_kmh:.0f}km/h, "
-                    f"car_lanes={es.car_lanes}, "
-                    f"storage={es.storage_capacity_pcu:.0f}pcu, "
-                    f"flow={es.flow_per_tick(self.tick_duration_min):.0f}pcu/tick"
-                    + (", DEDICATED BUS LANE" if es.has_dedicated_bus_lane else "")
-                )
-            # Routes and edges are already loaded in __init__
-            if not self.agent_routes:
-                logger.warning("[SIM] No agent routes found, simulation will be empty")
-
-            # A line's service period is the simulation's own clock — the same
-            # one the road runs on. There is no PT service cap; a full bus is a
-            # wait, and the wait is already inside the trip time because the
-            # clock starts at wants_to_depart_min.
-            self.max_service_min = float(max_ticks * self.tick_duration_min)
-
-            # Run morning commute
-            self._generate_departures(is_morning=True)
-            # The desired-speed draw belongs to the PERSON, not to the
-            # attempt. It used to happen in _spawn_vehicles, where a traveller
-            # the street turns away is discarded and rebuilt next tick with a
-            # fresh draw — so someone held at the door for three ticks was
-            # dealt three different desired speeds and kept the last. Worse,
-            # it made the whole round's random stream depend on the pattern of
-            # refusals, so any change to link occupancy re-rolled every later
-            # driver and moved results by far more than the change itself.
-            self.waiting: list[tuple[float, int, int, float]] = sorted(
-                (
-                    (
-                        depart_min,
-                        route_pk,
-                        person_index,
-                        # A line vehicle runs to its timetable, not to a
-                        # driver's taste, so it takes NO draw — not merely a
-                        # factor of 1.0. Its route key is the negative one
-                        # _register_pt_line gave it.
-                        1.0 if route_pk < 0 else draw_driver_speed_factor(self.rng),
-                    )
-                    for route_pk, schedule in self.departure_schedule.items()
-                    for person_index, depart_min in schedule
-                ),
-                # Explicitly on the first three: the draw must never decide
-                # who leaves first.
-                key=lambda entry: entry[:3],
-            )
-
-            total_departures = sum(len(s) for s in self.departure_schedule.values())
-            logger.info(
-                f"[SIM] Generated {total_departures} departures for "
-                f"{len(self.departure_schedule)} agents"
-            )
-
-            self.sim_log.header("SIMULATION TICK LOG (sample vehicle per route)")
-            scheduled_runs = sum(
-                len(self.departure_schedule.get(key, []))
-                for key in self.line_by_route_key
-            )
-            base_runs = sum(l.base_vehicles for l in self.pt_lines.values())
-            self.sim_log.write(
-                f"Total vehicles to spawn: {total_departures - scheduled_runs} people "
-                f"({len(self.agent_routes)} routes x {self.people_per_agent}), plus "
-                f"{base_runs} timetabled PT runs from {len(self.pt_lines)} lines and "
-                f"as many more as the demand asks for"
-            )
-
-            # Simulation loop. One call per tick: _advance_traffic() spawns,
-            # moves the free-running modes and discharges every queue itself.
-            self.current_tick = 0
-
-            while self.current_tick < max_ticks:
-                self._advance_traffic()
-
-                # Log progress every 10 ticks to simulation log
-                if self.current_tick % 10 == 0:
-                    active = sum(
-                        1
-                        for v in self.vehicles.values()
-                        if v.departed and not v.arrived
-                    )
-                    arrived = sum(1 for v in self.vehicles.values() if v.arrived)
-                    queued = [
-                        (eid, s)
-                        for eid, s in self.edge_states.items()
-                        if s.occupancy_pcu > s.storage_capacity_pcu * 0.5
-                    ]
-                    held_total = sum(self.held_at_origin.values())
-                    tick_line = (
-                        f"[tick {self.current_tick:>3}] "
-                        f"waiting_to_depart={len(self.waiting)}, active={active}, "
-                        f"arrived={arrived}/{len(self.vehicles)}, "
-                        f"queued_edges={len(queued)}, "
-                        f"held_at_door={held_total}, "
-                        f"forced={self.forced_releases}"
-                    )
-                    self.sim_log.write(tick_line)
-
-                    for eid, count in sorted(
-                        self.held_at_origin.items(), key=lambda kv: -kv[1]
-                    )[:5]:
-                        es = self.edge_states.get(eid)
-                        if es is None:
-                            continue
-                        self.sim_log.write(
-                            f"    DOOR: {self.sim_log._edge_label(eid)} — "
-                            f"{count} vehicles cannot get on "
-                            f"(storage={es.storage_capacity_pcu:.0f}pcu, "
-                            f"observed={es.mean_speed_kmh:.1f}km/h)"
-                        )
-
-                    for eid, state in queued:
-                        self.sim_log.write(
-                            f"    QUEUE: {self.sim_log._edge_label(eid)} — "
-                            f"{state.occupancy_pcu:.0f}/"
-                            f"{state.storage_capacity_pcu:.0f}pcu in "
-                            f"{len(state.queue)} vehicles, "
-                            f"observed={state.mean_speed_kmh:.1f}km/h "
-                            f"(free_flow={state.free_flow_speed_kmh:.0f}km/h)"
-                        )
-
-                    logger.info(
-                        f"[SIM] Tick {self.current_tick}: "
-                        f"waiting_to_depart={len(self.waiting)}, active={active}, "
-                        f"arrived={arrived}/{len(self.vehicles)}, "
-                        f"queued_edges={len(queued)}, held_at_door={held_total}, "
-                        f"forced={self.forced_releases}"
-                    )
-                elif self.held_at_origin:
-                    # A door queue can open and fully drain between two
-                    # decade-ticks — origin-admission lets a link discharge
-                    # its whole flow capacity per tick, so a queue that used
-                    # to take an hour to clear now can clear in under ten.
-                    # Gating this on the same %10 as the full status line
-                    # would make the log silently miss it, which is exactly
-                    # the blindness this branch exists to remove.
-                    held_total = sum(self.held_at_origin.values())
-                    self.sim_log.write(
-                        f"[tick {self.current_tick:>3}] held_at_door={held_total}"
-                    )
-                    for eid, count in sorted(
-                        self.held_at_origin.items(), key=lambda kv: -kv[1]
-                    )[:5]:
-                        es = self.edge_states.get(eid)
-                        if es is None:
-                            continue
-                        self.sim_log.write(
-                            f"    DOOR: {self.sim_log._edge_label(eid)} — "
-                            f"{count} vehicles cannot get on "
-                            f"(storage={es.storage_capacity_pcu:.0f}pcu, "
-                            f"observed={es.mean_speed_kmh:.1f}km/h)"
-                        )
-                    logger.info(
-                        f"[SIM] Tick {self.current_tick}: held_at_door={held_total}"
-                    )
-
-                # Record traffic every tick. Every fifth was one sample per 25
-                # simulated minutes — nine frames for a whole morning, which is
-                # a chart, not an animation. The per-edge filter in
-                # _record_edge_traffic keeps this to the active links.
-                self._record_edge_traffic()
-
-                # Progress callback
-                if on_progress:
-                    on_progress(self.current_tick, max_ticks)
-
-                # Check if all vehicles arrived
-                if self._all_departures_are_done() and self._all_vehicles_arrived():
-                    self.sim_log.write(
-                        f"\n>>> All {len(self.vehicles)} vehicles arrived at tick {self.current_tick}"
-                    )
-                    logger.info(
-                        f"[SIM] All {len(self.vehicles)} vehicles arrived at tick {self.current_tick}"
-                    )
-                    break
-
-                self.current_tick += 1
-            self._record_arrivals()
-            # Whatever is still moving when the loop ends has to be counted too.
-            self._record_non_arrivals()
-            # Log sample vehicle summaries
-            self.sim_log.header("SAMPLE VEHICLE TRIP SUMMARIES")
-            for route_pk, vid in self.sample_vehicles.items():
-                v = self.vehicles.get(vid)
-                if not v:
-                    continue
-                free_flow = self._free_flow_min(route_pk)
-                label = self.sim_log._route_label(route_pk)
-                if v.arrived and v.arrived_min is not None:
-                    trip_min = v.arrived_min - v.wants_to_depart_min
-                    self.sim_log.write(
-                        f"  {label}: wanted_to_leave={v.wants_to_depart_min:.1f}min, "
-                        f"total_time={trip_min:.1f}min, "
-                        f"free_flow={free_flow:.1f}min, "
-                        f"congestion_delay={max(0.0, trip_min - free_flow):.2f}min, "
-                        f"arrived=YES"
-                    )
-                else:
-                    self.sim_log.write(
-                        f"  {label}: wanted_to_leave={v.wants_to_depart_min:.1f}min, "
-                        f"free_flow={free_flow:.1f}min, "
-                        f"still on segment {v.segment_index}, arrived=NO"
-                    )
-
-            # Calculate final results
-            self._calculate_results()
+            self._save_results()
 
             # Update simulation status
             self.simulation_result.status = SimulationResult.Status.COMPLETED
@@ -2075,8 +1903,276 @@ class TrafficSimulator:
 
         return self.simulation_result
 
-    def _calculate_results(self):
-        """Calculate final results and store in database."""
+    def _has_way_home(self) -> bool:
+        return AgentRoute.objects.filter(
+            player_move__session_round=self.game_round,
+            direction=AgentRoute.Direction.HOME,
+        ).exists()
+
+    def _run_pass(
+        self,
+        max_ticks: int,
+        on_progress: Callable[[int, int], None] | None,
+    ):
+        """One trip, on this simulator's own network: depart, drive, arrive."""
+        self.on_progress = on_progress
+
+        # Write log header
+        self.sim_log.header(
+            f"SIMULATION LOG — Round {self.game_round.round_number} "
+            f"(Game: {self.game_round.game.game_name})"
+            + (
+                " — the way home"
+                if self.direction == AgentRoute.Direction.HOME
+                else ""
+            )
+        )
+        self.sim_log.write(f"Scale: {self.scale} m/unit")
+        self.sim_log.write(f"People per agent: {self.people_per_agent}")
+        self.sim_log.write(f"Tick duration: {self.tick_duration_min} min")
+        self.sim_log.write(f"Max ticks: {max_ticks}")
+        self.sim_log.write(f"Walk speed: {self.walk_speed_kmh} km/h")
+        self.sim_log.write(f"Bike speed: {self.bike_speed_kmh} km/h")
+        self.sim_log.write(f"Default car speed: {self.default_car_speed_kmh} km/h")
+
+        # Log routes
+        self.sim_log.header("ROUTES")
+        for route_pk, route in self.agent_routes.items():
+            segments = self.route_segments.get(route_pk, [])
+            legs = self.route_pt_legs.get(route_pk, [])
+            route_line = (
+                f"  {self.sim_log._route_label(route_pk)}: "
+                f"distance={route.total_distance_m:.0f}m, "
+                f"est_time={route.estimated_time_min:.1f}min, "
+                f"segments={len(segments)}, "
+                f"people={self.people_per_agent}"
+            )
+            for leg in legs:
+                line = self.pt_lines.get(leg.line_key)
+                route_line += (
+                    f", rides {line.name if line else leg.line_key[1]} "
+                    f"{leg.board_node}→{leg.alight_node}"
+                )
+            self.sim_log.write(route_line)
+
+        # Log edges
+        self.sim_log.header("EDGES")
+        for eid, es in sorted(self.edge_states.items()):
+            self.sim_log.write(
+                f"  {self.sim_log._edge_label(eid)}: "
+                f"dist={es.distance_m:.0f}m, speed={es.free_flow_speed_kmh:.0f}km/h, "
+                f"car_lanes={es.car_lanes}, "
+                f"storage={es.storage_capacity_pcu:.0f}pcu, "
+                f"flow={es.flow_per_tick(self.tick_duration_min):.0f}pcu/tick"
+                + (", DEDICATED BUS LANE" if es.has_dedicated_bus_lane else "")
+            )
+        # Routes and edges are already loaded in __init__
+        if not self.agent_routes:
+            logger.warning("[SIM] No agent routes found, simulation will be empty")
+
+        # A line's service period is the simulation's own clock — the same
+        # one the road runs on. There is no PT service cap; a full bus is a
+        # wait, and the wait is already inside the trip time because the
+        # clock starts at wants_to_depart_min.
+        self.max_service_min = float(max_ticks * self.tick_duration_min)
+
+        # Run morning commute
+        self._generate_departures(
+            is_morning=self.direction == AgentRoute.Direction.OUT
+        )
+        # The desired-speed draw belongs to the PERSON, not to the
+        # attempt. It used to happen in _spawn_vehicles, where a traveller
+        # the street turns away is discarded and rebuilt next tick with a
+        # fresh draw — so someone held at the door for three ticks was
+        # dealt three different desired speeds and kept the last. Worse,
+        # it made the whole round's random stream depend on the pattern of
+        # refusals, so any change to link occupancy re-rolled every later
+        # driver and moved results by far more than the change itself.
+        self.waiting: list[tuple[float, int, int, float]] = sorted(
+            (
+                (
+                    depart_min,
+                    route_pk,
+                    person_index,
+                    # A line vehicle runs to its timetable, not to a
+                    # driver's taste, so it takes NO draw — not merely a
+                    # factor of 1.0. Its route key is the negative one
+                    # _register_pt_line gave it.
+                    1.0 if route_pk < 0 else draw_driver_speed_factor(self.rng),
+                )
+                for route_pk, schedule in self.departure_schedule.items()
+                for person_index, depart_min in schedule
+            ),
+            # Explicitly on the first three: the draw must never decide
+            # who leaves first.
+            key=lambda entry: entry[:3],
+        )
+
+        total_departures = sum(len(s) for s in self.departure_schedule.values())
+        logger.info(
+            f"[SIM] Generated {total_departures} departures for "
+            f"{len(self.departure_schedule)} agents"
+        )
+
+        self.sim_log.header("SIMULATION TICK LOG (sample vehicle per route)")
+        scheduled_runs = sum(
+            len(self.departure_schedule.get(key, []))
+            for key in self.line_by_route_key
+        )
+        base_runs = sum(l.base_vehicles for l in self.pt_lines.values())
+        self.sim_log.write(
+            f"Total vehicles to spawn: {total_departures - scheduled_runs} people "
+            f"({len(self.agent_routes)} routes x {self.people_per_agent}), plus "
+            f"{base_runs} timetabled PT runs from {len(self.pt_lines)} lines and "
+            f"as many more as the demand asks for"
+        )
+
+        # Simulation loop. One call per tick: _advance_traffic() spawns,
+        # moves the free-running modes and discharges every queue itself.
+        self.current_tick = 0
+
+        while self.current_tick < max_ticks:
+            self._advance_traffic()
+
+            # Log progress every 10 ticks to simulation log
+            if self.current_tick % 10 == 0:
+                active = sum(
+                    1
+                    for v in self.vehicles.values()
+                    if v.departed and not v.arrived
+                )
+                arrived = sum(1 for v in self.vehicles.values() if v.arrived)
+                queued = [
+                    (eid, s)
+                    for eid, s in self.edge_states.items()
+                    if s.occupancy_pcu > s.storage_capacity_pcu * 0.5
+                ]
+                held_total = sum(self.held_at_origin.values())
+                tick_line = (
+                    f"[tick {self.current_tick:>3}] "
+                    f"waiting_to_depart={len(self.waiting)}, active={active}, "
+                    f"arrived={arrived}/{len(self.vehicles)}, "
+                    f"queued_edges={len(queued)}, "
+                    f"held_at_door={held_total}, "
+                    f"forced={self.forced_releases}"
+                )
+                self.sim_log.write(tick_line)
+
+                for eid, count in sorted(
+                    self.held_at_origin.items(), key=lambda kv: -kv[1]
+                )[:5]:
+                    es = self.edge_states.get(eid)
+                    if es is None:
+                        continue
+                    self.sim_log.write(
+                        f"    DOOR: {self.sim_log._edge_label(eid)} — "
+                        f"{count} vehicles cannot get on "
+                        f"(storage={es.storage_capacity_pcu:.0f}pcu, "
+                        f"observed={es.mean_speed_kmh:.1f}km/h)"
+                    )
+
+                for eid, state in queued:
+                    self.sim_log.write(
+                        f"    QUEUE: {self.sim_log._edge_label(eid)} — "
+                        f"{state.occupancy_pcu:.0f}/"
+                        f"{state.storage_capacity_pcu:.0f}pcu in "
+                        f"{len(state.queue)} vehicles, "
+                        f"observed={state.mean_speed_kmh:.1f}km/h "
+                        f"(free_flow={state.free_flow_speed_kmh:.0f}km/h)"
+                    )
+
+                logger.info(
+                    f"[SIM] Tick {self.current_tick}: "
+                    f"waiting_to_depart={len(self.waiting)}, active={active}, "
+                    f"arrived={arrived}/{len(self.vehicles)}, "
+                    f"queued_edges={len(queued)}, held_at_door={held_total}, "
+                    f"forced={self.forced_releases}"
+                )
+            elif self.held_at_origin:
+                # A door queue can open and fully drain between two
+                # decade-ticks — origin-admission lets a link discharge
+                # its whole flow capacity per tick, so a queue that used
+                # to take an hour to clear now can clear in under ten.
+                # Gating this on the same %10 as the full status line
+                # would make the log silently miss it, which is exactly
+                # the blindness this branch exists to remove.
+                held_total = sum(self.held_at_origin.values())
+                self.sim_log.write(
+                    f"[tick {self.current_tick:>3}] held_at_door={held_total}"
+                )
+                for eid, count in sorted(
+                    self.held_at_origin.items(), key=lambda kv: -kv[1]
+                )[:5]:
+                    es = self.edge_states.get(eid)
+                    if es is None:
+                        continue
+                    self.sim_log.write(
+                        f"    DOOR: {self.sim_log._edge_label(eid)} — "
+                        f"{count} vehicles cannot get on "
+                        f"(storage={es.storage_capacity_pcu:.0f}pcu, "
+                        f"observed={es.mean_speed_kmh:.1f}km/h)"
+                    )
+                logger.info(
+                    f"[SIM] Tick {self.current_tick}: held_at_door={held_total}"
+                )
+
+            # Record traffic every tick. Every fifth was one sample per 25
+            # simulated minutes — nine frames for a whole morning, which is
+            # a chart, not an animation. The per-edge filter in
+            # _record_edge_traffic keeps this to the active links.
+            self._record_edge_traffic()
+
+            # Progress callback
+            if on_progress:
+                on_progress(self.current_tick, max_ticks)
+
+            # Check if all vehicles arrived
+            if self._all_departures_are_done() and self._all_vehicles_arrived():
+                self.sim_log.write(
+                    f"\n>>> All {len(self.vehicles)} vehicles arrived at tick {self.current_tick}"
+                )
+                logger.info(
+                    f"[SIM] All {len(self.vehicles)} vehicles arrived at tick {self.current_tick}"
+                )
+                break
+
+            self.current_tick += 1
+        self._record_arrivals()
+        # Whatever is still moving when the loop ends has to be counted too.
+        self._record_non_arrivals()
+        # Log sample vehicle summaries
+        self.sim_log.header("SAMPLE VEHICLE TRIP SUMMARIES")
+        for route_pk, vid in self.sample_vehicles.items():
+            v = self.vehicles.get(vid)
+            if not v:
+                continue
+            free_flow = self._free_flow_min(route_pk)
+            label = self.sim_log._route_label(route_pk)
+            if v.arrived and v.arrived_min is not None:
+                trip_min = v.arrived_min - v.wants_to_depart_min
+                self.sim_log.write(
+                    f"  {label}: wanted_to_leave={v.wants_to_depart_min:.1f}min, "
+                    f"total_time={trip_min:.1f}min, "
+                    f"free_flow={free_flow:.1f}min, "
+                    f"congestion_delay={max(0.0, trip_min - free_flow):.2f}min, "
+                    f"arrived=YES"
+                )
+            else:
+                self.sim_log.write(
+                    f"  {label}: wanted_to_leave={v.wants_to_depart_min:.1f}min, "
+                    f"free_flow={free_flow:.1f}min, "
+                    f"still on segment {v.segment_index}, arrived=NO"
+                )
+
+    def _compute_outcomes(self):
+        """Work out this pass's results per route. Writes nothing.
+
+        What a route costs is read off the network as it stands at the end of
+        THIS pass — the speeds its links ran at, the timetable its lines ran —
+        so it has to be taken before the next pass replaces nothing but could
+        just as well sit beside it. The rows come after both passes, in
+        `_save_results`.
+        """
         logger.info(f"[SIM] Calculating results for {len(self.agent_results)} agents")
 
         self._attribute_pt_person_km()
@@ -2209,20 +2305,13 @@ class TrafficSimulator:
                 f"avg_delay={mean_delay:.1f}min, CO2={co2:.0f}g, cost={cost:.2f}EUR"
             )
 
-            # Create agent result
-            AgentSimulationResult.objects.create(
-                simulation=self.simulation_result,
-                agent_route=route,
+            self.outcomes[route_pk] = RouteOutcome(
                 mean_trip_time_min=mean_trip_time,
-                mean_cost_eur=cost / self.people_per_agent
-                if self.people_per_agent
-                else 0.0,
-                mean_paid_eur=paid / self.people_per_agent
-                if self.people_per_agent
-                else 0.0,
-                total_co2_g=co2,
-                congestion_delay_min=mean_delay,
-                wait_time_min=mean_wait,
+                mean_delay_min=mean_delay,
+                mean_wait_min=mean_wait,
+                co2_g=co2,
+                cost_eur=cost,
+                paid_eur=paid,
             )
 
         # Totals. The network's own emissions are in the round total whether
@@ -2265,11 +2354,59 @@ class TrafficSimulator:
                     f"{line.stranded} waiting at a stop it does not serve, "
                     f"{line.person_km:.0f} Personen-km carried"
                 )
-        # Update totals
+        self.pass_total_co2_g = total_co2
+        self.pass_total_cost_eur = total_cost
+        self.pass_network_co2_g = network_co2
+        self.pass_network_cost_eur = network_cost
+
+    def _save_results(self):
+        """Write the round: one row per round trip, and the totals of both.
+
+        The row sits on the way-to-work route. Its time is the way to work's and
+        `mean_return_time_min` the way home's, and everything the Gruppe emits,
+        pays or waits is the two trips added. A way to work with no way home
+        reports a return time of zero, which is what it always did.
+        """
+        passes = [self] + ([self.home_pass] if self.home_pass else [])
+        people = self.people_per_agent or 0
+
+        way_home_of = {}
+        if self.home_pass:
+            for route in self.home_pass.agent_routes.values():
+                way_home_of[(route.player_move_id, route.agent_id)] = route.pk  # type: ignore
+
+        for route_pk, there in self.outcomes.items():
+            route = self.agent_routes[route_pk]
+            home_pk = way_home_of.get((route.player_move_id, route.agent_id))  # type: ignore
+            back = self.home_pass.outcomes.get(home_pk) if self.home_pass else None
+
+            co2 = there.co2_g + (back.co2_g if back else 0.0)
+            cost = there.cost_eur + (back.cost_eur if back else 0.0)
+            paid = there.paid_eur + (back.paid_eur if back else 0.0)
+            AgentSimulationResult.objects.create(
+                simulation=self.simulation_result,
+                agent_route=route,
+                mean_trip_time_min=there.mean_trip_time_min,
+                mean_return_time_min=back.mean_trip_time_min if back else 0.0,
+                mean_cost_eur=cost / people if people else 0.0,
+                mean_paid_eur=paid / people if people else 0.0,
+                total_co2_g=co2,
+                congestion_delay_min=there.mean_delay_min
+                + (back.mean_delay_min if back else 0.0),
+                wait_time_min=there.mean_wait_min
+                + (back.mean_wait_min if back else 0.0),
+            )
+
+        total_co2 = sum(p.pass_total_co2_g for p in passes)
+        total_cost = sum(p.pass_total_cost_eur for p in passes)
         self.simulation_result.total_co2_g = total_co2  # type: ignore
         self.simulation_result.total_cost_eur = total_cost  # type: ignore
-        self.simulation_result.network_co2_g = network_co2  # type: ignore
-        self.simulation_result.network_cost_eur = network_cost  # type: ignore
+        self.simulation_result.network_co2_g = sum(  # type: ignore
+            p.pass_network_co2_g for p in passes
+        )
+        self.simulation_result.network_cost_eur = sum(  # type: ignore
+            p.pass_network_cost_eur for p in passes
+        )
         self.simulation_result.save()  # type: ignore
 
         logger.info(
@@ -2376,16 +2513,36 @@ class TrafficSimulator:
         """
         from maps.models import StreetEdge
 
-        for edge_id, state in self.edge_states.items():
-            if not state.traversal_count:
-                continue
-            street_edge = StreetEdge.objects.filter(edge_id=edge_id).first()
-            if street_edge:
-                StreetPerRound.objects.update_or_create(
-                    edge=street_edge,
-                    game_round=self.game_round,
-                    defaults={"speed_under_load": max(1, int(state.mean_speed_kmh))},
+        # Both passes, pooled per link: a street the evening drives again (a
+        # loop, a one-way pair) has crossings from both, and the speed is the
+        # length over the mean of all of them — the same figure
+        # EdgeState.mean_speed_kmh gives for one pass.
+        crossings: dict[int, tuple[int, float, EdgeState]] = {}
+        for sim in [self] + ([self.home_pass] if self.home_pass else []):
+            for edge_id, state in sim.edge_states.items():
+                if not state.traversal_count:
+                    continue
+                count, minutes, _ = crossings.get(edge_id, (0, 0.0, state))
+                crossings[edge_id] = (
+                    count + state.traversal_count,
+                    minutes + state.traversal_time_min,
+                    state,
                 )
+
+        for edge_id, (count, minutes, state) in crossings.items():
+            street_edge = StreetEdge.objects.filter(edge_id=edge_id).first()
+            if not street_edge:
+                continue
+            speed = (
+                state.distance_m / 1000.0 / (minutes / count / 60.0)
+                if minutes > 0
+                else state.free_flow_speed_kmh
+            )
+            StreetPerRound.objects.update_or_create(
+                edge=street_edge,
+                game_round=self.game_round,
+                defaults={"speed_under_load": max(1, int(speed))},
+            )
 
     def _strand_hopeless_riders(self, at_min: float):
         """Give up only on a stop no vehicle of this line will ever serve.
