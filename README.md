@@ -19,7 +19,7 @@ Neuentwicklung danach, an der TU Berlin.
 Gerechnet wird mit einem Link-Queue-Modell, mesoskopisch, dieselbe Familie wie MATSim.
 
 **Stack:** Django 5.2 + DRF auf Daphne (ASGI), Channels, Celery, Postgres 18, Redis; React 19 +
-Vite + TypeScript als SPA. Wie gespielt wird: [`docs/de-ueberblick.md`](docs/de-ueberblick.md).
+Vite + TypeScript als SPA. Wie gespielt wird: [`docs/de-quick-start.md`](docs/de-quick-start.md).
 
 ### Was wo liegt
 
@@ -30,15 +30,15 @@ Vite + TypeScript als SPA. Wie gespielt wird: [`docs/de-ueberblick.md`](docs/de-
 | `backend/sim/`      | die Verkehrssimulation als reines Python-Paket, ohne Django        |
 | `backend/maps/`     | Kartengraph, Versionierung, REST-API des Karteneditors             |
 | `backend/content/`  | kleines CMS für die öffentlichen Seiten                            |
-| `backend/template/` | Django-Templates — Landing, Lobby, Beitritt, Rechtstexte, Login    |
-| `frontend/`         | die SPA — Spielbildschirm, Hostseiten, Karteneditor                |
+| `backend/template/` | Django-Templates — Landing, Hintergrund, Rechtstexte, Login        |
+| `frontend/`         | die SPA — Beitritt, Spielbildschirm, Hostseiten, Karteneditor      |
 | `devops/`           | `dev.sh`, docker-compose, nginx                                    |
 | `map_examples/`     | die gespielte Karte als JSON — Berlin Mitte-West, acht Versionen   |
 | `docs/`             | Dokumentation                                                      |
 | `.github/`          | CI und das Deployment                                              |
 
-Es ist ein Hybrid, kein reines SPA: Landing Page, Beitritt, Rechtstexte, Login und Admin sind
-servergerenderte Django-Templates, das Spiel und der Editor sind React.
+Es ist ein Hybrid, kein reines SPA: Landing Page, Hintergrund, Rechtstexte, Login und Admin sind
+servergerenderte Django-Templates; Beitritt, Spiel, Hostseiten und Editor sind React.
 
 ### Lokal starten
 
@@ -167,12 +167,12 @@ Let's Encrypt wäre technisch möglich, ist aber mit der TU-IT abzustimmen.
 
 ### Dokumentation
 
-| Datei                                            | Inhalt                                                         |
-| ------------------------------------------------ | -------------------------------------------------------------- |
-| [`docs/de-ueberblick.md`](docs/de-ueberblick.md) | Überblick: was das Spiel ist und wie es gespielt wird           |
-| [`docs/kalibrierung.md`](docs/kalibrierung.md)   | die Zahlen, gegen die gespielt wird, und wie sie gemessen sind  |
-| [`docs/testfaelle.md`](docs/testfaelle.md)       | was das Spiel können muss, Fall für Fall, mit Status            |
-| [`docs/technical/`](docs/technical/)             | technische Übersicht — in Arbeit                                |
+| Datei                                              | Inhalt                                                          |
+| -------------------------------------------------- | --------------------------------------------------------------- |
+| [`docs/de-quick-start.md`](docs/de-quick-start.md) | Schnellstart: wie gespielt wird                                 |
+| [`docs/de-hintergrund.md`](docs/de-hintergrund.md) | Hintergrund: was das Spiel rechnet und warum — auch `/hintergrund` |
+| [`docs/kalibrierung.md`](docs/kalibrierung.md)     | die Zahlen, gegen die gespielt wird, und wie sie gemessen sind  |
+| [`docs/testfaelle.md`](docs/testfaelle.md)         | was das Spiel können muss, Fall für Fall, mit Status            |
 
 ### Lizenz
 
@@ -191,7 +191,7 @@ a complete rewrite after the fact, at TU Berlin. The traffic is computed with a 
 family as MATSim.
 
 **Stack:** Django 5.2 + DRF on Daphne (ASGI), Channels, Celery, Postgres 18, Redis; React 19 + Vite
-+ TypeScript for the SPA. How the game is played: [`docs/en-overview.md`](docs/en-overview.md).
++ TypeScript for the SPA. How the game is played: [`docs/en-quick-start.md`](docs/en-quick-start.md).
 
 ### Layout
 
@@ -202,15 +202,16 @@ family as MATSim.
 | `backend/sim/`      | the traffic engine as a plain Python package — no Django           |
 | `backend/maps/`     | map graph, versioning, the map editor's REST API                   |
 | `backend/content/`  | a small CMS for the public pages                                   |
-| `backend/template/` | Django templates — landing, lobby, join, legal, auth               |
-| `frontend/`         | the SPA — game screen, host pages, map editor                      |
+| `backend/template/` | Django templates — landing, background, legal, auth                |
+| `frontend/`         | the SPA — join, game screen, host pages, map editor                |
 | `devops/`           | `dev.sh`, docker-compose, nginx                                    |
 | `map_examples/`     | the map the group plays — Berlin Mitte-West, eight versions        |
 | `docs/`             | documentation                                                      |
 | `.github/`          | CI and the deployment                                              |
 
-It is a hybrid, not a pure SPA: the landing page, the join flow, the legal pages, login and admin
-are server-rendered Django templates; the game and the editor are React.
+It is a hybrid, not a pure SPA: the landing page, the background page, the legal pages, login and
+admin are server-rendered Django templates; the join, the game, the host pages and the editor are
+React.
 
 ### Running it locally
 
@@ -338,12 +339,12 @@ be agreed with TU IT first.
 
 ### Documentation
 
-| File                                             | What                                                        |
-| ------------------------------------------------ | ----------------------------------------------------------- |
-| [`docs/en-overview.md`](docs/en-overview.md)     | overview: what the game is and how it is played              |
-| [`docs/kalibrierung.md`](docs/kalibrierung.md)   | the numbers the game is played against, and how they were measured (German) |
-| [`docs/testfaelle.md`](docs/testfaelle.md)       | what the game has to do, case by case, with status (German)  |
-| [`docs/technical/`](docs/technical/)             | technical overview — in progress                             |
+| File                                               | What                                                         |
+| -------------------------------------------------- | ------------------------------------------------------------ |
+| [`docs/en-quick-start.md`](docs/en-quick-start.md) | quick start: how the game is played                          |
+| [`docs/en-background.md`](docs/en-background.md)   | background: what the game computes and why — German on `/hintergrund` |
+| [`docs/kalibrierung.md`](docs/kalibrierung.md)     | the numbers the game is played against, and how they were measured (German) |
+| [`docs/testfaelle.md`](docs/testfaelle.md)         | what the game has to do, case by case, with status (German)  |
 
 ### License
 
