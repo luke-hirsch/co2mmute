@@ -19,18 +19,19 @@
  * amber. That is the same language the legend, the agent row, the replay and the
  * landing page already speak, and it survives a colour-blind reader.
  *
- * ### The jam overlay is weight, never hue
+ * ### The jam overlay is weight, and since S24 a step towards the accent
  *
  * `trafficHeatmap` used to take a congestion ratio and run it through a
- * green→yellow→orange→red ramp. A two-colour palette has no hue ramp, which is
- * why S3 answered "where did it jam" with an animation instead and left this
- * prop unused. It is wired now because the round screen asks a question the
- * replay cannot: the replay is *behind* you on the stats screen, and here you are
- * choosing a route with no picture of where the traffic was. Same fact, shown
- * rather than only computed — `previous_round_traffic` is what "schnellste"
- * routes on.
+ * green→yellow→orange→red ramp. A two-colour palette has no hue ramp, and weight
+ * alone — S6's answer — turned out too quiet: the difference between two loaded
+ * streets was a pixel on a phone. So a loaded street is drawn heavier **and**
+ * moves from ink towards the accent (`jamTint`), slowly at first and mostly
+ * accent by half speed. Amber is also the PT line's colour; that is accepted —
+ * a route is a line from a home, and an amber street with nothing beginning on it
+ * is a jam. Still one hue pair, no green, no red.
  *
- * So: **thicker is slower**, and nothing about congestion is a colour.
+ * `previous_round_traffic` is what "schnellste" routes on, so the picture and the
+ * router cannot disagree.
  *
  * ### What was deleted
  *
@@ -47,7 +48,7 @@ import { useMemo, useState } from "react";
 import { imageRect, viewBox, type ImageFields } from "@/lib/map/view-box";
 import { de } from "@/lib/de";
 import { modeStyle } from "@/components/metro/mode";
-import type { EdgeLoad } from "@/lib/map/traffic";
+import { jamTint, type EdgeLoad } from "@/lib/map/traffic";
 import type { Edge, MapGraph, Node } from "@/types/mapTypes";
 import type {
   ExtendedMapGraph,
@@ -63,8 +64,8 @@ interface GameMapViewerProps {
   destinationNodeId?: number;
   routeSegments?: RouteSegment[];
   /**
-   * Last round's measured load per link. Drawn as stroke weight and nothing
-   * else — see the note above about why this is not a heatmap.
+   * Last round's measured load per link. Drawn as weight and a step towards the
+   * accent — see the note above about why this is not a heatmap.
    */
   jam?: EdgeLoad[];
 }
@@ -273,17 +274,15 @@ const GameMapViewer = ({
           </g>
 
           {/*
-            Where it stopped last round. Weight only: no ramp, no hue.
+            Where it stopped last round: heavier, and from ink towards the accent.
 
-            In **ink**, not in the car's blue: congestion is a property of the
-            street, so it is the network drawn heavier, and it reads the same
-            under a route of any mode. Drawn in the car's colour it competed with
-            the car route sitting on top of it — both primary blue, and the one
-            line the player is actually tracing was the harder of the two to
-            follow.
+            Never the car's blue: congestion is a property of the street and
+            reads the same under a route of any mode, and in the car's colour it
+            competed with the car route sitting on top of it. The tint is a
+            colour-mix of two tokens, so it follows the colour mode.
           */}
           {jamMap && (
-            <g className="text-foreground/35" fill="none" stroke="currentColor">
+            <g fill="none">
               {mapGraph.edges.map((edge) => {
                 const ratio = jamMap.get(edge.id);
                 if (ratio === undefined) return null;
@@ -301,6 +300,10 @@ const GameMapViewer = ({
                       SIZES.jamMin + ratio * (SIZES.jamMax - SIZES.jamMin),
                     )}
                     strokeLinecap="round"
+                    style={{
+                      stroke: `color-mix(in srgb, var(--color-brandaccent) ${Math.round(jamTint(ratio) * 100)}%, var(--color-foreground))`,
+                      strokeOpacity: 0.35 + 0.6 * jamTint(ratio),
+                    }}
                   />
                 );
               })}

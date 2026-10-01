@@ -1,8 +1,9 @@
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Ballot } from "@/components/between/ballot";
+import { VoteMap, VoteStage } from "@/components/between/vote-stage";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
 import { de } from "@/lib/de";
 import { useGame } from "@/components/game/game-context";
+import { useMapLayout } from "@/hooks/use-map-layout";
 import { usePhase } from "@/hooks/use-phase";
 
 /**
@@ -24,9 +25,10 @@ export function VotingScreen() {
   const phase = usePhase();
 
   const voted = phase.hasVoted(seatId);
+  const [layout, setLayout] = useMapLayout();
 
   return (
-    <Screen>
+    <Screen wide={layout === "beside" && !voted}>
       <ScreenHeading title={de.vote.title} lead={de.vote.lead} />
 
       {phase.refused ? (
@@ -41,9 +43,14 @@ export function VotingScreen() {
           <p className="mt-2 max-w-(--measure-body) text-muted-foreground">
             {de.vote.castBody}
           </p>
+          <div className="mt-10">
+            <VoteMap />
+          </div>
         </div>
       ) : (
-        <Ballot
+        <VoteStage
+          layout={layout}
+          onLayoutChange={setLayout}
           options={state.voteOptions}
           onPick={(versionId) => {
             if (seatId) phase.vote(seatId, versionId);

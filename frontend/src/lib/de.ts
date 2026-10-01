@@ -413,7 +413,7 @@ export const de = {
     mapHint: "Tippe eine Gruppe an, um ihre Route zu sehen.",
     /** The overlay drawn from the last round's measured speeds. */
     jamHint:
-      "Je dicker die Straße, desto langsamer war sie in der letzten Runde. „Schnellste“ rechnet damit.",
+      "Je dicker und gelber die Straße, desto langsamer war sie in der letzten Runde. „Schnellste“ rechnet damit.",
     noAssignment:
       "Für diesen Platz sind keine Gruppen hinterlegt. Die Spielleitung muss das Spiel neu anlegen.",
   },
@@ -669,6 +669,13 @@ export const de = {
   },
 
   /** The map vote and the tie-break that can follow it. */
+  /** Where the map sits on a large screen (S24). */
+  mapLayout: {
+    label: "Karte",
+    below: "Darüber",
+    beside: "Daneben",
+  },
+
   vote: {
     title: "Abstimmen",
     lead: "Eine Stimme pro Platz. Was die Mehrheit will, steht ab der nächsten Runde auf der Karte.",
@@ -677,6 +684,12 @@ export const de = {
     pick: "Dafür stimmen",
     keep: "So lassen",
     keepHint: "Die Karte bleibt, wie sie ist.",
+    /** The map above the ballot, and what an option would change on it. */
+    mapTitle: "Karte der letzten Runde",
+    showChange: "Änderung auf der Karte zeigen",
+    hideChange: "Aktuelle Karte zeigen",
+    changeAlt: (name: string) => `So sieht die Änderung „${name}“ auf der Karte aus.`,
+    changeCaption: (name: string) => `Änderung: ${name}`,
     progress: (cast: number, needed: number) =>
       `${cast} von ${needed} haben abgestimmt`,
     cast: "Deine Stimme ist da.",
