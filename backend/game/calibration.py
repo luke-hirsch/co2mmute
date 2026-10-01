@@ -102,6 +102,26 @@ over all 36 home/workplace pairs) and are **not** comparable with the tables
 above, whose assignment of Gruppen to pairs was a different one and whose network
 therefore jams a little less. Compare before against after within a row.
 
+**S23 measured the map S16 shipped — the eight-version one the box plays —**
+whose base version had never had a round simulated on it. Same harness as the
+S5 table above, 2026-10-01:
+
+    car share   round total     car   timetable   car trip / delay
+         100 %    13 059 kg  10 194     2 864       22.5 / 12.5 min
+          75 %     9 884 kg   6 903     2 981       15.4 /  5.4 min
+          50 %     7 184 kg   4 164     3 020       10.6 /  0.7 min
+          25 %     5 345 kg   2 207     3 139       10.8 /  0.1 min
+           0 %     3 194 kg       0     3 194            —
+
+Within a few per cent of S5's rows, and the floor is the same 2 864 kg. What
+changed is the budget's margin: the improving class (100/75/50/50/25/25 %)
+spends 48 001 kg against 48 000, and all-car runs out in round 4, not 5.
+9 000 kg a round would restore the old story — all-car out in round 5, an
+improving class about six tonnes inside. A proposal for the next play-test,
+not a change: the number lives in the map file. PT waits grow with riders (9 to
+22 min) because vehicles fill; the same pairs at a quarter of the people wait
+7.6 min. docs/kalibrierung.md §9 has the full table.
+
 Re-deriving these after a model change means replaying rounds on the map in
 question, not adjusting them until a play-test feels right. What each number is
 FOR is asserted in `game/tests/test_join.py`.

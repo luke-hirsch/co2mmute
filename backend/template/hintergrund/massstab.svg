@@ -1,0 +1,195 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 344 240" role="img" aria-labelledby="fig-massstab-title fig-massstab-desc" class="fig">
+  <!--
+    The scale: Menschen pro Gruppe = Pendler / (Plätze x Gruppen pro Platz),
+    on Berlin Mitte-West's 6 400. Every bar is 320 wide = 6 400 people, so a
+    block is one Gruppe and its width is the people in it. The last bar pins
+    the Gruppe at 100, which is what a fixed people_per_agent would do.
+    Colours: every fill and stroke is a var() with a token value as its
+    fallback. On /hintergrund/ the page sets the vars (custom.css, .doc-figure)
+    and they follow the light/dark switch; standalone — the docs on GitHub —
+    the fallbacks paint the light version on a white card.
+  -->
+  <title id="fig-massstab-title">Dieselben 6.400 Pendler, verschieden aufgeteilt</title>
+  <desc id="fig-massstab-desc">Vier gleich lange Balken teilen 6.400 Pendler in 64, 32, 16 und 8 Gruppen zu je 100, 200, 400 und 800 Menschen. Ein fünfter Balken hält die Gruppe bei 100 Menschen fest: Mit acht Plätzen sind dann nur 3.200 unterwegs, die andere Hälfte fehlt.</desc>
+  <style>
+    .fig-bg { fill: var(--fig-bg, #ffffff); }
+    .fig-text { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 13px; font-variant-numeric: tabular-nums; fill: var(--fig-muted, #6b7280); }
+    .fig-ink { fill: var(--fig-ink, #111827); }
+    .fig-head { fill: var(--fig-ink, #111827); font-weight: 500; }
+    .fig-line { fill: none; stroke: var(--fig-ink, #111827); }
+    .fig-grid { fill: none; stroke: var(--fig-rule, #d7dbe1); }
+    .fig-edge { fill: var(--fig-surface, #ffffff); stroke: var(--fig-strong, #bcc3cc); }
+    .fig-node { fill: var(--fig-surface, #ffffff); stroke: var(--fig-ink, #111827); }
+    .fig-car { fill: var(--fig-car, #1e88e5); }
+    .fig-car-line { fill: none; stroke: var(--fig-car, #1e88e5); }
+    .fig-pt { fill: var(--fig-pt, #ffb300); }
+    .fig-people { fill: var(--fig-soft, #8b93a1); }
+    .fig-people-line { fill: none; stroke: var(--fig-soft, #8b93a1); }
+  </style>
+  <rect class="fig-bg" width="344" height="240" rx="8" />
+  <text class="fig-head fig-text" x="12" y="20">16 Plätze · 64 Gruppen zu je 100</text>
+  <text class="fig-text" x="332" y="20" text-anchor="end">6.400</text>
+  <rect class="fig-people" x="12.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="17.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="22.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="27.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="32.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="37.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="42.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="47.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="52.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="57.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="62.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="67.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="72.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="77.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="82.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="87.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="92.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="97.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="102.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="107.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="112.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="117.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="122.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="127.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="132.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="137.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="142.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="147.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="152.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="157.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="162.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="167.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="172.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="177.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="182.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="187.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="192.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="197.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="202.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="207.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="212.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="217.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="222.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="227.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="232.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="237.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="242.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="247.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="252.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="257.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="262.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="267.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="272.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="277.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="282.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="287.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="292.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="297.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="302.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="307.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="312.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="317.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="322.00" y="27" width="3.80" height="16" />
+  <rect class="fig-people" x="327.00" y="27" width="3.80" height="16" />
+  <text class="fig-head fig-text" x="12" y="64">8 Plätze · 32 Gruppen zu je 200</text>
+  <text class="fig-text" x="332" y="64" text-anchor="end">6.400</text>
+  <rect class="fig-people" x="12.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="22.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="32.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="42.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="52.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="62.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="72.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="82.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="92.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="102.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="112.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="122.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="132.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="142.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="152.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="162.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="172.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="182.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="192.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="202.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="212.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="222.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="232.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="242.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="252.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="262.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="272.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="282.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="292.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="302.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="312.00" y="71" width="8.80" height="16" />
+  <rect class="fig-people" x="322.00" y="71" width="8.80" height="16" />
+  <text class="fig-head fig-text" x="12" y="108">4 Plätze · 16 Gruppen zu je 400</text>
+  <text class="fig-text" x="332" y="108" text-anchor="end">6.400</text>
+  <rect class="fig-people" x="12.00" y="115" width="18.80" height="16" />
+  <rect class="fig-people" x="32.00" y="115" width="18.80" height="16" />
+  <rect class="fig-people" x="52.00" y="115" width="18.80" height="16" />
+  <rect class="fig-people" x="72.00" y="115" width="18.80" height="16" />
+  <rect class="fig-people" x="92.00" y="115" width="18.80" height="16" />
+  <rect class="fig-people" x="112.00" y="115" width="18.80" height="16" />
+  <rect class="fig-people" x="132.00" y="115" width="18.80" height="16" />
+  <rect class="fig-people" x="152.00" y="115" width="18.80" height="16" />
+  <rect class="fig-people" x="172.00" y="115" width="18.80" height="16" />
+  <rect class="fig-people" x="192.00" y="115" width="18.80" height="16" />
+  <rect class="fig-people" x="212.00" y="115" width="18.80" height="16" />
+  <rect class="fig-people" x="232.00" y="115" width="18.80" height="16" />
+  <rect class="fig-people" x="252.00" y="115" width="18.80" height="16" />
+  <rect class="fig-people" x="272.00" y="115" width="18.80" height="16" />
+  <rect class="fig-people" x="292.00" y="115" width="18.80" height="16" />
+  <rect class="fig-people" x="312.00" y="115" width="18.80" height="16" />
+  <text class="fig-head fig-text" x="12" y="152">2 Plätze · 8 Gruppen zu je 800</text>
+  <text class="fig-text" x="332" y="152" text-anchor="end">6.400</text>
+  <rect class="fig-people" x="12.00" y="159" width="38.80" height="16" />
+  <rect class="fig-people" x="52.00" y="159" width="38.80" height="16" />
+  <rect class="fig-people" x="92.00" y="159" width="38.80" height="16" />
+  <rect class="fig-people" x="132.00" y="159" width="38.80" height="16" />
+  <rect class="fig-people" x="172.00" y="159" width="38.80" height="16" />
+  <rect class="fig-people" x="212.00" y="159" width="38.80" height="16" />
+  <rect class="fig-people" x="252.00" y="159" width="38.80" height="16" />
+  <rect class="fig-people" x="292.00" y="159" width="38.80" height="16" />
+  <line class="fig-grid" x1="12" x2="332" y1="182" y2="182" stroke-width="1" />
+  <text class="fig-head fig-text" x="12" y="204">8 Plätze · festgenagelt auf 100</text>
+  <text class="fig-text" x="332" y="204" text-anchor="end">3.200</text>
+  <rect class="fig-people" x="12.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="17.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="22.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="27.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="32.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="37.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="42.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="47.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="52.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="57.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="62.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="67.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="72.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="77.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="82.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="87.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="92.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="97.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="102.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="107.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="112.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="117.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="122.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="127.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="132.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="137.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="142.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="147.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="152.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="157.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="162.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people" x="167.00" y="211" width="3.80" height="16" />
+  <rect class="fig-people-line" x="172.5" y="211.5" width="158.3" height="15" stroke-width="1" stroke-dasharray="3 3" />
+  <text class="fig-text" x="252.0" y="224" text-anchor="middle">fehlt</text>
+</svg>

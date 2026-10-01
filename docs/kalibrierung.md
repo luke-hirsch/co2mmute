@@ -205,7 +205,46 @@ Karte etwas weniger stauen lässt. Vergleichbar ist jeweils vorher gegen jetzt i
 
 ---
 
-## 9. Was offen bleibt
+## 9. Nachgemessen auf der Karte mit acht Versionen
+
+Seit S16 ist die ausgelieferte Karte die mit acht Versionen, die auf dem Server gespielt wird,
+repariert. Ihre Basisversion war nie in einer Runde simuliert worden. Gemessen am 01.10.2026 mit
+demselben Aufbau wie Abschnitt 8 — 64 Gruppen zu je 100 Menschen gleichmäßig über die 36 Paare,
+wer nicht Auto fährt, fährt Bus und Bahn, Routen aus dem Router des Spiels, sechs Seeds:
+
+| Autoanteil | Runde gesamt | Auto | Fahrplan | Fahrzeit Auto | Verspätung | ÖPNV-Fahrzeit | Warten |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 100 % | 13.059 kg | 10.194 kg | 2.864 kg | 22,5 min | 12,5 min | — | — |
+| 75 % | 9.884 kg | 6.903 kg | 2.981 kg | 15,4 min | 5,4 min | 32,5 min | 9,2 min |
+| 50 % | 7.184 kg | 4.164 kg | 3.020 kg | 10,6 min | 0,7 min | 33,2 min | 11,6 min |
+| 25 % | 5.345 kg | 2.207 kg | 3.139 kg | 10,8 min | 0,1 min | 41,1 min | 19,9 min |
+| 0 % | 3.194 kg | — | 3.194 kg | — | — | 43,5 min | 21,9 min |
+
+Die Streuung zwischen den Seeds liegt unter 2 %. In jeder Zeile liegt das Ergebnis innerhalb weniger
+Prozent von Abschnitt 8; die 100-%-Zeile trifft dessen Fahrzeit und Verspätung fast genau (22,5 und
+12,4 min dort). Der Fahrplan-Boden ist mit 2.864 kg derselbe.
+
+Drei Dinge daran sind neu:
+
+- **Das Budget liegt am Rand seiner Spanne.** Eine Runde, die sich herunterarbeitet — 100 / 75 / 50
+  / 50 / 25 / 25 % Autoanteil — kommt über sechs Runden auf **48.001 kg** gegen ein Budget von 48.000.
+  Wer durchgehend fährt, ist in Runde 4 raus, nicht in Runde 5. Mit **9.000 kg pro Runde** wäre die
+  Geschichte aus Abschnitt 4 wieder da: durchgehend fahren endet in Runde 5, wer umsteigt, behält
+  rund sechs Tonnen. Das ist ein Vorschlag, keine Änderung — die Zahl steht in der Kartendatei, und
+  der erste Play-Test auf dieser Karte soll sie bestätigen oder verwerfen.
+- **Der volle Bus ist die Warteschlange des ÖPNV.** Je mehr umsteigen, desto länger warten sie: von
+  9 auf 22 Minuten an der Haltestelle. Das ist Gedränge, nicht die Auswahl der Wege — fahren auf
+  allen 36 Paaren nur 25 statt 100 Menschen pro Gruppe Bus und Bahn, bleibt die Wartezeit bei
+  7,6 Minuten, bei 42 statt rund 9.400 Abweisungen an der Haltestelle.
+- **Der Maßstab hält auch hier.** 16, 8, 4 und 2 Plätze bei 6.400 Pendlern: CO₂ des Autos 10.194,
+  10.211, 9.857 und 9.784 kg, Verspätung 12,5 / 12,6 / 11,0 / 12,5 min. Nagelt man die Gruppe auf
+  100 Menschen fest, sehen acht Plätze 1,0 statt 12,5 Minuten Verspätung.
+
+`docs/de-hintergrund.md` und `/hintergrund/` zeigen diese Zahlen, als Tabelle und als Abbildung.
+
+---
+
+## 10. Was offen bleibt
 
 - **Die Abfahrten liegen sehr eng beieinander.** `departure_std_dev_min = 10` heißt, dass praktisch
   alle innerhalb von 20 Minuten losfahren; real verteilt sich ein Berufsverkehr über eine Stunde und
@@ -213,14 +252,16 @@ Karte etwas weniger stauen lässt. Vergleichbar ist jeweils vorher gegen jetzt i
   ist eine Modellfrage, keine Kalibrierungsfrage — hier bewusst nicht angefasst.
 - **Der Abendverkehr wird nach wie vor nicht simuliert**, und beide Richtungen einer Straße teilen
   sich eine Warteschlange. Solange alle morgens zur Arbeit fahren, ist das egal.
+- **Das Budget von Berlin Mitte-West** liegt auf der reparierten Karte am Rand seiner Spanne
+  (Abschnitt 9); 9.000 kg pro Runde ist der Vorschlag für den nächsten Play-Test.
 - **Die Vorgabewerte anderer Karten sind ungeprüft.** Jede neue Karte startet mit 6.400 und 8.000 —
   den Werten von Berlin Mitte-West. Für eine kleinere Karte sind beide zu hoch. Die Karte sagt
   inzwischen selbst, ob ihre Zahlen gemessen sind (`GameMap.calibrated`, geht mit der JSON-Datei
   mit), und „Spiel anlegen" warnt, solange sie es nicht sind. Gemessen ist damit noch nichts: das
-  heißt weiterhin Runden auf der Karte nachspielen (Abschnitt 10), die beiden Zahlen im Admin
+  heißt weiterhin Runden auf der Karte nachspielen (Abschnitt 11), die beiden Zahlen im Admin
   eintragen und dort den Haken setzen. Die mitgelieferte Datei hat ihn gesetzt.
 
-## 10. Nachrechnen
+## 11. Nachrechnen
 
 Die Zahlen oben stammen nicht aus einem Play-Test, sondern aus wiederholten Läufen mit festem Seed
 auf der ausgelieferten Karte. Wer sie nach einer Modelländerung neu braucht, spielt Runden auf der

@@ -330,6 +330,11 @@ describe("the retired vocabulary", () => {
     /\bUnterricht\b/i,
     /\bSch[üu]ler/i,
     /\bLehrer/i,
+    // S23: the landing page still had both — "Ziel: Schule" and "Figur" for a
+    // Gruppe — and the Django half's twin of this list is
+    // co2mmute/tests/test_sanity.py:RetiredWordsStayOutOfTheTemplatesTests.
+    /\bSchule\b/i,
+    /\bFigur(?:en)?\b/i,
   ];
 
   it("is gone from every string in the dictionary", () => {

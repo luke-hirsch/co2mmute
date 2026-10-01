@@ -1,8 +1,8 @@
 # Background
 
 The idea for the game is based on the [master thesis](./../master_thesis.pdf) by Sebastian
-Werblinski. The code here is a complete rewrite rather than a continuation of his prototype, and the
-traffic model was rebuilt along the way. This section is what it does and where its numbers come
+Werblinski at Freie Universität Berlin (2025). The code here is a complete rewrite at TU Berlin
+rather than a continuation of his prototype, and the traffic model was rebuilt along the way. This section is what it does and where its numbers come
 from.
 
 ## Simulation
@@ -12,7 +12,7 @@ time, each of them travelling the way a player told them to — what does that m
 long does it take?
 
 Congestion has to fall out of that as a **result**. If the model assumed it, the vote between rounds
-would be about nothing: the class changes the map, and the map has to answer back.
+would be about nothing: the players change the map, and the map has to answer back.
 
 ## Which kind of model, and why this one
 
@@ -21,7 +21,7 @@ There are three levels you can simulate traffic at.
 - **Macroscopic** — flow equations over the network, no individual vehicles. Cheap, but there is
   nobody in it, and this game is about a person choosing a mode.
 - **Microscopic** — car-following, lane-changing, acceleration per vehicle. Every parameter needs
-  data nobody has for a hand-drawn game map, and it will not finish while a class waits for it.
+  data nobody has for a hand-drawn game map, and it will not finish while a room waits for it.
 - **Mesoscopic** — individual vehicles, but a street is a queue rather than a stretch of road with
   positions on it.
 
@@ -69,6 +69,12 @@ Congestion is therefore two mechanisms and no formula: a link discharges only `Q
 full link stops the one feeding it. Queues grow backwards through the network the way they do on a
 street.
 
+![A link in free flow and in spillback](../backend/template/hintergrund/kante.svg)
+
+_Top: every car drives its free-flow time `t0` and joins a short queue at the end before the link
+releases it at `Q`. Bottom: the next link is full, so nothing leaves, the queue fills the whole
+storage `S`, and whoever arrives cannot get in. (Figure labels are in German, as on the site.)_
+
 ### Nothing can lock arithmetically, so there is no speed floor
 
 A BPR-style model computes a speed from a volume-over-capacity ratio, which means it has to be
@@ -102,7 +108,7 @@ next round are all reading the same measured number.
   turn a cyclist away.
 - **Pedestrians** are outside the queue model entirely.
 
-### Public transport runs a timetable
+## Public transport runs a timetable
 
 The structural idea is that a line vehicle is an **ordinary vehicle on a synthetic route**. A bus
 therefore queues, spills back, weighs 3 PCU and passes a bus gate without a single line of code of
@@ -154,8 +160,13 @@ four decimal places, and there is one number to argue about instead of three.
 | × the base | 1.90 | 1.32 | 1.13 | 1.04 | 1.00  | 0.97  | 1.01 |
 
 `a/v` diverges as the speed goes to zero, so **the factor is capped at 2.00×** rather than the speed
-being floored. A cap is a number a class can hold in its head — "at worst twice as bad" — and it
+being floored. A cap is a number anyone can hold in their head — "at worst twice as bad" — and it
 keeps the diverging term out of the arithmetic. It starts biting below 9.2 km/h.
+
+![A car's emission curve over speed](../backend/template/hintergrund/co2-kurve.svg)
+
+_Grams of CO₂ per kilometre over the mean speed on a link. The anchor is at 50 km/h, the minimum at
+70 km/h, and below 9.2 km/h the cap holds the curve at 333.6 g._
 
 Two consequences that surprise people:
 
@@ -173,7 +184,7 @@ Beside the cost there is the **fare**: 1.30 € per trip, transfers included, an
 half of the car's cost. _What you pay_ next to _what it costs_ is the same contrast on both modes,
 and the gap between them on the PT side is the subsidy.
 
-### The round is seeded and stochastic
+## The round is seeded and stochastic
 
 The same choices twice do not give quite the same number, and should not. Each round draws from a
 generator seeded off the round, so a round always replays identically — in a test, in a debugger, or
@@ -195,7 +206,7 @@ of variation in free flow, 16–18 % under load. A jam is unpredictable, an empt
 One detail worth knowing when reading a delay: **delay is measured against the driver's own
 free-flow time.** Somebody who chose 45 in a 50 zone is not delayed by anything.
 
-### Units
+## Units
 
 One agent — a _Gruppe_ in the interface — stands for `people_per_agent` real commuters, and that
 factor is where most unit bugs in this project came from. Two rules:
@@ -207,7 +218,7 @@ factor is where most unit bugs in this project came from. Two rules:
 
 The factor itself is not a setting anybody picks. See below.
 
-### Calibration
+## Calibration
 
 Physics is not the part that needed deciding. 1800 veh/h/lane and 133 veh/km/lane are measurements
 somebody else made, and the emission curve's shape follows from its two anchor conditions. What had
@@ -246,35 +257,45 @@ It is not what the district holds — Berlin Mitte-West has far more commuters t
 graph abstracts a district down to its main corridors, so the population it can carry is the
 population **those corridors** carry.
 
-At 6400 with everybody driving, the busiest links run at about 115 % of their flow capacity, and a
-7.66 km commute takes 20.4 minutes against 9.5 in free flow. Inner Berlin's morning peak runs at
-roughly 24 km/h, which is the same eleven minutes of delay. That is the outside anchor: the number
-is tied to a measured city, not to how the game feels.
+At 6400 with everybody driving, a 7.66 km commute takes 22.5 minutes, 12.5 of them delay against
+the driver's own free-flow time. Inner Berlin's morning peak runs at roughly 24 km/h, which would be
+19 minutes for the same distance. That is the outside anchor: the number is tied to a measured city,
+not to how the game feels, and the model sits on the congested side of it.
 
 What it replaced is worth naming, because it shows what uncalibrated looks like. The shipped default
-was 1000 people per agent, which for a full class is 64 000 cars on a map with 82 street edges. The
-model handled it — no gridlock, no forced releases, everybody arrived — and reported a **298-minute
-commute for 7.66 km.** Five hours. The engine was right; the demand was not. For the map to absorb
-that traffic it would need roughly five times the lanes it has, and Berlin-Mitte is not a ten-lane
-grid.
+was 1000 people per agent, which with every seat taken is 64 000 cars on a map with 82 street edges.
+The model handled it — no gridlock, no forced releases, everybody arrived — and reported a
+**298-minute commute for 7.66 km.** Five hours. The engine was right; the demand was not. For the
+map to absorb that traffic it would need roughly five times the lanes it has, and Berlin-Mitte is
+not a ten-lane grid.
 
 Congestion stays a consequence of decisions rather than a certainty, which is the lesson the game is
 built around:
 
-| car share | round total | mean trip | mean delay |
-| --------: | ----------: | --------: | ---------: |
-|     100 % |   11 140 kg |  20.4 min |   11.3 min |
-|      75 % |    8 616 kg |  13.9 min |    4.8 min |
-|      50 % |    6 236 kg |   9.5 min |    0.4 min |
-|      25 % |    4 385 kg |   9.5 min |    0.1 min |
-|       0 % |    2 449 kg |         — |          — |
+| car share | round total |       car | timetable | car trip | car delay |
+| --------: | ----------: | --------: | --------: | -------: | --------: |
+|     100 % |   13 059 kg | 10 194 kg |  2 864 kg | 22.5 min |  12.5 min |
+|      75 % |    9 884 kg |  6 903 kg |  2 981 kg | 15.4 min |   5.4 min |
+|      50 % |    7 184 kg |  4 164 kg |  3 020 kg | 10.6 min |   0.7 min |
+|      25 % |    5 345 kg |  2 207 kg |  3 139 kg | 10.8 min |   0.1 min |
+|       0 % |    3 194 kg |         — |  3 194 kg |        — |         — |
 
-Half the class switching removes the jam entirely. That is physically right — congestion is a
+![What a round costs, by car share](../backend/template/hintergrund/runde.svg)
+
+_Each bar is a round: the car in blue, the timetable in amber. The timetable runs either way and
+only gets a little dearer as more people board; the car decides how long the bar is. The line is the
+budget of 8000 kg a round._
+
+Half the players switching removes the jam entirely. That is physically right — congestion is a
 threshold phenomenon close to capacity, not a gradient — and it is the point of the exercise.
 
-Those rows were measured before the map data pass further down. The timetable's own floor is 2864 kg
-today rather than 2449, and every row with people on a bus is cheaper than it reads here. The shape
-is what the table is for.
+Taking the bus and train costs 33 to 44 minutes, and longer the more people want to board: the wait
+at the stop grows from 9 to 22 minutes because the vehicles are full. With only a quarter as many
+people on the same routes it stays at 8 minutes. A full bus is public transport's traffic jam.
+
+Measured on the shipped map, base version, with the routes the game's own router returns: 64 agents
+of 100 people each, spread evenly over the 36 home-and-workplace pairs, everybody not driving on
+public transport, averaged over six seeds. The spread between seeds is under 2 %.
 
 ### The scale is derived, never picked
 
@@ -282,46 +303,51 @@ is what the table is for.
 people_per_agent = district_commuters / (seats × agents per seat)
 ```
 
-A map depicts a place, and a place has a commuter population. The class **divides** that population
-between its agents; it does not summon a new one because more students turned up. Holding the
-district constant while the seats vary keeps a round the same round:
+A map depicts a place, and a place has a commuter population. Whoever plays **divides** that
+population between the agents; more seats do not summon new commuters. Holding the district
+constant while the seats vary keeps a round the same round:
 
-| seats | agents | people/agent |  car CO₂ | mean trip | mean delay |
-| ----: | -----: | -----------: | -------: | --------: | ---------: |
-|    16 |     64 |          100 | 8 691 kg |  20.4 min |   11.3 min |
-|     8 |     32 |          200 | 8 630 kg |  20.2 min |   11.0 min |
-|     4 |     16 |          400 | 8 904 kg |  20.8 min |   11.4 min |
-|     2 |      8 |          800 | 8 652 kg |  20.7 min |   11.5 min |
+| seats | agents | people/agent |   car CO₂ | mean trip | mean delay |
+| ----: | -----: | -----------: | --------: | --------: | ---------: |
+|    16 |     64 |          100 | 10 194 kg |  22.5 min |   12.5 min |
+|     8 |     32 |          200 | 10 211 kg |  22.6 min |   12.6 min |
+|     4 |     16 |          400 |  9 857 kg |  21.0 min |   11.0 min |
+|     2 |      8 |          800 |  9 784 kg |  22.3 min |   12.5 min |
 
-CO₂ within 3 %, delay within half a minute. Pin `people_per_agent` to a fixed number instead and a
-half-full class sees **0.4 minutes of delay against 11.3** on the same map, and emits 44 % of the
-CO₂ — a different game depending on who came to the lesson.
+![The same 6400 commuters, divided differently](../backend/template/hintergrund/massstab.svg)
+
+_Every row is the same 6400 commuters, only divided between agents differently. The last row pins an
+agent at 100 people: with eight seats, only half the district is on the road._
+
+CO₂ within a good 4 %, delay within a minute and a half. Pin `people_per_agent` to a fixed number
+instead and a half-full game sees **1.0 minutes of delay against 12.5** on the same map, and emits
+42 % of the CO₂ — a different game depending on how many turned up.
 
 ### The budget is per round
 
-Because the demand is constant, a round costs what it costs however many students play, so the
+Because the demand is constant, a round costs what it costs however many people play, so the
 budget needs no agent term at all:
 
 ```
 CO₂ budget = the map's budget per round × rounds
 ```
 
-Over six rounds on this map, a class that never gets out of the car spends 66 840 kg; one that works
-its way down — 100 / 75 / 50 / 50 / 25 / 25 % car — spends about 41 000. A budget has to sit between
-those two or it is not a budget. 8000 kg a round, 48 000 for six, does: the all-car class runs out
-in round 5, and a class that improves finishes with about seven tonnes to spare.
+Over six rounds a game in which nobody gets out of the car spends 78 354 kg; one that works its way
+down — 100 / 75 / 50 / 50 / 25 / 25 % car — spends 48 001 kg. A budget has to sit between those two
+or it is not a budget.
 
-It is not the tightest number that works. It is the roundest number inside the range, because the
-class has to be able to hold it in its head.
+8000 kg a round, 48 000 for six, was the roundest number inside that range when it was measured on
+the map before its repair: driving throughout ran out in round 5, and improving finished with about
+seven tonnes to spare. On the repaired map it sits at the bottom edge of the range. Driving
+throughout runs out in round 4 already, and an improving game lands on the budget to the kilogram.
 
-Those two totals come from the table above and carry its caveat: after the map repair an improving
-class spends less, so the budget sits in the range by a smaller margin than it did. It still sits in
-it — all-car busts it, an improving class finishes — but it is the number to look at first after the
-next play-test.
+At 9000 kg a round the old story would be back: driving throughout ends in round 5, and switching
+keeps about six tonnes in hand. The number has to stay round, because everybody has to be able to
+hold it in their head. Which one it becomes is for the next play-test on this map to decide.
 
 ### The emission factors, and one that was wrong
 
-Each factor is per vehicle-kilometre, and each one has to be checkable by a class that wants to
+Each factor is per vehicle-kilometre, and each one has to be checkable by anyone who wants to
 check it:
 
 | mode  | factor          | where it comes from                                              |
@@ -337,13 +363,13 @@ German grid mix turns that into 1450, rounded to 1500.
 
 It mattered far out of proportion to its size, because the timetable runs whether it is ridden or
 not. On a map with six train lines that single number was **39 % of an all-car round**; at 1500 it
-is 22 %. Before the correction the timetable decided almost four tenths of every round and the class
-could do nothing about it. Now 78 % of a round is in their hands.
+is 22 %. Before the correction the timetable decided almost four tenths of every round and nobody
+at the table could do anything about it. Now 78 % of a round is in the players' hands.
 
 Two decisions sit inside that one number, and both are about defensibility rather than accuracy:
 
-- **The grid mix, not the operator's green tariff.** It is the conservative figure and the one a
-  class can look up.
+- **The grid mix, not the operator's green tariff.** It is the conservative figure and the one
+  anyone can look up.
 - **The CO₂ factor was corrected and the cost was not touched.** They come from different sources.
   Moving one to match the other is exactly how two metrics stop agreeing about which mode is
   expensive.
@@ -371,8 +397,8 @@ and was being charged society CO₂ for kilometres its vehicles could never driv
 both modes had 60 seats, so 6400 people forced run after run of a 60-seat U-Bahn.
 
 The effect was that six of the 36 home-and-workplace pairs had no public transport connection at
-all. A class that wanted to get out of the car could not, and eleven of 64 agents drove whatever was
-decided — 1313 kg the class had no way to avoid. The numbers were correct arithmetic on a map that
+all. Whoever wanted to get out of the car could not, and eleven of 64 agents drove whatever was
+decided — 1313 kg nobody had a way to avoid. The numbers were correct arithmetic on a map that
 did not describe what was on the screen.
 
 Repairing the data changed **nothing** on the car side: 10 103 → 10 150 kg at 100 % car, inside the
@@ -394,7 +420,9 @@ the values until a play-test feels right — that fits the model to one afternoo
 ### What is not calibrated
 
 - **Every new map starts at 6400 and 8000.** Those are Berlin Mitte-West's numbers. For a smaller
-  map both are too high, and there is nothing that warns you.
+  map both are too high; the create form warns about it until the map says they were measured on it.
+- **The budget was not re-chosen for the repaired map.** It sits at the edge of its range (see
+  above), and 9000 kg a round is the proposal the next play-test checks.
 - **Departures are drawn σ = 10 minutes** around the departure hour, so practically everybody leaves
   within a twenty-minute window. A real morning peak spreads over an hour and more; at σ = 45 the
   delay in an all-car round falls from 56.9 to 16.5 minutes. That is a model question rather than a

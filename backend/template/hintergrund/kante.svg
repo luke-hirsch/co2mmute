@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 344 186" role="img" aria-labelledby="fig-kante-title fig-kante-desc" class="fig">
+  <!--
+    A link of the queue model, twice: in free flow (cars drive t0, queue
+    briefly, leave at Q) and in spillback (the next link is full, nothing
+    leaves, the queue fills the storage S and the next car cannot enter).
+    A schematic, not a measurement — no number is drawn to scale.
+    Colours: every fill and stroke is a var() with a token value as its
+    fallback. On /hintergrund/ the page sets the vars (custom.css, .doc-figure)
+    and they follow the light/dark switch; standalone — the docs on GitHub —
+    the fallbacks paint the light version on a white card.
+  -->
+  <title id="fig-kante-title">Eine Kante im freien Fluss und im Rückstau</title>
+  <desc id="fig-kante-desc">Oben fahren einzelne Autos mit Abstand über die Kante, am Ende stehen drei kurz in der Schlange, und vorn fließt der Verkehr mit der Abflusskapazität Q ab. Unten ist die nächste Kante voll: Die Schlange füllt die ganze Kante, ein Halt sperrt die Ausfahrt, und ein ankommendes Auto kommt nicht mehr hinein.</desc>
+  <style>
+    .fig-bg { fill: var(--fig-bg, #ffffff); }
+    .fig-text { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 13px; font-variant-numeric: tabular-nums; fill: var(--fig-muted, #6b7280); }
+    .fig-ink { fill: var(--fig-ink, #111827); }
+    .fig-head { fill: var(--fig-ink, #111827); font-weight: 500; }
+    .fig-line { fill: none; stroke: var(--fig-ink, #111827); }
+    .fig-grid { fill: none; stroke: var(--fig-rule, #d7dbe1); }
+    .fig-edge { fill: var(--fig-surface, #ffffff); stroke: var(--fig-strong, #bcc3cc); }
+    .fig-node { fill: var(--fig-surface, #ffffff); stroke: var(--fig-ink, #111827); }
+    .fig-car { fill: var(--fig-car, #1e88e5); }
+    .fig-car-line { fill: none; stroke: var(--fig-car, #1e88e5); }
+    .fig-pt { fill: var(--fig-pt, #ffb300); }
+    .fig-people { fill: var(--fig-soft, #8b93a1); }
+    .fig-people-line { fill: none; stroke: var(--fig-soft, #8b93a1); }
+  </style>
+  <rect class="fig-bg" width="344" height="186" rx="8" />
+  <text class="fig-head fig-text" x="12" y="20">Freier Fluss</text>
+  <rect class="fig-edge" x="40" y="32" width="240" height="20" rx="3" stroke-width="1.5" />
+  <rect class="fig-car" x="60" y="38" width="11" height="8" rx="2" />
+  <rect class="fig-car" x="104" y="38" width="11" height="8" rx="2" />
+  <rect class="fig-car" x="150" y="38" width="11" height="8" rx="2" />
+  <rect class="fig-car" x="196" y="38" width="11" height="8" rx="2" />
+  <rect class="fig-car" x="236" y="38" width="11" height="8" rx="2" />
+  <rect class="fig-car" x="249" y="38" width="11" height="8" rx="2" />
+  <rect class="fig-car" x="262" y="38" width="11" height="8" rx="2" />
+  <circle class="fig-node" cx="40" cy="42" r="7" stroke-width="2" />
+  <circle class="fig-node" cx="280" cy="42" r="7" stroke-width="2" />
+  <path class="fig-line" d="M292 42 H326 M320 37 L326 42 L320 47" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+  <text class="fig-text" x="309" y="31" text-anchor="middle">Q</text>
+  <path class="fig-line" d="M40 62 V68 H280 V62" stroke-width="1" />
+  <text class="fig-text" x="160" y="84" text-anchor="middle">Speicher S, eine Kante lang</text>
+  <text class="fig-head fig-text" x="12" y="118">Rückstau</text>
+  <rect class="fig-edge" x="40" y="130" width="240" height="20" rx="3" stroke-width="1.5" />
+  <rect class="fig-edge" x="296" y="130" width="40" height="20" rx="3" stroke-width="1.5" />
+  <rect class="fig-car" x="48" y="136" width="11" height="8" rx="2" />
+  <rect class="fig-car" x="61" y="136" width="11" height="8" rx="2" />
+  <rect class="fig-car" x="74" y="136" width="11" height="8" rx="2" />
+  <rect class="fig-car" x="87" y="136" width="11" height="8" rx="2" />
+  <rect class="fig-car" x="100" y="136" width="11" height="8" rx="2" />
+  <rect class="fig-car" x="113" y="136" width="11" height="8" rx="2" />
+  <rect class="fig-car" x="126" y="136" width="11" height="8" rx="2" />
+  <rect class="fig-car" x="139" y="136" width="11" height="8" rx="2" />
+  <rect class="fig-car" x="152" y="136" width="11" height="8" rx="2" />
+  <rect class="fig-car" x="165" y="136" width="11" height="8" rx="2" />
+  <rect class="fig-car" x="178" y="136" width="11" height="8" rx="2" />
+  <rect class="fig-car" x="191" y="136" width="11" height="8" rx="2" />
+  <rect class="fig-car" x="204" y="136" width="11" height="8" rx="2" />
+  <rect class="fig-car" x="217" y="136" width="11" height="8" rx="2" />
+  <rect class="fig-car" x="230" y="136" width="11" height="8" rx="2" />
+  <rect class="fig-car" x="243" y="136" width="11" height="8" rx="2" />
+  <rect class="fig-car" x="256" y="136" width="11" height="8" rx="2" />
+  <rect class="fig-car" x="299" y="136" width="11" height="8" rx="2" />
+  <rect class="fig-car" x="312" y="136" width="11" height="8" rx="2" />
+  <rect class="fig-car" x="324" y="136" width="11" height="8" rx="2" />
+  <circle class="fig-node" cx="40" cy="140" r="7" stroke-width="2" />
+  <circle class="fig-node" cx="280" cy="140" r="7" stroke-width="2" />
+  <rect class="fig-pt" x="287" y="126" width="4" height="28" rx="1" />
+  <rect class="fig-car" x="14" y="136" width="11" height="8" rx="2" />
+  <text class="fig-text" x="12" y="172">kommt nicht hinein</text>
+  <text class="fig-text" x="336" y="172" text-anchor="end">nächste Kante voll</text>
+</svg>

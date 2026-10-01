@@ -315,7 +315,7 @@ nicht gemessen.
 | S-15 | Konto löschen erreichbar        | ein Klick von der Hostseite auf die Bestätigungsseite                                                      | geht      | `e2e/host-page.spec.ts` |
 | S-16 | `/game/<id>/share/`             | leitet in die Lobby, die ID und QR-Code ohnehin zeigt                                                      | geht      | -                       |
 | S-17 | Wortwahl                        | eine Gruppe heißt überall Gruppe, der Hostrechner ist die Leitstelle, der weite Maßstab „alle Pendler"    | geht      | `numbers.spec.ts`       |
-| S-18 | keine Schulwörter               | kein „Klasse", „Unterricht", „Lehrer" oder „Pult" im Wörterbuch — außer im Beispiel im Namensfeld (S17)   | geht      | -                       |
+| S-18 | keine Schulwörter               | kein „Klasse", „Unterricht", „Lehrer", „Pult", „Schule" oder „Figur" — im Wörterbuch außer im Beispiel im Namensfeld (S17), in den Django-Seiten ohne Ausnahme (S23) | geht      | -                       |
 | S-19 | Kopfzeile der Django-Seiten     | Menüs öffnen unter ihrem Knopf, Esc und Klick daneben schließen; Handy-Menü mit Unterlisten; nichts von fremden Servern | geht      | -                       |
 | S-20 | Schriftzug                      | das Zeichen ist das C von CO₂mmute, der Rest steht in derselben Schrift wie die Seite; auf beiden Hälften gleich groß, hell wie dunkel lesbar (S20) | geht      | -                       |
 | S-21 | Quellcode                       | Link aufs Repository in der Fußzeile beider Hälften (S20)                                                  | geht      | `chrome.spec.ts`        |
@@ -328,6 +328,11 @@ nicht gemessen.
 | S-28 | „Angemeldet bleiben“            | ohne Haken endet die Anmeldung mit dem Browser, mit Haken nach 14 Tagen (S22)                               | geht      | -                       |
 | S-29 | Abmelden                        | eigene Seite im Design, sagt dass die Spiele weiterlaufen (S22)                                            | geht      | -                       |
 | S-30 | Django-Seiten im Design         | Anmelden, Konto und Passwort-Seiten so breit, so gesetzt und so gefärbt wie die SPA; hell und dunkel, 390px (S22) | geht | -                       |
+| S-31 | Umweg auf der Startseite        | die Linie von Bus & Bahn verlässt das Bündel, überbrückt Rad- und Fußlinie, hält an einer eigenen Station zum Hintergrund und fädelt wieder ein; die anderen drei Linien laufen ohne Naht durch; hell und dunkel, 390px (S23) | geht | -                       |
+| S-32 | `/hintergrund/` ist das Dokument | trägt das ganze `docs/de-hintergrund.md`: dieselben Kapitel und Abschnitte in derselben Reihenfolge, dieselben Zahlen in beide Richtungen, dieselben Abbildungen (S23) | geht | -                       |
+| S-33 | Haltestellen auf `/hintergrund/` | auf breiten Schirmen läuft die Liste der Kapitel mit, die schon passierten sind gefüllt; auf dem Handy steht sie über dem Text; ohne JavaScript bleiben alle hohl und die Links gehen (S23) | geht | -                       |
+| S-34 | Abbildungen                     | Kante, CO₂-Kurve, Runde nach Autoanteil, Maßstab: zwei Farben und Tinte, hell und dunkel lesbar, auf 390px ohne Querscrollen, und als Bild für sich lesbar, wie die Docs sie zeigen (S23) | geht | -                       |
+| S-35 | Herkunft                        | Startseite und Hintergrund nennen die Masterarbeit an der Freien Universität Berlin und die Weiterentwicklung an der TU Berlin (S23) | geht | -                       |
 
 > S-09 bis S-11 zählen **Fehlversuche** (Login, Platz-Code) bzw. **Erfolge** (Konten), nie einfach
 > Anfragen: eine Klasse hängt hinter _einem_ Schulanschluss, und wer richtige Codes einlöst, würde

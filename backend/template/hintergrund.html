@@ -5,15 +5,30 @@
 {% block extra_head %}
 <meta
   name="description"
-  content="Wie die Verkehrssimulation hinter CO2mmute rechnet: ein Warteschlangenmodell statt einer BPR-Kurve, ein ÖPNV-Fahrplan mit echten Fahrgästen an den Haltestellen und Kartenzahlen, die gemessen und nicht geschätzt sind."
+  content="Wie die Verkehrssimulation hinter CO2mmute rechnet: ein Warteschlangenmodell statt einer BPR-Kurve, ein ÖPNV-Fahrplan, in den wirklich Leute einsteigen, und Kartenzahlen, die gemessen und nicht geschätzt sind."
 />
 {% endblock %}
 
-{# full-width sections, same grid as index.html; no new pattern, so no new .claude/design note needed #}
 {% block main_class %}{% endblock %}
 
 {% block main %}
-<div class="metro relative bg-body dark:bg-darkbody">
+{% comment %}
+  The whole of docs/de-hintergrund.md, section for section (S23). The page and
+  the doc are two copies of one text — the backend image carries no docs/, so
+  the page cannot read the file — and co2mmute/tests/test_pages.py fails when
+  their headings or their numbers part. Change one, change the other, and
+  docs/en-background.md with them.
+
+  It is drawn on one line, not four: this page is the detour the landing
+  page's public-transport line takes, so it runs on that line, and every
+  chapter is a station on it. The figures are files of their own under
+  hintergrund/, included inline so the page's colours reach them; the docs
+  show the same files.
+{% endcomment %}
+<div class="metro metro-solo relative bg-body dark:bg-darkbody">
+  <div aria-hidden="true" class="pointer-events-none absolute inset-0 mx-auto max-w-7xl">
+    <span class="metro-lane top-[3.75rem] sm:top-[4.75rem]"></span>
+  </div>
 
   {# --- start --- #}
   <section>
@@ -30,297 +45,482 @@
           Was hinter einer Runde steckt
         </h1>
         <p class="mt-6 max-w-(--measure-lead) text-lg/8 text-pretty text-muted dark:text-darkmutedtext">
-          Die Idee zu CO<sub>2</sub>mmute stammt aus der Masterarbeit von
-          Sebastian Werblinski an der TU Berlin. Der Code hier ist eine
-          vollständige Neuentwicklung und keine Fortsetzung seines Prototyps –
-          auch das Verkehrsmodell ist neu gebaut. Diese Seite sagt, was es tut
-          und woher seine Zahlen kommen.
+          Die Idee zum Spiel stammt aus der
+          <a href="{{ repository_url }}/blob/main/master_thesis.pdf" class="text-link">Masterarbeit</a>
+          von Sebastian Werblinski an der Freien Universität Berlin (2025). Der
+          Code hier ist eine vollständige Neuentwicklung an der TU Berlin und
+          keine Fortsetzung seines Prototyps; das Verkehrsmodell ist dabei neu
+          gebaut worden. Diese Seite sagt, was es tut und woher seine Zahlen
+          kommen.
         </p>
       </div>
     </div>
   </section>
 
-  {# --- why this model --- #}
-  <section>
-    <div class="relative mx-auto max-w-7xl py-20 pr-6 lg:py-28 lg:pr-8">
-      <div class="pl-(--gutter)">
-        <h2 class="relative text-3xl/10 font-semibold tracking-tight text-main sm:text-4xl/10 dark:text-darktext">
-          <span class="metro-station" aria-hidden="true"></span>
-          Drei Ebenen, eine Wahl
-        </h2>
-        <p class="mt-4 max-w-2xl text-lg/8 text-muted dark:text-darkmutedtext">
-          Stau muss als Ergebnis herauskommen, nicht als Annahme – sonst geht
-          es bei der Abstimmung zwischen den Runden um nichts. Verkehr lässt
-          sich auf drei Ebenen simulieren.
-        </p>
-
-        <dl class="mt-12 grid gap-x-12 gap-y-10 sm:grid-cols-3">
-          <div class="border-t-2 border-main pt-5 dark:border-darktext">
-            <dt class="text-lg font-semibold text-main dark:text-darktext">
-              Makroskopisch
-            </dt>
-            <dd class="mt-2 text-base/7 text-muted dark:text-darkmutedtext">
-              Flussgleichungen über das Netz, keine einzelnen Fahrzeuge.
-              Billig, aber es sitzt niemand darin – und hier geht es um einen
-              Menschen, der ein Verkehrsmittel wählt.
-            </dd>
-          </div>
-          <div class="border-t-2 border-main pt-5 dark:border-darktext">
-            <dt class="text-lg font-semibold text-main dark:text-darktext">
-              Mikroskopisch
-            </dt>
-            <dd class="mt-2 text-base/7 text-muted dark:text-darkmutedtext">
-              Folgeverhalten, Spurwechsel, Beschleunigung je Fahrzeug. Jeder
-              Parameter braucht Daten, die für eine von Hand gezeichnete
-              Spielkarte niemand hat.
-            </dd>
-          </div>
-          <div class="border-t-2 border-main pt-5 dark:border-darktext">
-            <dt class="text-lg font-semibold text-main dark:text-darktext">
-              Mesoskopisch
-            </dt>
-            <dd class="mt-2 text-base/7 text-muted dark:text-darkmutedtext">
-              Einzelne Fahrzeuge, aber eine Straße ist eine Warteschlange und
-              kein Streckenabschnitt mit Positionen darauf. Das benutzt
-              CO<sub>2</sub>mmute.
-            </dd>
-          </div>
-        </dl>
-
-        <p class="mt-10 max-w-(--measure-body) text-base/7 text-muted dark:text-darkmutedtext">
-          Genauer: ein
-          <strong class="font-semibold text-main dark:text-darktext"
-            >Link-Queue-Modell</strong
-          >, dieselbe Familie, die MATSim benutzt – die Arbeitslinie von Kai
-          Nagel, am selben Institut. Diese Herkunft ist der Grund, es einer
-          von Hand angepassten Kurve vorzuziehen: Es ist ein veröffentlichtes
-          Modell, das sich nachschlagen und bestreiten lässt, keine Formel,
-          an der so lange gedreht wurde, bis das Ergebnis plausibel aussah.
-        </p>
-      </div>
-    </div>
-  </section>
-
-  {# --- the queue mechanics --- #}
-  <section>
-    <div class="relative mx-auto max-w-7xl py-20 pr-6 lg:py-28 lg:pr-8">
-      <div class="pl-(--gutter)">
-        <h2 class="relative text-3xl/10 font-semibold tracking-tight text-main sm:text-4xl/10 dark:text-darktext">
-          <span class="metro-station" aria-hidden="true"></span>
-          Eine Straße ist eine Warteschlange
-        </h2>
-        <p class="mt-4 max-w-2xl text-lg/8 text-muted dark:text-darkmutedtext">
-          Jede Kante im Netz hat eine Freiflusszeit, eine Abflusskapazität und
-          einen Speicherplatz. Ein Fahrzeug darf sie nicht schneller
-          verlassen, als das Tempolimit erlaubt, reiht sich dann in eine
-          Schlange ein und wartet auf Budget – und darf erst weiter, wenn die
-          nächste Kante noch Platz hat. Ist sie voll, bleibt es stehen, und
-          alles dahinter auch. Das ist Rückstau, und es ist keine Formel,
-          sondern zwei Mechanismen.
-        </p>
-        <p class="mt-8 max-w-(--measure-body) text-base/7 text-muted dark:text-darkmutedtext">
-          Ein Modell dieser Art errechnet nirgends eine Geschwindigkeit aus
-          Belastung und muss deshalb auch keinen künstlichen Boden dagegen
-          setzen. Der Preis dafür: Es kann sich wirklich verklemmen – ein
-          Ring aus Kanten, jede voll mit Fahrzeugen, die auf die nächste
-          wollen. Ein Knoten, der länger nichts bewegt hat, gibt dann
-          trotzdem frei, über die Speichergrenze hinweg, und die Simulation
-          zählt das mit.
-        </p>
-      </div>
-    </div>
-  </section>
-
-  {# --- who queues, reusing the landing page's four mode icons --- #}
-  <section>
-    <div class="relative mx-auto max-w-7xl py-20 pr-6 lg:py-28 lg:pr-8">
-      <div class="pl-(--gutter)">
-        <h2 class="relative text-3xl/10 font-semibold tracking-tight text-main sm:text-4xl/10 dark:text-darktext">
-          <span class="metro-station" aria-hidden="true"></span>
-          Wer sich anstellt
-        </h2>
-        <p class="mt-4 max-w-2xl text-lg/8 text-muted dark:text-darkmutedtext">
-          Nicht jedes Verkehrsmittel wartet auf dieselbe Weise.
-        </p>
-
-        <ul class="mt-12 space-y-10 lg:space-y-12">
-          <li class="flex gap-4">
-            <span class="metro-car flex size-9 shrink-0 items-center justify-center rounded-md bg-(--lane-color) text-darkbody" aria-hidden="true">
-              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 8-2 2-1.5-3.7A2 2 0 0 0 15.646 5H8.4a2 2 0 0 0-1.903 1.257L5 10 3 8" /><path d="M7 14h.01" /><path d="M17 14h.01" /><rect width="18" height="8" x="3" y="10" rx="2" /><path d="M5 18v2" /><path d="M19 18v2" /></svg>
-            </span>
-            <div>
-              <h3 class="text-lg font-semibold text-main dark:text-darktext">Auto</h3>
-              <p class="mt-1 max-w-(--measure-body) text-base/7 text-muted dark:text-darkmutedtext">
-                Immer in der Schlange, immer betroffen, wenn die Kante vor
-                ihm voll ist.
-              </p>
-            </div>
-          </li>
-          <li class="flex gap-4">
-            <span class="metro-pt flex size-9 shrink-0 items-center justify-center rounded-md bg-(--lane-color) text-white" aria-hidden="true">
-              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6 2 7" /><path d="M10 6h4" /><path d="m22 7-2-1" /><rect width="16" height="16" x="4" y="3" rx="2" /><path d="M4 11h16" /><path d="M8 15h.01" /><path d="M16 15h.01" /><path d="M6 19v2" /><path d="M18 21v-2" /></svg>
-            </span>
-            <div>
-              <h3 class="text-lg font-semibold text-main dark:text-darktext">Bus &amp; Bahn</h3>
-              <p class="mt-1 max-w-(--measure-body) text-base/7 text-muted dark:text-darkmutedtext">
-                Ein Bus steht im Mischverkehr und zählt drei Pkw-Einheiten in
-                der gemeinsamen Schlange – nur mit eigener Spur fährt er
-                frei. Eine Bahn hat kein Pendant zur Straße und läuft am Stau
-                vorbei.
-              </p>
-            </div>
-          </li>
-          <li class="flex gap-4">
-            <span class="metro-bike flex size-9 shrink-0 items-center justify-center rounded-md bg-(--lane-color) text-white" aria-hidden="true">
-              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5" /><circle cx="5.5" cy="17.5" r="3.5" /><circle cx="15" cy="5" r="1" /><path d="M12 17.5V14l-3-3 4-3 2 3h2" /></svg>
-            </span>
-            <div>
-              <h3 class="text-lg font-semibold text-main dark:text-darktext">Fahrrad</h3>
-              <p class="mt-1 max-w-(--measure-body) text-base/7 text-muted dark:text-darkmutedtext">
-                Steht nur dort im Verkehr, wo es sich die Straße mit Autos
-                teilt, und hat dort eine eigene Linie mit eigenem Budget: Ein
-                Autostau hält keinen Radfahrer auf, und ein Radfahrer nie ein
-                Auto. Abgewiesen wird ein Rad nie.
-              </p>
-            </div>
-          </li>
-          <li class="flex gap-4">
-            <span class="flex size-9 shrink-0 items-center justify-center rounded-md border-2 border-dotted border-main text-main dark:border-darktext dark:text-darktext" aria-hidden="true">
-              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z" /><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z" /><path d="M16 17h4" /><path d="M4 13h4" /></svg>
-            </span>
-            <div>
-              <h3 class="text-lg font-semibold text-main dark:text-darktext">Zu Fuß</h3>
-              <p class="mt-1 max-w-(--measure-body) text-base/7 text-muted dark:text-darkmutedtext">
-                Steht komplett außerhalb des Warteschlangenmodells.
-              </p>
-            </div>
-          </li>
-        </ul>
-      </div>
-    </div>
-  </section>
-
-  {# --- the timetable, and who pays for it --- #}
-  <section>
-    <div class="relative mx-auto max-w-7xl py-20 pr-6 lg:py-28 lg:pr-8">
-      <div class="pl-(--gutter)">
-        <h2 class="relative text-3xl/10 font-semibold tracking-tight text-main sm:text-4xl/10 dark:text-darktext">
-          <span class="metro-station" aria-hidden="true"></span>
-          Der Fahrplan fährt so oder so
-        </h2>
-        <p class="mt-4 max-w-2xl text-lg/8 text-muted dark:text-darkmutedtext">
-          Ein Linienfahrzeug ist im Modell ein ganz normales Fahrzeug auf
-          einer künstlichen Route – es steht in der Schlange, staut zurück
-          und fährt durch eine Busschleuse, ohne eine einzige eigene
-          Codezeile. Und es steigen wirklich Leute ein: an einer Haltestelle,
-          bis zur freien Kapazität, mit gemessener statt addierter
-          Wartezeit.
-        </p>
-        <p class="mt-6 flex max-w-2xl gap-3 rounded-md bg-accent px-4 py-3 text-sm/6 font-medium text-darkbody">
-          <svg class="mt-0.5 size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2 9 3-3 3 3" /><path d="M13 18H7a2 2 0 0 1-2-2V6" /><path d="m22 15-3 3-3-3" /><path d="M11 6h6a2 2 0 0 1 2 2v10" /></svg>
-          <span>
-            Die Gesellschaft bezahlt den Fahrplan: Eine Linie stößt Fahrzeuge
-            × Linienkilometer × Faktor aus, nie geteilt durch Sitzplätze. Ein
-            leerer Bus ist nicht sauber, und eine Linie, die niemand benutzt
-            hat, kostet die Runde trotzdem.
-          </span>
-        </p>
-      </div>
-    </div>
-  </section>
-
-  {# --- the speed-dependent emission curve --- #}
-  <section>
-    <div class="relative mx-auto max-w-7xl py-20 pr-6 lg:py-28 lg:pr-8">
-      <div class="pl-(--gutter)">
-        <h2 class="relative text-3xl/10 font-semibold tracking-tight text-main sm:text-4xl/10 dark:text-darktext">
-          <span class="metro-station" aria-hidden="true"></span>
-          CO<sub>2</sub> hängt an der Geschwindigkeit
-        </h2>
-        <p class="mt-4 max-w-2xl text-lg/8 text-muted dark:text-darkmutedtext">
-          Emissionen sind kein fester Wert pro Kilometer. Ein Auto im
-          Stop-and-go verbrennt Kraftstoff, den es nicht in Strecke umsetzt,
-          und eines bei hohem Tempo kämpft gegen den Luftwiderstand –
-          dazwischen liegt ein Minimum bei 70 km/h. 50 km/h ist der Anker:
-          der Wert, auf den die Kurve gelegt wird, nicht einer, den sie zufällig trifft.
-        </p>
-
-        <div class="mt-10 max-w-2xl overflow-x-auto">
-          <table class="w-full border-collapse text-left text-sm">
-            <thead>
-              <tr class="border-b-2 border-main dark:border-darktext">
-                <th scope="col" class="py-2 pr-4 font-semibold text-main dark:text-darktext">km/h</th>
-                <th scope="col" class="py-2 pr-4 text-right font-mono font-medium text-main dark:text-darktext">10</th>
-                <th scope="col" class="py-2 pr-4 text-right font-mono font-medium text-main dark:text-darktext">20</th>
-                <th scope="col" class="py-2 pr-4 text-right font-mono font-medium text-main dark:text-darktext">30</th>
-                <th scope="col" class="py-2 pr-4 text-right font-mono font-medium text-main dark:text-darktext">40</th>
-                <th scope="col" class="py-2 pr-4 text-right font-mono font-medium text-primary-600 dark:text-primary-300">50</th>
-                <th scope="col" class="py-2 pr-4 text-right font-mono font-medium text-main dark:text-darktext">70</th>
-                <th scope="col" class="py-2 text-right font-mono font-medium text-main dark:text-darktext">100</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="py-2 pr-4 text-muted dark:text-darkmutedtext">g CO<sub>2</sub>/km</td>
-                <td class="py-2 pr-4 text-right font-mono text-muted dark:text-darkmutedtext">317</td>
-                <td class="py-2 pr-4 text-right font-mono text-muted dark:text-darkmutedtext">220</td>
-                <td class="py-2 pr-4 text-right font-mono text-muted dark:text-darkmutedtext">188</td>
-                <td class="py-2 pr-4 text-right font-mono text-muted dark:text-darkmutedtext">174</td>
-                <td class="py-2 pr-4 text-right font-mono font-medium text-primary-600 dark:text-primary-300">166,8</td>
-                <td class="py-2 pr-4 text-right font-mono text-muted dark:text-darkmutedtext">162,5</td>
-                <td class="py-2 text-right font-mono text-muted dark:text-darkmutedtext">169</td>
-              </tr>
-            </tbody>
-          </table>
+  {# --- the document; on wide screens its stations ride along on the right --- #}
+  <div class="relative mx-auto max-w-7xl pr-6 lg:pr-8">
+    <div class="pl-(--gutter) lg:grid lg:grid-cols-[minmax(0,1fr)_13rem] lg:gap-x-16">
+      <nav aria-label="Haltestellen auf dieser Seite" class="toc lg:col-start-2 lg:row-start-1">
+        <div class="lg:sticky lg:top-8">
+          <p class="text-sm font-medium text-main dark:text-darktext">Haltestellen</p>
+          <ol class="mt-4">
+              <li><a href="#simulation">Simulation</a></li>
+              <li><a href="#modell">Das Modell</a></li>
+              <li><a href="#fahrplan">Der Fahrplan</a></li>
+              <li><a href="#co2">CO<sub>2</sub> und Kosten</a></li>
+              <li><a href="#zufall">Zufall mit festem Seed</a></li>
+              <li><a href="#einheiten">Einheiten</a></li>
+              <li><a href="#kalibrierung">Kalibrierung</a></li>
+          </ol>
         </div>
+      </nav>
 
-        <p class="mt-8 max-w-(--measure-body) text-base/7 text-muted dark:text-darkmutedtext">
-          Eine Tempo-30-Straße stößt pro Kilometer rund 13 % mehr aus als
-          eine 50er – auch leer. Das ist in jedem geschwindigkeitsabhängigen
-          Modell so: real, nicht Zufall, und ein Grund, warum eine Straße im
-          Spiel mehr sein kann als nur „frei“ oder „voll“.
-        </p>
-      </div>
+      <article class="doc mt-16 pb-8 lg:col-start-1 lg:row-start-1 lg:mt-0">
+        <section id="simulation" data-station>
+          <h2>Simulation</h2>
+          <p>Eine Runde hat eine einzige Frage zu beantworten. Ein paar tausend Menschen wollen
+          ungefähr zur selben Zeit bei der Arbeit sein, jeder von ihnen unterwegs so, wie ein
+          Spieler es entschieden hat — was kostet dieser Morgen, und wie lange dauert er?</p>
+          <p>Stau muss dabei als <strong>Ergebnis</strong> herauskommen. Setzte das Modell ihn
+          voraus, ginge die Abstimmung zwischen den Runden um nichts: Wer spielt, ändert die Karte,
+          und die Karte muss antworten.</p>
+        </section>
+        <section id="modell" data-station>
+          <h2>Welches Modell, und warum dieses</h2>
+          <p>Verkehr lässt sich auf drei Ebenen simulieren.</p>
+          <ul>
+            <li><strong>Makroskopisch</strong> — Flussgleichungen über das Netz, keine einzelnen
+            Fahrzeuge. Billig, aber es sitzt niemand darin, und in diesem Spiel geht es um einen
+            Menschen, der ein Verkehrsmittel wählt.</li>
+            <li><strong>Mikroskopisch</strong> — Folgeverhalten, Spurwechsel, Beschleunigung, je
+            Fahrzeug. Jeder Parameter braucht Daten, die für eine von Hand gezeichnete Spielkarte
+            niemand hat, und es wird nicht fertig, während alle darauf warten.</li>
+            <li><strong>Mesoskopisch</strong> — einzelne Fahrzeuge, aber eine Straße ist eine
+            Warteschlange und kein Streckenabschnitt mit Positionen darauf.</li>
+          </ul>
+          <p>co2mmute ist das dritte. Genauer: ein <strong>Link-Queue-Modell</strong>, dieselbe
+          Familie, die MATSim benutzt — die Arbeitslinie von Kai Nagel, am selben Institut. Diese
+          Herkunft ist der Grund, es einer von Hand angepassten BPR-Kurve vorzuziehen: Es ist ein
+          veröffentlichtes Modell, das jemand nachschlagen und bestreiten kann, keine Formel, an der
+          so lange gedreht wurde, bis das Ergebnis plausibel aussah.</p>
+          <h3>Eine Kante sind drei Zahlen</h3>
+          <pre>Freiflusszeit      t0 = Länge / Tempolimit
+Abflusskapazität   Q  = 1.800 Fahrzeuge/h je Autospur
+Speicherkapazität  S  = 133 Fahrzeuge/km je Autospur × Länge</pre>
+          <p>1.800 Fz/h und Spur ist die Sättigungsverkehrsstärke einer städtischen Spur, der
+          Standardwert aus HCM und HBS. 133 Fz/km und Spur ist die Dichte im Stillstand: ein
+          Fahrzeug je 7,5&nbsp;m, Stoßstange an Stoßstange. Eine 900&nbsp;m lange einspurige Straße fasst also
+          rund 120 stehende Fahrzeuge und lässt in einem Fünf-Minuten-Tick rund 150 durch.</p>
+          <p>Spuren werden gezählt, wie sie auf der Straße liegen, und Infrastruktur nimmt sich
+          davon:</p>
+          <pre>Autospuren = Spuren − (1 bei Busspur) − (1 bei Radspur)</pre>
+          <p>nach unten auf null begrenzt. <strong>Null Autospuren ist erlaubt</strong>: Die Straße
+          wird zur <em>Busschleuse</em> — für Autos gesperrt, offen für Busse, Räder und Fußgänger.
+          Das ist die ganze Antwort des Modells auf „was macht eine Busspur“ — es bremst Autos nicht
+          über einen Strafterm, es nimmt ihnen eine Spur, und der Rückstau dahinter ergibt sich von
+          selbst.</p>
+          <h3>Ein Tick</h3>
+          <ol>
+            <li>Jede Kante bekommt ihr Budget für den Tick: <code>Q × Ticklänge</code>.</li>
+            <li>Alle, deren Abfahrtsminute gekommen ist, versuchen auf ihre erste Kante zu
+            kommen.</li>
+            <li>Ein Fahrzeug darf eine Kante nicht vor Ablauf von <code>t0</code> verlassen. Die
+            Freiflusszeit ist die Untergrenze der Fahrt; schneller als das Tempolimit geht nie.</li>
+            <li>Danach reiht es sich in die FIFO-Schlange der Kante ein und wartet auf Budget.</li>
+            <li>Weiter darf es nur, wenn die <strong>nächste</strong> Kante noch Speicher frei hat.
+            Wenn nicht, bleibt es stehen, und alles dahinter auch. Das ist der Rückstau.</li>
+            <li>Innerhalb des Ticks wiederholen, bis sich nichts mehr bewegt — ein Fahrzeug schafft
+            in fünf Minuten mehrere kurze Kanten.</li>
+          </ol>
+          <p>Stau ist damit zwei Mechanismen und keine Formel: Eine Kante lässt nur <code>Q</code>
+          pro Stunde ab, und eine volle Kante hält die auf, die sie speist. Schlangen wachsen
+          rückwärts durch das Netz, so wie auf der Straße.</p>
+          <figure>
+            {% include "hintergrund/kante.svg" %}
+            <figcaption>Oben fährt jedes Auto seine Freiflusszeit <code>t0</code> ab und reiht sich
+            am Ende kurz ein, bevor die Kante es mit <code>Q</code> abgibt. Unten ist die nächste
+            Kante voll: Niemand fährt ab, die Schlange füllt den ganzen Speicher <code>S</code>, und
+            wer ankommt, kommt nicht mehr hinein.</figcaption>
+          </figure>
+          <h3>Rechnerisch kann sich nichts verklemmen, also gibt es keine Mindestgeschwindigkeit</h3>
+          <p>Ein Modell vom BPR-Typ rechnet eine Geschwindigkeit aus dem Verhältnis von Belastung zu
+          Kapazität und muss deshalb daran gehindert werden, null zu erreichen — sonst teilt die
+          ganze Runde dadurch. Ein Warteschlangenmodell hat diesen Term nicht. Ein Fahrzeug wird
+          freigegeben oder nicht, und auf der Eingabeseite steht nirgends eine Geschwindigkeit.</p>
+          <p>Der Preis dafür ist, dass es sich wirklich verklemmen kann: ein Ring aus Kanten, jede
+          voll mit Fahrzeugen, die auf die nächste wollen. Ein Knoten, der vier Ticks hintereinander
+          nichts bewegt hat, gibt trotzdem frei, über die Speichergrenze hinweg, und die Freigabe
+          wird gezählt. Ein <code>forced_releases</code> über null im Tick-Log ist kein Fehler, aber
+          ein Grund, das Log zu lesen.</p>
+          <h3>Geschwindigkeit ist ein Ergebnis</h3>
+          <p>Das ist der Unterschied, auf den es beim Lesen eines Ergebnisses am meisten ankommt.
+          Die mittlere Geschwindigkeit einer Kante ist ihre Länge geteilt durch die
+          <strong>tatsächlich auf ihr beobachteten</strong> Fahrzeiten, und zwar nur über Autos —
+          ein Fußgänger braucht zehn Minuten für eine Kante, die ein Auto in einer überquert, und
+          ließe man ihn in den Mittelwert, meldete eine leere Straße Stau. Nirgends wird eine
+          Freiflussgeschwindigkeit mit einem Stau-Faktor multipliziert.</p>
+          <p>Die Geschwindigkeit auf der Karte, der CO<sub>2</sub>-Faktor einer Fahrt und die
+          Routenvorschau, die ein Spieler in der nächsten Runde bekommt, lesen also alle dieselbe
+          gemessene Zahl.</p>
+          <h3>Wer sich anstellt</h3>
+          <ul>
+            <li><strong>Autos</strong> immer.</li>
+            <li><strong>Busse</strong> stehen im Mischverkehr und fahren auf einer eigenen Busspur
+            frei. Ein Bus zählt 3 Pkw-Einheiten, nimmt in der gemeinsamen Schlange also den Platz
+            von drei Autos ein.</li>
+            <li><strong>Räder</strong> stehen nur dort im Verkehr, wo sie sich die Straße mit Autos
+            teilen. Ein Rad hat auf der Kante eine eigene Linie: ein eigenes Abflussbudget von 2.000
+            Rädern/h, damit ein Autostau nie einen Radfahrer aufhält und ein Radfahrer nie einen
+            Autofahrer — aber es teilt sich den <em>Speicher</em> der Kante, mit 0,2 Pkw-Einheiten,
+            und genau so nehmen tausend Radfahrer den Autos Platz weg. Abgewiesen wird ein Rad nie;
+            eine volle Straße schickt keinen Radfahrer zurück.</li>
+            <li><strong>Fußgänger</strong> stehen ganz außerhalb des Warteschlangenmodells.</li>
+          </ul>
+        </section>
+        <section id="fahrplan" data-station>
+          <h2>Der ÖPNV fährt einen Fahrplan</h2>
+          <p>Die strukturelle Idee ist, dass ein Linienfahrzeug ein <strong>ganz normales Fahrzeug
+          auf einer künstlichen Route</strong> ist. Ein Bus steht deshalb in der Schlange, staut
+          zurück, wiegt 3 Pkw-Einheiten und fährt durch eine Busschleuse, ohne eine einzige eigene
+          Codezeile.</p>
+          <p>Und es steigen wirklich Leute ein. Gruppen warten an einer Haltestelle, die nach Linie
+          <em>und</em> Knoten unterschieden wird — wer auf die M1 wartet, steigt nicht in die U7 —,
+          steigen bis zur freien Kapazität ein, steigen dort aus, wo ihre Route die Linie verlässt,
+          und warten beim Umsteigen erneut. Die Wartezeit wird gemessen und <strong>ausgewiesen,
+          nicht addiert</strong>: Die Uhr läuft seit der Minute, in der die Person losfahren wollte,
+          das Stehen an der Haltestelle steckt also schon in der Fahrzeit. Haltezeiten sind nicht
+          modelliert; ein Fahrzeug bedient seine Haltestelle in dem Augenblick, in dem es
+          ankommt.</p>
+          <p>Eine Linie fährt, ob jemand mitfährt oder nicht, und genau darum wird sie überhaupt
+          modelliert:</p>
+          <blockquote>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2 9 3-3 3 3" /><path d="M13 18H7a2 2 0 0 1-2-2V6" /><path d="m22 15-3 3-3-3" /><path d="M11 6h6a2 2 0 0 1 2 2v10" /></svg>
+            <p><strong>Die Gesellschaft bezahlt den Fahrplan.</strong> Eine Linie stößt
+            <code>Fahrzeuge × Linienkilometer × Faktor</code> aus, nie geteilt durch Sitzplätze. Ein
+            leerer Bus ist nicht sauber, und eine Linie, die niemand benutzt hat, kostet die Runde
+            trotzdem.</p>
+          </blockquote>
+          <p>Der persönliche Anteil daran ist die Summe der Gesellschaft, gewichtet nach
+          <strong>Personenkilometern</strong>, und nicht pro Kopf geteilt — auf einer 13&nbsp;km langen
+          Linie darf wer eine Station fährt nicht den Anteil einer ganzen Fahrt tragen, während das
+          Auto daneben nach Kilometern abgerechnet wird. So gewichtet gilt <code>Σ persönlich =
+          Gesellschaft</code> exakt.</p>
+          <p>Die Folge, die ein Bildschirm benennen muss: Die Summe einer Runde sind die Zeilen der
+          Spieler <strong>plus</strong> die Gesellschaftskosten der Linien, die niemand benutzt
+          hat.</p>
+        </section>
+        <section id="co2" data-station>
+          <h2>CO<sub>2</sub> und Kosten hängen an einer Geschwindigkeitskurve</h2>
+          <p>Emissionen sind kein fester Wert pro Kilometer. Ein Auto im Stop-and-go verbrennt
+          Kraftstoff, den es nicht in Strecke umsetzt, und ein Auto bei 130&nbsp;km/h kämpft gegen den
+          Luftwiderstand. Das Modell benutzt einen geschwindigkeitsabhängigen Emissionsfaktor der
+          COPERT/HBEFA-Form:</p>
+          <pre>EF(v) = a/v + b + c·v²          Gramm CO₂ pro Fahrzeugkilometer</pre>
+          <p><code>a/v</code> ist Leerlauf und Stop-and-go, ein fester Verbrauch, verteilt auf
+          weniger Kilometer; <code>c·v²</code> ist der Luftwiderstand; <code>b</code> ist alles, was
+          allein mit der Strecke skaliert. <code>a</code> und <code>b</code> sind <strong>keine
+          freien Parameter</strong> — sie folgen aus <code>c</code> und zwei Bedingungen:</p>
+          <pre>1.  das Minimum der Kurve liegt bei 70 km/h  →  a = 2c · v_min³           = 1962,3 g/h
+2.  EF(50) = 166,8 g/km, der Autofaktor      →  b = 166,8 − a/50 − c·50²  = 120,4 g/km</pre>
+          <p>mit <code>c = 0,0028605</code>. So festgelegt gilt der Ankerwert bei 50&nbsp;km/h als
+          Identität und nicht auf vier Nachkommastellen, und es gibt eine Zahl zu diskutieren statt
+          drei.</p>
+          <div class="doc-table"><table>
+          <thead><tr><th scope="col">km/h</th><th scope="col" class="num">10</th><th scope="col" class="num">20</th><th scope="col" class="num">30</th><th scope="col" class="num">40</th><th scope="col" class="num">50</th><th scope="col" class="num">70</th><th scope="col" class="num">100</th></tr></thead>
+          <tbody>
+          <tr><td>g CO<sub>2</sub>/km</td><td class="num">317</td><td class="num">220</td><td class="num">188</td><td class="num">174</td><td class="num">166,8</td><td class="num">162,5</td><td class="num">169</td></tr>
+          <tr><td>× Basiswert</td><td class="num">1,90</td><td class="num">1,32</td><td class="num">1,13</td><td class="num">1,04</td><td class="num">1,00</td><td class="num">0,97</td><td class="num">1,01</td></tr>
+          </tbody></table></div>
+          <p><code>a/v</code> divergiert, wenn die Geschwindigkeit gegen null geht, deshalb ist
+          <strong>der Faktor bei 2,00× gedeckelt</strong> und nicht die Geschwindigkeit nach unten
+          begrenzt. Ein Deckel ist eine Zahl, die man im Kopf behalten kann — „schlimmstenfalls
+          doppelt so schlecht“ — und er hält den divergierenden Term aus der Rechnung heraus. Er
+          greift unterhalb von 9,2&nbsp;km/h.</p>
+          <figure>
+            {% include "hintergrund/co2-kurve.svg" %}
+            <figcaption>Gramm CO<sub>2</sub> pro Kilometer über der mittleren Geschwindigkeit auf
+            einer Kante. Der Anker liegt bei 50&nbsp;km/h, das Minimum bei 70&nbsp;km/h, und unterhalb von 9,2
+            km/h hält der Deckel die Kurve bei 333,6&nbsp;g.</figcaption>
+          </figure>
+          <p>Zwei Folgen, die überraschen:</p>
+          <ul>
+            <li><strong>Eine Tempo-30-Straße stößt pro Kilometer rund 13&nbsp;% mehr aus als eine 50er,
+            auch leer.</strong> Das ist in jedem geschwindigkeitsabhängigen Modell so, und 34 der 82
+            Straßenkanten der ausgelieferten Karte sind 30er-Zonen — es verschiebt also den Boden
+            einer echten Runde.</li>
+            <li><strong>Die Kosten hängen mit halbem Gewicht an derselben Kurve.</strong> Die Hälfte
+            der 0,32 €/km ist Kraftstoff und Verschleiß im Stop-and-go und folgt dem
+            Emissionsfaktor; die andere Hälfte — Abschreibung, Versicherung, Steuer — fällt an, ob
+            das Auto heute fährt oder nicht. Geld ist deshalb bei 1,50× gedeckelt, wo CO<sub>2</sub>
+            bei 2,00× gedeckelt ist.</li>
+          </ul>
+          <p>Der ÖPNV liegt flach bei den Fahrzeugkilometern: 1.200&nbsp;g für einen Bus, 1.500&nbsp;g für
+          einen Zug. Auf dieser Seite gibt es keine Geschwindigkeitskurve, weil das Fahrzeug nach
+          Fahrplan fährt und nicht nach Verkehrslage.</p>
+          <p>Neben den Kosten steht der <strong>Fahrpreis</strong>: 1,30&nbsp;€ pro Fahrt, Umstiege
+          eingeschlossen, und beim Auto der Teil der Kosten, den man aus der eigenen Tasche zahlt.
+          <em>Was du zahlst</em> neben <em>was es kostet</em> ist auf beiden Seiten derselbe
+          Gegensatz, und der Abstand dazwischen ist beim ÖPNV die Subvention.</p>
+        </section>
+        <section id="zufall" data-station>
+          <h2>Die Runde ist stochastisch, mit festem Seed</h2>
+          <p>Dieselben Entscheidungen zweimal ergeben nicht ganz dieselbe Zahl, und das sollen sie
+          auch nicht. Jede Runde zieht aus einem Generator, der aus der Runde geseedet ist, also
+          läuft eine Runde immer identisch nach — im Test, im Debugger oder nach einem
+          Worker-Neustart.</p>
+          <p>Es gibt genau zwei Stellschrauben:</p>
+          <ul>
+            <li><strong>Die Kapazität einer Kante, einmal je Kante und Runde gezogen</strong> (σ =
+            0,14, begrenzt auf 0,6–1,4×). Nur sie sorgt dafür, dass sich Runde 2 von Runde 1
+            unterscheidet, weil sich Rauschen pro Fahrer über tausende Menschen herausmittelt.</li>
+            <li><strong>Die Wunschgeschwindigkeit, einmal je Fahrer gezogen</strong> (σ = 0,12,
+            begrenzt auf 0,7–1,4×), für die Streuung <em>innerhalb</em> einer Runde. Auf einer
+            mehrspurigen Straße ist die Schlange danach geordnet, wann ein Fahrzeug bereit ist, und
+            nicht streng nach dem Eintreffen — das ist Überholen, ohne einen eigenen Mechanismus
+            dafür.</li>
+          </ul>
+          <p>Nirgends wird das <em>Ergebnis</em> mit einer Zufallszahl multipliziert. Die Eingaben
+          wackeln, und die Nichtlinearität des Modells nahe der Kapazität verstärkt das — deshalb
+          hat die Streuung die richtige Form: rund 0,3&nbsp;% Variationskoeffizient im freien Fluss,
+          16–18&nbsp;% unter Last. Ein Stau ist unvorhersehbar, eine leere Straße nicht.</p>
+          <p>Eine Einzelheit lohnt sich beim Lesen einer Verspätung: <strong>Verspätung wird gegen
+          die Freiflusszeit des Fahrers selbst gemessen.</strong> Wer in einer 50er-Zone 45 gewählt
+          hat, ist durch nichts verspätet.</p>
+        </section>
+        <section id="einheiten" data-station>
+          <h2>Einheiten</h2>
+          <p>Ein Agent — in der Oberfläche eine <em>Gruppe</em> — steht für
+          <code>people_per_agent</code> echte Pendler, und aus diesem Faktor stammen die meisten
+          Einheitenfehler dieses Projekts. Zwei Regeln:</p>
+          <ul>
+            <li>Eine CO<sub>2</sub>- oder Euro-Zahl ist <strong>extensiv</strong>: Sie summiert über
+            Gruppen und über die Menschen hinter jeder Gruppe. Pro Person heißt: durch beides
+            teilen.</li>
+            <li>Die Fahrzeit ist es <strong>nicht</strong>. Eine Summe von Fahrzeiten ist keine
+            Größe, die irgendwem gehört, also ist eine mittlere Fahrzeit ein Mittel über die Fahrten
+            der Gruppen und sonst nichts.</li>
+          </ul>
+          <p>Der Faktor selbst ist keine Einstellung, die jemand wählt. Siehe unten.</p>
+        </section>
+        <section id="kalibrierung" data-station>
+          <h2>Kalibrierung</h2>
+          <p>Die Physik war nicht der Teil, über den entschieden werden musste. 1.800 Fz/h und Spur
+          und 133 Fz/km und Spur sind Messwerte, die jemand anders erhoben hat, und die Form der
+          Emissionskurve folgt aus ihren zwei Ankerbedingungen. <strong>Gewählt</strong> werden
+          musste alles, was sagt, wie groß die Welt ist: wie viele Menschen auf dieser Karte
+          unterwegs sind, was eine Runde kosten darf und was ein Fahrzeug ausstößt.</p>
+          <p>Diese Entscheidungen sind die Kalibrierung, und die Methode war bei allen dieselbe.</p>
+          <h3>Die Methode</h3>
+          <p>Kein Play-Test. Eine fertige Runde lässt sich mit festem Seed unter dem Simulator
+          nachspielen, ohne dass dabei etwas geschrieben wird. Ein Kandidatenwert wird also über die
+          ausgelieferte Karte gefahren und als Folgen gelesen — mittlere Fahrzeit, mittlere
+          Verspätung, CO<sub>2</sub> nach Modalsplit — und dann gegen etwas außerhalb des Spiels
+          gehalten.</p>
+          <p>Wo es einen Anker draußen gibt, entscheidet er. Wo es keinen gibt, wird die Zahl danach
+          gewählt, was sie mit einer Runde macht, und das wird ausgesprochen statt als Messung
+          verkleidet.</p>
+          <h3>Zwei Zahlen gehören zur Karte, nicht zum Code</h3>
+          <p><code>district_commuters</code> und <code>co2_budget_kg_per_round</code> stehen an der
+          Karte, nicht in einer Konstantendatei. Beides sind Eigenschaften <em>dieses Graphen</em>:
+          wie viel Verkehr seine Achsen tragen, und was eine spielbare Runde auf seinen Entfernungen
+          und mit seinem Fahrplan kostet. Eine andere Stadt ist ein anderes Paar, und als Konstante
+          im Code hätten die Messwerte eines Stadtteils eine Eigenschaft der Software
+          festgeschrieben. Beide gehen mit dem JSON-Export der Karte mit und kommen beim Import
+          zurück.</p>
+          <p>Dazu steht an der Karte, ob die beiden für <em>sie</em> gemessen sind. Jede neue Karte
+          erbt die Werte von Berlin Mitte-West, und an den Zahlen allein ist nicht zu erkennen, ob
+          sie gemessen oder nur geerbt sind — Berlin Mitte-West selbst hat genau diese. Solange der
+          Haken fehlt, warnt „Spiel anlegen“, dass beide auf einer kleinen Karte zu hoch sind.</p>
+          <p>Für Berlin Mitte-West sind es <strong>6.400 Pendler</strong> und <strong>8.000&nbsp;kg pro
+          Runde</strong>.</p>
+          <h3>6.400 ist, was der Graph verkraftet</h3>
+          <p>Nicht, was der Stadtteil hat — Berlin Mitte-West hat weit mehr Pendler. Aber der Graph
+          abstrahiert den Stadtteil auf seine Hauptachsen, also ist die Zahl, die er tragen kann,
+          die Zahl, die <strong>diese Achsen</strong> tragen.</p>
+          <p>Bei 6.400 und 100&nbsp;% Autoanteil dauern 7,66&nbsp;km Arbeitsweg 22,5&nbsp;Minuten, 12,5 davon
+          Verspätung gegen die eigene Freiflusszeit. Der Berufsverkehr in der Berliner Innenstadt
+          läuft mit rund 24&nbsp;km/h; das wären 19&nbsp;Minuten für dieselbe Strecke. Das ist der Anker
+          draußen: Die Zahl hängt an einer gemessenen Stadt, nicht am Spielgefühl, und das Modell
+          liegt damit eher auf der staureichen Seite.</p>
+          <p>Was sie ersetzt hat, ist es wert, genannt zu werden, weil es zeigt, wie unkalibriert
+          aussieht. Ausgeliefert wurden 1.000 Menschen pro Gruppe, bei voller Besetzung also 64.000
+          Autos auf einer Karte mit 82 Straßenkanten. Das Modell hat es verkraftet — kein Gridlock,
+          keine erzwungenen Freigaben, alle kamen an — und meldete eine <strong>mittlere Fahrzeit
+          von 298&nbsp;Minuten für 7,66&nbsp;km</strong>. Fünf Stunden. Damit die Karte diesen Verkehr
+          aufnehmen könnte, bräuchte sie ungefähr fünfmal so viele Spuren, und Berlin-Mitte ist kein
+          zehnspuriges Raster. Das Modell war richtig, die Nachfrage nicht.</p>
+          <p>Stau bleibt so eine Folge von Entscheidungen statt einer Gewissheit, und genau darum
+          herum ist das Spiel gebaut:</p>
+          <div class="doc-table"><table>
+          <thead><tr><th scope="col" class="num">Autoanteil</th><th scope="col" class="num">Runde gesamt</th><th scope="col" class="num">Auto</th><th scope="col" class="num">Fahrplan</th><th scope="col" class="num">Fahrzeit Auto</th><th scope="col" class="num">Verspätung</th></tr></thead>
+          <tbody>
+          <tr><td class="num">100&nbsp;%</td><td class="num">13.059&nbsp;kg</td><td class="num">10.194&nbsp;kg</td><td class="num">2.864&nbsp;kg</td><td class="num">22,5&nbsp;min</td><td class="num">12,5&nbsp;min</td></tr>
+          <tr><td class="num">75&nbsp;%</td><td class="num">9.884&nbsp;kg</td><td class="num">6.903&nbsp;kg</td><td class="num">2.981&nbsp;kg</td><td class="num">15,4&nbsp;min</td><td class="num">5,4&nbsp;min</td></tr>
+          <tr><td class="num">50&nbsp;%</td><td class="num">7.184&nbsp;kg</td><td class="num">4.164&nbsp;kg</td><td class="num">3.020&nbsp;kg</td><td class="num">10,6&nbsp;min</td><td class="num">0,7&nbsp;min</td></tr>
+          <tr><td class="num">25&nbsp;%</td><td class="num">5.345&nbsp;kg</td><td class="num">2.207&nbsp;kg</td><td class="num">3.139&nbsp;kg</td><td class="num">10,8&nbsp;min</td><td class="num">0,1&nbsp;min</td></tr>
+          <tr><td class="num">0&nbsp;%</td><td class="num">3.194&nbsp;kg</td><td class="num">—</td><td class="num">3.194&nbsp;kg</td><td class="num">—</td><td class="num">—</td></tr>
+          </tbody></table></div>
+          <figure>
+            {% include "hintergrund/runde.svg" %}
+            <figcaption>Jeder Balken ist eine Runde: Auto in Blau, der Fahrplan in Gelb. Der
+            Fahrplan fährt so oder so und wird nur etwas teurer, wenn mehr Leute einsteigen; das
+            Auto bestimmt, wie lang der Balken wird. Die Linie ist das Budget von 8.000&nbsp;kg pro
+            Runde.</figcaption>
+          </figure>
+          <p>Steigt die Hälfte um, ist der Stau vollständig weg. Das ist physikalisch richtig — Stau
+          ist ein Schwellenphänomen dicht an der Kapazität und kein Verlauf — und es ist der Punkt
+          der Übung.</p>
+          <p>Wer Bus und Bahn nimmt, braucht dafür 33 bis 44&nbsp;Minuten, und länger, je mehr einsteigen
+          wollen: Die Wartezeit an der Haltestelle wächst von 9 auf 22&nbsp;Minuten, weil die Fahrzeuge
+          voll sind. Fahren auf denselben Wegen nur ein Viertel so viele Menschen, bleibt sie bei 8
+          Minuten. Der volle Bus ist der Stau des ÖPNV.</p>
+          <p>Gemessen auf der ausgelieferten Karte, Basisversion, mit den Routen, die der Router des
+          Spiels liefert: 64 Gruppen zu je 100 Menschen, gleichmäßig über die 36 Paare aus Wohnort
+          und Arbeitsplatz verteilt, wer nicht Auto fährt, fährt Bus und Bahn, gemittelt über sechs
+          Seeds. Die Streuung zwischen den Seeds liegt unter 2&nbsp;%.</p>
+          <h3>Der Maßstab wird abgeleitet, nicht gewählt</h3>
+          <pre>Menschen pro Gruppe = Pendler des Stadtteils / (Plätze × Gruppen pro Platz)</pre>
+          <p>Eine Karte bildet einen Ort ab, und ein Ort hat eine Zahl von Pendlern. Wer mitspielt,
+          <strong>teilt</strong> diese Pendler unter den Gruppen auf; mehr Plätze erzeugen keine
+          neuen. Hält man den Stadtteil konstant, während die Platzzahl sich ändert, bleibt die
+          Runde dieselbe Runde:</p>
+          <div class="doc-table"><table>
+          <thead><tr><th scope="col" class="num">Plätze</th><th scope="col" class="num">Gruppen</th><th scope="col" class="num">Menschen/Gruppe</th><th scope="col" class="num">CO<sub>2</sub> Auto</th><th scope="col" class="num">Fahrzeit</th><th scope="col" class="num">Verspätung</th></tr></thead>
+          <tbody>
+          <tr><td class="num">16</td><td class="num">64</td><td class="num">100</td><td class="num">10.194&nbsp;kg</td><td class="num">22,5&nbsp;min</td><td class="num">12,5&nbsp;min</td></tr>
+          <tr><td class="num">8</td><td class="num">32</td><td class="num">200</td><td class="num">10.211&nbsp;kg</td><td class="num">22,6&nbsp;min</td><td class="num">12,6&nbsp;min</td></tr>
+          <tr><td class="num">4</td><td class="num">16</td><td class="num">400</td><td class="num">9.857&nbsp;kg</td><td class="num">21,0&nbsp;min</td><td class="num">11,0&nbsp;min</td></tr>
+          <tr><td class="num">2</td><td class="num">8</td><td class="num">800</td><td class="num">9.784&nbsp;kg</td><td class="num">22,3&nbsp;min</td><td class="num">12,5&nbsp;min</td></tr>
+          </tbody></table></div>
+          <figure>
+            {% include "hintergrund/massstab.svg" %}
+            <figcaption>Jede Zeile sind dieselben 6.400 Pendler, nur anders auf Gruppen verteilt.
+            Die letzte Zeile nagelt die Gruppe auf 100 Menschen fest: Mit acht Plätzen ist dann nur
+            der halbe Stadtteil unterwegs.</figcaption>
+          </figure>
+          <p>CO<sub>2</sub> auf gut 4&nbsp;% genau, Verspätung auf anderthalb Minuten. Nagelt man
+          <code>people_per_agent</code> stattdessen auf eine feste Zahl, sieht ein halb besetztes
+          Spiel auf derselben Karte <strong>1,0&nbsp;Minuten Verspätung statt 12,5</strong> und stößt 42
+          % des CO<sub>2</sub> aus — ein anderes Spiel, je nachdem, wie viele gekommen sind.</p>
+          <h3>Das Budget gilt pro Runde</h3>
+          <p>Weil die Nachfrage konstant ist, kostet eine Runde, was sie kostet, egal wie viele
+          mitspielen. Das Budget braucht deshalb gar keinen Term für die Gruppengröße:</p>
+          <pre>CO₂-Budget = CO₂-Budget der Karte pro Runde × Runden</pre>
+          <p>Über sechs Runden kostet ein Spiel, in dem niemand aus dem Auto steigt, 78.354&nbsp;kg;
+          eines, das sich herunterarbeitet — 100 / 75 / 50 / 50 / 25 / 25&nbsp;% Autoanteil — 48.001&nbsp;kg.
+          Ein Budget muss zwischen diesen beiden liegen, sonst ist es keins.</p>
+          <p>8.000&nbsp;kg pro Runde, 48.000 für sechs, war die rundeste Zahl innerhalb dieser Spanne,
+          gemessen auf der Karte vor ihrer Reparatur: Wer durchgehend fuhr, war in Runde 5 raus, und
+          wer sich verbesserte, kam mit etwa sieben Tonnen Rest durch. Auf der reparierten Karte
+          liegt sie am unteren Rand der Spanne. Wer durchgehend fährt, ist schon in Runde 4 raus,
+          und wer sich verbessert, landet auf das Kilogramm genau auf dem Budget.</p>
+          <p>Mit 9.000&nbsp;kg pro Runde wäre die alte Geschichte wieder da: Durchgehend fahren endet in
+          Runde 5, und wer umsteigt, behält rund sechs Tonnen. Rund muss die Zahl bleiben, weil alle
+          sie im Kopf behalten können müssen. Welche es wird, entscheidet der nächste Play-Test auf
+          dieser Karte.</p>
+          <h3>Die Emissionsfaktoren, und einer, der falsch war</h3>
+          <p>Jeder Faktor gilt pro Fahrzeugkilometer, und jeder muss nachprüfbar sein für alle, die
+          ihn nachprüfen wollen:</p>
+          <div class="doc-table"><table>
+          <thead><tr><th scope="col">Modus</th><th scope="col">Faktor</th><th scope="col">woher er kommt</th></tr></thead>
+          <tbody>
+          <tr><td>Auto</td><td>166,8&nbsp;g/km</td><td>Flottendurchschnitt, eine Person pro Fahrzeug</td></tr>
+          <tr><td>Bus</td><td>1.200 g/Bus-km</td><td>ein 12-m-Stadtbus mit ~45 l/100&nbsp;km Diesel × 2,64&nbsp;kg CO<sub>2</sub> je Liter</td></tr>
+          <tr><td>Zug</td><td>1.500 g/Zug-km</td><td>~4 kWh/Zug-km mit Nebenverbrauchern × 363&nbsp;g CO<sub>2</sub>/kWh (UBA 2024)</td></tr>
+          </tbody></table></div>
+          <p>Der Zugfaktor ist der, den man erzählen sollte, weil er zeigt, wofür Kalibrierung da
+          ist. Ausgeliefert wurde er mit <strong>3.500 g/Zug-km</strong>, und im Spiel sah nichts
+          kaputt aus. 3.500 entsprechen aber rund 9,6 kWh pro Zugkilometer, und das ist ein
+          dieselgeführter Fernzug — eine Berliner U- oder S-Bahn braucht etwa 4, und der deutsche
+          Strommix macht daraus 1.450, gerundet 1.500.</p>
+          <p>Es fiel weit stärker ins Gewicht als seine Größe vermuten lässt, weil der Fahrplan
+          fährt, ob jemand mitfährt oder nicht. Auf einer Karte mit sechs Zuglinien war diese eine
+          Zahl <strong>39&nbsp;% einer 100-%-Auto-Runde</strong>; bei 1.500 sind es 22&nbsp;%. Vorher
+          bestimmte der Fahrplan fast vier Zehntel jeder Runde, ohne dass jemand am Tisch daran
+          etwas ändern konnte. Jetzt liegen 78&nbsp;% einer Runde in der Hand derer, die spielen.</p>
+          <p>In dieser einen Zahl stecken zwei Entscheidungen, und bei beiden geht es um
+          Verteidigbarkeit, nicht um Genauigkeit:</p>
+          <ul>
+            <li><strong>Der Strommix, nicht der Ökostromtarif des Betreibers.</strong> Das ist die
+            konservative Zahl und die, die jeder nachschlagen kann.</li>
+            <li><strong>Der CO<sub>2</sub>-Faktor wurde korrigiert und die Kosten blieben
+            unangetastet.</strong> Sie stammen aus verschiedenen Quellen. Den einen dem anderen
+            nachzuziehen ist genau der Weg, auf dem zwei Metriken aufhören, sich darüber einig zu
+            sein, welcher Modus teuer ist.</li>
+          </ul>
+          <h3>Die Streuung ist auf eine Form kalibriert, nicht auf einen Literaturwert</h3>
+          <p>σ = 0,14 auf der Kantenkapazität ist über zwanzig Seeds gefahren worden: 0,10 ergibt
+          12,7&nbsp;% Streuung unter Last, 0,18 ergibt 22,1&nbsp;%, und 0,14 landet auf den 16–18&nbsp;%, auf die
+          das Modell zielt.</p>
+          <p>Die Verkehrsliteratur läge eher bei 25&nbsp;%. Das wird <strong>bewusst nicht
+          benutzt.</strong> Mehr als die Hälfte des realen Staus sind Störfälle und Wetter, und
+          davon steckt nichts in diesem Modell. Die Kapazitätsstreuung aufzublasen, um das
+          abzudecken, hieße, eine realistisch aussehende Zahl aus dem falschen Grund auf den
+          Bildschirm zu schreiben — und das Modell wäre nicht mehr mit dem erklärbar, was darin
+          steht.</p>
+          <p>Wo ein Mechanismus fehlt, ist der ehrliche Zug, die Lücke zu benennen, und nicht, an
+          einem Parameter zu drehen, bis das Ergebnis der Wirklichkeit ähnelt. Aus demselben Grund
+          ist Überholen auf mehrspurigen Straßen eine Ordnung in der Warteschlange und kein
+          kleineres σ: Die Streuung zu verkleinern hätte den fehlenden Mechanismus versteckt, statt
+          ihn zu bauen.</p>
+          <h3>Was Kalibrierung nicht repariert: die Kartendaten</h3>
+          <p>Der erste Kalibrierungsdurchgang wurde auf einer Karte gemessen, deren Daten kaputt
+          waren. Eine Buslinie hatte <strong>gar keine Kanten</strong> — vier Haltestellen auf dem
+          Plan und kein Fahrzeug, das sie erreicht. Eine andere riss in der Mitte und wurde mit
+          Gesellschafts-CO<sub>2</sub> für Kilometer belastet, die ihre Fahrzeuge nie fahren
+          konnten. Jedes Fahrzeug beider Modi hatte 60 Plätze, also zwangen 6.400 Menschen eine
+          60-Plätze-U-Bahn zu Fahrt um Fahrt.</p>
+          <p>Die Folge war, dass sechs der 36 Wohnort-Arbeitsplatz-Paare überhaupt keine
+          ÖPNV-Verbindung hatten. Wer aus dem Auto wollte, konnte es nicht, und elf von 64 Gruppen
+          fuhren Auto, was auch immer entschieden wurde — 1.313&nbsp;kg, die niemand vermeiden konnte.
+          Die Zahlen waren korrekt gerechnet, auf einer Karte, die nicht beschrieb, was auf dem
+          Bildschirm stand.</p>
+          <p>Die Reparatur der Daten änderte auf der Autoseite <strong>nichts</strong>: 10.103 →
+          10.150&nbsp;kg bei 100&nbsp;% Auto, innerhalb der 1,4&nbsp;% Streuung von sechs Seeds, bei gleicher
+          Fahrzeit und gleicher Verspätung. Sie änderte den Lohn fürs Umsteigen vollständig — eine
+          Runde ohne ein einziges Auto kostet jetzt 3.191&nbsp;kg, wo sie 5.936&nbsp;kg gekostet hat.</p>
+          <p>Also: die Daten vor den Konstanten prüfen. Eine Kartendatei ist Produktionsdaten und
+          verdient dasselbe Misstrauen wie Code.</p>
+          <h3>Nachrechnen</h3>
+          <p>Runden auf der betreffenden Karte mit festen Seeds nachspielen und lesen, was ein
+          Kandidat tut. Nicht an den Werten drehen, bis sich ein Play-Test gut anfühlt — das passt
+          das Modell an einen Nachmittag an.</p>
+          <ul>
+            <li><code>backend/game/calibration.py</code> — die Herleitung und jeder Messwert hinter
+            den ausgelieferten Vorgabewerten.</li>
+            <li><code>docs/kalibrierung.md</code> — dieselbe Aufzeichnung, mit den vollständigen
+            Vorher-Nachher-Tabellen.</li>
+            <li><code>backend/game/tests/test_join.py</code> — wofür jede Zahl da ist, als Testfall
+            festgehalten.</li>
+          </ul>
+          <h3>Was nicht kalibriert ist</h3>
+          <ul>
+            <li><strong>Jede neue Karte startet bei 6.400 und 8.000.</strong> Das sind die Zahlen
+            von Berlin Mitte-West. Für eine kleinere Karte sind beide zu hoch; „Spiel anlegen“ warnt
+            davor, solange an der Karte nicht steht, dass sie für sie gemessen sind.</li>
+            <li><strong>Das Budget ist auf der reparierten Karte nicht neu gewählt.</strong> Es
+            liegt am Rand seiner Spanne (siehe oben), und 9.000&nbsp;kg pro Runde wären der Vorschlag,
+            den der nächste Play-Test prüft.</li>
+            <li><strong>Die Abfahrten werden mit σ = 10&nbsp;Minuten</strong> um die Abfahrtsstunde
+            gezogen, praktisch alle fahren also innerhalb von zwanzig Minuten los. Ein echter
+            Berufsverkehr verteilt sich über eine Stunde und mehr; bei σ = 45 sinkt die Verspätung
+            einer 100-%-Auto-Runde von 56,9 auf 16,5&nbsp;Minuten. Das ist eine Modellfrage und keine
+            Kalibrierungsfrage, und sie bleibt bewusst offen.</li>
+            <li><strong>Der Abendverkehr wird nicht simuliert</strong>, und beide Richtungen einer
+            Straße teilen sich eine Warteschlange. Harmlos, solange alle morgens zur Arbeit fahren;
+            falsch an dem Tag, an dem der Rückweg dazukommt.</li>
+          </ul>
+        </section>
+      </article>
     </div>
-  </section>
-
-  {# --- calibration, not guesswork --- #}
-  <section>
-    <div class="relative mx-auto max-w-7xl py-20 pr-6 lg:py-28 lg:pr-8">
-      <div class="pl-(--gutter)">
-        <h2 class="relative text-3xl/10 font-semibold tracking-tight text-main sm:text-4xl/10 dark:text-darktext">
-          <span class="metro-station" aria-hidden="true"></span>
-          Gemessen, nicht geschätzt
-        </h2>
-        <p class="mt-4 max-w-2xl text-lg/8 text-muted dark:text-darkmutedtext">
-          Die Physik – Kapazitäten, Emissionskurve – war nicht der Teil, über
-          den entschieden werden musste; das sind Messwerte. Gewählt werden
-          musste, wie groß die Welt ist: wie viele Menschen auf einer Karte
-          unterwegs sind und was eine Runde kosten darf. Beide Zahlen hängen
-          an der Karte, nicht am Code, denn eine andere Stadt ist ein anderes
-          Paar.
-        </p>
-        <p class="mt-8 max-w-(--measure-body) text-base/7 text-muted dark:text-darkmutedtext">
-          Was das ersetzt hat, zeigt, wie unkalibriert aussieht: Mit 1.000
-          Menschen pro Gruppe fuhren 64.000 Autos auf 82
-          Straßenkanten – keine Blockade, alle kamen an, aber die mittlere
-          Fahrzeit für 7,66 km lag bei 298 Minuten. Fünf Stunden. Das Modell
-          war richtig, die Nachfrage nicht. Mit der gemessenen Zahl dieser
-          Karte – 6.400 Pendler – sind es 20,4 Minuten, ungefähr so viel wie
-          der reale Berufsverkehr in der Berliner Innenstadt braucht.
-        </p>
-        <p class="mt-6 max-w-(--measure-body) text-base/7 text-muted dark:text-darkmutedtext">
-          Steigt die Hälfte auf ein anderes Verkehrsmittel um, ist
-          der Stau vollständig weg – kein Verlauf, sondern eine Schwelle
-          dicht an der Kapazität. Genau das ist der Punkt der Übung.
-        </p>
-      </div>
-    </div>
-  </section>
+  </div>
 
   {# --- end: back into the game --- #}
   <section>
     <div class="relative mx-auto max-w-7xl pt-16 pr-6 pb-24 sm:pt-24 lg:pr-8 lg:pb-32">
+      {# the line ends here: cover it from the terminus down #}
+      <div aria-hidden="true" class="absolute bottom-0 left-0 top-[3.75rem] w-(--gutter) bg-body sm:top-[4.75rem] dark:bg-darkbody"></div>
+
       <div class="pl-(--gutter)">
         <p class="relative text-sm/6 font-medium tracking-wide text-muted uppercase dark:text-darkmutedtext">
           <span class="metro-terminus" aria-hidden="true">
@@ -354,4 +554,41 @@
     </div>
   </section>
 </div>
+
+<script>
+  // The stations already passed fill in, the way a departure board marks the
+  // stops behind the train. A station counts as passed once its heading has
+  // gone above the upper third of the window. With JavaScript off every
+  // station stays hollow and every link still works.
+  (() => {
+    const stations = [...document.querySelectorAll("[data-station]")];
+    const links = new Map(
+      [...document.querySelectorAll(".toc a")].map((a) => [a.hash.slice(1), a]),
+    );
+    let queued = false;
+    const update = () => {
+      queued = false;
+      const line = window.innerHeight / 3;
+      let current = null;
+      for (const station of stations) {
+        const passed = station.getBoundingClientRect().top <= line;
+        const link = links.get(station.id);
+        if (!link) continue;
+        link.parentElement.toggleAttribute("data-passed", passed);
+        link.removeAttribute("aria-current");
+        if (passed) current = link;
+      }
+      if (current) current.setAttribute("aria-current", "location");
+    };
+    const schedule = () => {
+      if (!queued) {
+        queued = true;
+        requestAnimationFrame(update);
+      }
+    };
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    update();
+  })();
+</script>
 {% endblock %}
