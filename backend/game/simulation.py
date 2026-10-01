@@ -90,7 +90,10 @@ REPLAY_PEOPLE_PER_DOT = 10
 
 # Bumped when the wire format changes, so a stored replay from an older round
 # can be recognised and skipped rather than mis-drawn.
-REPLAY_FORMAT_VERSION = 1
+#
+# 2: the way home is in it (F2). Dots carry `pass`, the payload `home_start_min`,
+# and the evening's minutes and ids are already moved onto the morning's clock.
+REPLAY_FORMAT_VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -1629,7 +1632,54 @@ class TrafficSimulator:
         Everything here is a time the simulation computed, in continuous
         minutes from the start of the departure window — never a tick bucket,
         which is why playback smoothness does not depend on tick_duration_min.
+
+        The way home is a second simulator with a clock and vehicle ids of its
+        own. Its dots are appended with both moved: minutes by the same offset
+        its street snapshots carry (`tick_offset`), ids past the morning's, so
+        one id still names one vehicle and an `"r"` leg still resolves to it.
         """
+        dots, end_min = self._replay_dots("out", 0.0, 0)
+        home = self.home_pass
+        home_start = None
+        endings = dict(self.non_arrivals)
+        people = {self: self._people_and_dots()}
+
+        if home is not None:
+            home_start = home.tick_offset * home.tick_duration_min
+            id_offset = 1 + max((dot["id"] for dot in dots), default=-1)
+            home_dots, home_end = home._replay_dots("home", home_start, id_offset)
+            dots += home_dots
+            end_min = max(end_min, home_end)
+            for ending, count in home.non_arrivals.items():
+                endings[ending] += count
+            people[home] = home._people_and_dots()
+
+        dots.sort(key=lambda dot: dot["id"])
+        total_people = sum(p for p, _ in people.values())
+        total_dots = sum(d for _, d in people.values())
+        return {
+            "version": REPLAY_FORMAT_VERSION,
+            "people_per_dot": (
+                round(total_people / total_dots, 2)
+                if total_dots
+                else float(self.trace_stride)
+            ),
+            "tick_duration_min": self.tick_duration_min,
+            "window_min": DEPARTURE_WINDOW_MIN,
+            "end_min": round(end_min, 2),
+            # Where the evening's clock starts, None when there is no evening.
+            # The screen's midday fast-forward is the gap before this.
+            "home_start_min": home_start,
+            "dots": dots,
+            # People, not dots. Added inside format 1: a recording without it
+            # is read the old way, from the sample.
+            "endings": endings,
+        }
+
+    def _replay_dots(
+        self, which: str, time_offset: float, id_offset: int
+    ) -> tuple[list, float]:
+        """This pass's dots, moved onto the round's clock. See _build_replay."""
         stopped_at = self.current_tick * self.tick_duration_min
         dots = []
         end_min = 0.0
@@ -1653,8 +1703,16 @@ class TrafficSimulator:
                     # Two events at the same instant: a link crossed in no time,
                     # or a rider set down and picked up again. Nothing to draw.
                     continue
+                if kind == "r" and ref is not None:
+                    ref += id_offset
                 legs.append(
-                    [kind, ref, round(at_min, 2), round(until, 2), from_node]
+                    [
+                        kind,
+                        ref,
+                        round(at_min + time_offset, 2),
+                        round(until + time_offset, 2),
+                        from_node,
+                    ]
                 )
 
             if not legs:
@@ -1666,7 +1724,8 @@ class TrafficSimulator:
             route = self.agent_routes.get(vehicle.route_pk)
             dots.append(
                 {
-                    "id": vehicle_id,
+                    "id": vehicle_id + id_offset,
+                    "pass": which,
                     # None for a line vehicle: it belongs to nobody's agent.
                     "route": vehicle.route_pk if vehicle.route_pk >= 0 else None,
                     "agent": route.agent_id if route else None,
@@ -1679,24 +1738,23 @@ class TrafficSimulator:
                     # When this person wanted to leave. The gap between `wants`
                     # and the first leg IS the queue at the front door — the
                     # thing no instrument could see before stau-sichtbar.
-                    "wants": round(vehicle.wants_to_depart_min, 2),
+                    "wants": round(vehicle.wants_to_depart_min + time_offset, 2),
                     "legs": legs,
                     "end": ending,
                 }
             )
 
-        dots.sort(key=lambda dot: dot["id"])
-        return {
-            "version": REPLAY_FORMAT_VERSION,
-            "people_per_dot": self._people_per_dot(),
-            "tick_duration_min": self.tick_duration_min,
-            "window_min": DEPARTURE_WINDOW_MIN,
-            "end_min": round(end_min, 2),
-            "dots": dots,
-            # People, not dots. Added inside format 1: a recording without it
-            # is read the old way, from the sample.
-            "endings": dict(self.non_arrivals),
-        }
+        return dots, end_min
+
+    def _people_and_dots(self) -> tuple[int, int]:
+        """People this pass carries and the dots sampled from them."""
+        people = sampled = 0
+        for route_pk, schedule in self.departure_schedule.items():
+            if route_pk < 0:
+                continue
+            people += len(schedule)
+            sampled += -(-len(schedule) // self.trace_stride)
+        return people, sampled
 
     def _people_per_dot(self) -> float:
         """How many people one person-dot stands for, as actually sampled.
@@ -1706,12 +1764,7 @@ class TrafficSimulator:
         n: 205 people at 10 are 21 dots of 9.76. The screen prints this number
         and multiplies a crowd at a stop by it, so it has to be the real one.
         """
-        people = sampled = 0
-        for route_pk, schedule in self.departure_schedule.items():
-            if route_pk < 0:
-                continue
-            people += len(schedule)
-            sampled += -(-len(schedule) // self.trace_stride)
+        people, sampled = self._people_and_dots()
         if not sampled:
             return float(self.trace_stride)
         return round(people / sampled, 2)

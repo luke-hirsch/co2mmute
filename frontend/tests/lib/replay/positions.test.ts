@@ -31,6 +31,7 @@ const driver: ReplayDot = {
   line: null,
   mode: "car",
   wants: 48,
+  pass: "out",
   legs: [
     ["e", 91, 55, 57, 7],
     ["e", 102, 57, 61, 12],
@@ -45,6 +46,7 @@ const rider: ReplayDot = {
   line: null,
   mode: "public",
   wants: 40,
+  pass: "out",
   legs: [
     ["e", 91, 40, 44, 7],
     ["s", 12, 44, 52, null],
@@ -61,6 +63,7 @@ const stranded: ReplayDot = {
   line: null,
   mode: "public",
   wants: 70,
+  pass: "out",
   legs: [
     ["e", 91, 70, 74, 7],
     ["s", 12, 74, 225, null],

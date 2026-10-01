@@ -429,10 +429,10 @@ export const de = {
    * belong to the map editor; here it is zu Hause and die Haltestelle.
    */
   replay: {
-    title: "Der Morgen",
+    title: "Hin und zurück",
     lead:
-      "Zwei Stunden Berufsverkehr in zwei Minuten — so verhält sich die Karte " +
-      "mit dem, was ihr gewählt habt.",
+      "Der Weg zur Arbeit und der Weg nach Hause in zwei Minuten — so verhält " +
+      "sich die Karte mit dem, was ihr gewählt habt.",
     mapLabel: "Karte mit den Fahrten dieser Runde",
 
     /**
@@ -449,6 +449,9 @@ export const de = {
         ? `${whole} min`
         : `${Math.floor(whole / 60)} h ${String(whole % 60).padStart(2, "0")} min`;
     },
+
+    /** Shown instead of the clock while playback jumps from the morning to the evening. */
+    midday: "Mittag",
 
     play: "Abspielen",
     pause: "Anhalten",
