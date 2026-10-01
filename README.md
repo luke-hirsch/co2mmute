@@ -14,7 +14,8 @@ eine Stadtkarte, wählt pro Runde Verkehrsmittel und Routen, und der Server simu
 wird — CO₂, Kosten, Fahrzeit. Zwischen den Runden stimmt die Klasse über eine Änderung an der Karte
 ab, eine Busspur oder eine neue Linie, und fährt die nächste Runde darauf. Grundlage ist der
 technische Teil der Masterarbeit von **Sebastian Werblinski** über agentenbasierte Pendlermodelle
-an der TU Berlin (`master_thesis.pdf`); der Code hier ist eine vollständige Neuentwicklung danach.
+an der Freien Universität Berlin (`master_thesis.pdf`); der Code hier ist eine vollständige
+Neuentwicklung danach, an der TU Berlin.
 Gerechnet wird mit einem Link-Queue-Modell, mesoskopisch, dieselbe Familie wie MATSim.
 
 **Stack:** Django 5.2 + DRF auf Daphne (ASGI), Channels, Celery, Postgres 18, Redis; React 19 +
@@ -185,8 +186,8 @@ co2mmute is a browser-based multiplayer traffic game: a class commutes together 
 picks modes and routes each round, and the server simulates what comes of it — CO₂, cost, travel
 time. Between rounds the class votes on a change to the map, a bus lane or a new line, and drives
 the next round on it. It builds on the technical part of **Sebastian Werblinski's** master's thesis
-on agent-based commuting models at TU Berlin (`master_thesis.pdf`); the code here is a complete
-rewrite after the fact. The traffic is computed with a link queue model — mesoscopic, the same
+on agent-based commuting models at Freie Universität Berlin (`master_thesis.pdf`); the code here is
+a complete rewrite after the fact, at TU Berlin. The traffic is computed with a link queue model — mesoscopic, the same
 family as MATSim.
 
 **Stack:** Django 5.2 + DRF on Daphne (ASGI), Channels, Celery, Postgres 18, Redis; React 19 + Vite

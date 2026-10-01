@@ -340,6 +340,288 @@
     border-left-width: var(--lane-w);
     border-top-left-radius: var(--r);
   }
+
+  /* the landing page's detour: the public-transport line leaves the bundle
+     for a column of its own and comes back. The bends are the fan's and the
+     merge's, aimed at --detour-x instead of a mode column. On the way out and
+     back it crosses the bike and walking lines, on the curve, so it is drawn
+     over a casing — a copy of the same bend, --bridge wider on each side, in
+     the colour of the ground — which is how a transit map shows one line
+     passing over another instead of through it. */
+  .metro-detour {
+    --detour-x: calc(var(--gutter) + 1rem);
+    --bridge: 3px;
+  }
+  .metro-detour .metro-fan > *,
+  .metro-detour .metro-merge > * {
+    --c: var(--detour-x);
+  }
+  .metro-detour .metro-casing {
+    --lane-style: solid;
+    --lane-color: var(--color-body);
+    @variant dark {
+      --lane-color: var(--color-darkbody);
+    }
+  }
+  /* the lane it leaves, painted over: a pixel wider each side, so no amber
+     fringe survives the antialiasing */
+  .metro-detour .metro-lane.metro-casing {
+    margin-left: -1px;
+    border-left-width: calc(var(--lane-w) + 2px);
+  }
+  .metro-detour .metro-fan > .metro-bend-out.metro-casing {
+    left: calc(var(--x) - var(--bridge));
+    width: calc(var(--c) - var(--rb) - var(--x) + var(--bridge));
+    height: calc(var(--r) + var(--bridge));
+    border-left-width: calc(var(--lane-w) + 2 * var(--bridge));
+    border-bottom-width: calc(var(--lane-w) + 2 * var(--bridge));
+    border-bottom-left-radius: calc(var(--r) + var(--bridge));
+  }
+  .metro-detour .metro-merge > .metro-bend-in.metro-casing {
+    top: calc(var(--k) - var(--bridge));
+    left: calc(var(--x) - var(--bridge));
+    width: calc(var(--c) - var(--rb) - var(--x) + var(--bridge));
+    border-top-width: calc(var(--lane-w) + 2 * var(--bridge));
+    border-left-width: calc(var(--lane-w) + 2 * var(--bridge));
+    border-top-left-radius: calc(var(--r) + var(--bridge));
+  }
+  .metro-detour-col {
+    position: relative;
+    padding-left: calc(var(--detour-x) + var(--col-pad));
+  }
+  .metro-detour-col::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: var(--detour-x);
+    border-left: var(--lane-w) solid var(--lane-color);
+  }
+  .metro-detour-col .metro-dot {
+    left: calc(var(--lane-w) / 2 - var(--dot) / 2 - var(--col-pad));
+  }
+
+  /* /hintergrund/: one line, not four. The page is the detour above, so it
+     runs on the public-transport line, centred where the bundle runs so the
+     termini sit on it. Its chapters are stations, its sections stops. */
+  .metro-solo {
+    --i: 1.5;
+    --lane-color: var(--color-line-pt);
+  }
+}
+
+/*
+ * The long-form text of /hintergrund/ — docs/de-hintergrund.md as a page. S23.
+ *
+ * Styled by element rather than class by class, so the template reads like
+ * the document it copies. `prose` is inert here (no typography plugin), which
+ * is why this exists. Every h2 is a station on the page's line and every h3 a
+ * stop, drawn as ::before markers the same way `.metro-dot` places its own.
+ */
+@layer components {
+  .doc {
+    & > section {
+      scroll-margin-top: 2rem;
+    }
+    & > section + section {
+      @apply mt-24 lg:mt-32;
+    }
+    & h2 {
+      @apply relative max-w-(--measure-body) text-3xl/10 font-semibold tracking-tight text-balance text-main sm:text-4xl/10 dark:text-darktext;
+    }
+    & h3 {
+      @apply relative mt-16 max-w-(--measure-body) text-xl/8 font-semibold text-main dark:text-darktext;
+    }
+    & h2::before,
+    & h3::before {
+      content: "";
+      position: absolute;
+      top: 0.5lh;
+      translate: 0 -50%;
+      width: var(--dot);
+      height: var(--dot);
+      left: calc(
+        var(--track-x) + var(--i) * var(--lane-gap) + var(--lane-w) / 2 -
+          var(--dot) / 2 - var(--gutter)
+      );
+      border: 3px solid var(--color-main);
+      border-radius: 999px;
+      background: var(--color-surface);
+    }
+    & h3::before {
+      --dot: calc(var(--lane-w) + 5px);
+      border-width: 2.5px;
+    }
+    & p,
+    & ul,
+    & ol {
+      @apply mt-5 max-w-(--measure-body) text-base/7 text-muted dark:text-darkmutedtext;
+    }
+    & h2 + p {
+      @apply mt-4 text-lg/8;
+    }
+    & ul {
+      @apply list-disc space-y-2 pl-5 marker:text-soft dark:marker:text-darksofttext;
+    }
+    & ol {
+      @apply list-decimal space-y-2 pl-6 marker:font-mono marker:text-soft dark:marker:text-darksofttext;
+    }
+    & li > p {
+      @apply mt-0;
+    }
+    & strong {
+      @apply font-semibold text-main dark:text-darktext;
+    }
+    & code {
+      @apply rounded-sm bg-elevated px-1 py-0.5 font-mono text-[0.875em] text-main dark:bg-darkelevated dark:text-darktext;
+    }
+    /* formulas: as wide as they are, up to the whole column — a ch measure in
+       the mono face is narrower than the text's, and would scroll the longest */
+    & pre {
+      @apply mt-6 w-fit max-w-full overflow-x-auto rounded-lg border border-subtle bg-surface px-5 py-4 font-mono text-sm/6 text-main dark:border-darksubtle dark:bg-darksurface dark:text-darktext;
+    }
+    & a {
+      @apply font-medium text-primary-600 underline decoration-primary-600/30 underline-offset-4 hover:decoration-primary-600 dark:text-primary-300 dark:decoration-primary-300/30;
+    }
+
+    /* a notice on a platform, as on the landing page: amber with ink on it in
+       both themes, so everything inside takes the ink rather than its own */
+    & blockquote {
+      @apply mt-6 flex max-w-(--measure-body) gap-3 rounded-md bg-accent px-4 py-3 text-sm/6 font-medium text-darkbody;
+      & > svg {
+        @apply mt-0.5 size-5 shrink-0;
+      }
+      & p {
+        @apply mt-0 max-w-none text-sm/6 text-darkbody;
+      }
+      & strong,
+      & code {
+        @apply bg-transparent p-0 text-darkbody;
+      }
+    }
+
+    & .doc-table {
+      @apply mt-6 max-w-(--measure-body) overflow-x-auto;
+    }
+    & table {
+      @apply w-full border-collapse text-left text-sm;
+    }
+    & thead tr {
+      @apply border-b-2 border-main dark:border-darktext;
+    }
+    & th {
+      @apply py-2 pr-4 align-bottom font-semibold whitespace-nowrap text-main dark:text-darktext;
+    }
+    & td {
+      @apply border-b border-subtle py-2 pr-4 whitespace-nowrap text-muted dark:border-darksubtle dark:text-darkmutedtext;
+    }
+    & th:last-child,
+    & td:last-child {
+      @apply pr-0;
+    }
+    & .num {
+      @apply text-right font-mono;
+    }
+    & th.num {
+      @apply font-sans;
+    }
+
+    /* the figures are SVG files of their own (hintergrund/*.svg) that paint
+       from these variables and fall back to the light tokens when shown
+       anywhere else — the docs on GitHub */
+    & figure {
+      --fig-bg: var(--color-surface);
+      --fig-ink: var(--color-main);
+      --fig-muted: var(--color-muted);
+      --fig-soft: var(--color-soft);
+      --fig-rule: var(--color-subtle);
+      --fig-strong: var(--color-strong);
+      --fig-surface: var(--color-surface);
+      --fig-car: var(--color-line-car);
+      --fig-pt: var(--color-line-pt);
+      @apply mt-8 max-w-[26rem];
+      @variant dark {
+        --fig-bg: var(--color-darksurface);
+        --fig-ink: var(--color-darktext);
+        --fig-muted: var(--color-darkmutedtext);
+        --fig-soft: var(--color-darksofttext);
+        --fig-rule: var(--color-darksubtle);
+        --fig-strong: var(--color-darkstrong);
+        --fig-surface: var(--color-darkbody);
+      }
+      & > svg {
+        @apply block h-auto w-full;
+      }
+    }
+    & figcaption {
+      @apply mt-3 max-w-(--measure-body) text-sm/6 text-muted dark:text-darkmutedtext;
+      & code {
+        @apply text-[0.9em];
+      }
+    }
+  }
+
+  /* the chapters as a short line of their own, the stations already passed
+     filled in — presence and progress are filled vs hollow, never a colour */
+  .toc {
+    & ol {
+      position: relative;
+      @apply space-y-3 text-sm/6;
+    }
+    & ol::before {
+      content: "";
+      position: absolute;
+      top: 0.75rem;
+      bottom: 0.75rem;
+      left: 5px;
+      border-left: 2px solid var(--color-strong);
+    }
+    & li {
+      position: relative;
+      padding-left: 1.5rem;
+    }
+    & li::before {
+      content: "";
+      position: absolute;
+      top: 0.5lh;
+      left: 0;
+      translate: 0 -50%;
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--color-main);
+      border-radius: 999px;
+      background: var(--color-body);
+    }
+    & li[data-passed]::before {
+      background: var(--color-main);
+    }
+    & a {
+      @apply text-muted transition hover:text-main dark:text-darkmutedtext dark:hover:text-darktext;
+    }
+    & a[aria-current] {
+      @apply font-medium text-main dark:text-darktext;
+    }
+  }
+
+  /* the markers above in the dark theme. Written out, because `@variant dark`
+     nested in a ::before rule compiles to `…::before:is(.dark *)` — a
+     pseudo-element followed by a selector, which the browser drops whole, and
+     the light markers stay on the dark ground. */
+  .dark .doc h2::before,
+  .dark .doc h3::before {
+    border-color: var(--color-darktext);
+    background: var(--color-darkbody);
+  }
+  .dark .toc ol::before {
+    border-color: var(--color-darkstrong);
+  }
+  .dark .toc li::before {
+    border-color: var(--color-darktext);
+    background: var(--color-darkbody);
+  }
+  .dark .toc li[data-passed]::before {
+    background: var(--color-darktext);
+  }
 }
 
 /*

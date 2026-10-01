@@ -123,6 +123,10 @@ class NoThirdPartyLoadsTests(SimpleTestCase):
     )
     REMOTE_CSS_URL = re.compile(r"(?:@import|url\()\s*[\"']?(?:https?:)?//", re.IGNORECASE)
 
+    # In an SVG every href fetches — <image>, <use> — except a link's, and
+    # the figures under template/ carry no links. S23 put the first ones there.
+    SVG_FETCH = re.compile(r"\b(?:xlink:)?href\s*=\s*[\"']?(?:https?:)?//", re.IGNORECASE)
+
     def _html_sources(self):
         paths = sorted((BACKEND_ROOT / "template").rglob("*.html"))
         spa_index = BACKEND_ROOT.parent / "frontend" / "index.html"
@@ -138,6 +142,13 @@ class NoThirdPartyLoadsTests(SimpleTestCase):
             for match in self.FETCHING_ELEMENT.finditer(text):
                 lineno = text.count("\n", 0, match.start()) + 1
                 failures.append(f"{path.relative_to(BACKEND_ROOT.parent)}:{lineno}")
+
+        for path in sorted((BACKEND_ROOT / "template").rglob("*.svg")):
+            text = path.read_text(encoding="utf-8")
+            for pattern in (self.SVG_FETCH, self.REMOTE_CSS_URL):
+                for match in pattern.finditer(text):
+                    lineno = text.count("\n", 0, match.start()) + 1
+                    failures.append(f"{path.relative_to(BACKEND_ROOT.parent)}:{lineno}")
 
         # The stylesheet sources, not the built bundle: tailwind.css is output.
         for path in sorted((BACKEND_ROOT / "static" / "css").glob("*.css")):
@@ -184,6 +195,8 @@ class EveryTemplateCompilesTests(SimpleTestCase):
     Compiling is what a request would have done first, so this compiles every
     `.html` under `template/` — a page nobody tests is still covered, which is
     the point: a detector scoped to the pages that prompted it misses the next one.
+    And every `.svg`: the figures of /hintergrund/ are `{% include %}`d, so a
+    stray `{{` in one breaks the page the same way.
     """
 
     def test_every_template_compiles(self):
@@ -193,7 +206,7 @@ class EveryTemplateCompilesTests(SimpleTestCase):
         root = BACKEND_ROOT / "template"
         failures = []
 
-        for path in sorted(root.rglob("*.html")):
+        for path in sorted([*root.rglob("*.html"), *root.rglob("*.svg")]):
             name = path.relative_to(root).as_posix()
             try:
                 get_template(name)
@@ -204,6 +217,31 @@ class EveryTemplateCompilesTests(SimpleTestCase):
             failures,
             [],
             msg="templates that do not compile:\n  " + "\n  ".join(failures),
+        )
+
+
+    def test_no_comment_spans_a_line_break(self):
+        """`{# … #}` is a one-line comment. Across a line break it is no
+        comment at all: the template compiles, and the page prints the text.
+
+        S23 put two on the landing page — "{# where it comes from …" stood
+        under "Bereit für die erste Runde?" in English — and every test was
+        green, because nothing is wrong with a template that prints a sentence.
+        It is the same rule S22 tripped over with `{% if %}`: a tag does not
+        span a line. Longer comments are `{% comment %}`.
+        """
+        root = BACKEND_ROOT / "template"
+        failures = []
+
+        for path in sorted([*root.rglob("*.html"), *root.rglob("*.svg")]):
+            for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                if re.search(r"\{#(?!.*#\})", line):
+                    failures.append(f"template/{path.relative_to(root).as_posix()}:{lineno}")
+
+        self.assertEqual(
+            failures,
+            [],
+            msg="{# comments that span lines:\n  " + "\n  ".join(failures),
         )
 
 
@@ -232,6 +270,7 @@ class TemplatesStayOnThePaletteTests(SimpleTestCase):
 
     def _sources(self):
         yield from sorted((BACKEND_ROOT / "template").rglob("*.html"))
+        yield from sorted((BACKEND_ROOT / "template").rglob("*.svg"))
         for path in sorted(BACKEND_ROOT.rglob("forms.py")):
             if not SKIP_PARTS.intersection(path.parts):
                 yield path
@@ -251,4 +290,78 @@ class TemplatesStayOnThePaletteTests(SimpleTestCase):
             failures,
             [],
             msg="off the palette:\n  " + "\n  ".join(failures),
+        )
+
+    def test_the_figures_paint_from_the_tokens(self):
+        """A figure under template/ names its colours in hex — it has to, to
+        render on its own in the docs — and every one must be a token's value.
+
+        On the page those hexes are only fallbacks behind `var(--fig-…)`, so a
+        wrong one would be invisible here and wrong on GitHub, which is where
+        the research group reads the docs.
+        """
+        css = (BACKEND_ROOT / "static" / "css" / "custom.css").read_text(encoding="utf-8")
+        tokens = {
+            value.lower() for value in re.findall(r"--color-[\w-]+:\s*(#[0-9a-fA-F]{6})\b", css)
+        }
+        failures = []
+
+        for path in sorted((BACKEND_ROOT / "template").rglob("*.svg")):
+            text = path.read_text(encoding="utf-8")
+            for match in re.finditer(r"#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b", text):
+                if match.group(0).lower() not in tokens:
+                    lineno = text.count("\n", 0, match.start()) + 1
+                    failures.append(f"{path.relative_to(BACKEND_ROOT)}:{lineno}: {match.group(0)}")
+
+        self.assertEqual(
+            failures,
+            [],
+            msg="figure colours that are no token:\n  " + "\n  ".join(failures),
+        )
+
+
+class RetiredWordsStayOutOfTheTemplatesTests(SimpleTestCase):
+    """The words S17 retired, on the Django half too.
+
+    `frontend/tests/lib/de.test.ts` keeps them out of the SPA's dictionary, and
+    nothing read the templates: the landing page still sent the commute to
+    "Ziel: Schule", called the game "ein Planspiel für Schule und Uni", and
+    said "Figur" twice for a Gruppe — S17 had retired that word too. Lukas,
+    2026-09-29: words that sound like school go everywhere, because students
+    engage more with something that is not school.
+
+    Same list as the SPA's, plus the two the landing page carried. Comments are
+    not copy and are read past, so a template may still say why a word went.
+    """
+
+    RETIRED = [
+        r"\bFahrg[äa]st",
+        r"\bLehrerrechner\b",
+        r"\bPult\b",
+        r"\bKlasse[n]?\b",
+        r"\bUnterricht\b",
+        r"\bSch[üu]ler",
+        r"\bLehrer",
+        r"\bSchule\b",
+        r"\bFigur(?:en)?\b",
+    ]
+    COMMENT = re.compile(r"\{#.*?#\}|\{% comment %\}.*?\{% endcomment %\}|<!--.*?-->", re.S)
+
+    def test_no_template_says_a_retired_word(self):
+        pattern = re.compile("|".join(self.RETIRED), re.IGNORECASE)
+        failures = []
+
+        root = BACKEND_ROOT / "template"
+        for path in sorted([*root.rglob("*.html"), *root.rglob("*.svg")]):
+            text = self.COMMENT.sub(
+                lambda m: "\n" * m.group(0).count("\n"), path.read_text(encoding="utf-8")
+            )
+            for lineno, line in enumerate(text.splitlines(), 1):
+                for match in pattern.finditer(line):
+                    failures.append(f"{path.relative_to(BACKEND_ROOT)}:{lineno}: {match.group(0)}")
+
+        self.assertEqual(
+            failures,
+            [],
+            msg="retired words in a template:\n  " + "\n  ".join(failures),
         )

@@ -76,7 +76,12 @@ class IndexView(TemplateView):
 
 
 class HintergrundView(TemplateView):
+    """The background document. Its sources — the thesis, the calibration
+    code — are linked into the repository, through the footer's own constant
+    so a move of the repository is still one line."""
+
     template_name = "hintergrund.html"
+    extra_context = {"repository_url": navigation.REPOSITORY_URL}
 
 
 class SpaView(TemplateView):
