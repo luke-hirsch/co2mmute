@@ -91,6 +91,8 @@ export type ReplayDot = {
    * the most explanatory thing the animation draws.
    */
   wants: number;
+  /** Which pass this dot belongs to — the way to work or the way home. */
+  pass: "out" | "home";
   legs: ReplayLeg[];
   end: ReplayEnd;
 };
@@ -126,6 +128,11 @@ export type Replay = {
    * why the playback budget normalises to it instead of assuming a span.
    */
   end_min: number;
+  /**
+   * Where the way home starts on the same clock, or null when the round has no
+   * evening. The jump over "Mittag" is the stretch before it.
+   */
+  home_start_min: number | null;
   dots: ReplayDot[];
 };
 
@@ -149,7 +156,7 @@ export type ReplayPayload = {
 };
 
 /** The version this build knows how to draw. */
-export const REPLAY_FORMAT_VERSION = 1;
+export const REPLAY_FORMAT_VERSION = 2;
 
 /**
  * The four lines a mode can be drawn as.

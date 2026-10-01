@@ -30,6 +30,8 @@ export type ReplayClock = {
   finished: boolean;
   /** Playback is holding on the last moment — the beat. */
   beat: boolean;
+  /** Playback is jumping over the middle of the day. */
+  midday: boolean;
   /** Simulated minute, coarse. For the clock display, never for drawing. */
   minute: number;
   toggle: () => void;
@@ -51,6 +53,7 @@ export function useReplayClock(warp: Warp, onFrame: ReplayFrame): ReplayClock {
   const [display, setDisplay] = useState({
     minute: 0,
     beat: false,
+    midday: false,
     finished: false,
   });
 
@@ -93,6 +96,7 @@ export function useReplayClock(warp: Warp, onFrame: ReplayFrame): ReplayClock {
       frameRef.current(minute, second, false);
 
       const beat = warp.isBeat(second);
+      const midday = warp.isMidday(second);
       const done = second >= warp.durationSec;
       const whole = Math.floor(minute);
       if (
@@ -101,7 +105,7 @@ export function useReplayClock(warp: Warp, onFrame: ReplayFrame): ReplayClock {
       ) {
         lastDisplay = now;
         lastMinute = whole;
-        setDisplay({ minute, beat, finished: done });
+        setDisplay({ minute, beat, midday, finished: done });
       }
 
       if (done) {
@@ -120,7 +124,7 @@ export function useReplayClock(warp: Warp, onFrame: ReplayFrame): ReplayClock {
     // for it to go, and two buttons for one obvious intent is worse.
     if (secondRef.current >= warp.durationSec) {
       secondRef.current = 0;
-      setDisplay({ minute: 0, beat: false, finished: false });
+      setDisplay({ minute: 0, beat: false, midday: false, finished: false });
       frameRef.current(0, 0, true);
     }
     setPlaying((value) => !value);
@@ -128,7 +132,7 @@ export function useReplayClock(warp: Warp, onFrame: ReplayFrame): ReplayClock {
 
   const restart = useCallback(() => {
     secondRef.current = 0;
-    setDisplay({ minute: 0, beat: false, finished: false });
+    setDisplay({ minute: 0, beat: false, midday: false, finished: false });
     frameRef.current(0, 0, true);
     setPlaying(true);
   }, []);
@@ -137,6 +141,7 @@ export function useReplayClock(warp: Warp, onFrame: ReplayFrame): ReplayClock {
     playing,
     finished: display.finished,
     beat: display.beat,
+    midday: display.midday,
     minute: display.minute,
     toggle,
     restart,

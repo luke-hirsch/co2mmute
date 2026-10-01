@@ -25,10 +25,9 @@ import {
   ReplayCanvas,
   type ReplayCanvasHandle,
 } from "@/components/replay/replay-canvas";
-import { activityProfile } from "@/lib/replay/activity";
 import { dotScale, replayEndings } from "@/lib/replay/counts";
 import { buildStreetFill } from "@/lib/replay/street-fill";
-import { buildWarp } from "@/lib/replay/time-warp";
+import { buildWarp, warpSpan } from "@/lib/replay/time-warp";
 import { cn } from "@/lib/utils";
 import { de } from "@/lib/de";
 import { modeOrder, modeStyle } from "@/components/metro/mode";
@@ -144,15 +143,9 @@ function Stage({
   );
 
   // The budget is fixed and the simulated span is normalised into it, so a round
-  // that drained for four hours does not take twice as long to watch. The profile
-  // is what makes the peak slow and the drain quick.
-  const warp = useMemo(
-    () =>
-      buildWarp(activityProfile(replay), {
-        endMin: Math.max(replay.end_min, 1),
-      }),
-    [replay],
-  );
+  // that drained for four hours does not take twice as long to watch. Morning and
+  // evening run at one constant rate; the gap between them is the fast-forward.
+  const warp = useMemo(() => buildWarp(warpSpan(replay)), [replay]);
 
   const clock = useReplayClock(warp, (minute, _second, jumped) =>
     canvas.current?.draw(minute, jumped),
@@ -187,7 +180,7 @@ function Stage({
       <div className="mt-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
         <p className="font-mono text-sm tabular-nums text-muted-foreground">
           <span className="sr-only">{de.replay.clockLabel} </span>
-          {de.replay.clock(clock.minute)}
+          {clock.midday ? de.replay.midday : de.replay.clock(clock.minute)}
         </p>
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" size="sm" onClick={clock.toggle}>

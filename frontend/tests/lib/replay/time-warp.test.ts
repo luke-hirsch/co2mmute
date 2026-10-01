@@ -1,112 +1,180 @@
 import { describe, expect, it } from "vitest";
 
-import { buildWarp, REPLAY_BUDGET_SEC } from "@/lib/replay/time-warp";
+import {
+  buildWarp,
+  REPLAY_BUDGET_SEC,
+  REPLAY_MIDDAY_SEC,
+  warpSpan,
+} from "@/lib/replay/time-warp";
+import type { Replay, ReplayDot } from "@/lib/replay/types";
 
 /**
- * Two hours of simulated morning into about two minutes of screen time.
+ * A round, there and back, in about two minutes.
  *
- * The shape of a real round, measured in the dev DB: the peak sits around
- * sim-minute 50–100 and **half the run is a slow drain afterwards**. Playing
- * that at a constant rate spends a quarter of the budget on nothing happening,
- * which is why the warp is driven by how much is actually moving.
- *
- * Lukas's rule for the quiet stretch, verbatim: "we dont need to wait, when no
- * dots move. jsut a tinyu bit" — so the floor is strictly positive and a
- * silent minute still advances, visibly faster rather than skipped. The clock
- * on screen reads real time throughout, so the speed-up is something you see.
+ * Morning and evening run at ONE constant rate and the empty middle of the day
+ * is the only fast-forward. It was handed out by how many dots moved until F2b,
+ * and that made every dot — the trains too, whose link times the simulation
+ * holds constant — run five to seven times faster in the quiet tails than at
+ * the peak. Lukas read it as "all buses and trains slow down" in a jam.
  */
 
-/** A profile shaped like a real round: quiet, peak, long drain. */
-function realisticProfile(): number[] {
-  const profile: number[] = [];
-  for (let minute = 0; minute < 220; minute++) {
-    if (minute < 30) profile.push(0);
-    else if (minute < 110) profile.push(300);
-    else profile.push(20);
-  }
-  return profile;
-}
+/** A shaped like a real round: 135 minutes there, 1000-minute tick budget, 135 back. */
+const span = {
+  endMin: 1135,
+  morningEndMin: 135,
+  homeStartMin: 1000,
+};
 
 describe("buildWarp", () => {
   it("always runs for the same length, whatever the round did", () => {
-    // "it always takes 2 min, so tick rate is dynamic to that" — the budget is
-    // the fixed thing and the simulated span is normalised into it. A round
-    // that drained for four hours must not take twice as long to watch.
-    const short = buildWarp(new Array(60).fill(100));
-    const long = buildWarp(new Array(400).fill(100));
+    const short = buildWarp({ endMin: 60, morningEndMin: 60, homeStartMin: null });
+    const long = buildWarp(span);
 
     expect(short.durationSec).toBe(REPLAY_BUDGET_SEC);
     expect(long.durationSec).toBe(REPLAY_BUDGET_SEC);
   });
 
-  it("starts at the beginning and reaches the end", () => {
-    const warp = buildWarp(realisticProfile());
+  it("starts at the beginning and holds the end", () => {
+    const warp = buildWarp(span);
 
     expect(warp.simMinuteAt(0)).toBe(0);
-    expect(warp.simMinuteAt(warp.durationSec)).toBeCloseTo(220, 5);
+    expect(warp.simMinuteAt(warp.durationSec)).toBe(1135);
   });
 
   it("never runs time backwards", () => {
-    // Scrubbing and the rAF loop both assume a monotone mapping; a dip would
-    // make dots jump back down their links.
-    const warp = buildWarp(realisticProfile());
+    const warp = buildWarp(span);
 
     let previous = -1;
-    for (let second = 0; second <= warp.durationSec; second += 0.25) {
+    for (let second = 0; second <= warp.durationSec; second += 0.1) {
       const minute = warp.simMinuteAt(second);
       expect(minute).toBeGreaterThanOrEqual(previous);
       previous = minute;
     }
   });
 
-  it("gives the busy stretch more screen time than the quiet one", () => {
-    // The whole point. The peak is 80 simulated minutes and the drain is 110,
-    // and the peak must still get the larger share of the budget.
-    const warp = buildWarp(realisticProfile());
+  it("runs the morning and the evening at the same rate", () => {
+    const warp = buildWarp(span);
+    const rateOver = (fromSec: number, toSec: number) =>
+      (warp.simMinuteAt(toSec) - warp.simMinuteAt(fromSec)) / (toSec - fromSec);
 
-    const secondsFor = (fromMin: number, toMin: number) => {
-      let from = 0;
-      let to = 0;
-      for (let second = 0; second <= warp.durationSec; second += 0.05) {
-        const minute = warp.simMinuteAt(second);
-        if (minute <= fromMin) from = second;
-        if (minute <= toMin) to = second;
-      }
-      return to - from;
-    };
+    // Inside the morning, and inside the evening (the jump is `middaySec` long).
+    const morning = rateOver(1, 20);
+    const evening = rateOver(warp.beatFromSec - 20, warp.beatFromSec - 1);
 
-    const peak = secondsFor(30, 110);
-    const drain = secondsFor(110, 220);
-
-    expect(peak).toBeGreaterThan(drain);
+    expect(morning).toBeCloseTo(evening, 6);
   });
 
-  it("still advances through a stretch where nothing moves", () => {
-    // A floor, not a skip: the class should see the clock run on, not a cut.
-    const warp = buildWarp(new Array(120).fill(0));
+  it("is constant inside the morning, however much moves", () => {
+    // The point of the change: no minute of the morning is faster than another.
+    const warp = buildWarp(span);
 
-    expect(warp.simMinuteAt(warp.durationSec / 2)).toBeGreaterThan(0);
-    expect(warp.simMinuteAt(warp.durationSec)).toBeCloseTo(120, 5);
+    const first = warp.simMinuteAt(10) - warp.simMinuteAt(9);
+    const later = warp.simMinuteAt(40) - warp.simMinuteAt(39);
+
+    expect(later).toBeCloseTo(first, 6);
+  });
+
+  it("jumps the middle of the day in the fixed time and says so", () => {
+    const warp = buildWarp(span);
+
+    let jumping = 0;
+    for (let second = 0; second < warp.beatFromSec; second += 0.01) {
+      if (warp.isMidday(second)) jumping += 0.01;
+    }
+
+    expect(jumping).toBeCloseTo(REPLAY_MIDDAY_SEC, 1);
+    expect(warp.isMidday(1)).toBe(false);
+    // Nothing of the day is skipped: the clock passes through the gap.
+    let gapMinutes = 0;
+    for (let second = 0.5; second < warp.beatFromSec; second += 0.5) {
+      if (warp.isMidday(second)) gapMinutes += 1;
+    }
+    expect(gapMinutes).toBeGreaterThan(0);
+  });
+
+  it("has no midday for a round with no way home", () => {
+    const warp = buildWarp({ endMin: 135, morningEndMin: 135, homeStartMin: null });
+
+    for (let second = 0; second <= warp.durationSec; second += 0.5) {
+      expect(warp.isMidday(second)).toBe(false);
+    }
+    expect(warp.simMinuteAt(warp.beatFromSec / 2)).toBeCloseTo(135 / 2, 5);
+  });
+
+  it("has no midday when the morning ran into the evening's start", () => {
+    // Somebody still on the road when the pass's clock stopped: nothing to skip.
+    const warp = buildWarp({ endMin: 2000, morningEndMin: 1000, homeStartMin: 1000 });
+
+    for (let second = 0; second <= warp.durationSec; second += 0.5) {
+      expect(warp.isMidday(second)).toBe(false);
+    }
   });
 
   it("holds the last moment so the arrival can land", () => {
-    // "just a tiny bit so people get 'ah, now everybody arrived'". The hold is
-    // inside the budget, not added to it.
-    const warp = buildWarp(realisticProfile());
-    const endMin = 220;
+    const warp = buildWarp(span);
 
     expect(warp.isBeat(warp.durationSec - 0.1)).toBe(true);
     expect(warp.isBeat(warp.durationSec * 0.5)).toBe(false);
-    expect(warp.simMinuteAt(warp.durationSec - 0.1)).toBeCloseTo(endMin, 5);
+    expect(warp.simMinuteAt(warp.durationSec - 0.1)).toBe(1135);
   });
 
   it("survives a round that recorded nothing", () => {
-    // An empty profile is a round where no dot ever moved — a map with one
-    // walker, or a replay from before the recorder existed.
-    const warp = buildWarp([]);
+    const warp = buildWarp({ endMin: 0, morningEndMin: 0, homeStartMin: null });
 
     expect(warp.durationSec).toBe(REPLAY_BUDGET_SEC);
     expect(warp.simMinuteAt(0)).toBe(0);
     expect(Number.isFinite(warp.simMinuteAt(warp.durationSec))).toBe(true);
+  });
+});
+
+function dot(overrides: Partial<ReplayDot> & Pick<ReplayDot, "legs">): ReplayDot {
+  return {
+    id: 1,
+    route: 1,
+    agent: 1,
+    line: null,
+    mode: "car",
+    wants: 0,
+    pass: "out",
+    end: "arrived",
+    ...overrides,
+  };
+}
+
+function replay(dots: ReplayDot[], extra: Partial<Replay> = {}): Replay {
+  return {
+    version: 2,
+    people_per_dot: 10,
+    tick_duration_min: 5,
+    window_min: 120,
+    end_min: 1135,
+    home_start_min: 1000,
+    dots,
+    ...extra,
+  };
+}
+
+describe("warpSpan", () => {
+  it("ends the morning at the last person, not the last bus", () => {
+    const person = dot({ legs: [["e", 1, 5, 130, 1]] });
+    // A bus dispatching for as long as anybody needs it, far past the people.
+    const bus = dot({ id: 2, route: null, line: "M1", mode: "bus", legs: [["e", 1, 0, 900, 1]] });
+
+    expect(warpSpan(replay([person, bus])).morningEndMin).toBe(130);
+  });
+
+  it("does not let the evening end the morning", () => {
+    const out = dot({ legs: [["e", 1, 5, 130, 1]] });
+    const home = dot({ id: 3, pass: "home", legs: [["e", 2, 1005, 1100, 2]] });
+
+    expect(warpSpan(replay([out, home])).morningEndMin).toBe(130);
+  });
+
+  it("falls back to the end of the recording when nobody is a person", () => {
+    expect(warpSpan(replay([], { end_min: 80, home_start_min: null })).morningEndMin).toBe(80);
+  });
+
+  it("carries where the evening starts", () => {
+    expect(warpSpan(replay([])).homeStartMin).toBe(1000);
   });
 });

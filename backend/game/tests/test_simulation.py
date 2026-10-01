@@ -4932,3 +4932,92 @@ class RoundTripPTTests(PTScenarioMixin, TestCase):
         )
         # Two Tickets' worth: one per person per trip.
         self.assertAlmostEqual(row.mean_paid_eur, 2 * 1.30, places=6)
+
+
+class ReplayWayHomeTests(RoundTripTests):
+    """The replay carries both passes, the evening on the same screen clock.
+
+    The home pass runs on a simulator of its own with a clock that starts at 0
+    and vehicle ids that start at 0, so merging it means moving both: its
+    minutes by `max_ticks * tick_duration_min` (the same offset its street
+    snapshots already carry) and its ids past the morning's, `"r"` legs
+    included, because they name a line vehicle by id. Inherits the fixture;
+    the inherited tests run again, which is cheap.
+    """
+
+    def _replay(self, both_ways=True, max_ticks=200):
+        from game.tests._helpers import muted
+
+        _route(self.game_round, self.player, self.there)
+        if both_ways:
+            _route(self.game_round, self.player, self.back, direction="home")
+        simulator = TrafficSimulator(self.game_round, scale=100.0, seed=7)
+        with muted():
+            result = simulator.run_simulation(max_ticks=max_ticks)
+        result.refresh_from_db()
+        return simulator, result.replay
+
+    def test_the_format_says_the_evening_is_in_it(self):
+        from game.simulation import REPLAY_FORMAT_VERSION
+
+        _, replay = self._replay()
+
+        self.assertEqual(REPLAY_FORMAT_VERSION, 2)
+        self.assertEqual(replay["version"], 2)
+
+    def test_both_passes_are_dots(self):
+        _, replay = self._replay()
+
+        passes = {dot["pass"] for dot in replay["dots"]}
+
+        self.assertEqual(passes, {"out", "home"})
+
+    def test_a_round_without_a_way_home_has_morning_dots_only(self):
+        _, replay = self._replay(both_ways=False)
+
+        self.assertEqual({dot["pass"] for dot in replay["dots"]}, {"out"})
+        self.assertIsNone(replay["home_start_min"])
+
+    def test_the_evening_starts_where_the_street_snapshots_say(self):
+        simulator, replay = self._replay(max_ticks=200)
+
+        offset = 200 * simulator.tick_duration_min
+        self.assertEqual(replay["home_start_min"], offset)
+        home = [d for d in replay["dots"] if d["pass"] == "home"]
+        out = [d for d in replay["dots"] if d["pass"] == "out"]
+        self.assertGreaterEqual(min(d["legs"][0][2] for d in home), offset)
+        self.assertLess(max(d["legs"][-1][3] for d in out), offset)
+        self.assertGreaterEqual(replay["end_min"], max(d["legs"][-1][3] for d in home))
+
+    def test_the_evening_wants_are_on_the_same_clock(self):
+        simulator, replay = self._replay(max_ticks=200)
+
+        offset = 200 * simulator.tick_duration_min
+        for dot in replay["dots"]:
+            if dot["pass"] == "home":
+                self.assertGreaterEqual(dot["wants"], offset)
+
+    def test_no_two_dots_share_an_id(self):
+        _, replay = self._replay()
+
+        ids = [dot["id"] for dot in replay["dots"]]
+
+        self.assertEqual(len(ids), len(set(ids)))
+
+    def test_the_evening_dots_cross_the_way_back(self):
+        _, replay = self._replay()
+
+        home = [d for d in replay["dots"] if d["pass"] == "home"]
+        back_edges = {edge.pk for edge in self.back}
+        self.assertTrue(home)
+        for dot in home:
+            self.assertTrue({leg[1] for leg in dot["legs"]} <= back_edges)
+
+    def test_endings_count_both_passes(self):
+        simulator, replay = self._replay()
+
+        home = simulator.home_pass
+        self.assertEqual(
+            replay["endings"]["unfinished"],
+            simulator.non_arrivals["unfinished"] + home.non_arrivals["unfinished"],
+        )

@@ -22,6 +22,7 @@ function person(id: number, end: ReplayEnd): ReplayDot {
     line: null,
     mode: "car",
     wants: 0,
+  pass: "out",
     legs: [["e", 91, 0, 10, 7]],
     end,
   };
@@ -34,6 +35,7 @@ const bus: ReplayDot = {
   line: "M1",
   mode: "bus",
   wants: 0,
+  pass: "out",
   legs: [["e", 91, 0, 10, 7]],
   // A line vehicle still rolling at the end is not a person who did not arrive.
   end: "unfinished",
@@ -41,11 +43,12 @@ const bus: ReplayDot = {
 
 function replay(dots: ReplayDot[], extra: Partial<Replay> = {}): Replay {
   return {
-    version: 1,
+    version: 2,
     people_per_dot: 10,
     tick_duration_min: 5,
     window_min: 120,
     end_min: 60,
+    home_start_min: null,
     dots,
     ...extra,
   };

@@ -1,31 +1,31 @@
 /**
- * Two hours of simulated morning into about two minutes of screen time.
+ * A round, there and back, in about two minutes of screen time.
  *
  * Three rates get confused here, so to be explicit: `GameSession
  * .tick_duration_min` is a **physics** parameter and is not touched by any of
  * this; the recorder's sampling rate is an **observer**; and this module owns
  * the **playback** rate and only that.
  *
- * The budget is the fixed thing. A round is about 225 simulated minutes at the
- * defaults, but since `pt-service-period` removed the PT service cap a line
- * dispatches for as long as somebody needs it, so `end_min` varies by a factor
- * of six between rounds of the same game. Playback normalises to whatever the
- * round did rather than assuming a span — a round that drained for four hours
- * must not take twice as long to watch.
+ * ### One clock for the morning, one for the evening, a jump between
  *
- * ### Why the warp is driven by activity
+ * The recording holds two passes on one axis: the way to work from minute 0, the
+ * way home from `home_start_min` (the pass's own tick budget, about 1000 minutes
+ * in). Between them nothing moves — the model has no day, only two peaks. So the
+ * gap is the one place time is spent fast: a short fixed "Mittag", and everything
+ * else runs at **one constant rate**.
  *
- * Measured on a real round in the dev DB: the peak sits around sim-minute
- * 50–100 and **half the run is a slow drain afterwards**. Playing that at a
- * constant rate spends a quarter of the budget on nothing happening. So the
- * budget is handed out in proportion to how many dots are actually moving in
- * each simulated minute.
+ * It used to be handed out by how many dots were moving (F2b, replaced). That
+ * made every dot — the trains too, whose link times the simulation holds
+ * constant — run five to seven times faster in the quiet tails than at the peak,
+ * and it read as "everything slows down when it jams". A dot's speed on screen
+ * is now the same all morning, so a dot that crawls is a dot that crawls.
  *
- * The floor is strictly positive, which is Lukas's rule for the quiet stretch:
- * "we don't need to wait when no dots move, just a tiny bit". A quiet minute
- * still advances, visibly faster — a speed-up you can see rather than a cut,
- * because the clock on screen reads simulated time throughout.
+ * The budget is the fixed thing. A round can drain for four hours or for one, so
+ * playback normalises whatever the round did into the budget rather than
+ * assuming a span.
  */
+
+import { isVehicleDot, type Replay } from "@/lib/replay/types";
 
 /** The whole animation, in seconds of screen time. Always. */
 export const REPLAY_BUDGET_SEC = 120;
@@ -39,14 +39,11 @@ export const REPLAY_BUDGET_SEC = 120;
 export const REPLAY_BEAT_SEC = 6;
 
 /**
- * The quiet minute's share of the busiest minute's screen time.
- *
- * At 0.15 an empty stretch runs about five times faster than the peak on a real
- * profile — fast enough to read as a fast-forward, slow enough that 30 minutes
- * of nothing still takes four seconds instead of a blink. Raising it flattens
- * the warp towards a constant rate; lowering it turns the drain into a cut.
+ * The jump over the middle of the day, inside the budget and never added to it.
+ * Long enough to read "Mittag" and see the clock run on, short enough that
+ * nobody waits for it.
  */
-export const REPLAY_ACTIVITY_FLOOR_SHARE = 0.15;
+export const REPLAY_MIDDAY_SEC = 5;
 
 export type Warp = {
   /** Screen seconds, beat included. Always `REPLAY_BUDGET_SEC`. */
@@ -59,77 +56,116 @@ export type Warp = {
   simMinuteAt: (second: number) => number;
   /** True once playback has reached the hold. */
   isBeat: (second: number) => boolean;
+  /** True while playback is jumping over the middle of the day. */
+  isMidday: (second: number) => boolean;
 };
 
-export type WarpOptions = {
+export type WarpSpan = {
+  /** The last simulated minute of the recording. */
+  endMin: number;
   /**
-   * The round's own `end_min`. Defaults to the profile's length, which is what
-   * the tests use and what a minute-indexed profile means anyway.
+   * Where the way to work is over: the last minute a *person* is still under
+   * way. A line vehicle does not count — it dispatches for as long as anybody
+   * needs it and would drag the morning to the end of the clock.
    */
-  endMin?: number;
-  budgetSec?: number;
-  beatSec?: number;
+  morningEndMin: number;
+  /** `home_start_min`, or null for a round with no way home. */
+  homeStartMin: number | null;
 };
 
 /**
- * @param profile How many dots are moving in each simulated minute — index is
- *   the minute. `activityProfile()` builds it from a replay.
+ * Where the stretches of a recording are, read off its dots.
+ *
+ * The morning ends at the last leg of the last person of the way to work — a
+ * person, not a line vehicle, for the reason on `WarpSpan`. A recording with no
+ * person dot (a map that moved nobody) falls back to its own `end_min`.
  */
-export function buildWarp(
-  profile: readonly number[],
-  options: WarpOptions = {},
-): Warp {
+export function warpSpan(replay: Replay): WarpSpan {
+  let morningEnd = 0;
+  for (const dot of replay.dots) {
+    if (dot.pass !== "out" || isVehicleDot(dot) || dot.legs.length === 0) continue;
+    morningEnd = Math.max(morningEnd, dot.legs[dot.legs.length - 1][3]);
+  }
+  return {
+    endMin: replay.end_min,
+    morningEndMin: morningEnd > 0 ? morningEnd : replay.end_min,
+    homeStartMin: replay.home_start_min,
+  };
+}
+
+export type WarpOptions = {
+  budgetSec?: number;
+  beatSec?: number;
+  middaySec?: number;
+};
+
+type Segment = {
+  fromMin: number;
+  toMin: number;
+  fromSec: number;
+  toSec: number;
+};
+
+export function buildWarp(span: WarpSpan, options: WarpOptions = {}): Warp {
   const durationSec = options.budgetSec ?? REPLAY_BUDGET_SEC;
   const beatSec = Math.min(options.beatSec ?? REPLAY_BEAT_SEC, durationSec);
   const playSec = durationSec - beatSec;
-  const endMin = options.endMin ?? profile.length;
+  const endMin = Math.max(span.endMin, 1);
 
-  // A round that recorded nothing still needs a warp: the screen falls back to
-  // the street fill and the clock has to run somewhere. One flat bucket.
-  const buckets = Math.max(profile.length, 1);
+  // A midday exists only when the evening starts after the morning is over. A
+  // round whose morning ran into the evening's start (somebody still on the road
+  // when the clock stopped) has no gap to jump, and is one stretch.
+  const home = span.homeStartMin;
+  const morningEnd = Math.min(Math.max(span.morningEndMin, 0), endMin);
+  const hasMidday = home !== null && home > morningEnd && home < endMin;
+  const middaySec = hasMidday
+    ? Math.min(options.middaySec ?? REPLAY_MIDDAY_SEC, playSec / 2)
+    : 0;
 
-  // Peak-relative rather than mean-relative, so the floor does not move when
-  // the drain gets longer — it is the ratio between the quietest and the
-  // busiest minute that the class sees, and that should not depend on how much
-  // quiet there is.
-  let peak = 0;
-  for (const count of profile) peak = Math.max(peak, count);
-  const floor = Math.max(peak * REPLAY_ACTIVITY_FLOOR_SHARE, 1);
+  const stretches: [number, number][] = hasMidday
+    ? [
+        [0, morningEnd],
+        [home, endMin],
+      ]
+    : [[0, endMin]];
+  const stretchMinutes = stretches.reduce((sum, [a, b]) => sum + (b - a), 0);
+  const rate = stretchMinutes > 0 ? (playSec - middaySec) / stretchMinutes : 0;
 
-  // Cumulative screen seconds and simulated minutes at every bucket boundary.
-  // Buckets are equal in simulated time and unequal in screen time; that
-  // inequality IS the warp.
-  const secAt: number[] = [0];
-  const minuteAt: number[] = [0];
-  let total = 0;
-  for (let i = 0; i < buckets; i++) total += floor + (profile[i] ?? 0);
+  const segments: Segment[] = [];
+  let second = 0;
+  stretches.forEach(([fromMin, toMin], index) => {
+    if (index === 1) {
+      // The jump: from where the morning ended to where the evening starts.
+      segments.push({
+        fromMin: morningEnd,
+        toMin: home as number,
+        fromSec: second,
+        toSec: second + middaySec,
+      });
+      second += middaySec;
+    }
+    const length = (toMin - fromMin) * rate;
+    segments.push({ fromMin, toMin, fromSec: second, toSec: second + length });
+    second += length;
+  });
 
-  let cumulative = 0;
-  for (let i = 0; i < buckets; i++) {
-    cumulative += floor + (profile[i] ?? 0);
-    secAt.push((playSec * cumulative) / total);
-    minuteAt.push((endMin * (i + 1)) / buckets);
-  }
+  const middayFrom = hasMidday ? segments[1].fromSec : Infinity;
+  const middayTo = hasMidday ? segments[1].toSec : Infinity;
 
-  function simMinuteAt(second: number): number {
+  function simMinuteAt(at: number): number {
     // Also catches NaN, and gives an exact 0 at the start rather than a
     // rounding artefact — the first frame must not place anybody.
-    if (!(second > 0)) return 0;
-    if (second >= playSec) return endMin;
+    if (!(at > 0)) return 0;
+    if (at >= playSec) return endMin;
 
-    // Binary search: the rAF loop calls this once per frame, not per dot, so
-    // O(log n) is free and a cursor would only be state to get wrong.
-    let low = 0;
-    let high = buckets - 1;
-    while (low < high) {
-      const mid = (low + high) >> 1;
-      if (second < secAt[mid + 1]) high = mid;
-      else low = mid + 1;
+    for (const segment of segments) {
+      if (at < segment.toSec) {
+        const length = segment.toSec - segment.fromSec;
+        const within = length > 0 ? (at - segment.fromSec) / length : 0;
+        return segment.fromMin + within * (segment.toMin - segment.fromMin);
+      }
     }
-
-    const span = secAt[low + 1] - secAt[low];
-    const within = span > 0 ? (second - secAt[low]) / span : 0;
-    return minuteAt[low] + within * (minuteAt[low + 1] - minuteAt[low]);
+    return endMin;
   }
 
   return {
@@ -137,6 +173,7 @@ export function buildWarp(
     beatFromSec: playSec,
     endMin,
     simMinuteAt,
-    isBeat: (second: number) => second >= playSec,
+    isBeat: (at: number) => at >= playSec,
+    isMidday: (at: number) => at >= middayFrom && at < middayTo,
   };
 }
