@@ -56,7 +56,6 @@ export function EndScreen() {
    */
   const [scale, setScale] = useState<Scale>("person");
 
-  const endReason = state.endReason ?? summary.data?.end_reason ?? null;
   const players = summary.data?.players ?? [];
   const rounds = summary.data?.rounds ?? [];
 
@@ -84,13 +83,17 @@ export function EndScreen() {
   // anybody's commute, and this is the figure the budget above was spent out of.
   const timetableKg = rounds.reduce((sum, round) => sum + round.network_co2_kg, 0);
   const unriddenKg = rounds.reduce((sum, round) => sum + round.unridden_co2_kg, 0);
+  /**
+   * Nobody boarded anything: the unridden share is the whole timetable, and two
+   * rows with one number read as a duplicate. Compared as displayed (0,1 kg),
+   * since the per-round figures are rounded before they are summed.
+   */
+  const nobodyRode =
+    timetableKg > 0 && Math.round(unriddenKg * 10) >= Math.round(timetableKg * 10);
 
   return (
     <Screen>
-      <ScreenHeading
-        title={de.summary.title}
-        lead={endReason ? de.summary.reason[endReason] : de.summary.lead}
-      />
+      <ScreenHeading title={de.summary.title} />
 
       <dl className="mb-12 grid gap-8 sm:grid-cols-2">
         <div>
@@ -156,12 +159,18 @@ export function EndScreen() {
                         {de.summary.kgExact(timetableKg)}
                       </dd>
                     </div>
-                    <div className="flex items-baseline justify-between gap-4 text-muted-foreground">
-                      <dt>{de.summary.societyUnridden}</dt>
-                      <dd className="font-mono tabular-nums">
-                        {de.summary.kgExact(unriddenKg)}
-                      </dd>
-                    </div>
+                    {nobodyRode ? (
+                      <p className="pt-2 text-muted-foreground">
+                        {de.summary.societyAllUnridden}
+                      </p>
+                    ) : (
+                      <div className="flex items-baseline justify-between gap-4 text-muted-foreground">
+                        <dt>{de.summary.societyUnridden}</dt>
+                        <dd className="font-mono tabular-nums">
+                          {de.summary.kgExact(unriddenKg)}
+                        </dd>
+                      </div>
+                    )}
                   </dl>
                 </>
               ) : (

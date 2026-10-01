@@ -32,7 +32,18 @@ import { useAddSeat } from "@/lib/queries/seats";
  * round is waited for in that round (`game/seats.py`), which is exactly what a
  * teacher needs when somebody walks in late or the bell has just rung (P-06).
  */
-export function AddSeatDialog({ gameId }: { gameId: string }) {
+export function AddSeatDialog({
+  gameId,
+  full = false,
+}: {
+  gameId: string;
+  /**
+   * Every seat is taken. The dialog then says so instead of offering a name
+   * field that can only be refused (S24) — the server still checks, so a
+   * roster that is a beat behind gets the 409 the old way.
+   */
+  full?: boolean;
+}) {
   const add = useAddSeat(gameId);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -74,39 +85,52 @@ export function AddSeatDialog({ gameId }: { gameId: string }) {
           <DialogDescription>{de.host.addBody}</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={submit} noValidate className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="seat-name">{de.host.addName}</Label>
-            <Input
-              id="seat-name"
-              value={name}
-              onChange={(event) => {
-                setName(event.target.value);
-                if (error) setError(null);
-              }}
-              placeholder={de.join.namePlaceholder}
-              autoFocus
-              autoComplete="off"
-              maxLength={40}
-              aria-invalid={error ? true : undefined}
-            />
-          </div>
-
-          {error ? (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
+        {full ? (
+          <>
+            <Alert>
+              <AlertDescription>{de.host.failed.full}</AlertDescription>
             </Alert>
-          ) : null}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => close(false)}>
+                {de.actions.close}
+              </Button>
+            </DialogFooter>
+          </>
+        ) : (
+          <form onSubmit={submit} noValidate className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="seat-name">{de.host.addName}</Label>
+              <Input
+                id="seat-name"
+                value={name}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  if (error) setError(null);
+                }}
+                placeholder={de.join.namePlaceholder}
+                autoFocus
+                autoComplete="off"
+                maxLength={40}
+                aria-invalid={error ? true : undefined}
+              />
+            </div>
 
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => close(false)}>
-              {de.actions.cancel}
-            </Button>
-            <Button type="submit" disabled={add.isPending}>
-              {add.isPending ? de.host.adding : de.host.addSubmit}
-            </Button>
-          </DialogFooter>
-        </form>
+            {error ? (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
+
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => close(false)}>
+                {de.actions.cancel}
+              </Button>
+              <Button type="submit" disabled={add.isPending}>
+                {add.isPending ? de.host.adding : de.host.addSubmit}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );

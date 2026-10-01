@@ -43,12 +43,13 @@
  * more, and it was never rendered because the one call site passed `false`.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { imageRect, viewBox, type ImageFields } from "@/lib/map/view-box";
 import { de } from "@/lib/de";
 import { modeStyle } from "@/components/metro/mode";
 import { jamTint, type EdgeLoad } from "@/lib/map/traffic";
+import { traceStepMs, type SearchTrace } from "@/lib/map/search-trace";
 import type { Edge, MapGraph, Node } from "@/types/mapTypes";
 import type {
   ExtendedMapGraph,
@@ -68,6 +69,12 @@ interface GameMapViewerProps {
    * accent — see the note above about why this is not a heatmap.
    */
   jam?: EdgeLoad[];
+  /**
+   * What the router examined to find `routeSegments`, played back once as the
+   * route appears. The only thing on screen that shows the routing doing
+   * anything (S24).
+   */
+  search?: SearchTrace | null;
 }
 
 /**
@@ -116,9 +123,9 @@ const SIZES = {
   route: 0.011,
   routeHalo: 0.02,
   /** Home and destination: thumb-sized, because they are what you look for. */
-  markRing: 0.032,
-  markDot: 0.014,
-  markStroke: 0.008,
+  markRing: 0.024,
+  markDot: 0.01,
+  markStroke: 0.006,
   label: 0.032,
   labelHalo: 0.009,
   /**
@@ -126,6 +133,8 @@ const SIZES = {
    * weight: a jammed network must not out-shout the line the player is tracing
    * through it.
    */
+  /** The links the router examined: lighter than the route that wins. */
+  search: 0.008,
   jamMin: 0.005,
   jamMax: 0.015,
 } as const;
@@ -138,6 +147,7 @@ const GameMapViewer = ({
   destinationNodeId,
   routeSegments,
   jam,
+  search,
 }: GameMapViewerProps) => {
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
 
@@ -310,6 +320,16 @@ const GameMapViewer = ({
             </g>
           )}
 
+          {search && mapGraph && (
+            <SearchLayer
+              key={search.id}
+              steps={search.steps}
+              edges={mapGraph.edges}
+              at={at}
+              u={u}
+            />
+          )}
+
           {/* The chosen route, in its own mode's colour and stroke. */}
           {routeSegments?.map((segment, index) => {
             const a = at(segment.startNode);
@@ -408,6 +428,98 @@ const GameMapViewer = ({
     </div>
   );
 };
+
+/** How long the finished search stays before it fades, and how long it fades. */
+const SEARCH_HOLD_MS = 350;
+const SEARCH_FADE_MS = 600;
+
+/**
+ * The router's search, drawn one step at a time and then let go (S24).
+ *
+ * Links appear in the accent as the search reaches them, so you watch it spread
+ * out from home and favour the direction of the destination, then fade and leave
+ * the route. Attention is the accent's job in this palette; the route on top is
+ * in its own mode's colour and never competes.
+ *
+ * The step counter is state, but there are only about fifty steps over a second
+ * and a half — nothing like the replay's per-frame dots, which is why this does
+ * not need that file's direct-attribute drawing. **Nothing is drawn under
+ * `prefers-reduced-motion`**: the route is already there, and a flourish that
+ * moves is the thing the setting exists to refuse.
+ */
+function SearchLayer({
+  steps,
+  edges,
+  at,
+  u,
+}: {
+  steps: number[][];
+  edges: Edge[];
+  at: (nodeId: number) => { x: number; y: number } | null;
+  u: (fraction: number) => number;
+}) {
+  const [shown, setShown] = useState(0);
+  const [fading, setFading] = useState(false);
+  // Decided once, on mount: the layer is keyed per search, so a new search is a
+  // new mount and the preference is read again.
+  const [gone, setGone] = useState(
+    () =>
+      steps.length === 0 ||
+      (typeof window.matchMedia === "function" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches),
+  );
+
+  useEffect(() => {
+    if (gone) return;
+
+    const timers: number[] = [];
+    const interval = window.setInterval(() => {
+      setShown((count) => {
+        if (count + 1 >= steps.length) window.clearInterval(interval);
+        return Math.min(count + 1, steps.length);
+      });
+    }, traceStepMs(steps.length));
+    timers.push(
+      window.setTimeout(
+        () => setFading(true),
+        traceStepMs(steps.length) * steps.length + SEARCH_HOLD_MS,
+      ),
+      window.setTimeout(
+        () => setGone(true),
+        traceStepMs(steps.length) * steps.length + SEARCH_HOLD_MS + SEARCH_FADE_MS,
+      ),
+    );
+    return () => {
+      window.clearInterval(interval);
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [steps, gone]);
+
+  if (gone || shown === 0) return null;
+
+  const examined = new Set(steps.slice(0, shown).flat());
+  return (
+    <g
+      fill="none"
+      stroke="var(--color-brandaccent)"
+      strokeLinecap="round"
+      strokeWidth={u(SIZES.search)}
+      aria-hidden="true"
+      style={{
+        opacity: fading ? 0 : 0.75,
+        transition: `opacity ${SEARCH_FADE_MS}ms ease-out`,
+      }}
+    >
+      {edges.map((edge) => {
+        if (!examined.has(edge.id)) return null;
+        const a = at(edge.start_node);
+        const b = at(edge.end_node);
+        if (!a || !b) return null;
+        return <line key={edge.id} x1={a.x} y1={a.y} x2={b.x} y2={b.y} />;
+      })}
+    </g>
+  );
+}
 
 /**
  * One end of the commute, drawn big enough to find.

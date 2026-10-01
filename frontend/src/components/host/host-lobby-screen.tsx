@@ -9,7 +9,7 @@ import { SeatAdminList } from "@/components/host/seat-admin-list";
 import { useGame } from "@/components/game/game-context";
 import { ApiError } from "@/lib/api";
 import { de } from "@/lib/de";
-import { playingSeats } from "@/lib/game/game-state";
+import { playingSeats, seatsFull } from "@/lib/game/game-state";
 import { useEndGame, useHostGame, useStartGame } from "@/lib/queries/session";
 
 /**
@@ -91,7 +91,7 @@ export function HostLobbyScreen() {
         <section>
           <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3">
             <h2 className="text-2xl font-semibold">{de.host.seats}</h2>
-            <AddSeatDialog gameId={state.gameId} />
+            <AddSeatDialog gameId={state.gameId} full={seatsFull(state)} />
           </div>
           <SeatAdminList gameId={state.gameId} seats={state.seats} />
         </section>

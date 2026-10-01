@@ -1,5 +1,6 @@
 import GameMapViewer from "@/components/game/GameMapViewer";
 import { de } from "@/lib/de";
+import type { SearchTrace } from "@/lib/map/search-trace";
 import type { EdgeLoad } from "@/lib/map/traffic";
 import type { AgentDraft } from "@/lib/game/round-draft";
 import type { ExtendedMapGraph } from "@/types/routeTypes";
@@ -17,6 +18,7 @@ export function RouteMap({
   homeNode,
   agent,
   jam,
+  search,
   isLoading = false,
   hint = true,
 }: {
@@ -25,6 +27,8 @@ export function RouteMap({
   agent: AgentDraft | null;
   /** Where it stopped last round, drawn as stroke weight. */
   jam?: EdgeLoad[];
+  /** What the router looked at for this route; played once, then gone. */
+  search?: SearchTrace | null;
   isLoading?: boolean;
   /** Off once the turn is sent — there is nothing left to tap. */
   hint?: boolean;
@@ -39,6 +43,7 @@ export function RouteMap({
         destinationNodeId={agent?.destinationNode}
         routeSegments={agent?.route?.segments}
         jam={jam}
+        search={search}
       />
       {hint ? (
         <p className="mt-3 text-sm text-muted-foreground">{de.round.mapHint}</p>

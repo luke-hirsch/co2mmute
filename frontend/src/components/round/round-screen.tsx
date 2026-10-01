@@ -155,6 +155,11 @@ export function RoundScreen({
               homeNode={draft.draft.homeNode}
               agent={selected}
               jam={jam}
+              search={
+                draft.trace && draft.trace.agentId === selected?.agentId
+                  ? draft.trace
+                  : null
+              }
             />
           </div>
         </div>

@@ -506,6 +506,14 @@ export function playingSeats(state: GameState): RosterSeat[] {
   return state.seats.filter((seat) => !seat.is_host);
 }
 
+/**
+ * Every seat taken. `maxPlayers` is 0 until the snapshot lands, which must not
+ * read as "full" — the server's own 409 `full` stays the final word either way.
+ */
+export function seatsFull(state: GameState): boolean {
+  return state.maxPlayers > 0 && playingSeats(state).length >= state.maxPlayers;
+}
+
 export function hostSeat(state: GameState): RosterSeat | null {
   return state.seats.find((seat) => seat.is_host) ?? null;
 }
