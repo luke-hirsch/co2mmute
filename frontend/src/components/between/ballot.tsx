@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { MapChangeCard } from "@/components/between/map-change-card";
+import { cn } from "@/lib/utils";
 import { de } from "@/lib/de";
 import type { VoteOption } from "@/lib/game/events";
 
@@ -25,17 +26,32 @@ export function Ballot({
   options,
   onPick,
   disabled = false,
+  stacked = false,
+  changeShownId = null,
+  onToggleChange,
 }: {
   options: VoteOption[];
   /** null is "so lassen". */
   onPick: (versionId: number | null) => void;
   disabled?: boolean;
+  /** One column from `lg` up — the ballot is half a screen wide (S24). */
+  stacked?: boolean;
+  /** The option whose change picture the stage is showing, if any. */
+  changeShownId?: number | null;
+  onToggleChange?: (versionId: number) => void;
 }) {
   return (
     <div>
-      <div className="grid gap-10 sm:grid-cols-2">
+      <div className={cn("grid gap-10 sm:grid-cols-2", stacked && "lg:grid-cols-1")}>
         {options.map((option) => (
-          <MapChangeCard key={option.id} option={option}>
+          <MapChangeCard
+            key={option.id}
+            option={option}
+            changeShown={changeShownId === option.id}
+            onToggleChange={
+              onToggleChange ? () => onToggleChange(option.id) : undefined
+            }
+          >
             <div>
               <Button
                 onClick={() => onPick(option.id)}

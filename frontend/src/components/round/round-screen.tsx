@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 import { HandOverPanel } from "@/components/seat/hand-over-panel";
 import { RoundHeader } from "@/components/round/round-header";
 import { RouteMap } from "@/components/round/route-map";
+import { MapLayoutToggle } from "@/components/layout/map-layout-toggle";
 import { Screen } from "@/components/layout/screen";
 import { SubmittedPanel } from "@/components/round/submitted-panel";
 import { useGame } from "@/components/game/game-context";
+import { useMapLayout } from "@/hooks/use-map-layout";
 import { useRoundDraft } from "@/hooks/use-round-draft";
 import { useSubmitMove } from "@/lib/queries/move";
 import { ApiError } from "@/lib/api";
@@ -58,6 +60,8 @@ export function RoundScreen({
 }) {
   const { state } = useGame();
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
+  const [layout, setLayout] = useMapLayout();
+  const beside = layout === "beside";
 
   // Read before the draft, because the draft takes it: a turn that is in has no
   // unfinished draft to keep (S7).
@@ -122,7 +126,7 @@ export function RoundScreen({
   }
 
   return (
-    <Screen>
+    <Screen wide={beside}>
       <RoundHeader />
 
       {desk ? (
@@ -133,77 +137,93 @@ export function RoundScreen({
         </div>
       ) : null}
 
-      <div className="mb-12">
-        <RouteMap
-          graph={draft.graph}
-          homeNode={draft.draft.homeNode}
-          agent={selected}
-          jam={jam}
-        />
-      </div>
-
-      {submitted ? (
-        <SubmittedPanel />
-      ) : (
-        <>
-          <section>
-            <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-              <h2 className="text-2xl font-semibold">{de.round.agents}</h2>
-              <p className="font-mono text-sm tabular-nums text-muted-foreground">
-                {de.round.chosenOf(draft.progress.done, draft.progress.total)}
-              </p>
-            </div>
-
-            <ul className="mt-4">
-              {draft.draft.agents.map((agent, index) => (
-                <AgentRow
-                  key={agent.agentId}
-                  index={index}
-                  agent={agent}
-                  distance={draft.distances.get(agent.agentId)}
-                  nodes={nodes}
-                  selected={selected?.agentId === agent.agentId}
-                  onSelect={() => setSelectedAgentId(agent.agentId)}
-                  onPickMode={(mode) => {
-                    setSelectedAgentId(agent.agentId);
-                    draft.pickMode(agent.agentId, mode);
-                  }}
-                  onPickCarOptimization={(optimization) =>
-                    draft.pickCarOptimization(agent.agentId, optimization)
-                  }
-                  onPickPtOptimization={(optimization) =>
-                    draft.pickPtOptimization(agent.agentId, optimization)
-                  }
-                  onClear={() => draft.clearAgent(agent.agentId)}
-                  onRetry={() => void draft.retry(agent.agentId)}
-                  disabled={paused || submit.isPending}
-                />
-              ))}
-            </ul>
-          </section>
-
-          {submit.error ? (
-            <Alert variant="destructive" className="mt-8">
-              <AlertDescription>{submitFailure(submit.error)}</AlertDescription>
-            </Alert>
-          ) : null}
-
-          <div className="mt-10 flex flex-wrap items-center gap-4">
-            <Button
-              size="lg"
-              onClick={handleSubmit}
-              disabled={!draft.complete || paused || submit.isPending}
-            >
-              {submit.isPending ? de.round.submitting : de.round.submit}
-            </Button>
-            {!draft.complete ? (
-              <p className="text-sm text-muted-foreground">
-                {de.round.submitBlocked}
-              </p>
-            ) : null}
+      {/*
+        Beside is a large-screen choice (S24): from `lg` the map takes the left
+        half and stays in view while the list scrolls past it. Every class that
+        makes it so is `lg:`-prefixed, so below that the map is simply above.
+      */}
+      <div
+        className={cn(
+          beside && "lg:grid lg:grid-cols-2 lg:items-start lg:gap-12",
+        )}
+      >
+        <div className={cn("mb-12", beside && "lg:sticky lg:top-8 lg:mb-0")}>
+          <MapLayoutToggle layout={layout} onChange={setLayout} />
+          <div className="lg:mt-3">
+            <RouteMap
+              graph={draft.graph}
+              homeNode={draft.draft.homeNode}
+              agent={selected}
+              jam={jam}
+            />
           </div>
-        </>
-      )}
+        </div>
+
+        <div>
+          {submitted ? (
+            <SubmittedPanel />
+          ) : (
+            <>
+              <section>
+                <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+                  <h2 className="text-2xl font-semibold">{de.round.agents}</h2>
+                  <p className="font-mono text-sm tabular-nums text-muted-foreground">
+                    {de.round.chosenOf(draft.progress.done, draft.progress.total)}
+                  </p>
+                </div>
+
+                <ul className="mt-4">
+                  {draft.draft.agents.map((agent, index) => (
+                    <AgentRow
+                      key={agent.agentId}
+                      index={index}
+                      agent={agent}
+                      distance={draft.distances.get(agent.agentId)}
+                      nodes={nodes}
+                      selected={selected?.agentId === agent.agentId}
+                      onSelect={() => setSelectedAgentId(agent.agentId)}
+                      onPickMode={(mode) => {
+                        setSelectedAgentId(agent.agentId);
+                        draft.pickMode(agent.agentId, mode);
+                      }}
+                      onPickCarOptimization={(optimization) =>
+                        draft.pickCarOptimization(agent.agentId, optimization)
+                      }
+                      onPickPtOptimization={(optimization) =>
+                        draft.pickPtOptimization(agent.agentId, optimization)
+                      }
+                      onClear={() => draft.clearAgent(agent.agentId)}
+                      onRetry={() => void draft.retry(agent.agentId)}
+                      disabled={paused || submit.isPending}
+                    />
+                  ))}
+                </ul>
+              </section>
+
+              {submit.error ? (
+                <Alert variant="destructive" className="mt-8">
+                  <AlertDescription>{submitFailure(submit.error)}</AlertDescription>
+                </Alert>
+              ) : null}
+
+              <div className="mt-10 flex flex-wrap items-center gap-4">
+                <Button
+                  size="lg"
+                  onClick={handleSubmit}
+                  disabled={!draft.complete || paused || submit.isPending}
+                >
+                  {submit.isPending ? de.round.submitting : de.round.submit}
+                </Button>
+                {!draft.complete ? (
+                  <p className="text-sm text-muted-foreground">
+                    {de.round.submitBlocked}
+                  </p>
+                ) : null}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </Screen>
   );
 }

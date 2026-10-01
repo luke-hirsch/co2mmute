@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { edgeLoads } from "@/lib/map/traffic";
+import { edgeLoads, jamTint } from "@/lib/map/traffic";
 import type { Edge } from "@/types/mapTypes";
 import type { EdgeTrafficData } from "@/types/routeTypes";
 
@@ -89,5 +89,36 @@ describe("edgeLoads", () => {
   it("is empty when there is no traffic at all — round one", () => {
     expect(edgeLoads([edge(1, 50)], [])).toEqual([]);
     expect(edgeLoads([edge(1, 50)], undefined)).toEqual([]);
+  });
+});
+
+describe("jamTint", () => {
+  it("leaves a free street in ink", () => {
+    expect(jamTint(0)).toBe(0);
+    expect(jamTint(0.1)).toBe(0);
+  });
+
+  it("is the full accent on a standstill", () => {
+    expect(jamTint(1)).toBe(1);
+  });
+
+  it("only ever rises", () => {
+    let last = -1;
+    for (let r = 0; r <= 1.0001; r += 0.05) {
+      const tint = jamTint(r);
+      expect(tint).toBeGreaterThanOrEqual(last);
+      last = tint;
+    }
+  });
+
+  it("is not linear: half the loss is already mostly accent", () => {
+    // A street at half speed is a street people should see. A linear ramp
+    // would leave it half ink.
+    expect(jamTint(0.5)).toBeGreaterThan(0.6);
+  });
+
+  it("clamps what the ratio cannot be", () => {
+    expect(jamTint(-1)).toBe(0);
+    expect(jamTint(3)).toBe(1);
   });
 });

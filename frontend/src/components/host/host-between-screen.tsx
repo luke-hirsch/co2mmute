@@ -1,20 +1,23 @@
 import { useMemo, useState } from "react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Ballot } from "@/components/between/ballot";
 import { Button } from "@/components/ui/button";
 import { ConfirmAction } from "@/components/layout/confirm-action";
 import { Curtain } from "@/components/host/curtain";
 import { HostControls } from "@/components/host/host-controls";
 import { MapChangeCard } from "@/components/between/map-change-card";
+import { MapLayoutToggle } from "@/components/layout/map-layout-toggle";
 import { ReplayPlayer } from "@/components/replay/replay-player";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
 import { StatsPanel } from "@/components/between/stats-panel";
+import { VoteMap, VoteStage } from "@/components/between/vote-stage";
 import { de } from "@/lib/de";
 import { hostControlledSeats } from "@/lib/game/game-state";
 import { useDesk } from "@/hooks/use-desk";
+import { useMapLayout } from "@/hooks/use-map-layout";
 import { useGame } from "@/components/game/game-context";
 import { usePhase } from "@/hooks/use-phase";
+import { cn } from "@/lib/utils";
 
 /**
  * Between two rounds, at the desk.
@@ -178,6 +181,8 @@ function HostVote() {
   const { state } = useGame();
   const phase = usePhase();
   const desk = useDesk({ done: phase.voted, epoch: phase.epoch });
+  const [layout, setLayout] = useMapLayout();
+  const beside = layout === "beside";
 
   if (desk.mode === "curtain" && desk.openSeat) {
     return (
@@ -192,12 +197,14 @@ function HostVote() {
   if (desk.mode === "playing" && desk.openSeat && desk.openSeatId) {
     const seatId = desk.openSeatId;
     return (
-      <Screen>
+      <Screen wide={beside}>
         <ScreenHeading
           title={de.vote.title}
           lead={de.host.playingSeat(desk.openSeat.name)}
         />
-        <Ballot
+        <VoteStage
+          layout={layout}
+          onLayoutChange={setLayout}
           options={state.voteOptions}
           onPick={(versionId) => {
             phase.vote(seatId, versionId);
@@ -215,7 +222,7 @@ function HostVote() {
   }
 
   return (
-    <Screen>
+    <Screen wide={beside}>
       <ScreenHeading title={de.vote.title} lead={de.host.voteLead} />
 
       {phase.refused ? (
@@ -224,24 +231,43 @@ function HostVote() {
         </Alert>
       ) : null}
 
-      <SeatQueue
-        label={de.host.voteSeat}
-        seats={desk.seats.map((seat) => ({
-          id: seat.player_id,
-          name: seat.name,
-          done: phase.voted.has(seat.player_id),
-        }))}
-        onPick={desk.pick}
-        disabled={!!state.pausedAt}
-        emptyLine={de.host.waitingForPhones}
-        doneLine={de.host.votedSeats}
-      />
+      {/*
+        The projector shows the map the class is deciding about, with the
+        round they just played on it (S24). Beside is the person's choice.
+      */}
+      <div
+        className={cn(
+          beside && "lg:grid lg:grid-cols-2 lg:items-start lg:gap-12",
+        )}
+      >
+        <div className={cn("mb-10", beside && "lg:sticky lg:top-8 lg:mb-0")}>
+          <MapLayoutToggle layout={layout} onChange={setLayout} />
+          <div className="lg:mt-3">
+            <VoteMap />
+          </div>
+        </div>
+        <div>
+          <SeatQueue
+            label={de.host.voteSeat}
+            seats={desk.seats.map((seat) => ({
+              id: seat.player_id,
+              name: seat.name,
+              done: phase.voted.has(seat.player_id),
+            }))}
+            onPick={desk.pick}
+            disabled={!!state.pausedAt}
+            emptyLine={de.host.waitingForPhones}
+            doneLine={de.host.votedSeats}
+          />
 
-      {state.votes ? (
-        <p className="mt-10 font-mono text-sm tabular-nums text-muted-foreground">
-          {de.vote.progress(state.votes.cast, state.votes.needed)}
-        </p>
-      ) : null}
+          {state.votes ? (
+            <p className="mt-10 font-mono text-sm tabular-nums text-muted-foreground">
+              {de.vote.progress(state.votes.cast, state.votes.needed)}
+            </p>
+          ) : null}
+
+        </div>
+      </div>
 
       <p className="mt-6 max-w-(--measure-body) text-sm text-muted-foreground">
         {de.host.stuckHint}

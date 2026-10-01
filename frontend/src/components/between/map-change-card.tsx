@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { Button } from "@/components/ui/button";
 import { de } from "@/lib/de";
 import { cn } from "@/lib/utils";
 import type { VoteOption } from "@/lib/game/events";
@@ -13,19 +14,25 @@ import type { VoteOption } from "@/lib/game/events";
  * printing the English `rollback` badge the old screen did.
  *
  * `change_img_url` is a media path from `_get_delta_img_url`, and it is the part
- * that actually explains the change: a picture of the junction with the new bus
- * lane on it. It is optional — a version without one is normal — so the card has
- * to stand up without it. It is used as sent: the path is relative and the SPA
- * is served from the same origin as `/media`, under nginx and behind the vite
- * proxy alike, so prefixing it with an origin would only be a way to get it
- * wrong.
+ * that actually explains the change: the map with what it touches highlighted.
+ * It is optional — a version without one is normal — so the card stands up
+ * without it. Where the card is read-only (the discussion) the picture sits in
+ * the card, as it always did. On the ballot, since S24, the card is handed a
+ * toggle instead and the picture goes to the stage's map (`VoteStage`); **the
+ * toggle exists only when an image is stored.** It is used as sent: the path is
+ * relative and the SPA is served from the same origin as `/media`.
  */
 export function MapChangeCard({
   option,
+  changeShown = false,
+  onToggleChange,
   children,
   className,
 }: {
   option: VoteOption;
+  /** Whether the stage is showing this option's change picture right now. */
+  changeShown?: boolean;
+  onToggleChange?: () => void;
   /** The control that acts on this option, when there is one. */
   children?: ReactNode;
   className?: string;
@@ -46,13 +53,26 @@ export function MapChangeCard({
         ) : null}
       </div>
 
-      {option.change_img_url ? (
+      {option.change_img_url && !onToggleChange ? (
         <img
           src={option.change_img_url}
           alt=""
           loading="lazy"
           className="w-full rounded-md border border-border bg-subtle object-contain dark:bg-darksubtle"
         />
+      ) : null}
+
+      {option.change_img_url && onToggleChange ? (
+        <div>
+          <Button
+            variant="outline"
+            size="sm"
+            aria-pressed={changeShown}
+            onClick={onToggleChange}
+          >
+            {changeShown ? de.vote.hideChange : de.vote.showChange}
+          </Button>
+        </div>
       ) : null}
 
       <p className="max-w-(--measure-body) text-muted-foreground">
