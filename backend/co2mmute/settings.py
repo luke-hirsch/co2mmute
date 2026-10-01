@@ -276,6 +276,28 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+# Mail — only the password reset sends any. With no EMAIL_HOST the app cannot
+# send, and Django's own default (SMTP on localhost:25) turns "Passwort
+# vergessen?" into a 500 on a box with no mail daemon. So: a debug run prints
+# the mail to the console, anything else drops it, and the page reads the same
+# either way. The reset link is a credential, so it is never logged.
+EMAIL_HOST = os.environ.get("DJANGO_EMAIL_HOST", "")
+EMAIL_PORT = int(os.environ.get("DJANGO_EMAIL_PORT", "465"))
+EMAIL_HOST_USER = os.environ.get("DJANGO_EMAIL_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("DJANGO_EMAIL_PASSWORD", "")
+EMAIL_USE_TLS = os.environ.get("DJANGO_EMAIL_TLS", "False") == "True"
+EMAIL_USE_SSL = os.environ.get("DJANGO_EMAIL_SSL", "True") == "True"
+EMAIL_TIMEOUT = 10
+DEFAULT_FROM_EMAIL = os.environ.get("DJANGO_EMAIL_FROM", "co2mmute@localhost")
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+if EMAIL_HOST:
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+elif DEBUG:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.dummy.EmailBackend"
+
+
 # Where a login lands when nothing asked for somewhere else. Django's default
 # is /accounts/profile/, which since S13 is itself a redirect into the SPA —
 # so signing in was a two-hop chain. S22.

@@ -13,6 +13,15 @@ DJANGO_BASE_URL=
 DJANGO_DB_WAIT_TIMEOUT=
 DJANGO_SECRET_KEY=
 
+# Mail, for "Passwort vergessen?" only. Leave DJANGO_EMAIL_HOST empty and no
+# mail is sent (the page still answers the same). Port 587 + TLS by default.
+DJANGO_EMAIL_HOST=
+DJANGO_EMAIL_PORT=
+DJANGO_EMAIL_USER=
+DJANGO_EMAIL_PASSWORD=
+DJANGO_EMAIL_TLS=
+DJANGO_EMAIL_FROM=
+
 # Redis / Celery
 CELERY_BROKER_URL=
 CELERY_RESULT_BACKEND=
