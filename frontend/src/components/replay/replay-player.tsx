@@ -26,6 +26,7 @@ import {
   type ReplayCanvasHandle,
 } from "@/components/replay/replay-canvas";
 import { activityProfile } from "@/lib/replay/activity";
+import { dotScale, replayEndings } from "@/lib/replay/counts";
 import { buildStreetFill } from "@/lib/replay/street-fill";
 import { buildWarp } from "@/lib/replay/time-warp";
 import { cn } from "@/lib/utils";
@@ -175,19 +176,7 @@ function Stage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clock.finished]);
 
-  const endings = useMemo(() => {
-    let unfinished = 0;
-    let stranded = 0;
-    for (const dot of replay.dots) {
-      if (dot.line !== null) continue;
-      if (dot.end === "unfinished") unfinished += 1;
-      if (dot.end === "stranded") stranded += 1;
-    }
-    return {
-      unfinished: unfinished * replay.people_per_dot,
-      stranded: stranded * replay.people_per_dot,
-    };
-  }, [replay]);
+  const endings = useMemo(() => replayEndings(replay), [replay]);
 
   return (
     <section aria-label={de.replay.title} className="mb-12">
@@ -222,12 +211,13 @@ function Stage({
       <Legend />
 
       <p className="mt-4 max-w-(--measure-body) text-sm text-muted-foreground">
-        {de.replay.scale(de.replay.crowd(replay.people_per_dot))} {de.replay.hint}
+        {de.replay.scale(de.replay.crowd(dotScale(replay)))} {de.replay.hint}
       </p>
 
       {/* The beat: the morning has landed, and the card may only say everybody
-          made it when everybody did. `stranded` and `unfinished` are two different
-          sentences — never travelled at all versus still moving when the clock
+          made it when everybody did — counted by the simulator, not the sample
+          (`lib/replay/counts.ts`). `stranded` and `unfinished` are two different
+          sentences — never travelled at all versus not there yet when the clock
           stopped. */}
       {clock.beat ? (
         <div className="mt-8 max-w-(--measure-body) border-l-[3px] border-brandaccent pl-4">

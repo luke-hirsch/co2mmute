@@ -453,7 +453,7 @@ export const de = {
     skip: "Überspringen",
 
     /**
-     * One dot is fifty people, and the screen says so. Every other figure on
+     * One dot is about ten people (fifty until S25), and the screen says so. Every other figure on
      * these screens is class-scale and nothing names it; a dot is the one place
      * where the scale is attached to something you can point at.
      */
@@ -487,13 +487,15 @@ export const de = {
     /**
      * The beat at the end. Three sentences, because the three endings mean
      * different things and the first one may only appear when it is true:
-     * `arrived` got there, `unfinished` was still moving when the clock stopped,
-     * and `stranded` never travelled at all because the line's edges do not
-     * reach a stop its route asks for — a defect in the map, not a bad choice.
+     * `arrived` got there, `unfinished` was not there yet when the clock stopped
+     * — on the road, or still at the front door the street never let them out
+     * of, which is why it does not say "unterwegs" — and `stranded` never
+     * travelled at all because the line's edges do not reach a stop its route
+     * asks for — a defect in the map, not a bad choice.
      */
     beatArrived: "Alle sind angekommen.",
     beatUnfinished: (people: string) =>
-      `${people} Menschen waren noch unterwegs, als der Morgen vorbei war.`,
+      `${people} Menschen waren noch nicht angekommen, als der Morgen vorbei war.`,
     beatStranded: (people: string) =>
       `${people} Menschen kamen gar nicht los: die Linie fährt ihre Haltestelle ` +
       `nicht an. Das liegt an der Karte, nicht an der Wahl.`,

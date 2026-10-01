@@ -72,15 +72,21 @@ FALLBACK_TRAIN_INTERVAL_MIN = 10
 # Departure window: matches the ±60 min clamp in generate_departure_minutes()
 DEPARTURE_WINDOW_MIN = 120
 
-# One dot on the replay stands for this many people. 1000 people per agent
-# gives 20 dots per agent — enough life on a 90-edge map to read as traffic,
-# few enough to pick your own agent out of.
+# One dot on the replay stands for about this many people (S25, Lukas's pick
+# on measured consequences). It was 50, calibrated for 1000 people per agent:
+# at the derived ~100, a jam of fifty cars drew as one or two dots, and a third
+# of the jam moments on the shipped map showed one dot or none — "only one car
+# on the edge, but it still got slower". At 10 a jam is seven to twelve dots,
+# the shipped map carries ~640 person dots (WebKit holds 60 fps at twice that
+# on a desktop), and the recording is ~240 KiB, ~40 KiB as the view sends it.
+# What the screen names is the real ratio, which only equals this when it
+# divides the Gruppe — see _people_per_dot.
 #
 # The sample is taken by PERSON INDEX and never by a draw. A draw here would
 # come from self.rng and re-roll every later driver, which is the exact failure
 # that moved draw_driver_speed_factor out of _spawn_vehicles — and it would
 # move the round's result by far more than this recorder is worth.
-REPLAY_PEOPLE_PER_DOT = 50
+REPLAY_PEOPLE_PER_DOT = 10
 
 # Bumped when the wire format changes, so a stored replay from an older round
 # can be recognised and skipped rather than mis-drawn.
@@ -257,6 +263,12 @@ class TrafficSimulator:
         # Only sampled people and line vehicles are in here — see _trace.
         self.trace: dict[int, list[tuple[float, str, int | None, int | None]]] = {}
         self.trace_stride = max(1, REPLAY_PEOPLE_PER_DOT)
+
+        # Who did not get there, in PEOPLE, as _record_non_arrivals books them.
+        # The replay's closing sentence reads this rather than the sample: the
+        # people still at their front door when the clock stops never became
+        # vehicles, so no dot exists for any of them.
+        self.non_arrivals: dict[str, int] = {"unfinished": 0, "stranded": 0}
 
         # Load routes and initialize edges during construction
         self._load_routes()
@@ -1636,12 +1648,33 @@ class TrafficSimulator:
         dots.sort(key=lambda dot: dot["id"])
         return {
             "version": REPLAY_FORMAT_VERSION,
-            "people_per_dot": self.trace_stride,
+            "people_per_dot": self._people_per_dot(),
             "tick_duration_min": self.tick_duration_min,
             "window_min": DEPARTURE_WINDOW_MIN,
             "end_min": round(end_min, 2),
             "dots": dots,
+            # People, not dots. Added inside format 1: a recording without it
+            # is read the old way, from the sample.
+            "endings": dict(self.non_arrivals),
         }
+
+    def _people_per_dot(self) -> float:
+        """How many people one person-dot stands for, as actually sampled.
+
+        Each route samples index 0, stride, 2·stride, …, so a Gruppe of n is
+        ceil(n / stride) dots, and the stride is the ratio only when it divides
+        n: 205 people at 10 are 21 dots of 9.76. The screen prints this number
+        and multiplies a crowd at a stop by it, so it has to be the real one.
+        """
+        people = sampled = 0
+        for route_pk, schedule in self.departure_schedule.items():
+            if route_pk < 0:
+                continue
+            people += len(schedule)
+            sampled += -(-len(schedule) // self.trace_stride)
+        if not sampled:
+            return float(self.trace_stride)
+        return round(people / sampled, 2)
 
     def _free_flow_min(self, route_pk: int, speed_factor: float = 1.0) -> float:
         """The route's uncongested time — the baseline the delay is against.
@@ -1710,6 +1743,8 @@ class TrafficSimulator:
                 agent_results["delays"].append(delay)
                 agent_results["waits"].append(vehicle.wait_min)
                 agent_results["not_arrived"] += 1
+            ending = "stranded" if vehicle.stranded else "unfinished"
+            self.non_arrivals[ending] += vehicle.passenger_count
 
         for depart_min, route_pk, _person_index, _speed_factor in self.waiting:
             if depart_min > sim_end_min:
@@ -1726,6 +1761,8 @@ class TrafficSimulator:
             agent_results["delays"].append(delay)
             agent_results["waits"].append(0.0)
             agent_results["not_arrived"] += 1
+            # Still at the front door: no vehicle, so no dot. Only here.
+            self.non_arrivals["unfinished"] += 1
 
         for route_pk, results in self.agent_results.items():
             if results["not_arrived"]:

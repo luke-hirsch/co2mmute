@@ -6,6 +6,8 @@ from django.db.models import Avg, Count, F, Max, Q, Sum
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.views.decorators.gzip import gzip_page
 from maps.models import Edge
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
@@ -907,6 +909,7 @@ class RoundTrafficHeatmapView(GenericAPIView):
         )
 
 
+@method_decorator(gzip_page, name="dispatch")
 class RoundReplayView(GenericAPIView):
     """Everything needed to play one finished round back.
 
@@ -918,6 +921,11 @@ class RoundReplayView(GenericAPIView):
     Deliberately NOT the aggregate RoundTrafficHeatmapView serves — that one
     averages the time axis away, which is the whole reason it cannot show how a
     jam forms.
+
+    Compressed here, and only here, because nginx does not gzip and this is the
+    one payload big enough to matter: at ten people to a dot ~240 KiB of JSON,
+    ~40 KiB on the wire. Safe for this view because the body carries no secret
+    — BREACH needs one beside something the attacker controls.
     """
 
     authentication_classes = (SessionAuthentication,)
