@@ -95,11 +95,28 @@ export type ReplayDot = {
   end: ReplayEnd;
 };
 
+/**
+ * Who did not get there, in **people**, as the simulator booked them.
+ *
+ * `unfinished` includes the people still at their front door when the clock
+ * stopped, who have no dot; `stranded` is the map-data ending (see `ReplayEnd`).
+ */
+export type ReplayEndings = { unfinished: number; stranded: number };
+
 export type Replay = {
   /** `REPLAY_FORMAT_VERSION`. A payload from a newer format is not drawn. */
   version: number;
-  /** How many real people one dot stands for. Named on screen, under the map. */
+  /**
+   * How many real people one person-dot stands for, as sampled — about ten
+   * since S25 (fifty before), and a fraction when the stride does not divide a
+   * Gruppe. Printed rounded (`lib/replay/counts.ts:dotScale`).
+   */
   people_per_dot: number;
+  /**
+   * The simulator's own count of who did not arrive. Added inside format 1 in
+   * S25, so a recording from before has none and the sample answers instead.
+   */
+  endings?: ReplayEndings;
   tick_duration_min: number;
   window_min: number;
   /**

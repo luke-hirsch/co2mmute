@@ -131,13 +131,13 @@ Aufzeichnung zeigt einfach ihre Zahlen.
 | A-08 | Haltestelle                   | Gruppe wächst und schrumpft, Bus rollt mit und ohne Gruppen      | ungeprüft | -                |
 | A-09 | Gruppe im Bus               | wird nicht zusätzlich als eigener Punkt gezeichnet                 | ungeprüft | -                |
 | A-10 | Ende                          | hält ein paar Sekunden auf dem letzten Moment                      | geht      | -                |
-| A-11 | jemand ist nicht angekommen   | sagt es, statt „alle sind angekommen"                              | ungeprüft | -                |
+| A-11 | jemand ist nicht angekommen   | sagt es, statt „alle sind angekommen" — gezählt vom Simulator, auch wer noch vor der Haustür stand (S25). Auf der ausgelieferten Karte kommt es nicht vor | geht      | `counts.test.ts`, `test_simulation.py` |
 | A-12 | Runde ohne Aufzeichnung       | sagt es in einer Zeile, die Zahlen stehen trotzdem da              | ungeprüft | -                |
-| A-13 | ein Punkt sind 50 Menschen    | steht unter der Karte                                              | geht      | -                |
+| A-13 | ein Punkt sind 10 Menschen    | steht unter der Karte, als ganze Zahl (S25; vorher 50)             | geht      | `replay.spec.ts` |
 | A-14 | kein Punkt gehört jemandem    | alle Geräte sehen dieselbe Animation, niemand ist markiert         | geht      | -                |
 | A-15 | Leitstelle                      | zeigt dieselbe Animation, vor den Zahlen                           | geht      | `replay.spec.ts` |
 | A-16 | 390px und dunkel              | Karte lesbar, keine Querscrollbar                                  | geht      | -                |
-| A-17 | Bildrate                      | große Karte, sechs Plätze: läuft rund in WebKit                    | ungeprüft | -                |
+| A-17 | Bildrate                      | volle Karte, 6 400 Menschen: läuft rund in WebKit — 60 fps bei ~800 Punkten, auch bei ~1 450 (S25, Desktop; Telefon nicht gemessen) | geht      | -                |
 
 `A-08` bis `A-12` und `A-17` stehen offen, weil sie in dem Durchlauf nicht vorkamen: in der
 gefahrenen Runde ist **jeder angekommen**, also war nur die ehrliche Variante des Schlussbilds nicht

@@ -4071,8 +4071,20 @@ class ReplaySamplingTests(TestCase):
         ]
         self.assertEqual(len(followed), 200 // REPLAY_PEOPLE_PER_DOT)
 
+    def test_one_dot_is_ten_people(self):
+        """Lukas's pick in S25, on measured consequences.
+
+        At fifty, a jam of fifty cars drew as one or two dots, and a third of
+        the jam moments on the shipped map showed one dot or none — "only one
+        car on the edge, but it still got slower". At ten, a jam is seven to
+        twelve dots and practically never fewer than two.
+        """
+        from game.simulation import REPLAY_PEOPLE_PER_DOT
+
+        self.assertEqual(REPLAY_PEOPLE_PER_DOT, 10)
+
     def test_the_sample_is_taken_by_person_index(self):
-        simulator, route, _ = self._run(people=200)
+        simulator, route, _ = self._run(people=200, stride=50)
 
         indices = sorted(
             simulator.vehicles[vid].person_index
@@ -4081,6 +4093,29 @@ class ReplaySamplingTests(TestCase):
         )
 
         self.assertEqual(indices, [0, 50, 100, 150])
+
+    def test_the_label_is_the_real_ratio_when_a_gruppe_does_not_divide(self):
+        """205 people at a stride of 10 are 21 dots, not 20.5.
+
+        Index 0, 10, …, 200 are sampled, so each dot stands for 205 / 21 = 9.76
+        people. Writing the stride instead would overstate every crowd drawn
+        from the sample — at the old stride of fifty a class of fifteen had 106
+        people to a Gruppe, three dots each, and the screen said fifty where it
+        was thirty-five.
+        """
+        simulator, _, _ = self._run(people=205, stride=10)
+
+        replay = simulator.simulation_result.replay
+
+        self.assertEqual(replay["people_per_dot"], round(205 / 21, 2))
+
+    def test_a_gruppe_smaller_than_the_stride_is_one_dot_of_itself(self):
+        """Index 0 is always sampled, so seven people are one dot of seven."""
+        simulator, _, _ = self._run(people=7, stride=10)
+
+        replay = simulator.simulation_result.replay
+
+        self.assertEqual(replay["people_per_dot"], 7)
 
     def test_the_recorder_never_draws_from_the_rng(self):
         """Two strides, one seed: the generator must end in the same place.
@@ -4198,7 +4233,7 @@ class ReplayTraceTests(TestCase):
         _, replay, _, _ = self._run()
 
         self.assertEqual(replay["version"], REPLAY_FORMAT_VERSION)
-        self.assertEqual(replay["people_per_dot"], 50)
+        self.assertEqual(replay["people_per_dot"], 10)
         self.assertEqual(replay["window_min"], 120)
         self.assertGreater(replay["end_min"], 0)
         self.assertTrue(replay["dots"])
@@ -4242,6 +4277,32 @@ class ReplayTraceTests(TestCase):
         _, replay, _, _ = self._run()
 
         self.assertEqual({dot["end"] for dot in replay["dots"]}, {"arrived"})
+
+    def test_a_round_where_everybody_arrived_says_nobody_is_missing(self):
+        _, replay, _, _ = self._run()
+
+        self.assertEqual(replay.get("endings"), {"unfinished": 0, "stranded": 0})
+
+    def test_the_ending_counts_the_people_the_results_count(self):
+        """The beat reads the simulator's own count, not the sample.
+
+        The clock stops ten minutes after 2000 people wanted to leave down one
+        lane, so most of them are still at their front door. They never became
+        vehicles, so the sample has no dot for any of them — counting dots
+        would leave them out of exactly the round the sentence is for, and say
+        "Alle sind angekommen" if every sampled person had made it.
+        """
+        simulator, replay, route, _ = self._run(people=2000, lanes=1, max_ticks=14)
+
+        booked = simulator.agent_results[route.pk]["not_arrived"]
+        held = [w for w in simulator.waiting if w[1] == route.pk]
+        from_dots = sum(
+            1 for dot in replay["dots"] if dot["end"] == "unfinished"
+        ) * replay["people_per_dot"]
+
+        self.assertTrue(held)
+        self.assertEqual(replay.get("endings"), {"unfinished": booked, "stranded": 0})
+        self.assertLess(from_dots, booked)
 
     def test_the_door_queue_is_the_gap_before_the_first_leg(self):
         """The queue no instrument could see before `stau-sichtbar`.
@@ -4359,6 +4420,30 @@ class ReplayPTTraceTests(PTBoardingScenarioMixin, TestCase):
 
         self.assertIn("stranded", endings)
 
+    def test_the_stranded_count_is_people_not_dots(self):
+        """Every stranded person, sampled or not, and nobody counted twice."""
+        from game.tests._helpers import muted
+
+        game_round, route, _bus_line = self._broken_line_round()
+        simulator = TrafficSimulator(game_round, scale=100.0, seed=99)
+        with muted():
+            result = simulator.run_simulation(max_ticks=200)
+        result.refresh_from_db()
+
+        stranded = sum(
+            v.passenger_count
+            for v in simulator.vehicles.values()
+            if v.route_pk == route.pk and v.stranded
+        )
+        endings = result.replay.get("endings") or {}
+
+        self.assertGreater(stranded, 0)
+        self.assertEqual(endings.get("stranded"), stranded)
+        self.assertEqual(
+            endings.get("unfinished", 0) + endings.get("stranded", 0),
+            simulator.agent_results[route.pk]["not_arrived"],
+        )
+
 
 @override_settings(**TEST_BACKENDS)
 class ReplayEndpointTests(TestCase):
@@ -4415,6 +4500,35 @@ class ReplayEndpointTests(TestCase):
         self.assertEqual(payload["people_per_agent"], session.people_per_agent)
         self.assertTrue(payload["replay"]["dots"])
         self.assertTrue(payload["ticks"])
+
+    def test_the_recording_is_compressed_for_a_browser_that_accepts_it(self):
+        """The biggest payload in the game, over school wifi, and nginx does not gzip.
+
+        At ten people to a dot the shipped map's recording is ~240 KiB of JSON
+        and ~40 KiB compressed. Safe to compress because it carries no secret —
+        BREACH needs one in the same body as something the attacker controls.
+        """
+        import gzip
+        import json
+
+        session, _ = self._played_round()
+        self.client.force_login(self.user)
+
+        response = self.client.get(self._url(session), HTTP_ACCEPT_ENCODING="gzip")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get("Content-Encoding"), "gzip")
+        payload = json.loads(gzip.decompress(response.content))
+        self.assertTrue(payload["replay"]["dots"])
+
+    def test_a_client_that_does_not_ask_for_gzip_gets_plain_json(self):
+        session, _ = self._played_round()
+        self.client.force_login(self.user)
+
+        response = self.client.get(self._url(session))
+
+        self.assertIsNone(response.get("Content-Encoding"))
+        self.assertTrue(response.json()["replay"]["dots"])
 
     def test_somebody_with_no_access_is_refused(self):
         session, _ = self._played_round()
