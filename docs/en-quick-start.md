@@ -31,11 +31,27 @@ Now that you have an account you can create games. Super. Lets go through each f
 
 - seats: how many players you want to allow? It doesn't matter if local or over the internet, you can't have more players than this.
 - groups per person: the amount of groups the player have to manage.
--
+- people per group: the amount of people in one group.
+
+### Share A Session / Join A Session
+
+#### Local
+
+If yo want to play on one machine, you just need to add seats in the Lobby. You will take turns while playing and voting.
+Creating new seats up to the maximum of players is possible through out the complete game session. It is also possible to remove players. THis is also true for remote players.
 
 #### Remote
 
-#### Local
+Joining a session from a different device can be done by
+
+1. scanning the qr code
+2. typing in the session id on the join page / landingpage
+
+If the host has set a password, you will need to type that in.
+
+#### Switch from local to remote or vice versa
+
+The host can pull seats to the host device at any time. This can come in handy, if a session was lost on a players device. The host can also transfer seats to a new device. In other words, the host can park your session on their account and return it to you any given time during the game.
 
 ### Controlling The Lobby
 

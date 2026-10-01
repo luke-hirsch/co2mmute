@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { CreateGameScreen } from "@/components/host/create-game-screen";
+import { RequireLogin } from "@/components/host/require-login";
 
 /**
  * `/app/game/create` — Spiel anlegen. S13.
@@ -13,6 +14,14 @@ import { CreateGameScreen } from "@/components/host/create-game-screen";
  * landing page, the footer, the profile page and the end-of-game screen
  * pointing at one screen rather than two.
  */
+function CreateGameRoute() {
+  return (
+    <RequireLogin>
+      <CreateGameScreen />
+    </RequireLogin>
+  );
+}
+
 export const Route = createFileRoute("/game/create")({
-  component: CreateGameScreen,
+  component: CreateGameRoute,
 });
