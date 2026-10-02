@@ -17,6 +17,11 @@ import { cn } from "@/lib/utils";
  * not a licence — the rhythm and the gutter still apply, and body text on such
  * a screen still caps itself with `max-w-(--measure-body)`.
  *
+ * `full` drops the cap and keeps only the gutter. It is for the game screens
+ * with the map beside the list (F3): they have no header to line up with, and on
+ * a 1920px projector the half of a `wide` screen left the map a third of the
+ * room's width. The rhythm and the text measure hold there too.
+ *
  * The gutter is the header's, `px-4 sm:px-6 lg:px-8`, so a `wide` screen lines
  * up with it exactly. On its own a screen fills the viewport; under the header
  * and footer (`data-chrome`, set in `__root.tsx`) it fills the space between
@@ -26,11 +31,13 @@ export function Screen({
   children,
   narrow = false,
   wide = false,
+  full = false,
   className,
 }: {
   children: ReactNode;
   narrow?: boolean;
   wide?: boolean;
+  full?: boolean;
   className?: string;
 }) {
   return (
@@ -43,7 +50,13 @@ export function Screen({
       <div
         className={cn(
           "mx-auto w-full",
-          narrow ? "max-w-xl" : wide ? "max-w-7xl" : "max-w-5xl",
+          narrow
+            ? "max-w-xl"
+            : full
+              ? "max-w-none"
+              : wide
+                ? "max-w-7xl"
+                : "max-w-5xl",
         )}
       >
         {children}

@@ -45,6 +45,22 @@ export const mapKeys = {
 export type TrafficFor = { gameId: string; roundNumber: number };
 
 /**
+ * The traffic for a screen shown *after* a round has been played — the vote and
+ * the discussion — named by the round that comes next.
+ *
+ * Named by the round just played, the key is the one that round's own screen
+ * filled while it was still running, so `staleTime: Infinity` hands back the
+ * response from before it finished: the round before's speeds, and after round 1
+ * none at all. That is how the vote's map lost its jams (F3) while the host's,
+ * which has no round screen to fill the cache, kept them. Named by the next
+ * round, it is exactly what that round's screen will ask for, so the class
+ * routes on the picture it voted over.
+ */
+export function trafficAfter(gameId: string, playedRound: number): TrafficFor {
+  return { gameId, roundNumber: playedRound + 1 };
+}
+
+/**
  * @param traffic The game and round whose observed car speeds to attach.
  *
  * `previous_round_traffic` is the join between two halves that were built years

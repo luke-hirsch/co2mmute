@@ -1,23 +1,23 @@
 import { useMemo, useState } from "react";
+import { ChevronDown } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ConfirmAction } from "@/components/layout/confirm-action";
 import { Curtain } from "@/components/host/curtain";
 import { HostControls } from "@/components/host/host-controls";
-import { MapChangeCard } from "@/components/between/map-change-card";
-import { MapLayoutToggle } from "@/components/layout/map-layout-toggle";
+import { DiscussionStage } from "@/components/between/discussion-screen";
 import { ReplayPlayer } from "@/components/replay/replay-player";
+import { SeatAdminList } from "@/components/host/seat-admin-list";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
 import { StatsPanel } from "@/components/between/stats-panel";
-import { VoteMap, VoteStage } from "@/components/between/vote-stage";
+import { MapStage, VoteMap, VoteStage } from "@/components/between/vote-stage";
 import { de } from "@/lib/de";
 import { hostControlledSeats } from "@/lib/game/game-state";
 import { useDesk } from "@/hooks/use-desk";
 import { useMapLayout } from "@/hooks/use-map-layout";
 import { useGame } from "@/components/game/game-context";
 import { usePhase } from "@/hooks/use-phase";
-import { cn } from "@/lib/utils";
 
 /**
  * Between two rounds, at the desk.
@@ -111,9 +111,7 @@ function HostStats() {
             {de.host.ackAll}
           </Button>
         )}
-        <p className="mt-6 max-w-(--measure-body) text-sm text-muted-foreground">
-          {de.host.stuckHint}
-        </p>
+        <StuckSeats />
       </div>
 
       <div className="mt-12">
@@ -127,25 +125,16 @@ function HostStats() {
 function HostDiscussion() {
   const { state } = useGame();
   const phase = usePhase();
+  const [layout, setLayout] = useMapLayout();
 
   return (
-    <Screen>
+    <Screen full={layout === "beside"}>
       <ScreenHeading
         title={de.between.discussionTitle}
         lead={de.between.discussionLead}
       />
 
-      {state.voteOptions.length === 0 ? (
-        <p className="max-w-(--measure-body) text-muted-foreground">
-          {de.between.noOptions}
-        </p>
-      ) : (
-        <div className="grid gap-10 sm:grid-cols-2">
-          {state.voteOptions.map((option) => (
-            <MapChangeCard key={option.id} option={option} />
-          ))}
-        </div>
-      )}
+      <DiscussionStage layout={layout} onLayoutChange={setLayout} />
 
       <div className="mt-12">
         <Button
@@ -197,7 +186,7 @@ function HostVote() {
   if (desk.mode === "playing" && desk.openSeat && desk.openSeatId) {
     const seatId = desk.openSeatId;
     return (
-      <Screen wide={beside}>
+      <Screen full={beside}>
         <ScreenHeading
           title={de.vote.title}
           lead={de.host.playingSeat(desk.openSeat.name)}
@@ -222,7 +211,7 @@ function HostVote() {
   }
 
   return (
-    <Screen wide={beside}>
+    <Screen full={beside}>
       <ScreenHeading title={de.vote.title} lead={de.host.voteLead} />
 
       {phase.refused ? (
@@ -235,43 +224,33 @@ function HostVote() {
         The projector shows the map the class is deciding about, with the
         round they just played on it (S24). Beside is the person's choice.
       */}
-      <div
-        className={cn(
-          beside && "lg:grid lg:grid-cols-2 lg:items-start lg:gap-12",
-        )}
-      >
-        <div className={cn("mb-10", beside && "lg:sticky lg:top-8 lg:mb-0")}>
-          <MapLayoutToggle layout={layout} onChange={setLayout} />
-          <div className="lg:mt-3">
-            <VoteMap />
-          </div>
-        </div>
-        <div>
-          <SeatQueue
-            label={de.host.voteSeat}
-            seats={desk.seats.map((seat) => ({
-              id: seat.player_id,
-              name: seat.name,
-              done: phase.voted.has(seat.player_id),
-            }))}
-            onPick={desk.pick}
-            disabled={!!state.pausedAt}
-            emptyLine={de.host.waitingForPhones}
-            doneLine={de.host.votedSeats}
-          />
+      <MapStage layout={layout} onLayoutChange={setLayout} map={<VoteMap />}>
+        {desk.seats.length > 0 ? (
+          <p className="mb-6 max-w-(--measure-body) text-muted-foreground">
+            {de.host.deskVoteLead}
+          </p>
+        ) : null}
+        <SeatQueue
+          label={de.host.voteSeat}
+          seats={desk.seats.map((seat) => ({
+            id: seat.player_id,
+            name: seat.name,
+            done: phase.voted.has(seat.player_id),
+          }))}
+          onPick={desk.pick}
+          disabled={!!state.pausedAt}
+          emptyLine={de.host.waitingForPhones}
+          doneLine={de.host.votedSeats}
+        />
 
-          {state.votes ? (
-            <p className="mt-10 font-mono text-sm tabular-nums text-muted-foreground">
-              {de.vote.progress(state.votes.cast, state.votes.needed)}
-            </p>
-          ) : null}
+        {state.votes ? (
+          <p className="mt-10 font-mono text-sm tabular-nums text-muted-foreground">
+            {de.vote.progress(state.votes.cast, state.votes.needed)}
+          </p>
+        ) : null}
+      </MapStage>
 
-        </div>
-      </div>
-
-      <p className="mt-6 max-w-(--measure-body) text-sm text-muted-foreground">
-        {de.host.stuckHint}
-      </p>
+      <StuckSeats />
 
       <div className="mt-12">
         <HostControls />
@@ -368,10 +347,49 @@ function HostTie() {
         />
       </div>
 
+      <StuckSeats />
+
       <div className="mt-12">
         <HostControls />
       </div>
     </Screen>
+  );
+}
+
+/**
+ * The way out when a phase hangs on somebody who has gone (F3).
+ *
+ * The hint used to stand here alone, telling the host to remove the seat, with
+ * nothing on any between-round screen that could: the only list was the queue
+ * of seats at this machine, and it has no remove. The backend has allowed it all
+ * along — `remove_seat` runs `phases.recheck` and the phase completes without
+ * the seat — so this is the roster's own list, the one the lobby and the desk
+ * show, behind a disclosure: it is the exception, and every seat with a remove
+ * button on it is not what the projector should show while the class votes.
+ * Whether a seat is still connected is on each row, which is the nearest thing
+ * to "who is missing" the host can see (no event names who has answered).
+ */
+function StuckSeats() {
+  const { state } = useGame();
+
+  return (
+    <div className="mt-6">
+      <p className="max-w-(--measure-body) text-sm text-muted-foreground">
+        {de.host.stuckHint}
+      </p>
+      <details className="group mt-3">
+        <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-md text-sm font-medium [&::-webkit-details-marker]:hidden">
+          {de.host.stuckSeats}
+          <ChevronDown
+            aria-hidden="true"
+            className="size-4 text-muted-foreground transition-transform group-open:rotate-180"
+          />
+        </summary>
+        <div className="mt-4">
+          <SeatAdminList gameId={state.gameId} seats={state.seats} />
+        </div>
+      </details>
+    </div>
   );
 }
 

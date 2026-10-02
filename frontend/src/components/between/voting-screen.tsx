@@ -28,7 +28,7 @@ export function VotingScreen() {
   const [layout, setLayout] = useMapLayout();
 
   return (
-    <Screen wide={layout === "beside" && !voted}>
+    <Screen full={layout === "beside" && !voted}>
       <ScreenHeading title={de.vote.title} lead={de.vote.lead} />
 
       {phase.refused ? (

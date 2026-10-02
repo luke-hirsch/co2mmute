@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { mapKeys } from "@/lib/queries/map-graph";
+import { mapKeys, trafficAfter } from "@/lib/queries/map-graph";
 
 /**
  * The graph's cache key.
@@ -41,5 +41,21 @@ describe("the graph cache key", () => {
     // They pass no game, so they share one cached graph per version however many
     // games are running on it.
     expect(mapKeys.graph(1, 7)).toEqual(mapKeys.graph(1, 7, null));
+  });
+});
+
+describe("the traffic for the screens between two rounds", () => {
+  it("is what the next round's screen asks for", () => {
+    expect(mapKeys.graph(1, 7, trafficAfter("aaa", 1))).toEqual(
+      mapKeys.graph(1, 7, { gameId: "aaa", roundNumber: 2 }),
+    );
+  });
+
+  it("is not what the round just played asked for while it ran", () => {
+    // That entry was filled before the round finished: it holds the round
+    // before's speeds, and after round 1 none at all.
+    expect(mapKeys.graph(1, 7, trafficAfter("aaa", 1))).not.toEqual(
+      mapKeys.graph(1, 7, { gameId: "aaa", roundNumber: 1 }),
+    );
   });
 });

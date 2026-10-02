@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import GameMapViewer from "@/components/game/GameMapViewer";
 import { Ballot } from "@/components/between/ballot";
@@ -41,11 +41,39 @@ export function VoteMap({ changeImage }: { changeImage?: VoteOption | null }) {
 }
 
 /**
- * The map and the choices, in the layout the person at the screen picked.
+ * A map and what the class is deciding about, in the layout the person at the
+ * screen picked — the discussion, the ballot and the host's vote overview.
  *
  * The layout belongs to the caller because the page width does: a `Screen` has to
- * go `wide` for the half-and-half, and only the screen can say so.
+ * go `full` for the half-and-half, and only the screen can say so.
  */
+export function MapStage({
+  layout,
+  onLayoutChange,
+  map,
+  children,
+}: {
+  layout: MapLayout;
+  onLayoutChange: (layout: MapLayout) => void;
+  map: ReactNode;
+  children: ReactNode;
+}) {
+  const beside = layout === "beside";
+
+  return (
+    <div
+      className={cn(beside && "lg:grid lg:grid-cols-2 lg:items-start lg:gap-12")}
+    >
+      <div className={cn("mb-10", beside && "lg:sticky lg:top-8 lg:mb-0")}>
+        <MapLayoutToggle layout={layout} onChange={onLayoutChange} />
+        <div className="lg:mt-3">{map}</div>
+      </div>
+      <div>{children}</div>
+    </div>
+  );
+}
+
+/** The map and the ballot. */
 export function VoteStage({
   layout,
   onLayoutChange,
@@ -60,31 +88,26 @@ export function VoteStage({
   disabled?: boolean;
 }) {
   const [changeShownId, setChangeShownId] = useState<number | null>(null);
-  const beside = layout === "beside";
   // Looked up rather than trusted: a ballot that is redrawn after a tie may no
   // longer hold the option that was toggled.
   const shown = options.find((option) => option.id === changeShownId) ?? null;
 
   return (
-    <div
-      className={cn(beside && "lg:grid lg:grid-cols-2 lg:items-start lg:gap-12")}
+    <MapStage
+      layout={layout}
+      onLayoutChange={onLayoutChange}
+      map={<VoteMap changeImage={shown} />}
     >
-      <div className={cn("mb-10", beside && "lg:sticky lg:top-8 lg:mb-0")}>
-        <MapLayoutToggle layout={layout} onChange={onLayoutChange} />
-        <div className="lg:mt-3">
-          <VoteMap changeImage={shown} />
-        </div>
-      </div>
       <Ballot
         options={options}
         onPick={onPick}
         disabled={disabled}
-        stacked={beside}
+        stacked={layout === "beside"}
         changeShownId={shown?.id ?? null}
         onToggleChange={(id) =>
           setChangeShownId((current) => (current === id ? null : id))
         }
       />
-    </div>
+    </MapStage>
   );
 }

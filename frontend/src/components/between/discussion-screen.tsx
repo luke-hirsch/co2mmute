@@ -1,8 +1,12 @@
 import { MapChangeCard } from "@/components/between/map-change-card";
+import { MapStage, VoteMap } from "@/components/between/vote-stage";
 import { NumbersExplainerPanel } from "@/components/numbers/numbers-explainer";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
 import { de } from "@/lib/de";
+import { cn } from "@/lib/utils";
 import { useGame } from "@/components/game/game-context";
+import { useMapLayout } from "@/hooks/use-map-layout";
+import type { MapLayout } from "@/lib/game/map-layout";
 
 /**
  * The options, before anybody votes (Z-04).
@@ -23,26 +27,16 @@ import { useGame } from "@/components/game/game-context";
  * them a conclusion; here it hands them the question.
  */
 export function DiscussionScreen() {
-  const { state } = useGame();
+  const [layout, setLayout] = useMapLayout();
 
   return (
-    <Screen>
+    <Screen full={layout === "beside"}>
       <ScreenHeading
         title={de.between.discussionTitle}
         lead={de.between.discussionLead}
       />
 
-      {state.voteOptions.length === 0 ? (
-        <p className="max-w-(--measure-body) text-muted-foreground">
-          {de.between.noOptions}
-        </p>
-      ) : (
-        <div className="grid gap-10 sm:grid-cols-2">
-          {state.voteOptions.map((option) => (
-            <MapChangeCard key={option.id} option={option} />
-          ))}
-        </div>
-      )}
+      <DiscussionStage layout={layout} onLayoutChange={setLayout} />
 
       <p className="mt-12 text-muted-foreground">
         {de.between.discussionWaiting}
@@ -50,5 +44,44 @@ export function DiscussionScreen() {
 
       <NumbersExplainerPanel className="mt-16 border-t border-border pt-8" />
     </Screen>
+  );
+}
+
+/**
+ * The map with the round just played on it, and the options beside or under it
+ * (F3) — for the phone and, in `host-between-screen.tsx`, for the projector.
+ *
+ * The map is the same one the ballot shows, so the class argues over the picture
+ * it will vote on. The cards keep their change pictures inline: here nothing is
+ * picked, so there is no toggle to hang them on.
+ */
+export function DiscussionStage({
+  layout,
+  onLayoutChange,
+}: {
+  layout: MapLayout;
+  onLayoutChange: (layout: MapLayout) => void;
+}) {
+  const { state } = useGame();
+
+  return (
+    <MapStage layout={layout} onLayoutChange={onLayoutChange} map={<VoteMap />}>
+      {state.voteOptions.length === 0 ? (
+        <p className="max-w-(--measure-body) text-muted-foreground">
+          {de.between.noOptions}
+        </p>
+      ) : (
+        <div
+          className={cn(
+            "grid gap-10 sm:grid-cols-2",
+            layout === "beside" && "lg:grid-cols-1",
+          )}
+        >
+          {state.voteOptions.map((option) => (
+            <MapChangeCard key={option.id} option={option} />
+          ))}
+        </div>
+      )}
+    </MapStage>
   );
 }
