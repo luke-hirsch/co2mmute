@@ -531,3 +531,12 @@ class CalibratedModelDefaultsTests(TestCase):
         field = TrainMobility._meta.get_field("base_emissions_g_per_km")
 
         self.assertEqual(field.default, TRAIN_EMISSIONS_G_PER_VEHICLE_KM)
+
+    def test_the_legacy_bike_mobility_row_agrees_with_the_engine(self):
+        """Same row, same reason: it said 0,08 €/km while the engine said 0."""
+        from game.models import BikeMobility
+        from sim.constants import BIKE_COST_PER_KM
+
+        field = BikeMobility._meta.get_field("cost_per_km")
+
+        self.assertEqual(field.default, BIKE_COST_PER_KM)

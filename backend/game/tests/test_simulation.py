@@ -2807,6 +2807,37 @@ class PTFareAndOutOfPocketTests(PTScenarioMixin, TestCase):
 
         result = AgentSimulationResult.objects.get(agent_route=route)
         self.assertAlmostEqual(result.mean_paid_eur, 0.0, places=6)
+        self.assertAlmostEqual(result.mean_cost_eur, 0.0, places=6)
+
+    def test_the_bike_costs_three_cents_a_kilometre(self):
+        """Lukas's figure, 2026-10-02: what a rider pays for upkeep."""
+        from sim.constants import BIKE_COST_PER_KM
+
+        self.assertEqual(BIKE_COST_PER_KM, 0.03)
+
+    def test_a_cyclist_pays_what_the_ride_costs(self):
+        """F12: the bike was free, which priced it wrong rather than cheap.
+
+        Wear, repairs, depreciation and theft are all the rider's own, so the
+        two columns agree — and both scale with the kilometres, not the trip.
+        Two 1 km links make 2 km.
+        """
+        from game.models import AgentSimulationResult
+        from sim.constants import BIKE_COST_PER_KM
+
+        game_map, version, edges, _, _ = self._pt_map()
+        session = self._pt_session(game_map, version, people=10)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+        anna = Player.objects.create(name="Anna", game=session)
+        route = _route(game_round, anna, edges, mode="bike", agent_id=1)
+
+        simulator = self._run(game_round)
+
+        result = AgentSimulationResult.objects.get(agent_route=route)
+        self.assertAlmostEqual(result.mean_cost_eur, 2 * BIKE_COST_PER_KM, places=6)
+        self.assertAlmostEqual(result.mean_paid_eur, 2 * BIKE_COST_PER_KM, places=6)
+        self.assertAlmostEqual(result.total_co2_g, 0.0, places=6)
+        self.assertIn("€0.030/person", simulator.sim_log.get_text())
 
 
 # ---------------------------------------------------------------------------

@@ -356,7 +356,9 @@ class BikeMobility(models.Model):
     session_round = models.ForeignKey(GameRound, on_delete=models.CASCADE)
 
     emissions_g_per_km = models.FloatField(default=18.0)  # g CO2e / passenger-km
-    cost_per_km = models.FloatField(default=0.08)  # € / passenger-km
+    # Kept in step with sim.constants.BIKE_COST_PER_KM, for the reason given
+    # on TrainMobility: nothing reads this row.
+    cost_per_km = models.FloatField(default=0.03)  # € / passenger-km
 
 
 class WalkingMobility(models.Model):

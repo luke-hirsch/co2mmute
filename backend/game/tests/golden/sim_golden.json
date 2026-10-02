@@ -2,7 +2,7 @@
   "total": {
     "status": "completed",
     "total_co2_g": 308315.593011,
-    "total_cost_eur": 515.165708
+    "total_cost_eur": 535.736271
   },
   "agents": [
     {
@@ -30,7 +30,7 @@
       "mode": "bike",
       "mean_trip_time_min": 5.142641,
       "mean_return_time_min": 0.0,
-      "mean_cost_eur": 0.0,
+      "mean_cost_eur": 0.051426,
       "total_co2_g": 0.0,
       "congestion_delay_min": 0.0,
       "wait_time_min": 0.0

@@ -26,6 +26,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from sim.constants import (
+    BIKE_COST_PER_KM,
     BIKE_PCU,
     BUS_PCU,
     CAR_EMISSIONS_G_PER_KM,
@@ -2299,6 +2300,11 @@ class LinkQueueEngine:
                         f"({line.vehicles} veh × {line.line_km:.2f}km), "
                         f"{seg_person_km:.0f} of {line.person_km:.0f} Personen-km"
                     )
+                elif seg.mode == "bike":
+                    self.sim_log.write(
+                        f"    seg {seg.order} ({seg.mode}): {es.distance_m:.0f}m → 0g "
+                        f"(zero emission, €{BIKE_COST_PER_KM * dist_km:.3f}/person)"
+                    )
                 else:
                     self.sim_log.write(
                         f"    seg {seg.order} ({seg.mode}): {es.distance_m:.0f}m → 0g (zero emission)"
@@ -2376,7 +2382,9 @@ class LinkQueueEngine:
           weighted by the person-kilometres it contributes. Not divided by
           capacity: a timetable does not get cleaner because the seats are
           empty.
-        - Bike/walk: nothing.
+        - Bike: BIKE_COST_PER_KM, flat, in both cost and paid — the rider
+          carries all of it. No CO2.
+        - Walk: nothing.
 
         The car side accumulates per person and multiplies once at the end,
         the way it always did. That is not a style choice — reordering it
@@ -2412,6 +2420,11 @@ class LinkQueueEngine:
                 per_person_co2 += car_emissions_g_per_km(speed_kmh) * distance_km
                 per_person_cost += car_cost_eur_per_km(speed_kmh) * distance_km
                 per_person_paid += car_out_of_pocket_eur_per_km(speed_kmh) * distance_km
+                continue
+
+            if seg.mode == "bike":
+                per_person_cost += BIKE_COST_PER_KM * distance_km
+                per_person_paid += BIKE_COST_PER_KM * distance_km
                 continue
 
         # PT: this route's realised share of each line it actually rode.
