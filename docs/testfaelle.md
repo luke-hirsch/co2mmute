@@ -119,6 +119,9 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | R-23 | Hin- und Rückweg pro Gruppe                                    | unter der gefundenen Route steht „zurück x min“; abgeschickt werden beide Wege, der Rückweg mit demselben Verkehrsmittel gesucht | geht      | `round-draft.spec.ts`     |
 | R-24 | Ziel erreichbar, aber kein Weg zurück (Einbahnstraße)          | „Die Gruppe kommt hin, aber nicht wieder nach Hause.“, kein Neu-Versuch, Losfahren bleibt gesperrt                         | ungeprüft | -                         |
 | R-25 | Runde ohne Rückweg abschicken (direkt an der API)              | 400, `return_route` fehlt; ein Rückweg, der nicht am Zuhause endet oder gegen eine Einbahnstraße fährt, wird abgelehnt     | geht      | -                         |
+| R-26 | Route suchen lassen                                            | erst wird die Suche gezeigt, in der Primärfarbe; die Route erscheint, wenn sie fertig ist, nicht vorher (F3)                 | geht      | `s24-spielbildschirme.spec.ts` |
+| R-27 | sehr kurzer Weg                                                | die Suche ist trotzdem zu sehen, mindestens eine gute halbe Sekunde (F3)                                                     | geht      | `search-trace.test.ts`    |
+| R-28 | Zuhause und Ziel auf dem Handy                                 | kleiner als bisher, decken die Straßen daneben nicht zu, sind aber noch zu finden (F3, 390px)                                | geht      | -                         |
 
 ## A — die animation
 
@@ -145,6 +148,7 @@ Aufzeichnung zeigt einfach ihre Zahlen.
 | A-15 | Leitstelle                      | zeigt dieselbe Animation, vor den Zahlen                           | geht      | `replay.spec.ts` |
 | A-16 | 390px und dunkel              | Karte lesbar, keine Querscrollbar                                  | geht      | -                |
 | A-17 | Bildrate                      | volle Karte, 6 400 Menschen: läuft rund in WebKit — 60 fps bei ~800 Punkten, auch bei ~1 450 (S25, Desktop; Telefon nicht gemessen) | geht      | -                |
+| A-18 | zwei Minuten                  | Hin- und Rückweg, 6 400 Menschen: 120,0 s Wandzeit für 120 s Wiedergabe, 60 fps, auch bei 390px (F3, WebKit Desktop; Telefon nicht gemessen) | geht      | -                |
 
 `A-08` bis `A-12` und `A-17` stehen offen, weil sie in dem Durchlauf nicht vorkamen: in der
 gefahrenen Runde ist **jeder angekommen**, also war nur die ehrliche Variante des Schlussbilds nicht
