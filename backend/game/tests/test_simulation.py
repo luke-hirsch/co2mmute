@@ -3832,7 +3832,7 @@ class DriverSpeedIsDrawnOncePerPersonTests(TestCase):
 
         simulator = TrafficSimulator(game_round, scale=100.0, seed=2026)
         with mock.patch(
-            "game.simulation.draw_driver_speed_factor",
+            "sim.linkqueue.draw_driver_speed_factor",
             side_effect=draw_driver_speed_factor,
         ) as draws:
             with muted():
@@ -5225,7 +5225,7 @@ class EverybodyGetsHomeTests(TestCase):
         """The guard is not a game rule. Hitting it means the model is broken."""
         simulator = TrafficSimulator(self.game_round, scale=100.0, seed=11)
         # assertLogs takes the logger over, so the expected noise stays in it.
-        with self.assertLogs("game.simulation", "ERROR") as log:
+        with self.assertLogs("sim.linkqueue", "ERROR") as log:
             simulator.run_simulation(max_ticks=50)
 
         self.assertTrue(
