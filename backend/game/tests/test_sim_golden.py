@@ -18,11 +18,24 @@ pipeline end to end rather than one mechanism at a time.
 
 import json
 import os
+import re
 from pathlib import Path
 
 from django.contrib.auth.models import User
 from django.test import TestCase
-from maps.models import Edge, GameMap, MapVersion, Node, StreetEdge
+from maps.models import (
+    BusLine,
+    BusLineEdge,
+    Edge,
+    GameMap,
+    MapVersion,
+    Node,
+    StreetEdge,
+    StreetPerRound,
+    TrainEdge,
+    TrainLine,
+    TrainLineEdge,
+)
 
 from game.models import (
     AgentRoute,
@@ -227,3 +240,353 @@ class GoldenMasterTests(TestCase):
             any(a["congestion_delay_min"] > 0 for a in cars),
             f"nothing queued: {cars}",
         )
+
+
+GOLDEN_PT_PATH = Path(__file__).parent / "golden" / "sim_golden_pt.json"
+GOLDEN_PT_SEED = 20261002
+
+
+class PublicTransportGoldenMasterTests(TestCase):
+    """The same net over public transport, both ways, before the engine moves.
+
+    The first golden master's scenario is car / car / bike / walk, so no
+    change to a timetable, to boarding or to the way home could ever turn it
+    red. This one rides a bus in mixed traffic and on a bus lane, two trains,
+    a transfer from one to the other, and a way home on lines of its own —
+    with seats few enough that people are refused at a stop and the timetable
+    runs past its base.
+
+    It pins more than the first: the network's own CO2 and cost, what people
+    paid, the street speeds the next round routes on, the replay the screen
+    draws and the log the host downloads. All of them move with the engine.
+    Every id in the dump is a name, because primary keys climb through the
+    suite and a run alone would not match a run in the whole of it.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="golden-pt", password="12345")
+
+    # --- the scenario -------------------------------------------------
+
+    def _node(self, name, x):
+        node = Node.objects.create(
+            game_map=self.game_map, name=name, x_position=x, y_position=0
+        )
+        node.map_versions.add(self.version)
+        self.names[("node", node.pk)] = name
+        return node
+
+    def _street(self, start, end, lanes=1, speed_limit=50, bus_lane=False):
+        edge = Edge.objects.create(
+            game_map=self.game_map, start_node=start, end_node=end, max_lanes=lanes
+        )
+        edge.map_versions.add(self.version)
+        StreetEdge.objects.create(
+            edge=edge,
+            speed_limit=speed_limit,
+            lanes=lanes,
+            dedicated_bus_lane=bus_lane,
+        ).map_versions.add(self.version)
+        self.names[("edge", edge.pk)] = f"{start.name}>{end.name}"
+        return edge
+
+    def _rail(self, start, end):
+        edge = Edge.objects.create(
+            game_map=self.game_map, start_node=start, end_node=end
+        )
+        edge.map_versions.add(self.version)
+        TrainEdge.objects.create(edge=edge).map_versions.add(self.version)
+        self.names[("edge", edge.pk)] = f"{start.name}={end.name}"
+        return edge
+
+    def _bus(self, name, edges, capacity):
+        line = BusLine.objects.create(
+            game_map=self.game_map, name=name, intervall=10, bus_capacity=capacity
+        )
+        line.map_versions.add(self.version)
+        for order, edge in enumerate(edges):
+            BusLineEdge.objects.create(
+                bus_line=line, street_edge=edge.streetedge_set.first(), order=order
+            ).map_versions.add(self.version)
+        return line
+
+    def _train(self, name, edges, capacity):
+        line = TrainLine.objects.create(
+            game_map=self.game_map, name=name, intervall=15, train_capacity=capacity
+        )
+        line.map_versions.add(self.version)
+        for order, edge in enumerate(edges):
+            TrainLineEdge.objects.create(
+                train_line=line, train_edge=edge.trainedge_set.first(), order=order
+            ).map_versions.add(self.version)
+        return line
+
+    def _scenario(self):
+        """A corridor west to east, five stops, streets both ways and rail.
+
+        Cars share one lane with the bus everywhere but b–c, where the bus
+        has a lane of its own. M1 runs east and M2 west on the streets; S1
+        east and S2 west on the rail, which stops only at b. Rosa changes
+        from the bus to the train at b, both ways.
+        """
+        self.names = {}
+        self.game_map = GameMap.objects.create(
+            name="Golden PT", x_dim=1000, y_dim=1000, scale=100.0
+        )
+        self.version = MapVersion.objects.create(
+            game_map=self.game_map, name="Base", base_version=True
+        )
+        w, a, b, c, e = (
+            self._node(name, x)
+            for name, x in (("w", 0), ("a", 6), ("b", 12), ("c", 18), ("e", 24))
+        )
+
+        east = [
+            self._street(w, a),
+            self._street(a, b, lanes=2),
+            self._street(b, c, lanes=2, bus_lane=True),
+            self._street(c, e, speed_limit=30),
+        ]
+        west = [
+            self._street(e, c, speed_limit=30),
+            self._street(c, b, lanes=2, bus_lane=True),
+            self._street(b, a, lanes=2),
+            self._street(a, w),
+        ]
+        rail_east = [self._rail(w, b), self._rail(b, e)]
+        rail_west = [self._rail(e, b), self._rail(b, w)]
+
+        m1 = self._bus("M1", east, capacity=40)
+        m2 = self._bus("M2", west, capacity=40)
+        s1 = self._train("S1", rail_east, capacity=200)
+        s2 = self._train("S2", rail_west, capacity=200)
+
+        session = GameSession.objects.create(
+            game_host=self.user,
+            game_name="Golden PT",
+            game_map=self.game_map,
+            active_map_version=self.version,
+            max_players=5,
+            agent_per_player=1,
+            max_rounds=3,
+            max_CO2_level=1000000,
+            people_per_agent=150,
+            departure_std_dev_min=10,
+        )
+        game_round = GameRound.objects.create(game=session, round_number=1)
+        players = {
+            name: Player.objects.create(name=name, game=session)
+            for name in ("Anna", "Ben", "Cleo", "Dara", "Emil")
+        }
+
+        def legs(player, agent_id, mode, parts, direction):
+            self._route(game_round, players[player], agent_id, mode, parts, direction)
+
+        for direction, streets, bus, rails, train in (
+            ("out", east, m1, rail_east, s1),
+            ("home", west, m2, rail_west, s2),
+        ):
+            legs("Anna", 1, "car", [("car", streets, None)], direction)
+            legs("Ben", 2, "public", [("bus", streets, bus)], direction)
+            legs("Dara", 4, "public", [("train", rails, train)], direction)
+            legs("Emil", 5, "bike", [("bike", streets, None)], direction)
+        legs(
+            "Cleo",
+            3,
+            "public",
+            [("bus", east[:2], m1), ("train", rail_east[1:], s1)],
+            "out",
+        )
+        legs(
+            "Cleo",
+            3,
+            "public",
+            [("train", rail_west[:1], s2), ("bus", west[2:], m2)],
+            "home",
+        )
+        return game_round
+
+    def _route(self, game_round, player, agent_id, mode, parts, direction):
+        move, _ = PlayerMove.objects.get_or_create(
+            session_round=game_round, player=player, action="route_submit"
+        )
+        route = AgentRoute.objects.create(
+            player_move=move,
+            agent_id=agent_id,
+            direction=direction,
+            transport_mode=mode,
+            total_distance_m=600.0 * sum(len(edges) for _, edges, _ in parts),
+            estimated_time_min=4.0,
+        )
+        order = 1
+        for segment_mode, edges, line in parts:
+            for edge in edges:
+                RouteSegment.objects.create(
+                    agent_route=route,
+                    order=order,
+                    edge=edge,
+                    mode=segment_mode,
+                    pt_line_id=line.pk if line else None,
+                )
+                order += 1
+        self.names[("route", route.pk)] = f"{player.name}/{direction}"
+        return route
+
+    # --- the dump -----------------------------------------------------
+
+    def _name(self, kind, pk):
+        return self.names.get((kind, pk), f"{kind}?")
+
+    def _replay(self, replay):
+        """The replay with every primary key turned into a name."""
+        dots = []
+        for dot in replay["dots"]:
+            legs = []
+            for kind, ref, start, end, from_node in dot["legs"]:
+                if kind == "e":
+                    ref = self._name("edge", ref)
+                elif kind == "s":
+                    ref = self._name("node", ref)
+                legs.append(
+                    [kind, ref, start, end, self._name("node", from_node)
+                     if from_node is not None else None]
+                )
+            dots.append(
+                {
+                    **dot,
+                    "route": (
+                        self._name("route", dot["route"])
+                        if dot["route"] is not None
+                        else None
+                    ),
+                    "legs": legs,
+                }
+            )
+        return {**replay, "dots": dots}
+
+    def _log(self, text):
+        """The host's log with every primary key turned into a name."""
+        nodes = {pk: name for (kind, pk), name in self.names.items() if kind == "node"}
+        text = re.sub(r"Edge \d+ \(", "Edge (", text)
+        text = re.sub(
+            r"(rides \S+ )(\d+)→(\d+)",
+            lambda m: (
+                f"{m.group(1)}{nodes.get(int(m.group(2)), '?')}"
+                f"→{nodes.get(int(m.group(3)), '?')}"
+            ),
+            text,
+        )
+        return text.splitlines()
+
+    def _capture(self):
+        game_round = self._scenario()
+        simulator = TrafficSimulator(game_round, scale=100.0, seed=GOLDEN_PT_SEED)
+        with muted():
+            simulator.run_simulation()
+
+        result = SimulationResult.objects.get(game_round=game_round)
+        agents = AgentSimulationResult.objects.filter(
+            simulation=result
+        ).select_related("agent_route")
+        snaps = EdgeTrafficSnapshot.objects.filter(simulation=result)
+        speeds = StreetPerRound.objects.filter(game_round=game_round).select_related(
+            "edge"
+        )
+
+        return {
+            "total": {
+                "status": result.status,
+                "total_co2_g": _r(result.total_co2_g),
+                "total_cost_eur": _r(result.total_cost_eur),
+                "network_co2_g": _r(result.network_co2_g),
+                "network_cost_eur": _r(result.network_cost_eur),
+            },
+            "agents": sorted(
+                [
+                    {
+                        "route": self._name("route", a.agent_route_id),
+                        "mode": a.agent_route.transport_mode,
+                        "mean_trip_time_min": _r(a.mean_trip_time_min),
+                        "mean_return_time_min": _r(a.mean_return_time_min),
+                        "mean_cost_eur": _r(a.mean_cost_eur),
+                        "mean_paid_eur": _r(a.mean_paid_eur),
+                        "total_co2_g": _r(a.total_co2_g),
+                        "congestion_delay_min": _r(a.congestion_delay_min),
+                        "wait_time_min": _r(a.wait_time_min),
+                    }
+                    for a in agents
+                ],
+                key=lambda row: row["route"],
+            ),
+            "snapshots": sorted(
+                [
+                    {
+                        "edge": self._name("edge", s.edge_id),
+                        "tick": s.time_tick,
+                        "vehicle_count": s.vehicle_count,
+                        "waiting_count": s.waiting_count,
+                        "speed_kmh": _r(s.speed_kmh),
+                    }
+                    for s in snaps
+                ],
+                key=lambda row: (row["edge"], row["tick"]),
+            ),
+            "street_speeds": sorted(
+                [
+                    [self._name("edge", s.edge.edge_id), s.speed_under_load]
+                    for s in speeds
+                ]
+            ),
+            "replay": self._replay(result.replay),
+            "log": self._log(result.detailed_log),
+        }
+
+    # --- the tests ----------------------------------------------------
+
+    def test_the_scenario_matches_the_golden_master(self):
+        captured = self._capture()
+
+        if os.environ.get("GOLDEN_REGENERATE"):
+            GOLDEN_PT_PATH.parent.mkdir(parents=True, exist_ok=True)
+            GOLDEN_PT_PATH.write_text(
+                json.dumps(captured, indent=1, ensure_ascii=False) + "\n"
+            )
+            self.skipTest(f"regenerated {GOLDEN_PT_PATH}")
+
+        self.assertTrue(
+            GOLDEN_PT_PATH.exists(),
+            f"{GOLDEN_PT_PATH} is missing — regenerate with GOLDEN_REGENERATE=1",
+        )
+        expected = json.loads(GOLDEN_PT_PATH.read_text())
+
+        for key in ("total", "agents", "snapshots", "street_speeds", "replay", "log"):
+            with self.subTest(key=key):
+                self.assertEqual(captured[key], expected[key])
+
+    def test_the_same_seed_reproduces_the_run(self):
+        """Without this the golden master proves nothing about the move."""
+        self.assertEqual(self._capture(), self._capture())
+
+    def test_the_scenario_exercises_what_it_claims_to(self):
+        """A golden master over a quiet timetable would pin nothing.
+
+        Riders refused for want of a seat, runs past the base timetable, a
+        transfer on both ways, the way home in the replay, and a queue the
+        cars share with the bus.
+        """
+        captured = self._capture()
+        log = "\n".join(captured["log"])
+
+        self.assertRegex(log, r"[1-9]\d* refusals at the stop")
+        self.assertRegex(log, r"timetabled \+ \d+ extra")
+        self.assertIn("rides M1 w→b, rides S1 b→e", log)
+        self.assertIn("rides S2 e→b, rides M2 b→w", log)
+        self.assertEqual(
+            {dot["pass"] for dot in captured["replay"]["dots"]}, {"out", "home"}
+        )
+        self.assertTrue(
+            any(a["congestion_delay_min"] > 0 for a in captured["agents"]),
+            captured["agents"],
+        )
+        self.assertTrue(all(a["mean_return_time_min"] > 0 for a in captured["agents"]))
+        self.assertEqual(captured["replay"]["endings"], {"unfinished": 0, "stranded": 0})
