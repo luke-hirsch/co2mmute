@@ -1086,7 +1086,8 @@ class DeadlockEscapeTests(TestCase):
 
         simulator = TrafficSimulator(self.game_round, scale=100.0)
         with muted():
-            simulator.run_simulation(max_ticks=300)
+            # One car per link per DEADLOCK_TICKS: a hard lock drains slowly.
+            simulator.run_simulation(max_ticks=500)
 
         for route in (self.route_a, self.route_b):
             results = simulator.agent_results[route.pk]
@@ -1108,6 +1109,36 @@ class DeadlockEscapeTests(TestCase):
             0,
             "the deadlock rule never fired, so the run was not actually locked",
         )
+
+
+    def test_one_escape_frees_one_car_not_the_budget(self):
+        from game.tests._helpers import muted
+        from sim.constants import DEADLOCK_TICKS
+
+        simulator = TrafficSimulator(self.game_round, scale=100.0)
+        forced_at = []
+        real = simulator._pick_head
+
+        def spy(edge_state, tick_end):
+            pick = real(edge_state, tick_end)
+            if pick is not None and pick[1]:
+                forced_at.append((edge_state.edge_id, simulator.current_tick))
+            return pick
+
+        simulator._pick_head = spy
+        with muted():
+            simulator.run_simulation(max_ticks=300)
+
+        self.assertTrue(forced_at, "the run never forced anything")
+        last = {}
+        for edge_id, tick in forced_at:
+            if edge_id in last:
+                self.assertGreaterEqual(
+                    tick - last[edge_id],
+                    DEADLOCK_TICKS,
+                    f"link {edge_id} forced twice within {DEADLOCK_TICKS} ticks",
+                )
+            last[edge_id] = tick
 
 
 class TurnQueueTests(TestCase):

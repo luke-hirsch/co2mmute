@@ -1221,6 +1221,9 @@ class TrafficSimulator:
             vehicle = self.vehicles[head.vehicle_id]
             if forced:
                 self.forced_releases += 1
+                # One escape frees one car. Without this the next head is
+                # forced too, and the whole release budget goes in one tick.
+                edge_state.blocked_since_tick = self.current_tick
 
             left_at = max(head.ready_at_min, now)
             edge_state.queue.pop(index)
