@@ -1,14 +1,4 @@
-"""What the host may change about their own account.
-
-One serializer, one caller (`AccountView`, `GET`/`PATCH api/account/`). It
-replaces `ProfileForm`, which S13 deleted along with the server-rendered
-profile page — the rules are the form's, kept as they were, because they were
-written for this audience and are already German.
-
-The whole of it: the account is the **host's**, and there is exactly one of
-them per browser session. Players have no account at all and never will; that
-is the data-minimisation decision the DSGVO page describes, not a gap.
-"""
+"""What the host may change about their own account."""
 
 import logging
 
@@ -20,19 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class HostAccountSerializer(serializers.ModelSerializer):
-    """`first_name`, `username`, `email` — and nothing else.
-
-    Not a stripped-down sign-up serializer. Sign-up asks whether *anybody*
-    holds this username, and on an update the answer is always yes — you do —
-    so it would refuse every save that left the name alone. Every query here
-    excludes the row being edited.
-
-    The messages are German because the host reads them, and two of these
-    rules are ones the screen cannot check for itself: whether a name or an
-    address is already taken needs the database. That is the split S13 settled
-    on — the client checks nothing the server checks, so nothing is worded
-    twice.
-    """
+    """very slim:  `first_name`, `username`, `email`"""
 
     class Meta:
         model = get_user_model()

@@ -13,8 +13,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "co2mmute.settings")
 
 app = Celery("co2mmute")
 
-# Using a string here means the worker doesn't have to serialize
-# the configuration object to child processes.
+# Using a string here. important, because of config serializer
 app.config_from_object("django.conf:settings", namespace="CELERY")
 
 # Load task modules from all registered Django apps.

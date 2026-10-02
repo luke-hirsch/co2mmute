@@ -13,28 +13,19 @@ import tempfile
 
 from co2mmute.settings import *
 
-# A real key so the phase-0 resolver is satisfied without DEBUG. Test-only, and
-# it never leaves this file — the cookie salts derived from it are meaningless
-# outside a run.
+# resolve secret key in conf.py depends on it.
 SECRET_KEY = "test-only-key-not-used-anywhere-else-0123456789"
 
 DEBUG = False
 
-# settings.py derives the secure-cookie flags from its own import-time DEBUG,
-# which reads DJANGO_DEBUG (default True). Compose sets it to False, so a local
-# run is hardened; a CI runner sets nothing, so the flags froze at False while
-# DEBUG above is False — the one combination the hardening test rejects.
-# Re-derive them against this module's DEBUG, the way SECRET_KEY and DATABASES
-# are re-declared.
+
 SESSION_COOKIE_SECURE = os.environ.get("DJANGO_SECURE_COOKIES", "True") == "True"
 CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
 
-# MD5 rather than PBKDF2. _helpers.create_host runs in most setUp methods and the
-# default hasher is deliberately slow.
+# MD5 rather than PBKDF2. its jsut quicker in testing
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 
-# No Redis in a CI runner. _helpers.TEST_BACKENDS applies the same two per class;
-# doing it globally means a class that forgets the decorator still runs.
+# No Redis in a CI runner.
 CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
 CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
 
@@ -56,9 +47,7 @@ DATABASES = {
     }
 }
 
-# Keep the run readable — a wall of dots, not a wall of INFO. The game signals
-# are chatty on the happy path. Anything at ERROR still comes through, and the
-# scoped muted() helper in _helpers.py stays the tool for expected error paths.
+# Keep the run readable. make dots not info text!
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": True,

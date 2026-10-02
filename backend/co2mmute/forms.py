@@ -13,8 +13,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 
 logger = logging.getLogger()
 
-# The wording the host page's account form already uses (`serializers.py`),
-# so a name is refused in the same sentence at both doors.
+
 USERNAME_MESSAGES = {
     "required": "Bitte gib einen Benutzernamen ein.",
     "invalid": "Ein Benutzername darf nur Buchstaben, Ziffern und @/./+/-/_ enthalten.",
@@ -29,11 +28,7 @@ EMAIL_TAKEN = "Diese Adresse gehört schon zu einem Konto."
 
 
 def password_rules():
-    """The password rules as one German sentence, for under the field.
-
-    The length comes off the configured `MinimumLengthValidator` rather than
-    being typed here, so the sentence cannot promise 8 while the check asks 12.
-    """
+    """The password rules as one German sentence, for under the field."""
     min_length = next(
         (
             validator.min_length
@@ -49,31 +44,24 @@ def password_rules():
 
 
 def german_password_errors(error: DjangoValidationError) -> list[str]:
-    """Django's password refusals, one German sentence per broken rule.
-
-    `validate_password` raises one `ValidationError` carrying a list — one entry
-    per rule — and each entry keeps its `code` and `params`. That is what makes
-    this possible without switching `LANGUAGE_CODE`: Django's own German
-    catalogue addresses the reader as "Sie" in places, and this project says
-    "du" everywhere.
-
-    `SignupForm` used to raise `str(exc.messages)`, which put the *repr of a
-    Python list* on the page — brackets, and quotes escaped to `&#x27;`. A rule
-    this does not know passes its own message through; the checks in
-    `test_credentials.py` break every configured validator, so a new one that
-    speaks English goes red there.
-    """
+    """Django's password refusals, one German sentence per broken rule."""
     messages = []
     for item in error.error_list:
         params = item.params or {}
         if item.code == "password_too_short":
-            messages.append(f"Zu kurz: mindestens {params.get('min_length', 8)} Zeichen.")
+            messages.append(
+                f"Zu kurz: mindestens {params.get('min_length', 8)} Zeichen."
+            )
         elif item.code == "password_too_common":
-            messages.append("Das ist eines der häufigsten Passwörter und schnell erraten.")
+            messages.append(
+                "Das ist eines der häufigsten Passwörter und schnell erraten."
+            )
         elif item.code == "password_entirely_numeric":
             messages.append("Nur Ziffern reichen nicht.")
         elif item.code == "password_too_similar":
-            messages.append("Zu nah an deinem Benutzernamen oder deiner E-Mail-Adresse.")
+            messages.append(
+                "Zu nah an deinem Benutzernamen oder deiner E-Mail-Adresse."
+            )
         else:
             messages.extend(item.messages)
     return messages
@@ -96,15 +84,13 @@ class StyledForm:
         super().__init__(*args, **kwargs)
         for field in self.fields.values():  # type: ignore[attr-defined]
             is_box = isinstance(field.widget, forms.CheckboxInput)
-            field.widget.attrs.setdefault("class", "field-checkbox" if is_box else "field-input")
+            field.widget.attrs.setdefault(
+                "class", "field-checkbox" if is_box else "field-input"
+            )
 
 
 class GermanNewPasswordMixin:
     """The two new-password fields, for reset and change alike."""
-
-    error_messages = {
-        "password_mismatch": "Die beiden Passwörter sind nicht gleich.",
-    }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -115,7 +101,13 @@ class GermanNewPasswordMixin:
         first.error_messages["required"] = "Bitte gib ein neues Passwort ein."
         second.label = "Noch einmal"
         second.help_text = "Zur Kontrolle, damit sich kein Tippfehler einschleicht."
-        second.error_messages["required"] = "Bitte gib das neue Passwort noch einmal ein."
+        second.error_messages["required"] = (
+            "Bitte gib das neue Passwort noch einmal ein."
+        )
+
+        self.error_messages = {
+            "password_mismatch": "Die beiden Passwörter sind nicht gleich.",
+        }
 
     def validate_password_for_user(self, user, password_field_name="password2"):
         password = self.cleaned_data.get(password_field_name)  # type: ignore[attr-defined]
@@ -138,20 +130,24 @@ class LoginForm(StyledForm, auth_forms.AuthenticationForm):
 
     remember_me = forms.BooleanField(required=False, label="Angemeldet bleiben")
 
-    error_messages = {
-        "invalid_login": (
-            "Benutzername oder Passwort stimmen nicht. "
-            "Groß- und Kleinschreibung zählt bei beiden."
-        ),
-        "inactive": "Dieses Konto gibt es nicht mehr.",
-    }
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["username"].label = "Benutzername"
-        self.fields["username"].error_messages["required"] = USERNAME_MESSAGES["required"]
+        self.fields["username"].error_messages["required"] = USERNAME_MESSAGES[
+            "required"
+        ]
         self.fields["password"].label = "Passwort"
-        self.fields["password"].error_messages["required"] = "Bitte gib dein Passwort ein."
+        self.fields["password"].error_messages["required"] = (
+            "Bitte gib dein Passwort ein."
+        )
+
+        self.error_messages = {
+            "invalid_login": (
+                "Benutzername oder Passwort stimmen nicht. "
+                "Groß- und Kleinschreibung zählt bei beiden."
+            ),
+            "inactive": "Dieses Konto gibt es nicht mehr.",
+        }
 
 
 class SignupForm(StyledForm, forms.ModelForm):
@@ -168,9 +164,7 @@ class SignupForm(StyledForm, forms.ModelForm):
         labels = {"username": "Benutzername", "email": "E-Mail-Adresse"}
         help_texts = {
             "username": "Damit meldest du dich an. Mitspielende sehen ihn nicht.",
-            "email": (
-                "Nur für ein vergessenes Passwort. Wir schreiben dir sonst nie."
-            ),
+            "email": ("Nur für ein vergessenes Passwort. Wir schreiben dir sonst nie."),
         }
         error_messages = {"username": USERNAME_MESSAGES, "email": EMAIL_MESSAGES}
         widgets = {
@@ -235,7 +229,7 @@ class SignupForm(StyledForm, forms.ModelForm):
 
 
 class ResetRequestForm(StyledForm, auth_forms.PasswordResetForm):
-    """"Passwort vergessen?" — the address the link goes to."""
+    """ "Passwort vergessen?" — the address the link goes to."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -249,28 +243,24 @@ class NewPasswordForm(StyledForm, GermanNewPasswordMixin, auth_forms.SetPassword
     """The form the reset link opens."""
 
 
-class ChangePasswordForm(StyledForm, GermanNewPasswordMixin, auth_forms.PasswordChangeForm):
-    """"Passwort ändern" from the host page — asks for the old one first."""
-
-    error_messages = {
-        **GermanNewPasswordMixin.error_messages,
-        "password_incorrect": "Das bisherige Passwort stimmt nicht.",
-    }
+class ChangePasswordForm(
+    StyledForm, GermanNewPasswordMixin, auth_forms.PasswordChangeForm
+):
+    """ "Passwort ändern" from the host page — asks for the old one first."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         old = self.fields["old_password"]
         old.label = "Bisheriges Passwort"
         old.error_messages["required"] = "Bitte gib dein bisheriges Passwort ein."
+        self.error_messages = {
+            **GermanNewPasswordMixin.error_messages,  # type: ignore
+            "password_incorrect": "Das bisherige Passwort stimmt nicht.",
+        }
 
 
 class AccountDeleteForm(StyledForm, forms.Form):
-    """Re-authentication before the account goes.
-
-    The host machine stands in a classroom, often projected and often still
-    logged in — the password is what keeps a passing student from pressing
-    this. The confirm page of its own is the second guard.
-    """
+    """Re-authentication before the account goes."""
 
     password = forms.CharField(
         label="Passwort",

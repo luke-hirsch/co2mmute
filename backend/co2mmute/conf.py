@@ -7,7 +7,7 @@ why this does not live there.)
 
 from django.core.exceptions import ImproperlyConfigured
 
-# Only ever used with DEBUG on. Never valid in production.
+# Only ever used with DEBUG on.
 DEV_SECRET_KEY = "django-insecure-placeholder-key"
 
 # Values that have shipped as defaults in this repo, and are therefore public.
@@ -19,22 +19,12 @@ KNOWN_INSECURE_SECRET_KEYS = frozenset(
     }
 )
 
-# Enough to rule out a hand-typed value ("test", "changeme") without invalidating
-# the keys already in use, which are 46 random characters. Django's own deploy
-# check uses 50 only because that is the length its generator happens to produce;
-# entropy, not length, is what matters, and raising this to 50 would force a key
-# rotation that logs every player out of every running game.
+# The  min length of a secret key.
 MIN_SECRET_KEY_LENGTH = 32
 
 
 def resolve_secret_key(env_value, *, debug):
-    """Return the SECRET_KEY to run with, or refuse to boot without a real one.
-
-    Player cookies are signed with salts derived from this key (see
-    ``settings._salt_base``), so a production box on a shared placeholder key has
-    forgeable player identities. With DEBUG on we fall back to the dev key; with
-    DEBUG off the key must be present, not a known placeholder, and long enough.
-    """
+    """Return the SECRET_KEY to run with, or refuse to boot without a real one."""
     key = (env_value or "").strip()
 
     if debug:

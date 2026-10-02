@@ -18,9 +18,8 @@ a reload; anything else is a Django page. A CMS item with neither a page nor
 children has `href` None and renders as plain text, as it always did.
 """
 
-from django.urls import reverse
-
 from content.models import NavigationItem
+from django.urls import reverse
 
 # Where the code lives. The project is handed over to the research group, so
 # this is the one line to change if the repository moves.
@@ -34,18 +33,13 @@ def _link(id_, label, href):
 def _cms_items():
     """
     The CMS's header and footer entries, one level of children deep.
-
-    The admin only offers the locations in `NavigationItem.LOCATION_CHOICES`,
-    so `header` and `footer` are the two this reads. The `game_menu` and
-    `map_menu` blocks `base.html` used to loop over were never among them and
-    rendered nothing.
     """
     items = NavigationItem.objects.select_related("page").order_by("order", "pk")
     tops = {}
     by_location = {"header": [], "footer": []}
 
     for item in items:
-        if item.parent_id is None and item.location in by_location:
+        if item.parent_id is None and item.location in by_location:  # type: ignore
             entry = {
                 "id": f"cms-{item.pk}",
                 "label": item.label,
@@ -55,7 +49,7 @@ def _cms_items():
             by_location[item.location].append(entry)
 
     for item in items:
-        parent = tops.get(item.parent_id) if item.parent_id else None
+        parent = tops.get(item.parent_id) if item.parent_id else None  # type: ignore
         if parent is not None:
             parent.setdefault("children", []).append(
                 _link(f"cms-{item.pk}", item.label, _page_href(item))
