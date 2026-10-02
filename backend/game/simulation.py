@@ -52,13 +52,6 @@ from game.models import (
 
 logger = logging.getLogger(__name__)
 
-# Simulation parameters - fallback values if not set in GameSession
-FALLBACK_PEOPLE_PER_AGENT = 1000
-FALLBACK_TICK_DURATION_MIN = 5
-FALLBACK_MORNING_DEPARTURE_HOUR = 9  # 9:00 AM
-FALLBACK_EVENING_DEPARTURE_HOUR = 17  # 5:00 PM
-FALLBACK_DEPARTURE_STD_DEV_MIN = 10  # Standard deviation for departure times
-
 # Speed constants are now loaded from GameMap model
 # These fallback values are used only if the map doesn't specify speeds
 FALLBACK_WALK_SPEED_KMH = 5
@@ -66,8 +59,6 @@ FALLBACK_BIKE_SPEED_KMH = 20
 FALLBACK_DEFAULT_CAR_SPEED_KMH = 50
 FALLBACK_BUS_SPEED_KMH = 30
 FALLBACK_TRAIN_SPEED_KMH = 40
-FALLBACK_BUS_INTERVAL_MIN = 10
-FALLBACK_TRAIN_INTERVAL_MIN = 10
 
 # Departure window: matches the ±60 min clamp in generate_departure_minutes()
 DEPARTURE_WINDOW_MIN = 120
@@ -298,10 +289,6 @@ class TrafficSimulator:
         self.bus_line_speeds: dict[int, int] = {}
         self.train_line_speeds: dict[int, int] = {}
 
-        # PT line interval cache: line_id -> intervall_min
-        self.bus_line_intervals: dict[int, int] = {}
-        self.train_line_intervals: dict[int, int] = {}
-
         # PT sim in itself
         self.pt_lines: dict[tuple[str, int], PTLineState] = {}
 
@@ -449,7 +436,6 @@ class TrafficSimulator:
 
         for line in bus_lines.distinct():
             self.bus_line_speeds.setdefault(line.pk, line.bus_speed_kmh)
-            self.bus_line_intervals.setdefault(line.pk, line.intervall)
             edges = [
                 link.street_edge.edge
                 for link in bus_chain_rows(line, version).select_related(
@@ -464,7 +450,6 @@ class TrafficSimulator:
 
         for line in train_lines.distinct():
             self.train_line_speeds.setdefault(line.pk, line.train_speed_kmh)
-            self.train_line_intervals.setdefault(line.pk, line.intervall)
             edges = [
                 link.train_edge.edge
                 for link in train_chain_rows(line, version).select_related(
@@ -731,24 +716,22 @@ class TrafficSimulator:
                     elif seg.mode == "train":
                         train_line_ids.add(seg.pt_line_id)
 
-        # Load bus line speeds and intervals
+        # Load bus line speeds
         if bus_line_ids:
             bus_lines = BusLine.objects.filter(id__in=bus_line_ids)
             for bus_line in bus_lines:
                 self.bus_line_speeds[bus_line.pk] = bus_line.bus_speed_kmh
-                self.bus_line_intervals[bus_line.pk] = bus_line.intervall
             logger.info(
-                f"[SIM] Loaded {len(self.bus_line_speeds)} bus line speeds/intervals"
+                f"[SIM] Loaded {len(self.bus_line_speeds)} bus line speeds"
             )
 
-        # Load train line speeds and intervals
+        # Load train line speeds
         if train_line_ids:
             train_lines = TrainLine.objects.filter(id__in=train_line_ids)
             for train_line in train_lines:
                 self.train_line_speeds[train_line.pk] = train_line.train_speed_kmh
-                self.train_line_intervals[train_line.pk] = train_line.intervall
             logger.info(
-                f"[SIM] Loaded {len(self.train_line_speeds)} train line speeds/intervals"
+                f"[SIM] Loaded {len(self.train_line_speeds)} train line speeds"
             )
 
     def _initialize_edges(self):
@@ -2755,25 +2738,6 @@ class TrafficSimulator:
             per_person_cost * self.people_per_agent + class_cost,
             per_person_paid * self.people_per_agent + fare_total,
         )
-
-    def _get_pt_interval(self, pt_line_id: int | None, mode: str) -> int:
-        """Get the interval in minutes for a PT line. Returns a fallback if not found."""
-        if not pt_line_id:
-            return (
-                FALLBACK_BUS_INTERVAL_MIN
-                if mode == "bus"
-                else FALLBACK_TRAIN_INTERVAL_MIN
-            )
-
-        if mode == "bus":
-            return self.bus_line_intervals.get(pt_line_id, FALLBACK_BUS_INTERVAL_MIN)
-
-        if mode == "train":
-            return self.train_line_intervals.get(
-                pt_line_id, FALLBACK_TRAIN_INTERVAL_MIN
-            )
-
-        return FALLBACK_BUS_INTERVAL_MIN
 
     def _update_street_speeds(self):
         """Store each street's observed car speed for the next round.
