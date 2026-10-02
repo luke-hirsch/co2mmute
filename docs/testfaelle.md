@@ -62,6 +62,10 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | L-12 | „Spiel verlassen"                          | Platz weg, Cookies weg, zurück zum Start                                                      | geht   | -              |
 | L-13 | Lobby ohne gültiges Cookie                 | 403 → „neu beitreten"                                                                         | geht   | -              |
 | L-14 | Spiel ohne Karte angelegt                  | Start gesperrt und sagt warum, statt stumm nichts zu tun; die API antwortet 409 `no-map` (S9) | geht   | -              |
+| L-15 | Spiel mit Passwort                         | das Passwort steht an der Leitstelle unter der Spiel-ID, so wie es getippt wurde (F3)         | geht   | f3-lobby       |
+| L-16 | „Einladung kopieren"                       | kopiert Name, Link, Spiel-ID und Passwort (F3)                                                | geht      | f3-lobby       |
+| L-18 | Kopieren wird verweigert                   | der Text steht in einem Feld zum Markieren (F3)                                               | ungeprüft | -              |
+| L-17 | Host schaltet den Chat in der Lobby        | aus und wieder an; die Handys folgen ohne Reload, der Chat verschwindet und kommt wieder (F3) | geht   | f3-lobby       |
 
 ## V — verbindung
 
@@ -198,6 +202,8 @@ nicht gemessen.
 | E-13 | Was ihr geändert habt      | eine Zeile pro Abstimmung mit Stimmen und Gewinner; ohne Abstimmung sagt es das                    | geht      | numbers.spec.ts |
 | E-14 | „davon selbst bezahlt"           | in der Kostenliste, wenn man einen Namen aufklappt                                                 | geht      | numbers.spec.ts |
 | E-15 | Auswertung mit Abstimmungen      | Karte mit mehreren Versionen: Gewinner, Stimmen, Patt und „von der Spielleitung beendet" stehen da | ungeprüft | -               |
+| E-16 | Leitstelle am Spielende                    | „Zu deinen Spielen" führt nach `/app/host` (F3)                                               | geht      | f3-lobby       |
+| E-17 | „Neues Spiel anlegen" am Spielende         | führt ins Formular, in der SPA statt über Django (F3)                                         | ungeprüft | -              |
 
 ## H — die leitstelle (host)
 

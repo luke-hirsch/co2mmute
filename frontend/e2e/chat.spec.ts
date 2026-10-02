@@ -173,7 +173,8 @@ test("no chat is offered when the chat is switched off", async ({
     // The dock renders nothing at all rather than a disabled button: the
     // server has wiped the history, so there is nothing behind it.
     await expect(page.getByRole("button", { name: "Chat" })).toHaveCount(0);
-    await expect(page.getByText("aus").first()).toBeVisible();
+    // The host's settings carry the switch itself since F3, not the word.
+    await expect(page.getByRole("checkbox", { name: "an" })).not.toBeChecked();
   } finally {
     await endAndDelete(page, gameId, baseURL!);
   }
@@ -193,7 +194,7 @@ test("a game made with the chat off offers none", async ({ page, baseURL }) => {
 
   try {
     await expect(page.getByRole("button", { name: "Chat" })).toHaveCount(0);
-    await expect(page.getByText("aus").first()).toBeVisible();
+    await expect(page.getByRole("checkbox", { name: "an" })).not.toBeChecked();
   } finally {
     await endAndDelete(page, gameId, baseURL!);
   }

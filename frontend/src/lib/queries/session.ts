@@ -94,6 +94,20 @@ export function useEndGame(gameId: string) {
   return useMutation({ mutationFn: () => setGameActive(gameId, false) });
 }
 
+/**
+ * Switch the chat on or off (F3). Like the rest of this file it reports nothing
+ * back: `game.chat` arrives over the socket, for this screen and every phone.
+ */
+export function useSetChat(gameId: string) {
+  return useMutation({
+    mutationFn: (enabled: boolean) =>
+      apiFetch<HostGame>(`/api/game/${gameId}/`, {
+        method: "PATCH",
+        body: JSON.stringify({ chat_enabled: enabled }),
+      }),
+  });
+}
+
 /** The bell. 409 `paused` / `not_running` when there is nothing to pause. */
 export function usePauseGame(gameId: string) {
   return useMutation({ mutationFn: () => pauseGame(gameId) });
