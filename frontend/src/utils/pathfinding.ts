@@ -2,6 +2,7 @@
  * Dijkstra pathfinding implementation for traffic simulation
  */
 
+import { carEmissionFactor } from "@/lib/map/car-emissions";
 import { canUseEdge } from "@/lib/map/edge-rules";
 import { exceedsModeLimit, modeLimitM } from "@/lib/map/trip-limits";
 import type { Edge, Node, MapGraph } from "../types/mapTypes";
@@ -19,14 +20,6 @@ import type {
 const WALK_SPEED_KMH = 5;
 const BIKE_SPEED_KMH = 20;
 const DEFAULT_CAR_SPEED_KMH = 50;
-
-// CO2 factor based on speed (higher at low speeds due to inefficiency)
-function getCO2Factor(speedKmh: number): number {
-  if (speedKmh < 20) return 1.5;
-  if (speedKmh < 40) return 1.2;
-  if (speedKmh < 80) return 1.0;
-  return 1.1;
-}
 
 /**
  * Calculate Euclidean distance between two nodes in meters
@@ -108,9 +101,11 @@ export function calculateEdgeWeight(
     case "car": {
       const speedLimit = edge.street_edge?.speed_limit ?? DEFAULT_CAR_SPEED_KMH;
 
-      // Get actual speed considering traffic from previous round
+      // The speed the link actually ran at last round. Time and CO2 both
+      // depend on it — the simulation's CO2 is a curve over the link's
+      // observed speed — so both read it; only the shortest route does not.
       let actualSpeed = speedLimit;
-      if (trafficData && optimization === "time") {
+      if (trafficData) {
         const traffic = trafficData.find((t) => t.edgeId === edge.id);
         if (traffic) {
           actualSpeed = traffic.avgSpeedKmh;
@@ -122,8 +117,9 @@ export function calculateEdgeWeight(
           return distanceM; // Pure distance in meters
 
         case "co2":
-          // CO2 increases at low speeds (congestion) and high speeds
-          return distanceM * getCO2Factor(actualSpeed);
+          // Worse in a jam and a little worse above ~70 km/h: the simulation's
+          // own curve, see lib/map/car-emissions.ts.
+          return distanceM * carEmissionFactor(actualSpeed);
 
         case "time":
         default:
