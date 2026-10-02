@@ -665,8 +665,10 @@ export const de = {
     paidBody:
       "In der Kostenspalte steht, was ein Weg wirklich kostet: beim Auto Sprit, " +
       "Verschleiß, Versicherung und Wertverlust, bei Bus und Bahn der Betrieb " +
-      "der Linie. Was du selbst zahlst, ist weniger — ein Ticket, oder was an " +
-      "der Tankstelle liegen bleibt. Den Rest zahlen alle zusammen.",
+      "der Linie, beim Rad Verschleiß, Reparaturen und Wertverlust. Was du bei " +
+      "Auto, Bus und Bahn selbst zahlst, ist weniger — ein Ticket, oder was an " +
+      "der Tankstelle liegen bleibt. Den Rest zahlen alle zusammen. Beim Rad " +
+      "zahlst du alles selbst, und zu Fuß kostet der Weg nichts.",
 
     networkTitle: "Der Fahrplan fährt auch leer",
     networkBody:

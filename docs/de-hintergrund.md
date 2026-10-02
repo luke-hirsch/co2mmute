@@ -229,6 +229,12 @@ Neben den Kosten steht der **Fahrpreis**: 1,30 € pro Fahrt, Umstiege eingeschl
 der Teil der Kosten, den man aus der eigenen Tasche zahlt. Es gibt also einen Unterschied zwischen
 _was du zahlst_ und _was es kostet_, den man bei der Rundenauswertung benennen sollte.
 
+Das **Rad** kostet 0,03 €/km: Verschleiß, Reparaturen, Wertverlust und, im Mittel, Diebstahl. Das
+zahlt man ganz selbst, also ist es beides, _was du zahlst_ und _was es kostet_, und es hängt an
+keiner Kurve, denn ein Stau nutzt keine Kette ab. Zu Fuß kostet nichts. Nicht eingerechnet ist der
+Nutzen für die Gesundheit; mit ihm wären Rad und Fußweg für die Gesellschaft billiger als umsonst. Ob
+er in die Rechnung gehört, ist noch offen.
+
 ## Zufälle gibt's
 
 Dieselben Entscheidungen ergeben in zwei Runden nicht ganz dieselben Zahlen. Das ist gewollt. Jede

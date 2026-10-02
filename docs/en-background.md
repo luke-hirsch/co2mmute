@@ -212,6 +212,11 @@ Beside the cost there is the **fare**: 1.30 € per trip, transfers included, an
 of the cost paid out of pocket. So there is a difference between _what you pay_ and _what it costs_,
 and the round's debrief should name it.
 
+The **bike** costs 0.03 €/km: wear, repairs, depreciation and, as an average, theft. The rider pays
+all of it, so it is both _what you pay_ and _what it costs_, and it rides on no curve, because a jam
+does not wear out a chain. Walking costs nothing. Left out is the health benefit; with it, the bike
+and walking would be cheaper than free to society. Whether it belongs in the sum is still open.
+
 ## Chance happens
 
 The same choices in two rounds do not give quite the same numbers. That is intended. Each round

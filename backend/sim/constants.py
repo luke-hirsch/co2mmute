@@ -42,6 +42,15 @@ TRAIN_COST_PER_VEHICLE_KM = 12.0  # € per train-km
 # known estimate
 CAR_COST_TRAFFIC_SHARE = 0.5
 
+# A bike's upkeep: wear, repairs, depreciation, and theft as an average inside
+# it. All of it is the rider's own, so it is both "was es kostet" and "was du
+# zahlst" — there is no share for anybody else to carry. It was zero, which
+# priced the bike wrong rather than cheap, and left walking nothing to win but
+# losing time. What the figure leaves out is the health benefit, which would
+# make the bike's cost to society negative, and walking's too; that is open
+# with the group. Flat per km: a jam does not wear a chain faster.
+BIKE_COST_PER_KM = 0.03  # € per bike-km
+
 JAM_DENSITY_VEH_PER_KM_LANE = 133.0
 SATURATION_FLOW_VEH_PER_H_LANE = 1800.0
 

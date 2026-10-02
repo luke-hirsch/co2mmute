@@ -20,6 +20,7 @@ backend talks to. It is the adapter: ORM rows in, engine, result rows out.
 """
 
 from sim.constants import (
+    BIKE_COST_PER_KM,
     BIKE_PCU,
     BIKE_SATURATION_FLOW_VEH_PER_H_LANE,
     BUS_COST_PER_VEHICLE_KM,
@@ -65,6 +66,7 @@ from sim.state import (
 )
 
 __all__ = [
+    "BIKE_COST_PER_KM",
     "BIKE_PCU",
     "BIKE_SATURATION_FLOW_VEH_PER_H_LANE",
     "BUS_COST_PER_VEHICLE_KM",

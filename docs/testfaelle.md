@@ -186,6 +186,7 @@ nicht gemessen.
 | Z-25 | jemand ist während der Wahl gegangen | „Plätze anzeigen“ an der Leitstelle, Platz entfernen, die Wahl schließt ohne den Platz (F3)                              | geht      | f3-zwischen-den-runden |
 | Z-26 | Karte daneben auf dem Beamer       | die Spielbildschirme gehen bis an den Rand, die Karte bekommt die halbe Breite statt eines Drittels (F3)                 | geht      | -               |
 | Z-27 | Plätze an der Leitstelle in der Wahl | „Gib den Rechner reihum weiter“ steht über der Liste der Plätze, die noch abstimmen (F3)                                 | ungeprüft | -               |
+| Z-28 | eine Gruppe fährt Rad              | Kosten und „selbst bezahlt“ sind gleich, 0,03 € pro km und Person, kein CO₂; zu Fuß bleibt beides 0 (F12)                 | geht      | -               |
 
 ## E — spielende
 
