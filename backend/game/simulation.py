@@ -1149,35 +1149,81 @@ class TrafficSimulator:
 
         self.waiting = still_waiting
 
+    def _pick_head(
+        self, edge_state: "EdgeState", tick_end: float
+    ) -> tuple[int, bool] | None:
+        """Which queued vehicle leaves next: (index, forced), or None.
+
+        One lane is one queue: only the head may leave, so a driver waiting to
+        turn into a full street holds up everybody behind, whichever way they
+        are going. Two or more lanes give each NEXT street its own queue — a
+        turn lane — sharing the street's flow budget and its storage, so the
+        cars bound for a street with room pass the ones bound for a full one.
+        Within one next street the order is still the queue's own. This is
+        deliberately not plain MATSim, whose link has one queue at any width.
+
+        The deadlock escape is per junction: the first blocked head is forced
+        only when nobody on the link can move and it has stood for
+        DEADLOCK_TICKS.
+        """
+        multi_lane = edge_state.car_lanes > 1
+        seen: set[int | None] = set()
+        first_blocked: int | None = None
+
+        for index, head in enumerate(edge_state.queue):
+            if head.ready_at_min > tick_end:
+                # Not through yet. On one lane nobody behind it passes; on
+                # several the queue is ordered by readiness, and a vehicle
+                # forced in over storage may sit out of order, so keep looking.
+                if not multi_lane:
+                    return None
+                continue
+
+            vehicle = self.vehicles[head.vehicle_id]
+            next_state = self._state_for_segment(
+                vehicle.route_pk, vehicle.segment_index + 1
+            )
+            turn = next_state.edge_id if next_state is not None else None
+            if turn in seen:
+                continue
+            seen.add(turn)
+
+            blocked = next_state is not None and not next_state.has_room_for(head.pcu)
+            if not blocked:
+                if head.pcu > edge_state.release_budget:
+                    return None
+                return index, False
+            if first_blocked is None:
+                first_blocked = index
+            if not multi_lane:
+                break
+
+        if (
+            first_blocked is not None
+            and self.current_tick - edge_state.blocked_since_tick >= DEADLOCK_TICKS
+        ):
+            if edge_state.queue[first_blocked].pcu > edge_state.release_budget:
+                return None
+            return first_blocked, True
+        return None
+
     def _discharge(
         self, edge_state: "EdgeState", now: float, tick_end: float, released: set[int]
     ) -> bool:
         """Release from the head of the queue while budget and space allow."""
         moved = False
         while edge_state.queue:
-            head = edge_state.queue[0]
-            if head.pcu > edge_state.release_budget:
+            pick = self._pick_head(edge_state, tick_end)
+            if pick is None:
                 break
-            if head.ready_at_min > tick_end:
-                # The head has not finished crossing yet, and FIFO means
-                # nobody behind it can pass either.
-                break
-
+            index, forced = pick
+            head = edge_state.queue[index]
             vehicle = self.vehicles[head.vehicle_id]
-            next_state = self._state_for_segment(
-                vehicle.route_pk, vehicle.segment_index + 1
-            )
-
-            if next_state is not None and not next_state.has_room_for(head.pcu):
-                if self.current_tick - edge_state.blocked_since_tick < DEADLOCK_TICKS:
-                    break
+            if forced:
                 self.forced_releases += 1
-                forced = True
-            else:
-                forced = False
 
             left_at = max(head.ready_at_min, now)
-            edge_state.queue.pop(0)
+            edge_state.queue.pop(index)
             edge_state.occupancy_pcu -= head.pcu
             edge_state.release_budget -= head.pcu
             if vehicle.mode == "car":

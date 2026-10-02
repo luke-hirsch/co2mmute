@@ -1110,6 +1110,76 @@ class DeadlockEscapeTests(TestCase):
         )
 
 
+class TurnQueueTests(TestCase):
+    """One queue per street on one lane; one per next street on two or more.
+
+    A feeder splits at a junction into a street (B) whose door a flood of
+    other people has filled, and a free one (C). On a single lane a driver
+    waiting to turn into B does block everybody behind, whichever way they are
+    going. On two lanes the cars bound for C pass the ones bound for B.
+    """
+
+    def _play(self, feeder_lanes, seed=7):
+        from game.tests._helpers import muted
+
+        user = User.objects.create_user(
+            username=f"turn{feeder_lanes}", password="12345"
+        )
+        game_map, version, nodes = _grid_map("Turn map", 5, step_units=10.0)
+        feeder = _street(
+            game_map, version, nodes[0], nodes[1], lanes=feeder_lanes
+        )
+        into_b = _street(game_map, version, nodes[1], nodes[2])
+        past_b = _street(game_map, version, nodes[2], nodes[3])
+        into_c = _street(game_map, version, nodes[1], nodes[4])
+        session = _session(user, game_map, people_per_agent=300, std_dev=1)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+        flood = Player.objects.create(name="Flut", game=session)
+        to_b = Player.objects.create(name="B", game=session)
+        to_c = Player.objects.create(name="C", game=session)
+        # Three Gruppen start on B's own door and keep it full for half an hour.
+        for agent_id in (1, 2, 3):
+            _route(game_round, flood, [into_b, past_b], agent_id=agent_id)
+        route_b = _route(game_round, to_b, [feeder, into_b], agent_id=1)
+        route_c = _route(game_round, to_c, [feeder, into_c], agent_id=1)
+
+        simulator = TrafficSimulator(game_round, scale=100.0, seed=seed)
+        with muted():
+            simulator.run_simulation(max_ticks=300)
+        return simulator, route_b, route_c
+
+    @staticmethod
+    def _mean(values):
+        return sum(values) / len(values)
+
+    def test_on_one_lane_a_blocked_turn_holds_everybody_behind(self):
+        simulator, _, route_c = self._play(feeder_lanes=1)
+
+        delays = simulator.agent_results[route_c.pk]["delays"]
+
+        self.assertGreater(self._mean(delays), 5.0)
+
+    def test_on_two_lanes_a_blocked_turn_holds_nobody_else(self):
+        one_lane, _, one_lane_c = self._play(feeder_lanes=1)
+        simulator, route_b, route_c = self._play(feeder_lanes=2)
+
+        held_c = self._mean(one_lane.agent_results[one_lane_c.pk]["delays"])
+        delays_c = simulator.agent_results[route_c.pk]["delays"]
+        delays_b = simulator.agent_results[route_b.pk]["delays"]
+
+        # Not zero: 600 cars still share the feeder's flow. A third of what the
+        # same people suffer behind a blocked head is the mechanism, not noise.
+        self.assertLess(self._mean(delays_c), held_c / 3)
+        # The turn queue itself is still a queue: B is held, only C is not.
+        self.assertGreater(self._mean(delays_b), 5.0)
+
+    def test_everybody_still_arrives_on_two_lanes(self):
+        simulator, route_b, route_c = self._play(feeder_lanes=2)
+
+        for route in (route_b, route_c):
+            self.assertEqual(simulator.agent_results[route.pk]["not_arrived"], 0)
+
+
 class ObservedEdgeSpeedTests(TestCase):
     """Per-edge speed is an output of the run, and it is the CAR speed.
 
