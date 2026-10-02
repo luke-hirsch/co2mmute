@@ -340,6 +340,9 @@ anfühlt, aber nicht, wie viel Verkehr eine Karte trägt.
 
 Wer programmiert, kann eine fertige Runde auch mit `TrafficSimulator` aus
 `backend/game/simulation.py` und festem Seed nachspielen und über beliebig viele Seeds mitteln.
+Die Simulation selbst, `LinkQueueEngine` in `backend/sim/linkqueue.py`, braucht dafür keine
+Datenbank: Sie rechnet eine Runde aus einem Szenario (`backend/sim/scenario.py`), von Hand gebaut
+oder aus einer gespielten Runde übernommen (`.scenario` an jedem `TrafficSimulator`).
 
 Weil sich der Maßstab aus der Platzzahl ergibt, reichen dafür wenige Plätze. Auf Berlin Mitte-West
 ergeben zwei Plätze fast dieselbe Runde wie sechzehn:

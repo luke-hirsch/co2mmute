@@ -319,7 +319,10 @@ traffic a map carries.
    play several rounds with the same choices and average them.
 
 If you program, you can also replay a finished round with `TrafficSimulator` from
-`backend/game/simulation.py` at a fixed seed and average over as many seeds as you like.
+`backend/game/simulation.py` at a fixed seed and average over as many seeds as you like. The engine
+itself, `LinkQueueEngine` in `backend/sim/linkqueue.py`, needs no database for that: it runs a round
+from a scenario (`backend/sim/scenario.py`), built by hand or taken from a played round (`.scenario`
+on any `TrafficSimulator`).
 
 Because the scale follows from the number of seats, a few seats are enough. On Berlin Mitte-West two
 seats give almost the same round as sixteen:
