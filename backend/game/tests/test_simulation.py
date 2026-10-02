@@ -1141,6 +1141,47 @@ class DeadlockEscapeTests(TestCase):
             last[edge_id] = tick
 
 
+class FairMergeTests(TestCase):
+    """Links feeding one junction take turns at being served first.
+
+    A fixed visiting order lets whichever feeder comes first in the dict take
+    every slot a discharge frees, so the others sit until the escape fires.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="fairmerge", password="12345")
+        self.game_map, self.version, self.nodes = _grid_map("Fair map", 3, step_units=1.0)
+        first = _street(self.game_map, self.version, self.nodes[0], self.nodes[1])
+        second = _street(self.game_map, self.version, self.nodes[1], self.nodes[2])
+        self.session = _session(self.user, self.game_map, people_per_agent=300, std_dev=1)
+        self.game_round = GameRound.objects.create(game=self.session, round_number=1)
+        anna = Player.objects.create(name="Anna", game=self.session)
+        ben = Player.objects.create(name="Ben", game=self.session)
+        _route(self.game_round, anna, [first, second], agent_id=1)
+        _route(self.game_round, ben, [second, first], agent_id=2)
+
+    def test_the_first_link_served_rotates_between_ticks(self):
+        from game.tests._helpers import muted
+
+        simulator = TrafficSimulator(self.game_round, scale=100.0)
+        first_served = {}
+        real = simulator._discharge
+
+        def spy(edge_state, now, tick_end, released):
+            first_served.setdefault(simulator.current_tick, edge_state.edge_id)
+            return real(edge_state, now, tick_end, released)
+
+        simulator._discharge = spy
+        with muted():
+            simulator.run_simulation(max_ticks=20)
+
+        self.assertGreater(
+            len(set(first_served.values())),
+            1,
+            "the same link was served first on every tick",
+        )
+
+
 class TurnQueueTests(TestCase):
     """One queue per street on one lane; one per next street on two or more.
 

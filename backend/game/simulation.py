@@ -1537,11 +1537,17 @@ class TrafficSimulator:
         # A vehicle may cross several links within one tick — its own clock
         # (ready_at_min) is what bounds it, not the tick. So keep making
         # passes until nothing moves.
+        # The visiting order rotates by one link per tick: with a fixed order the
+        # feeder that comes first into a junction takes every slot a discharge
+        # frees, and the others only move when the escape fires.
+        states = list(self.edge_states.values())
+        turn = self.current_tick % len(states) if states else 0
+        states = states[turn:] + states[:turn]
         released: set[int] = set()
         moved = True
         while moved:
             moved = False
-            for edge_state in self.edge_states.values():
+            for edge_state in states:
                 if self._discharge(edge_state, now, tick_end, released):
                     moved = True
                 if self._discharge_bikes(edge_state, now, tick_end):
