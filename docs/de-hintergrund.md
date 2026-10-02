@@ -160,6 +160,11 @@ Eine Linie fährt ihren Fahrplan, ob jemand mitfährt oder nicht:
 > aus. Auch ein leerer Bus stößt CO₂ aus, und eine Linie, die niemand benutzt hat, kostet die Runde
 > trotzdem.
 
+Der Fahrplan deckt das Abfahrtsfenster von zwei Stunden ab. Danach fährt eine Linie weiter, solange
+noch jemand unterwegs ist, im Auto, auf dem Rad, zu Fuß oder an einer Haltestelle, auch wenn niemand
+mitfährt: Busse fahren auch in den ruhigen Stunden. Steckt der letzte Autofahrer im Stau, fahren die
+Linien weiter, und die Gesellschaft bezahlt sie.
+
 Auf die Mitfahrenden verteilt wird diese Summe nach **Personenkilometern**, nicht pro Kopf: Wer auf
 einer 13 km langen Linie eine Station fährt, soll nicht den Anteil einer ganzen Fahrt tragen,
 während das Auto daneben nach Kilometern abgerechnet wird. Die persönlichen Anteile ergeben zusammen

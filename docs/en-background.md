@@ -148,6 +148,10 @@ A line runs its timetable whether anybody rides it or not:
 > **Society pays for the timetable.** A line emits `vehicles × line-km × factor`. An empty bus emits
 > CO₂ too, and a line nobody rode still costs the round.
 
+The timetable covers the two-hour departure window. After that a line keeps running while anybody is
+still out, in a car, on a bike, on foot or at a stop, even with nobody aboard: buses run in the quiet
+hours too. If the last driver is stuck in a jam, the lines keep running, and society pays for them.
+
 That total is split between the riders by **person-kilometres**, not per head: someone riding one
 stop on a 13 km line should not carry an end-to-end share while the car beside them is priced by the
 kilometre. The personal shares add up to exactly the line's total: `Σ personal = society`.

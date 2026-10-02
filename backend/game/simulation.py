@@ -247,6 +247,10 @@ class TrafficSimulator:
         # Refreshed once a tick: whether each line still has unserved demand.
         self.line_wanted: dict[tuple[str, int], bool] = {}
 
+        # Refreshed with it: whether any person at all is still out. A line
+        # keeps running while they are, ridden or not — see _run_is_cancelled.
+        self.anyone_under_way = False
+
         # Whether a way home will follow this pass. Set by run_simulation; the
         # progress bar needs it before the evening exists.
         self.expects_way_home = False
@@ -1115,14 +1119,33 @@ class TrafficSimulator:
         self.line_wanted = {
             line_key: self._line_still_wanted(line_key) for line_key in self.pt_lines
         }
+        self.anyone_under_way = self._anyone_under_way()
+
+    def _anyone_under_way(self) -> bool:
+        """Whether any PERSON is still out: on a link, at a stop, aboard, at the door.
+
+        Line vehicles do not count. A run is under way by definition, so a
+        rule that counted it would keep its line dispatching itself until the
+        guard. Nor does somebody stranded at a stop no run reaches: that is the
+        map-data case, and waiting for them is what _strand_hopeless_riders
+        exists to stop — the broken-line fixture measured 101 runs against 12.
+        """
+        for vehicle in self.vehicles.values():
+            if vehicle.route_pk >= 0 and not vehicle.arrived and not vehicle.stranded:
+                return True
+        return any(route_pk >= 0 for _depart, route_pk, _index, _speed in self.waiting)
 
     def _run_is_cancelled(self, line_key: tuple[str, int], run_index: int) -> bool:
         """Whether this timetabled run stays in the depot.
 
         The base timetable always goes: a line runs whether or not anybody
         rides it, which is what keeps its society emissions a property of the
-        map rather than of the round. Past that, a run leaves only if somebody
-        still needs the line — and it emits only if it leaves.
+        map rather than of the round. Past that, a run leaves while somebody
+        still needs the line, AND while anybody at all is still out (F2d,
+        Lukas 2026-10-02: PT keeps driving until the last car is home — "just
+        fair and truthful", buses run through the quiet hours too). A jammed
+        round therefore pays society CO2 for the buses that ran through its
+        car tail. A run emits only if it leaves.
 
         A cancelled run is DROPPED from self.waiting, not deferred. An entry
         left in the list keeps the tick loop alive until its departure minute,
@@ -1131,6 +1154,8 @@ class TrafficSimulator:
         """
         line = self.pt_lines.get(line_key)
         if line is None or run_index < line.base_vehicles:
+            return False
+        if self.anyone_under_way:
             return False
         return not self.line_wanted.get(line_key, False)
 
