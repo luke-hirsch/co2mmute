@@ -7,7 +7,6 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.conf import settings
 from django.core import signing
-from django.core.cache import cache
 from django.core.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
@@ -74,28 +73,6 @@ def game_map_clean(map_versions, base_game_map):
 
 def per_passenger(value_per_vehicle_km: float, passengers_onboard: float) -> float:
     return float(value_per_vehicle_km) / max(1.0, float(passengers_onboard))
-
-
-def get_graph_cache_key(map_pk: int, version_pk: int) -> str:
-    return f"map_graph:{map_pk}:{version_pk}"
-
-
-def invalidate_map_version_graphs(map_pk: int) -> None:
-    versions_key = f"map_versions:{map_pk}"
-    cached_versions = cache.get(versions_key, set())
-
-    for version_pk in cached_versions:
-        cache_key = get_graph_cache_key(map_pk, version_pk)
-        cache.delete(cache_key)
-
-    cache.delete(versions_key)
-
-
-def track_cached_version(map_pk: int, version_pk: int) -> None:
-    versions_key = f"map_versions:{map_pk}"
-    cached_versions = cache.get(versions_key, set())
-    cached_versions.add(version_pk)
-    cache.set(versions_key, cached_versions, timeout=None)  # Keep indefinitely
 
 
 def sign_value(value, salt: str) -> str:

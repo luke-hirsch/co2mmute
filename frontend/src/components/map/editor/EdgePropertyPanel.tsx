@@ -432,6 +432,7 @@ const EdgePropertyPanel = ({
                   variant="ghost"
                   className="text-destructive"
                   aria-label={de.editor.remove}
+                  disabled={isPending}
                   onClick={handleRemoveStreetEdge}
                 >
                   ×
@@ -440,7 +441,12 @@ const EdgePropertyPanel = ({
             </div>
           ) : (
             directEdit && (
-              <Button size="xs" variant="outline" onClick={handleAddStreetEdge}>
+              <Button
+                size="xs"
+                variant="outline"
+                disabled={isPending}
+                onClick={handleAddStreetEdge}
+              >
                 {de.editor.edge.addStreet}
               </Button>
             )
@@ -456,6 +462,7 @@ const EdgePropertyPanel = ({
                   variant="ghost"
                   className="text-destructive"
                   aria-label={de.editor.remove}
+                  disabled={isPending}
                   onClick={handleRemoveTrainEdge}
                 >
                   ×
@@ -464,7 +471,12 @@ const EdgePropertyPanel = ({
             </div>
           ) : (
             directEdit && (
-              <Button size="xs" variant="outline" onClick={handleAddTrainEdge}>
+              <Button
+                size="xs"
+                variant="outline"
+                disabled={isPending}
+                onClick={handleAddTrainEdge}
+              >
                 {de.editor.edge.addTrain}
               </Button>
             )

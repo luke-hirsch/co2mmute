@@ -45,6 +45,8 @@ interface EditorToolbarProps {
   versionDiffEditingPtLine?: boolean;
   bidirectional: boolean;
   onBidirectionalChange: (value: boolean) => void;
+  /** A node or an edge drawn on the canvas is still on its way (F10). */
+  saving?: boolean;
 }
 
 const modes: { key: EditorMode; label: string }[] = [
@@ -127,6 +129,7 @@ const EditorToolbar = ({
   versionDiffEditingPtLine,
   bidirectional,
   onBidirectionalChange,
+  saving = false,
 }: EditorToolbarProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadMutation = useUploadBackgroundImage(mapId);
@@ -224,15 +227,19 @@ const EditorToolbar = ({
               {de.editor.delete}
             </Button>
           )}
-          {graphTool === "add-node" && (
-            <Hint waiting>{de.editor.tools.addNodeHint}</Hint>
-          )}
-          {graphTool === "add-edge" && (
+          {saving ? (
+            <Hint>{de.editor.saving}</Hint>
+          ) : (
             <>
-              <Hint waiting>{de.editor.tools.addEdgeHint}</Hint>
-              {directionToggle}
+              {graphTool === "add-node" && (
+                <Hint waiting>{de.editor.tools.addNodeHint}</Hint>
+              )}
+              {graphTool === "add-edge" && (
+                <Hint waiting>{de.editor.tools.addEdgeHint}</Hint>
+              )}
             </>
           )}
+          {graphTool === "add-edge" && directionToggle}
         </>
       )}
 

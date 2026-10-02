@@ -25,7 +25,7 @@
  * env here, with no jsdom.
  */
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 
 import { apiFetch } from "@/lib/api";
 import { csrfToken } from "@/lib/api";
@@ -281,6 +281,32 @@ export function createVersionFromDiff(mapId: MapId, payload: VersionDiffPayload)
 // ── hooks ───────────────────────────────────────────────────────────────────
 // Thin wrappers. Each keeps exactly the invalidations its hook had before.
 
+/**
+ * The options every hook below hands to `useMutation`, testable without React.
+ *
+ * **`onSuccess` returns the refetch, it does not just start it** (F10). A
+ * mutation stays pending until its `onSuccess` settles, so `isPending` now
+ * covers the graph that shows the write, not only the write. That is the
+ * whole of the editor's double-click guard: the write answered in ~20 ms, the
+ * graph took ~1.8 s to rebuild on the shipped map, and for that time every
+ * button was enabled again over a panel still showing the old state — so
+ * "+ Gegenrichtung anlegen" got clicked twice and wrote two edges.
+ */
+export function mapMutationOptions<TArgs = void, TData = unknown>(
+  qc: QueryClient,
+  mapId: MapId,
+  fn: (args: TArgs) => Promise<TData>,
+  invalidate: (mapId: MapId) => readonly (readonly unknown[])[],
+) {
+  return {
+    mutationFn: fn,
+    onSuccess: () =>
+      Promise.all(
+        invalidate(mapId).map((key) => qc.invalidateQueries({ queryKey: key })),
+      ),
+  };
+}
+
 function useMapMutation<TArgs = void, TData = unknown>(
   mapId: MapId,
   fn: (args: TArgs) => Promise<TData>,
@@ -290,14 +316,9 @@ function useMapMutation<TArgs = void, TData = unknown>(
   // Generic in both directions on purpose: the callers type their own
   // `onSuccess` against what the endpoint returns (a created edge's id, say),
   // and the ones that take no argument have to stay callable as `mutate()`.
-  return useMutation<TData, Error, TArgs>({
-    mutationFn: fn,
-    onSuccess: () => {
-      for (const key of invalidate(mapId)) {
-        qc.invalidateQueries({ queryKey: key });
-      }
-    },
-  });
+  return useMutation<TData, Error, TArgs>(
+    mapMutationOptions(qc, mapId, fn, invalidate),
+  );
 }
 
 const graphOnly = (mapId: MapId) => [mapEditorKeys.graph(mapId)] as const;
