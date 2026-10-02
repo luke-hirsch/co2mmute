@@ -493,6 +493,24 @@ describe("rounds and phases", () => {
   });
 });
 
+describe("the chat switch", () => {
+  it("follows the host's switch, both ways, without a reload (F3)", () => {
+    let state = apply(start(), {
+      type: "game.chat",
+      game_id: "ABC123",
+      data: { chat_enabled: false },
+    });
+    expect(state.chatEnabled).toBe(false);
+
+    state = apply(state, {
+      type: "game.chat",
+      game_id: "ABC123",
+      data: { chat_enabled: true },
+    });
+    expect(state.chatEnabled).toBe(true);
+  });
+});
+
 describe("pause and end", () => {
   it("pauses and resumes", () => {
     let state = apply(start(), {

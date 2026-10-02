@@ -360,6 +360,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case "game.resumed":
       return { ...seen, pausedAt: null };
 
+    case "game.chat":
+      return { ...seen, chatEnabled: event.data.chat_enabled };
+
     // ── rounds ──────────────────────────────────────────────────────────────
 
     case "round.started":

@@ -6,6 +6,7 @@ from co2mmute.utils import (
     send_chat_system_message,
     send_game_state_message,
 )
+from django.db import transaction
 from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import Signal, receiver
 from django.utils import timezone
@@ -34,6 +35,15 @@ def clear_chat_on_toggle(sender, instance: GameSession, **kwargs):
             clear_chat_messages(instance.game_id)
             logger.info(
                 f"Chat {'enabled' if instance.chat_enabled else 'disabled'} for game {instance.game_id}, messages cleared"
+            )
+            # Every screen in the room, not only the host's (F3): a phone that
+            # loaded with the chat on would keep its dock and type into a
+            # refusal, and one that loaded it off would never get one back.
+            game_id, chat_enabled = instance.game_id, instance.chat_enabled
+            transaction.on_commit(
+                lambda: send_game_state_message(
+                    game_id, "game.chat", {"chat_enabled": chat_enabled}
+                )
             )
     except GameSession.DoesNotExist:
         pass

@@ -6,10 +6,12 @@ import { DepartureBoard } from "@/components/metro/departure-board";
 import { GameSettings } from "@/components/lobby/game-settings";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
 import { SeatAdminList } from "@/components/host/seat-admin-list";
+import { ShareInvitation } from "@/components/host/share-invitation";
 import { useGame } from "@/components/game/game-context";
 import { ApiError } from "@/lib/api";
 import { de } from "@/lib/de";
 import { playingSeats, seatsFull } from "@/lib/game/game-state";
+import { invitationText, joinUrl } from "@/lib/game/invitation";
 import { useEndGame, useHostGame, useStartGame } from "@/lib/queries/session";
 
 /**
@@ -35,6 +37,7 @@ export function HostLobbyScreen() {
   const end = useEndGame(state.gameId);
 
   const players = playingSeats(state);
+  const password = game.data?.game_password || null;
 
   /**
    * A game with no map cannot start.
@@ -68,25 +71,50 @@ export function HostLobbyScreen() {
       />
 
       <div className="mb-12 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:items-start">
-        <DepartureBoard
-          label={de.code.gameId}
-          footnote={de.lobby.seatsTaken(players.length, state.maxPlayers)}
-        >
-          <p className="font-mono text-5xl tracking-[0.3em] text-brandaccent uppercase sm:text-6xl">
-            {state.gameId}
-          </p>
-          {game.data?.game_qr_code ? (
-            <div className="mt-6">
-              {/* A QR has to stay black on white to scan, whatever the board
-                  around it is doing. */}
-              <img
-                src={game.data.game_qr_code}
-                alt={de.join.idSubtitle}
-                className="size-48 rounded-md bg-white p-2 sm:size-56"
-              />
-            </div>
-          ) : null}
-        </DepartureBoard>
+        <div>
+          <DepartureBoard
+            label={de.code.gameId}
+            footnote={de.lobby.seatsTaken(players.length, state.maxPlayers)}
+          >
+            <p className="font-mono text-5xl tracking-[0.3em] text-brandaccent uppercase sm:text-6xl">
+              {state.gameId}
+            </p>
+            {/* The password belongs on the projector beside the id (F3): the
+                join screen asks for both, and the room reads them off here.
+                As typed — it is not a code, and its case matters. */}
+            {password ? (
+              <div className="mt-5">
+                <p className="font-mono text-xs tracking-[0.2em] uppercase opacity-80">
+                  {de.host.password}
+                </p>
+                <p className="mt-2 font-mono text-3xl tracking-[0.1em] break-all sm:text-4xl">
+                  {password}
+                </p>
+              </div>
+            ) : null}
+            {game.data?.game_qr_code ? (
+              <div className="mt-6">
+                {/* A QR has to stay black on white to scan, whatever the board
+                    around it is doing. */}
+                <img
+                  src={game.data.game_qr_code}
+                  alt={de.host.qrAlt}
+                  className="size-48 rounded-md bg-white p-2 sm:size-56"
+                />
+              </div>
+            ) : null}
+          </DepartureBoard>
+          <div className="mt-4">
+            <ShareInvitation
+              text={invitationText({
+                gameName: state.gameName,
+                gameId: state.gameId,
+                url: joinUrl(window.location.origin, state.gameId),
+                password,
+              })}
+            />
+          </div>
+        </div>
 
         <section>
           <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3">
@@ -99,7 +127,7 @@ export function HostLobbyScreen() {
 
       <section className="mb-12">
         <h2 className="mb-4 text-2xl font-semibold">{de.lobby.settings.title}</h2>
-        <GameSettings />
+        <GameSettings host />
       </section>
 
       {start.error || startRefused || noMap || end.error ? (

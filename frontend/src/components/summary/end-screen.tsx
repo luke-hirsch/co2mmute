@@ -221,11 +221,19 @@ export function EndScreen() {
 
       <div className="mt-20">
         {isHost ? (
-          // Out of the SPA: a host starts a game on the Django page, which is
-          // where "new game" has to land.
-          <Button variant="outline" asChild>
-            <a href="/game/create/">{de.summary.hostHome}</a>
-          </Button>
+          // Back to the host's own games, or straight into the next one. Both
+          // are SPA screens since S13, so the router takes them (F3).
+          <div className="flex flex-wrap items-center gap-3">
+            <Button onClick={() => void navigate({ to: "/host" })}>
+              {de.summary.hostGames}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => void navigate({ to: "/game/create" })}
+            >
+              {de.summary.hostHome}
+            </Button>
+          </div>
         ) : (
           <Button variant="outline" onClick={() => void navigate({ to: "/join" })}>
             {de.summary.home}

@@ -1252,6 +1252,55 @@ class MutedPlayerCannotChatTests(GameWithSeatsMixin, TransactionTestCase):
         self.assertEqual([p for p in sent if p.get("error") == "You are muted"], [])
 
 
+@override_settings(**TEST_BACKENDS)
+class ChatSwitchIsBroadcastTests(TempMediaRootMixin, TestCase):
+    """The host's chat switch reaches every screen in the room — F3.
+
+    The lobby has a switch for `chat_enabled` now. The PATCH already took the
+    field and the chat consumer already re-reads it per message; what nothing did
+    was tell the other screens. A phone that loaded the lobby with the chat on kept
+    its dock and typed into a refusal, and one that loaded it off never got a dock
+    when the host turned it back on. `game.chat` carries the new value, on commit.
+    """
+
+    def setUp(self):
+        self.host = create_host()
+        with muted():
+            self.game = create_game_session(self.host, game_name="Chat")
+        self.client.force_login(self.host)
+
+    def switch(self, on):
+        listener = GroupListener(self.game.game_id)
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            response = self.client.patch(
+                f"/api/game/{self.game.game_id}/",
+                {"chat_enabled": on},
+                content_type="application/json",
+            )
+        self.assertEqual(response.status_code, 200, msg=response.content)
+        return [data for event, data in listener.events() if event == "game.chat"]
+
+    def test_switching_the_chat_off_tells_the_room(self):
+        self.assertEqual(self.switch(False), [{"chat_enabled": False}])
+
+    def test_switching_it_back_on_tells_the_room_too(self):
+        GameSession.objects.filter(pk=self.game.pk).update(chat_enabled=False)
+        self.assertEqual(self.switch(True), [{"chat_enabled": True}])
+
+    def test_a_patch_that_leaves_it_alone_says_nothing(self):
+        """Renaming the game is not news for the chat."""
+        listener = GroupListener(self.game.game_id)
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            self.client.patch(
+                f"/api/game/{self.game.game_id}/",
+                {"game_password": "neu"},
+                content_type="application/json",
+            )
+        self.assertEqual(
+            [event for event, _ in listener.events() if event == "game.chat"], []
+        )
+
+
 @override_settings(**TEST_BACKENDS, **NO_REDIS)
 class ChatOffRefusesTheSocketTests(GameWithSeatsMixin, TransactionTestCase):
     """`chat_enabled` is a rule the server keeps, not a hint to the client — S21.

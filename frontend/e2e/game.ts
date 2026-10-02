@@ -37,6 +37,8 @@ export type CreateGameOptions = {
    * by default, so leaving this out never touches the disclosure at all.
    */
   chat?: boolean;
+  /** The game's password. Left out, the game has none. */
+  password?: string;
 };
 
 /** Create a game on the seeded map and return its id. Requires a host session. */
@@ -51,12 +53,16 @@ export async function createGame(
     maxRounds = 2,
     peoplePerAgent,
     chat,
+    password,
   } = options;
 
   await page.goto("/game/create/");
   await page.waitForURL(/\/app\/game\/create\/?$/);
 
   await page.locator("#game_name").fill(name);
+  if (password !== undefined) {
+    await page.locator("#game_password").fill(password);
+  }
   // By label, not by index: the box a run points at may hold other maps, and
   // "the second option" is how a spec silently starts playing on one of them.
   await page.locator("#game_map").selectOption({ label: MAP_NAME });

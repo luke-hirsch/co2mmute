@@ -16,7 +16,7 @@
  *
  * Where the shapes come from, so the next person can check them:
  * - `game/signals.py`   — player.joined, game.started, game.ended,
- *                         round.completed, simulation.progress
+ *                         round.completed, simulation.progress, game.chat
  * - `game/phases.py`    — round.started, stats.all_acked, vote.*, stalemate.*
  * - `game/roster.py`    — roster.update, player.revoked
  * - `game/seats.py`     — player.left, player.taken_over, player.handed_over
@@ -203,6 +203,8 @@ export type GameEvent =
     >
   | Envelope<"game.paused", { paused_at: string }>
   | Envelope<"game.resumed", Record<string, never>>
+  /** The host switched the chat on or off (F3). Sent on commit by the PATCH. */
+  | Envelope<"game.chat", { chat_enabled: boolean }>
 
   // ── rounds ───────────────────────────────────────────────────────────────
   | Envelope<

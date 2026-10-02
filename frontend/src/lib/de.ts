@@ -808,6 +808,8 @@ export const de = {
       "Es ist keine Runde zu Ende gefahren, also gibt es auch nichts auszuwerten.",
     failed: "Die Auswertung lässt sich gerade nicht laden.",
     hostHome: "Neues Spiel anlegen",
+    /** Back to the host's own page, with every game they have run (F3). */
+    hostGames: "Zu deinen Spielen",
     /**
      * Both headline figures in kilos, whatever their size. `between.grams`
      * switches to grams below a kilo, which is right in a round's table and
@@ -839,8 +841,25 @@ export const de = {
    */
   host: {
     title: "Leitstelle",
+    /**
+     * Under the game's name, on the projector — so it talks to the class, not
+     * to the host (F3; a draft, Lukas rewrites it).
+     */
     lobbyLead:
-      "Alle scannen den Code. Wer kein Handy hat, bekommt von dir einen Platz an der Leitstelle.",
+      "Scannt den Code mit dem Handy oder gebt die Spiel-ID auf der Startseite ein. Wer kein Handy hat, spielt an der Leitstelle mit.",
+    password: "Passwort",
+    qrAlt: "QR-Code, der zu diesem Spiel führt",
+    /** The lobby's share button and what it copies (F3). */
+    share: "Einladung kopieren",
+    shared: "Kopiert",
+    shareFailed:
+      "Kopieren ging nicht. Markiere den Text und kopiere ihn selbst.",
+    invitation: {
+      intro: (name: string) => `Mach mit bei co2mmute: „${name}“`,
+      gameId: (id: string) => `Spiel-ID: ${id}`,
+      password: (password: string) => `Passwort: ${password}`,
+    },
+    chatFailed: "Der Chat ließ sich nicht umstellen. Versuch es nochmal.",
     deskLead: "Gib das Gerät reihum weiter. Jeder Platz fährt einmal.",
 
     seats: "Plätze",
