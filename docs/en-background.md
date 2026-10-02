@@ -149,8 +149,10 @@ A line runs its timetable whether anybody rides it or not:
 > CO₂ too, and a line nobody rode still costs the round.
 
 The timetable covers the two-hour departure window. After that a line keeps running while anybody is
-still out, in a car, on a bike, on foot or at a stop, even with nobody aboard: buses run in the quiet
-hours too. If the last driver is stuck in a jam, the lines keep running, and society pays for them.
+still out, in a car, on a bike, on foot, on a bus or at a stop, even with nobody aboard: buses run in
+the quiet hours too. If the last driver is stuck in a jam, the lines keep running, and society pays
+for them. It matters most when many switch: a trip by bus and train takes longer than by car, and
+while one person is still on the way, every line runs.
 
 That total is split between the riders by **person-kilometres**, not per head: someone riding one
 stop on a 13 km line should not carry an end-to-end share while the car beside them is priced by the
@@ -351,25 +353,26 @@ hour in the real city.
 
 The result is not the district's real number of commuters, which is far higher. But the graph only
 depicts the main corridors, and what you are after is how much traffic **those corridors** carry.
-For Berlin Mitte-West it is **6400 commuters**: with everybody driving, 7.66 km then takes 22.5
-minutes, 12.5 of them delay. That puts the model a little above the real city.
+For Berlin Mitte-West it is **6400 commuters**: with everybody driving, 7.66 km then takes 21.5
+minutes, 11.4 of them delay. That puts the model a little above the real city.
 
 Then check that the jam depends on what players decide. That is what the game is about. Play rounds
 with fewer cars, say three quarters, half and a quarter:
 
 | car share | round total |       car | timetable | car trip | car delay |
 | --------: | ----------: | --------: | --------: | -------: | --------: |
-|     100 % |   13 059 kg | 10 194 kg |  2 864 kg | 22.5 min |  12.5 min |
-|      75 % |    9 884 kg |  6 903 kg |  2 981 kg | 15.4 min |   5.4 min |
-|      50 % |    7 184 kg |  4 164 kg |  3 020 kg | 10.6 min |   0.7 min |
-|      25 % |    5 345 kg |  2 207 kg |  3 139 kg | 10.8 min |   0.1 min |
-|       0 % |    3 194 kg |         — |  3 194 kg |        — |         — |
+|     100 % |   13 326 kg | 10 001 kg |  3 325 kg | 21.5 min |  11.4 min |
+|      75 % |   10 247 kg |  6 843 kg |  3 405 kg | 14.9 min |   4.9 min |
+|      50 % |    8 036 kg |  4 159 kg |  3 877 kg | 10.6 min |   0.7 min |
+|      25 % |    7 118 kg |  2 206 kg |  4 912 kg | 10.8 min |   0.1 min |
+|       0 % |    5 151 kg |         — |  5 151 kg |        — |         — |
 
 ![What a round costs, by car share](../backend/template/hintergrund/runde.svg)
 
 _Each bar is a round: the car in blue, the timetable in amber. The timetable runs either way and
-only gets a little dearer as more people board; the car decides how long the bar is. The line is the
-half the budget of 16 000 kg a round, which is the budget for one way._
+gets dearer as more people board, because the lines run until the last person is home; the car
+decides how long the bar is. The line is the half the budget of 16 000 kg a round, which is the
+budget for one way._
 
 On Berlin Mitte-West the jam is gone once half switch. Congestion is a threshold phenomenon close to
 capacity: just below it traffic flows, just above it jams. If the jam stays at half the car share,
@@ -381,33 +384,34 @@ the vehicles are full.
 
 The table holds for one way, the way there. It was measured on the base version of Berlin Mitte-West: 64 agents of 100 people each,
 spread evenly over the 36 home-and-workplace pairs, everybody not driving on public transport,
-averaged over six seeds. The spread between seeds is under 2 %.
+averaged over six seeds. The spread between seeds is at most 3 %.
 
 ### The budget
 
 For the budget, measure two games over the planned number of rounds: one in which nobody gets out of
 the car, and one that works its way down, for example at 100 / 75 / 50 / 50 / 25 / 25 % car share.
 The budget has to lie between the two: the first game should break it, the second should get by on
-it. The floor is the timetable, which runs without passengers too, on Berlin Mitte-West 2864 kg a
-round. The number should be round so that everybody can keep it in their head.
+it. The floor is the timetable, which runs without passengers too, on Berlin Mitte-West 6736 kg a
+round there and back. The number should be round so that everybody can keep it in their head.
 
 A round simulates there and back, and the table above holds for one way. Measured on Berlin
-Mitte-West (the same 64 agents, six seeds), a round with both ways costs 1.96 to 2.06 times what the
+Mitte-West (the same 64 agents, six seeds), a round with both ways costs 1.98 to 2.02 times what the
 way there costs alone:
 
 | car share | round total |       car | timetable |
 | --------: | ----------: | --------: | --------: |
-|     100 % |   25 614 kg | 19 885 kg |  5 729 kg |
-|      75 % |   19 626 kg | 13 673 kg |  5 953 kg |
-|      50 % |   14 470 kg |  8 337 kg |  6 134 kg |
-|      25 % |   10 883 kg |  4 415 kg |  6 468 kg |
-|       0 % |    6 582 kg |         — |  6 582 kg |
+|     100 % |   26 367 kg | 19 631 kg |  6 736 kg |
+|      75 % |   20 323 kg | 13 530 kg |  6 792 kg |
+|      50 % |   16 174 kg |  8 318 kg |  7 856 kg |
+|      25 % |   14 340 kg |  4 415 kg |  9 925 kg |
+|       0 % |   10 402 kg |         — | 10 402 kg |
 
-So the first game costs 153 684 kg over six rounds, the second 95 946 kg. The 16 000 kg a round on
-the map, 96 000 for six, sits at the edge as before: driving throughout runs out in round 4, and
-improving stays 54 kg under the budget. At 18 000 kg a round driving throughout would only end in
-round 5, and switching would keep about twelve tonnes in hand. The next play-test is to decide which
-number stays.
+So the first game costs 158 201 kg over six rounds, the second 107 716 kg. The 16 000 kg a round on
+the map, 96 000 for six, no longer separates the two: driving throughout runs out in round 4, and
+improving goes over the budget by 11 716 kg in the last round. The timetable is why: the lines run
+until the last person is home, and the more people switch, the longer people are on the way. At
+18 000 kg a round, 108 000 for six, driving throughout would end in round 5, and switching would
+stay 284 kg under. The next play-test is to decide which number stays.
 
 ### Checking the emission factors
 
@@ -426,8 +430,8 @@ is how the train factor was caught, which at first stood at 3500 g/train-km. Tha
 which the German grid mix turns into 1450 g, rounded to 1500.
 
 A wrong public transport factor weighs heavily, because the timetable runs without passengers too.
-At 3500 g the timetable was 39 % of a round in which everybody drives; at 1500 g it is 22 %. Nobody
-playing can do anything about that share.
+At 3500 g the timetable was 39 % of a round in which everybody drives; at 1500 g it was 22 %, and
+since the lines run until everybody is home it is 25 %. Nobody playing can cancel the timetable.
 
 Two rules:
 
@@ -460,7 +464,7 @@ The two numbers hold for one map and one model. Measure again when
   commuters;
 - the evening gets a peak of its own. Today it is a copy of the morning, with the same spread of
   departures; a different peak would have the same network carry more or fewer commuters;
-- an emission factor changes. That moves the budget.
+- an emission factor changes, or how long the lines run. That moves the budget.
 
 Then enter both numbers in the map file or in the admin, set `calibrated`, and export the map so the
 measurement travels with the file. The measurements for Berlin Mitte-West, with every table, are in
