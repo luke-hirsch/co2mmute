@@ -120,7 +120,12 @@ test("the vote can be cast from the keyboard, and the keys are printed", async (
     // A digit typed into the chat is a message, not a vote.
     // (The dock is closed by default; the unit tests hold the field rule.)
     await player.keyboard.press("1");
-    await expect(player.getByText("Deine Stimme ist da.")).toBeVisible();
+    // The result, not "Deine Stimme ist da.": with one seat the vote closes at
+    // once and round 2 replaces that line almost before it is drawn, so
+    // waiting for it failed under load.
+    await expect(player.getByText(/ist angenommen\./)).toBeVisible({
+      timeout: 60_000,
+    });
     expect(errors).toEqual([]);
   } finally {
     await context.close();

@@ -2,7 +2,7 @@ import { useMemo } from "react";
 
 import { useGame } from "@/components/game/game-context";
 import { edgeLoads } from "@/lib/map/traffic";
-import { useMapGraph } from "@/lib/queries/map-graph";
+import { trafficAfter, useMapGraph } from "@/lib/queries/map-graph";
 import { useSeatGame } from "@/lib/queries/seat";
 import { useHostGame } from "@/lib/queries/session";
 
@@ -11,10 +11,12 @@ import { useHostGame } from "@/lib/queries/session";
  * the round that has just been played drawn on it.
  *
  * It asks for exactly what the next round's screen will ask for — same version,
- * same game, same round in the key — so what the class looks at while deciding is
- * the picture they will route on, jam and all. `currentRound` is still the round
- * that was played until `round.started`, and the backend serves the last
- * completed round's speeds whatever round the client names (`map-graph.ts`).
+ * same game, the *next* round in the key (`trafficAfter`) — so what the class
+ * looks at while deciding is the picture they will route on, jam and all.
+ * `currentRound` is still the round that was played until `round.started`, and
+ * the backend serves the last completed round's speeds whatever round the client
+ * names (`map-graph.ts`). Keyed by `currentRound` itself, it read back the round
+ * screen's own cache entry, fetched before that round had finished.
  *
  * **The map's id has two sources** because only a seat knows it from its own
  * endpoint and the host has no seat; the host's game row has it. Both are read
@@ -28,7 +30,7 @@ export function useVoteMap() {
   const graph = useMapGraph(
     seat.data?.game_map ?? host.data?.game_map,
     state.activeMapVersionId ?? seat.data?.active_map_version,
-    { gameId: state.gameId, roundNumber: state.currentRound },
+    trafficAfter(state.gameId, state.currentRound),
   );
 
   const jam = useMemo(

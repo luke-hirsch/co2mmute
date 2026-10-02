@@ -172,6 +172,12 @@ nicht gemessen.
 | Z-19 | „Wie wird gerechnet?"              | Overlay mit Maßstab, Zeit, Kosten, Fahrplan und Stau                                                                     | geht      | numbers.spec.ts |
 | Z-20 | Wartebildschirme                   | Erklärtext steht voll ausgeschrieben da — beim Warten auf die Runde und in der Diskussion, **nie** neben dem Stimmzettel | ungeprüft | -               |
 | Z-21 | Zeit im Ergebnis                   | Hin- und Rückweg zusammen, als Mittel über die Gruppen; CO₂ und Kosten sind die Summe beider Wege                        | geht      | -               |
+| Z-22 | Stau auf der Karte der Wahl        | die gerade gefahrene Runde, am Handy und an der Leitstelle; vorher stand dort die Runde davor, nach Runde 1 gar keine (F3) | geht      | f3-zwischen-den-runden |
+| Z-23 | Karte in der Diskussion            | dieselbe Karte wie bei der Wahl, mit Stau, darüber oder daneben (F3)                                                     | geht      | f3-zwischen-den-runden |
+| Z-24 | Leitstelle während der Wahl        | sagt, wie man abstimmt: tippen, klicken oder die Zahl; „reihum weitergeben“ steht nicht da, wenn an der Leitstelle niemand spielt (F3) | geht      | f3-zwischen-den-runden |
+| Z-25 | jemand ist während der Wahl gegangen | „Plätze anzeigen“ an der Leitstelle, Platz entfernen, die Wahl schließt ohne den Platz (F3)                              | geht      | f3-zwischen-den-runden |
+| Z-26 | Karte daneben auf dem Beamer       | die Spielbildschirme gehen bis an den Rand, die Karte bekommt die halbe Breite statt eines Drittels (F3)                 | geht      | -               |
+| Z-27 | Plätze an der Leitstelle in der Wahl | „Gib den Rechner reihum weiter“ steht über der Liste der Plätze, die noch abstimmen (F3)                                 | ungeprüft | -               |
 
 ## E — spielende
 

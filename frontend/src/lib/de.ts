@@ -906,7 +906,14 @@ export const de = {
      */
     ackAll: "Weiter für alle hier",
     ackedAll: "Für die Plätze hier ist gelesen.",
-    voteLead: "Jeder Platz an diesem Rechner stimmt einmal ab. Gib den Rechner reihum weiter.",
+    /**
+     * The projector's line over the vote (F3). It used to say how the seats at
+     * this machine take turns, which says nothing to a class voting on phones;
+     * that sentence now stands over the queue, and only when there is one.
+     */
+    voteLead:
+      "Tippe oder klicke auf deine Wahl. Auf einer Tastatur geht es auch mit der Zahl daneben, 0 lässt die Karte, wie sie ist.",
+    deskVoteLead: "Jeder Platz an diesem Rechner stimmt einmal ab. Gib den Rechner reihum weiter.",
     voteSeat: "Abstimmen",
     votedSeats: "Alle Plätze an diesem Rechner haben abgestimmt.",
     /** The phase waits for phones, and nothing here can hurry them along. */
@@ -916,7 +923,8 @@ export const de = {
      * `phases.recheck` and the phase completes without it.
      */
     stuckHint:
-      "Wenn jemand nicht mehr da ist: entferne den Platz, dann geht es ohne ihn weiter.",
+      "Wenn jemand nicht mehr da ist: Entferne den Platz, dann geht es weiter.",
+    stuckSeats: "Plätze anzeigen",
 
     failed: hostRefusal,
     failedUnknown: "Das hat nicht geklappt. Versuch es nochmal.",

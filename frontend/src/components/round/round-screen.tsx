@@ -126,7 +126,7 @@ export function RoundScreen({
   }
 
   return (
-    <Screen wide={beside}>
+    <Screen full={beside}>
       <RoundHeader />
 
       {desk ? (
