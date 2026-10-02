@@ -1,6 +1,8 @@
+import { MutationObserver, QueryClient, QueryObserver } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import * as editor from "@/lib/queries/map-editor";
+import { mapKeys } from "@/lib/queries/map-graph";
 
 /**
  * The editor's writes, pinned.
@@ -225,5 +227,43 @@ describe("the failure path", () => {
     stubFetch(403, { detail: "nope" });
 
     await expect(editor.deleteNode(5, 1)).rejects.toMatchObject({ status: 403 });
+  });
+});
+
+describe("a write and the graph that shows it", () => {
+  /**
+   * F10. "+ Gegenrichtung anlegen" answered in 20 ms and the graph that drew
+   * the new direction took 1.8 s to build. The button was enabled again for
+   * all of that time with "Einbahn" still on the panel, and a second click
+   * wrote a second edge — Bellevue – Großer Stern sits twice in the box's base
+   * version. A write stays pending until the refetch it caused has landed.
+   */
+  it("stays pending until the refetched graph has arrived", async () => {
+    const qc = new QueryClient();
+    let deliverGraph: (graph: unknown) => void = () => {};
+    const graphQuery = new QueryObserver(qc, {
+      queryKey: mapKeys.graph("5", null),
+      queryFn: () => new Promise((resolve) => (deliverGraph = resolve)),
+    });
+    const unsubscribe = graphQuery.subscribe(() => {});
+    deliverGraph({ edges: [] });
+    await vi.waitFor(() => expect(graphQuery.getCurrentResult().isSuccess).toBe(true));
+
+    const write = new MutationObserver(
+      qc,
+      editor.mapMutationOptions(qc, "5", () => Promise.resolve({ id: 1 }), (id) => [
+        editor.mapEditorKeys.graph(id),
+      ]),
+    );
+    const done = write.mutate(undefined);
+    await vi.waitFor(() => expect(graphQuery.getCurrentResult().isFetching).toBe(true));
+
+    expect(write.getCurrentResult().isPending).toBe(true);
+
+    deliverGraph({ edges: [{ id: 1 }] });
+    await done;
+    expect(write.getCurrentResult().isPending).toBe(false);
+    expect(graphQuery.getCurrentResult().data).toEqual({ edges: [{ id: 1 }] });
+    unsubscribe();
   });
 });

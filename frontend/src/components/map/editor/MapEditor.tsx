@@ -3,11 +3,13 @@ import { useReducer, useState, useCallback, useRef } from "react";
 import { useParams, Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  mapKeys,
   useGameMap,
   useMapGraph,
   useMapVersions,
 } from "@/lib/queries/map-graph";
 import {
+  mapEditorKeys,
   useUpdateNodePosition,
   useCreateNode,
   useDeleteNode,
@@ -180,6 +182,12 @@ const MapEditor = () => {
   const qc = useQueryClient();
 
   const versionId = selectedVersionId ?? mapGraph?.version_id;
+  // A node or an edge drawn on the canvas is pending until the graph that
+  // draws it has arrived (`mapMutationOptions`). Until then the canvas takes no
+  // second one: the editor used to show nothing for the ~1.8 s the graph took,
+  // and Bellevue – Großer Stern got drawn twice.
+  const canvasSaving =
+    createNodeMutation.isPending || createEdgeMutation.isPending;
 
   const handleModeChange = useCallback((mode: EditorMode) => {
     dispatch({ type: "SET_MODE", mode });
@@ -205,8 +213,11 @@ const MapEditor = () => {
     (nodeId: number, x: number, y: number) => {
       // No dragging in version-diff mode — topology must be preserved
       if (state.mode === "version-diff") return;
+      // The key `useMapGraph` reads. It said `["mapGraph", …]`, the pre-F7
+      // key nothing reads any more, so the dragged node jumped back to where
+      // it had been until the refetch landed.
       qc.setQueryData(
-        ["mapGraph", mapId, selectedVersionId],
+        mapKeys.graph(mapId, selectedVersionId ?? null),
         (old: ExtendedMapGraph | undefined) => {
           if (!old) return old;
           return {
@@ -221,7 +232,7 @@ const MapEditor = () => {
         { nodeId, x_position: x, y_position: y },
         {
           onError: () => {
-            qc.invalidateQueries({ queryKey: ["mapGraph", mapId] });
+            qc.invalidateQueries({ queryKey: mapEditorKeys.graph(mapId) });
           },
         },
       );
@@ -236,13 +247,14 @@ const MapEditor = () => {
         setNewNodes((prev) => [...prev, { tempId, x_position: x, y_position: y }]);
         return;
       }
+      if (canvasSaving) return;
       createNodeMutation.mutate({
         x_position: x,
         y_position: y,
         map_versions: versionId ? [versionId] : [],
       });
     },
-    [createNodeMutation, versionId, state.mode],
+    [createNodeMutation, versionId, state.mode, canvasSaving],
   );
 
   const handleCreateEdge = useCallback(
@@ -263,6 +275,7 @@ const MapEditor = () => {
         ]);
         return;
       }
+      if (canvasSaving) return;
       createEdgeMutation.mutate({
         start_node: startNodeId as number,
         end_node: endNodeId as number,
@@ -270,7 +283,7 @@ const MapEditor = () => {
         bidirectional: state.bidirectional,
       });
     },
-    [createEdgeMutation, versionId, state.bidirectional, state.mode],
+    [createEdgeMutation, versionId, state.bidirectional, state.mode, canvasSaving],
   );
 
   const handleEdgeClick = useCallback(
@@ -556,6 +569,7 @@ const MapEditor = () => {
           onBidirectionalChange={(value: boolean) =>
             dispatch({ type: "SET_BIDIRECTIONAL", value })
           }
+          saving={canvasSaving}
         />
 
         {/* Mutation error banner */}
