@@ -5305,3 +5305,177 @@ class EveningStaysAtItsHourTests(RoundTripTests):
         self.assertIn(50, seen, "the way to work is half the round")
         self.assertEqual(seen[-1], 100)
 
+
+
+class LinesDriveTheirOwnWayTests(PTBoardingScenarioMixin, TestCase):
+    """A line drives the link that goes ITS way, whichever way the map drew it.
+
+    Each direction of a street is its own link with its own queue (F2a), and a
+    line vehicle queues on the link its chain row names. The editor lets a line
+    be drawn on either direction — node_chain reads the travel order from the
+    nodes — and the shipped map's bus `100` eastbound named the westbound links
+    for five of its seven streets. On the way home it waited among the cars
+    going home, and at the front wanted the link those cars were coming from:
+    two full links waiting on each other, which only the deadlock escape breaks.
+    With lines running past the timetable that never cleared (F2d).
+
+    The fixture is a corridor N0 - N1 - N2, 1 km a link, drawn eastbound and
+    the lines drawn on the westbound links.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="ownway", password="12345")
+
+    def _corridor(self, east=True, lanes=1):
+        game_map, version, nodes = _grid_map("Corridor", 3, step_units=10.0)
+        west = [
+            _street(game_map, version, nodes[1], nodes[0], lanes=lanes),
+            _street(game_map, version, nodes[2], nodes[1], lanes=lanes),
+        ]
+        east_edges = []
+        if east:
+            east_edges = [
+                _street(game_map, version, nodes[0], nodes[1], lanes=lanes),
+                _street(game_map, version, nodes[1], nodes[2], lanes=lanes),
+            ]
+        return game_map, version, nodes, east_edges, west
+
+    def _rails(self, game_map, version, pairs):
+        rails = []
+        for start, end in pairs:
+            edge = Edge.objects.create(game_map=game_map, start_node=start, end_node=end)
+            edge.map_versions.add(version)
+            TrainEdge.objects.create(edge=edge).map_versions.add(version)
+            rails.append(edge)
+        return rails
+
+    def _bus_line(self, game_map, versions, chains, name="100"):
+        """`chains` is {version: [edge, ...]} — the rows each version runs on."""
+        line = BusLine.objects.create(game_map=game_map, name=name, intervall=10)
+        line.map_versions.add(*versions)
+        for version, edges in chains.items():
+            for order, edge in enumerate(edges):
+                BusLineEdge.objects.create(
+                    bus_line=line, street_edge=edge.streetedge_set.first(), order=order
+                ).map_versions.add(version)
+        return line
+
+    def _train_line(self, game_map, version, edges, name="S1"):
+        line = TrainLine.objects.create(game_map=game_map, name=name, intervall=10)
+        line.map_versions.add(version)
+        for order, edge in enumerate(edges):
+            TrainLineEdge.objects.create(
+                train_line=line, train_edge=edge.trainedge_set.first(), order=order
+            ).map_versions.add(version)
+        return line
+
+    def _simulator(self, game_map, version, car_edges, people=10):
+        session = self._pt_session(game_map, version, people=people)
+        game_round = self._round(session)
+        _route(game_round, self._player(session), car_edges, mode="car")
+        return TrafficSimulator(game_round, scale=100.0, seed=7)
+
+    def _run_links(self, simulator, mode, line):
+        key = simulator.line_route_keys[(mode, line.pk)]
+        return [segment.edge_id for segment in simulator.route_segments[key]]
+
+    def test_a_bus_drawn_on_the_other_side_drives_its_own(self):
+        game_map, version, nodes, east, west = self._corridor()
+        line = self._bus_line(game_map, [version], {version: west})
+
+        simulator = self._simulator(game_map, version, list(reversed(west)))
+
+        self.assertEqual(self._run_links(simulator, "bus", line), [e.pk for e in east])
+        # The stops are the nodes, and those did not move.
+        self.assertEqual(
+            simulator.pt_lines[("bus", line.pk)].stops, [n.pk for n in nodes]
+        )
+
+    def test_a_train_drawn_on_the_other_track_runs_its_own(self):
+        game_map, version, nodes = _grid_map("Rail corridor", 3, step_units=10.0)
+        west = self._rails(game_map, version, [(nodes[1], nodes[0]), (nodes[2], nodes[1])])
+        east = self._rails(game_map, version, [(nodes[0], nodes[1]), (nodes[1], nodes[2])])
+        street = _street(game_map, version, nodes[0], nodes[1])
+        line = self._train_line(game_map, version, west)
+
+        simulator = self._simulator(game_map, version, [street])
+
+        self.assertEqual(self._run_links(simulator, "train", line), [e.pk for e in east])
+
+    def test_a_jam_going_the_other_way_does_not_hold_the_bus(self):
+        """The symptom: westbound full of cars, the eastbound bus at free flow.
+
+        Drawn on the westbound links, the bus queues behind the cars and then
+        locks against them; on its own side the street is empty.
+        """
+        game_map, version, nodes, east, west = self._corridor()
+        line = self._bus_line(game_map, [version], {version: west})
+        session = self._pt_session(game_map, version, people=600)
+        session.departure_std_dev_min = 1
+        session.save(update_fields=["departure_std_dev_min"])
+        game_round = self._round(session)
+        _route(game_round, self._player(session), list(reversed(west)), mode="car")
+
+        simulator = self._run(game_round, seed=7, max_ticks=300)
+
+        runs = [pt for pt in simulator.pt_vehicles if pt.line_key == ("bus", line.pk)]
+        self.assertTrue(runs)
+        free_flow_min = 2.0 / line.bus_speed_kmh * 60
+        for pt in runs:
+            vehicle = simulator.vehicles[pt.vehicle_id]
+            with self.subTest(departure=pt.departure_min):
+                self.assertTrue(vehicle.arrived, "a bus never reached the end of its line")
+                self.assertLessEqual(
+                    vehicle.arrived_min - pt.departure_min,
+                    free_flow_min + simulator.tick_duration_min,
+                )
+
+    def test_a_line_against_a_one_way_street_drives_it_as_drawn(self):
+        """No link goes the line's way, so there is nothing to swap to: a contraflow lane."""
+        game_map, version, nodes, _east, west = self._corridor(east=False)
+        line = self._bus_line(game_map, [version], {version: west})
+
+        simulator = self._simulator(game_map, version, list(reversed(west)))
+
+        self.assertEqual(self._run_links(simulator, "bus", line), [e.pk for e in west])
+
+    def test_a_bus_is_not_swapped_onto_a_railway(self):
+        """The link going the bus's way is track only — a bus cannot drive it."""
+        game_map, version, nodes, _east, west = self._corridor(east=False)
+        self._rails(game_map, version, [(nodes[0], nodes[1]), (nodes[1], nodes[2])])
+        line = self._bus_line(game_map, [version], {version: west})
+
+        simulator = self._simulator(game_map, version, list(reversed(west)))
+
+        self.assertEqual(self._run_links(simulator, "bus", line), [e.pk for e in west])
+
+    def test_the_other_side_is_the_one_in_the_rounds_version(self):
+        """`Busspuren` clones both sides of the street; each version swaps to its own.
+
+        Looked up by its two ends alone, the base version's bus would find the
+        clone and drive a street nobody else is on — which is the mistake the
+        measurement that found this first made.
+        """
+        game_map, base, nodes, east, west = self._corridor()
+        busspuren = MapVersion.objects.create(game_map=game_map, name="Busspuren")
+        for node in nodes:
+            node.map_versions.add(busspuren)
+        clone_west = [
+            _street(game_map, busspuren, nodes[1], nodes[0], lanes=2, bus_lane=True),
+            _street(game_map, busspuren, nodes[2], nodes[1], lanes=2, bus_lane=True),
+        ]
+        clone_east = [
+            _street(game_map, busspuren, nodes[0], nodes[1], lanes=2, bus_lane=True),
+            _street(game_map, busspuren, nodes[1], nodes[2], lanes=2, bus_lane=True),
+        ]
+        line = self._bus_line(
+            game_map, [base, busspuren], {base: west, busspuren: clone_west}
+        )
+
+        on_base = self._simulator(game_map, base, list(reversed(west)))
+        on_busspuren = self._simulator(game_map, busspuren, list(reversed(clone_west)))
+
+        self.assertEqual(self._run_links(on_base, "bus", line), [e.pk for e in east])
+        self.assertEqual(
+            self._run_links(on_busspuren, "bus", line), [e.pk for e in clone_east]
+        )

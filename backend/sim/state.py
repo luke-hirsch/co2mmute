@@ -21,9 +21,10 @@ def node_chain(ends: list[tuple[int, int]]) -> list[int]:
 
     `ends` is each edge's (start_node_id, end_node_id) in the order the line or
     the route stores them. An edge may be stored either way round relative to
-    the direction of travel — the map importer does not normalise that, and the
-    shipped examples store every edge of every line reversed — so the chain is
-    followed by matching node ids rather than by trusting start/end.
+    the direction of travel — the map importer does not normalise that, and a
+    line may be drawn on the other side of a street — so the chain is followed
+    by matching node ids rather than by trusting start/end. Which side a line
+    actually drives is `TrafficSimulator._its_own_way`'s question, not this one.
 
     The first edge is the one that needs care: on its own there is nothing to
     orient it against, so its direction is decided by whichever of its ends the

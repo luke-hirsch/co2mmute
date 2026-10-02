@@ -104,7 +104,8 @@ next round all rest on the same measured number.
 
 - **Cars** always.
 - **Buses** queue in mixed traffic and free-run on a dedicated bus lane. A bus is 3 car-equivalents
-  (PCU), so it takes the room of three cars in the queue it shares with them.
+  (PCU), so it takes the room of three cars in the queue it shares with them. It always queues in its
+  own direction of travel, even where the map draws the line on the opposite direction.
 - **Bikes** are in traffic only where they share a street with cars. A bike has a queue of its own
   on the link, with its own discharge budget of 2000 bikes/h. So a car jam never holds a cyclist up
   and a cyclist never holds a driver up. They do share the link's _storage_, though: a bike is
