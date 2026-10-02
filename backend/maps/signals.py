@@ -1,28 +1,21 @@
 """Signals for maps app."""
 
-from django.db.models.signals import post_save, post_delete, pre_save
+from django.core.exceptions import ObjectDoesNotExist
+from django.db.models.signals import m2m_changed, post_delete, post_save, pre_save
 from django.dispatch import receiver
-from django.core.cache import cache
 
-from maps.models import Node, Edge, MapVersion
-
-
-def invalidate_map_version_graphs(map_pk: int) -> None:
-    """
-    Invalidate all cached graphs for a specific map.
-
-    This should be called when nodes, edges, or other map data is modified.
-
-    Args:
-        map_pk: The GameMap primary key
-    """
-    # Get all versions for this map and clear their caches
-    versions = MapVersion.objects.filter(game_map_id=map_pk)
-
-    for version in versions:
-        cache_key = f"map_graph:{map_pk}:{version.pk}"
-        cache.delete(cache_key)
-    cache.delete(f"map_graph:{map_pk}:None")
+from maps import graph_cache
+from maps.models import (
+    BusLine,
+    BusLineEdge,
+    Edge,
+    MapVersion,
+    Node,
+    StreetEdge,
+    TrainEdge,
+    TrainLine,
+    TrainLineEdge,
+)
 
 
 @receiver(pre_save, sender=MapVersion)
@@ -78,25 +71,73 @@ def ensure_base_version_on_delete(sender, instance, **kwargs):
             remaining.save()
 
 
-@receiver(post_save, sender=Node)
-def clear_cache_on_node_save(sender, instance, **kwargs):
-    """Clear graph cache when a node is saved."""
-    invalidate_map_version_graphs(instance.game_map_id)
+# ── the cached graph ───────────────────────────────────────────────────────
+#
+# Every model a graph is built from, and every one's version membership. Until
+# F10 only `Node` and `Edge` were here, so a street or a railway laid under an
+# edge — the editor's "+ Straße anlegen" — was saved and not drawn for up to an
+# hour. Membership is an m2m, and an m2m add saves no row, so it needs its own
+# receiver: every version write in this app is a `map_versions.add`.
+
+GRAPH_MODELS = (
+    Node,
+    Edge,
+    StreetEdge,
+    TrainEdge,
+    BusLine,
+    TrainLine,
+    BusLineEdge,
+    TrainLineEdge,
+    MapVersion,
+)
 
 
-@receiver(post_delete, sender=Node)
-def clear_cache_on_node_delete(sender, instance, **kwargs):
-    """Clear graph cache when a node is deleted."""
-    invalidate_map_version_graphs(instance.game_map_id)
+def _map_of(instance):
+    """The map a row belongs to, however far up it sits.
+
+    `None` if a parent is already gone — a cascade deletes children after
+    their parent row has left the database, and the parent's own signal has
+    cleared the map then.
+    """
+    try:
+        if isinstance(instance, (StreetEdge, TrainEdge)):
+            return instance.edge.game_map_id
+        if isinstance(instance, BusLineEdge):
+            return instance.bus_line.game_map_id
+        if isinstance(instance, TrainLineEdge):
+            return instance.train_line.game_map_id
+        return instance.game_map_id
+    except ObjectDoesNotExist:
+        return None
 
 
-@receiver(post_save, sender=Edge)
-def clear_cache_on_edge_save(sender, instance, **kwargs):
-    """Clear graph cache when an edge is saved."""
-    invalidate_map_version_graphs(instance.game_map_id)
+def _graph_row_changed(sender, instance, **kwargs):
+    graph_cache.invalidate(_map_of(instance))
 
 
-@receiver(post_delete, sender=Edge)
-def clear_cache_on_edge_delete(sender, instance, **kwargs):
-    """Clear graph cache when an edge is deleted."""
-    invalidate_map_version_graphs(instance.game_map_id)
+def _graph_membership_changed(sender, instance, action, reverse, **kwargs):
+    if action not in ("post_add", "post_remove", "post_clear"):
+        return
+    # Reverse is `version.node_set.add(...)`: the instance is the version.
+    graph_cache.invalidate(instance.game_map_id if reverse else _map_of(instance))
+
+
+for _model in GRAPH_MODELS:
+    post_save.connect(
+        _graph_row_changed, sender=_model, dispatch_uid=f"graph-save-{_model.__name__}"
+    )
+    post_delete.connect(
+        _graph_row_changed, sender=_model, dispatch_uid=f"graph-delete-{_model.__name__}"
+    )
+    # A version's own m2m is its ballot, which the graph carries too: every
+    # node and edge lists its versions with their `compatible_versions`.
+    through = (
+        MapVersion.compatible_versions.through
+        if _model is MapVersion
+        else _model.map_versions.through
+    )
+    m2m_changed.connect(
+        _graph_membership_changed,
+        sender=through,
+        dispatch_uid=f"graph-membership-{_model.__name__}",
+    )

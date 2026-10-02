@@ -73,6 +73,126 @@ def drop_rows_from(rows, version):
         row.map_versions.remove(version)
 
 
+def versions_built_on(version, ignoring=None):
+    """`version` and every version built on it — where a row drawn there goes.
+
+    The editor's rule since F10 (decided 2026-10-02): what is drawn in a version
+    is in every version built on it. Drawn in base, that is every version of the
+    map. Drawn in a change, it is that change and every combination holding it —
+    otherwise a class that votes in two changes plays a combination that
+    silently lacks part of one.
+
+    Nothing records which versions a combination was made of (its
+    `source_version` is empty), so "built on" is read off what the versions
+    hold, the same way `combination_members` composes them: V is built on X
+    when V holds everything X added over the version X was made from, and
+    nothing X removed. For a combination that is exactly true of its members
+    and false of every other change.
+
+    A version that adds and removes nothing would by that reading be held by
+    every version, base included; nothing is built on it but itself.
+
+    `ignoring` is the row being placed: it is already in `version` when this is
+    asked, and counted as part of the change no combination would hold it yet.
+    """
+    from maps.models import MapVersion
+
+    versions = list(MapVersion.objects.filter(game_map_id=version.game_map_id))
+    if version.base_version:
+        return versions
+
+    source = version.source_version
+    if source is None:
+        source = next((v for v in versions if v.base_version and v != version), None)
+    if source is None:
+        return [version]
+
+    models = _versioned_models()
+    added, removed = {}, {}
+    for model in models:
+        own, theirs = _pks(model, version), _pks(model, source)
+        if ignoring is not None and isinstance(ignoring, model):
+            own.discard(ignoring.pk)
+        added[model], removed[model] = own - theirs, theirs - own
+    if not any(added.values()) and not any(removed.values()):
+        return [version]
+
+    built_on = [version]
+    for other in versions:
+        if other == version:
+            continue
+        holds = {model: _pks(model, other) for model in models}
+        if all(
+            added[model] <= holds[model] and not (removed[model] & holds[model])
+            for model in models
+        ):
+            built_on.append(other)
+    return built_on
+
+
+def spread_to_built_on(row, drawn_in):
+    """Put a row drawn in `drawn_in` into every version built on them.
+
+    The writers' half of `versions_built_on`, for the four rows the editor
+    draws — a node, an edge, and the street or railway under an edge. A version
+    gets the row only if it can hold it:
+
+    * an edge needs both its nodes there, and no edge of its own between them
+      in the same direction. That second half is the `Busspuren` case: a
+      version that replaced a street with its own copy keeps the copy, because
+      the copy *is* the version's change.
+    * a street or a railway needs its edge there, and no other street (or
+      railway) under that edge in that version.
+
+    Everything goes into `map_versions` explicitly. "A row naming no version is
+    in no version" stays; this is the editor writing the full list, not a
+    fallback at read time.
+    """
+    from maps.models import Edge, Node, StreetEdge, TrainEdge
+
+    drawn = list(drawn_in)
+    targets = {}
+    for version in drawn:
+        for other in versions_built_on(version, ignoring=row):
+            targets.setdefault(other.pk, other)
+    for version in drawn:
+        targets.pop(version.pk, None)
+
+    room = []
+    for version in targets.values():
+        if isinstance(row, Node):
+            fits = True
+        elif isinstance(row, Edge):
+            fits = (
+                Node.objects.filter(
+                    pk__in=[row.start_node_id, row.end_node_id], map_versions=version
+                ).count()
+                == 2
+                and not Edge.objects.filter(
+                    start_node_id=row.start_node_id,
+                    end_node_id=row.end_node_id,
+                    map_versions=version,
+                )
+                .exclude(pk=row.pk)
+                .exists()
+            )
+        elif isinstance(row, (StreetEdge, TrainEdge)):
+            fits = (
+                row.edge.map_versions.filter(pk=version.pk).exists()
+                and not type(row)
+                .objects.filter(edge_id=row.edge_id, map_versions=version)
+                .exclude(pk=row.pk)
+                .exists()
+            )
+        else:
+            raise TypeError(f"the editor draws no {type(row).__name__}")
+        if fits:
+            room.append(version)
+    if room:
+        row.map_versions.add(*room)
+    return room
+
+
 def combination_members(model, base_version, member_versions):
     """The pks of `model` a combination of `member_versions` holds.
 
@@ -108,6 +228,30 @@ def combination_members(model, base_version, member_versions):
         added |= version_pks - base_pks
         removed |= base_pks - version_pks
     return (base_pks - removed) | added
+
+
+def _versioned_models():
+    from maps.models import (
+        BusLine,
+        BusLineEdge,
+        Edge,
+        Node,
+        StreetEdge,
+        TrainEdge,
+        TrainLine,
+        TrainLineEdge,
+    )
+
+    return (
+        Node,
+        Edge,
+        StreetEdge,
+        TrainEdge,
+        BusLine,
+        TrainLine,
+        BusLineEdge,
+        TrainLineEdge,
+    )
 
 
 def _pks(model, version):

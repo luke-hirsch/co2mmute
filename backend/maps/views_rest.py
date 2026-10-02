@@ -6,6 +6,7 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
+from rest_framework.exceptions import APIException
 from rest_framework.generics import (
     GenericAPIView,
     ListCreateAPIView,
@@ -14,6 +15,7 @@ from rest_framework.generics import (
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
+from maps import graph_cache
 from maps.forms import MapUploadForm
 from maps.importer import ImportRefused, MapImporter
 from maps.mixins import MapScopedQuerysetMixin
@@ -53,10 +55,42 @@ from maps.versions import (
     combination_poll_texts,
     drop_rows_from,
     put_rows_in,
+    spread_to_built_on,
     train_chain_rows,
 )
 
 logger = logging.getLogger(__name__)
+
+
+# ── what the editor draws ──────────────────────────────────────────────────
+#
+# The four create endpoints below are the editor's: a node, an edge (and its
+# other direction), the street or the railway under an edge. Each names the
+# version it was drawn in; `spread_to_built_on` puts the row into every version
+# built on that one (F10). A row in no version is refused by the serializer
+# (`MapVersionsMixin`); a second copy of what the drawn version already has is
+# refused here — Bellevue – Großer Stern sits twice in the box's base, and every
+# repeated click on "+ Straße anlegen" wrote another street row under one edge.
+
+
+class EditorRefused(APIException):
+    """A 400 carrying `reason`, the way the join endpoints refuse."""
+
+    status_code = 400
+
+    def __init__(self, detail, reason):
+        super().__init__({"detail": detail, "reason": reason})
+
+
+def _drawn_in(serializer):
+    """The versions a create names. Never empty: the serializer refuses that."""
+    return list(serializer.validated_data["map_versions"])
+
+
+def _edge_in(start_node, end_node, versions):
+    return Edge.objects.filter(
+        start_node=start_node, end_node=end_node, map_versions__in=versions
+    ).exists()
 
 
 # GameMap Views
@@ -264,6 +298,11 @@ class NodeListView(MapScopedQuerysetMixin, ListCreateAPIView):
         map_id = self.get_map_id()
         return Node.objects.filter(game_map_id=map_id)
 
+    @transaction.atomic
+    def perform_create(self, serializer):
+        drawn = _drawn_in(serializer)
+        spread_to_built_on(serializer.save(), drawn)
+
 
 class NodeDetailView(RetrieveUpdateDestroyAPIView):
     """Retrieve, update, or delete a specific node."""
@@ -291,11 +330,23 @@ class EdgeListView(MapScopedQuerysetMixin, ListCreateAPIView):
 
     @transaction.atomic
     def perform_create(self, serializer):
-        """Create edge, and optionally the reverse edge if bidirectional."""
-        bidirectional = serializer.validated_data.pop("bidirectional", False)
-        edge = serializer.save()
+        """Create edge, and optionally the reverse edge if bidirectional.
 
-        if bidirectional:
+        An edge the drawn version already has is refused. Its other direction
+        is not: drawing A–B both ways over an existing A→B draws B→A, which is
+        what "+ Gegenrichtung anlegen" means too.
+        """
+        bidirectional = serializer.validated_data.pop("bidirectional", False)
+        data = serializer.validated_data
+        drawn = _drawn_in(serializer)
+        if _edge_in(data["start_node"], data["end_node"], drawn):
+            raise EditorRefused(
+                "Diese Kante gibt es in dieser Version schon.", "edge-exists"
+            )
+        edge = serializer.save()
+        spread_to_built_on(edge, drawn)
+
+        if bidirectional and not _edge_in(edge.end_node, edge.start_node, drawn):
             reverse_edge = Edge.objects.create(
                 game_map=edge.game_map,
                 name=edge.name,
@@ -306,7 +357,8 @@ class EdgeListView(MapScopedQuerysetMixin, ListCreateAPIView):
                 walking=edge.walking,
                 max_lanes=edge.max_lanes,
             )
-            reverse_edge.map_versions.set(edge.map_versions.all())
+            reverse_edge.map_versions.set(drawn)
+            spread_to_built_on(reverse_edge, drawn)
 
         _invalidate_map_cache(self.kwargs["pk"])
 
@@ -336,6 +388,17 @@ class StreetEdgeListView(MapScopedQuerysetMixin, ListCreateAPIView):
         return StreetEdge.objects.filter(edge__game_map_id=map_id).select_related(
             "edge"
         )
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        edge = serializer.validated_data["edge"]
+        drawn = _drawn_in(serializer)
+        if StreetEdge.objects.filter(edge=edge, map_versions__in=drawn).exists():
+            raise EditorRefused(
+                "Unter dieser Kante liegt in dieser Version schon eine Straße.",
+                "street-exists",
+            )
+        spread_to_built_on(serializer.save(), drawn)
 
 
 class StreetEdgeDetailView(RetrieveUpdateDestroyAPIView):
@@ -445,6 +508,17 @@ class TrainEdgeListView(MapScopedQuerysetMixin, ListCreateAPIView):
         """Filter train edges by the specific map."""
         map_id = self.get_map_id()
         return TrainEdge.objects.filter(edge__game_map_id=map_id).select_related("edge")
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        edge = serializer.validated_data["edge"]
+        drawn = _drawn_in(serializer)
+        if TrainEdge.objects.filter(edge=edge, map_versions__in=drawn).exists():
+            raise EditorRefused(
+                "Unter dieser Kante liegt in dieser Version schon ein Gleis.",
+                "rail-exists",
+            )
+        spread_to_built_on(serializer.save(), drawn)
 
 
 class TrainEdgeDetailView(RetrieveUpdateDestroyAPIView):
@@ -577,8 +651,12 @@ class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Build cache key
-        cache_key = f"map_graph:{map_pk}:{version_pk}"
+        # Read the generation before anything else: a write that lands while
+        # this graph is being built moves it, and the graph is then stored
+        # under a key nobody asks for again (`maps/graph_cache.py`).
+        cache_key = graph_cache.graph_key(
+            map_pk, version_pk, graph_cache.generation(map_pk)
+        )
 
         # Try to get from cache first
         cached_graph = cache.get(cache_key)
@@ -608,16 +686,24 @@ class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
 
         try:
             # Get all nodes for this map version
+            # Every node and edge carries its whole version list, each version
+            # with its ballot neighbours: 1 811 of the 1 832 queries one graph
+            # took on the shipped map, ~0.85 s of it. The editor waits for this
+            # graph after every write (F10), so it is prefetched.
             nodes = Node.objects.filter(
                 game_map=map_obj, map_versions=version
-            ).prefetch_related("node_type")
+            ).prefetch_related("node_type", "map_versions__compatible_versions")
 
             # Get all edges for this map version with street_edge and train_edge prefetch
             # StreetEdge and TrainEdge have ForeignKey to Edge, so we use prefetch_related
             edges = (
                 Edge.objects.filter(game_map=map_obj, map_versions=version)
                 .select_related("start_node", "end_node", "game_map")
-                .prefetch_related("streetedge_set", "trainedge_set")
+                .prefetch_related(
+                    "streetedge_set",
+                    "trainedge_set",
+                    "map_versions__compatible_versions",
+                )
             )
 
             # PT lines of this version. Their chains are not prefetched here:
@@ -670,8 +756,7 @@ class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
                 "image_crop_left": map_obj.image_crop_left,
             }
 
-            # Cache the result for 1 hour (3600 seconds)
-            cache.set(cache_key, graph_data, 3600)
+            cache.set(cache_key, graph_data, graph_cache.GRAPH_TIMEOUT_S)
 
             return Response(
                 self._with_traffic(graph_data, game_id),
@@ -790,10 +875,13 @@ class MapImportView(GenericAPIView):
 
 
 def _invalidate_map_cache(map_pk):
-    """Invalidate graph cache for all versions of a map."""
-    for version in MapVersion.objects.filter(game_map_id=map_pk):
-        cache.delete(f"map_graph:{map_pk}:{version.pk}")
-    cache.delete(f"map_graph:{map_pk}:None")
+    """Every cached graph of the map is stale. See `maps/graph_cache.py`.
+
+    The model signals already do this for every row a graph is built from; the
+    explicit calls stay because a view that knows it changed the map should not
+    depend on which rows a signal happens to watch.
+    """
+    graph_cache.invalidate(map_pk)
 
 
 class GameMapImageUploadView(GenericAPIView):

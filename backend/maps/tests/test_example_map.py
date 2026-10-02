@@ -748,6 +748,31 @@ class ShippedMapImportsTests(MapUploadMixin, TestCase):
             ["Buslinie", "Busspuren", "Umgehungsstraßen"],
         )
 
+    def test_a_version_is_built_on_by_the_combinations_holding_it(self):
+        """F10's rule, read off the real eight versions.
+
+        Combinations record no members, so `versions_built_on` derives them
+        from what each version holds. On this map that must come out as the
+        names say: base under everything, `Busspuren` under the three
+        combinations with `Busspuren` in them, a pair under the triple. If a
+        data pass ever leaves a change half-copied into its combinations, the
+        derivation stops seeing them — and this is where that shows.
+        """
+        from maps.versions import versions_built_on
+
+        game_map = self.upload_shipped_map()
+        versions = list(MapVersion.objects.filter(game_map=game_map))
+
+        def parts(version):
+            return set() if version.base_version else set(version.name.split(" + "))
+
+        for version in versions:
+            with self.subTest(version=version.name):
+                expected = {v.name for v in versions if parts(v) >= parts(version)}
+                self.assertEqual(
+                    {v.name for v in versions_built_on(version)}, expected
+                )
+
     def test_the_lines_arrive_with_their_seats_and_their_speed(self):
         game_map = self.upload_shipped_map()
 

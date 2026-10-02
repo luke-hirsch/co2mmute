@@ -168,6 +168,11 @@ DATABASES = (
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": BASE_DIR / "db.sqlite3",
+            # A transaction that reads before it writes takes the write lock up
+            # front, so two of them wait for each other instead of failing with
+            # "database is locked". The map editor sends the street under both
+            # directions of an edge at once, and each create reads first (F10).
+            "OPTIONS": {"transaction_mode": "IMMEDIATE"},
         }
     }
     if DJANGO_DB == "sqlite"

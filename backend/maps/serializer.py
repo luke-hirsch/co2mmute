@@ -50,11 +50,24 @@ class MapVersionSerializer(serializers.ModelSerializer):
         return instance
 
 
-class MapVersionsMixin:
+class MapVersionsMixin(serializers.Serializer):
+    """`map_versions` in, the versions themselves out.
+
+    A `serializers.Serializer` on purpose. It was a plain class until F10, and
+    DRF collects declared fields only from serializer bases — so the field
+    below never applied, and every subclass ran on the one DRF builds from the
+    model. The declaration now says what that field did (required, never an
+    empty list), in German, because the editor shows the refusal as it comes.
+    """
+
     map_versions = serializers.PrimaryKeyRelatedField(
         queryset=mm.MapVersion.objects.all(),
         many=True,
-        required=False,
+        allow_empty=False,
+        error_messages={
+            "required": "Ohne Version wäre das auf keiner Karte zu sehen.",
+            "empty": "Ohne Version wäre das auf keiner Karte zu sehen.",
+        },
     )
 
     def to_representation(self, instance):

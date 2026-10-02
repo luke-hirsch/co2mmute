@@ -118,6 +118,36 @@ class VersionFixtureMixin:
             te.map_versions.add(self.base)
         return edge
 
+    # --- building versions the way the editor does ------------------------
+
+    def _diff(self, name, **changes):
+        """A version from base plus `changes`, through the editor's endpoint."""
+        response = self.client.post(
+            reverse("maps:version-diff-create", kwargs={"pk": self.game_map.pk}),
+            data={
+                "source_version_id": self.base.pk,
+                "version_name": name,
+                "poll_text": f"Soll {name} kommen?",
+                **changes,
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        return MapVersion.objects.get(pk=response.json()["id"])
+
+    def _combine(self, *versions):
+        response = self.client.post(
+            reverse(
+                "maps:version-generate-combinations", kwargs={"pk": self.game_map.pk}
+            ),
+            data={"version_ids": [v.pk for v in versions]},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        return MapVersion.objects.exclude(
+            pk__in=[self.base.pk, *[v.pk for v in versions]]
+        ).get(game_map=self.game_map)
+
     # --- reading a version back ------------------------------------------
 
     def bus_chain(self, version):
@@ -362,33 +392,6 @@ class GeneratedCombinationTests(VersionFixtureMixin, TestCase):
         )
         self.combination = self._combine(self.busspuren, self.umweg)
 
-    def _diff(self, name, **changes):
-        response = self.client.post(
-            reverse("maps:version-diff-create", kwargs={"pk": self.game_map.pk}),
-            data={
-                "source_version_id": self.base.pk,
-                "version_name": name,
-                "poll_text": f"Soll {name} kommen?",
-                **changes,
-            },
-            content_type="application/json",
-        )
-        self.assertEqual(response.status_code, 201, response.content)
-        return MapVersion.objects.get(pk=response.json()["id"])
-
-    def _combine(self, *versions):
-        response = self.client.post(
-            reverse(
-                "maps:version-generate-combinations", kwargs={"pk": self.game_map.pk}
-            ),
-            data={"version_ids": [v.pk for v in versions]},
-            content_type="application/json",
-        )
-        self.assertEqual(response.status_code, 201, response.content)
-        return MapVersion.objects.exclude(
-            pk__in=[self.base.pk, *[v.pk for v in versions]]
-        ).get(game_map=self.game_map)
-
     def test_the_combination_carries_the_rail_lines(self):
         """Measured on the box: all four combinations hold no train line."""
         self.assertEqual(
@@ -546,3 +549,283 @@ class ChainBackfillTests(VersionFixtureMixin, TestCase):
         self.assertEqual(
             BusLineEdge.objects.filter(map_versions=self.base).count(), 3
         )
+
+
+@override_settings(**TEST_BACKENDS)
+class DrawnInAVersionTests(VersionFixtureMixin, TestCase):
+    """What the editor draws in a version is in every version built on it (F10).
+
+    Before F10 a node or an edge drawn in a version was in that version only, so
+    every other version lacked it unless it was drawn there again — and the box's
+    map shows exactly that: Lukas's footpaths of 2026-10-02 in base and nowhere
+    else. Drawn in base, a row is in every version; drawn in a change, it is in
+    that change and in the combinations holding it. Otherwise a class that votes
+    in two changes plays a combination that silently lacks part of one.
+
+    "Built on" is read off what the versions hold, the way `combination_members`
+    composes them: a version is built on X when it holds everything X added over
+    the version X was made from and nothing X removed. Combinations record no
+    members, so this is the only answer the map can give.
+
+    The fixture is the box's lattice in miniature: base, `Busspuren` (edge B
+    replaced by a clone with a bus lane), `Umgehungsstraße` (a new street
+    N0→N3) and their combination.
+    """
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="staff", password="password123", is_staff=True
+        )
+        self.client.force_login(self.user)
+        self.build_map()
+        self.busspuren = self._diff(
+            "Busspuren",
+            edge_changes=[
+                {"edge_id": self.edge_b.pk, "dedicated_bus_lane": True, "lanes": 2}
+            ],
+        )
+        self.umweg = self._diff(
+            "Umgehungsstraße",
+            new_edges=[
+                {
+                    "temp_start_node": str(self.nodes[0].pk),
+                    "temp_end_node": str(self.nodes[3].pk),
+                    "walking": True,
+                    "max_lanes": 1,
+                    "speed_limit": 50,
+                    "lanes": 1,
+                }
+            ],
+        )
+        self.combination = self._combine(self.busspuren, self.umweg)
+        self.everywhere = {
+            self.base.name,
+            self.busspuren.name,
+            self.umweg.name,
+            self.combination.name,
+        }
+
+    # --- drawing, as the editor sends it -----------------------------------
+
+    def post(self, name, data):
+        return self.client.post(
+            reverse(name, kwargs={"pk": self.game_map.pk}),
+            data=data,
+            content_type="application/json",
+        )
+
+    def draw_node(self, version):
+        response = self.post(
+            "maps:node-list",
+            {
+                "game_map": self.game_map.pk,
+                "x_position": 5,
+                "y_position": 5,
+                "map_versions": [version.pk],
+            },
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        return Node.objects.get(pk=response.json()["id"])
+
+    def draw_edge(self, version, start, end, *, bidirectional=False):
+        return self.post(
+            "maps:edge-list",
+            {
+                "game_map": self.game_map.pk,
+                "start_node": self.nodes[start].pk,
+                "end_node": self.nodes[end].pk,
+                "map_versions": [version.pk],
+                "bidirectional": bidirectional,
+            },
+        )
+
+    def lay_street(self, version, edge):
+        return self.post(
+            "maps:streetedge-list",
+            {
+                "edge": edge.pk,
+                "speed_limit": 50,
+                "lanes": 1,
+                "dedicated_bus_lane": False,
+                "map_versions": [version.pk],
+            },
+        )
+
+    def edge_between(self, start, end):
+        return Edge.objects.get(
+            game_map=self.game_map,
+            start_node=self.nodes[start],
+            end_node=self.nodes[end],
+        )
+
+    @staticmethod
+    def versions_of(row):
+        return set(row.map_versions.values_list("name", flat=True))
+
+    # --- the rule ------------------------------------------------------------
+
+    def test_a_node_drawn_in_base_is_in_every_version(self):
+        node = self.draw_node(self.base)
+
+        self.assertEqual(self.versions_of(node), self.everywhere)
+
+    def test_a_node_drawn_in_a_change_is_in_the_combinations_holding_it(self):
+        node = self.draw_node(self.busspuren)
+
+        self.assertEqual(
+            self.versions_of(node), {self.busspuren.name, self.combination.name}
+        )
+
+    def test_an_edge_drawn_in_base_is_in_every_version(self):
+        response = self.draw_edge(self.base, 1, 3)
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(self.versions_of(self.edge_between(1, 3)), self.everywhere)
+
+    def test_an_edge_drawn_in_a_change_is_in_the_combinations_holding_it(self):
+        response = self.draw_edge(self.umweg, 3, 1)
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(
+            self.versions_of(self.edge_between(3, 1)),
+            {self.umweg.name, self.combination.name},
+        )
+
+    def test_both_directions_follow_the_rule(self):
+        response = self.draw_edge(self.base, 1, 3, bidirectional=True)
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(self.versions_of(self.edge_between(1, 3)), self.everywhere)
+        self.assertEqual(self.versions_of(self.edge_between(3, 1)), self.everywhere)
+
+    def test_a_street_laid_in_base_follows_its_edge(self):
+        """"+ Straße anlegen" on a path drawn in base: a street in all four."""
+        self.draw_edge(self.base, 1, 3)
+        edge = self.edge_between(1, 3)
+
+        response = self.lay_street(self.base, edge)
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(
+            self.versions_of(StreetEdge.objects.get(edge=edge)), self.everywhere
+        )
+
+    def test_a_version_with_its_own_copy_keeps_it(self):
+        """`Umgehungsstraße` has its own N0→N3; base drawing one adds no second.
+
+        The same holds for the `Busspuren` clones on the real map: a version
+        that replaced a street with its own copy keeps the copy, because that
+        copy *is* the version's change.
+        """
+        response = self.draw_edge(self.base, 0, 3)
+
+        self.assertEqual(response.status_code, 201, response.content)
+        drawn = Edge.objects.get(pk=response.json()["id"])
+        self.assertEqual(
+            self.versions_of(drawn), {self.base.name, self.busspuren.name}
+        )
+        for version in (self.umweg, self.combination):
+            self.assertEqual(
+                Edge.objects.filter(
+                    map_versions=version,
+                    start_node=self.nodes[0],
+                    end_node=self.nodes[3],
+                ).count(),
+                1,
+                version.name,
+            )
+
+    def test_an_edge_stays_out_of_a_version_without_its_node(self):
+        """A change that took N3 away cannot hold a street ending there."""
+        without = MapVersion.objects.create(
+            game_map=self.game_map, name="Ohne N3", source_version=self.base
+        )
+        for model in (Node, Edge, StreetEdge, TrainEdge):
+            for row in model.objects.filter(map_versions=self.base):
+                row.map_versions.add(without)
+        self.nodes[3].map_versions.remove(without)
+        self.edge_c.map_versions.remove(without)
+
+        self.draw_edge(self.base, 1, 3)
+
+        self.assertNotIn(without.name, self.versions_of(self.edge_between(1, 3)))
+        self.assertIn(without.name, self.versions_of(self.draw_node(self.base)))
+
+    def test_a_change_with_nothing_in_it_has_nothing_built_on_it(self):
+        """A copy of base adds and removes nothing, so every version "holds" it.
+
+        Read literally that would put a row drawn there into base and all the
+        rest; it stays where it was drawn.
+        """
+        copy = MapVersion.objects.create(
+            game_map=self.game_map, name="Kopie", source_version=self.base
+        )
+        for model in (Node, Edge, StreetEdge, TrainEdge, BusLine, TrainLine):
+            for row in model.objects.filter(map_versions=self.base):
+                row.map_versions.add(copy)
+
+        self.assertEqual(self.versions_of(self.draw_node(copy)), {"Kopie"})
+
+    # --- what the editor may not write --------------------------------------
+
+    def test_a_row_drawn_in_no_version_is_refused(self):
+        """It would be in no version, and so on no map anybody can open.
+
+        That is where two of the box's streets and Lukas's U Potsdamer Platz –
+        Urania path sit. Not through these endpoints: an empty list was already
+        refused, and so was leaving the field out — both in English, by the
+        field DRF builds from the model. How they got there is not reproduced;
+        the refusal now says why, in German.
+        """
+        before = Edge.objects.count()
+        for versions in ([], None):
+            data = {
+                "game_map": self.game_map.pk,
+                "start_node": self.nodes[1].pk,
+                "end_node": self.nodes[3].pk,
+            }
+            if versions is not None:
+                data["map_versions"] = versions
+            response = self.post("maps:edge-list", data)
+
+            self.assertEqual(response.status_code, 400, response.content)
+            self.assertIn("Ohne Version", str(response.json()), versions)
+        self.assertEqual(Edge.objects.count(), before)
+
+    def test_an_edge_already_drawn_in_the_version_is_refused(self):
+        """Bellevue – Großer Stern sits twice in the box's base version."""
+        before = Edge.objects.count()
+
+        response = self.draw_edge(self.base, 0, 1)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["reason"], "edge-exists")
+        self.assertEqual(Edge.objects.count(), before)
+
+    def test_both_ways_where_one_way_exists_adds_the_other(self):
+        """Drawing A–B both ways over an A→B is drawing B→A."""
+        before = Edge.objects.count()
+
+        response = self.draw_edge(self.base, 1, 0, bidirectional=True)
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(Edge.objects.count(), before + 1)
+        self.assertEqual(self.versions_of(self.edge_between(1, 0)), self.everywhere)
+
+    def test_a_second_street_under_an_edge_is_refused(self):
+        """A second click on "+ Straße anlegen" wrote a second street row."""
+        response = self.lay_street(self.base, self.edge_a)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["reason"], "street-exists")
+        self.assertEqual(StreetEdge.objects.filter(edge=self.edge_a).count(), 1)
+
+    def test_a_second_railway_under_an_edge_is_refused(self):
+        response = self.post(
+            "maps:trainedge-list",
+            {"edge": self.edge_c.pk, "map_versions": [self.base.pk]},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["reason"], "rail-exists")
+        self.assertEqual(TrainEdge.objects.filter(edge=self.edge_c).count(), 1)
