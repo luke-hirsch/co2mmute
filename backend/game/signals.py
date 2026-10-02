@@ -442,8 +442,13 @@ def _run_simulation(game_session, game_round, moves):
     # Get scale from game map
     scale = game_session.game_map.scale if game_session.game_map else 100.0
 
-    def on_progress(tick, total_ticks):
-        """Broadcast simulation progress."""
+    def on_progress(tick, _guard):
+        """Broadcast simulation progress, as the share of people home.
+
+        Not tick / max_ticks: a pass runs until everybody is home (F2d), and
+        max_ticks is only the guard behind that, so a tick count has no total
+        to be a fraction of.
+        """
         # Only broadcast every 10 ticks to avoid spam
         if tick % 10 == 0:
             send_game_state_message(
@@ -453,14 +458,14 @@ def _run_simulation(game_session, game_round, moves):
                     "round_number": game_round.round_number,
                     "status": "running",
                     "tick": tick,
-                    "total_ticks": total_ticks,
-                    "progress_percent": int((tick / total_ticks) * 100),
+                    "progress_percent": simulator.progress_percent(),
                 },
             )
 
     try:
         simulator = TrafficSimulator(game_round, scale=scale)
-        result = simulator.run_simulation(max_ticks=200, on_progress=on_progress)
+        # No tick limit of our own: the default is a bug guard, not a clock.
+        result = simulator.run_simulation(on_progress=on_progress)
 
         # Build player stats from simulation results
         from game.models import AgentSimulationResult

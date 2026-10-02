@@ -90,6 +90,11 @@ Ein Knoten, der vier Ticks hintereinander nichts bewegt hat, gibt deshalb trotzd
 frei, über die Speichergrenze hinweg, und wartet dann wieder vier Ticks. Jede Freigabe wird gezählt.
 Ein `forced_releases` über null im Tick-Log ist kein Fehler, aber ein Grund, das Log zu lesen.
 
+Ein Durchlauf läuft, bis alle angekommen sind. Eine Uhr, nach der der Rest einfach nicht mehr
+mitzählt, gibt es nicht. Die Grenze von 1000 Ticks pro Weg fängt nur einen Fehler im Modell ab und
+wird als Fehler geloggt. Auf Berlin Mitte-West braucht ein gespielter Weg höchstens 35 Ticks, bei
+vierfacher Nachfrage und nur einspurigen Straßen 153.
+
 ### Geschwindigkeit ist ein Ergebnis
 
 Die mittlere Geschwindigkeit einer Kante ist ihre Länge geteilt durch die **tatsächlich auf ihr
@@ -131,7 +136,7 @@ Rückweg zusammen, gemittelt über die Gruppen. Weil in einer Runde damit alles 
 das Budget pro Runde doppelt so groß wie für einen Weg.
 
 Der Abend ist heute ein Abbild des Morgens, mit derselben Streuung der Abfahrten. Die Wiedergabe
-zeigt nur den Hinweg.
+zeigt beide Wege, dazwischen eine kurze Mittagspause.
 
 ## Der ÖPNV fährt einen Fahrplan
 
