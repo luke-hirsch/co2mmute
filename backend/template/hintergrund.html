@@ -114,15 +114,24 @@ Speicherkapazität  S  = 133 Fahrzeuge/km je Autospur × Länge</pre>
             kommen.</li>
             <li>Ein Fahrzeug darf eine Kante nicht vor Ablauf von <code>t0</code> verlassen. Die
             Freiflusszeit ist die Untergrenze der Fahrt; schneller als das Tempolimit geht nie.</li>
-            <li>Danach reiht es sich in die FIFO-Schlange der Kante ein und wartet auf Budget.</li>
+            <li>Danach reiht es sich in die Schlange der Kante ein und wartet auf Budget. Auf einer
+            Spur ist das eine einzige FIFO-Schlange. Ab zwei Autospuren hat jede nächste Kante ihre
+            eigene, eine Abbiegespur, und alle teilen sich das Budget und den Speicher der
+            Straße.</li>
             <li>Weiter darf es nur, wenn die <strong>nächste</strong> Kante noch Speicher frei hat.
-            Wenn nicht, bleibt es stehen, und alles dahinter auch. Ein Stau entsteht.</li>
+            Wenn nicht, bleibt es stehen, und alles dahinter in seiner Schlange auch: auf einer Spur
+            also alle, ab zwei Spuren nur, wer in dieselbe Richtung will. Ein Stau entsteht.</li>
             <li>Innerhalb des Ticks wiederholen, bis sich nichts mehr bewegt. Ein Fahrzeug schafft
-            in fünf Minuten mehrere kurze Kanten.</li>
+            in fünf Minuten mehrere kurze Kanten. Die Kanten werden dabei jeden Tick in neu gemischter
+            Reihenfolge bedient: Münden mehrere in denselben Knoten, ist über eine Runde jede gleich
+            oft als erste dran. Das ist das Reißverschlussprinzip, im Mittel statt Auto für
+            Auto.</li>
           </ol>
           <p>Stau entsteht also aus zwei Mechanismen: Eine Kante lässt nur <code>Q</code> Fahrzeuge
           pro Stunde ab, und eine volle Kante hält die Kante auf, die sie speist. So wachsen
-          Schlangen rückwärts durch das Netz, wie auf einer echten Straße.</p>
+          Schlangen rückwärts durch das Netz, wie auf einer echten Straße. Ab zwei Spuren weicht das
+          bewusst von MATSim ab, wo eine Kante bei jeder Breite eine einzige Schlange hat: Wer in
+          eine volle Straße abbiegen will, hält dort die nicht auf, die woandershin wollen.</p>
           <figure>
             {% include "hintergrund/kante.svg" %}
             <figcaption>Oben fährt jedes Auto seine Freiflusszeit <code>t0</code> ab und reiht sich
@@ -138,8 +147,9 @@ Speicherkapazität  S  = 133 Fahrzeuge/km je Autospur × Länge</pre>
           Geschwindigkeit. Eine Mindestgeschwindigkeit braucht es deshalb nicht.</p>
           <p>Dafür kann sich das Netz wirklich verklemmen: ein Ring aus Kanten, jede voll mit
           Fahrzeugen, die auf die nächste wollen.</p>
-          <p>Ein Knoten, der vier Ticks hintereinander nichts bewegt hat, gibt deshalb trotzdem frei,
-          über die Speichergrenze hinweg, und die Freigabe wird gezählt. Ein
+          <p>Ein Knoten, der vier Ticks hintereinander nichts bewegt hat, gibt deshalb trotzdem ein Fahrzeug
+          frei, über die Speichergrenze hinweg, und wartet dann wieder vier Ticks. Jede Freigabe wird
+          gezählt. Ein
           <code>forced_releases</code> über null im Tick-Log ist kein Fehler, aber ein Grund, das
           Log zu lesen.</p>
           <h3>Geschwindigkeit ist ein Ergebnis</h3>

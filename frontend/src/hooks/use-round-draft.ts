@@ -265,8 +265,9 @@ export function useRoundDraft({
             : findPath(extended, from, to, mode, {
                 optimization: agent.carOptimization,
                 scale: extended.scale,
-                // Only "schnellste" reads it — the other two optimise for
-                // quantities a jam does not change.
+                // "schnellste" and "klimafreundlichste" read it — a jam costs
+                // time and, on the simulation's curve, CO2. Only "kürzeste"
+                // ignores it: a jam does not change a distance.
                 trafficData: extended.previous_round_traffic,
                 onStateChange: trace ? recorder.onStateChange : undefined,
               });

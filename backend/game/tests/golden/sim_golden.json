@@ -1,28 +1,28 @@
 {
   "total": {
     "status": "completed",
-    "total_co2_g": 351832.66646,
-    "total_cost_eur": 556.908704
+    "total_co2_g": 308315.593011,
+    "total_cost_eur": 515.165708
   },
   "agents": [
     {
       "agent_id": 1,
       "mode": "car",
-      "mean_trip_time_min": 2.190431,
+      "mean_trip_time_min": 6.357845,
       "mean_return_time_min": 0.0,
-      "mean_cost_eur": 0.583436,
-      "total_co2_g": 128920.499748,
-      "congestion_delay_min": 0.09906,
+      "mean_cost_eur": 0.660886,
+      "total_co2_g": 161217.309935,
+      "congestion_delay_min": 4.266475,
       "wait_time_min": 0.0
     },
     {
       "agent_id": 2,
       "mode": "car",
-      "mean_trip_time_min": 15.491696,
+      "mean_trip_time_min": 4.471186,
       "mean_return_time_min": 0.0,
-      "mean_cost_eur": 0.808836,
-      "total_co2_g": 222912.166712,
-      "congestion_delay_min": 12.243846,
+      "mean_cost_eur": 0.627028,
+      "total_co2_g": 147098.283076,
+      "congestion_delay_min": 1.223336,
       "wait_time_min": 0.0
     },
     {
@@ -89,11 +89,6 @@
     },
     {
       "tick": 9,
-      "vehicle_count": 1,
-      "speed_kmh": 25.712217
-    },
-    {
-      "tick": 9,
       "vehicle_count": 11,
       "speed_kmh": 50.405293
     },
@@ -103,9 +98,14 @@
       "speed_kmh": 29.954095
     },
     {
+      "tick": 9,
+      "vehicle_count": 22,
+      "speed_kmh": 19.375067
+    },
+    {
       "tick": 10,
-      "vehicle_count": 26,
-      "speed_kmh": 32.127382
+      "vehicle_count": 1,
+      "speed_kmh": 20.706469
     },
     {
       "tick": 10,
@@ -120,152 +120,152 @@
     {
       "tick": 11,
       "vehicle_count": 37,
-      "speed_kmh": 22.937749
+      "speed_kmh": 29.499547
     },
     {
       "tick": 11,
-      "vehicle_count": 52,
-      "speed_kmh": 49.459563
+      "vehicle_count": 58,
+      "speed_kmh": 49.317142
     },
     {
       "tick": 11,
-      "vehicle_count": 119,
-      "speed_kmh": 28.578453
+      "vehicle_count": 73,
+      "speed_kmh": 29.206092
     },
     {
       "tick": 12,
       "vehicle_count": 36,
-      "speed_kmh": 19.347152
+      "speed_kmh": 26.022297
     },
     {
       "tick": 12,
-      "vehicle_count": 44,
-      "speed_kmh": 48.649381
+      "vehicle_count": 73,
+      "speed_kmh": 28.834869
     },
     {
       "tick": 12,
-      "vehicle_count": 188,
-      "speed_kmh": 27.230966
-    },
-    {
-      "tick": 13,
-      "vehicle_count": 17,
-      "speed_kmh": 48.821632
+      "vehicle_count": 145,
+      "speed_kmh": 47.780649
     },
     {
       "tick": 13,
       "vehicle_count": 36,
-      "speed_kmh": 20.906384
+      "speed_kmh": 21.568186
     },
     {
       "tick": 13,
-      "vehicle_count": 188,
-      "speed_kmh": 17.75715
+      "vehicle_count": 38,
+      "speed_kmh": 28.717262
     },
     {
-      "tick": 14,
-      "vehicle_count": 2,
-      "speed_kmh": 48.714866
+      "tick": 13,
+      "vehicle_count": 176,
+      "speed_kmh": 36.720738
     },
     {
       "tick": 14,
       "vehicle_count": 37,
-      "speed_kmh": 16.9941
+      "speed_kmh": 19.519438
     },
     {
       "tick": 14,
-      "vehicle_count": 188,
-      "speed_kmh": 12.648362
+      "vehicle_count": 64,
+      "speed_kmh": 28.717262
+    },
+    {
+      "tick": 14,
+      "vehicle_count": 82,
+      "speed_kmh": 18.860852
     },
     {
       "tick": 15,
       "vehicle_count": 0,
-      "speed_kmh": 48.757287
+      "speed_kmh": 17.695996
     },
     {
       "tick": 15,
       "vehicle_count": 39,
-      "speed_kmh": 14.048327
+      "speed_kmh": 16.861968
     },
     {
       "tick": 15,
-      "vehicle_count": 188,
-      "speed_kmh": 9.716089
+      "vehicle_count": 39,
+      "speed_kmh": 25.620254
+    },
+    {
+      "tick": 16,
+      "vehicle_count": 0,
+      "speed_kmh": 15.025019
+    },
+    {
+      "tick": 16,
+      "vehicle_count": 0,
+      "speed_kmh": 23.14985
     },
     {
       "tick": 16,
       "vehicle_count": 2,
-      "speed_kmh": 48.751743
-    },
-    {
-      "tick": 16,
-      "vehicle_count": 39,
-      "speed_kmh": 13.046707
-    },
-    {
-      "tick": 16,
-      "vehicle_count": 92,
-      "speed_kmh": 6.981028
+      "speed_kmh": 17.723633
     },
     {
       "tick": 17,
       "vehicle_count": 0,
-      "speed_kmh": 7.231255
+      "speed_kmh": 15.051715
     },
     {
       "tick": 17,
       "vehicle_count": 0,
-      "speed_kmh": 48.765699
+      "speed_kmh": 17.78207
     },
     {
       "tick": 17,
-      "vehicle_count": 12,
-      "speed_kmh": 12.38952
+      "vehicle_count": 0,
+      "speed_kmh": 23.14985
     },
     {
       "tick": 18,
       "vehicle_count": 0,
-      "speed_kmh": 7.231255
+      "speed_kmh": 15.051715
     },
     {
       "tick": 18,
       "vehicle_count": 0,
-      "speed_kmh": 11.951809
+      "speed_kmh": 17.78207
     },
     {
       "tick": 18,
       "vehicle_count": 0,
-      "speed_kmh": 48.765699
+      "speed_kmh": 23.14985
     },
     {
       "tick": 19,
       "vehicle_count": 0,
-      "speed_kmh": 7.231255
+      "speed_kmh": 15.051715
     },
     {
       "tick": 19,
       "vehicle_count": 0,
-      "speed_kmh": 11.951809
+      "speed_kmh": 17.78207
     },
     {
       "tick": 19,
       "vehicle_count": 0,
-      "speed_kmh": 48.765699
+      "speed_kmh": 23.14985
     },
     {
       "tick": 20,
       "vehicle_count": 0,
-      "speed_kmh": 7.231255
+      "speed_kmh": 15.051715
     },
     {
       "tick": 20,
       "vehicle_count": 0,
-      "speed_kmh": 11.951809
+      "speed_kmh": 17.78207
     },
     {
       "tick": 20,
       "vehicle_count": 0,
-      "speed_kmh": 48.765699
+      "speed_kmh": 23.14985
     }
   ]
 }

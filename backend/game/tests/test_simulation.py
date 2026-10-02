@@ -1087,7 +1087,10 @@ class DeadlockEscapeTests(TestCase):
         simulator = TrafficSimulator(self.game_round, scale=100.0)
         with muted():
             # One car per link per DEADLOCK_TICKS: a hard lock drains slowly.
-            simulator.run_simulation(max_ticks=500)
+            # This ring needs ~680 ticks with the shuffled visiting order (~330
+            # when the two links strictly alternated): it depends on which link
+            # escapes first.
+            simulator.run_simulation(max_ticks=1000)
 
         for route in (self.route_a, self.route_b):
             results = simulator.agent_results[route.pk]
@@ -1160,26 +1163,24 @@ class FairMergeTests(TestCase):
         _route(self.game_round, anna, [first, second], agent_id=1)
         _route(self.game_round, ben, [second, first], agent_id=2)
 
-    def test_the_first_link_served_rotates_between_ticks(self):
-        from game.tests._helpers import muted
-
+    def test_every_feeder_of_a_junction_goes_first_equally_often(self):
+        # The zipper: three feeders of one junction, next to each other in the
+        # dict, among twenty other links. Whoever is visited first takes the
+        # room a discharge frees, so each must be first on about a third of the
+        # ticks. A rotation by one link per tick gives the first feeder 21 of
+        # every 23 ticks and the other two one each.
         simulator = TrafficSimulator(self.game_round, scale=100.0)
-        first_served = {}
-        real = simulator._discharge
+        simulator.edge_states = {pk: f"link {pk}" for pk in range(23)}
+        feeders = ["link 0", "link 1", "link 2"]
 
-        def spy(edge_state, now, tick_end, released):
-            first_served.setdefault(simulator.current_tick, edge_state.edge_id)
-            return real(edge_state, now, tick_end, released)
+        first = {feeder: 0 for feeder in feeders}
+        for tick in range(300):
+            simulator.current_tick = tick
+            order = simulator._visiting_order()
+            first[min(feeders, key=order.index)] += 1
 
-        simulator._discharge = spy
-        with muted():
-            simulator.run_simulation(max_ticks=20)
-
-        self.assertGreater(
-            len(set(first_served.values())),
-            1,
-            "the same link was served first on every tick",
-        )
+        for feeder, count in first.items():
+            self.assertGreater(count, 70, f"{feeder} went first on {count} of 300 ticks")
 
 
 class TurnQueueTests(TestCase):

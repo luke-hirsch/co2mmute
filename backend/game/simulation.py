@@ -1519,6 +1519,23 @@ class TrafficSimulator:
                 )
             self._alight(pt, rider_id, rider, leg, at_min)
 
+    def _visiting_order(self) -> list["EdgeState"]:
+        """The order this tick's discharge passes visit the links in.
+
+        Of the links feeding one junction, the one visited first takes every
+        slot a discharge frees, and the others only move when the deadlock
+        escape fires. So the order is shuffled every tick: over a round each
+        feeder goes first equally often — the zipper (Reißverschluss), on
+        average rather than car by car. The generator is seeded from the tick
+        alone, so `self.rng` is untouched and no other draw moves.
+
+        Not a rotation: rotating by one link per tick puts a feeder first for
+        as many ticks as the gap before it in dict order, which is arbitrary.
+        """
+        states = list(self.edge_states.values())
+        random.Random(self.current_tick).shuffle(states)
+        return states
+
     def _advance_traffic(self):
         """One simulation tick."""
         now = self.current_tick * self.tick_duration_min
@@ -1537,12 +1554,7 @@ class TrafficSimulator:
         # A vehicle may cross several links within one tick — its own clock
         # (ready_at_min) is what bounds it, not the tick. So keep making
         # passes until nothing moves.
-        # The visiting order rotates by one link per tick: with a fixed order the
-        # feeder that comes first into a junction takes every slot a discharge
-        # frees, and the others only move when the escape fires.
-        states = list(self.edge_states.values())
-        turn = self.current_tick % len(states) if states else 0
-        states = states[turn:] + states[:turn]
+        states = self._visiting_order()
         released: set[int] = set()
         moved = True
         while moved:
