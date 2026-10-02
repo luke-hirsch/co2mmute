@@ -1,28 +1,28 @@
 {
   "total": {
     "status": "completed",
-    "total_co2_g": 353870.074199,
-    "total_cost_eur": 558.863052
+    "total_co2_g": 351832.66646,
+    "total_cost_eur": 556.908704
   },
   "agents": [
     {
       "agent_id": 1,
       "mode": "car",
-      "mean_trip_time_min": 2.145899,
+      "mean_trip_time_min": 2.190431,
       "mean_return_time_min": 0.0,
-      "mean_cost_eur": 0.585879,
-      "total_co2_g": 129939.203617,
-      "congestion_delay_min": 0.054528,
+      "mean_cost_eur": 0.583436,
+      "total_co2_g": 128920.499748,
+      "congestion_delay_min": 0.09906,
       "wait_time_min": 0.0
     },
     {
       "agent_id": 2,
       "mode": "car",
-      "mean_trip_time_min": 16.461928,
+      "mean_trip_time_min": 15.491696,
       "mean_return_time_min": 0.0,
-      "mean_cost_eur": 0.811279,
-      "total_co2_g": 223930.870582,
-      "congestion_delay_min": 13.214078,
+      "mean_cost_eur": 0.808836,
+      "total_co2_g": 222912.166712,
+      "congestion_delay_min": 12.243846,
       "wait_time_min": 0.0
     },
     {
@@ -84,13 +84,13 @@
     },
     {
       "tick": 8,
-      "vehicle_count": 7,
-      "speed_kmh": 51.775863
+      "vehicle_count": 14,
+      "speed_kmh": 51.606138
     },
     {
       "tick": 9,
       "vehicle_count": 1,
-      "speed_kmh": 35.470868
+      "speed_kmh": 25.712217
     },
     {
       "tick": 9,
@@ -105,7 +105,7 @@
     {
       "tick": 10,
       "vehicle_count": 26,
-      "speed_kmh": 40.201833
+      "speed_kmh": 32.127382
     },
     {
       "tick": 10,
@@ -120,7 +120,7 @@
     {
       "tick": 11,
       "vehicle_count": 37,
-      "speed_kmh": 23.832262
+      "speed_kmh": 22.937749
     },
     {
       "tick": 11,
@@ -129,13 +129,13 @@
     },
     {
       "tick": 11,
-      "vehicle_count": 130,
-      "speed_kmh": 28.854482
+      "vehicle_count": 119,
+      "speed_kmh": 28.578453
     },
     {
       "tick": 12,
       "vehicle_count": 36,
-      "speed_kmh": 18.184483
+      "speed_kmh": 19.347152
     },
     {
       "tick": 12,
@@ -145,7 +145,7 @@
     {
       "tick": 12,
       "vehicle_count": 188,
-      "speed_kmh": 26.843325
+      "speed_kmh": 27.230966
     },
     {
       "tick": 13,
@@ -155,12 +155,12 @@
     {
       "tick": 13,
       "vehicle_count": 36,
-      "speed_kmh": 19.938869
+      "speed_kmh": 20.906384
     },
     {
       "tick": 13,
       "vehicle_count": 188,
-      "speed_kmh": 16.578915
+      "speed_kmh": 17.75715
     },
     {
       "tick": 14,
@@ -170,12 +170,12 @@
     {
       "tick": 14,
       "vehicle_count": 37,
-      "speed_kmh": 16.375675
+      "speed_kmh": 16.9941
     },
     {
       "tick": 14,
       "vehicle_count": 188,
-      "speed_kmh": 11.706982
+      "speed_kmh": 12.648362
     },
     {
       "tick": 15,
@@ -185,12 +185,12 @@
     {
       "tick": 15,
       "vehicle_count": 39,
-      "speed_kmh": 13.611422
+      "speed_kmh": 14.048327
     },
     {
       "tick": 15,
       "vehicle_count": 188,
-      "speed_kmh": 9.026936
+      "speed_kmh": 9.716089
     },
     {
       "tick": 16,
@@ -200,17 +200,17 @@
     {
       "tick": 16,
       "vehicle_count": 39,
-      "speed_kmh": 12.726161
+      "speed_kmh": 13.046707
     },
     {
       "tick": 16,
-      "vehicle_count": 103,
-      "speed_kmh": 6.605618
+      "vehicle_count": 92,
+      "speed_kmh": 6.981028
     },
     {
       "tick": 17,
       "vehicle_count": 0,
-      "speed_kmh": 7.041539
+      "speed_kmh": 7.231255
     },
     {
       "tick": 17,
@@ -219,18 +219,18 @@
     },
     {
       "tick": 17,
-      "vehicle_count": 23,
-      "speed_kmh": 12.13616
+      "vehicle_count": 12,
+      "speed_kmh": 12.38952
     },
     {
       "tick": 18,
       "vehicle_count": 0,
-      "speed_kmh": 7.041539
+      "speed_kmh": 7.231255
     },
     {
       "tick": 18,
       "vehicle_count": 0,
-      "speed_kmh": 11.36163
+      "speed_kmh": 11.951809
     },
     {
       "tick": 18,
@@ -240,12 +240,12 @@
     {
       "tick": 19,
       "vehicle_count": 0,
-      "speed_kmh": 7.041539
+      "speed_kmh": 7.231255
     },
     {
       "tick": 19,
       "vehicle_count": 0,
-      "speed_kmh": 11.36163
+      "speed_kmh": 11.951809
     },
     {
       "tick": 19,
@@ -255,12 +255,12 @@
     {
       "tick": 20,
       "vehicle_count": 0,
-      "speed_kmh": 7.041539
+      "speed_kmh": 7.231255
     },
     {
       "tick": 20,
       "vehicle_count": 0,
-      "speed_kmh": 11.36163
+      "speed_kmh": 11.951809
     },
     {
       "tick": 20,
