@@ -414,6 +414,48 @@ class ShippedMapLineTests(SimpleTestCase):
                             f"{self.names[version]}, which does not have it",
                         )
 
+    def test_every_line_names_the_side_of_the_street_it_drives(self):
+        """A line names the link going ITS way wherever the version has one.
+
+        Each direction of a street is its own link with its own queue (F2a), and
+        `node_chain` reads a line's travel order from the nodes, so a chain row
+        naming the other direction passes every test above. Bus `100` eastbound
+        named the westbound links from Ernst-Reuter Platz to Arbeit Brandenburger
+        Tor, in all eight versions. The simulator now drives the right side
+        whatever the file says (`TrafficSimulator._its_own_way`); this keeps the
+        file honest, and what the editor and the replay draw with it.
+        """
+        edges = self.graph["edges"]
+        for mode, line in self.lines:
+            for version, route in routes_by_version(self.graph, line).items():
+                stops = node_chain(edge_ends(self.graph, route))
+                for i, edge_index in enumerate(route[: len(stops) - 1]):
+                    here, there = stops[i], stops[i + 1]
+                    edge = edges[edge_index]
+                    if (edge["start_node"], edge["end_node"]) != (there, here):
+                        continue
+                    own_way = [
+                        j
+                        for j, other in enumerate(edges)
+                        if (other["start_node"], other["end_node"]) == (here, there)
+                        and version in element_versions(self.graph, other)
+                        and (
+                            has_street_row(other)
+                            if mode == "bus"
+                            else other["type"] in ("train", "both")
+                        )
+                    ]
+                    with self.subTest(
+                        line=line["name"], version=self.names[version], edge=edge_index
+                    ):
+                        self.assertEqual(
+                            own_way,
+                            [],
+                            f"{mode} {line['name']} runs {edge['name']!r} against "
+                            f"its direction in {self.names[version]}; edge "
+                            f"{own_way} goes its way",
+                        )
+
     def test_rail_runs_in_every_version(self):
         """`GenerateCombinationsView` copies nodes, edges and `BusLine` — not rail.
 

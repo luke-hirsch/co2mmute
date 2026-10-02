@@ -440,6 +440,9 @@ class TrafficSimulator:
             bus_lines = bus_lines.filter(map_versions=version)
             train_lines = train_lines.filter(map_versions=version)
 
+        streets = self._links_by_ends(game_map, version, streetedge__isnull=False)
+        tracks = self._links_by_ends(game_map, version, trainedge__isnull=False)
+
         for line in bus_lines.distinct():
             self.bus_line_speeds.setdefault(line.pk, line.bus_speed_kmh)
             self.bus_line_intervals.setdefault(line.pk, line.intervall)
@@ -450,6 +453,7 @@ class TrafficSimulator:
                     "street_edge__edge__end_node",
                 )
             ]
+            edges = self._its_own_way(line.name, edges, streets)
             self._register_pt_line(
                 "bus", line.pk, line.name, edges, line.intervall, line.bus_capacity
             )
@@ -464,11 +468,61 @@ class TrafficSimulator:
                     "train_edge__edge__end_node",
                 )
             ]
+            edges = self._its_own_way(line.name, edges, tracks)
             self._register_pt_line(
                 "train", line.pk, line.name, edges, line.intervall, line.train_capacity
             )
 
         logger.info(f"[SIM] Loaded {len(self.pt_lines)} PT lines from the timetable")
+
+    @staticmethod
+    def _links_by_ends(game_map, version, **has_row) -> dict[tuple[int, int], list]:
+        """Every link of one kind on this version, by (from node, to node)."""
+        links = Edge.objects.filter(game_map=game_map, **has_row)
+        if version is not None:
+            links = links.filter(map_versions=version)
+        by_ends: dict[tuple[int, int], list] = {}
+        for edge in links.distinct().select_related("start_node", "end_node"):
+            by_ends.setdefault((edge.start_node_id, edge.end_node_id), []).append(edge)  # type: ignore
+        return by_ends
+
+    @staticmethod
+    def _its_own_way(name: str, edges: list, links: dict) -> list:
+        """A line's links, each one the direction the line travels it.
+
+        Each direction of a street is its own link with its own queue (F2a), and
+        a line vehicle queues on the link its chain row names. But a row may
+        name either direction — node_chain reads the travel order from the
+        nodes, and the editor lets a line be drawn on either side — so the
+        shipped map's bus `100` eastbound named the westbound links on five of
+        its seven streets. On the way home it waited among the cars going home
+        and at the front wanted the link they were coming from: two full links
+        waiting on each other, which only the deadlock escape breaks.
+
+        So a link named against the line's direction is swapped for the one
+        going its way on this version, if there is exactly one the mode may use.
+        None — a one-way street, a contraflow lane — or several, and the line
+        drives what was drawn. The stops are nodes and do not move.
+        """
+        stops = node_chain([(e.start_node_id, e.end_node_id) for e in edges])
+        own_way = list(edges)
+        for i, edge in enumerate(edges[: max(0, len(stops) - 1)]):
+            here, there = stops[i], stops[i + 1]
+            if (edge.start_node_id, edge.end_node_id) != (there, here):
+                continue
+            candidates = links.get((here, there), [])
+            if len(candidates) == 1:
+                own_way[i] = candidates[0]
+        swapped = sum(a.pk != b.pk for a, b in zip(edges, own_way))
+        if swapped:
+            logger.info(
+                "[SIM] PT line %s is drawn on the other side of %s of its %s "
+                "links; it drives its own side.",
+                name,
+                swapped,
+                len(edges),
+            )
+        return own_way
 
     def _load_pt_legs(self):
         """Work out where each route boards and alights, per line it rides.

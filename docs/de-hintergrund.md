@@ -110,7 +110,9 @@ Spieler in der nächsten Runde bekommt, beruhen also alle auf derselben gemessen
 
 - **Autos** immer.
 - **Busse** stehen im Mischverkehr und fahren auf einer eigenen Busspur frei. Ein Bus zählt 3
-  Pkw-Einheiten, nimmt in der gemeinsamen Schlange also den Platz von drei Autos ein.
+  Pkw-Einheiten, nimmt in der gemeinsamen Schlange also den Platz von drei Autos ein. Er steht immer
+  in der Schlange seiner Fahrtrichtung, auch wo die Linie auf der Karte auf der Gegenrichtung
+  eingezeichnet ist.
 - **Räder** stehen nur dort im Verkehr, wo sie sich die Straße mit Autos teilen. Ein Rad hat auf der
   Kante eine eigene Schlange mit eigenem Abflussbudget von 2.000 Rädern/h. Ein Autostau hält also
   keinen Radfahrer auf und ein Radfahrer keinen Autofahrer. Den _Speicher_ der Kante teilen sie sich
