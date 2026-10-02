@@ -92,6 +92,10 @@ class StyledForm:
 class GermanNewPasswordMixin:
     """The two new-password fields, for reset and change alike."""
 
+    error_messages = {
+        "password_mismatch": "Die beiden Passwörter sind nicht gleich.",
+    }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         first = self.fields["new_password1"]  # type: ignore[attr-defined]
@@ -104,10 +108,6 @@ class GermanNewPasswordMixin:
         second.error_messages["required"] = (
             "Bitte gib das neue Passwort noch einmal ein."
         )
-
-        self.error_messages = {
-            "password_mismatch": "Die beiden Passwörter sind nicht gleich.",
-        }
 
     def validate_password_for_user(self, user, password_field_name="password2"):
         password = self.cleaned_data.get(password_field_name)  # type: ignore[attr-defined]
@@ -130,6 +130,14 @@ class LoginForm(StyledForm, auth_forms.AuthenticationForm):
 
     remember_me = forms.BooleanField(required=False, label="Angemeldet bleiben")
 
+    error_messages = {
+        "invalid_login": (
+            "Benutzername oder Passwort stimmen nicht. "
+            "Groß- und Kleinschreibung zählt bei beiden."
+        ),
+        "inactive": "Dieses Konto gibt es nicht mehr.",
+    }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["username"].label = "Benutzername"
@@ -140,14 +148,6 @@ class LoginForm(StyledForm, auth_forms.AuthenticationForm):
         self.fields["password"].error_messages["required"] = (
             "Bitte gib dein Passwort ein."
         )
-
-        self.error_messages = {
-            "invalid_login": (
-                "Benutzername oder Passwort stimmen nicht. "
-                "Groß- und Kleinschreibung zählt bei beiden."
-            ),
-            "inactive": "Dieses Konto gibt es nicht mehr.",
-        }
 
 
 class SignupForm(StyledForm, forms.ModelForm):
@@ -174,8 +174,6 @@ class SignupForm(StyledForm, forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # `User.email` is `blank=True`, so the model form would call it
-        # optional. It is not: it is the only way back into a lost account.
         self.fields["email"].required = True
         self.fields["password"].help_text = password_rules()
 
@@ -248,15 +246,16 @@ class ChangePasswordForm(
 ):
     """ "Passwort ändern" from the host page — asks for the old one first."""
 
+    error_messages = {
+        **GermanNewPasswordMixin.error_messages,
+        "password_incorrect": "Das bisherige Passwort stimmt nicht.",
+    }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         old = self.fields["old_password"]
         old.label = "Bisheriges Passwort"
         old.error_messages["required"] = "Bitte gib dein bisheriges Passwort ein."
-        self.error_messages = {
-            **GermanNewPasswordMixin.error_messages,  # type: ignore
-            "password_incorrect": "Das bisherige Passwort stimmt nicht.",
-        }
 
 
 class AccountDeleteForm(StyledForm, forms.Form):
