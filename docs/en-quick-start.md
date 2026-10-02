@@ -147,6 +147,10 @@ Now that we learned all there is about the map, we can edit it. The map editor c
   - in +node mode you can add nodes by clicking on the map
   - edges are created in +edge mode. click on two nodes. this will create the edge. Keep in mind, the edges are directional. So the direction depends on the order you have clicked on the nodes.Or you select "both directions" and it will automatically create both directions.
 - versions
+  - here you can create new versions. there is a helper tool in the backend for that. first you select a version you wnat to build on. this is important, because it will influence the voting mechanism. in the voting mechanism it can only voted for versions that are compatible with each other. Each version can be voted for, and once it is accepted it can be voted against it. E.g.: you have a map that creates a new bus line connecting two important nodes. If the players are infavor this line gets created. In a later round it is possible that this version is up for voting again, but now in reverse. So you will have to create both voting ballots.
+  - you can also update and delte existing versions in the "organsize" rider
+  - creating a new version is a multi step thing. in the first step you just create the voting texts
+  - second step you create the changes on the map
 
 ## How To Set Up The Game On Your Computer/Server
 
