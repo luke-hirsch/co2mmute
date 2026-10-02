@@ -152,6 +152,10 @@ Speicherkapazität  S  = 133 Fahrzeuge/km je Autospur × Länge</pre>
           gezählt. Ein
           <code>forced_releases</code> über null im Tick-Log ist kein Fehler, aber ein Grund, das
           Log zu lesen.</p>
+          <p>Ein Durchlauf läuft, bis alle angekommen sind. Eine Uhr, nach der der Rest einfach nicht
+          mehr mitzählt, gibt es nicht. Die Grenze von 1000 Ticks pro Weg fängt nur einen Fehler im
+          Modell ab und wird als Fehler geloggt. Auf Berlin Mitte-West braucht ein gespielter Weg
+          höchstens 35 Ticks, bei vierfacher Nachfrage und nur einspurigen Straßen 153.</p>
           <h3>Geschwindigkeit ist ein Ergebnis</h3>
           <p>Die mittlere Geschwindigkeit einer Kante ist ihre Länge geteilt durch die
           <strong>tatsächlich auf ihr beobachteten</strong> Fahrzeiten. Gezählt werden dabei nur
@@ -191,7 +195,7 @@ Speicherkapazität  S  = 133 Fahrzeuge/km je Autospur × Länge</pre>
           Gruppen. Weil in einer Runde damit alles zweimal anfällt, ist das Budget pro Runde doppelt so
           groß wie für einen Weg.</p>
           <p>Der Abend ist heute ein Abbild des Morgens, mit derselben Streuung der Abfahrten. Die
-          Wiedergabe zeigt nur den Hinweg.</p>
+          Wiedergabe zeigt beide Wege, dazwischen eine kurze Mittagspause.</p>
         </section>
         <section id="fahrplan" data-station>
           <h2>Der ÖPNV fährt einen Fahrplan</h2>

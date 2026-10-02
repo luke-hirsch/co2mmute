@@ -1693,6 +1693,46 @@ class CrashedSimulationIsNotAFreeRoundTests(SimulatedRoundMixin, TestCase):
         fallback.assert_not_called()
 
 
+@override_settings(**TEST_BACKENDS)
+class TheRoundEndSetsNoClockTests(SimulatedRoundMixin, TestCase):
+    """F2d: the game runs each pass until everybody is home.
+
+    `_run_simulation` used to pass max_ticks=200, and that number was the clock
+    that could leave people on the road. It now leaves the limit to
+    run_simulation's default, which is a bug guard and not a game rule — and
+    the progress bar, which was tick / max_ticks, reads people home instead,
+    since a pass no longer has a known length.
+    """
+
+    def test_the_round_end_passes_no_tick_limit(self):
+        with patch("game.simulation.TrafficSimulator") as simulator:
+            simulator.return_value.run_simulation.side_effect = RuntimeError("stop")
+            self.complete_round()
+
+        call = simulator.return_value.run_simulation.call_args
+        self.assertIsNotNone(call, "the simulation was never run")
+        self.assertEqual(call.args, ())
+        self.assertNotIn("max_ticks", call.kwargs)
+
+    def test_the_bar_reads_people_home_not_ticks(self):
+        with patch(
+            "game.simulation.TrafficSimulator.progress_percent",
+            return_value=42,
+            create=True,
+        ):
+            listener = self.complete_round()
+
+        running = [
+            data
+            for event, data in listener.events()
+            if event == "simulation.progress" and data.get("status") == "running"
+        ]
+        self.assertTrue(running, "no progress was broadcast while running")
+        self.assertEqual({data["progress_percent"] for data in running}, {42})
+        for data in running:
+            self.assertNotIn("total_ticks", data)
+
+
 # ---------------------------------------------------------------------------
 # S4, the backend half: the payloads say what scale their numbers are on, and
 # name the two things a screen cannot derive — what a commuter actually paid,

@@ -9,8 +9,8 @@
  * ### One clock for the morning, one for the evening, a jump between
  *
  * The recording holds two passes on one axis: the way to work from minute 0, the
- * way home from `home_start_min` (the pass's own tick budget, about 1000 minutes
- * in). Between them nothing moves — the model has no day, only two peaks. So the
+ * way home from `home_start_min` (minute 1000, later only if the morning ran
+ * past it). Between them nothing moves — the model has no day, only two peaks. So the
  * gap is the one place time is spent fast: a short fixed "Mittag", and everything
  * else runs at **one constant rate**.
  *

@@ -255,7 +255,8 @@ export type GameEvent =
         round_number: number;
         status: "starting" | "running" | "failed";
         tick?: number;
-        total_ticks?: number;
+        /** The share of people home, over both passes — not a tick count:
+         *  a pass runs until everybody is home, so ticks have no total. */
         progress_percent?: number;
         error?: string;
       }

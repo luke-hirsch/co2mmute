@@ -85,6 +85,11 @@ A junction that has moved nothing for four consecutive ticks therefore releases 
 over storage, and then waits four ticks again. Every release is counted. A non-zero
 `forced_releases` in the tick log is not a bug, but it is a reason to read the log.
 
+A pass runs until everybody has arrived. There is no clock after which whoever is still out simply
+stops counting. The limit of 1000 ticks per way only catches a bug in the model, and reaching it is
+logged as one. On Berlin Mitte-West a way as played needs at most 35 ticks, at four times the demand
+with every street one lane 153.
+
 ### Speed is an output
 
 A link's mean speed is its length divided by the traversal times **actually observed on it**. Only
@@ -122,8 +127,8 @@ board. So the timetable runs twice, and both timetables count. A Gruppe's CO₂ 
 both ways, its travel time is there and back together, averaged over the Gruppen. Since everything
 in a round now happens twice, the budget per round is twice what it is for one way.
 
-Today the evening is a copy of the morning, with the same spread of departures. The replay shows only
-the way there.
+Today the evening is a copy of the morning, with the same spread of departures. The replay shows both
+ways, with a short midday in between.
 
 ## Public transport runs a timetable
 

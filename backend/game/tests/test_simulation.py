@@ -5164,3 +5164,144 @@ class ReplayWayHomeTests(RoundTripTests):
             replay["endings"]["unfinished"],
             simulator.non_arrivals["unfinished"] + home.non_arrivals["unfinished"],
         )
+
+
+class EverybodyGetsHomeTests(TestCase):
+    """A pass runs until everybody is home; the clock is only a guard (F2d).
+
+    Lukas, 2026-10-02: "we should not strand people". A pass used to stop at
+    max_ticks=200 whatever was still on the road, and since a forced release
+    frees one car per link per DEADLOCK_TICKS a genuine lock can need far
+    longer — the ring below needs ~680 ticks. Measured on the shipped map, no
+    round came near 200 (worst 153 of 200 at four times the demand on one-lane
+    streets), but a cut-off that does not bite on one map is not a guarantee.
+    So run_simulation's default is a guard set well above anything a round
+    needs, game/signals.py calls it without a limit of its own, and a pass
+    that does hit the guard is logged as the bug it is.
+
+    The fixture is DeadlockEscapeTests' ring, with a way home added so the
+    evening's place on the round's clock can be checked behind a long morning.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="everybody", password="12345")
+        self.game_map, self.version, self.nodes = _grid_map(
+            "Everybody map", 3, step_units=1.0
+        )
+        self.first = _street(self.game_map, self.version, self.nodes[0], self.nodes[1])
+        self.second = _street(self.game_map, self.version, self.nodes[1], self.nodes[2])
+        self.session = _session(self.user, self.game_map, people_per_agent=300, std_dev=1)
+        self.game_round = GameRound.objects.create(game=self.session, round_number=1)
+        self.anna = Player.objects.create(name="Anna", game=self.session)
+        self.ben = Player.objects.create(name="Ben", game=self.session)
+        self.route_a = _route(self.game_round, self.anna, [self.first, self.second], agent_id=1)
+        self.route_b = _route(self.game_round, self.ben, [self.second, self.first], agent_id=2)
+
+    def _run(self, **kwargs):
+        from game.tests._helpers import muted
+
+        simulator = TrafficSimulator(self.game_round, scale=100.0, seed=11)
+        with muted():
+            simulator.run_simulation(**kwargs)
+        return simulator
+
+    def test_a_locked_pass_runs_past_the_old_clock_until_everybody_is_home(self):
+        simulator = self._run()
+
+        self.assertGreater(
+            simulator.current_tick,
+            200,
+            "the ring finished inside the old clock, so it proves nothing here",
+        )
+        for route in (self.route_a, self.route_b):
+            self.assertEqual(
+                simulator.agent_results[route.pk]["not_arrived"],
+                0,
+                "the default clock left people on the road",
+            )
+        self.assertEqual(simulator.non_arrivals["unfinished"], 0)
+
+    def test_a_pass_stopped_by_the_guard_is_logged_as_a_bug(self):
+        """The guard is not a game rule. Hitting it means the model is broken."""
+        simulator = TrafficSimulator(self.game_round, scale=100.0, seed=11)
+        # assertLogs takes the logger over, so the expected noise stays in it.
+        with self.assertLogs("game.simulation", "ERROR") as log:
+            simulator.run_simulation(max_ticks=50)
+
+        self.assertTrue(
+            any("guard" in line and "not home" in line for line in log.output),
+            log.output,
+        )
+
+    def test_the_evening_starts_after_a_long_morning(self):
+        """The replay's evening keeps its 1000 minutes unless the morning ran past.
+
+        Both passes share one axis — the evening's street snapshots and dots
+        are moved by `tick_offset` — so an evening that began before the
+        morning ended would draw the two on top of each other.
+        """
+        _route(self.game_round, self.anna, [self.first], agent_id=1, direction="home")
+
+        simulator = self._run()
+
+        morning_end = simulator.current_tick
+        home = simulator.home_pass
+        self.assertGreater(morning_end, 200)
+        self.assertEqual(home.tick_offset, morning_end + 1)
+        simulator.simulation_result.refresh_from_db()
+        replay = simulator.simulation_result.replay
+        self.assertEqual(replay["home_start_min"], (morning_end + 1) * 5)
+        out_dots = [d for d in replay["dots"] if d["pass"] == "out"]
+        home_dots = [d for d in replay["dots"] if d["pass"] == "home"]
+        self.assertLessEqual(
+            max(d["legs"][-1][3] for d in out_dots), replay["home_start_min"]
+        )
+        self.assertGreaterEqual(
+            min(d["legs"][0][2] for d in home_dots), replay["home_start_min"]
+        )
+
+
+class EveningStaysAtItsHourTests(RoundTripTests):
+    """CONTROL: a round that ends on time keeps the evening at 1000 minutes.
+
+    Raising the default clock to a guard must not move the evening with it.
+    The offset used to BE max_ticks; with a guard of a thousand ticks that
+    would put every evening at minute 5000 and leave the replay a four-day
+    lunch break. Inherits the round-trip fixture; its tests run again, which
+    is cheap.
+    """
+
+    def test_the_evening_starts_at_minute_1000_on_the_default_clock(self):
+        _route(self.game_round, self.player, self.there)
+        _route(self.game_round, self.player, self.back, direction="home")
+
+        from game.tests._helpers import muted
+
+        simulator = TrafficSimulator(self.game_round, scale=100.0, seed=7)
+        with muted():
+            result = simulator.run_simulation()
+        result.refresh_from_db()
+
+        self.assertEqual(simulator.home_pass.tick_offset, 200)
+        self.assertEqual(result.replay["home_start_min"], 1000)
+
+    def test_progress_runs_over_both_passes_to_a_hundred(self):
+        """The bar used to be tick / max_ticks, which means nothing once a pass
+        has no fixed length: with a guard of a thousand it would sit at 2 %."""
+        _route(self.game_round, self.player, self.there)
+        _route(self.game_round, self.player, self.back, direction="home")
+
+        from game.tests._helpers import muted
+
+        simulator = TrafficSimulator(self.game_round, scale=100.0, seed=7)
+        seen = []
+        with muted():
+            simulator.run_simulation(
+                on_progress=lambda _tick, _total: seen.append(simulator.progress_percent())
+            )
+
+        self.assertEqual(seen, sorted(seen), "progress went backwards")
+        self.assertLess(seen[0], 50)
+        self.assertIn(50, seen, "the way to work is half the round")
+        self.assertEqual(seen[-1], 100)
+

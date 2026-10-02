@@ -72,6 +72,21 @@ FALLBACK_TRAIN_INTERVAL_MIN = 10
 # Departure window: matches the ±60 min clamp in generate_departure_minutes()
 DEPARTURE_WINDOW_MIN = 120
 
+# A pass runs until everybody is home (F2d, Lukas 2026-10-02: "we should not
+# strand people"), so this is not a clock the round is played against. It is a
+# guard against a model or map bug running forever, and reaching it is logged
+# as one. Measured on the shipped map: the game as played needs at most 35
+# ticks a pass, four times the calibrated demand with every street cut to one
+# lane 153, and the deadlock test's synthetic two-street ring ~680.
+PASS_TICK_GUARD = 1000
+
+# Where the evening starts on the round's one axis — its street snapshots and
+# replay dots are moved by this many ticks — unless the morning ran past it.
+# It used to be max_ticks itself, 200 at 5 min a tick, and it stays there so
+# stored recordings keep their shape: tied to the guard, every evening would
+# start at minute 5000.
+HOME_PASS_EARLIEST_TICK = 200
+
 # One dot on the replay stands for about this many people (S25, Lukas's pick
 # on measured consequences). It was 50, calibrated for 1000 people per agent:
 # at the derived ~100, a jam of fifty cars drew as one or two dots, and a third
@@ -232,6 +247,10 @@ class TrafficSimulator:
         # Refreshed once a tick: whether each line still has unserved demand.
         self.line_wanted: dict[tuple[str, int], bool] = {}
 
+        # Whether a way home will follow this pass. Set by run_simulation; the
+        # progress bar needs it before the evening exists.
+        self.expects_way_home = False
+
         # (line_key, node) that a run of the line has actually stood at, and
         # the lines with at least one run that finished its whole journey.
         # Together they answer the only question capacity cannot: is this
@@ -244,7 +263,7 @@ class TrafficSimulator:
         # of run_simulation — the road's clock, not a PT constant. The default
         # matches run_simulation's own default so a simulator constructed and
         # poked at in a test does not schedule a billion runs.
-        self.max_service_min: float = float(200 * self.tick_duration_min)
+        self.max_service_min: float = float(PASS_TICK_GUARD * self.tick_duration_min)
 
         # People standing at a stop: (line_key, node_id) -> vehicle ids, in the
         # order they got there. A rider waiting for M1 does not board U7, so the
@@ -1087,10 +1106,16 @@ class TrafficSimulator:
         to leave, not from when the street let it in.
         """
         still_waiting = []
-        for depart_min, route_pk, person_index, speed_factor in self.waiting:
+        waiting = self.waiting
+        for at, (depart_min, route_pk, person_index, speed_factor) in enumerate(waiting):
             if depart_min > tick_end:
-                still_waiting.append((depart_min, route_pk, person_index, speed_factor))
-                continue
+                # Sorted by wanted departure, so everything from here on is
+                # still in the future and stays exactly as it is. Copying it
+                # entry by entry cost the whole list on every call, several
+                # times a tick, and the list holds every run the clock allows —
+                # five times as many since the clock became a guard (F2d).
+                still_waiting.extend(waiting[at:])
+                break
 
             segments = self.route_segments.get(route_pk, [])
             if not segments:
@@ -1626,6 +1651,34 @@ class TrafficSimulator:
             held[edge_id] = held.get(edge_id, 0) + 1
         return held
 
+    def progress_percent(self) -> int:
+        """How far the round is, by people done, over both passes.
+
+        The bar used to be tick / max_ticks, which stopped meaning anything once
+        a pass ran until everybody was home: against the guard it would sit at
+        2 % and jump to the result. With a way home the morning is the first
+        half and the evening the second. Somebody stranded at a stop no run
+        reaches counts as done — nothing more will happen to them.
+        """
+        if self.home_pass is not None:
+            return int(50 + 50 * self.home_pass._share_done())
+        return int((50 if self.expects_way_home else 100) * self._share_done())
+
+    def _share_done(self) -> float:
+        people = sum(
+            len(schedule)
+            for route_pk, schedule in self.departure_schedule.items()
+            if route_pk >= 0 and self.route_segments.get(route_pk)
+        )
+        if not people:
+            return 1.0
+        done = sum(
+            1
+            for vehicle in self.vehicles.values()
+            if vehicle.route_pk >= 0 and (vehicle.arrived or vehicle.stranded)
+        )
+        return min(1.0, done / people)
+
     def _all_vehicles_arrived(self) -> bool:
         """Check if all vehicles have arrived."""
         for vehicle in self.vehicles.values():
@@ -1944,7 +1997,7 @@ class TrafficSimulator:
 
     def run_simulation(
         self,
-        max_ticks: int = 200,
+        max_ticks: int = PASS_TICK_GUARD,
         on_progress: Callable[[int, int], None] | None = None,
     ) -> SimulationResult:
         """
@@ -1963,9 +2016,15 @@ class TrafficSimulator:
         existed, and every one a test builds by hand — runs the morning alone,
         exactly as before.
 
+        A pass runs until everybody is home. `max_ticks` is a guard against
+        a bug, not a clock: game/signals.py leaves it at the default, and a
+        pass that reaches it is logged as an error.
+
         Args:
-            max_ticks: Maximum number of ticks per pass before stopping
-            on_progress: Callback for progress updates (tick, total_ticks)
+            max_ticks: The guard, per pass. Tests pass a small one to stop a
+                pass on purpose.
+            on_progress: Called after every tick with (tick, max_ticks).
+                progress_percent() is what a progress bar should show.
 
         Returns:
             SimulationResult with computed statistics
@@ -1982,10 +2041,11 @@ class TrafficSimulator:
         )
 
         try:
+            self.expects_way_home = self._has_way_home()
             self._run_pass(max_ticks, on_progress)
             self._compute_outcomes()
 
-            if self._has_way_home():
+            if self.expects_way_home:
                 self.home_pass = TrafficSimulator(
                     self.game_round,
                     scale=self.scale,
@@ -1994,7 +2054,12 @@ class TrafficSimulator:
                     rng=self.rng,
                 )
                 self.home_pass.simulation_result = self.simulation_result
-                self.home_pass.tick_offset = max_ticks
+                # After the morning on the round's one axis: its snapshots are
+                # keyed (simulation, edge, time_tick), so an evening starting
+                # before the morning ended would collide with it.
+                self.home_pass.tick_offset = max(
+                    HOME_PASS_EARLIEST_TICK, self.current_tick + 1
+                )
                 self.home_pass._run_pass(max_ticks, on_progress)
                 self.home_pass._compute_outcomes()
                 self.sim_log.header("THE WAY HOME")
@@ -2260,6 +2325,14 @@ class TrafficSimulator:
         self._record_arrivals()
         # Whatever is still moving when the loop ends has to be counted too.
         self._record_non_arrivals()
+        not_home = self.non_arrivals["unfinished"] + self.non_arrivals["stranded"]
+        if self.current_tick >= max_ticks and not_home:
+            logger.error(
+                f"[SIM] The {max_ticks}-tick guard stopped the {self.direction} "
+                f"pass of round {self.game_round.pk} with {not_home} people not "
+                f"home. A pass runs until everybody is home, so this is a bug in "
+                f"the model or in the map."
+            )
         # Log sample vehicle summaries
         self.sim_log.header("SAMPLE VEHICLE TRIP SUMMARIES")
         for route_pk, vid in self.sample_vehicles.items():

@@ -96,7 +96,7 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | R-04 | abschicken                                                     | Platz steht auf „abgeschickt"                                                                                                | geht      | -                         |
 | R-05 | Fortschritt                                                    | „x von y abgeschickt", host-gesteuerte zählen mit                                                                            | geht      | -                         |
 | R-06 | letzter Spieler schickt ab                                     | Runde wird gerechnet                                                                                                         | geht      | -                         |
-| R-07 | Simulation läuft                                               | Fortschritt kommt an (`simulation.progress`)                                                                                 | ungeprüft | -                         |
+| R-07 | Simulation läuft                                               | Fortschritt kommt an (`simulation.progress`) und zählt, wer zu Hause ist, über beide Wege bis 100 % (F2d)                     | ungeprüft | `test_rounds.py`          |
 | R-08 | Auto auf einer Kante ohne Straße                               | wird abgelehnt, Client wie Server                                                                                            | geht      | `edge-rules.test.ts`      |
 | R-09 | Rundenzähler                                                   | zeigt die richtige Runde (2.4-Bug)                                                                                           | ungeprüft | -                         |
 | R-10 | Spieler verlässt mitten in der Runde                           | Runde kann trotzdem fertig werden                                                                                            | offen     | -                         |
@@ -134,7 +134,7 @@ Aufzeichnung zeigt einfach ihre Zahlen.
 | A-08 | Haltestelle                   | Gruppe wächst und schrumpft, Bus rollt mit und ohne Gruppen      | ungeprüft | -                |
 | A-09 | Gruppe im Bus               | wird nicht zusätzlich als eigener Punkt gezeichnet                 | ungeprüft | -                |
 | A-10 | Ende                          | hält ein paar Sekunden auf dem letzten Moment                      | geht      | -                |
-| A-11 | jemand ist nicht angekommen   | sagt es, statt „alle sind angekommen" — gezählt vom Simulator, auch wer noch vor der Haustür stand (S25). Auf der ausgelieferten Karte kommt es nicht vor | geht      | `counts.test.ts`, `test_simulation.py` |
+| A-11 | jemand ist nicht angekommen   | sagt es, statt „alle sind angekommen" — gezählt vom Simulator, auch wer noch vor der Haustür stand (S25). Seit F2d läuft ein Weg, bis alle da sind: vorkommen kann es nur bei kaputten Kartendaten oder wenn die Fehlergrenze von 1000 Ticks greift | geht      | `counts.test.ts`, `test_simulation.py` |
 | A-12 | Runde ohne Aufzeichnung       | sagt es in einer Zeile, die Zahlen stehen trotzdem da              | ungeprüft | -                |
 | A-13 | ein Punkt sind 10 Menschen    | steht unter der Karte, als ganze Zahl (S25; vorher 50)             | geht      | `replay.spec.ts` |
 | A-14 | kein Punkt gehört jemandem    | alle Geräte sehen dieselbe Animation, niemand ist markiert         | geht      | -                |
