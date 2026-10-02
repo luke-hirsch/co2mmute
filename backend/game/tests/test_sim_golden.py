@@ -18,6 +18,7 @@ pipeline end to end rather than one mechanism at a time.
 
 import json
 import os
+import random
 import re
 from pathlib import Path
 
@@ -48,6 +49,8 @@ from game.models import (
     RouteSegment,
     SimulationResult,
 )
+from sim import LinkQueueEngine
+
 from game.simulation import TrafficSimulator
 from game.tests._helpers import muted
 
@@ -447,10 +450,9 @@ class PublicTransportGoldenMasterTests(TestCase):
                     ref = self._name("edge", ref)
                 elif kind == "s":
                     ref = self._name("node", ref)
-                legs.append(
-                    [kind, ref, start, end, self._name("node", from_node)
-                     if from_node is not None else None]
-                )
+                if from_node is not None:
+                    from_node = self._name("node", from_node)
+                legs.append([kind, ref, start, end, from_node])
             dots.append(
                 {
                     **dot,
@@ -590,3 +592,29 @@ class PublicTransportGoldenMasterTests(TestCase):
         )
         self.assertTrue(all(a["mean_return_time_min"] > 0 for a in captured["agents"]))
         self.assertEqual(captured["replay"]["endings"], {"unfinished": 0, "stranded": 0})
+
+    def test_the_engine_alone_reproduces_the_round(self):
+        """The seam is real: the scenario the adapter read is all the engine needs.
+
+        The same round, run again by `LinkQueueEngine` from nothing but the two
+        scenarios the game read it into and the same seed — no rows, no adapter
+        — comes out the same, route by route, sample by sample, dot by dot.
+        """
+        simulator = TrafficSimulator(
+            self._scenario(), scale=100.0, seed=GOLDEN_PT_SEED
+        )
+        with muted():
+            simulator.run_simulation()
+            home = simulator.home_pass.scenario
+            engine = LinkQueueEngine(simulator.scenario, random.Random(GOLDEN_PT_SEED))
+            engine.run_round(way_home=lambda rng: LinkQueueEngine(home, rng))
+
+        self.assertEqual(engine.outcomes, simulator.outcomes)
+        self.assertEqual(engine.home_pass.outcomes, simulator.home_pass.outcomes)
+        self.assertEqual(
+            engine.link_samples + engine.home_pass.link_samples,
+            simulator.link_samples + simulator.home_pass.link_samples,
+        )
+        self.assertEqual(engine.observed_speeds(), simulator.observed_speeds())
+        self.assertEqual(engine.build_replay(), simulator.build_replay())
+        self.assertEqual(engine.sim_log.get_text(), simulator.sim_log.get_text())
