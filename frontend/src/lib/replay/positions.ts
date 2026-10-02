@@ -2,7 +2,7 @@
  * Where one dot is at one simulated minute.
  *
  * The events the backend records carry one timestamp each — entering link N+1
- * *is* leaving link N — so `_build_replay` pairs them into legs that join up
+ * *is* leaving link N — so `build_replay` pairs them into legs that join up
  * exactly. There is never a gap to invent a position for, which is why this
  * module interpolates and never guesses.
  *

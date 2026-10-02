@@ -89,7 +89,7 @@ describe("canDriveOn", () => {
 describe("canUseEdge", () => {
   it("keeps a gate open to buses, bikes and pedestrians", () => {
     // That is the whole point of a gate: it is closed to cars and to nothing
-    // else. `sim/simulation.py`: "closed to cars, open to buses, bikes and
+    // else. `sim/linkqueue.py`: "closed to cars, open to buses, bikes and
     // pedestrians."
     const gate = withBusLane(1);
     expect(canUseEdge(gate, "car")).toBe(false);

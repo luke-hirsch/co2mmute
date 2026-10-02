@@ -477,7 +477,7 @@ def _run_simulation(game_session, game_round, moves):
         # What the rows on the screen add up to. The round total is larger by
         # exactly the timetable nobody rode — a line is on the network whether
         # or not anybody boards, and only the unridden remainder is added on top
-        # of the routes' own shares (`simulation.py`, "Totals"). The screen has
+        # of the routes' own shares (`sim/linkqueue.py`, "Totals"). The screen has
         # to be able to name that difference, or its footer reads as an
         # arithmetic bug.
         rows_emissions = 0.0

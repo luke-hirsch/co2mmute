@@ -10,8 +10,8 @@ ways, or not at all:
   the client routes on,
 * `MapExportView`, which used to infer the chain from the edges it had already
   written and silently drop the rest,
-* `game/simulation.py:_load_pt_lines`, which took the whole chain and let
-  `_register_pt_line` trim it to whatever happened to be on the network.
+* the simulator's line loader (`game/simulation.py:_read_lines` today), which
+  took the whole chain and let `_register_pt_line` trim it to whatever happened to be on the network.
 
 One question, one function. The same argument as `game/auth.py`: one resolver,
 three callers.
@@ -27,7 +27,7 @@ def bus_chain_rows(bus_line, version):
 
     `version=None` means the map has no versions at all — a round built by hand
     or in a test — and then every row counts, which is the fallback
-    `_load_pt_lines` has always documented.
+    the simulator's line loader has always documented.
     """
     from maps.models import BusLineEdge
 

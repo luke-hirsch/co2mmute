@@ -472,7 +472,7 @@ class SimulationResult(models.Model):
     detailed_log = models.TextField(null=True, blank=True)
     # Everything needed to play this round back: sampled people and every line
     # vehicle, with the links they were on and when. Written once by
-    # TrafficSimulator._build_replay and never updated. Null for every round
+    # LinkQueueEngine.build_replay (sim/linkqueue.py) and never updated. Null for every round
     # simulated before this field existed, which the endpoint reports as an
     # empty replay rather than a 404 — an old round still has its numbers.
     replay = models.JSONField(null=True, blank=True)

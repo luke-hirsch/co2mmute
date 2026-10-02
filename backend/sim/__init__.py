@@ -5,16 +5,18 @@ An engine has no models, views, URLs or migrations, so it is a package and not
 a Django app. Three things follow from that, and they are the reasons it was
 pulled out of `game/simulation.py`:
 
-- **It is documentation.** `scenario.py` is the input contract in forty lines.
+- **It is documentation.** `scenario.py` is the input contract, `outcome.py`
+  what comes back, `engine.py` what the game asks of an engine in between.
 - **A second model can drop in.** A Nagel-Schreckenberg cellular automaton, say,
-  is then a new file consuming the same scenario — comparable directly, rather
-  than a rewrite of everything around it.
+  is then a new module satisfying `engine.Engine` over the same scenario —
+  comparable directly, rather than a rewrite of everything around it.
 - **Tests and calibration stop needing a database.** Everything in here can be
-  imported and run without a settings module.
+  imported and run without a settings module, a whole round included.
 
-`game.simulation.TrafficSimulator` keeps its name, path and signature and is
-still the only thing the rest of the backend talks to. It is the adapter:
-ORM rows in, engine, result rows out.
+`linkqueue.py` is the engine there is: the link queue model, the timetable,
+boarding, the accounting and the replay. `game.simulation.TrafficSimulator`
+keeps its name, path and signature and is still the only thing the rest of the
+backend talks to. It is the adapter: ORM rows in, engine, result rows out.
 """
 
 from sim.constants import (
@@ -48,8 +50,11 @@ from sim.constants import (
     draw_driver_speed_factor,
     generate_departure_minutes,
 )
+from sim.engine import Engine
+from sim.linkqueue import LinkQueueEngine
 from sim.log import SimulationLog
-from sim.scenario import Segment
+from sim.outcome import LinkSample, RouteOutcome
+from sim.scenario import Line, Link, Params, Route, Scenario, Segment
 from sim.state import (
     EdgeState,
     PTLineState,
@@ -84,9 +89,18 @@ __all__ = [
     "TRAIN_COST_PER_VEHICLE_KM",
     "TRAIN_EMISSIONS_G_PER_VEHICLE_KM",
     "EdgeState",
+    "Engine",
+    "Line",
+    "Link",
+    "LinkQueueEngine",
+    "LinkSample",
+    "Params",
     "PTLineState",
     "PTVehicle",
     "QueuedVehicle",
+    "Route",
+    "RouteOutcome",
+    "Scenario",
     "Segment",
     "SimulationLog",
     "Vehicle",

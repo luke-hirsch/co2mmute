@@ -1067,7 +1067,7 @@ class GameSummaryView(GenericAPIView):
         # timetable nobody rode: `_register_pt_line` puts a line on the network
         # whether or not anyone boards, the ridden share is already inside the
         # routes, and only the unridden remainder is added on top of them
-        # (`simulation.py`, "Totals"). So the difference is exact rather than
+        # (`sim/linkqueue.py`, "Totals"). So the difference is exact rather than
         # estimated — and it is what makes the screen's footer add up.
         ridden_by_round = {
             row["agent_route__player_move__session_round"]: row
