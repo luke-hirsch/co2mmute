@@ -433,9 +433,9 @@ Das erste Spiel kostet damit über sechs Runden 158.201 kg, das zweite 107.716 k
 16.000 kg pro Runde, 96.000 für sechs, trennen die beiden nicht mehr: Wer durchgehend fährt, ist in
 Runde 4 raus, und wer sich verbessert, überschreitet das Budget in der letzten Runde um 11.716 kg.
 Das liegt am Fahrplan: Die Linien fahren, bis der Letzte zu Hause ist, und je mehr umsteigen, desto
-länger sind Leute unterwegs. Mit 18.000 kg pro Runde, 108.000 für sechs, wäre durchgehend Fahren in
-Runde 5 vorbei, und wer umsteigt, bliebe 284 kg darunter. Welche Zahl bleibt, soll der nächste
-Play-Test zeigen.
+länger sind Leute unterwegs. Die Karte behält 16.000 (entschieden am 2. Oktober 2026): Wer alle sechs
+Runden schaffen will, muss früher umsteigen als das zweite Spiel. Mit 18.000 kg pro Runde, 108.000
+für sechs, wäre durchgehend Fahren in Runde 5 vorbei, und wer umsteigt, bliebe 284 kg darunter.
 
 ### Emissionsfaktoren nachrechnen
 
