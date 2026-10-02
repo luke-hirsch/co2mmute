@@ -5479,3 +5479,95 @@ class LinesDriveTheirOwnWayTests(PTBoardingScenarioMixin, TestCase):
         self.assertEqual(
             self._run_links(on_busspuren, "bus", line), [e.pk for e in clone_east]
         )
+
+
+class LinesRunUntilEverybodyIsHomeTests(PTBoardingScenarioMixin, TestCase):
+    """PT keeps driving until the last person is home (Lukas, 2026-10-02).
+
+    "Just fair and truthful; public transport also works during the quieter
+    midday hours, at least in bigger cities." The base timetable covers the
+    120-minute departure window; past it a run used to leave only for a PT
+    rider. Now it also leaves while anybody at all is under way — in a car, on
+    a bike, on foot, at a stop or still at the front door — and the round pays
+    society CO2 for it.
+
+    It counts PEOPLE. A line vehicle is itself under way, so a rule that
+    counted it would keep the line dispatching itself until the guard.
+
+    The fixture's lines are nobody's: one car route, over a 30 km street at
+    20 km/h that the lines do not run on, so the car is still out at minute
+    150 where the timetable ends at 120.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="ptlate", password="12345")
+        game_map, version, edges, self.bus, self.train = self._pt_map()
+        # Wide enough for a node 30 km out; the fixture map is 10 km across.
+        GameMap.objects.filter(pk=game_map.pk).update(x_dim=400)
+        game_map.refresh_from_db()
+        far = Node.objects.create(
+            game_map=game_map, name="Far", x_position=320, y_position=0
+        )
+        far.map_versions.add(version)
+        long_street = _street(
+            game_map, version, edges[1].end_node, far, speed_limit=20
+        )
+        session = self._pt_session(game_map, version, people=100)
+        self.game_round = self._round(session)
+        player = self._player(session)
+        self.route = _route(self.game_round, player, [long_street], mode="car")
+
+    def _last_home_min(self, simulator):
+        return max(
+            v.arrived_min
+            for v in simulator.vehicles.values()
+            if v.route_pk == self.route.pk and v.arrived
+        )
+
+    def test_a_line_nobody_rides_runs_while_a_car_is_still_out(self):
+        simulator = self._run(self.game_round)
+
+        last_home = self._last_home_min(simulator)
+        self.assertGreater(last_home, 140, "the car was home inside the timetable")
+        for key in (("bus", self.bus.pk), ("train", self.train.pk)):
+            line = simulator.pt_lines[key]
+            self.assertGreater(line.vehicles, line.base_vehicles)
+            # Every run that was due while the car was out left the depot.
+            self.assertGreaterEqual(
+                line.vehicles * line.interval_min, last_home,
+                f"{line.name} stopped while somebody was still on the road",
+            )
+
+    def test_the_line_stops_once_only_line_vehicles_are_left(self):
+        """Passes on `main`, where the line stops at its timetable. It is what
+        a rule counting every vehicle, its own included, breaks."""
+        simulator = self._run(self.game_round)
+
+        last_home = self._last_home_min(simulator)
+        tick = simulator.tick_duration_min
+        for key in (("bus", self.bus.pk), ("train", self.train.pk)):
+            line = simulator.pt_lines[key]
+            # The last run left in the tick the last person got home, or before.
+            self.assertLess(
+                (line.vehicles - 1) * line.interval_min, last_home + tick,
+                f"{line.name} dispatched after everybody was home",
+            )
+        # And the pass ended once the runs on the road had finished, not at
+        # the guard.
+        self.assertLess(simulator.current_tick * tick, last_home + 30)
+
+    def test_the_extra_runs_are_paid_for(self):
+        simulator = self._run(self.game_round)
+
+        bus = simulator.pt_lines[("bus", self.bus.pk)]
+        self.assertGreater(bus.society_co2_g, 28_800.0)
+        self.assertAlmostEqual(
+            bus.society_co2_g, bus.vehicles * bus.line_km * 1200.0, places=3
+        )
+        self.assertAlmostEqual(
+            simulator.pass_total_co2_g - sum(
+                simulator.outcomes[pk].co2_g for pk in simulator.outcomes
+            ),
+            sum(line.society_co2_g for line in simulator.pt_lines.values()),
+            places=3,
+        )

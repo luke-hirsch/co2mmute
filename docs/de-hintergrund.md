@@ -160,6 +160,13 @@ Eine Linie fährt ihren Fahrplan, ob jemand mitfährt oder nicht:
 > aus. Auch ein leerer Bus stößt CO₂ aus, und eine Linie, die niemand benutzt hat, kostet die Runde
 > trotzdem.
 
+Der Fahrplan deckt das Abfahrtsfenster von zwei Stunden ab. Danach fährt eine Linie weiter, solange
+noch jemand unterwegs ist, im Auto, auf dem Rad, zu Fuß, im Bus oder an einer Haltestelle, auch wenn
+niemand mitfährt: Busse fahren auch in den ruhigen Stunden. Steckt der letzte Autofahrer im Stau,
+fahren die Linien weiter, und die Gesellschaft bezahlt sie. Am meisten macht das aus, wenn viele
+umsteigen: Mit Bus und Bahn ist man länger unterwegs als mit dem Auto, und solange einer noch
+unterwegs ist, fahren alle Linien.
+
 Auf die Mitfahrenden verteilt wird diese Summe nach **Personenkilometern**, nicht pro Kopf: Wer auf
 einer 13 km langen Linie eine Station fährt, soll nicht den Anteil einer ganzen Fahrt tragen,
 während das Auto daneben nach Kilometern abgerechnet wird. Die persönlichen Anteile ergeben zusammen
@@ -367,7 +374,7 @@ dauert wie der Berufsverkehr in der echten Stadt.
 
 Das Ergebnis ist nicht die echte Pendlerzahl des Stadtteils, die ist viel höher. Der Graph bildet
 aber nur die Hauptachsen ab, und gesucht ist, wie viel Verkehr **diese Achsen** tragen. Für Berlin
-Mitte-West sind es **6.400 Pendler**: Fahren alle Auto, dauern 7,66 km dann 22,5 Minuten, 12,5 davon
+Mitte-West sind es **6.400 Pendler**: Fahren alle Auto, dauern 7,66 km dann 21,5 Minuten, 11,4 davon
 Verspätung. Das Modell liegt damit etwas über der echten Stadt.
 
 Danach prüfen, ob der Stau von den Entscheidungen abhängt. Darum geht es im Spiel. Dafür Runden mit
@@ -375,17 +382,18 @@ weniger Autos spielen, etwa mit drei Vierteln, der Hälfte und einem Viertel:
 
 | Autoanteil | Runde gesamt |      Auto | Fahrplan | Fahrzeit Auto | Verspätung |
 | ---------: | -----------: | --------: | -------: | ------------: | ---------: |
-|      100 % |    13.059 kg | 10.194 kg | 2.864 kg |      22,5 min |   12,5 min |
-|       75 % |     9.884 kg |  6.903 kg | 2.981 kg |      15,4 min |    5,4 min |
-|       50 % |     7.184 kg |  4.164 kg | 3.020 kg |      10,6 min |    0,7 min |
-|       25 % |     5.345 kg |  2.207 kg | 3.139 kg |      10,8 min |    0,1 min |
-|        0 % |     3.194 kg |         — | 3.194 kg |             — |          — |
+|      100 % |    13.326 kg | 10.001 kg | 3.325 kg |      21,5 min |   11,4 min |
+|       75 % |    10.247 kg |  6.843 kg | 3.405 kg |      14,9 min |    4,9 min |
+|       50 % |     8.036 kg |  4.159 kg | 3.877 kg |      10,6 min |    0,7 min |
+|       25 % |     7.118 kg |  2.206 kg | 4.912 kg |      10,8 min |    0,1 min |
+|        0 % |     5.151 kg |         — | 5.151 kg |             — |          — |
 
 ![Was eine Runde kostet, nach Autoanteil](../backend/template/hintergrund/runde.svg)
 
 _Jeder Balken ist eine Runde: Auto in Blau, der Fahrplan in Gelb. Der Fahrplan fährt so oder so und
-wird nur etwas teurer, wenn mehr Leute einsteigen; das Auto bestimmt, wie lang der Balken wird. Die
-Linie ist das halbe Budget von 16.000 kg pro Runde, also das für einen Weg._
+wird teurer, je mehr Leute einsteigen, weil die Linien fahren, bis der Letzte zu Hause ist; das Auto
+bestimmt, wie lang der Balken wird. Die Linie ist das halbe Budget von 16.000 kg pro Runde, also das
+für einen Weg._
 
 Auf Berlin Mitte-West ist der Stau weg, wenn die Hälfte umsteigt. Stau ist ein Schwellenphänomen
 dicht an der Kapazität: Knapp darunter fließt der Verkehr, knapp darüber staut er. Bleibt der Stau
@@ -398,7 +406,7 @@ umsteigen, weil die Fahrzeuge voll sind.
 
 Die Tabelle gilt für einen Weg, den Hinweg. Sie ist auf der Basisversion von Berlin Mitte-West gemessen: 64 Gruppen zu je 100 Menschen,
 gleichmäßig über die 36 Paare aus Wohnort und Arbeitsplatz verteilt, wer nicht Auto fährt, fährt Bus
-und Bahn, gemittelt über sechs Seeds. Die Streuung zwischen den Seeds liegt unter 2 %.
+und Bahn, gemittelt über sechs Seeds. Die Streuung zwischen den Seeds liegt bei höchstens 3 %.
 
 ### Das Budget
 
@@ -406,25 +414,28 @@ Für das Budget zwei Spiele über die geplante Rundenzahl messen: eines, in dem 
 steigt, und eines, das sich herunterarbeitet, zum Beispiel mit 100 / 75 / 50 / 50 / 25 / 25 %
 Autoanteil. Das Budget muss zwischen beiden liegen: Das erste Spiel soll es sprengen, das zweite
 damit auskommen. Nach unten begrenzt es der Fahrplan, der auch fährt, wenn niemand einsteigt, auf Berlin
-Mitte-West 2.864 kg pro Runde. Die Zahl sollte rund sein, damit alle sie im Kopf behalten.
+Mitte-West 6.736 kg pro Runde mit Hin- und Rückweg. Die Zahl sollte rund sein, damit alle sie im Kopf
+behalten.
 
 Eine Runde rechnet Hin- und Rückweg, die Tabelle oben gilt für einen Weg. Gemessen auf Berlin
-Mitte-West (dieselben 64 Gruppen, sechs Seeds) kostet eine Runde mit Hin- und Rückweg 1,96- bis
-2,06-mal so viel wie der Hinweg allein:
+Mitte-West (dieselben 64 Gruppen, sechs Seeds) kostet eine Runde mit Hin- und Rückweg 1,98- bis
+2,02-mal so viel wie der Hinweg allein:
 
-| Autoanteil | Runde gesamt |      Auto | Fahrplan |
-| ---------: | -----------: | --------: | -------: |
-|      100 % |    25.614 kg | 19.885 kg | 5.729 kg |
-|       75 % |    19.626 kg | 13.673 kg | 5.953 kg |
-|       50 % |    14.470 kg |  8.337 kg | 6.134 kg |
-|       25 % |    10.883 kg |  4.415 kg | 6.468 kg |
-|        0 % |     6.582 kg |         — | 6.582 kg |
+| Autoanteil | Runde gesamt |      Auto |  Fahrplan |
+| ---------: | -----------: | --------: | --------: |
+|      100 % |    26.367 kg | 19.631 kg |  6.736 kg |
+|       75 % |    20.323 kg | 13.530 kg |  6.792 kg |
+|       50 % |    16.174 kg |  8.318 kg |  7.856 kg |
+|       25 % |    14.340 kg |  4.415 kg |  9.925 kg |
+|        0 % |    10.402 kg |         — | 10.402 kg |
 
-Das erste Spiel kostet damit über sechs Runden 153.684 kg, das zweite 95.946 kg. Die eingetragenen
-16.000 kg pro Runde, 96.000 für sechs, liegen wie vorher am Rand: Wer durchgehend fährt, ist in
-Runde 4 raus, und wer sich verbessert, bleibt 54 kg unter dem Budget. Mit 18.000 kg pro Runde wäre
-durchgehend Fahren erst in Runde 5 vorbei, und wer umsteigt, behielte rund zwölf Tonnen. Welche Zahl
-bleibt, soll der nächste Play-Test zeigen.
+Das erste Spiel kostet damit über sechs Runden 158.201 kg, das zweite 107.716 kg. Die eingetragenen
+16.000 kg pro Runde, 96.000 für sechs, trennen die beiden nicht mehr: Wer durchgehend fährt, ist in
+Runde 4 raus, und wer sich verbessert, überschreitet das Budget in der letzten Runde um 11.716 kg.
+Das liegt am Fahrplan: Die Linien fahren, bis der Letzte zu Hause ist, und je mehr umsteigen, desto
+länger sind Leute unterwegs. Mit 18.000 kg pro Runde, 108.000 für sechs, wäre durchgehend Fahren in
+Runde 5 vorbei, und wer umsteigt, bliebe 284 kg darunter. Welche Zahl bleibt, soll der nächste
+Play-Test zeigen.
 
 ### Emissionsfaktoren nachrechnen
 
@@ -443,8 +454,9 @@ Zugkilometer, also einem dieselgeführten Fernzug. Eine Berliner U- oder S-Bahn 
 mit dem deutschen Strommix sind das 1.450 g, gerundet 1.500.
 
 Ein falscher ÖPNV-Faktor wiegt schwer, weil der Fahrplan auch fährt, wenn niemand einsteigt. Bei 3.500 g
-machte der Fahrplan 39 % einer Runde aus, in der alle Auto fahren; bei 1.500 g sind es 22 %. An
-diesem Anteil kann beim Spielen niemand etwas ändern.
+machte der Fahrplan 39 % einer Runde aus, in der alle Auto fahren; bei 1.500 g waren es 22 %, und
+seit die Linien fahren, bis alle zu Hause sind, sind es 25 %. Den Fahrplan kann beim Spielen niemand
+abbestellen.
 
 Zwei Regeln:
 
@@ -478,7 +490,7 @@ Die beiden Zahlen gelten für eine Karte und ein Modell. Neu messen, wenn
   Achsen mehr Pendler;
 - der Abend eine eigene Spitze bekommt. Heute ist er ein Abbild des Morgens, mit derselben Streuung
   der Abfahrten; eine andere Spitze trägt dasselbe Netz mit mehr oder weniger Pendlern;
-- sich ein Emissionsfaktor ändert. Dann verschiebt sich das Budget.
+- sich ein Emissionsfaktor ändert oder wie lange die Linien fahren. Dann verschiebt sich das Budget.
 
 Danach beide Zahlen in die Kartendatei oder in den Admin eintragen, `calibrated` setzen und die
 Karte exportieren, damit die Messung mit der Datei mitgeht. Die Messungen für Berlin Mitte-West

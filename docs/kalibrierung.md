@@ -286,7 +286,43 @@ rund zwölf Tonnen. Die Zahl steht in der Kartendatei.
 
 Was die Doppelung nicht ist: eine Messung des Abends. Er ist heute ein Abbild des Morgens.
 
-## 11. Was offen bleibt
+## 11. Die Linien fahren, bis alle zu Hause sind
+
+Bis zum 2. Oktober 2026 fuhr eine Linie nach ihrem Fahrplan nur weiter, solange jemand auf sie wartete
+oder in ihr saß. Seitdem fährt jede Linie, solange irgendjemand unterwegs ist, auch wenn niemand
+mitfährt (`docs/de-hintergrund.md`, „Der ÖPNV fährt einen Fahrplan“): Busse fahren auch in den
+ruhigen Stunden, und die Gesellschaft bezahlt sie.
+
+Gleiches Verfahren wie in Abschnitt 10, am 2. Oktober 2026, mit Hin- und Rückweg. Die Routen sind neu
+aus dem Client-Router gezogen, nachdem Bus 100, Stadtbahn und U7 auf die Straßenseite ihrer
+Fahrtrichtung gelegt wurden; es sind dieselben Linien, nur die andere Seite der Straße. Vorher ist
+das Modell desselben Tages ohne die Regel, nachher mit ihr:
+
+| Autoanteil | Runde vorher | Runde nachher |      Auto | Fahrplan vorher | Fahrplan nachher |
+| ---------: | -----------: | ------------: | --------: | --------------: | ---------------: |
+|      100 % |    25.360 kg |     26.367 kg | 19.631 kg |        5.729 kg |         6.736 kg |
+|       75 % |    19.497 kg |     20.323 kg | 13.530 kg |        5.966 kg |         6.792 kg |
+|       50 % |    14.463 kg |     16.174 kg |  8.318 kg |        6.145 kg |         7.856 kg |
+|       25 % |    10.879 kg |     14.340 kg |  4.415 kg |        6.464 kg |         9.925 kg |
+|        0 % |     6.585 kg |     10.402 kg |         — |        6.585 kg |        10.402 kg |
+
+Die Spalte vorher liegt unter Abschnitt 10, weil seitdem Abbiegespuren, Reißverschluss und Bus 100
+auf seiner eigenen Straßenseite dazugekommen sind. Auto, Fahrzeiten und Wartezeiten bewegen sich
+durch die Regel nicht. Nur der Fahrplan wird teurer, und am meisten dort, wo am meisten umgestiegen
+wird: Mit Bus und Bahn dauert ein Weg 33 bis 44 Minuten, mit dem Auto 11 bis 22, und solange der
+letzte Fahrgast unterwegs ist, fahren alle zwölf Linien. Ohne Auto fahren auf dem Hinweg 154 Busse
+und Züge mehr als der Fahrplan, vorher 31. Niemand bleibt stehen, in keinem der gemessenen Fälle.
+
+Nur der Hinweg, im selben Lauf: 13.326 / 10.247 / 8.036 / 7.118 / 5.151 kg, vorher 12.865 / 9.826 /
+7.191 / 5.340 / 3.194 kg. Das ist die Tabelle in `docs/de-hintergrund.md`.
+
+**Das Budget trennt die beiden Spiele nicht mehr.** Wer durchgehend fährt, kommt auf 158.201 kg und
+ist in Runde 4 raus. Wer sich herunterarbeitet (100 / 75 / 50 / 50 / 25 / 25 %), kommt auf
+**107.716 kg**, 11.716 kg über 96.000, vorher 95.541. Mit **18.000 kg pro Runde**, 108.000 für sechs,
+endet durchgehend Fahren in Runde 5, und wer umsteigt, bleibt 284 kg darunter. Die Zahl steht in der
+Kartendatei.
+
+## 12. Was offen bleibt
 
 - **Die Abfahrten liegen sehr eng beieinander.** `departure_std_dev_min = 10` heißt, dass praktisch
   alle innerhalb von 20 Minuten losfahren; real verteilt sich ein Berufsverkehr über eine Stunde und
@@ -295,16 +331,16 @@ Was die Doppelung nicht ist: eine Messung des Abends. Er ist heute ein Abbild de
 - **Der Abend ist ein Abbild des Morgens.** Dieselbe Streuung der Abfahrten, dieselbe Spitze:
   `evening_departure_hour` verschiebt in der Simulation nichts, weil die Zeit ab Fensterbeginn läuft.
   Eine eigene Abendspitze wäre eine Modellfrage. Die Wiedergabe zeigt nur den Hinweg.
-- **Das Budget von Berlin Mitte-West** liegt auf der reparierten Karte am Rand seiner Spanne
-  (Abschnitt 9); 9.000 kg pro Runde ist der Vorschlag für den nächsten Play-Test.
+- **Das Budget von Berlin Mitte-West** trennt seit Abschnitt 11 ein Spiel, das umsteigt, nicht mehr
+  von einem, das durchgehend fährt; 18.000 kg pro Runde ist der Vorschlag für den nächsten Play-Test.
 - **Die Vorgabewerte anderer Karten sind ungeprüft.** Jede neue Karte startet mit 6.400 und 16.000 —
   den Werten von Berlin Mitte-West. Für eine kleinere Karte sind beide zu hoch. Die Karte sagt
   inzwischen selbst, ob ihre Zahlen gemessen sind (`GameMap.calibrated`, geht mit der JSON-Datei
   mit), und „Spiel anlegen" warnt, solange sie es nicht sind. Gemessen ist damit noch nichts: das
-  heißt weiterhin Runden auf der Karte nachspielen (Abschnitt 12), die beiden Zahlen im Admin
+  heißt weiterhin Runden auf der Karte nachspielen (Abschnitt 13), die beiden Zahlen im Admin
   eintragen und dort den Haken setzen. Die mitgelieferte Datei hat ihn gesetzt.
 
-## 12. Nachrechnen
+## 13. Nachrechnen
 
 Die Zahlen oben stammen nicht aus einem Play-Test, sondern aus wiederholten Läufen mit festem Seed
 auf der ausgelieferten Karte. Wer sie nach einer Modelländerung neu braucht, spielt Runden auf der

@@ -139,6 +139,25 @@ The improving class spends 95 946 kg over six rounds against 96 000, all-car is
 out in round 4: the same edge as one trip ago. The way-there rows of that run
 reproduce the table above to the kilogram. docs/kalibrierung.md §10.
 
+**Since 2026-10-02 every line runs until everybody is home**, ridden or not;
+past its timetable a line used to run only for its own riders. Same harness,
+routes re-dumped after bus 100, the Stadtbahn and U7 moved to the side of the
+street they drive (the same lines, the other side), round trip:
+
+    car share   round total     car   timetable   timetable before
+         100 %    26 367 kg  19 631     6 736          5 729
+          75 %    20 323 kg  13 530     6 792          5 966
+          50 %    16 174 kg   8 318     7 856          6 145
+          25 %    14 340 kg   4 415     9 925          6 464
+           0 %    10 402 kg       0    10 402          6 585
+
+The car side does not move; the timetable grows most where most people ride,
+because a PT trip takes twice a car trip and every line runs while one rider is
+out. The improving class spends 107 716 kg against 96 000 (95 541 the moment
+before), all-car is out in round 4, so the budget no longer separates the two.
+18 000 kg a round puts the improving class 284 kg inside. docs/kalibrierung.md
+§11.
+
 Re-deriving these after a model change means replaying rounds on the map in
 question, not adjusting them until a play-test feels right. What each number is
 FOR is asserted in `game/tests/test_join.py`.
