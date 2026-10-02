@@ -48,15 +48,22 @@ to cars, open to buses and optionally to bikes and pedestrians.
 2. Everyone whose departure minute has come tries to enter their first link.
 3. A vehicle may not leave a link before `t0` has passed. The free-flow time is a floor on the
    journey; it can never be faster than the speed limit allows.
-4. Then it joins the link's FIFO queue and waits for budget.
+4. Then it joins the link's queue and waits for budget. On one lane that is a single FIFO queue. From
+   two car lanes up every next link has its own, a turn lane, and all of them share the street's
+   budget and storage.
 5. It may only leave if the **next** link has storage left. If not it stays where it is, and so does
-   everything behind it. A jam forms.
+   everything behind it in its queue: on one lane everybody, from two lanes up only those going the
+   same way. A jam forms.
 6. Repeat within the tick until nothing moves. A vehicle can cross several short links in five
-   minutes.
+   minutes. The links are served in an order shuffled every tick: where several feed the same
+   junction, each goes first equally often over a round. That is the zipper merge, on average rather
+   than car by car.
 
 So congestion comes from two mechanisms: a link discharges only `Q` vehicles per hour, and a full
 link holds up the link feeding it. That is how queues grow backwards through the network, as they do
-on a real street.
+on a real street. From two lanes up this deliberately departs from MATSim, where a link has one
+queue at any width: someone waiting to turn into a full street does not hold up those going
+elsewhere.
 
 ![A link in free flow and in spillback](../backend/template/hintergrund/kante.svg)
 
@@ -74,9 +81,9 @@ speed floor is needed.
 In exchange, the network can gridlock for real: a ring of links, each full of vehicles wanting the
 next one.
 
-A junction that has moved nothing for four consecutive ticks therefore releases anyway, over
-storage, and the release is counted. A non-zero `forced_releases` in the tick log is not a bug, but
-it is a reason to read the log.
+A junction that has moved nothing for four consecutive ticks therefore releases one vehicle anyway,
+over storage, and then waits four ticks again. Every release is counted. A non-zero
+`forced_releases` in the tick log is not a bug, but it is a reason to read the log.
 
 ### Speed is an output
 

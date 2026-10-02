@@ -52,15 +52,22 @@ zur _Busschleuse_ – für Autos gesperrt, offen für Busse und wahlweise auch f
 2. Alle, deren Abfahrtsminute gekommen ist, versuchen auf ihre erste Kante zu kommen.
 3. Ein Fahrzeug darf eine Kante nicht vor Ablauf von `t0` verlassen. Die Freiflusszeit ist die
    Untergrenze der Fahrt; schneller als das Tempolimit geht nie.
-4. Danach reiht es sich in die FIFO-Schlange der Kante ein und wartet auf Budget.
+4. Danach reiht es sich in die Schlange der Kante ein und wartet auf Budget. Auf einer Spur ist das
+   eine einzige FIFO-Schlange. Ab zwei Autospuren hat jede nächste Kante ihre eigene, eine
+   Abbiegespur, und alle teilen sich das Budget und den Speicher der Straße.
 5. Weiter darf es nur, wenn die **nächste** Kante noch Speicher frei hat. Wenn nicht, bleibt es
-   stehen, und alles dahinter auch. Ein Stau entsteht.
+   stehen, und alles dahinter in seiner Schlange auch: auf einer Spur also alle, ab zwei Spuren nur,
+   wer in dieselbe Richtung will. Ein Stau entsteht.
 6. Innerhalb des Ticks wiederholen, bis sich nichts mehr bewegt. Ein Fahrzeug schafft in fünf
-   Minuten mehrere kurze Kanten.
+   Minuten mehrere kurze Kanten. Die Kanten werden dabei jeden Tick in neu gemischter Reihenfolge
+   bedient: Münden mehrere in denselben Knoten, ist über eine Runde jede gleich oft als erste dran.
+   Das ist das Reißverschlussprinzip, im Mittel statt Auto für Auto.
 
 Stau entsteht also aus zwei Mechanismen: Eine Kante lässt nur `Q` Fahrzeuge pro Stunde ab, und eine
 volle Kante hält die Kante auf, die sie speist. So wachsen Schlangen rückwärts durch das Netz, wie
-auf einer echten Straße.
+auf einer echten Straße. Ab zwei Spuren weicht das bewusst von MATSim ab, wo eine Kante bei jeder
+Breite eine einzige Schlange hat: Wer in eine volle Straße abbiegen will, hält dort die nicht auf,
+die woandershin wollen.
 
 ![Eine Kante im freien Fluss und im Rückstau](../backend/template/hintergrund/kante.svg)
 
@@ -79,9 +86,9 @@ deshalb nicht.
 Dafür kann sich das Netz wirklich verklemmen: ein Ring aus Kanten, jede voll mit Fahrzeugen, die
 auf die nächste wollen.
 
-Ein Knoten, der vier Ticks hintereinander nichts bewegt hat, gibt deshalb trotzdem frei, über die
-Speichergrenze hinweg, und die Freigabe wird gezählt. Ein `forced_releases` über null im Tick-Log
-ist kein Fehler, aber ein Grund, das Log zu lesen.
+Ein Knoten, der vier Ticks hintereinander nichts bewegt hat, gibt deshalb trotzdem ein Fahrzeug
+frei, über die Speichergrenze hinweg, und wartet dann wieder vier Ticks. Jede Freigabe wird gezählt.
+Ein `forced_releases` über null im Tick-Log ist kein Fehler, aber ein Grund, das Log zu lesen.
 
 ### Geschwindigkeit ist ein Ergebnis
 
