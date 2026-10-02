@@ -319,8 +319,9 @@ Nur der Hinweg, im selben Lauf: 13.326 / 10.247 / 8.036 / 7.118 / 5.151 kg, vorh
 **Das Budget trennt die beiden Spiele nicht mehr.** Wer durchgehend fährt, kommt auf 158.201 kg und
 ist in Runde 4 raus. Wer sich herunterarbeitet (100 / 75 / 50 / 50 / 25 / 25 %), kommt auf
 **107.716 kg**, 11.716 kg über 96.000, vorher 95.541. Mit **18.000 kg pro Runde**, 108.000 für sechs,
-endet durchgehend Fahren in Runde 5, und wer umsteigt, bleibt 284 kg darunter. Die Zahl steht in der
-Kartendatei.
+endet durchgehend Fahren in Runde 5, und wer umsteigt, bleibt 284 kg darunter. **Die Karte behält
+16.000** (entschieden am 2. Oktober 2026): Wer alle sechs Runden schaffen will, muss früher umsteigen
+als die Klasse oben. Die Zahl steht in der Kartendatei.
 
 ## 12. Was offen bleibt
 
@@ -330,9 +331,9 @@ Kartendatei.
   ist eine Modellfrage, keine Kalibrierungsfrage — hier bewusst nicht angefasst.
 - **Der Abend ist ein Abbild des Morgens.** Dieselbe Streuung der Abfahrten, dieselbe Spitze:
   `evening_departure_hour` verschiebt in der Simulation nichts, weil die Zeit ab Fensterbeginn läuft.
-  Eine eigene Abendspitze wäre eine Modellfrage. Die Wiedergabe zeigt nur den Hinweg.
-- **Das Budget von Berlin Mitte-West** trennt seit Abschnitt 11 ein Spiel, das umsteigt, nicht mehr
-  von einem, das durchgehend fährt; 18.000 kg pro Runde ist der Vorschlag für den nächsten Play-Test.
+  Eine eigene Abendspitze wäre eine Modellfrage.
+- **Das Budget von Berlin Mitte-West** bleibt bei 16.000 kg pro Runde, obwohl es seit Abschnitt 11
+  auch ein Spiel beendet, das sich wie oben verbessert; mit 18.000 bliebe dieses 284 kg darunter.
 - **Die Vorgabewerte anderer Karten sind ungeprüft.** Jede neue Karte startet mit 6.400 und 16.000 —
   den Werten von Berlin Mitte-West. Für eine kleinere Karte sind beide zu hoch. Die Karte sagt
   inzwischen selbst, ob ihre Zahlen gemessen sind (`GameMap.calibrated`, geht mit der JSON-Datei

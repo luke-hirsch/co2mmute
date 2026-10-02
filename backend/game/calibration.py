@@ -155,8 +155,9 @@ The car side does not move; the timetable grows most where most people ride,
 because a PT trip takes twice a car trip and every line runs while one rider is
 out. The improving class spends 107 716 kg against 96 000 (95 541 the moment
 before), all-car is out in round 4, so the budget no longer separates the two.
-18 000 kg a round puts the improving class 284 kg inside. docs/kalibrierung.md
-§11.
+18 000 kg a round would put the improving class 284 kg inside; the map keeps
+16 000 (decided 2026-10-02), so finishing all six rounds takes switching sooner.
+docs/kalibrierung.md §11.
 
 Re-deriving these after a model change means replaying rounds on the map in
 question, not adjusting them until a play-test feels right. What each number is

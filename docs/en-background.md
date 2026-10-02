@@ -409,9 +409,10 @@ way there costs alone:
 So the first game costs 158 201 kg over six rounds, the second 107 716 kg. The 16 000 kg a round on
 the map, 96 000 for six, no longer separates the two: driving throughout runs out in round 4, and
 improving goes over the budget by 11 716 kg in the last round. The timetable is why: the lines run
-until the last person is home, and the more people switch, the longer people are on the way. At
-18 000 kg a round, 108 000 for six, driving throughout would end in round 5, and switching would
-stay 284 kg under. The next play-test is to decide which number stays.
+until the last person is home, and the more people switch, the longer people are on the way. The map
+keeps 16 000 (decided 2026-10-02): to finish all six rounds a class has to switch sooner than the
+second game does. At 18 000 kg a round, 108 000 for six, driving throughout would end in round 5,
+and switching would stay 284 kg under.
 
 ### Checking the emission factors
 
