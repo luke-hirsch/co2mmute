@@ -1106,10 +1106,16 @@ class TrafficSimulator:
         to leave, not from when the street let it in.
         """
         still_waiting = []
-        for depart_min, route_pk, person_index, speed_factor in self.waiting:
+        waiting = self.waiting
+        for at, (depart_min, route_pk, person_index, speed_factor) in enumerate(waiting):
             if depart_min > tick_end:
-                still_waiting.append((depart_min, route_pk, person_index, speed_factor))
-                continue
+                # Sorted by wanted departure, so everything from here on is
+                # still in the future and stays exactly as it is. Copying it
+                # entry by entry cost the whole list on every call, several
+                # times a tick, and the list holds every run the clock allows —
+                # five times as many since the clock became a guard (F2d).
+                still_waiting.extend(waiting[at:])
+                break
 
             segments = self.route_segments.get(route_pk, [])
             if not segments:
