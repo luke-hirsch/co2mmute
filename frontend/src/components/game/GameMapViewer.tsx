@@ -43,7 +43,7 @@
  * more, and it was never rendered because the one call site passed `false`.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { imageRect, viewBox, type ImageFields } from "@/lib/map/view-box";
 import { de } from "@/lib/de";
@@ -122,10 +122,14 @@ const SIZES = {
   /** The chosen route and the halo that lifts it off the background image. */
   route: 0.011,
   routeHalo: 0.02,
-  /** Home and destination: thumb-sized, because they are what you look for. */
-  markRing: 0.024,
-  markDot: 0.01,
-  markStroke: 0.006,
+  /**
+   * Home and destination: big enough to find, no bigger. S24 took them from
+   * 0.032 to 0.024 and they still covered the streets around them (F3), so
+   * another quarter off, dot and stroke with the ring.
+   */
+  markRing: 0.018,
+  markDot: 0.0075,
+  markStroke: 0.0045,
   label: 0.032,
   labelHalo: 0.009,
   /**
@@ -156,6 +160,29 @@ const GameMapViewer = ({
     mapGraph?.nodes.forEach((n) => map.set(n.id, n));
     return map;
   }, [mapGraph?.nodes]);
+
+  /**
+   * How far each search's playback has got, by trace id (F3).
+   *
+   * The route waits for its search. Drawn at once, it gave the answer away
+   * before the picture of how it was found had played, which was confusing.
+   * "settled" is when the last step is drawn and the route may appear; "done"
+   * is when the search has faded. A trace that has played once is not played
+   * again when its Gruppe is picked again.
+   */
+  const [playback, setPlayback] = useState<
+    ReadonlyMap<number, "settled" | "done">
+  >(() => new Map());
+  const advanceSearch = useCallback(
+    (id: number, to: "settled" | "done") =>
+      setPlayback((previous) =>
+        previous.get(id) === to ? previous : new Map(previous).set(id, to),
+      ),
+    [],
+  );
+  const searchPhase = search ? playback.get(search.id) : undefined;
+  const routeShown = !search || searchPhase !== undefined;
+  const searchShown = !!search && searchPhase !== "done";
 
   const jamMap = useMemo(() => {
     if (!jam?.length) return null;
@@ -320,18 +347,21 @@ const GameMapViewer = ({
             </g>
           )}
 
-          {search && mapGraph && (
+          {search && searchShown && mapGraph && (
             <SearchLayer
               key={search.id}
+              id={search.id}
               steps={search.steps}
               edges={mapGraph.edges}
               at={at}
               u={u}
+              onAdvance={advanceSearch}
             />
           )}
 
-          {/* The chosen route, in its own mode's colour and stroke. */}
-          {routeSegments?.map((segment, index) => {
+          {/* The chosen route, in its own mode's colour and stroke — once its
+              search has played. */}
+          {(routeShown ? routeSegments : undefined)?.map((segment, index) => {
             const a = at(segment.startNode);
             const b = at(segment.endNode);
             if (!a || !b) return null;
@@ -339,6 +369,7 @@ const GameMapViewer = ({
             return (
               <g
                 key={`route-${index}`}
+                data-layer="route"
                 className={style.text}
                 fill="none"
                 stroke="currentColor"
@@ -436,10 +467,12 @@ const SEARCH_FADE_MS = 600;
 /**
  * The router's search, drawn one step at a time and then let go (S24).
  *
- * Links appear in the accent as the search reaches them, so you watch it spread
- * out from home and favour the direction of the destination, then fade and leave
- * the route. Attention is the accent's job in this palette; the route on top is
- * in its own mode's colour and never competes.
+ * Links appear as the search reaches them, so you watch it spread out from home
+ * and favour the direction of the destination; then the route is drawn and the
+ * search fades under it. **In the primary since F3**: it was in the accent, which
+ * is also the colour a jammed street turns, so on a map with traffic the search
+ * and the jam could not be told apart. The route waits for the last step
+ * (`onAdvance`), so the two never compete either.
  *
  * The step counter is state, but there are only about fifty steps over a second
  * and a half — nothing like the replay's per-frame dots, which is why this does
@@ -448,15 +481,20 @@ const SEARCH_FADE_MS = 600;
  * moves is the thing the setting exists to refuse.
  */
 function SearchLayer({
+  id,
   steps,
   edges,
   at,
   u,
+  onAdvance,
 }: {
+  id: number;
   steps: number[][];
   edges: Edge[];
   at: (nodeId: number) => { x: number; y: number } | null;
   u: (fraction: number) => number;
+  /** The playback reached its last step, or has faded out. */
+  onAdvance: (id: number, to: "settled" | "done") => void;
 }) {
   const [shown, setShown] = useState(0);
   const [fading, setFading] = useState(false);
@@ -470,38 +508,43 @@ function SearchLayer({
   );
 
   useEffect(() => {
-    if (gone) return;
+    // Nothing to play (or nothing that may move): the route is there at once.
+    if (gone) {
+      onAdvance(id, "done");
+      return;
+    }
 
+    const stepMs = traceStepMs(steps.length);
+    const drawn = stepMs * steps.length;
     const timers: number[] = [];
     const interval = window.setInterval(() => {
       setShown((count) => {
         if (count + 1 >= steps.length) window.clearInterval(interval);
         return Math.min(count + 1, steps.length);
       });
-    }, traceStepMs(steps.length));
+    }, stepMs);
     timers.push(
-      window.setTimeout(
-        () => setFading(true),
-        traceStepMs(steps.length) * steps.length + SEARCH_HOLD_MS,
-      ),
+      window.setTimeout(() => onAdvance(id, "settled"), drawn),
+      window.setTimeout(() => setFading(true), drawn + SEARCH_HOLD_MS),
       window.setTimeout(
         () => setGone(true),
-        traceStepMs(steps.length) * steps.length + SEARCH_HOLD_MS + SEARCH_FADE_MS,
+        drawn + SEARCH_HOLD_MS + SEARCH_FADE_MS,
       ),
     );
     return () => {
       window.clearInterval(interval);
       timers.forEach((timer) => window.clearTimeout(timer));
     };
-  }, [steps, gone]);
+  }, [id, steps, gone, onAdvance]);
 
   if (gone || shown === 0) return null;
 
   const examined = new Set(steps.slice(0, shown).flat());
   return (
     <g
+      data-layer="search"
       fill="none"
-      stroke="var(--color-brandaccent)"
+      stroke="var(--color-primary)"
       strokeLinecap="round"
       strokeWidth={u(SIZES.search)}
       aria-hidden="true"

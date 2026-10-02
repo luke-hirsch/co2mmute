@@ -56,18 +56,22 @@ test("the search the router made is drawn, then gone, and the route stays", asyn
     const map = player.getByRole("region", { name: "Karte" });
     await expect(map).toBeVisible({ timeout: 30_000 });
 
-    // Everything the search layer draws is in the accent, and nothing else on
-    // the map is.
-    const search = map.locator('g[stroke="var(--color-brandaccent)"]');
+    const search = map.locator('g[data-layer="search"]');
+    const route = map.locator('g[data-layer="route"]');
     const row = player.locator("li").filter({ hasText: "Gruppe 1" });
     await row.getByRole("radio", { name: "Auto", exact: true }).click();
 
     await expect(search.locator("line").first()).toBeAttached({ timeout: 10_000 });
+    // In the primary since F3 — the accent is what a jammed street turns.
+    await expect(search).toHaveAttribute("stroke", "var(--color-primary)");
+    // The route waits for its search (F3): while the search is still being
+    // drawn, the answer is not on the map yet.
+    await expect(route).toHaveCount(0);
     await expect(row.getByText("ändern")).toBeVisible({ timeout: 60_000 });
     await expect(search).toHaveCount(0, { timeout: 10_000 });
 
-    // The route is still there once the search has let go.
-    await expect(map.locator("line[stroke-width]").first()).toBeVisible();
+    // The route is there once the search has let go.
+    await expect(route.first()).toBeAttached();
     expect(errors).toEqual([]);
   } finally {
     await context.close();

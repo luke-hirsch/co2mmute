@@ -43,8 +43,15 @@ export function createTraceRecorder(agentId: number) {
 /** The whole replay lasts about this long, however big the map is. */
 export const TRACE_DURATION_MS = 1400;
 
-/** Never faster than a frame, never slower than a person can follow. */
+/**
+ * Never faster than a frame, never slower than a person can follow.
+ *
+ * The ceiling was 120 ms a step, so a commute of two or three links played in a
+ * quarter of a second and read as no playback at all (F3). At 350 a search of
+ * four steps or more still fills the whole replay, and a two-step one takes
+ * half of it.
+ */
 export function traceStepMs(steps: number): number {
   if (steps <= 0) return 0;
-  return Math.min(120, Math.max(16, TRACE_DURATION_MS / steps));
+  return Math.min(350, Math.max(16, TRACE_DURATION_MS / steps));
 }

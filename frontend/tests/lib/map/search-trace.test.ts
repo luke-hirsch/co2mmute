@@ -38,7 +38,14 @@ it("gives every search its own id", () => {
 describe("traceStepMs", () => {
   it("spreads a short search over the whole replay, at a pace you can follow", () => {
     expect(traceStepMs(20)).toBe(70);
-    expect(traceStepMs(2)).toBe(120);
+    expect(traceStepMs(4) * 4).toBe(TRACE_DURATION_MS);
+  });
+
+  it("does not blink through a very short one (F3)", () => {
+    // At 120 ms a step, a commute of two or three links was over in a quarter
+    // of a second, which is what "missing or too fast" was.
+    expect(traceStepMs(2)).toBe(350);
+    expect(traceStepMs(2) * 2).toBeGreaterThanOrEqual(TRACE_DURATION_MS / 2);
   });
 
   it("hurries a big search up to one frame a step, no further", () => {

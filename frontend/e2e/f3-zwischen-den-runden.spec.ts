@@ -45,10 +45,13 @@ test("the discussion and the vote show the round that was just played", async ({
 }) => {
   test.setTimeout(420_000);
   await loginAsHost(page);
+  // A real jam, not a busy street: the map only draws a street that lost more
+  // than 5 % of its speed, and a hundred cars sometimes slow none that much — so
+  // the hint was there or not by where the seat happened to live.
   const gameId = await createGame(page, {
     name: "E2E Stau in der Wahl",
     maxRounds: 3,
-    peoplePerAgent: 100,
+    peoplePerAgent: 2000,
   });
 
   const context = await browser.newContext({
@@ -148,8 +151,14 @@ test("a seat that has gone can be removed during the vote, and the vote closes w
       .getByRole("button", { name: "Entfernen" })
       .click();
 
-    // The vote closes on Ana's ballot and the next round carries it.
-    await expect(ana.getByText(/ist angenommen\./)).toBeVisible({ timeout: 60_000 });
+    // The vote closes without Ben, and round 2 waits for Ana alone. Not "ist
+    // angenommen": that line lives only in the client's state, and once in a
+    // full run under load it was missing although the round had moved on — a
+    // socket that reconnects across `vote.result` gets a snapshot without it.
+    await expect(ana.getByRole("heading", { name: "Runde 2 von 3" })).toBeVisible({
+      timeout: 60_000,
+    });
+    await expect(ana.getByText("0 von 1 abgeschickt")).toBeVisible();
   } finally {
     await Promise.all(contexts.map((c) => c.close()));
   }
