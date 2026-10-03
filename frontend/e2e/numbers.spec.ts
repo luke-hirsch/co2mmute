@@ -1,6 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-import { createGame } from "./game";
+import { createGame, endAndDelete, pickMode } from "./game";
 import { loginAsHost } from "./host";
 
 /**
@@ -176,37 +176,3 @@ test("the numbers name their scale, and the summary names the vote", async ({
     await endAndDelete(page, gameId, baseURL!);
   }
 });
-
-/**
- * Give one Gruppe a mode and wait for its route. A mode can honestly have no
- * route — home and workplace are drawn at random per seat — so a refusal falls
- * back to the car, which a connected street network always has.
- */
-async function pickMode(page: Page, index: number, wanted: string) {
-  const row = page.locator("li").filter({ hasText: `Gruppe ${index + 1}` });
-  await row.getByRole("radio", { name: wanted, exact: true }).click();
-
-  const routed = row.getByText("ändern");
-  const refused = row.getByText("Auf diesem Weg");
-  await expect(routed.or(refused).first()).toBeVisible({ timeout: 60_000 });
-
-  if (await refused.isVisible()) {
-    await row.getByRole("radio", { name: "Auto", exact: true }).click();
-    await expect(routed).toBeVisible({ timeout: 60_000 });
-  }
-}
-
-
-/** End the game if it is still running, then delete it. */
-async function endAndDelete(page: Page, gameId: string, baseURL: string) {
-  const cookies = await page.context().cookies();
-  const csrf = cookies.find((cookie) => cookie.name === "csrftoken")?.value;
-  if (!csrf) return;
-  const headers = { "X-CSRFToken": csrf, Referer: baseURL };
-
-  await page.request.patch(`/api/game/${gameId}/`, {
-    headers,
-    data: { is_active: false },
-  });
-  await page.request.delete(`/api/game/${gameId}/`, { headers });
-}

@@ -1,6 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-import { createGame } from "./game";
+import { createGame, endAndDelete, pickMode } from "./game";
 import { loginAsHost } from "./host";
 
 /**
@@ -110,65 +110,3 @@ test("the round is watched before it is read", async ({ page, baseURL }) => {
     await endAndDelete(page, gameId, baseURL!);
   }
 });
-
-/**
- * Give one Gruppe a mode and wait for its route.
- *
- * The route is found on the client, and the row collapses onto a summary when it
- * lands — that is the only signal that the search is over. **A mode can honestly
- * have no route**: home and workplace are drawn at random per seat, and a bike is
- * refused wherever the way is a railway. So a refusal is not a failure of this
- * spec, it is a different turn, and the car takes over — a connected street
- * network always has one.
- *
- * **Bus & Bahn is the exception, and it is the whole point of the S5 data pass.**
- * Every one of the 36 home/workplace pairs on the seeded map now has a public
- * transport route, so a refusal on this mode means the instance is holding the
- * old map: bus `100` with no edges at all, `101` breaking mid-chain. Pinned away
- * from the browser in `tests/utils/pt-routing.test.ts` and
- * `maps/tests/test_example_map.py`; this is the same guarantee through the whole
- * stack.
- */
-async function pickMode(page: Page, index: number, wanted: string) {
-  const row = page.locator("li").filter({ hasText: `Gruppe ${index + 1}` });
-  await row.getByRole("radio", { name: wanted, exact: true }).click();
-
-  const routed = row.getByText("ändern");
-  const refused = row.getByText("Auf diesem Weg");
-
-  if (wanted === "Bus & Bahn") {
-    await expect(routed).toBeVisible({ timeout: 60_000 });
-    return;
-  }
-
-  await expect(routed.or(refused).first()).toBeVisible({ timeout: 60_000 });
-
-  if (await refused.isVisible()) {
-    await row.getByRole("radio", { name: "Auto", exact: true }).click();
-    await expect(routed).toBeVisible({ timeout: 60_000 });
-  }
-}
-
-/** Create a game on the seeded map and return its id. */
-
-
-/**
- * End the game and delete it.
- *
- * Ended first, so `end_reason` is recorded the way it would be in a real game,
- * and because a running game is refused by the delete route the profile page
- * uses. Both calls go through the browser's own cookies; Django checks the
- * Referer on a CSRF-protected request over HTTPS, so it is set by hand.
- */
-async function endAndDelete(page: Page, gameId: string, baseURL: string) {
-  const cookies = await page.context().cookies();
-  const csrf = cookies.find((cookie) => cookie.name === "csrftoken")?.value;
-  if (!csrf) return;
-  const headers = { "X-CSRFToken": csrf, Referer: baseURL };
-
-  await page.request.patch(`/api/game/${gameId}/`, {
-    headers,
-    data: { is_active: false },
-  });
-  await page.request.delete(`/api/game/${gameId}/`, { headers });
-}

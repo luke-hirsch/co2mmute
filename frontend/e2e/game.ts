@@ -126,3 +126,65 @@ export async function joinAsPlayer(
   await page.getByRole("button", { name: "Beitreten", exact: true }).click();
   await page.waitForURL(/\/app\/game\/[^/]+\/?$/);
 }
+
+/**
+ * Give one Gruppe a mode and wait for its route.
+ *
+ * The route is found on the client, and the row collapses onto a summary when it
+ * lands — that is the only signal that the search is over. **A mode can honestly
+ * have no route**: home and workplace are drawn at random per seat, and a bike is
+ * refused wherever the way is a railway. So a refusal is not a failure of the
+ * spec, it is a different turn, and the car takes over — a connected street
+ * network always has one.
+ *
+ * **Bus & Bahn is the exception, and it is the whole point of the S5 data pass.**
+ * Every one of the 36 home/workplace pairs on the seeded map has a public
+ * transport route, so a refusal on this mode means the instance is holding the
+ * old map: bus `100` with no edges at all, `101` breaking mid-chain. Pinned away
+ * from the browser in `tests/utils/pt-routing.test.ts` and
+ * `maps/tests/test_example_map.py`; this is the same guarantee through the whole
+ * stack.
+ *
+ * Two copies of this lived in `replay` and `numbers` until F15 needed a third.
+ */
+export async function pickMode(page: Page, index: number, wanted: string) {
+  const row = page.locator("li").filter({ hasText: `Gruppe ${index + 1}` });
+  await row.getByRole("radio", { name: wanted, exact: true }).click();
+
+  const routed = row.getByText("ändern");
+  const refused = row.getByText("Auf diesem Weg");
+
+  if (wanted === "Bus & Bahn") {
+    await expect(routed).toBeVisible({ timeout: 60_000 });
+    return;
+  }
+
+  await expect(routed.or(refused).first()).toBeVisible({ timeout: 60_000 });
+
+  if (await refused.isVisible()) {
+    await row.getByRole("radio", { name: "Auto", exact: true }).click();
+    await expect(routed).toBeVisible({ timeout: 60_000 });
+  }
+}
+
+/**
+ * End the game if it is still running, then delete it, so a run leaves no row
+ * on whatever database it points at.
+ *
+ * Ended first, so `end_reason` is recorded the way it would be in a real game,
+ * and because the delete route refuses a running game (409 `running`). Both
+ * calls go through the browser's own cookies; Django checks the Referer on a
+ * CSRF-protected request over HTTPS, so it is set by hand.
+ */
+export async function endAndDelete(page: Page, gameId: string, baseURL: string) {
+  const cookies = await page.context().cookies();
+  const csrf = cookies.find((cookie) => cookie.name === "csrftoken")?.value;
+  if (!csrf) return;
+  const headers = { "X-CSRFToken": csrf, Referer: baseURL };
+
+  await page.request.patch(`/api/game/${gameId}/`, {
+    headers,
+    data: { is_active: false },
+  });
+  await page.request.delete(`/api/game/${gameId}/`, { headers });
+}

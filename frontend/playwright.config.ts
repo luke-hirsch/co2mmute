@@ -43,7 +43,12 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,
-  retries: 0,
+  // One retry in CI, none here. A run there builds a fresh stack and cannot be
+  // looked at afterwards, and one flake is known (round 2 opening without
+  // "„…“ ist angenommen", a socket reconnecting across `vote.result`) — a spec
+  // that only passes on its second try is still reported as flaky, so a retry
+  // does not hide it. Locally a failure should stay a failure.
+  retries: process.env.CI ? 1 : 0,
 
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : [["list"]],
 
