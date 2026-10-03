@@ -12,13 +12,18 @@ DJANGO_CSRF_TRUSTED_ORIGINS=
 DJANGO_BASE_URL=
 DJANGO_DB_WAIT_TIMEOUT=
 DJANGO_SECRET_KEY=
+# Seconds browsers refuse plain http to this host. 0 (off) until a real
+# certificate works; then 300 first, a year once renewal is proven.
+DJANGO_HSTS_SECONDS=
 
 # Mail, for "Passwort vergessen?" only. Leave DJANGO_EMAIL_HOST empty and no
-# mail is sent (the page still answers the same). Port 587 + TLS by default.
+# mail is sent (the page still answers the same). Port 465 + SSL by default;
+# for 587 set DJANGO_EMAIL_SSL=False and DJANGO_EMAIL_TLS=True.
 DJANGO_EMAIL_HOST=
 DJANGO_EMAIL_PORT=
 DJANGO_EMAIL_USER=
 DJANGO_EMAIL_PASSWORD=
+DJANGO_EMAIL_SSL=
 DJANGO_EMAIL_TLS=
 DJANGO_EMAIL_FROM=
 

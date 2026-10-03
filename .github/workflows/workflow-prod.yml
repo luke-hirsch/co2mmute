@@ -107,4 +107,4 @@ jobs:
             -o StrictHostKeyChecking=yes \
             -o PreferredAuthentications=publickey \
             ${{ secrets.USER }}@${{ secrets.HOST }} \
-            "cd /commute && git fetch origin && git checkout -B prod origin/prod && docker compose -f devops/docker-compose.yaml up -d --build && docker image prune -f"
+            "cd /commute && git fetch origin && git checkout -B prod origin/prod && docker compose -f devops/docker-compose.yaml up -d --build && docker image prune -f && docker builder prune -f --keep-storage 2GB"

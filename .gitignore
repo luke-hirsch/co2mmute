@@ -54,6 +54,7 @@ backend/node_modules/
 .idea/
 
 devops/nginx/certs/
+devops/nginx/acme/
 Roadmap.md
 
 # Playwright

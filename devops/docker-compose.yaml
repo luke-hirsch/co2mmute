@@ -1,6 +1,15 @@
+# Every container's log is capped: json-file grows forever without a limit,
+# and the box has 9.7 GB. Three files of 10 MB each per container.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   postgres:
     restart: unless-stopped
+    logging: *logging
     image: postgres:18.1-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-co2mmute}
@@ -22,6 +31,7 @@ services:
   redis:
     image: redis:8.4-alpine
     restart: unless-stopped
+    logging: *logging
     volumes:
       - redis-data:/data
     healthcheck:
@@ -44,8 +54,9 @@ services:
       DJANGO_DB_WAIT_TIMEOUT: ${DJANGO_DB_WAIT_TIMEOUT:-60}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set DJANGO_SECRET_KEY in devops/.env}
       DJANGO_BASE_URL: ${DJANGO_BASE_URL:-https://localhost}
+      DJANGO_HSTS_SECONDS: ${DJANGO_HSTS_SECONDS:-0}
       DJANGO_EMAIL_HOST: ${DJANGO_EMAIL_HOST:-}
-      DJANGO_EMAIL_PORT: ${DJANGO_EMAIL_PORT:-587}
+      DJANGO_EMAIL_PORT: ${DJANGO_EMAIL_PORT:-465}
       DJANGO_EMAIL_USER: ${DJANGO_EMAIL_USER:-}
       DJANGO_EMAIL_PASSWORD: ${DJANGO_EMAIL_PASSWORD:-}
       DJANGO_EMAIL_TLS: ${DJANGO_EMAIL_TLS:-False}
@@ -60,6 +71,7 @@ services:
       CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
     restart: unless-stopped
+    logging: *logging
     depends_on:
       postgres:
         condition: service_healthy
@@ -91,6 +103,7 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
+    logging: *logging
 
   celery-beat:
     image: co2mmute-backend
@@ -111,6 +124,7 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
+    logging: *logging
 
   nginx:
     build:
@@ -120,6 +134,7 @@ services:
         VITE_API_BASE_URL: ${FRONTEND_API_BASE_URL:-/api}
     image: co2mmute-nginx
     restart: unless-stopped
+    logging: *logging
     ports:
       - "80:80"
       - "443:443"
@@ -130,6 +145,9 @@ services:
       - backend-static:/var/www/backend-static:ro
       - backend-media:/var/www/backend-media:ro
       - ./nginx/certs:/etc/nginx/certs:ro
+      # Let's Encrypt's webroot: certbot on the host writes the challenge here,
+      # nginx answers it on port 80. Gitignored; compose creates it if missing.
+      - ./nginx/acme:/var/www/acme:ro
 
 volumes:
   backend-static:
