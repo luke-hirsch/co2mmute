@@ -51,7 +51,7 @@ const DJANGO_PATHS = [
   "/game",
   "/join",
   "/map",
-  "/hintergrund",
+  "/docs",
 ];
 
 /**

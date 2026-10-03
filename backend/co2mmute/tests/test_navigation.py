@@ -43,7 +43,7 @@ class NavigationListTests(TestCase):
     def test_an_anonymous_visitor_gets_the_game_menu_and_a_way_to_sign_in(self):
         nav = _build()
 
-        self.assertEqual(_labels(nav["header"]), ["Spielen", "Hintergrund"])
+        self.assertEqual(_labels(nav["header"]), ["Spielen", "Docs"])
         spielen = nav["header"][0]
         self.assertEqual(
             [(child["label"], child["href"]) for child in spielen["children"]],
@@ -65,7 +65,7 @@ class NavigationListTests(TestCase):
     def test_a_host_gets_their_profile_and_a_sign_out_but_no_map_menu(self):
         nav = _build(create_host(username="lehrkraft"))
 
-        self.assertEqual(_labels(nav["header"]), ["Spielen", "Hintergrund"])
+        self.assertEqual(_labels(nav["header"]), ["Spielen", "Docs"])
         self.assertEqual(nav["account"]["label"], "lehrkraft")
         # Straight into the SPA: `/accounts/profile/` only redirects there.
         self.assertEqual(nav["account"]["href"], "/app/host")
@@ -75,11 +75,31 @@ class NavigationListTests(TestCase):
     def test_staff_get_the_map_menu(self):
         nav = _build(create_host(username="staff", is_staff=True))
 
-        self.assertEqual(_labels(nav["header"]), ["Spielen", "Karten", "Hintergrund"])
+        self.assertEqual(_labels(nav["header"]), ["Spielen", "Karten", "Docs"])
         karten = nav["header"][1]
         self.assertEqual(
             [(child["label"], child["href"]) for child in karten["children"]],
             [("Alle Karten", "/app/maps"), ("Hochladen", "/app/maps/upload")],
+        )
+
+    def test_the_docs_menu_has_three_pages_in_german_then_the_same_in_english(self):
+        """F13. The English links say which language they lead to, so a screen
+        reader on a German page reads them in English and the menu can set the
+        two languages apart."""
+        docs = _build()["header"][-1]
+
+        self.assertEqual(docs["label"], "Docs")
+        self.assertNotIn("href", docs)
+        self.assertEqual(
+            [(child["label"], child["href"], child.get("lang")) for child in docs["children"]],
+            [
+                ("Schnellstart", "/docs/schnellstart/", None),
+                ("Hintergrund", "/docs/hintergrund/", None),
+                ("Ablaufdiagramme", "/docs/ablaufdiagramme/", None),
+                ("Quick start", "/docs/en/quick-start/", "en"),
+                ("Background", "/docs/en/background/", "en"),
+                ("Flowcharts", "/docs/en/flowcharts/", "en"),
+            ],
         )
 
     def test_the_footer_is_the_legal_pages_then_the_repository(self):
@@ -121,7 +141,7 @@ class CmsItemsTests(TestCase):
 
         nav = _build()
 
-        self.assertEqual(_labels(nav["header"]), ["Spielen", "Hintergrund", "Projekt"])
+        self.assertEqual(_labels(nav["header"]), ["Spielen", "Docs", "Projekt"])
         self.assertEqual(nav["header"][-1]["href"], "/content/projekt/")
 
     def test_a_container_becomes_a_menu_of_its_children_in_order(self):
@@ -181,23 +201,28 @@ class NavigationEndpointTests(TestCase):
 class BaseTemplateTests(TestCase):
     """`base.html` renders the list, and nothing else.
 
-    `/hintergrund/` stands in for every Django page: it extends `base.html` and
-    needs nobody signed in.
+    `/docs/hintergrund/` stands in for every Django page: it extends `base.html`
+    and needs nobody signed in.
     """
 
-    PAGE = "/hintergrund/"
+    PAGE = "/docs/hintergrund/"
 
     def _page(self):
         response = self.client.get(self.PAGE)
         self.assertEqual(response.status_code, 200)
         return response.content.decode()
 
+    def _header(self):
+        # The element, not everything above it: a docs page's <head> names
+        # its twin in a <link rel="alternate">.
+        return self._page().split("<header", 1)[1].split("</header>", 1)[0]
+
     def test_the_desktop_bar_and_the_phone_menu_offer_the_same_links(self):
         # The bug this replaces: the same two links, labelled differently in
         # the two menus of one template. Each link must appear in both.
         staff = create_host(username="staff", is_staff=True)
         self.client.force_login(staff)
-        header = self._page().split("</header>")[0]
+        header = self._header()
 
         for href in _hrefs(_build(staff)["header"]):
             self.assertEqual(
@@ -205,6 +230,17 @@ class BaseTemplateTests(TestCase):
             )
         self.assertNotIn(">Upload<", header)
         self.assertNotIn(">Liste<", header)
+
+    def test_the_english_links_carry_their_language_in_both_menus(self):
+        header = self._header()
+
+        for href in ("/docs/en/quick-start/", "/docs/en/background/", "/docs/en/flowcharts/"):
+            links = re.findall(rf'<a href="{href}"[^>]*>', header)
+            self.assertEqual(len(links), 2, href)
+            for link in links:
+                self.assertIn('lang="en"', link)
+                self.assertIn('hreflang="en"', link)
+        self.assertNotIn('<a href="/docs/hintergrund/" lang=', header)
 
     def test_a_visitor_is_offered_no_map_menu(self):
         html = self._page()

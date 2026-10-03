@@ -1,0 +1,272 @@
+{% extends "docs/page.html" %}
+
+{% comment %}
+  docs/en-background.md up to its calibration chapter, section for section —
+  the English twin of docs/hintergrund.html (F13). The calibration chapter is a
+  guide for whoever runs the repository and stays in docs/ only. The figures
+  are the German page's: their labels are in German.
+{% endcomment %}
+
+{% block title %}CO2MMUTE – Background{% endblock %}
+
+{% block description %}How the traffic simulation behind CO2mmute calculates: queues on the streets, a public transport timetable people board, and CO₂ and cost that depend on speed.{% endblock %}
+
+{% block kicker %}Start: the simulation{% endblock %}
+
+{% block heading %}What’s behind a round{% endblock %}
+
+{% block lead %}
+<p>
+  The idea for the game is based on the
+  <a href="{{ repository_url }}/blob/main/master_thesis.pdf" class="text-link">master thesis</a>
+  by Sebastian Werblinski at Freie Universität Berlin (2025). The code here
+  is a complete rewrite at TU Berlin rather than a continuation of his
+  prototype, and the traffic model was rebuilt along the way. This page is
+  how it calculates and where its numbers come from.
+</p>
+{% endblock %}
+
+{% block stations %}
+<li><a href="#simulation">Simulation</a></li>
+<li><a href="#model">Model</a></li>
+<li><a href="#timetable">The timetable</a></li>
+<li><a href="#co2">CO<sub>2</sub> and cost</a></li>
+<li><a href="#chance">Chance</a></li>
+<li><a href="#units">Units</a></li>
+{% endblock %}
+
+{% block doc %}
+<section id="simulation" data-station>
+  <h2>Simulation</h2>
+  <p>A round simulates the commute of thousands of people. The simulation has to answer three
+  questions:</p>
+  <ol>
+    <li>Which mode of transport is fastest?</li>
+    <li>Which mode of transport is cheapest?</li>
+    <li>Which mode of transport releases the least CO<sub>2</sub> into the atmosphere?</li>
+  </ol>
+</section>
+<section id="model" data-station>
+  <h2>Model</h2>
+  <p>CO2mmute simulates traffic with a mesoscopic model. Vehicles form a queue on a stretch of
+  road without having an exact position on it. The stretches of road are the edges of a graph;
+  where they meet, there is a node.</p>
+  <h3>A link is three numbers</h3>
+  <p>For the simulation every link has three core numbers:</p>
+  <pre>free-flow time     t0 = length / speed limit
+flow capacity      Q  = 1800 vehicles/h per car lane
+storage capacity   S  = 133 vehicles/km per car lane × length</pre>
+  <p>We take 1800 veh/h/lane as the saturation flow of an urban lane. 133 veh/km/lane is jam
+  density: one vehicle per 7.5&nbsp;m, bumper to bumper. So a 900&nbsp;m single-lane street holds
+  about 120 vehicles standing still and passes about 150 in a five-minute tick.</p>
+  <p>Lanes are counted as they are on the street:</p>
+  <pre>car lanes = lanes − (1 if bus lane) − (1 if bike lane)</pre>
+  <p>The number is floored at zero, and <strong>zero car lanes is legal</strong>: the street
+  becomes a <em>gate</em>, closed to cars, open to buses and optionally to bikes and
+  pedestrians.</p>
+  <h3>One tick</h3>
+  <ol>
+    <li>Every link is given its budget for the tick: <code>Q × tick length</code>.</li>
+    <li>Everyone whose departure minute has come tries to enter their first link.</li>
+    <li>A vehicle may not leave a link before <code>t0</code> has passed. The free-flow time is a
+    floor on the journey; it can never be faster than the speed limit allows.</li>
+    <li>Then it joins the link's queue and waits for budget. On one lane that is a single FIFO
+    queue. From two car lanes up every next link has its own, a turn lane, and all of them share
+    the street's budget and storage.</li>
+    <li>It may only leave if the <strong>next</strong> link has storage left. If not it stays where
+    it is, and so does everything behind it in its queue: on one lane everybody, from two lanes up
+    only those going the same way. A jam forms.</li>
+    <li>Repeat within the tick until nothing moves. A vehicle can cross several short links in five
+    minutes. The links are served in an order shuffled every tick: where several feed the same
+    junction, each goes first equally often over a round. That is the zipper merge, on average
+    rather than car by car.</li>
+  </ol>
+  <p>So congestion comes from two mechanisms: a link discharges only <code>Q</code> vehicles per
+  hour, and a full link holds up the link feeding it. That is how queues grow backwards through
+  the network, as they do on a real street. From two lanes up this deliberately departs from
+  MATSim, where a link has one queue at any width: someone waiting to turn into a full street does
+  not hold up those going elsewhere.</p>
+  <figure>
+    {% include "hintergrund/kante.svg" %}
+    <figcaption>Top: every car drives its free-flow time <code>t0</code> and joins a short queue at
+    the end before the link releases it at <code>Q</code>. Bottom: the next link is full, so nothing
+    leaves, the queue fills the whole storage <code>S</code>, and whoever arrives cannot get in.
+    (The figure's labels are in German.)</figcaption>
+  </figure>
+  <h3>The speed floor</h3>
+  <p>Many traffic models compute a speed from the ratio of volume to capacity and therefore have
+  to keep it from reaching zero. Remember: dividing by zero is best avoided. A queue model has no
+  such term. A vehicle is either released or it is not, and there is no speed anywhere on the input
+  side. So no speed floor is needed.</p>
+  <p>In exchange, the network can gridlock for real: a ring of links, each full of vehicles
+  wanting the next one.</p>
+  <p>A junction that has moved nothing for four consecutive ticks therefore releases one vehicle
+  anyway, over storage, and then waits four ticks again. Every release is counted. A non-zero
+  <code>forced_releases</code> in the tick log is not a bug, but it is a reason to read the
+  log.</p>
+  <p>A pass runs until everybody has arrived. There is no clock after which whoever is still out
+  simply stops counting. The limit of 1000 ticks per way only catches a bug in the model, and
+  reaching it is logged as one. On Berlin Mitte-West a way as played needs at most 35 ticks, at
+  four times the demand with every street one lane 153.</p>
+  <h3>Speed is an output</h3>
+  <p>A link's mean speed is its length divided by the traversal times <strong>actually observed
+  on it</strong>. Only cars count: a pedestrian takes ten minutes over a link a car crosses in one,
+  and letting walkers into the mean would report an empty street as jammed. There is no congestion
+  factor that a free-flow speed gets multiplied by.</p>
+  <p>So the speed shown on the map, the CO<sub>2</sub> factor applied to a trip and the route
+  preview a player gets next round all rest on the same measured number.</p>
+  <h3>Who adds to congestion?</h3>
+  <ul>
+    <li><strong>Cars</strong> always.</li>
+    <li><strong>Buses</strong> queue in mixed traffic and free-run on a dedicated bus lane. A bus is
+    3 car-equivalents (PCU), so it takes the room of three cars in the queue it shares with them. It
+    always queues in its own direction of travel, even where the map draws the line on the opposite
+    direction.</li>
+    <li><strong>Bikes</strong> are in traffic only where they share a street with cars. A bike has
+    a queue of its own on the link, with its own discharge budget of 2000 bikes/h. So a car jam
+    never holds a cyclist up and a cyclist never holds a driver up. They do share the link's
+    <em>storage</em>, though: a bike is 0.2 PCU, and that is how a thousand cyclists take room away
+    from the cars. A bike is never refused entry, not even by a full street.</li>
+    <li><strong>Pedestrians</strong> are outside the queue model entirely.</li>
+  </ul>
+  <h3>There and back</h3>
+  <p>A commute is a way there and a way back, and a round simulates both. The way back is not the
+  way there reversed but a search of its own on the graph, with the same mode and the same choice:
+  the graph is directed, a one-way street is an edge with no reverse edge, and the way back can then
+  be a different one, in the extreme a circle. On Berlin Mitte-West every edge has its reverse, so
+  the way back is the same way the other direction. If there is no way back, the way there cannot
+  be sent.</p>
+  <p>Hours lie between the two peaks. The evening is therefore a second pass on a fresh network,
+  not a second half of the same clock. On one clock the lines would keep running all day because
+  the evening's riders are already waiting in the list, and society would pay CO<sub>2</sub> for
+  buses nobody can board. So the timetable runs twice, and both timetables count. A Gruppe's
+  CO<sub>2</sub> and cost are the sum of both ways, its travel time is there and back together,
+  averaged over the Gruppen. Since everything in a round now happens twice, the budget per round is
+  twice what it is for one way.</p>
+  <p>Today the evening is a copy of the morning, with the same spread of departures. The replay
+  shows both ways, with a short midday in between.</p>
+</section>
+<section id="timetable" data-station>
+  <h2>Public transport runs a timetable</h2>
+  <p>In the simulation a line vehicle is an <strong>ordinary vehicle on a synthetic
+  route</strong>. A bus therefore queues and spills back like any car, unless it has a bus lane of
+  its own.</p>
+  <p>People board at stops keyed by line <em>and</em> node: someone waiting for the M1 does not get
+  on the U7. You can only board if there is room, otherwise you keep waiting. Seats free up when
+  somebody gets off. At a transfer you wait again, this time for the next line. The wait is
+  measured and <strong>reported rather than added</strong>: the clock has run since the minute the
+  person wanted to leave, so standing at the stop is already inside the trip time. Dwell time is
+  not modelled; a vehicle serves its stop in the instant it arrives.</p>
+  <p>A line runs its timetable whether anybody rides it or not:</p>
+  <blockquote>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2 9 3-3 3 3" /><path d="M13 18H7a2 2 0 0 1-2-2V6" /><path d="m22 15-3 3-3-3" /><path d="M11 6h6a2 2 0 0 1 2 2v10" /></svg>
+    <p><strong>Society pays for the timetable.</strong> A line emits
+    <code>vehicles × line-km × factor</code>. An empty bus emits CO<sub>2</sub> too, and a line
+    nobody rode still costs the round.</p>
+  </blockquote>
+  <p>The timetable covers the two-hour departure window. After that a line keeps running while
+  anybody is still out, in a car, on a bike, on foot, on a bus or at a stop, even with nobody
+  aboard: buses run in the quiet hours too. If the last driver is stuck in a jam, the lines keep
+  running, and society pays for them. It matters most when many switch: a trip by bus and train
+  takes longer than by car, and while one person is still on the way, every line runs.</p>
+  <p>That total is split between the riders by <strong>person-kilometres</strong>, not per head:
+  someone riding one stop on a 13&nbsp;km line should not carry an end-to-end share while the car
+  beside them is priced by the kilometre. The personal shares add up to exactly the line's total:
+  <code>Σ personal = society</code>.</p>
+  <p>So a round's total is the players' own rows <strong>plus</strong> the society cost of the
+  lines nobody rode.</p>
+</section>
+<section id="co2" data-station>
+  <h2>CO<sub>2</sub> and cost ride a speed curve</h2>
+  <p>Emissions are not a constant per kilometre. A car in stop-and-go traffic burns fuel it does
+  not convert into distance, and a car at 130&nbsp;km/h is fighting drag. The model uses an
+  average-speed emission factor of the COPERT/HBEFA form:</p>
+  <pre>EF(v) = a/v + b + c·v²          grams CO₂ per vehicle-kilometre</pre>
+  <p><code>a/v</code> is idling and stop-and-go, a fixed burn spread over fewer kilometres;
+  <code>c·v²</code> is aerodynamic drag; <code>b</code> is everything that scales with distance
+  alone. <code>a</code> and <code>b</code> are <strong>not free parameters</strong>; they follow from
+  <code>c</code> and two conditions:</p>
+  <pre>1.  the curve's minimum sits at 70 km/h   →   a = 2c · v_min³      = 1962.3 g/h
+2.  EF(50) = 166.8 g/km, the car's factor →   b = 166.8 − a/50 − c·50²  = 120.4 g/km</pre>
+  <p>with <code>c = 0.0028605</code>. That makes the anchor at 50&nbsp;km/h hold exactly, and leaves
+  one freely chosen number instead of three.</p>
+  <div class="doc-table"><table>
+  <thead><tr><th scope="col">speed km/h</th><th scope="col" class="num">10</th><th scope="col" class="num">20</th><th scope="col" class="num">30</th><th scope="col" class="num">40</th><th scope="col" class="num">50</th><th scope="col" class="num">70</th><th scope="col" class="num">100</th></tr></thead>
+  <tbody>
+  <tr><td>g CO<sub>2</sub>/km</td><td class="num">317</td><td class="num">220</td><td class="num">188</td><td class="num">174</td><td class="num">166.8</td><td class="num">162.5</td><td class="num">169</td></tr>
+  <tr><td>× the base</td><td class="num">1.90</td><td class="num">1.32</td><td class="num">1.13</td><td class="num">1.04</td><td class="num">1.00</td><td class="num">0.97</td><td class="num">1.01</td></tr>
+  </tbody></table></div>
+  <p><code>a/v</code> grows without bound as the speed goes to zero. So <strong>the factor is capped
+  at 2.00×</strong> instead of flooring the speed: at worst a car emits twice what it would at
+  50&nbsp;km/h. The cap starts biting below 9.2&nbsp;km/h.</p>
+  <figure>
+    {% include "hintergrund/co2-kurve.svg" %}
+    <figcaption>Grams of CO<sub>2</sub> per kilometre over the mean speed on a link. The anchor is
+    at 50&nbsp;km/h, the minimum at 70&nbsp;km/h, and below 9.2&nbsp;km/h the cap holds the curve at
+    333.6&nbsp;g.</figcaption>
+  </figure>
+  <p>It follows that:</p>
+  <ul>
+    <li><strong>A Tempo-30 street emits about 13&nbsp;% more per kilometre than a 50 street, even
+    empty.</strong> That is real in every average-speed model, and 34 of the shipped map's 82 street
+    edges are 30 zones. It raises a round's emissions before there is any congestion.</li>
+    <li><strong>Cost rides the same curve at half weight.</strong> Half of the 0.32 €/km is fuel and
+    stop-and-go wear and follows the emission factor; the other half (depreciation, insurance, tax)
+    is paid whether the car moves today or not. So cost caps at 1.50× and CO<sub>2</sub> at
+    2.00×.</li>
+  </ul>
+  <p>Public transport has a fixed value per vehicle-kilometre: 1200&nbsp;g for a bus, 1500&nbsp;g
+  for a train. There is no speed curve here, because the vehicles run to a timetable rather than to
+  traffic.</p>
+  <p>Beside the cost there is the <strong>fare</strong>: 1.30&nbsp;€ per trip, transfers included,
+  and for the car the part of the cost paid out of pocket. So there is a difference between
+  <em>what you pay</em> and <em>what it costs</em>, and the round's debrief should name it.</p>
+  <p>The <strong>bike</strong> costs 0.03&nbsp;€/km: wear, repairs, depreciation and, as an
+  average, theft. The rider pays all of it, so it is both <em>what you pay</em> and <em>what it
+  costs</em>, and it rides on no curve, because a jam does not wear out a chain. Walking costs
+  nothing. Left out is the health benefit; with it, the bike and walking would be cheaper than free
+  to society. Whether it belongs in the sum is still open.</p>
+</section>
+<section id="chance" data-station>
+  <h2>Chance happens</h2>
+  <p>The same choices in two rounds do not give quite the same numbers. That is intended. Each
+  round draws its random numbers from a generator whose seed is derived from the round, so the
+  same round can always be replayed identically.</p>
+  <p>Exactly two things are random:</p>
+  <ul>
+    <li><strong>Link capacity, drawn once per link per round</strong> (σ = 0.14, clamped to
+    0.6–1.4×). This is the only one that makes round 2 differ from round 1, because per-driver
+    noise averages away over thousands of people.</li>
+    <li><strong>Desired speed, drawn once per driver</strong> (σ = 0.12, clamped to 0.7–1.4×), for
+    the spread <em>within</em> a round. On a multi-lane street the queue is ordered by when each
+    vehicle is ready rather than strictly by arrival. That is how overtaking happens without a
+    mechanism of its own.</li>
+  </ul>
+  <p>The <em>result</em> is never multiplied by a random number. Only the inputs are random, and
+  close to capacity the model amplifies their wobble. So a round barely varies in free flow
+  (coefficient of variation about 0.3&nbsp;%) and clearly under load (16–18&nbsp;%). As in real
+  traffic, an empty road is predictable and a jam is not.</p>
+  <p><strong>Delay is measured against the driver's own free-flow time.</strong> Somebody who
+  prefers 45 in a 50 zone is not delayed by it.</p>
+</section>
+<section id="units" data-station>
+  <h2>Units</h2>
+  <p>A <em>Gruppe</em> (an agent, in the research) stands for many commuters, and that factor is
+  where most unit bugs in this project came from. Two rules:</p>
+  <ul>
+    <li>A CO<sub>2</sub> or euro figure is <strong>extensive</strong>: it sums over agents and over
+    the people behind each agent. Per-person means dividing by both.</li>
+    <li>A trip time is <strong>not</strong>: two Gruppen with 30&nbsp;minutes each do not take 60
+    together. A Gruppe's trip time is there and back together, and a mean trip time is a mean over
+    the Gruppen.</li>
+  </ul>
+  <p>Nobody picks how big the factor is; it is derived from the map.</p>
+</section>
+{% endblock %}
+
+{% block end_heading %}Now see what that means for a round{% endblock %}
+
+{% block end_lead %}
+The rest is on the map: how many people a Gruppe stands for, what
+budget a round has and which lines actually run.
+{% endblock %}

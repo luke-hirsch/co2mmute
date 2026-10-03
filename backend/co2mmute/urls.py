@@ -11,7 +11,7 @@ from .views import (
     AccountView,
     CookiesView,
     DsgvoView,
-    HintergrundView,
+    DocView,
     ImpressumView,
     IndexView,
     LoginView,
@@ -26,10 +26,26 @@ from .views import (
     WhoAmIView,
 )
 
+# route, template, url name, language, the same page in the other language
+DOCS = (
+    ("docs/schnellstart/", "docs/schnellstart.html", "docs-schnellstart", "de", "docs-quick-start"),
+    ("docs/hintergrund/", "docs/hintergrund.html", "docs-hintergrund", "de", "docs-background"),
+    ("docs/ablaufdiagramme/", "docs/ablaufdiagramme.html", "docs-ablaufdiagramme", "de", "docs-flowcharts"),
+    ("docs/en/quick-start/", "docs/en/quick-start.html", "docs-quick-start", "en", "docs-schnellstart"),
+    ("docs/en/background/", "docs/en/background.html", "docs-background", "en", "docs-hintergrund"),
+    ("docs/en/flowcharts/", "docs/en/flowcharts.html", "docs-flowcharts", "en", "docs-ablaufdiagramme"),
+)
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", IndexView.as_view(), name="index"),
-    path("hintergrund/", HintergrundView.as_view(), name="hintergrund"),
+    # The docs on the site, F13: each page in German and in English, each
+    # naming its twin. /hintergrund/ moved here and does not redirect — a link
+    # to the old address is a 404, like the old join (S22).
+    *[
+        path(route, DocView.as_view(template_name=template, lang=lang, twin=twin), name=name)
+        for route, template, name, lang, twin in DOCS
+    ],
     # Above the auth include, which is what routes it: the first match wins,
     # so this replaces the stock LoginView with the rate-limited one without
     # the include having to know.

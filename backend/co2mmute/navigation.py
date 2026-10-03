@@ -12,7 +12,8 @@ template and `NavigationView` (`api/navigation/`) hands the same thing to the
 SPA, which renders it and decides nothing. Who may see the map menu is
 therefore answered once, in Python, for both halves.
 
-An item is `{"id", "label", "href"}` or `{"id", "label", "children"}`. An
+An item is `{"id", "label", "href"}` or `{"id", "label", "children"}`, and a
+link in another language than the page carries `"lang"`. An
 `href` under `/app/` is a screen the SPA already has and it follows it without
 a reload; anything else is a Django page. A CMS item with neither a page nor
 children has `href` None and renders as plain text, as it always did.
@@ -96,7 +97,22 @@ def build(request):
                 ],
             }
         )
-    header.append(_link("hintergrund", "Hintergrund", reverse("hintergrund")))
+    header.append(
+        {
+            "id": "docs",
+            "label": "Docs",
+            "children": [
+                _link("schnellstart", "Schnellstart", reverse("docs-schnellstart")),
+                _link("hintergrund", "Hintergrund", reverse("docs-hintergrund")),
+                _link("ablaufdiagramme", "Ablaufdiagramme", reverse("docs-ablaufdiagramme")),
+                # In English on a German page: `lang` makes a screen reader say
+                # them in English, and both menus draw a rule where it changes.
+                {**_link("quick-start", "Quick start", reverse("docs-quick-start")), "lang": "en"},
+                {**_link("background", "Background", reverse("docs-background")), "lang": "en"},
+                {**_link("flowcharts", "Flowcharts", reverse("docs-flowcharts")), "lang": "en"},
+            ],
+        }
+    )
     header.extend(cms["header"])
 
     # The legal pages are fixed and first: they must be reachable whatever the

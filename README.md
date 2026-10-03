@@ -167,13 +167,17 @@ Let's Encrypt wäre technisch möglich, ist aber mit der TU-IT abzustimmen.
 
 ### Dokumentation
 
-| Datei                                              | Inhalt                                                          |
-| -------------------------------------------------- | --------------------------------------------------------------- |
-| [`docs/de-quick-start.md`](docs/de-quick-start.md) | Schnellstart: wie gespielt wird                                 |
-| [`docs/de-hintergrund.md`](docs/de-hintergrund.md) | Hintergrund: was das Spiel rechnet und warum — auch `/hintergrund` |
-| [`docs/kalibrierung.md`](docs/kalibrierung.md)     | die Zahlen, gegen die gespielt wird, und wie sie gemessen sind  |
-| [`docs/testfaelle.md`](docs/testfaelle.md)         | was das Spiel können muss, Fall für Fall, mit Status            |
-| [`docs/de-flowcharts.md`](docs/de-flowcharts.md)   | wie es läuft: Ablaufdiagramme für Runde, Routensuche, Simulation, Spielerzugang |
+Schnellstart, Hintergrund und Ablaufdiagramme stehen auch auf der Seite, unter „Docs“ in der
+Kopfzeile, jeweils auf Deutsch und Englisch. Die Seiten sind Kopien der Dateien
+(`backend/template/docs/`) und werden von Hand nachgezogen: Wer die eine ändert, ändert die andere.
+
+| Datei                                              | auf der Seite                                                       | Inhalt                                                          |
+| -------------------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------- |
+| [`docs/de-quick-start.md`](docs/de-quick-start.md) | [`/docs/schnellstart/`](https://co2mmute.stsds.tu-berlin.de/docs/schnellstart/)       | Schnellstart: wie gespielt wird                                 |
+| [`docs/de-hintergrund.md`](docs/de-hintergrund.md) | [`/docs/hintergrund/`](https://co2mmute.stsds.tu-berlin.de/docs/hintergrund/)         | Hintergrund: was das Spiel rechnet und warum                    |
+| [`docs/kalibrierung.md`](docs/kalibrierung.md)     | —                                                                   | die Zahlen, gegen die gespielt wird, und wie sie gemessen sind  |
+| [`docs/testfaelle.md`](docs/testfaelle.md)         | —                                                                   | was das Spiel können muss, Fall für Fall, mit Status            |
+| [`docs/de-flowcharts.md`](docs/de-flowcharts.md)   | [`/docs/ablaufdiagramme/`](https://co2mmute.stsds.tu-berlin.de/docs/ablaufdiagramme/) | wie es läuft: Ablaufdiagramme für Runde, Routensuche, Simulation, Spielerzugang |
 
 ### Lizenz
 
@@ -340,13 +344,17 @@ be agreed with TU IT first.
 
 ### Documentation
 
-| File                                               | What                                                         |
-| -------------------------------------------------- | ------------------------------------------------------------ |
-| [`docs/en-quick-start.md`](docs/en-quick-start.md) | quick start: how the game is played                          |
-| [`docs/en-background.md`](docs/en-background.md)   | background: what the game computes and why — German on `/hintergrund` |
-| [`docs/kalibrierung.md`](docs/kalibrierung.md)     | the numbers the game is played against, and how they were measured (German) |
-| [`docs/testfaelle.md`](docs/testfaelle.md)         | what the game has to do, case by case, with status (German)  |
-| [`docs/en-flowcharts.md`](docs/en-flowcharts.md)   | how it runs: flowcharts of a round, the route search, the simulation, player access |
+The quick start, the background and the flowcharts are on the site too, under "Docs" in the
+header, each in German and English. The pages are copies of the files (`backend/template/docs/`),
+kept in step by hand: change one, change the other.
+
+| File                                               | On the site                                                         | What                                                         |
+| -------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------ |
+| [`docs/en-quick-start.md`](docs/en-quick-start.md) | [`/docs/en/quick-start/`](https://co2mmute.stsds.tu-berlin.de/docs/en/quick-start/)   | quick start: how the game is played                          |
+| [`docs/en-background.md`](docs/en-background.md)   | [`/docs/en/background/`](https://co2mmute.stsds.tu-berlin.de/docs/en/background/)     | background: what the game computes and why                   |
+| [`docs/kalibrierung.md`](docs/kalibrierung.md)     | —                                                                   | the numbers the game is played against, and how they were measured (German) |
+| [`docs/testfaelle.md`](docs/testfaelle.md)         | —                                                                   | what the game has to do, case by case, with status (German)  |
+| [`docs/en-flowcharts.md`](docs/en-flowcharts.md)   | [`/docs/en/flowcharts/`](https://co2mmute.stsds.tu-berlin.de/docs/en/flowcharts/)     | how it runs: flowcharts of a round, the route search, the simulation, player access |
 
 ### License
 

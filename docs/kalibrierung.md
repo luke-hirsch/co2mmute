@@ -242,7 +242,7 @@ Drei Dinge daran sind neu:
   10.211, 9.857 und 9.784 kg, Verspätung 12,5 / 12,6 / 11,0 / 12,5 min. Nagelt man die Gruppe auf
   100 Menschen fest, sehen acht Plätze 1,0 statt 12,5 Minuten Verspätung.
 
-`docs/de-hintergrund.md` und `/hintergrund/` zeigen diese Zahlen, als Tabelle und als Abbildung.
+`docs/de-hintergrund.md` zeigt diese Zahlen, als Tabelle und als Abbildung.
 
 ---
 

@@ -48,7 +48,7 @@ test("a host's header in the app has the map menu and follows it without a reloa
 
 test("the Django header offers the same menu", async ({ page }) => {
   await loginAsHost(page);
-  await page.goto("/hintergrund/");
+  await page.goto("/docs/hintergrund/");
 
   const header = page.getByRole("banner");
   await header.getByRole("button", { name: "Karten" }).click();
@@ -97,4 +97,50 @@ test("a player on the join screen sees no map menu and no way to sign out", asyn
   for (const name of ["Impressum", "Datenschutz", "Cookies", "Quellcode"]) {
     await expect(footer.getByRole("link", { name })).toBeVisible();
   }
+});
+
+test("the docs menu leads to both languages, and every page to its twin (F13)", async ({
+  page,
+}) => {
+  await page.goto("/app/join");
+
+  const header = page.getByRole("banner");
+  await header.getByRole("button", { name: "Docs" }).click();
+  const panel = page.locator("#nav-docs");
+  for (const [name, href] of [
+    ["Schnellstart", "/docs/schnellstart/"],
+    ["Hintergrund", "/docs/hintergrund/"],
+    ["Ablaufdiagramme", "/docs/ablaufdiagramme/"],
+  ]) {
+    await expect(panel.getByRole("link", { name, exact: true })).toHaveAttribute("href", href);
+  }
+  // One rule, between the German three and the English three.
+  await expect(panel.locator("hr")).toHaveCount(1);
+  const background = panel.getByRole("link", { name: "Background", exact: true });
+  await expect(background).toHaveAttribute("lang", "en");
+
+  // A Django page: the browser leaves the SPA for it.
+  await background.click();
+  await expect(page).toHaveURL(/\/docs\/en\/background\/$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("What’s behind a round");
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await expect(page.getByRole("banner")).toHaveAttribute("lang", "de");
+
+  await page.getByRole("main").getByRole("link", { name: "Diese Seite auf Deutsch" }).click();
+  await expect(page).toHaveURL(/\/docs\/hintergrund\/$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Was hinter einer Runde steckt");
+});
+
+test("on a phone the Django menu offers the docs in both languages", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/docs/schnellstart/");
+
+  await page.getByRole("button", { name: "Menü", exact: true }).click();
+  const menu = page.getByRole("dialog", { name: "Menü" });
+  await menu.getByText("Docs", { exact: true }).click();
+  await expect(menu.getByRole("link", { name: "Ablaufdiagramme" })).toBeVisible();
+  await expect(menu.getByRole("link", { name: "Flowcharts" })).toHaveAttribute(
+    "href",
+    "/docs/en/flowcharts/",
+  );
 });

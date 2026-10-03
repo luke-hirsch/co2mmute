@@ -27,7 +27,7 @@ Celery-Worker, und ihre Ergebnisse kommen über den Websocket bei den Browsern a
 flowchart LR
     subgraph browser["Browser"]
         spa["SPA unter /app/<br>frontend/ — Spiel, Seiten der Spielleitung, Editor"]
-        pages["Django-Seiten<br>Startseite, /hintergrund, Rechtliches, Anmeldung"]
+        pages["Django-Seiten<br>Startseite, /docs, Rechtliches, Anmeldung"]
     end
     nginx["nginx<br>liefert das SPA-Bundle aus,<br>reicht alles andere weiter"]
     subgraph daphne["Daphne — backend/"]
@@ -288,7 +288,7 @@ flowchart TD
     end
     ts --> rowsIn
     rowsIn --> scen["Scenario<br>sim/scenario.py, ab hier kein Django"]
-    scen --> eng["LinkQueueEngine<br>sim/linkqueue.py<br>Kanten mit je einer gezogenen Kapazität,<br>Fahrpläne der Linien, wo Fahrgäste einsteigen"]
+    scen --> eng["LinkQueueEngine<br>sim/linkqueue.py<br>Kanten mit je einer gezogenen Kapazität,<br>Fahrpläne der Linien, wo Mitfahrende einsteigen"]
     eng --> morning["Hinweg<br>_run_pass, _compute_outcomes"]
     morning --> hasHome{"Rückwege da?"}
     hasHome -->|"ja"| evening["Rückweg<br>ein frisches Netz, derselbe Zufallsstrom"]
@@ -330,7 +330,7 @@ flowchart TD
 
 Der ÖPNV ist kein eigenes Modell. Eine Bus- oder Bahnfahrt ist ein ganz normales Fahrzeug auf
 denselben Kanten, unter einem negativen Routenschlüssel (`route_pk < 0` heißt „eine Linie, kein
-Mensch“). Fahrgäste warten in `stop_queues` je Linie und Haltestelle, steigen ein, solange Plätze
+Mensch“). Mitfahrende warten in `stop_queues` je Linie und Haltestelle, steigen ein, solange Plätze
 frei sind, und steigen aus, wo ihre Route die Linie verlässt (`_serve_stop`). Nach ihrem Fahrplan
 fährt eine Linie weiter, solange überhaupt noch jemand unterwegs ist.
 

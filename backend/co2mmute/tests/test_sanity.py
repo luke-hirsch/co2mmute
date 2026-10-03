@@ -195,7 +195,7 @@ class EveryTemplateCompilesTests(SimpleTestCase):
     Compiling is what a request would have done first, so this compiles every
     `.html` under `template/` — a page nobody tests is still covered, which is
     the point: a detector scoped to the pages that prompted it misses the next one.
-    And every `.svg`: the figures of /hintergrund/ are `{% include %}`d, so a
+    And every `.svg`: the figures of the docs pages are `{% include %}`d, so a
     stray `{{` in one breaks the page the same way.
     """
 
@@ -347,6 +347,16 @@ class RetiredWordsStayOutOfTheTemplatesTests(SimpleTestCase):
     ]
     COMMENT = re.compile(r"\{#.*?#\}|\{% comment %\}.*?\{% endcomment %\}|<!--.*?-->", re.S)
 
+    # The one exception, and the SPA's (`create.namePlaceholder`, "z. B.
+    # Klasse 8b, Dienstag") for the same reason: a host naming their own game.
+    # The quick start advises exactly that, to hosts, in Lukas's words. One
+    # sentence on one page, so the rest of that page is still read.
+    ALLOWED = {
+        "template/docs/schnellstart.html": [
+            "Als Lehrkraft, die mit mehreren Klassen spielt, würde ich einfach Klasse und Tag nehmen."
+        ],
+    }
+
     def test_no_template_says_a_retired_word(self):
         pattern = re.compile("|".join(self.RETIRED), re.IGNORECASE)
         failures = []
@@ -356,6 +366,10 @@ class RetiredWordsStayOutOfTheTemplatesTests(SimpleTestCase):
             text = self.COMMENT.sub(
                 lambda m: "\n" * m.group(0).count("\n"), path.read_text(encoding="utf-8")
             )
+            for sentence in self.ALLOWED.get(str(path.relative_to(BACKEND_ROOT)), []):
+                # however the template wraps it, and keeping its line breaks
+                allowed = r"\s+".join(map(re.escape, sentence.split()))
+                text = re.sub(allowed, lambda m: "\n" * m.group(0).count("\n"), text)
             for lineno, line in enumerate(text.splitlines(), 1):
                 for match in pattern.finditer(line):
                     failures.append(f"{path.relative_to(BACKEND_ROOT)}:{lineno}: {match.group(0)}")

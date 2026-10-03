@@ -37,7 +37,13 @@ export function NavLink({
   }
 
   return (
-    <a href={item.href} className={className} onClick={follow}>
+    <a
+      href={item.href}
+      lang={item.lang}
+      hrefLang={item.lang}
+      className={className}
+      onClick={follow}
+    >
       {item.label}
     </a>
   );

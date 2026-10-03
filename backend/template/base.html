@@ -23,7 +23,7 @@
   </head>
   <body class="flex min-h-dvh flex-col bg-body text-main antialiased dark:bg-darkbody dark:text-darktext">
     {# The items come from co2mmute/navigation.py, which also feeds the SPA's header through api/navigation/. Add or rename an item there, never here — the two halves used to carry a list each and disagreed about most of it. #}
-    <header class="border-b border-subtle bg-surface dark:border-darksubtle dark:bg-darksurface">
+    <header lang="de" class="border-b border-subtle bg-surface dark:border-darksubtle dark:bg-darksurface">
       <nav
         aria-label="Hauptmenü"
         class="mx-auto flex max-w-7xl items-center justify-between gap-6 px-4 py-5 text-main sm:px-6 lg:px-8 dark:text-darktext"
@@ -68,6 +68,7 @@
                   class="absolute inset-auto m-0 w-56 rounded-lg border border-subtle bg-surface p-2 text-main opacity-0 shadow-sm translate-y-1 transition transition-discrete duration-150 ease-out open:translate-y-0 open:opacity-100 starting:open:translate-y-1 starting:open:opacity-0 dark:border-darksubtle dark:bg-darksurface dark:text-darktext"
                 >
                   {% for child in item.children %}
+                    {% ifchanged child.lang %}{% if not forloop.first %}<hr class="mx-3 my-2 border-subtle dark:border-darksubtle" />{% endif %}{% endifchanged %}
                     {% include "partials/nav_link.html" with item=child link_class="block rounded-md px-3 py-2 text-sm/6 font-medium text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated" %}
                   {% endfor %}
                 </div>
@@ -124,6 +125,7 @@
                         </summary>
                         <div class="mt-2 space-y-2">
                           {% for child in item.children %}
+                            {% ifchanged child.lang %}{% if not forloop.first %}<hr class="ml-6 border-subtle dark:border-darksubtle" />{% endif %}{% endifchanged %}
                             {% include "partials/nav_link.html" with item=child link_class="block rounded-lg py-2 pr-3 pl-6 text-sm/7 font-medium text-main transition hover:bg-elevated dark:text-darktext dark:hover:bg-darkelevated" %}
                           {% endfor %}
                         </div>
@@ -150,7 +152,7 @@
 
     <main class="flex-1 {% block main_class %}p-5{% endblock %}">{% block main %}{% endblock %}</main>
 
-    <footer class="mt-12 border-t border-subtle bg-surface dark:border-darksubtle dark:bg-darksurface">
+    <footer lang="de" class="mt-12 border-t border-subtle bg-surface dark:border-darksubtle dark:bg-darksurface">
       <div
         class="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-10 lg:px-8"
       >

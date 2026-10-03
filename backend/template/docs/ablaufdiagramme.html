@@ -1,0 +1,262 @@
+{% extends "docs/page.html" %}
+
+{% comment %}
+  docs/de-flowcharts.md, section for section (F13). The charts are its
+  Mermaid blocks drawn once to SVG (docs/flowcharts/de-NN.svg, in order) and
+  recoloured onto the tokens; a changed chart is drawn again, not edited by
+  hand. The English twin is docs/en/flowcharts.html.
+{% endcomment %}
+
+{% block title %}CO2MMUTE – Ablaufdiagramme{% endblock %}
+
+{% block description %}Wie CO2mmute läuft, in zwölf Ablaufdiagrammen: die Teile, ein Spiel, der Zugang für Mitspielende, eine Runde, die Routensuche, die Simulation, die Phasen zwischen den Runden und die Kartenversionen.{% endblock %}
+
+{% block kicker %}Start: der Code{% endblock %}
+
+{% block heading %}Wie es läuft{% endblock %}
+
+{% block lead %}
+<p>
+  Ablaufdiagramme der Teile, die kein Standard-Django sind: was mit wem redet, in welcher
+  Reihenfolge, und wo man im Code anfängt zu lesen. Anmelden, Registrieren, Passwort zurücksetzen
+  und der Admin fehlen — das macht Django sowieso.
+</p>
+<p>
+  Jede Box nennt die Datei oder Funktion, für die sie steht. Die Diagramme sind
+  <a href="https://mermaid.js.org/">Mermaid</a> und stehen auch im Repository, in
+  <a href="{{ repository_url }}/blob/main/docs/de-flowcharts.md"><code>docs/de-flowcharts.md</code></a>.
+</p>
+{% endblock %}
+
+{% block stations %}
+<li><a href="#die-teile">Die Teile</a></li>
+<li><a href="#ein-spiel-von-anfang-bis-ende">Ein Spiel von Anfang bis Ende</a></li>
+<li><a href="#zugang-für-mitspielende">Zugang für Mitspielende</a>
+  <ol>
+    <li><a href="#einen-platz-bekommen">Einen Platz bekommen</a></li>
+    <li><a href="#jede-anfrage">Jede Anfrage</a></li>
+  </ol>
+</li>
+<li><a href="#eine-runde-vom-zug-bis-zur-statistik">Eine Runde vom Zug bis zur Statistik</a></li>
+<li><a href="#routensuche-im-browser">Routensuche im Browser</a></li>
+<li><a href="#die-simulation">Die Simulation</a>
+  <ol>
+    <li><a href="#zeilen-rein-engine-zeilen-raus">Zeilen rein, Engine, Zeilen raus</a></li>
+    <li><a href="#ein-durchlauf-tick-für-tick">Ein Durchlauf, Tick für Tick</a></li>
+    <li><a href="#eine-kante">Eine Kante</a></li>
+  </ol>
+</li>
+<li><a href="#zwischen-den-runden">Zwischen den Runden</a></li>
+<li><a href="#vom-server-auf-den-bildschirm">Vom Server auf den Bildschirm</a></li>
+<li><a href="#kartenversionen-und-abstimmung">Kartenversionen und Abstimmung</a></li>
+{% endblock %}
+
+{% block doc %}
+<section id="die-teile" data-station>
+<h2>Die Teile</h2>
+<p>Eine Django-App auf Daphne liefert alles aus, was nicht die SPA ist: die REST-API, die Websockets
+und die serverseitig gerenderten Seiten. Die Simulation läuft nie in einer Anfrage — sie läuft auf
+einem Celery-Worker, und ihre Ergebnisse kommen über den Websocket bei den Browsern an.</p>
+<figure class="chart">{% include "docs/flowcharts/de-01.svg" %}</figure>
+</section>
+<section id="ein-spiel-von-anfang-bis-ende" data-station>
+<h2>Ein Spiel von Anfang bis Ende</h2>
+<p>Ein Spiel ist eine <code>GameSession</code>, eine Runde eine <code>GameRound</code>. Die Phasen
+zwischen den Runden haben <a href="#zwischen-den-runden">weiter unten</a> ein eigenes Diagramm.
+Jedes Ende schreibt <code>end_reason</code> in dem Moment, in dem es passiert:
+<code>co2_limit</code>, <code>max_rounds</code>, <code>host</code> oder <code>idle</code>.</p>
+<figure class="chart">{% include "docs/flowcharts/de-02.svg" %}</figure>
+<div class="doc-table doc-table-wrap"><table>
+  <thead><tr><th scope="col">Schritt</th><th scope="col">wo man liest</th></tr></thead>
+  <tbody>
+  <tr><td>anlegen</td><td><code>GameSessionListCreateView</code> in <code>game/views_rest.py</code></td></tr>
+  <tr><td>beitreten, Zuhause und Ziele</td><td><code>JoinSessionAPIView</code> in <code>game/views_join.py</code>, <code>set_up_player</code> und <code>assign_agent_nodes</code> in <code>game/signals.py</code></td></tr>
+  <tr><td>starten</td><td><code>GameSessionDetailView.update</code> in <code>game/views_rest.py</code></td></tr>
+  <tr><td>Runde komplett, simulieren, beenden</td><td><code>game/rounds.py</code>, dann <code>handle_round_completed</code> in <code>game/signals.py</code></td></tr>
+  <tr><td>pausieren, Ende nach Ruhe, anonymisieren</td><td><code>game/pause.py</code>, <code>game/idle.py</code>, <code>game/anon.py</code></td></tr>
+  </tbody>
+</table></div>
+</section>
+<section id="zugang-für-mitspielende" data-station>
+<h2>Zugang für Mitspielende</h2>
+<p>Mitspielende haben kein Konto. Beim Beitreten bekommt der Browser zwei signierte Cookies, und
+jede Anfrage und jeder Socket wird gegen sie geprüft. Die Spielleitung ist ein normaler Django-User
+mit Sitzung und wird zuerst geprüft.</p>
+<section id="einen-platz-bekommen" data-station>
+<h3>Einen Platz bekommen</h3>
+<figure class="chart">{% include "docs/flowcharts/de-03.svg" %}</figure>
+<p>Ein Platz ist eine <code>Player</code>-Zeile und kann zwischen Geräten wandern: Die Spielleitung
+holt einen Platz an die Leitstelle („Übernehmen“) oder gibt ihn mit einem Code weiter. Keins von
+beidem kopiert die Zeile. <code>_rotate</code> gibt ihr eine neue <code>player_id</code>, und jedes
+Cookie, das die alte nennt, ist damit wertlos. Ein übernommener Platz braucht kein Cookie — die
+Spielleitung handelt mit ihrer Sitzung für ihn.</p>
+</section>
+<section id="jede-anfrage" data-station>
+<h3>Jede Anfrage</h3>
+<figure class="chart">{% include "docs/flowcharts/de-04.svg" %}</figure>
+<ul>
+  <li><strong>Spielleitung dieses Spiels?</strong> Ein angemeldeter Django-User, der
+  <code>game_host</code> dieses Spiels ist.</li>
+  <li><strong>Spiel-Cookie gültig?</strong> <code>has_game_access</code>:
+  <code>game_access_ID</code> hat eine gültige Signatur, ist nicht abgelaufen, und die Spiel-ID
+  darin ist die dieses Spiels.</li>
+  <li><strong>Platz-Cookie gültig?</strong> <code>resolve_player_id</code>: dieselben Prüfungen für
+  <code>player_ID</code>. Bei REST muss seine <code>player_id</code> außerdem die aus der URL sein —
+  jede <code>player_id</code> steht im Roster der Lobby, ohne diese Prüfung könnte also jeder für
+  jeden anderen ziehen.</li>
+  <li><strong>Platz noch da?</strong> Eine <code>Player</code>-Zeile mit dieser
+  <code>player_id</code>, die das Spiel nicht verlassen hat. Der Socket lehnt außerdem ein beendetes
+  Spiel ab.</li>
+</ul>
+<p>Beide Türen gehen durch <code>game/auth.py</code>, das nichts von der Spielleitung weiß. Ein
+abgelehnter Socket wird erst angenommen und dann mit seinem Code geschlossen (<code>refuse()</code>
+in <code>game/consumers.py</code>) — vor dem Annehmen geschlossen, sieht der Browser nur 1006 und
+verbindet sich immer wieder neu.</p>
+<p>Zwei Folgen: Wer <code>SECRET_KEY</code> wechselt oder ändert, was in einem Cookie steht, wirft
+alle Mitspielenden aus allen laufenden Spielen. Und der Name ist das Einzige, was das Spiel über
+eine Person weiß; er landet nie in einem Log.</p>
+</section>
+</section>
+<section id="eine-runde-vom-zug-bis-zur-statistik" data-station>
+<h2>Eine Runde vom Zug bis zur Statistik</h2>
+<p>Vom ersten Tippen auf dem Handy bis zur Statistik auf jedem Bildschirm. Die Route wird im Browser
+gefunden, der Server prüft sie nur. Die Runde ist komplett, sobald der letzte Platz, der noch
+mitspielt, gezogen hat; dann läuft die Simulation auf Celery und meldet sich über den Websocket
+zurück.</p>
+<figure class="chart">{% include "docs/flowcharts/de-05.svg" %}</figure>
+<p>Zwei Regeln halten das zusammen. Es gibt <strong>einen</strong> Entscheidungspunkt,
+<code>complete_round_if_ready</code>, und alles, was eine Runde abschließen kann (ein Zug, jemand
+geht), kommt über <code>schedule_round_completion_check</code> dorthin. Und die Runde wird mit einem
+bedingten <code>update()</code> <strong>beansprucht</strong>, sodass zwei Züge, die im selben
+Augenblick ankommen, eine Simulation starten und nicht zwei.</p>
+</section>
+<section id="routensuche-im-browser" data-station>
+<h2>Routensuche im Browser</h2>
+<p>Alles hier läuft auf dem Handy (<code>hooks/use-round-draft.ts</code>). Der Graph kommt einmal je
+Runde und Version vom Server, mit den gemessenen Geschwindigkeiten der letzten Runde dran; die Suche
+selbst ist Dijkstra.</p>
+<figure class="chart">{% include "docs/flowcharts/de-06.svg" %}</figure>
+<ul>
+  <li><strong>Die Limits</strong> sind 5 km zu Fuß und 15 km mit dem Rad
+  (<code>lib/map/trip-limits.ts</code>). Die Luftlinie wird geprüft, bevor ein Verkehrsmittel
+  gewählt ist — sie kann nur kürzer sein als die Route —, die gefundene Route danach.</li>
+  <li><strong>Der Rückweg ist eine eigene Suche.</strong> Eine Einbahnstraße hat keine Gegenkante,
+  auf so einer Karte ist der Rückweg also eine andere Route. Der Server lehnt einen Zug ohne Rückweg
+  ab.</li>
+  <li><strong>Der Server prüft, er sucht keine Route.</strong> <code>_validate_routes</code> in
+  <code>game/views_rest.py</code> prüft, dass beide Wege Zuhause und Ziel verbinden und dass jede
+  Kante das Verkehrsmittel erlaubt.</li>
+  <li><strong>Der ÖPNV hat drei Optionen:</strong> „schnellste“, „wenig umsteigen“ (jeder Umstieg
+  nach dem ersten Einsteigen kostet in der Suche 30 Minuten extra) und „ohne Bus“.</li>
+  <li><strong>Eine langsame Suche kann keine neuere überschreiben.</strong> Jede Suche trägt ein
+  Token je Gruppe; ein Ergebnis, dessen Token nicht mehr das aktuelle ist, wird verworfen.</li>
+  <li><strong>Angefangene Eingaben überleben ein Neuladen</strong> (nur Verkehrsmittel und Optionen,
+  nie eine Route), im localStorage, <code>lib/game/draft-storage.ts</code>.</li>
+</ul>
+</section>
+<section id="die-simulation" data-station>
+<h2>Die Simulation</h2>
+<p>Ein Warteschlangenmodell je Kante (Link Queue), das mesoskopische Modell, das MATSim benutzt. Was
+es rechnet und warum, steht im
+<a href="{% url 'docs-hintergrund' %}">Hintergrund</a>; diese drei Diagramme
+zeigen, wie der Code aufgebaut ist.</p>
+<section id="zeilen-rein-engine-zeilen-raus" data-station>
+<h3>Zeilen rein, Engine, Zeilen raus</h3>
+<p><code>game/simulation.py</code> ist der Adapter: Er liest die Zeilen der Runde in ein
+<code>Scenario</code>, lässt die Engine laufen und schreibt die Ergebnisse. Alles unter
+<code>sim/</code> ist reines Python ohne Django, ein Test oder ein Kalibrierskript kann also eine
+Runde ohne Datenbank rechnen.</p>
+<figure class="chart">{% include "docs/flowcharts/de-07.svg" %}</figure>
+<p>Der Zufall einer Runde ist aus ihrem pk geseedet (<code>TrafficSimulator(round, seed=…)</code>,
+um über mehrere Seeds zu messen), eine Runde läuft also bei jeder Wiederholung gleich.</p>
+</section>
+<section id="ein-durchlauf-tick-für-tick" data-station>
+<h3>Ein Durchlauf, Tick für Tick</h3>
+<p>Ein Durchlauf ist eine Richtung. Er läuft, bis alle angekommen sind; die Grenze von 1000 Ticks
+(<code>PASS_TICK_GUARD</code>) fängt nur einen Bug ab, und wird sie erreicht, steht ein Fehler im
+Log.</p>
+<figure class="chart">{% include "docs/flowcharts/de-08.svg" %}</figure>
+<p>Der ÖPNV ist kein eigenes Modell. Eine Bus- oder Bahnfahrt ist ein ganz normales Fahrzeug auf
+denselben Kanten, unter einem negativen Routenschlüssel (<code>route_pk &lt; 0</code> heißt „eine
+Linie, kein Mensch“). Mitfahrende warten in <code>stop_queues</code> je Linie und Haltestelle,
+steigen ein, solange Plätze frei sind, und steigen aus, wo ihre Route die Linie verlässt
+(<code>_serve_stop</code>). Nach ihrem Fahrplan fährt eine Linie weiter, solange überhaupt noch
+jemand unterwegs ist.</p>
+</section>
+<section id="eine-kante" data-station>
+<h3>Eine Kante</h3>
+<p>Was einem Auto auf einer Kante passiert. Eine Straße mit zwei Richtungen sind zwei Kanten, eine
+je Richtung.</p>
+<figure class="chart">{% include "docs/flowcharts/de-09.svg" %}</figure>
+<ul>
+  <li><strong>Wer Schlange steht:</strong> Autos und Busse im Mischverkehr. Ein Rad auf einer Straße
+  ohne Radspur hat auf der Kante eine eigene Schlange (<code>bike_queue</code>): Es nimmt Platz weg,
+  wartet aber nie auf ein Auto. Wer zu Fuß geht, Züge, Wege ohne Straße und Busspuren laufen frei.</li>
+  <li><strong>Zwei oder mehr Autospuren</strong> bekommen eine Schlange je nächster Straße
+  (<code>_pick_head</code>), ein Auto, das links abbiegt, hält also die nicht auf, die geradeaus
+  fahren.</li>
+  <li><strong>Eine volle Kante, die nie leer wird,</strong> lässt nach <code>DEADLOCK_TICKS =
+  4</code> trotzdem ein Auto weiter, über ihren Speicher hinaus. Das wird gezählt
+  (<code>forced_releases</code> im Log).</li>
+  <li><strong>Geschwindigkeit ist ein Ergebnis.</strong> Die Geschwindigkeit einer Kante ist ihre
+  Länge durch die Zeit, die Autos wirklich gebraucht haben (<code>EdgeState.mean_speed_kmh</code>).
+  Sie bestimmt CO2 und Kosten eines Autos auf dieser Kante, und die nächste Runde routet darauf.</li>
+</ul>
+</section>
+</section>
+<section id="zwischen-den-runden" data-station>
+<h2>Zwischen den Runden</h2>
+<p>Die Phasen stehen in <code>game/phases.py</code>. Die Handys und die Spielleitung schicken ihren
+Teil über den Spiel-Socket (<code>player.stats_ack</code>, <code>vote.open</code>,
+<code>vote.submit</code>, <code>stalemate.vote</code>, <code>stalemate.force_leave</code>);
+<code>GameConsumer</code> reicht sie nur weiter. Die Namen in Großbuchstaben sind die Phasen aus
+<code>GameRound.BetweenRoundPhase</code>.</p>
+<figure class="chart">{% include "docs/flowcharts/de-10.svg" %}</figure>
+<ul>
+  <li><strong>Jeder Pfeil wird beansprucht.</strong> <code>_claim</code> setzt
+  <code>GameRound.between_round_phase</code> mit einem bedingten <code>update()</code>, zwei Handys,
+  die eine Phase im selben Augenblick abschließen, schalten sie also nur einmal weiter.</li>
+  <li><strong>„Alle“ heißt die Plätze, die noch mitspielen</strong> —
+  <code>Player.objects.filter(game=…).playing()</code>, dieselbe Regel wie in der Runde. Geht
+  jemand, läuft <code>phases.recheck</code>, weil das eine Phase abschließen kann.</li>
+  <li><strong>Der Stimmzettel wird einmal gezogen</strong> (<code>vote_options</code>, höchstens
+  zwei Versionen) und an der Runde gespeichert, jedes Handy stimmt also über dieselben zwei ab.</li>
+  <li><strong>Ein Spiel, das endet, hat keine Statistikphase.</strong> Seine letzten Zahlen kommen
+  mit <code>round.completed</code> und in der Zusammenfassung bei den Mitspielenden an.</li>
+</ul>
+</section>
+<section id="vom-server-auf-den-bildschirm" data-station>
+<h2>Vom Server auf den Bildschirm</h2>
+<p>Ein Socket je Spiel, ein Reducer. Der REST-Snapshot wird einmal gelesen, damit sofort etwas zu
+sehen ist; danach gehört jedes Update dem Socket.</p>
+<figure class="chart">{% include "docs/flowcharts/de-11.svg" %}</figure>
+<ul>
+  <li><strong><code>game.state</code> kommt bei jeder Verbindung</strong>, ein Reconnect ist also
+  schon der Abgleich. Nichts fragt regelmäßig nach, nichts lädt neu.</li>
+  <li><strong>Der Socket schlägt den Snapshot.</strong> Der Roster kann vor dem Snapshot ankommen,
+  und nur der Socket weiß, wer verbunden ist — sobald ein Roster da ist, rührt der Snapshot die
+  Plätze also nicht mehr an.</li>
+  <li><strong><code>lib/game/events.ts</code> ist der ganze Socket-Vertrag</strong> als eine
+  typisierte Union. Ein neues Event, das der Reducer nicht behandelt, bricht den Build.</li>
+  <li><strong>Gesendet wird nur aus synchronem Code.</strong> <code>send_game_state_message</code>
+  benutzt <code>async_to_sync</code>, und das verweigert auf der Event-Loop des Consumers den
+  Dienst.</li>
+</ul>
+</section>
+<section id="kartenversionen-und-abstimmung" data-station>
+<h2>Kartenversionen und Abstimmung</h2>
+<p>Eine Karte ist ein Graph; eine Version ist ein Filter darüber. Bei jedem Knoten, jeder Kante,
+jeder Linie und jedem Linienabschnitt steht, in welchen Versionen sie vorkommen, und eine Zeile, die
+keine Version nennt, kommt in keiner vor.</p>
+<figure class="chart">{% include "docs/flowcharts/de-12.svg" %}</figure>
+<p>Die ganze Karte, mit jeder Version und dem Stimmzettel, geht als eine JSON-Datei rein und raus
+(<code>api/maps/import/</code>, <code>api/maps/ID/export/</code>). Ein Import legt immer eine neue
+Karte an.</p>
+</section>
+{% endblock %}
+
+{% block end_heading %}Und jetzt im Spiel sehen, wie es läuft{% endblock %}
+
+{% block end_lead %}
+Jede Box hier passiert in einer Runde. Am schnellsten versteht man sie, wenn man eine spielt.
+{% endblock %}
