@@ -580,10 +580,17 @@
     }
     /* a flowchart (docs/flowcharts/*.svg, Mermaid drawn once): the whole
        column, on a card. Each one carries its own max-width (its drawn size)
-       and min-width (0.72 of it, so a label stays about 11.5px); narrower than
-       that, the card scrolls sideways and the page does not. */
+       and shrinks with the column below that, so on a phone the whole chart
+       is in view and two fingers zoom into it. They are drawn upright and at
+       most about 800px wide, which keeps them full size beside the stops. */
     & figure.chart {
       @apply max-w-none overflow-x-auto rounded-lg border border-subtle bg-surface p-4 dark:border-darksubtle dark:bg-darksurface;
+      /* on a phone the card takes the screen's width, over the line */
+      @variant max-sm {
+        margin-left: calc(0.5rem - var(--gutter));
+        margin-right: -1rem;
+        @apply p-2;
+      }
       & > svg {
         @apply mx-auto;
       }

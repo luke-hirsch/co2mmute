@@ -15,6 +15,12 @@
  * follow the page's light and dark mode, and refuses any colour that is not a
  * token — the same rule `co2mmute/tests/test_sanity.py` holds the figures to.
  *
+ * A chart is drawn top to bottom and narrow: the column beside the list of
+ * stops is about 810 px, a chart is never drawn larger than its own size, and
+ * on a phone it shrinks to the screen's width. The script says when one comes
+ * out wider than the column — draw it upright (`flowchart TD`, a subgraph with
+ * `direction TB`, `~~~` to stack boxes) rather than letting it shrink further.
+ *
  * Charts are numbered in the order they stand in the doc (de-01.svg …). Add one
  * in the middle and the ones after it move up a number: the script says when a
  * page includes a different number of charts than its doc has, and the page's
@@ -120,9 +126,8 @@ const STRAYS = [
   ["rgba(255, 255, 255, 0.5)", SURFACE],
 ];
 
-// Never drawn smaller than this — labels stay about 11.5 px. Narrower than
-// that, the chart's card scrolls sideways and the page does not.
-const SCALE_FLOOR = 0.72;
+// The text column beside the list of stops, from 1280 px up (custom.css).
+const COLUMN = 810;
 
 const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -135,6 +140,10 @@ function recolour(svg, name) {
   svg = svg.replace(/filter:\s*drop-shadow\([^;}]*\)\)?;?/g, "");
   svg = svg.replace(/box-shadow:[^;}]*;?/g, "");
   svg = svg.replace(/<filter\b[\s\S]*?<\/filter>/g, "");
+  // an arrow's label sits on a half-transparent patch, so the line runs on
+  // through the words; on a phone, where the chart is drawn small, that is
+  // what makes a label unreadable
+  svg = svg.replace(/(\.edgeLabel rect\{)opacity:0\.5;/g, "$1");
 
   for (const [stray, token] of STRAYS) {
     svg =
@@ -153,10 +162,11 @@ function recolour(svg, name) {
   svg = svg.replace(/<[^>]+>/g, (tag) => tag.replace(/(\d+\.\d\d)\d+/g, "$1"));
 
   let sized = 0;
+  // drawn at most its own size, and smaller with the column: on a phone the
+  // whole chart is in view, and two fingers zoom into it
   svg = svg.replace(/style="max-width: ([\d.]+)px;"/, (_, width) => {
     sized += 1;
-    const w = Number(width);
-    return `style="max-width: ${w.toFixed(0)}px; min-width: ${(w * SCALE_FLOOR).toFixed(0)}px;"`;
+    return `style="max-width: ${Number(width).toFixed(0)}px;"`;
   });
   if (sized !== 1) throw new Error(`${name}: no max-width on the root`);
 
@@ -208,7 +218,12 @@ try {
         async ({ id, code }) => (await window.mermaid.render(id, code)).svg,
         { id: `chart-${name}`, code },
       );
-      writeFileSync(path.join(out, `${name}.svg`), recolour(raw, name) + "\n");
+      const svg = recolour(raw, name);
+      const width = Number(svg.match(/max-width: (\d+)px/)[1]);
+      if (width > COLUMN) {
+        console.log(`${name}: ${width} px wide, wider than the column (${COLUMN}): draw it upright`);
+      }
+      writeFileSync(path.join(out, `${name}.svg`), svg + "\n");
       written.add(`${name}.svg`);
     }
     // a chart taken out of the doc leaves no file behind
