@@ -224,7 +224,7 @@ flowchart TD
     pick --> isPt{"public transport?"}
 
     isPt -->|"no"| dijkstra["findPath, dijkstra<br>utils/pathfinding.ts"]
-    dijkstra --> weight["calculateEdgeWeight per link<br>canUseEdge: may this mode use it at all?<br>walk, bike: minutes<br>car schnellste: minutes at last round's speed<br>car kürzeste: metres<br>car klimafreundlichste: metres × CO2 factor at that speed"]
+    dijkstra --> weight["calculateEdgeWeight per link<br>canUseEdge: may this mode use it at all?<br>walk, bike: minutes<br>car schnellste: minutes at last round's speed<br>car kürzeste: metres<br>car sparsamste: metres × CO2 factor at that speed"]
     weight --> limit{"route past<br>the mode's limit?"}
     limit -->|"yes"| tooFar["too-far"]
     limit -->|"no"| there
@@ -257,7 +257,7 @@ flowchart TD
 ## The simulation
 
 A link queue model, the mesoscopic model MATSim uses. What it calculates and why is in
-[`docs/en-background.md`](../en-background.md); these three charts show how the code is laid out.
+[`docs/en-background.md`](en-background.md); these three charts show how the code is laid out.
 
 ### Rows in, engine, rows out
 
@@ -353,7 +353,8 @@ flowchart LR
 
 The phases live in `game/phases.py`. The phones and the host send their part over the game socket
 (`player.stats_ack`, `vote.open`, `vote.submit`, `stalemate.vote`, `stalemate.force_leave`);
-`GameConsumer` only passes them on.
+`GameConsumer` only passes them on. The names in capitals are the phases of
+`GameRound.BetweenRoundPhase`.
 
 ```mermaid
 stateDiagram-v2
