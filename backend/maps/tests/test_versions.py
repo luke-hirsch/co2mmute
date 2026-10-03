@@ -28,11 +28,23 @@ kartenversionen-2026-09-27.md`. Neither version endpoint had a single test
 before this file, which is why the topic gets one of its own.
 """
 
+import os
+
 from django.contrib.auth import get_user_model
+from django.core.files.base import ContentFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
-from game.tests._helpers import TEST_BACKENDS
+from game.models import (
+    AgentRoute,
+    GameRound,
+    MapVersionVote,
+    Player,
+    PlayerMove,
+    RouteSegment,
+)
+from game.tests._helpers import TEST_BACKENDS, TempMediaRootMixin, create_game_session
 from maps.models import (
     BusLine,
     BusLineEdge,
@@ -829,3 +841,539 @@ class DrawnInAVersionTests(VersionFixtureMixin, TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["reason"], "rail-exists")
         self.assertEqual(TrainEdge.objects.filter(edge=self.edge_c).count(), 1)
+
+
+# What a version holds, per model — every row with a `map_versions` m2m.
+VERSIONED = (
+    Node,
+    Edge,
+    StreetEdge,
+    TrainEdge,
+    BusLine,
+    TrainLine,
+    BusLineEdge,
+    TrainLineEdge,
+)
+
+
+class DeletingAVersionMixin(TempMediaRootMixin, VersionFixtureMixin):
+    """The DrawnInAVersionTests lattice plus a change nothing is built on.
+
+    `Neubaugebiet` adds a node, a street to it both ways, bus `200` over two
+    base streets and a train line `U9` over the rail — five kinds of row that
+    no other version holds, and so the five that have to go with it.
+    `Busspuren` is the other case: a change whose every row the combination
+    holds as well, so deleting it takes nothing but itself and its ballot.
+    """
+
+    def build_lattice(self):
+        self.build_map()
+        self.busspuren = self._diff(
+            "Busspuren",
+            edge_changes=[
+                {"edge_id": self.edge_b.pk, "dedicated_bus_lane": True, "lanes": 2}
+            ],
+        )
+        self.umweg = self._diff(
+            "Umgehungsstraße",
+            new_edges=[
+                {
+                    "temp_start_node": str(self.nodes[0].pk),
+                    "temp_end_node": str(self.nodes[3].pk),
+                    "walking": True,
+                    "max_lanes": 1,
+                    "speed_limit": 50,
+                    "lanes": 1,
+                }
+            ],
+        )
+        self.combination = self._combine(self.busspuren, self.umweg)
+        street = StreetEdge.objects.filter(map_versions=self.base)
+        rail = TrainEdge.objects.filter(map_versions=self.base)
+        self.neubau = self._diff(
+            "Neubaugebiet",
+            new_nodes=[{"temp_id": "neu", "x_position": 5, "y_position": 2}],
+            new_edges=[
+                {
+                    "temp_start_node": str(self.nodes[3].pk),
+                    "temp_end_node": "neu",
+                    "bidirectional": True,
+                    "walking": True,
+                    "speed_limit": 30,
+                    "lanes": 1,
+                }
+            ],
+            pt_line_changes=[
+                {
+                    "action": "add",
+                    "line_type": "bus",
+                    "name": "200",
+                    "edge_ids": [
+                        street.get(edge=self.edge_a).pk,
+                        street.get(edge=self.edge_b).pk,
+                    ],
+                },
+                {
+                    "action": "add",
+                    "line_type": "train",
+                    "name": "U9",
+                    "edge_ids": [
+                        rail.get(edge=self.edge_b).pk,
+                        rail.get(edge=self.edge_c).pk,
+                    ],
+                },
+            ],
+        )
+
+    def held_by(self, version):
+        return {
+            model.__name__: set(
+                model.objects.filter(map_versions=version).values_list("pk", flat=True)
+            )
+            for model in VERSIONED
+        }
+
+    def only_in(self, version):
+        """What `version` holds and no other version of the map does."""
+        own = self.held_by(version)
+        for other in MapVersion.objects.filter(game_map=self.game_map).exclude(
+            pk=version.pk
+        ):
+            for name, pks in self.held_by(other).items():
+                own[name] -= pks
+        return own
+
+    def still_there(self, rows):
+        return {
+            model.__name__: set(
+                model.objects.filter(pk__in=rows[model.__name__]).values_list(
+                    "pk", flat=True
+                )
+            )
+            for model in VERSIONED
+        }
+
+    def in_no_version(self):
+        return {
+            model.__name__: model.objects.filter(map_versions__isnull=True).count()
+            for model in VERSIONED
+        }
+
+    def game(self, name="Dienstag", **fields):
+        host = get_user_model().objects.get_or_create(username="gastgeber")[0]
+        return create_game_session(
+            host, game_name=name, game_map=self.game_map, **fields
+        )
+
+    def ended_game(self, name="Dienstag", **fields):
+        return self.game(
+            name, is_active=True, ended_at=timezone.now(), **fields
+        )
+
+
+@override_settings(**TEST_BACKENDS)
+class DeletingAVersionTests(DeletingAVersionMixin, TestCase):
+    """Deleting a version in the editor (F14).
+
+    The website could not delete one. The admin could, and left every row that
+    was only in that version in no version — invisible in the editor, still in
+    the export: the two stray rows in the box's 2026-10-02 export came from a
+    version made in a click-through and deleted there. `DELETE` on the version
+    endpoint did the same thing, it was only that nothing called it.
+
+    The rule: what only that version holds goes with it, what another version
+    holds stays, the ballot pairs go. Refused for the base version, while a
+    game is running on the map, and for a version a game has already seen —
+    its routes' segments (`RouteSegment.edge` is CASCADE) and every vote cast
+    for it (`MapVersionVote.map_version` is CASCADE) would go with it, and
+    every move, route and result stays intact for research.
+    """
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="staff", password="password123", is_staff=True
+        )
+        self.client.force_login(self.user)
+        self.build_lattice()
+
+    def delete(self, version, map_pk=None):
+        return self.client.delete(
+            reverse(
+                "maps:mapversion-detail",
+                kwargs={"pk": map_pk or self.game_map.pk, "version_pk": version.pk},
+            )
+        )
+
+    def preview(self, version):
+        return self.client.get(
+            reverse(
+                "maps:mapversion-deletion",
+                kwargs={"pk": self.game_map.pk, "version_pk": version.pk},
+            )
+        )
+
+    def assertRefused(self, response, reason, *words):
+        self.assertEqual(response.status_code, 409, response.content)
+        body = response.json()
+        self.assertEqual(body["reason"], reason)
+        for word in words:
+            self.assertIn(word, body["detail"])
+        self.assertTrue(MapVersion.objects.filter(pk=self.neubau.pk).exists())
+
+    # --- what goes ----------------------------------------------------------
+
+    def test_it_takes_the_rows_only_that_version_holds(self):
+        only = self.only_in(self.neubau)
+        self.assertEqual(
+            {name: len(pks) for name, pks in only.items()},
+            {
+                "Node": 1,
+                "Edge": 2,
+                "StreetEdge": 2,
+                "TrainEdge": 0,
+                "BusLine": 1,
+                "TrainLine": 1,
+                "BusLineEdge": 2,
+                "TrainLineEdge": 2,
+            },
+            "the fixture has something of its own to delete",
+        )
+
+        response = self.delete(self.neubau)
+
+        self.assertEqual(response.status_code, 204, response.content)
+        self.assertFalse(MapVersion.objects.filter(pk=self.neubau.pk).exists())
+        self.assertEqual(
+            self.still_there(only), {model.__name__: set() for model in VERSIONED}
+        )
+
+    def test_it_leaves_no_row_in_no_version(self):
+        """The admin's old delete did exactly this, and the editor hid it."""
+        self.assertEqual(set(self.in_no_version().values()), {0})
+
+        self.delete(self.neubau)
+
+        self.assertEqual(set(self.in_no_version().values()), {0})
+
+    def test_every_other_version_keeps_what_it_held(self):
+        others = MapVersion.objects.filter(game_map=self.game_map).exclude(
+            pk=self.busspuren.pk
+        )
+        before = {version.name: self.held_by(version) for version in others}
+
+        response = self.delete(self.busspuren)
+
+        self.assertEqual(response.status_code, 204, response.content)
+        self.assertEqual(
+            {version.name: self.held_by(version) for version in others}, before
+        )
+
+    def test_a_change_its_combination_holds_takes_no_row_with_it(self):
+        """`Busspuren`'s clone is the combination's bus lane too."""
+        before = {model.__name__: model.objects.count() for model in VERSIONED}
+
+        self.delete(self.busspuren)
+
+        self.assertEqual(
+            {model.__name__: model.objects.count() for model in VERSIONED}, before
+        )
+        self.assertTrue(
+            StreetEdge.objects.filter(
+                map_versions=self.combination, dedicated_bus_lane=True
+            ).exists()
+        )
+
+    def test_its_ballot_pairs_go_with_it(self):
+        self.assertIn(self.busspuren, self.base.compatible_versions.all())
+
+        self.delete(self.busspuren)
+
+        for version in (self.base, self.combination):
+            with self.subTest(version=version.name):
+                self.assertNotIn(
+                    "Busspuren",
+                    set(version.compatible_versions.values_list("name", flat=True)),
+                )
+
+    def test_its_picture_goes_with_it(self):
+        self.neubau.change_img.save("neubau.png", ContentFile(b"png"), save=True)
+        path = self.neubau.change_img.path
+        self.assertTrue(os.path.exists(path))
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self.delete(self.neubau)
+
+        self.assertFalse(os.path.exists(path))
+
+    def test_the_graph_is_read_again_afterwards(self):
+        """A pin, green before F14 as well: every node lists its versions and
+        their ballot, and the graph is cached for an hour."""
+        url = reverse(
+            "maps:mapversion-graph",
+            kwargs={"pk": self.game_map.pk, "version_pk": self.base.pk},
+        )
+
+        def named_versions():
+            named = set()
+            for node in self.client.get(url).json()["nodes"]:
+                for version in node["map_versions"]:
+                    named |= {version["id"], *version["compatible_versions"]}
+            return named
+
+        self.assertIn(self.busspuren.pk, named_versions())
+
+        self.delete(self.busspuren)
+
+        self.assertNotIn(self.busspuren.pk, named_versions())
+
+    # --- what refuses it ----------------------------------------------------
+
+    def test_the_base_version_is_refused(self):
+        before = {model.__name__: model.objects.count() for model in VERSIONED}
+
+        response = self.delete(self.base)
+
+        self.assertRefused(response, "base", "Grundversion")
+        self.assertTrue(MapVersion.objects.filter(pk=self.base.pk).exists())
+        self.assertEqual(
+            {model.__name__: model.objects.count() for model in VERSIONED}, before
+        )
+
+    def test_a_running_game_on_the_map_refuses_it(self):
+        """Even on base: the class may vote for any version after the round."""
+        self.game(is_active=True, active_map_version=self.base)
+
+        self.assertRefused(self.delete(self.neubau), "running", "»Dienstag«")
+
+    def test_a_paused_game_is_still_running(self):
+        self.game(
+            is_active=True, active_map_version=self.base, paused_at=timezone.now()
+        )
+
+        self.assertRefused(self.delete(self.neubau), "running")
+
+    def test_a_game_in_the_lobby_does_not_refuse_it(self):
+        self.game()
+
+        self.assertEqual(self.delete(self.neubau).status_code, 204)
+
+    def test_an_ended_game_played_on_it_refuses_it(self):
+        self.ended_game(active_map_version=self.neubau)
+
+        self.assertRefused(self.delete(self.neubau), "played", "»Dienstag«")
+
+    def test_an_ended_game_that_had_it_on_the_ballot_refuses_it(self):
+        game = self.ended_game(active_map_version=self.base)
+        GameRound.objects.create(
+            game=game, round_number=1, vote_option_ids=[self.neubau.pk]
+        )
+
+        self.assertRefused(self.delete(self.neubau), "played")
+
+    def test_a_vote_cast_for_it_refuses_it(self):
+        game = self.ended_game(active_map_version=self.base)
+        game_round = GameRound.objects.create(game=game, round_number=1)
+        player = Player.objects.create(game=game, name="Ada")
+        MapVersionVote.objects.create(
+            game_round=game_round, player=player, map_version=self.neubau
+        )
+
+        self.assertRefused(self.delete(self.neubau), "played")
+
+    def test_a_route_over_its_streets_refuses_it(self):
+        """The data that would go: `RouteSegment.edge` is CASCADE."""
+        game = self.ended_game(active_map_version=self.base)
+        game_round = GameRound.objects.create(game=game, round_number=1)
+        player = Player.objects.create(game=game, name="Ada")
+        move = PlayerMove.objects.create(
+            session_round=game_round, player=player, action="submit"
+        )
+        route = AgentRoute.objects.create(
+            player_move=move,
+            agent_id=1,
+            transport_mode="car",
+            total_distance_m=100,
+            estimated_time_min=1,
+        )
+        edge = Edge.objects.get(pk=min(self.only_in(self.neubau)["Edge"]))
+        segment = RouteSegment.objects.create(
+            agent_route=route, order=0, edge=edge, mode="car"
+        )
+
+        self.assertRefused(self.delete(self.neubau), "played")
+        self.assertTrue(RouteSegment.objects.filter(pk=segment.pk).exists())
+
+    def test_a_game_that_never_saw_it_does_not_refuse_it(self):
+        game = self.ended_game(active_map_version=self.base)
+        game_round = GameRound.objects.create(
+            game=game, round_number=1, vote_option_ids=[self.busspuren.pk]
+        )
+        player = Player.objects.create(game=game, name="Ada")
+        MapVersionVote.objects.create(
+            game_round=game_round, player=player, map_version=self.busspuren
+        )
+
+        self.assertEqual(self.delete(self.neubau).status_code, 204)
+
+    # --- the question before it ---------------------------------------------
+
+    def test_the_preview_names_what_goes(self):
+        before = {model.__name__: model.objects.count() for model in VERSIONED}
+
+        response = self.preview(self.neubau)
+
+        self.assertEqual(response.status_code, 200, response.content)
+        body = response.json()
+        self.assertIsNone(body["refusal"])
+        self.assertEqual(
+            body["goes"],
+            {
+                "nodes": 1,
+                "edges": 2,
+                "streets": 2,
+                "rails": 0,
+                "bus_lines": ["200"],
+                "train_lines": ["U9"],
+                "line_links": 4,
+            },
+        )
+        self.assertEqual(body["keeps"], [])
+        self.assertEqual(
+            {model.__name__: model.objects.count() for model in VERSIONED},
+            before,
+            "asking deletes nothing",
+        )
+
+    def test_the_preview_of_a_change_names_the_combination_that_keeps_it(self):
+        body = self.preview(self.busspuren).json()
+
+        self.assertEqual(
+            body["goes"],
+            {
+                "nodes": 0,
+                "edges": 0,
+                "streets": 0,
+                "rails": 0,
+                "bus_lines": [],
+                "train_lines": [],
+                "line_links": 0,
+            },
+        )
+        self.assertEqual(body["keeps"], [self.combination.name])
+        self.assertEqual(
+            sorted(body["ballot"]), sorted([self.base.name, self.combination.name])
+        )
+
+    def test_the_preview_carries_the_refusal(self):
+        self.ended_game(active_map_version=self.neubau)
+
+        refusal = self.preview(self.neubau).json()["refusal"]
+
+        self.assertEqual(refusal["reason"], "played")
+        self.assertIn("»Dienstag«", refusal["detail"])
+
+    # --- who may ------------------------------------------------------------
+
+    def test_only_staff_may_delete_or_ask(self):
+        get_user_model().objects.create_user(username="gast", password="pw12345!X")
+        for login in ("gast", None):
+            self.client.logout()
+            if login:
+                self.client.force_login(get_user_model().objects.get(username=login))
+            with self.subTest(user=login):
+                self.assertEqual(self.delete(self.neubau).status_code, 403)
+                self.assertEqual(self.preview(self.neubau).status_code, 403)
+        self.assertTrue(MapVersion.objects.filter(pk=self.neubau.pk).exists())
+
+    def test_a_version_is_deleted_only_under_its_own_map(self):
+        other = GameMap.objects.create(name="Andere Karte")
+
+        response = self.delete(self.neubau, map_pk=other.pk)
+
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(MapVersion.objects.filter(pk=self.neubau.pk).exists())
+
+
+@override_settings(**TEST_BACKENDS)
+class DeletingAVersionInTheAdminTests(DeletingAVersionMixin, TestCase):
+    """The admin's delete runs the same cleanup — or it would not be a rule.
+
+    Both its doors: the delete page of one version and the list's bulk
+    "delete selected". A refusal shows as Django's "protected" list, which
+    re-renders the page and deletes nothing on POST.
+    """
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_superuser(
+            username="admin", password="password123"
+        )
+        self.client.force_login(self.user)
+        self.build_lattice()
+
+    def delete_page(self, version):
+        return reverse("admin:maps_mapversion_delete", args=[version.pk])
+
+    def test_its_delete_takes_the_same_rows(self):
+        only = self.only_in(self.neubau)
+
+        response = self.client.post(self.delete_page(self.neubau), {"post": "yes"})
+
+        self.assertEqual(response.status_code, 302, response.content)
+        self.assertFalse(MapVersion.objects.filter(pk=self.neubau.pk).exists())
+        self.assertEqual(
+            self.still_there(only), {model.__name__: set() for model in VERSIONED}
+        )
+        self.assertEqual(set(self.in_no_version().values()), {0})
+
+    def test_its_confirmation_names_what_goes(self):
+        page = self.client.get(self.delete_page(self.neubau)).content.decode()
+
+        self.assertIn("»200«", page)
+        self.assertIn("»U9«", page)
+
+    def test_it_refuses_the_base_version(self):
+        page = self.client.get(self.delete_page(self.base)).content.decode()
+        self.assertIn("Grundversion", page)
+
+        self.client.post(self.delete_page(self.base), {"post": "yes"})
+
+        self.assertTrue(MapVersion.objects.filter(pk=self.base.pk).exists())
+
+    def test_it_refuses_a_version_a_game_was_played_on(self):
+        self.ended_game(active_map_version=self.neubau)
+
+        self.client.post(self.delete_page(self.neubau), {"post": "yes"})
+
+        self.assertTrue(MapVersion.objects.filter(pk=self.neubau.pk).exists())
+        self.assertTrue(Node.objects.filter(pk__in=self.only_in(self.neubau)["Node"]))
+
+    def test_its_bulk_delete_takes_the_same_rows(self):
+        only = self.only_in(self.neubau)
+
+        response = self.client.post(
+            reverse("admin:maps_mapversion_changelist"),
+            {
+                "action": "delete_selected",
+                "_selected_action": [self.neubau.pk],
+                "post": "yes",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302, response.content)
+        self.assertFalse(MapVersion.objects.filter(pk=self.neubau.pk).exists())
+        self.assertEqual(
+            self.still_there(only), {model.__name__: set() for model in VERSIONED}
+        )
+
+    def test_its_bulk_delete_refuses_too(self):
+        self.client.post(
+            reverse("admin:maps_mapversion_changelist"),
+            {
+                "action": "delete_selected",
+                "_selected_action": [self.neubau.pk, self.base.pk],
+                "post": "yes",
+            },
+        )
+
+        self.assertTrue(MapVersion.objects.filter(pk=self.base.pk).exists())
+        self.assertTrue(MapVersion.objects.filter(pk=self.neubau.pk).exists())

@@ -19,6 +19,11 @@ urlpatterns = [
         views_rest.MapVersionDetailView.as_view(),
         name="mapversion-detail",
     ),
+    path(
+        "<int:pk>/versions/<int:version_pk>/deletion/",
+        views_rest.MapVersionDeletionView.as_view(),
+        name="mapversion-deletion",
+    ),
     # MapVersion Graph endpoint - get complete graph for a specific version
     path(
         "<int:pk>/graph/version/<int:version_pk>/",

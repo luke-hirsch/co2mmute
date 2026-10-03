@@ -100,6 +100,29 @@ export interface MapVersion {
   change_img_url: string | null;
 }
 
+/**
+ * What deleting a version would take, and whether it may (F14) — the answer
+ * to `GET api/maps/<id>/versions/<id>/deletion/`, asked before the dialog
+ * offers the button. `goes` is what only this version holds.
+ */
+export interface VersionDeletion {
+  version: { id: number; name: string };
+  refusal: { reason: "base" | "running" | "played"; detail: string } | null;
+  goes: {
+    nodes: number;
+    edges: number;
+    streets: number;
+    rails: number;
+    bus_lines: string[];
+    train_lines: string[];
+    line_links: number;
+  };
+  /** The versions it is paired with on the ballot. Those pairs go too. */
+  ballot: string[];
+  /** The versions built on it, which keep its change. */
+  keeps: string[];
+}
+
 export interface MapGraph {
   map_id: number;
   version_id: number;

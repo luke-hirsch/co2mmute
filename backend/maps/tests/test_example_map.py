@@ -891,6 +891,74 @@ class ShippedMapImportsTests(MapUploadMixin, TestCase):
                     {v.name for v in versions_built_on(version)}, expected
                 )
 
+    def test_deleting_a_version_leaves_the_other_seven_whole(self):
+        """F14's rule on the real lattice: `Busspuren`, whose every row its
+        three combinations hold as well, takes nothing but itself and its
+        three ballot pairs.
+
+        No row of this map is in one version only — the triple combination
+        holds every change — so this was green before F14 too. It is here so
+        a cleanup that ever reads "only in this version" wrong shows up on the
+        map that matters, not on a fixture.
+        """
+        from django.urls import reverse
+
+        from maps.models import (
+            BusLineEdge,
+            StreetEdge,
+            TrainEdge,
+            TrainLineEdge,
+        )
+
+        models = (
+            Node,
+            Edge,
+            StreetEdge,
+            TrainEdge,
+            BusLine,
+            TrainLine,
+            BusLineEdge,
+            TrainLineEdge,
+        )
+        game_map = self.upload_shipped_map()
+        versions = MapVersion.objects.filter(game_map=game_map)
+        victim = versions.get(name="Busspuren")
+
+        def held(version):
+            return {
+                model.__name__: set(
+                    model.objects.filter(map_versions=version).values_list(
+                        "pk", flat=True
+                    )
+                )
+                for model in models
+            }
+
+        def in_no_version():
+            return {
+                model.__name__: model.objects.filter(map_versions__isnull=True).count()
+                for model in models
+            }
+
+        others = list(versions.exclude(pk=victim.pk))
+        before = {version.name: held(version) for version in others}
+        strays = in_no_version()
+
+        response = self.client.delete(
+            reverse(
+                "maps:mapversion-detail",
+                kwargs={"pk": game_map.pk, "version_pk": victim.pk},
+            )
+        )
+
+        self.assertEqual(response.status_code, 204, response.content)
+        self.assertEqual({version.name: held(version) for version in others}, before)
+        self.assertEqual(in_no_version(), strays)
+        self.assertEqual(
+            sum(v.compatible_versions.count() for v in versions),
+            (BALLOT_PAIR_COUNT - 3) * 2,
+        )
+
     def test_the_lines_arrive_with_their_seats_and_their_speed(self):
         game_map = self.upload_shipped_map()
 

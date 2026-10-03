@@ -278,6 +278,15 @@ export function createVersionFromDiff(mapId: MapId, payload: VersionDiffPayload)
   });
 }
 
+/**
+ * Delete a version and what only it holds (F14). The server refuses the base
+ * version, a map with a game running on it and a version a game has seen, with
+ * a 409 whose `detail` is the sentence to show.
+ */
+export function deleteVersion(mapId: MapId, versionId: number) {
+  return apiFetch(`${base(mapId)}/versions/${versionId}/`, { method: "DELETE" });
+}
+
 // ── hooks ───────────────────────────────────────────────────────────────────
 // Thin wrappers. Each keeps exactly the invalidations its hook had before.
 
@@ -467,5 +476,12 @@ export const useCreateVersionFromDiff = (mapId: MapId) =>
   useMapMutation(
     mapId,
     (payload: VersionDiffPayload) => createVersionFromDiff(mapId, payload),
+    (id) => [mapEditorKeys.versions(id), mapEditorKeys.graph(id)] as const,
+  );
+
+export const useDeleteVersion = (mapId: MapId) =>
+  useMapMutation(
+    mapId,
+    (versionId: number) => deleteVersion(mapId, versionId),
     (id) => [mapEditorKeys.versions(id), mapEditorKeys.graph(id)] as const,
   );

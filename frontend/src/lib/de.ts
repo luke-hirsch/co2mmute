@@ -1500,6 +1500,42 @@ export const de = {
       generated: (n: number) =>
         `${n} ${n === 1 ? "Kombination" : "Kombinationen"} angelegt.`,
       changeImageAlt: "Vorschau der Änderung",
+
+      /**
+       * F14: deleting a version. The dialog asks the server what goes before it
+       * offers the button, and names it — the admin's delete used to take the
+       * bare version and leave its streets in no version, where nobody could
+       * see them and the export still carried them. A refusal is the server's
+       * own sentence, shown as it comes.
+       */
+      deleteVersion: "Version löschen",
+      deleteTitle: (name: string) => `Version „${name}“ löschen?`,
+      deleteLead:
+        "Das lässt sich nicht zurücknehmen. Sichere die Karte vorher als JSON, wenn du die Version noch brauchst.",
+      deleteAsking: "Wird nachgesehen, was mitgeht …",
+      deleteGoes: "Nur in dieser Version, das geht mit:",
+      deleteGoesNothing:
+        "Alles in ihr steht auch in anderen Versionen – es geht nur die Version selbst.",
+      deleteBallot: (list: string) =>
+        `Sie fällt aus der Abstimmung: von ${list} aus steht sie nicht mehr zur Wahl.`,
+      deleteKeeps: (list: string) => `Ihre Änderung bleibt in ${list} erhalten.`,
+      deleteConfirm: "Endgültig löschen",
+      deleting: "Wird gelöscht …",
+      deleteFailed: "Die Version ließ sich nicht löschen.",
+      deleteAskFailed: "Es ließ sich nicht nachsehen, was mit der Version geht.",
+      /** One line of "das geht mit", per kind of row. */
+      goes: {
+        nodes: (n: number) => `${n} Knoten`,
+        edges: (n: number) => `${n} ${n === 1 ? "Kante" : "Kanten"}`,
+        streets: (n: number) => `${n} ${n === 1 ? "Straße" : "Straßen"}`,
+        rails: (n: number) => `${n} ${n === 1 ? "Gleis" : "Gleise"}`,
+        busLines: (n: number, list: string) =>
+          `${n === 1 ? "die Buslinie" : "die Buslinien"} ${list}`,
+        trainLines: (n: number, list: string) =>
+          `${n === 1 ? "die Bahnlinie" : "die Bahnlinien"} ${list}`,
+        lineLinks: (n: number) =>
+          `${n} ${n === 1 ? "Abschnitt" : "Abschnitte"} von Linien`,
+      },
     },
 
     /**

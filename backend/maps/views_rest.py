@@ -13,6 +13,7 @@ from rest_framework.generics import (
     RetrieveUpdateDestroyAPIView,
 )
 from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 
 from maps import graph_cache
@@ -50,9 +51,12 @@ from maps.serializer import (
 )
 from maps.portability import build_export
 from maps.versions import (
+    VersionDeleteRefused,
     bus_chain_rows,
     combination_members,
     combination_poll_texts,
+    delete_version,
+    deletion_preview,
     drop_rows_from,
     put_rows_in,
     spread_to_built_on,
@@ -137,15 +141,53 @@ class MapVersionListView(MapScopedQuerysetMixin, ListCreateAPIView):
 
 
 class MapVersionDetailView(RetrieveUpdateDestroyAPIView):
-    """Retrieve, update, or delete a specific map version."""
+    """Retrieve, update, or delete a specific map version.
 
-    queryset = MapVersion.objects.all()
+    Scoped to the map in the URL since F14: the lookup used to ignore it, so
+    any version answered under any map.
+    """
+
     serializer_class = MapVersionSerializer
     authentication_classes = (SessionAuthentication,)
     permission_classes = (IsStaffOrReadOnly,)
     parser_classes = (MultiPartParser, FormParser)
     lookup_field = "pk"
     lookup_url_kwarg = "version_pk"
+
+    def get_queryset(self):
+        return MapVersion.objects.filter(game_map_id=self.kwargs["pk"])
+
+    def destroy(self, request, *args, **kwargs):
+        """Through `delete_version`, the one cleanup the admin runs too.
+
+        Nothing called this before F14, and it deleted the bare row: the base
+        version (some other version was then promoted in its place), a version
+        under a running game, and every row only it held left in no version.
+        """
+        try:
+            delete_version(self.get_object())
+        except VersionDeleteRefused as refusal:
+            return Response(
+                {"detail": refusal.detail, "reason": refusal.reason},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class MapVersionDeletionView(GenericAPIView):
+    """What deleting a version would take, and whether it may — the editor's
+    dialog asks this before it offers the button. Writes nothing.
+
+    Staff only, not read-only for everyone like the rest of the map: a refusal
+    names the games on the map.
+    """
+
+    authentication_classes = (SessionAuthentication,)
+    permission_classes = (IsAdminUser,)
+
+    def get(self, request, pk, version_pk):
+        version = get_object_or_404(MapVersion, pk=version_pk, game_map_id=pk)
+        return Response(deletion_preview(version))
 
 
 class GenerateCombinationsView(GenericAPIView):

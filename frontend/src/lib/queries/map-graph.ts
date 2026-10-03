@@ -16,7 +16,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ApiError, apiFetch, csrfToken } from "@/lib/api";
 import type { ExtendedMapGraph } from "@/types/routeTypes";
-import type { GameMap, MapVersion, NodeType } from "@/types/mapTypes";
+import type { GameMap, MapVersion, NodeType, VersionDeletion } from "@/types/mapTypes";
 
 export const mapKeys = {
   graph: (
@@ -144,6 +144,27 @@ export function useMapVersions(mapId: string | number) {
     queryKey: ["mapVersions", mapId],
     queryFn: () => apiFetch(`/api/maps/${mapId}/versions/`),
     enabled: !!mapId,
+  });
+}
+
+/**
+ * What deleting a version would take, asked when the dialog opens (F14).
+ *
+ * Under `["mapVersions", mapId]`, so every write that invalidates the version
+ * list asks again — and never kept: what goes depends on every other version,
+ * and a game that started since the last look refuses the delete.
+ */
+export function useVersionDeletion(
+  mapId: string | number,
+  versionId: number | null,
+  enabled = true,
+) {
+  return useQuery<VersionDeletion>({
+    queryKey: ["mapVersions", mapId, versionId, "deletion"],
+    queryFn: () => apiFetch(`/api/maps/${mapId}/versions/${versionId}/deletion/`),
+    enabled: enabled && !!mapId && versionId !== null,
+    staleTime: 0,
+    gcTime: 0,
   });
 }
 
