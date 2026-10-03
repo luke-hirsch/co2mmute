@@ -1,10 +1,10 @@
-import { useEffect, useRef } from "react";
+import { Fragment, useEffect, useRef } from "react";
 
 import { Lockup } from "@/components/layout/lockup";
 import { NavLink } from "@/components/layout/nav-link";
 import { de } from "@/lib/de";
 import { cn } from "@/lib/utils";
-import { placeBelow } from "@/lib/nav-href";
+import { placeBelow, startsLanguageGroup } from "@/lib/nav-href";
 import { type NavItem, useNavigation } from "@/lib/queries/navigation";
 
 /**
@@ -127,13 +127,17 @@ export function AppHeader() {
                           <Chevron className="group-open:rotate-180" />
                         </summary>
                         <div className="mt-2 space-y-2">
-                          {item.children.map((child) => (
-                            <NavLink
-                              key={child.id}
-                              item={child}
-                              onFollow={closeMenu}
-                              className="block rounded-lg py-2 pr-3 pl-6 text-sm/7 font-medium transition hover:bg-muted"
-                            />
+                          {item.children.map((child, index, children) => (
+                            <Fragment key={child.id}>
+                              {startsLanguageGroup(children, index) ? (
+                                <hr className="ml-6 border-border" />
+                              ) : null}
+                              <NavLink
+                                item={child}
+                                onFollow={closeMenu}
+                                className="block rounded-lg py-2 pr-3 pl-6 text-sm/7 font-medium transition hover:bg-muted"
+                              />
+                            </Fragment>
                           ))}
                         </div>
                       </details>
@@ -230,13 +234,17 @@ function Flyout({ item }: { item: NavItem }) {
         popover="auto"
         className="absolute inset-auto m-0 w-56 translate-y-1 rounded-lg border border-border bg-card p-2 text-foreground opacity-0 shadow-sm transition transition-discrete duration-150 ease-out open:translate-y-0 open:opacity-100 starting:open:translate-y-1 starting:open:opacity-0"
       >
-        {item.children?.map((child) => (
-          <NavLink
-            key={child.id}
-            item={child}
-            onFollow={() => panel.current?.hidePopover()}
-            className="block rounded-md px-3 py-2 text-sm/6 font-medium transition hover:bg-muted"
-          />
+        {item.children?.map((child, index, children) => (
+          <Fragment key={child.id}>
+            {startsLanguageGroup(children, index) ? (
+              <hr className="mx-3 my-2 border-border" />
+            ) : null}
+            <NavLink
+              item={child}
+              onFollow={() => panel.current?.hidePopover()}
+              className="block rounded-md px-3 py-2 text-sm/6 font-medium transition hover:bg-muted"
+            />
+          </Fragment>
         ))}
       </div>
     </div>

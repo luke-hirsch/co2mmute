@@ -1,0 +1,302 @@
+{% extends "docs/page.html" %}
+
+{% comment %}
+  docs/de-hintergrund.md up to its calibration chapter, section for section
+  (S23; under /docs/ since F13). The calibration chapter is a guide for
+  whoever runs the repository and stays in docs/ only. The English twin is
+  docs/en/background.html.
+{% endcomment %}
+
+{% block title %}CO2MMUTE – Hintergrund{% endblock %}
+
+{% block description %}Wie die Verkehrssimulation hinter CO2mmute rechnet: Warteschlangen auf den Straßen, ein ÖPNV-Fahrplan, in den Menschen einsteigen, und CO₂ und Kosten, die von der Geschwindigkeit abhängen.{% endblock %}
+
+{% block kicker %}Start: die Simulation{% endblock %}
+
+{% block heading %}Was hinter einer Runde steckt{% endblock %}
+
+{% block lead %}
+<p>
+  Die Idee zum Spiel stammt aus der
+  <a href="{{ repository_url }}/blob/main/master_thesis.pdf" class="text-link">Masterarbeit</a>
+  von Sebastian Werblinski an der Freien Universität Berlin (2025). Der
+  Code hier ist eine vollständige Neuentwicklung an der TU Berlin und
+  keine Fortsetzung seines Prototyps; das Verkehrsmodell ist dabei neu
+  gebaut worden. Hier steht, wie es rechnet und woher seine Zahlen
+  kommen.
+</p>
+{% endblock %}
+
+{% block stations %}
+<li><a href="#simulation">Simulation</a></li>
+<li><a href="#modell">Modell</a></li>
+<li><a href="#fahrplan">Der Fahrplan</a></li>
+<li><a href="#co2">CO<sub>2</sub> und Kosten</a></li>
+<li><a href="#zufall">Zufall</a></li>
+<li><a href="#einheiten">Einheiten</a></li>
+{% endblock %}
+
+{% block doc %}
+<section id="simulation" data-station>
+  <h2>Simulation</h2>
+  <p>Eine Runde simuliert das Pendelverhalten von tausenden Menschen. Dabei muss die
+  Simulation folgende Fragen beantworten:</p>
+  <ol>
+    <li>Mit welchem Verkehrsmittel ist man am schnellsten?</li>
+    <li>Mit welchem Verkehrsmittel ist man am kostengünstigsten unterwegs?</li>
+    <li>Mit welchem Verkehrsmittel setzt man am wenigsten CO<sub>2</sub> in die Atmosphäre
+    frei?</li>
+  </ol>
+</section>
+<section id="modell" data-station>
+  <h2>Modell</h2>
+  <p>CO2mmute simuliert den Verkehr mit einem mesoskopischen Modell. Dabei bilden Fahrzeuge
+  eine Schlange auf einem Streckenabschnitt, ohne eine genaue Position auf diesem Abschnitt
+  zu haben. Streckenabschnitte sind die Kanten (Edges) eines Graphen. Wo Streckenabschnitte
+  zusammenlaufen, liegen Knoten (Nodes).</p>
+  <h3>Eine Kante sind drei Zahlen</h3>
+  <p>Für die Simulation hat jede Kante drei Kernzahlen:</p>
+  <pre>Freiflusszeit      t0 = Länge / Tempolimit
+Abflusskapazität   Q  = 1.800 Fahrzeuge/h je Autospur
+Speicherkapazität  S  = 133 Fahrzeuge/km je Autospur × Länge</pre>
+  <p>Wir nehmen 1.800 Fz/h und Spur als die Sättigungsverkehrsstärke einer städtischen Spur.
+  133 Fz/km und Spur ist die Dichte im Stillstand: ein Fahrzeug je 7,5&nbsp;m, Stoßstange an
+  Stoßstange. Eine 900&nbsp;m lange einspurige Straße fasst also rund 120 stehende Fahrzeuge
+  und lässt in einem Fünf-Minuten-Tick rund 150 durch.</p>
+  <p>Spuren werden gezählt, wie sie auf der Straße liegen. Dabei gilt:</p>
+  <pre>Autospuren = Spuren − (1 bei Busspur) − (1 bei Radspur)</pre>
+  <p>Die Zahl ist nach unten auf null begrenzt, und <strong>null Autospuren sind
+  erlaubt</strong>: Die Straße wird zur <em>Busschleuse</em> – für Autos gesperrt, offen für
+  Busse und wahlweise auch für Räder und Fußgänger.</p>
+  <h3>Ein Tick</h3>
+  <ol>
+    <li>Jede Kante bekommt ihr Budget für den Tick: <code>Q × Ticklänge</code>.</li>
+    <li>Alle, deren Abfahrtsminute gekommen ist, versuchen auf ihre erste Kante zu
+    kommen.</li>
+    <li>Ein Fahrzeug darf eine Kante nicht vor Ablauf von <code>t0</code> verlassen. Die
+    Freiflusszeit ist die Untergrenze der Fahrt; schneller als das Tempolimit geht nie.</li>
+    <li>Danach reiht es sich in die Schlange der Kante ein und wartet auf Budget. Auf einer
+    Spur ist das eine einzige FIFO-Schlange. Ab zwei Autospuren hat jede nächste Kante ihre
+    eigene, eine Abbiegespur, und alle teilen sich das Budget und den Speicher der
+    Straße.</li>
+    <li>Weiter darf es nur, wenn die <strong>nächste</strong> Kante noch Speicher frei hat.
+    Wenn nicht, bleibt es stehen, und alles dahinter in seiner Schlange auch: auf einer Spur
+    also alle, ab zwei Spuren nur, wer in dieselbe Richtung will. Ein Stau entsteht.</li>
+    <li>Innerhalb des Ticks wiederholen, bis sich nichts mehr bewegt. Ein Fahrzeug schafft
+    in fünf Minuten mehrere kurze Kanten. Die Kanten werden dabei jeden Tick in neu gemischter
+    Reihenfolge bedient: Münden mehrere in denselben Knoten, ist über eine Runde jede gleich
+    oft als erste dran. Das ist das Reißverschlussprinzip, im Mittel statt Auto für
+    Auto.</li>
+  </ol>
+  <p>Stau entsteht also aus zwei Mechanismen: Eine Kante lässt nur <code>Q</code> Fahrzeuge
+  pro Stunde ab, und eine volle Kante hält die Kante auf, die sie speist. So wachsen
+  Schlangen rückwärts durch das Netz, wie auf einer echten Straße. Ab zwei Spuren weicht das
+  bewusst von MATSim ab, wo eine Kante bei jeder Breite eine einzige Schlange hat: Wer in
+  eine volle Straße abbiegen will, hält dort die nicht auf, die woandershin wollen.</p>
+  <figure>
+    {% include "hintergrund/kante.svg" %}
+    <figcaption>Oben fährt jedes Auto seine Freiflusszeit <code>t0</code> ab und reiht sich
+    am Ende kurz ein, bevor die Kante es mit <code>Q</code> abgibt. Unten ist die nächste
+    Kante voll: Niemand fährt ab, die Schlange füllt den ganzen Speicher <code>S</code>, und
+    wer ankommt, kommt nicht mehr hinein.</figcaption>
+  </figure>
+  <h3>Die Mindestgeschwindigkeit</h3>
+  <p>Viele Verkehrsmodelle rechnen eine Geschwindigkeit aus dem Verhältnis von Belastung zu
+  Kapazität und müssen deshalb verhindern, dass sie null erreicht. Wir erinnern uns: Durch
+  null teilen sollte man vermeiden. Ein Warteschlangenmodell hat diesen Term nicht. Ein
+  Fahrzeug wird freigegeben oder nicht, und auf der Eingabeseite steht nirgends eine
+  Geschwindigkeit. Eine Mindestgeschwindigkeit braucht es deshalb nicht.</p>
+  <p>Dafür kann sich das Netz wirklich verklemmen: ein Ring aus Kanten, jede voll mit
+  Fahrzeugen, die auf die nächste wollen.</p>
+  <p>Ein Knoten, der vier Ticks hintereinander nichts bewegt hat, gibt deshalb trotzdem ein Fahrzeug
+  frei, über die Speichergrenze hinweg, und wartet dann wieder vier Ticks. Jede Freigabe wird
+  gezählt. Ein
+  <code>forced_releases</code> über null im Tick-Log ist kein Fehler, aber ein Grund, das
+  Log zu lesen.</p>
+  <p>Ein Durchlauf läuft, bis alle angekommen sind. Eine Uhr, nach der der Rest einfach nicht
+  mehr mitzählt, gibt es nicht. Die Grenze von 1000 Ticks pro Weg fängt nur einen Fehler im
+  Modell ab und wird als Fehler geloggt. Auf Berlin Mitte-West braucht ein gespielter Weg
+  höchstens 35 Ticks, bei vierfacher Nachfrage und nur einspurigen Straßen 153.</p>
+  <h3>Geschwindigkeit ist ein Ergebnis</h3>
+  <p>Die mittlere Geschwindigkeit einer Kante ist ihre Länge geteilt durch die
+  <strong>tatsächlich auf ihr beobachteten</strong> Fahrzeiten. Gezählt werden dabei nur
+  Autos: Ein Fußgänger braucht zehn Minuten für eine Kante, die ein Auto in einer Minute
+  schafft, und ließe man ihn in den Mittelwert, meldete eine leere Straße Stau. Einen
+  Stau-Faktor, mit dem eine Freiflussgeschwindigkeit multipliziert wird, gibt es nicht.</p>
+  <p>Die Geschwindigkeit auf der Karte, der CO<sub>2</sub>-Faktor einer Fahrt und die
+  Routenvorschau, die ein Spieler in der nächsten Runde bekommt, beruhen also alle auf
+  derselben gemessenen Zahl.</p>
+  <h3>Wer trägt alles zum Stau bei?</h3>
+  <ul>
+    <li><strong>Autos</strong> immer.</li>
+    <li><strong>Busse</strong> stehen im Mischverkehr und fahren auf einer eigenen Busspur
+    frei. Ein Bus zählt 3 Pkw-Einheiten, nimmt in der gemeinsamen Schlange also den Platz
+    von drei Autos ein. Er steht immer in der Schlange seiner Fahrtrichtung, auch wo die
+    Linie auf der Karte auf der Gegenrichtung eingezeichnet ist.</li>
+    <li><strong>Räder</strong> stehen nur dort im Verkehr, wo sie sich die Straße mit Autos
+    teilen. Ein Rad hat auf der Kante eine eigene Schlange mit eigenem Abflussbudget von
+    2.000 Rädern/h. Ein Autostau hält also keinen Radfahrer auf und ein Radfahrer keinen
+    Autofahrer. Den <em>Speicher</em> der Kante teilen sie sich aber: Ein Rad zählt 0,2
+    Pkw-Einheiten, und so nehmen tausend Radfahrer den Autos Platz weg. Abgewiesen wird ein
+    Rad nie, auch nicht von einer vollen Straße.</li>
+    <li><strong>Fußgänger</strong> stehen ganz außerhalb des Warteschlangenmodells.</li>
+  </ul>
+  <h3>Hin und zurück</h3>
+  <p>Ein Pendelweg besteht aus Hin- und Rückweg, und eine Runde rechnet beide. Der Rückweg ist
+  keine Umkehrung des Hinwegs, sondern eine eigene Suche auf dem Graphen, mit demselben
+  Verkehrsmittel und derselben Wahl: Der Graph ist gerichtet, eine Einbahnstraße ist eine
+  Kante ohne Gegenkante, und der Weg zurück kann dann ein anderer sein, im Extremfall ein
+  Kreis. Auf Berlin Mitte-West hat jede Kante ihre Gegenkante, dort ist der Rückweg derselbe
+  Weg andersherum. Gibt es keinen Weg zurück, lässt sich der Weg hin nicht abschicken.</p>
+  <p>Zwischen den beiden Spitzen liegen Stunden. Der Abend ist deshalb ein zweiter Durchlauf auf
+  einem frischen Netz und kein zweiter Teil derselben Uhr. Auf einer Uhr würden die Linien den
+  ganzen Tag weiterfahren, weil die Leute vom Abend schon in der Liste warten, und die
+  Gesellschaft würde CO<sub>2</sub> für Busse zahlen, die niemand besteigen kann. So fährt der
+  Fahrplan zweimal, und beide Fahrpläne zählen. CO<sub>2</sub> und Kosten einer Gruppe sind die
+  Summe beider Wege, ihre Fahrzeit ist die für Hin- und Rückweg zusammen, gemittelt über die
+  Gruppen. Weil in einer Runde damit alles zweimal anfällt, ist das Budget pro Runde doppelt so
+  groß wie für einen Weg.</p>
+  <p>Der Abend ist heute ein Abbild des Morgens, mit derselben Streuung der Abfahrten. Die
+  Wiedergabe zeigt beide Wege, dazwischen eine kurze Mittagspause.</p>
+</section>
+<section id="fahrplan" data-station>
+  <h2>Der ÖPNV fährt einen Fahrplan</h2>
+  <p>Ein Linienfahrzeug ist in der Simulation ein <strong>ganz normales Fahrzeug auf einer
+  künstlichen Route</strong>. Ein Bus steht deshalb in der Schlange und staut zurück wie
+  jedes Auto, es sei denn, er hat eine eigene Busspur.</p>
+  <p>Menschen steigen an Haltestellen ein, die nach Linie <em>und</em> Knoten unterschieden
+  werden: Wer auf die M1 wartet, steigt nicht in die U7. Einsteigen kann man nur, wenn Platz
+  ist, sonst wartet man weiter. Plätze werden frei, wenn jemand aussteigt. Beim Umsteigen
+  wartet man erneut, diesmal auf die neue Linie. Die Wartezeit wird gemessen und
+  <strong>ausgewiesen, nicht addiert</strong>: Die Uhr läuft seit der Minute, in der die
+  Person losfahren wollte, das Stehen an der Haltestelle steckt also schon in der Fahrzeit.
+  Haltezeiten sind nicht modelliert; ein Fahrzeug bedient seine Haltestelle in dem
+  Augenblick, in dem es ankommt.</p>
+  <p>Eine Linie fährt ihren Fahrplan, ob jemand mitfährt oder nicht:</p>
+  <blockquote>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2 9 3-3 3 3" /><path d="M13 18H7a2 2 0 0 1-2-2V6" /><path d="m22 15-3 3-3-3" /><path d="M11 6h6a2 2 0 0 1 2 2v10" /></svg>
+    <p><strong>Die Gesellschaft bezahlt den Fahrplan.</strong> Eine Linie stößt
+    <code>Fahrzeuge × Linienkilometer × Faktor</code> aus. Auch ein leerer Bus stößt
+    CO<sub>2</sub> aus, und eine Linie, die niemand benutzt hat, kostet die Runde
+    trotzdem.</p>
+  </blockquote>
+  <p>Der Fahrplan deckt das Abfahrtsfenster von zwei Stunden ab. Danach fährt eine Linie
+  weiter, solange noch jemand unterwegs ist, im Auto, auf dem Rad, zu Fuß, im Bus oder an
+  einer Haltestelle, auch wenn niemand mitfährt: Busse fahren auch in den ruhigen Stunden.
+  Steckt der letzte Autofahrer im Stau, fahren die Linien weiter, und die Gesellschaft
+  bezahlt sie. Am meisten macht das aus, wenn viele umsteigen: Mit Bus und Bahn ist man
+  länger unterwegs als mit dem Auto, und solange einer noch unterwegs ist, fahren alle
+  Linien.</p>
+  <p>Auf die Mitfahrenden verteilt wird diese Summe nach <strong>Personenkilometern</strong>,
+  nicht pro Kopf: Wer auf einer 13&nbsp;km langen Linie eine Station fährt, soll nicht den
+  Anteil einer ganzen Fahrt tragen, während das Auto daneben nach Kilometern abgerechnet
+  wird. Die persönlichen Anteile ergeben zusammen genau die Summe der Linie:
+  <code>Σ persönlich = Gesellschaft</code>.</p>
+  <p>Die Summe einer Runde sind deshalb die Zeilen der Spieler <strong>plus</strong> die
+  Gesellschaftskosten der Linien, die niemand benutzt hat.</p>
+</section>
+<section id="co2" data-station>
+  <h2>CO<sub>2</sub> und Kosten hängen an einer Geschwindigkeitskurve</h2>
+  <p>Emissionen sind kein fester Wert pro Kilometer. Ein Auto im Stop-and-go verbrennt
+  Kraftstoff, den es nicht in Strecke umsetzt, und ein Auto bei 130&nbsp;km/h kämpft gegen den
+  Luftwiderstand. Das Modell benutzt einen geschwindigkeitsabhängigen Emissionsfaktor der
+  COPERT/HBEFA-Form:</p>
+  <pre>EF(v) = a/v + b + c·v²          Gramm CO₂ pro Fahrzeugkilometer</pre>
+  <p><code>a/v</code> ist Leerlauf und Stop-and-go, ein fester Verbrauch, verteilt auf
+  weniger Kilometer; <code>c·v²</code> ist der Luftwiderstand; <code>b</code> ist alles, was
+  allein mit der Strecke skaliert. <code>a</code> und <code>b</code> sind <strong>keine
+  freien Parameter</strong>, sie folgen aus <code>c</code> und zwei Bedingungen:</p>
+  <pre>1.  das Minimum der Kurve liegt bei 70 km/h  →  a = 2c · v_min³           = 1962,3 g/h
+2.  EF(50) = 166,8 g/km, der Autofaktor      →  b = 166,8 − a/50 − c·50²  = 120,4 g/km</pre>
+  <p>mit <code>c = 0,0028605</code>. So gilt der Ankerwert bei 50&nbsp;km/h exakt, und frei
+  gewählt ist nur noch eine Zahl statt drei.</p>
+  <div class="doc-table"><table>
+  <thead><tr><th scope="col">km/h</th><th scope="col" class="num">10</th><th scope="col" class="num">20</th><th scope="col" class="num">30</th><th scope="col" class="num">40</th><th scope="col" class="num">50</th><th scope="col" class="num">70</th><th scope="col" class="num">100</th></tr></thead>
+  <tbody>
+  <tr><td>g CO<sub>2</sub>/km</td><td class="num">317</td><td class="num">220</td><td class="num">188</td><td class="num">174</td><td class="num">166,8</td><td class="num">162,5</td><td class="num">169</td></tr>
+  <tr><td>× Basiswert</td><td class="num">1,90</td><td class="num">1,32</td><td class="num">1,13</td><td class="num">1,04</td><td class="num">1,00</td><td class="num">0,97</td><td class="num">1,01</td></tr>
+  </tbody></table></div>
+  <p><code>a/v</code> wächst ohne Grenze, wenn die Geschwindigkeit gegen null geht. Deshalb
+  ist <strong>der Faktor bei 2,00× gedeckelt</strong>, statt die Geschwindigkeit nach unten
+  zu begrenzen: Schlimmstenfalls stößt ein Auto doppelt so viel aus wie bei 50&nbsp;km/h. Der
+  Deckel greift unterhalb von 9,2&nbsp;km/h.</p>
+  <figure>
+    {% include "hintergrund/co2-kurve.svg" %}
+    <figcaption>Gramm CO<sub>2</sub> pro Kilometer über der mittleren Geschwindigkeit auf
+    einer Kante. Der Anker liegt bei 50&nbsp;km/h, das Minimum bei 70&nbsp;km/h, und unterhalb von 9,2
+    km/h hält der Deckel die Kurve bei 333,6&nbsp;g.</figcaption>
+  </figure>
+  <p>Daraus folgt:</p>
+  <ul>
+    <li><strong>Eine Tempo-30-Straße stößt pro Kilometer rund 13&nbsp;% mehr aus als eine 50er,
+    auch leer.</strong> Das ist in jedem geschwindigkeitsabhängigen Modell so, und 34 der 82
+    Straßenkanten der ausgelieferten Karte sind 30er-Zonen. Das hebt die Emissionen einer
+    Runde schon ohne Stau an.</li>
+    <li><strong>Die Kosten hängen mit halbem Gewicht an derselben Kurve.</strong> Die Hälfte
+    der 0,32 €/km ist Kraftstoff und Verschleiß im Stop-and-go und folgt dem
+    Emissionsfaktor; die andere Hälfte (Abschreibung, Versicherung, Steuer) fällt an, ob das
+    Auto heute fährt oder nicht. Die Kosten sind deshalb bei 1,50× gedeckelt,
+    CO<sub>2</sub> bei 2,00×.</li>
+  </ul>
+  <p>Beim ÖPNV gilt ein fester Wert pro Fahrzeugkilometer: 1.200&nbsp;g für einen Bus,
+  1.500&nbsp;g für einen Zug. Eine Geschwindigkeitskurve gibt es hier nicht, weil die
+  Fahrzeuge nach Fahrplan fahren und nicht nach Verkehrslage.</p>
+  <p>Neben den Kosten steht der <strong>Fahrpreis</strong>: 1,30&nbsp;€ pro Fahrt, Umstiege
+  eingeschlossen, und beim Auto der Teil der Kosten, den man aus der eigenen Tasche zahlt.
+  Es gibt also einen Unterschied zwischen <em>was du zahlst</em> und <em>was es
+  kostet</em>, den man bei der Rundenauswertung benennen sollte.</p>
+  <p>Das <strong>Rad</strong> kostet 0,03&nbsp;€/km: Verschleiß, Reparaturen, Wertverlust
+  und, im Mittel, Diebstahl. Das zahlt man ganz selbst, also ist es beides, <em>was du
+  zahlst</em> und <em>was es kostet</em>, und es hängt an keiner Kurve, denn ein Stau nutzt
+  keine Kette ab. Zu Fuß kostet nichts. Nicht eingerechnet ist der Nutzen für die
+  Gesundheit; mit ihm wären Rad und Fußweg für die Gesellschaft billiger als umsonst. Ob er
+  in die Rechnung gehört, ist noch offen.</p>
+</section>
+<section id="zufall" data-station>
+  <h2>Zufälle gibt's</h2>
+  <p>Dieselben Entscheidungen ergeben in zwei Runden nicht ganz dieselben Zahlen. Das ist
+  gewollt. Jede Runde zieht ihre Zufallszahlen aus einem Generator, dessen Seed aus der
+  Runde abgeleitet wird; dieselbe Runde lässt sich also jederzeit identisch
+  nachspielen.</p>
+  <p>Zufällig sind genau zwei Dinge:</p>
+  <ul>
+    <li><strong>Die Kapazität einer Kante, einmal je Kante und Runde gezogen</strong> (σ =
+    0,14, begrenzt auf 0,6–1,4×). Nur sie sorgt dafür, dass sich Runde 2 von Runde 1
+    unterscheidet, weil sich Rauschen pro Fahrer über tausende Menschen herausmittelt.</li>
+    <li><strong>Die Wunschgeschwindigkeit, einmal je Fahrer gezogen</strong> (σ = 0,12,
+    begrenzt auf 0,7–1,4×), für die Streuung <em>innerhalb</em> einer Runde. Auf einer
+    mehrspurigen Straße ist die Schlange danach geordnet, wann ein Fahrzeug bereit ist, und
+    nicht streng nach dem Eintreffen. So entsteht Überholen, ohne dass es dafür einen
+    eigenen Mechanismus braucht.</li>
+  </ul>
+  <p>Das <em>Ergebnis</em> wird nie mit einer Zufallszahl multipliziert. Zufällig sind nur
+  die Eingaben, und nahe der Kapazität verstärkt das Modell ihre Schwankungen. Im freien
+  Fluss streut eine Runde deshalb kaum (Variationskoeffizient rund 0,3&nbsp;%), unter Last
+  deutlich (16–18&nbsp;%). Wie im echten Verkehr ist eine leere Straße vorhersehbar und ein
+  Stau nicht.</p>
+  <p><strong>Verspätung wird gegen die eigene Freiflusszeit des Fahrers gemessen.</strong>
+  Wer in einer 50er-Zone lieber 45 fährt, ist dadurch nicht verspätet.</p>
+</section>
+<section id="einheiten" data-station>
+  <h2>Einheiten</h2>
+  <p>Eine Gruppe (in der Forschung Agent genannt) steht für viele Pendler, und aus diesem
+  Faktor stammen die meisten Einheitenfehler dieses Projekts. Zwei Regeln:</p>
+  <ul>
+    <li>Eine CO<sub>2</sub>- oder Euro-Zahl ist <strong>extensiv</strong>: Sie summiert über
+    Gruppen und über die Menschen hinter jeder Gruppe. Pro Person heißt: durch beides
+    teilen.</li>
+    <li>Eine Fahrzeit ist es <strong>nicht</strong>: Zwei Gruppen mit je 30&nbsp;Minuten
+    Fahrzeit brauchen zusammen nicht 60. Die Fahrzeit einer Gruppe ist Hin- und Rückweg
+    zusammen, eine mittlere Fahrzeit ein Mittel über die Gruppen.</li>
+  </ul>
+  <p>Wie groß der Faktor ist, wählt niemand; er wird aus der Karte abgeleitet.</p>
+</section>
+{% endblock %}
+
+{% block end_heading %}Jetzt sehen, was das für eine Runde bedeutet{% endblock %}
+
+{% block end_lead %}
+Der Rest steht auf der Karte: wie viele Menschen eine Gruppe
+vertritt, welches Budget eine Runde hat und welche Linien
+tatsächlich fahren.
+{% endblock %}

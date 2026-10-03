@@ -401,8 +401,9 @@
     left: calc(var(--lane-w) / 2 - var(--dot) / 2 - var(--col-pad));
   }
 
-  /* /hintergrund/: one line, not four. The page is the detour above, so it
-     runs on the public-transport line, centred where the bundle runs so the
+  /* the docs under /docs/ (the background was the first, S23): one line, not
+     four. The background is the detour above, so the docs run on the
+     public-transport line, centred where the bundle runs so the
      termini sit on it. Its chapters are stations, its sections stops. */
   .metro-solo {
     --i: 1.5;
@@ -411,7 +412,8 @@
 }
 
 /*
- * The long-form text of /hintergrund/ — docs/de-hintergrund.md as a page. S23.
+ * The long-form text of the docs under /docs/ (F13; /hintergrund/ was the first,
+ * S23) — a file in docs/ as a page.
  *
  * Styled by element rather than class by class, so the template reads like
  * the document it copies. `prose` is inert here (no typography plugin), which
@@ -452,6 +454,13 @@
       --dot: calc(var(--lane-w) + 5px);
       border-width: 2.5px;
     }
+    /* a heading below a stop is not on the line */
+    & h4 {
+      @apply mt-10 max-w-(--measure-body) text-base/7 font-semibold text-main dark:text-darktext;
+    }
+    & h3 + h4 {
+      @apply mt-6;
+    }
     & p,
     & ul,
     & ol {
@@ -469,11 +478,17 @@
     & li > p {
       @apply mt-0;
     }
+    & li > ul,
+    & li > ol {
+      @apply mt-2;
+    }
     & strong {
       @apply font-semibold text-main dark:text-darktext;
     }
+    /* an identifier longer than a phone is wide breaks rather than push the
+       page sideways */
     & code {
-      @apply rounded-sm bg-elevated px-1 py-0.5 font-mono text-[0.875em] text-main dark:bg-darkelevated dark:text-darktext;
+      @apply rounded-sm bg-elevated px-1 py-0.5 font-mono text-[0.875em] text-main [overflow-wrap:anywhere] dark:bg-darkelevated dark:text-darktext;
     }
     /* formulas: as wide as they are, up to the whole column — a ch measure in
        the mono face is narrower than the text's, and would scroll the longest */
@@ -523,6 +538,10 @@
     & td:last-child {
       @apply pr-0;
     }
+    /* a table of sentences rather than numbers: its cells wrap */
+    & .doc-table-wrap td {
+      @apply align-top whitespace-normal;
+    }
     & .num {
       @apply text-right font-mono;
     }
@@ -541,6 +560,7 @@
       --fig-rule: var(--color-subtle);
       --fig-strong: var(--color-strong);
       --fig-surface: var(--color-surface);
+      --fig-elevated: var(--color-elevated);
       --fig-car: var(--color-line-car);
       --fig-pt: var(--color-line-pt);
       @apply mt-8 max-w-[26rem];
@@ -552,9 +572,20 @@
         --fig-rule: var(--color-darksubtle);
         --fig-strong: var(--color-darkstrong);
         --fig-surface: var(--color-darkbody);
+        --fig-elevated: var(--color-darkelevated);
       }
       & > svg {
         @apply block h-auto w-full;
+      }
+    }
+    /* a flowchart (docs/flowcharts/*.svg, Mermaid drawn once): the whole
+       column, on a card. Each one carries its own max-width (its drawn size)
+       and min-width (0.72 of it, so a label stays about 11.5px); narrower than
+       that, the card scrolls sideways and the page does not. */
+    & figure.chart {
+      @apply max-w-none overflow-x-auto rounded-lg border border-subtle bg-surface p-4 dark:border-darksubtle dark:bg-darksurface;
+      & > svg {
+        @apply mx-auto;
       }
     }
     & figcaption {
@@ -562,6 +593,16 @@
       & code {
         @apply text-[0.9em];
       }
+    }
+  }
+
+  /* the lead under a doc's heading carries links and a file name or two */
+  .doc-lead {
+    & a {
+      @apply font-medium text-primary-600 underline-offset-4 hover:underline dark:text-primary-400;
+    }
+    & code {
+      @apply rounded-sm bg-elevated px-1 py-0.5 font-mono text-[0.875em] text-main dark:bg-darkelevated dark:text-darktext;
     }
   }
 
@@ -604,6 +645,19 @@
     }
     & a[aria-current] {
       @apply font-medium text-main dark:text-darktext;
+    }
+    /* a station's stops: smaller dots on the same line, its own line hidden */
+    & li > ol {
+      @apply mt-2 -ml-6 space-y-1.5 text-[0.8125rem]/5;
+    }
+    & li > ol::before {
+      display: none;
+    }
+    & li > ol > li::before {
+      left: 2px;
+      width: 8px;
+      height: 8px;
+      border-width: 1.5px;
     }
   }
 

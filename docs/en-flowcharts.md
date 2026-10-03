@@ -27,7 +27,7 @@ results reach the browsers over the websocket.
 flowchart LR
     subgraph browser["Browser"]
         spa["SPA under /app/<br>frontend/ — game, host pages, editor"]
-        pages["Django pages<br>landing, /hintergrund, legal, login"]
+        pages["Django pages<br>landing, /docs, legal, login"]
     end
     nginx["nginx<br>serves the SPA bundle,<br>proxies everything else"]
     subgraph daphne["Daphne — backend/"]
