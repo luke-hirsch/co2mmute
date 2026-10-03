@@ -1,6 +1,6 @@
 from itertools import combinations
 
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.db import transaction
 
 from .models import (
@@ -13,6 +13,12 @@ from .models import (
     StreetEdge,
     TrainEdge,
     TrainLine,
+)
+from .versions import (
+    VersionDeleteRefused,
+    delete_version,
+    deletion_preview,
+    describe_goes,
 )
 
 
@@ -179,6 +185,42 @@ class MapVersionAdmin(admin.ModelAdmin):
     actions = [_generate_combination_versions]
 
     ordering = ("name",)
+
+    # Deleting goes through `maps.versions.delete_version`, the editor's
+    # cleanup (F14). The admin's own delete removed the bare row and left every
+    # node, edge and line that was only in it in no version — that is where the
+    # stray rows in the box's 2026-10-02 export came from. Both doors: the
+    # delete page and the list's "delete selected", which share these hooks.
+
+    def get_deleted_objects(self, objs, request):
+        """Name what goes; a refusal is "protected", so Django deletes nothing."""
+        deleted, counts, perms_needed, protected = super().get_deleted_objects(
+            objs, request
+        )
+        protected = list(protected)
+        for version in objs:
+            preview = deletion_preview(version)
+            if preview["refusal"]:
+                protected.append(f"{version.name}: {preview['refusal']['detail']}")
+            else:
+                deleted.append(f"{version.name}: {describe_goes(preview['goes'])}")
+        return deleted, counts, perms_needed, protected
+
+    def delete_model(self, request, obj):
+        self._delete(request, [obj])
+
+    def delete_queryset(self, request, queryset):
+        self._delete(request, queryset)
+
+    def _delete(self, request, versions):
+        for version in versions:
+            try:
+                delete_version(version)
+            except VersionDeleteRefused as refusal:
+                # Refused between the confirmation page and the click.
+                self.message_user(
+                    request, f"{version.name}: {refusal.detail}", messages.ERROR
+                )
 
 
 @admin.register(NodeType)

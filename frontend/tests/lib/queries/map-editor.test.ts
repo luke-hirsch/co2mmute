@@ -217,6 +217,30 @@ describe("versions", () => {
       body: { name: "Tempo 30" },
     });
   });
+
+  it("deletes a version under its own map", async () => {
+    // F14. The server scopes the version to the map in the URL since then, so
+    // a version id under the wrong map is a 404, not a delete.
+    const spy = stubFetch(204);
+
+    await editor.deleteVersion(5, 31);
+
+    expect(sent(spy)).toEqual({
+      url: "/api/maps/5/versions/31/",
+      method: "DELETE",
+      body: undefined,
+    });
+  });
+
+  it("carries the server's refusal as the message", async () => {
+    stubFetch(409, { detail: "Die Grundversion lässt sich nicht löschen.", reason: "base" });
+
+    await expect(editor.deleteVersion(5, 1)).rejects.toMatchObject({
+      status: 409,
+      reason: "base",
+      message: "Die Grundversion lässt sich nicht löschen.",
+    });
+  });
 });
 
 describe("the failure path", () => {

@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DeleteVersionDialog } from "@/components/map/editor/delete-version-dialog";
 import {
   EditorField,
   EditorNote,
@@ -35,6 +36,9 @@ import type { MapVersion } from "../../../types/mapTypes";
 
 interface VersionManagerPanelProps {
   mapId: string;
+  /** The version the editor is showing, so a delete can step off it first. */
+  selectedVersionId?: number;
+  onVersionChange?: (versionId: number | undefined) => void;
 }
 
 interface EditState {
@@ -51,12 +55,15 @@ function VersionEditor({
   allVersions,
   mapId,
   onDone,
+  onDeleting,
 }: {
   version: MapVersion;
   allVersions: MapVersion[];
   mapId: string;
   onDone: () => void;
+  onDeleting: () => void;
 }) {
+  const [asking, setAsking] = useState(false);
   const [values, setValues] = useState<EditState>({
     name: version.name,
     description: version.description ?? "",
@@ -226,11 +233,39 @@ function VersionEditor({
           {de.editor.saveFailed} {updateMutation.error?.message}
         </EditorNote>
       )}
+
+      {/* F14. Not for the base version: every game starts on it, and the
+          server refuses it anyway. */}
+      {!version.base_version && (
+        <>
+          <Button
+            type="button"
+            size="sm"
+            variant="destructive"
+            className="w-full"
+            onClick={() => setAsking(true)}
+          >
+            {de.editor.version.deleteVersion}
+          </Button>
+          <DeleteVersionDialog
+            mapId={mapId}
+            version={version}
+            open={asking}
+            onOpenChange={setAsking}
+            onDeleting={onDeleting}
+            onDeleted={onDone}
+          />
+        </>
+      )}
     </div>
   );
 }
 
-const VersionManagerPanel = ({ mapId }: VersionManagerPanelProps) => {
+const VersionManagerPanel = ({
+  mapId,
+  selectedVersionId,
+  onVersionChange,
+}: VersionManagerPanelProps) => {
   const { data: versions, isLoading } = useMapVersions(mapId);
   const generateMutation = useGenerateCombinations(mapId);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -309,6 +344,16 @@ const VersionManagerPanel = ({ mapId }: VersionManagerPanelProps) => {
                   allVersions={versionList}
                   mapId={mapId}
                   onDone={() => setExpandedId(null)}
+                  onDeleting={() => {
+                    // The editor would ask for this version's graph again
+                    // after the delete and get a 404; it goes back to base.
+                    if (selectedVersionId === v.id) onVersionChange?.(undefined);
+                    setSelectedIds((prev) => {
+                      const next = new Set(prev);
+                      next.delete(v.id);
+                      return next;
+                    });
+                  }}
                 />
               </div>
             )}

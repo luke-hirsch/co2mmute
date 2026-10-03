@@ -19,6 +19,8 @@ three callers.
 
 import logging
 
+from django.db.models import Q
+
 logger = logging.getLogger(__name__)
 
 
@@ -228,6 +230,269 @@ def combination_members(model, base_version, member_versions):
         added |= version_pks - base_pks
         removed |= base_pks - version_pks
     return (base_pks - removed) | added
+
+
+# ── deleting a version (F14) ──────────────────────────────────────────────
+
+
+class VersionDeleteRefused(Exception):
+    """Why a version may not go: `reason` for the screen, `detail` for people."""
+
+    def __init__(self, reason, detail):
+        super().__init__(detail)
+        self.reason = reason
+        self.detail = detail
+
+
+def only_in(version):
+    """`{model: [pk, …]}` — the rows `version` holds and no other version does.
+
+    What goes with it. Everything another version still holds stays, whatever
+    the version it was drawn in, and so does a row in no version at all: it was
+    nowhere before the delete, and guessing where it belongs is not a delete's
+    job. On the shipped map this is empty for every version — the triple
+    combination holds every change — and it is a version drawn and never
+    combined, the click-through case, that has rows of its own.
+    """
+    from maps.models import MapVersion
+
+    others = MapVersion.objects.filter(game_map_id=version.game_map_id).exclude(
+        pk=version.pk
+    )
+    rows = {}
+    for model in _versioned_models():
+        elsewhere = set(
+            model.objects.filter(map_versions__in=others).values_list("pk", flat=True)
+        )
+        rows[model] = sorted(_pks(model, version) - elsewhere)
+    return rows
+
+
+def deletion_refusal(version, goes=None):
+    """A `VersionDeleteRefused` if `version` may not go, else `None`.
+
+    Three refusals, checked in this order:
+
+    * **base** — every game starts on it, and `ensure_base_version_on_delete`
+      would quietly promote some other version to take its place.
+    * **running** — a game is running on the map, on any version: after every
+      round the class may vote for this one. The same 409 as deleting a running
+      game, and for the same reason.
+    * **played** — a game has seen it: played on it, had it on a ballot, voted
+      for it, or driven over a street that would go with it. Every one of those
+      is research data that would go too, silently — `MapVersionVote.map_version`
+      and `RouteSegment.edge` are CASCADE, `active_map_version` is SET_NULL.
+      Anonymisation keeps every move, route and result linkable; a version
+      delete must not be the back door. The way out is to delete those games
+      first, or to take the version off the ballot, which keeps it out of every
+      new game and loses nothing.
+    """
+    from game.models import (
+        EdgeTrafficSnapshot,
+        GameRound,
+        GameSession,
+        MapVersionVote,
+        RouteSegment,
+    )
+    from maps.models import Edge, Node, StreetEdge, StreetPerRound
+
+    if version.base_version:
+        return VersionDeleteRefused(
+            "base",
+            "Die Grundversion lässt sich nicht löschen: auf ihr fängt jedes Spiel an.",
+        )
+
+    on_map = GameSession.objects.filter(game_map_id=version.game_map_id)
+    running = on_map.filter(is_active=True, ended_at__isnull=True)
+    if running.exists():
+        one = running.count() == 1
+        return VersionDeleteRefused(
+            "running",
+            f"Auf dieser Karte {'läuft' if one else 'laufen'} gerade "
+            f"{_named_games(running)}. Beende {'es' if one else 'sie'} erst – nach "
+            "jeder Runde kann über diese Version abgestimmt werden.",
+        )
+
+    seen = set(
+        GameSession.objects.filter(active_map_version=version).values_list(
+            "pk", flat=True
+        )
+    )
+    seen |= set(
+        MapVersionVote.objects.filter(map_version=version).values_list(
+            "game_round__game_id", flat=True
+        )
+    )
+    for game_pk, options in GameRound.objects.filter(game__in=on_map).values_list(
+        "game_id", "vote_option_ids"
+    ):
+        if version.pk in (options or []):
+            seen.add(game_pk)
+
+    goes = goes if goes is not None else only_in(version)
+    # An edge goes with its version, and so does every edge touching a node
+    # that goes — the cascade does not ask which version that edge is in.
+    edges = set(goes[Edge]) | set(
+        Edge.objects.filter(
+            Q(start_node_id__in=goes[Node]) | Q(end_node_id__in=goes[Node])
+        ).values_list("pk", flat=True)
+    )
+    streets = set(goes[StreetEdge]) | set(
+        StreetEdge.objects.filter(edge_id__in=edges).values_list("pk", flat=True)
+    )
+    if edges:
+        seen |= set(
+            RouteSegment.objects.filter(edge_id__in=edges).values_list(
+                "agent_route__player_move__session_round__game_id", flat=True
+            )
+        )
+        seen |= set(
+            EdgeTrafficSnapshot.objects.filter(edge_id__in=edges).values_list(
+                "simulation__game_round__game_id", flat=True
+            )
+        )
+    if streets:
+        seen |= set(
+            StreetPerRound.objects.filter(edge_id__in=streets).values_list(
+                "game_round__game_id", flat=True
+            )
+        )
+    if seen:
+        games = GameSession.objects.filter(pk__in=seen)
+        one = len(seen) == 1
+        return VersionDeleteRefused(
+            "played",
+            f"Diese Version kommt schon {'im Spiel' if one else 'in den Spielen'} "
+            f"{_named_games(games, article=False)} vor. Mit ihr ginge dort verloren, "
+            f"was gefahren und abgestimmt wurde. Lösch erst "
+            f"{'das Spiel' if one else 'die Spiele'} – oder nimm die Version aus der "
+            "Abstimmung (»Verträglich mit«), dann kommt sie in keinem neuen Spiel "
+            "mehr vor.",
+        )
+    return None
+
+
+def deletion_preview(version):
+    """What the editor's dialog asks before a delete — nothing is written.
+
+    `goes` is what only this version holds, `ballot` the versions it is paired
+    with (those pairs go too), `keeps` the versions built on it, which keep its
+    change: deleting `Busspuren` leaves `Busspuren + Buslinie` with its bus
+    lanes.
+    """
+    from maps.models import (
+        BusLine,
+        BusLineEdge,
+        Edge,
+        Node,
+        StreetEdge,
+        TrainEdge,
+        TrainLine,
+        TrainLineEdge,
+    )
+
+    goes = only_in(version)
+    refusal = deletion_refusal(version, goes)
+    return {
+        "version": {"id": version.pk, "name": version.name},
+        "refusal": (
+            {"reason": refusal.reason, "detail": refusal.detail} if refusal else None
+        ),
+        "goes": {
+            "nodes": len(goes[Node]),
+            "edges": len(goes[Edge]),
+            "streets": len(goes[StreetEdge]),
+            "rails": len(goes[TrainEdge]),
+            "bus_lines": sorted(
+                BusLine.objects.filter(pk__in=goes[BusLine]).values_list(
+                    "name", flat=True
+                )
+            ),
+            "train_lines": sorted(
+                TrainLine.objects.filter(pk__in=goes[TrainLine]).values_list(
+                    "name", flat=True
+                )
+            ),
+            "line_links": len(goes[BusLineEdge]) + len(goes[TrainLineEdge]),
+        },
+        "ballot": list(version.compatible_versions.values_list("name", flat=True)),
+        "keeps": (
+            []
+            if version.base_version
+            else [v.name for v in versions_built_on(version) if v.pk != version.pk]
+        ),
+    }
+
+
+def describe_goes(goes):
+    """`preview["goes"]` as one German line — the admin's confirmation page."""
+    parts = []
+    for count, one, many in (
+        (goes["nodes"], "Knoten", "Knoten"),
+        (goes["edges"], "Kante", "Kanten"),
+        (goes["streets"], "Straße", "Straßen"),
+        (goes["rails"], "Gleis", "Gleise"),
+        (goes["line_links"], "Linienabschnitt", "Linienabschnitte"),
+    ):
+        if count:
+            parts.append(f"{count} {one if count == 1 else many}")
+    for names, one, many in (
+        (goes["bus_lines"], "Buslinie", "Buslinien"),
+        (goes["train_lines"], "Bahnlinie", "Bahnlinien"),
+    ):
+        if names:
+            parts.append(f"{one if len(names) == 1 else many} {german_list(names)}")
+    if not parts:
+        return "nur die Version selbst – alles in ihr steht auch in anderen Versionen"
+    return "nur in dieser Version, geht mit: " + ", ".join(parts)
+
+
+def delete_version(version):
+    """Delete `version` and what only it holds, or raise `VersionDeleteRefused`.
+
+    The one cleanup, for both doors — the editor's `DELETE` and the admin's
+    delete (single and bulk). The admin used to delete the bare row and leave
+    every node, edge and line that was only in it in no version: invisible in
+    the editor, still in the export. A rule only one of two doors enforces is
+    not a rule.
+
+    Rows go chain rows first and nodes last, each through `.delete()`, so the
+    graph cache's signals hear every one; the ballot pairs and the m2m rows go
+    with the version itself. Checked again under the transaction, so a game
+    that started between the dialog and the click still refuses it.
+    """
+    from django.db import transaction
+
+    from maps.models import MapVersion
+
+    with transaction.atomic():
+        version = MapVersion.objects.select_for_update().get(pk=version.pk)
+        goes = only_in(version)
+        refusal = deletion_refusal(version, goes)
+        if refusal is not None:
+            raise refusal
+        for model in reversed(_versioned_models()):
+            model.objects.filter(pk__in=goes[model]).delete()
+        version.delete()
+    logger.info(
+        "[maps] version %s of map %s deleted with %s rows of its own",
+        version.pk,
+        version.game_map_id,
+        sum(len(pks) for pks in goes.values()),
+    )
+    return goes
+
+
+def _named_games(games, article=True):
+    """`das Spiel »Dienstag« (A1B2C3)`, or a list of them, five at most."""
+    named = [f"»{g.game_name}« ({g.game_id})" for g in games.order_by("pk")[:6]]
+    if len(named) > 5:
+        rest = games.count() - 5
+        named = named[:5] + [f"{rest} weitere"]
+    listed = named[0] if len(named) == 1 else ", ".join(named[:-1]) + " und " + named[-1]
+    if not article:
+        return listed
+    return ("das Spiel " if len(named) == 1 else "die Spiele ") + listed
 
 
 def _versioned_models():

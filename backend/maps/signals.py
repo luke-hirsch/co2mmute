@@ -1,6 +1,7 @@
 """Signals for maps app."""
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 from django.db.models.signals import m2m_changed, post_delete, post_save, pre_save
 from django.dispatch import receiver
 
@@ -69,6 +70,23 @@ def ensure_base_version_on_delete(sender, instance, **kwargs):
         if remaining:
             remaining.base_version = True
             remaining.save()
+
+
+@receiver(post_delete, sender=MapVersion)
+def delete_change_image_file(sender, instance, **kwargs):
+    """Django deletes the row, not the picture it points at — the same as a
+    game's QR code. On commit, so a delete that rolls back keeps its picture,
+    and only if no other version names the same file."""
+    name = instance.change_img.name if instance.change_img else None
+    if not name:
+        return
+    storage = instance.change_img.storage
+
+    def delete_file():
+        if not MapVersion.objects.filter(change_img=name).exists():
+            storage.delete(name)
+
+    transaction.on_commit(delete_file)
 
 
 # ── the cached graph ───────────────────────────────────────────────────────

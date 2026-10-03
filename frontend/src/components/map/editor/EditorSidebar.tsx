@@ -209,7 +209,11 @@ const EditorSidebar = ({
           )}
 
           {versionTab === "manage" && (
-            <VersionManagerPanel mapId={mapId} />
+            <VersionManagerPanel
+              mapId={mapId}
+              selectedVersionId={selectedVersionId}
+              onVersionChange={onVersionChange}
+            />
           )}
         </>
       )}
