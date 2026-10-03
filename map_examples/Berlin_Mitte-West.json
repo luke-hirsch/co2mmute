@@ -4690,6 +4690,318 @@
         6,
         7
       ]
+    },
+    {
+      "start_node": "8",
+      "end_node": "17",
+      "name": "Tiergartenweg",
+      "type": "path",
+      "biking": true,
+      "bike_lane": false,
+      "walking": true,
+      "max_lanes": 1,
+      "versions": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "start_node": "17",
+      "end_node": "8",
+      "name": "Tiergartenweg",
+      "type": "path",
+      "biking": true,
+      "bike_lane": false,
+      "walking": true,
+      "max_lanes": 1,
+      "versions": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "start_node": "8",
+      "end_node": "11",
+      "name": "Tiergarten Weg",
+      "type": "path",
+      "biking": true,
+      "bike_lane": false,
+      "walking": true,
+      "max_lanes": 1,
+      "versions": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "start_node": "11",
+      "end_node": "8",
+      "name": "Tiergarten Weg",
+      "type": "path",
+      "biking": true,
+      "bike_lane": false,
+      "walking": true,
+      "max_lanes": 1,
+      "versions": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "start_node": "47",
+      "end_node": "1",
+      "name": null,
+      "type": "path",
+      "biking": true,
+      "bike_lane": false,
+      "walking": true,
+      "max_lanes": 1,
+      "versions": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "start_node": "1",
+      "end_node": "47",
+      "name": null,
+      "type": "path",
+      "biking": true,
+      "bike_lane": false,
+      "walking": true,
+      "max_lanes": 1,
+      "versions": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "start_node": "24",
+      "end_node": "10",
+      "name": "Großer Tiergarten Weg",
+      "type": "path",
+      "biking": true,
+      "bike_lane": false,
+      "walking": true,
+      "max_lanes": 1,
+      "versions": [
+        0,
+        1,
+        2,
+        6
+      ]
+    },
+    {
+      "start_node": "10",
+      "end_node": "24",
+      "name": "Großer Tiergarten Weg",
+      "type": "path",
+      "biking": true,
+      "bike_lane": false,
+      "walking": true,
+      "max_lanes": 1,
+      "versions": [
+        0,
+        1,
+        2,
+        6
+      ]
+    },
+    {
+      "start_node": "24",
+      "end_node": "43",
+      "name": null,
+      "type": "path",
+      "biking": true,
+      "bike_lane": false,
+      "walking": true,
+      "max_lanes": 1,
+      "versions": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "start_node": "43",
+      "end_node": "24",
+      "name": null,
+      "type": "path",
+      "biking": true,
+      "bike_lane": false,
+      "walking": true,
+      "max_lanes": 1,
+      "versions": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "start_node": "43",
+      "end_node": "48",
+      "name": null,
+      "type": "path",
+      "biking": true,
+      "bike_lane": false,
+      "walking": true,
+      "max_lanes": 1,
+      "versions": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "start_node": "48",
+      "end_node": "43",
+      "name": null,
+      "type": "path",
+      "biking": true,
+      "bike_lane": false,
+      "walking": true,
+      "max_lanes": 1,
+      "versions": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "start_node": "22",
+      "end_node": "12",
+      "name": null,
+      "type": "path",
+      "biking": true,
+      "bike_lane": false,
+      "walking": true,
+      "max_lanes": 1,
+      "versions": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "start_node": "12",
+      "end_node": "22",
+      "name": null,
+      "type": "path",
+      "biking": true,
+      "bike_lane": false,
+      "walking": true,
+      "max_lanes": 1,
+      "versions": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "start_node": "22",
+      "end_node": "16",
+      "name": null,
+      "type": "path",
+      "biking": true,
+      "bike_lane": false,
+      "walking": true,
+      "max_lanes": 1,
+      "versions": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "start_node": "16",
+      "end_node": "22",
+      "name": null,
+      "type": "path",
+      "biking": true,
+      "bike_lane": false,
+      "walking": true,
+      "max_lanes": 1,
+      "versions": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
     }
   ],
   "bus_lines": [

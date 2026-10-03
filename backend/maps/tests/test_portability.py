@@ -509,9 +509,9 @@ class BikeLaneTravelsTests(MapUploadMixin, TestCase):
 class PathHasNoStreetUnderItTests(MapUploadMixin, TestCase):
     """A way for bikes and pedestrians, and no car lane at all.
 
-    The map the group plays has four: three homes reaching the S-Bahn at
-    Bellevue, and the Justizministerium reaching Checkpoint Charlie. A car goes
-    round.
+    The map the group plays has twelve: three homes reaching the S-Bahn at
+    Bellevue, the Justizministerium reaching Checkpoint Charlie, and since F11
+    eight through the Tiergarten and round Potsdamer Platz. A car goes round.
 
     `type` used to have three values, so the export wrote such a link as
     `"street"` — the `else` branch of the three-way choice — and the importer
