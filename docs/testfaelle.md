@@ -329,6 +329,8 @@ nicht gemessen.
 | K-52 | Editor: Version löschen, während ein Spiel läuft           | abgelehnt, solange auf der Karte ein Spiel läuft, auch pausiert; der Dialog nennt das Spiel und bietet nur „Schließen“ (F14) | geht      | `f14-version-loeschen.spec.ts` |
 | K-53 | Editor: Version löschen, auf der gespielt wurde            | abgelehnt, wenn ein Spiel auf ihr gespielt hat, sie zur Wahl stand, für sie gestimmt wurde oder über ihre Straßen gefahren ist — sonst gingen Wege und Stimmen mit; der Satz nennt die Spiele und den Ausweg „Verträglich mit“ (F14) | geht      | - |
 | K-54 | Admin: Version löschen                                     | dieselbe Aufräumregel wie im Editor, einzeln und über „ausgewählte löschen“; die Bestätigungsseite nennt, was mitgeht, eine Ablehnung steht dort als geschützt und löscht nichts (F14) | geht      | - |
+| K-55 | Wahlzettel fragt nach der einen Änderung | jede der 24 Optionen der ausgelieferten Karte stellt die Frage der Änderung, die der Schritt macht — hinzu ihre Frage, zurück ihre Rückfrage; von „Buslinie + Umgehungsstraßen“ zurück auf „Buslinie“ fragt nach dem Schließen der Umgehungsstraßen, nicht nach dem Bau der 147 (F16) | geht | - |
+| K-56 | Bild auf dem Wahlzettel | jede Option zeigt das Bild der Änderung, die sie macht; die Bilder der vier Kombiversionen erscheinen nie, die Grundversion fragt nie mit „Die Karte soll ...“ (F16) | geht | - |
 
 ## S — sonstiges
 

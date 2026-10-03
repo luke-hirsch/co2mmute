@@ -1030,7 +1030,7 @@ class ConsumerIsTransportOnlyTests(SimpleTestCase):
         import game.signals as signals
 
         for module in (consumers, signals):
-            for name in ("_is_rollback_target", "_get_delta_img_url"):
+            for name in ("ballot_option", "_is_rollback_target", "_get_delta_img_url"):
                 self.assertFalse(
                     hasattr(module, name),
                     msg=f"{module.__name__}.{name} should live in game.phases",

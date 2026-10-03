@@ -599,6 +599,44 @@ class BallotTests(BetweenRoundsMixin, TestCase):
         self.assertEqual(len(announced), 2)
         self.assertCountEqual(announced, next_round.vote_option_ids)
 
+    def test_a_step_of_two_changes_asks_the_version_s_own_question(self):
+        """No single change to name, so the option falls back on the version.
+
+        The shipped ballot never does this — every step there is one change —
+        but a map whose base offers a combination directly does: base → A + B
+        builds two things at once, and only A + B's own sentence covers both.
+        """
+        from maps.models import Node
+
+        game_map = GameMap.objects.create(name="Zwei auf einmal")
+        base = MapVersion.objects.create(
+            game_map=game_map, name="Basis", base_version=True
+        )
+        a = MapVersion.objects.create(
+            game_map=game_map, name="A", source_version=base, poll_text="A?"
+        )
+        b = MapVersion.objects.create(
+            game_map=game_map, name="B", source_version=base, poll_text="B?"
+        )
+        both = MapVersion.objects.create(
+            game_map=game_map,
+            name="A + B",
+            poll_text="Beides?",
+            revert_poll_text="Beides zurück?",
+        )
+        for x, holders in ((1, (base, a, b, both)), (2, (a, both)), (3, (b, both))):
+            node = Node.objects.create(game_map=game_map, x_position=x, y_position=1)
+            node.map_versions.add(*holders)
+
+        there = phases().ballot_option(base, both)
+        back = phases().ballot_option(both, base)
+
+        self.assertEqual((there["poll_text"], there["is_rollback"]), ("Beides?", False))
+        self.assertEqual(
+            (back["poll_text"], back["is_rollback"]), ("Beides zurück?", True)
+        )
+        self.assertEqual(phases().ballot_option(a, both)["poll_text"], "B?")
+
 
 @override_settings(**TEST_BACKENDS)
 class LeavingFinishesAPhaseTests(BetweenRoundsMixin, TestCase):

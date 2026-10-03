@@ -23,6 +23,7 @@ from co2mmute.utils import sanitize_group_name, send_game_state_message
 from django.db import transaction
 from django.utils import timezone
 from maps.models import MapVersion
+from maps.versions import changes_held
 
 from game.models import (
     GameRound,
@@ -172,72 +173,47 @@ def _start_next_round(
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def _is_rollback_target(active_version, target_version):
-    """Return True if target_version is an ancestor of active_version (i.e., a rollback)."""
-    if target_version.base_version:
-        return True
-    current = active_version.source_version
-    while current is not None:
-        if current.pk == target_version.pk:
-            return True
-        current = current.source_version
-    return False
+def ballot_option(active_version, target_version, changes=None):
+    """One option on the ballot: the step from the active version to `target_version`.
 
+    The class is asked about the one change the step makes. Every change carries
+    a question each way, written for exactly that change — adding it asks its
+    `poll_text`, taking it away its `revert_poll_text` — and shows its picture.
+    From »Buslinie« the step to »Buslinie + Umgehungsstraßen« builds the bypasses
+    and nothing else, so it asks the bypasses' question, not the combination's
+    "zusammen umgesetzt", which would ask about a bus line already running.
 
-def _get_delta_img_url(active_version, target_version):
+    Only a step of several changes at once falls back on the versions'
+    own sentence and picture: the target's going forward, the active version's
+    going back. The shipped ballot has none.
+
+    `changes` is `maps.versions.changes_held` for the map, passed in so a
+    ballot of two options reads the map once.
     """
-    Return the relative URL of the 'change preview' image for a voting option.
+    if changes is None:
+        changes = changes_held(active_version.game_map_id)
+    now = changes.get(active_version.pk, set())
+    after = changes.get(target_version.pk, set())
+    added, removed = after - now, now - after
+    is_rollback = bool(removed) and not added
 
-    For rollbacks: the active version's image (showing what will be reverted).
-    For forward moves to an atomic version: the target's own image.
-    For forward moves to a combo version (e.g. A→AB): find the 'new' component B
-    by looking at target's compatible_versions that are not an ancestor of active.
-    """
-    if _is_rollback_target(active_version, target_version):
-        if active_version.change_img:
-            return active_version.change_img.url
-        return None
+    if len(added) + len(removed) == 1:
+        change = MapVersion.objects.get(pk=next(iter(added or removed)))
+        poll_text = change.revert_poll_text if is_rollback else change.poll_text
+        image = change.change_img
+    elif is_rollback:
+        poll_text = active_version.revert_poll_text
+        image = active_version.change_img
+    else:
+        poll_text = target_version.poll_text
+        image = target_version.change_img
 
-    # Collect active's ancestry (source_version chain)
-    active_ancestor_pks = set()
-    cur = active_version
-    while cur:
-        active_ancestor_pks.add(cur.pk)
-        cur = cur.source_version
-
-    # Only do delta lookup if active is a direct predecessor of target
-    # (active appears in target's compatible_versions)
-    active_is_predecessor = target_version.compatible_versions.filter(
-        pk=active_version.pk
-    ).exists()
-
-    if active_is_predecessor:
-        # Find the delta: a compat of target that is not an ancestor of active and has an image
-        for compat in target_version.compatible_versions.all():
-            if compat.pk in active_ancestor_pks:
-                continue
-            if compat.base_version:
-                continue
-            if compat.change_img:
-                return compat.change_img.url
-
-    # Fallback: target's own image
-    if target_version.change_img:
-        return target_version.change_img.url
-    return None
-
-
-def _build_version_dict(active_version, target_version):
-    """Build the voting option dict for a candidate version."""
-    is_rollback = _is_rollback_target(active_version, target_version)
     return {
         "id": target_version.id,
         "name": target_version.name,
-        "poll_text": active_version.revert_poll_text
-        if is_rollback
-        else target_version.poll_text,
+        "poll_text": poll_text,
         "is_rollback": is_rollback,
-        "change_img_url": _get_delta_img_url(active_version, target_version),
+        "change_img_url": image.url if image else None,
     }
 
 
@@ -269,7 +245,8 @@ def vote_options(game_round: GameRound) -> list[dict]:
     versions = MapVersion.objects.filter(pk__in=game_round.vote_option_ids).order_by(
         "pk"
     )
-    return [_build_version_dict(active_version, version) for version in versions]
+    changes = changes_held(game.game_map_id)
+    return [ballot_option(active_version, version, changes) for version in versions]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
