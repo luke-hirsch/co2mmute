@@ -365,7 +365,7 @@ nicht gemessen.
 | S-35 | Herkunft                        | Startseite und Hintergrund nennen die Masterarbeit an der Freien Universität Berlin und die Weiterentwicklung an der TU Berlin (S23) | geht | -                       |
 | S-36 | „Docs“ in der Kopfzeile          | auf beiden Hälften dasselbe Menü: Schnellstart, Hintergrund, Ablaufdiagramme, nichts auf Englisch; auf dem Handy genauso (F13) | geht | `chrome.spec.ts`        |
 | S-37 | Docs auf Deutsch                 | drei Seiten unter `/docs/`, deutsch wie die ganze Seite; die englischen unter `/docs/en/` geben 404, ihr Text steht nur in `docs/`; `/hintergrund/` gibt 404, die Startseite führt zum neuen Ort (F13) | geht | `chrome.spec.ts`        |
-| S-38 | Ablaufdiagramme auf der Seite    | zwölf Diagramme in den Farben der Seite, hell und dunkel lesbar; ein Diagramm, das breiter ist als die Spalte, scrollt in seinem Kasten, die Seite nicht, auch auf 390px; das erste („Die Teile“) steht hochkant und passt ab 1040px ohne Scrollen neben die Haltestellen (F13) | geht | -                       |
+| S-38 | Ablaufdiagramme auf der Seite    | zwölf Diagramme in den Farben der Seite, hell und dunkel lesbar; alle hochkant und höchstens 784px breit, ab 1280px in voller Größe neben den Haltestellen, schmaler kleiner — nichts scrollt seitwärts; auf 390px nimmt der Kasten die ganze Breite, über die Linie, und das ganze Diagramm ist zu sehen (F13) | geht | -                       |
 
 > S-09 bis S-11 zählen **Fehlversuche** (Login, Platz-Code) bzw. **Erfolge** (Konten), nie einfach
 > Anfragen: eine Klasse hängt hinter _einem_ Schulanschluss, und wer richtige Codes einlöst, würde

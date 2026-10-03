@@ -74,22 +74,25 @@ stateDiagram-v2
     state "beendet" as Ended
     state "anonymisiert" as Anonymised
 
-    [*] --> Lobby: Spielleitung legt das Spiel an
+    [*] --> Lobby: Spielleitung legt<br>das Spiel an
     Lobby --> Lobby: Beitritte
-    Lobby --> Playing: Spielleitung startet, Runde 1 auf der Basisversion
+    Lobby --> Playing: Spielleitung startet,<br>Runde 1 auf der Basisversion
     Playing --> Simulating: der letzte Zug ist da
     Simulating --> BetweenRounds: round.completed
-    Simulating --> Ended: CO2-Budget verbraucht oder letzte Runde gespielt
-    BetweenRounds --> Playing: nächste Runde, auf der Karte, die abgestimmt wurde
-    Playing --> Ended: Spielleitung beendet es, oder tagelang Ruhe
-    BetweenRounds --> Ended: Spielleitung beendet es, oder tagelang Ruhe
+    Simulating --> Ended: CO2-Budget verbraucht<br>oder letzte Runde gespielt
+    BetweenRounds --> Playing: nächste Runde, auf der Karte,<br>die abgestimmt wurde
+    Playing --> Ended: Spielleitung beendet es,<br>oder tagelang Ruhe
+    BetweenRounds --> Ended: Spielleitung beendet es,<br>oder tagelang Ruhe
     Ended --> Anonymised: 24 h später (Beat)
     Anonymised --> [*]
 
-    note right of Playing
-        Die Spielleitung kann jederzeit pausieren.
-        paused_at hält Züge, Phasenwechsel
-        und das Rundenende an, bis es weitergeht.
+    note left of Playing
+        Die Spielleitung kann
+        jederzeit pausieren:
+        paused_at hält Züge,
+        Phasenwechsel und das
+        Rundenende an, bis es
+        weitergeht.
     end note
 ```
 
@@ -111,21 +114,25 @@ Sitzung und wird zuerst geprüft.
 
 ```mermaid
 flowchart TD
-    join["beitreten — POST api/game/join/ID/<br>Name + Spielpasswort<br>abgelehnt, wenn gestartet, beendet oder voll"]
-    create["Spielleitung legt das Spiel an<br>(ihre eigene Zeile)"]
-    whoami["whoami — GET api/whoami/<br>erneuert beide, z. B. nach einer Pause"]
-    code["Platz-Code — POST api/game/seat/CODE/<br>6 Zeichen, 5 Minuten, einmal gültig"]
-    takeover["Spielleitung übernimmt einen Platz<br>…/player/P/takeover/"]
+    subgraph move["ein Platz zieht um"]
+        direction TB
+        code["Platz-Code — POST api/game/seat/CODE/<br>6 Zeichen, 5 Minuten, einmal gültig"]
+        takeover["Spielleitung übernimmt einen Platz<br>…/player/P/takeover/"]
+        code ~~~ takeover
+    end
+    subgraph fresh["neu oder erneuert"]
+        direction TB
+        join["beitreten — POST api/game/join/ID/<br>Name + Spielpasswort<br>abgelehnt, wenn gestartet, beendet oder voll"]
+        create["Spielleitung legt<br>das Spiel an<br>(ihre eigene Zeile)"]
+        whoami["whoami — GET api/whoami/<br>erneuert beide, z. B. nach einer Pause"]
+        join ~~~ create ~~~ whoami
+    end
 
-    code --> rotate
-    takeover --> rotate
+    move --> rotate
     rotate["_rotate — game/seats.py<br>dieselbe Zeile, dieselben Züge und Stimmen,<br>neue player_id"]
     rotate -->|"die alte player_id<br>nennt jetzt niemanden"| revoked["player.revoked<br>alte Sockets schließen mit 4403"]
-
-    join --> mint
-    create --> mint
-    whoami --> mint
     rotate -->|"Code eingelöst"| mint
+    fresh --> mint
 
     mint["set_game_access_cookie + set_player_cookie<br>co2mmute/utils.py"]
     mint --> cookies["zwei Cookies, TimestampSigner, Salt aus SECRET_KEY<br>game_access_ID = 'ID:Zufallstoken'<br>player_ID = 'ID:player_id'"]
@@ -182,36 +189,20 @@ mitspielt, gezogen hat; dann läuft die Simulation auf Celery und meldet sich ü
 zurück.
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    participant P as Handy<br>RoundScreen
-    participant R as Router<br>im Browser
-    participant API as PlayerMoveView<br>game/views_rest.py
-    participant RD as game/rounds.py
-    participant W as Celery-Worker
-    participant S as TrafficSimulator
-    participant WS as GameConsumer<br>jeder offene Socket
-
-    P->>R: Verkehrsmittel je Gruppe wählen
-    R-->>P: Hinweg + Rückweg
-    P->>API: POST api/game/ID/player/P/move/
-    API->>API: beide Wege prüfen, AgentRoutes speichern
-    API-->>P: 200
-    API->>WS: Roster: dieser Platz wartet
-    API->>RD: nach dem Commit: complete_round_if_ready
-    Note over RD: haben alle spielenden Plätze gezogen?<br>dann die Runde beanspruchen, ACTIVE zu COMPLETED
-    RD->>W: run_simulation_task.delay
-    W->>W: round_completed, handle_round_completed
-    W->>S: run_simulation
-    S-->>WS: simulation.progress
-    S-->>W: SimulationResult und seine Zeilen
-    W->>WS: round.completed mit den Zahlen jedes Platzes
-    alt CO2-Budget verbraucht oder letzte Runde
-        W->>WS: game.ended
-    else
-        W->>W: Phase STATS
-    end
-    WS-->>P: gameReducer, dann die Statistik
+flowchart TD
+    pick["Handy, RoundScreen<br>Verkehrsmittel je Gruppe wählen,<br>der Router im Browser findet Hin- und Rückweg"]
+    pick -->|"POST api/game/ID/player/P/move/"| move["PlayerMoveView — game/views_rest.py<br>beide Wege prüfen, AgentRoutes speichern,<br>200 ans Handy"]
+    move -->|"nach dem Commit"| ready["complete_round_if_ready — game/rounds.py<br>haben alle spielenden Plätze gezogen?<br>dann die Runde beanspruchen, ACTIVE zu COMPLETED"]
+    ready -->|"run_simulation_task.delay"| worker["Celery-Worker<br>round_completed, handle_round_completed"]
+    worker --> sim["TrafficSimulator, run_simulation"]
+    sim -->|"SimulationResult und seine Zeilen"| numbers["Celery-Worker<br>Zahlen je Platz"]
+    numbers --> over{"CO2-Budget verbraucht<br>oder letzte Runde?"}
+    over -->|"nein"| stats["Phase STATS"]
+    sockets["GameConsumer, jeder offene Socket"] --> screen["Handy: gameReducer, dann die Statistik"]
+    move -.->|"Roster: dieser Platz wartet"| sockets
+    sim -.->|"simulation.progress"| sockets
+    numbers -.->|"round.completed"| sockets
+    over -.->|"ja: game.ended"| sockets
 ```
 
 Zwei Regeln halten das zusammen. Es gibt **einen** Entscheidungspunkt, `complete_round_if_ready`, und
@@ -282,7 +273,7 @@ oder ein Kalibrierskript kann also eine Runde ohne Datenbank rechnen.
 flowchart TD
     handler["handle_round_completed<br>game/signals.py"] --> ts["TrafficSimulator(round)<br>game/simulation.py"]
     subgraph rowsIn["Zeilen rein: _scenario"]
-        direction LR
+        direction TB
         r1["_read_routes<br>AgentRoutes einer Richtung"]
         r2["_read_lines<br>Bus- und Bahnlinien der aktiven Version,<br>jede auf ihrer eigenen Straßenseite"]
         r3["_read_links<br>jede Kante, die eine Route oder Linie befährt"]
@@ -342,7 +333,7 @@ Was einem Auto auf einer Kante passiert. Eine Straße mit zwei Richtungen sind z
 Richtung.
 
 ```mermaid
-flowchart LR
+flowchart TD
     want["Auto will auf die Kante"] --> room{"noch Platz?<br>Speicher: 133 Autos<br>je Spur und km"}
     room -->|"nein"| upstream["wartet, wo es ist,<br>und blockiert damit die Kante dahinter"]
     upstream --> room
@@ -404,26 +395,30 @@ Ein Socket je Spiel, ein Reducer. Der REST-Snapshot wird einmal gelesen, damit s
 ist; danach gehört jedes Update dem Socket.
 
 ```mermaid
-flowchart LR
+flowchart TD
     subgraph server["Backend, synchroner Code"]
+        direction TB
         sig["game/signals.py<br>beitreten, starten, beenden, round.completed"]
         ph["game/phases.py<br>Statistik, Abstimmung, Gleichstand"]
         ro["game/roster.py<br>wer da ist, wer gezogen hat"]
+        sig ~~~ ph ~~~ ro
     end
-    sig --> layer
-    ph --> layer
-    ro --> layer
+    server --> layer
     layer[("Channel Layer<br>group gamestate_ID")] --> cons["GameConsumer<br>game/consumers.py"]
     cons -->|"game.state bei jeder Verbindung,<br>dann jedes Event"| sock["GameSocket, einer je Spiel<br>lib/game/socket.ts"]
     snapshot["REST-Snapshot, einmal gelesen<br>useLobbySnapshot"] --> reducer
     sock --> reducer["gameReducer<br>lib/game/game-state.ts"]
-    reducer --> screen{"currentScreen"}
-    screen --> lobby["Lobby"]
-    screen --> playing["Spiel läuft<br>RoundScreen, HostDeskScreen"]
-    screen --> between["zwischen den Runden<br>BetweenScreen, HostBetweenScreen"]
-    screen --> ended["beendet<br>EndScreen"]
+    reducer -->|"currentScreen"| screens
+    subgraph screens["ein Bildschirm, je nach Phase"]
+        direction TB
+        lobby["Lobby"]
+        playing["Spiel läuft<br>RoundScreen, HostDeskScreen"]
+        between["zwischen den Runden<br>BetweenScreen, HostBetweenScreen"]
+        ended["beendet<br>EndScreen"]
+        lobby ~~~ playing ~~~ between ~~~ ended
+    end
     sock -.->|"Statistik gelesen, Stimmen"| cons
-    cons -.->|"database_sync_to_async"| ph
+    cons -.->|"database_sync_to_async,<br>in game/phases.py"| server
 ```
 
 - **`game.state` kommt bei jeder Verbindung**, ein Reconnect ist also schon der Abgleich. Nichts

@@ -69,20 +69,22 @@ own [further down](#between-rounds). Every ending writes `end_reason` at the mom
 stateDiagram-v2
     [*] --> Lobby: host creates the game
     Lobby --> Lobby: players join
-    Lobby --> Playing: host starts, round 1 on the base version
+    Lobby --> Playing: host starts,<br>round 1 on the base version
     Playing --> Simulating: the last move is in
     Simulating --> BetweenRounds: round.completed
-    Simulating --> Ended: CO2 budget spent or last round played
-    BetweenRounds --> Playing: next round, on the map the vote chose
+    Simulating --> Ended: CO2 budget spent<br>or last round played
+    BetweenRounds --> Playing: next round,<br>on the map the vote chose
     Playing --> Ended: host ends it, or idle for days
-    BetweenRounds --> Ended: host ends it, or idle for days
+    BetweenRounds --> Ended: host ends it,<br>or idle for days
     Ended --> Anonymised: 24 h later (beat)
     Anonymised --> [*]
 
-    note right of Playing
-        The host can pause at any point.
-        paused_at holds moves, phase changes
-        and round completion until resume.
+    note left of Playing
+        The host can pause
+        at any point: paused_at
+        holds moves, phase
+        changes and round
+        completion until resume.
     end note
 ```
 
@@ -104,21 +106,25 @@ first.
 
 ```mermaid
 flowchart TD
-    join["join — POST api/game/join/ID/<br>name + game password<br>refused once started, ended or full"]
-    create["host creates the game<br>(the host's own row)"]
-    whoami["whoami — GET api/whoami/<br>renews both, e.g. after a break"]
-    code["seat code — POST api/game/seat/CODE/<br>6 characters, 5 minutes, used once"]
-    takeover["host takes a seat over<br>…/player/P/takeover/"]
+    subgraph move["a seat moves"]
+        direction TB
+        code["seat code — POST api/game/seat/CODE/<br>6 characters, 5 minutes, used once"]
+        takeover["host takes a seat over<br>…/player/P/takeover/"]
+        code ~~~ takeover
+    end
+    subgraph fresh["new or renewed"]
+        direction TB
+        join["join — POST api/game/join/ID/<br>name + game password<br>refused once started, ended or full"]
+        create["host creates the game<br>(the host's own row)"]
+        whoami["whoami — GET api/whoami/<br>renews both, e.g. after a break"]
+        join ~~~ create ~~~ whoami
+    end
 
-    code --> rotate
-    takeover --> rotate
+    move --> rotate
     rotate["_rotate — game/seats.py<br>same row, same moves and votes,<br>new player_id"]
     rotate -->|"the old player_id<br>names nobody now"| revoked["player.revoked<br>old sockets close with 4403"]
-
-    join --> mint
-    create --> mint
-    whoami --> mint
     rotate -->|"code redeemed"| mint
+    fresh --> mint
 
     mint["set_game_access_cookie + set_player_cookie<br>co2mmute/utils.py"]
     mint --> cookies["two cookies, TimestampSigner, salt from SECRET_KEY<br>game_access_ID = 'ID:random token'<br>player_ID = 'ID:player_id'"]
@@ -173,36 +179,20 @@ server only checks it. The round is complete the moment the last seat that is st
 moved; the simulation then runs on Celery and reports back over the websocket.
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    participant P as Phone<br>RoundScreen
-    participant R as Router<br>in the browser
-    participant API as PlayerMoveView<br>game/views_rest.py
-    participant RD as game/rounds.py
-    participant W as Celery worker
-    participant S as TrafficSimulator
-    participant WS as GameConsumer<br>every open socket
-
-    P->>R: pick a mode per Gruppe
-    R-->>P: way there + way home
-    P->>API: POST api/game/ID/player/P/move/
-    API->>API: check both legs, store AgentRoutes
-    API-->>P: 200
-    API->>WS: roster: this seat is waiting
-    API->>RD: on commit: complete_round_if_ready
-    Note over RD: has every playing seat moved?<br>then claim the round, ACTIVE to COMPLETED
-    RD->>W: run_simulation_task.delay
-    W->>W: round_completed, handle_round_completed
-    W->>S: run_simulation
-    S-->>WS: simulation.progress
-    S-->>W: SimulationResult and its rows
-    W->>WS: round.completed with every seat's numbers
-    alt CO2 budget spent or last round
-        W->>WS: game.ended
-    else
-        W->>W: phase STATS
-    end
-    WS-->>P: gameReducer, then the stats screen
+flowchart TD
+    pick["phone, RoundScreen<br>pick a mode per Gruppe,<br>the router in the browser finds the way there and the way home"]
+    pick -->|"POST api/game/ID/player/P/move/"| move["PlayerMoveView — game/views_rest.py<br>check both legs, store AgentRoutes,<br>200 to the phone"]
+    move -->|"on commit"| ready["complete_round_if_ready — game/rounds.py<br>has every playing seat moved?<br>then claim the round, ACTIVE to COMPLETED"]
+    ready -->|"run_simulation_task.delay"| worker["Celery worker<br>round_completed, handle_round_completed"]
+    worker --> sim["TrafficSimulator, run_simulation"]
+    sim -->|"SimulationResult and its rows"| numbers["Celery worker<br>numbers per seat"]
+    numbers --> over{"CO2 budget spent<br>or last round?"}
+    over -->|"no"| stats["phase STATS"]
+    sockets["GameConsumer, every open socket"] --> screen["phone: gameReducer, then the stats screen"]
+    move -.->|"roster: this seat is waiting"| sockets
+    sim -.->|"simulation.progress"| sockets
+    numbers -.->|"round.completed"| sockets
+    over -.->|"yes: game.ended"| sockets
 ```
 
 Two rules hold this together. There is **one** decision point, `complete_round_if_ready`, and
@@ -271,7 +261,7 @@ or a calibration script can run a round without a database.
 flowchart TD
     handler["handle_round_completed<br>game/signals.py"] --> ts["TrafficSimulator(round)<br>game/simulation.py"]
     subgraph rowsIn["rows in: _scenario"]
-        direction LR
+        direction TB
         r1["_read_routes<br>AgentRoutes of one direction"]
         r2["_read_lines<br>bus and train lines of the active version,<br>each on its own side of the street"]
         r3["_read_links<br>every edge a route or a line drives"]
@@ -329,7 +319,7 @@ line (`_serve_stop`). Past its timetable a line keeps running as long as anybody
 What happens to one car on one link. A two-way street is two links, one per direction.
 
 ```mermaid
-flowchart LR
+flowchart TD
     want["car wants onto the link"] --> room{"room left?<br>storage: 133 cars<br>per lane and km"}
     room -->|"no"| upstream["waits where it is,<br>which blocks the link behind it"]
     upstream --> room
@@ -387,26 +377,30 @@ One socket per game, one reducer. The REST snapshot is read once to draw somethi
 that the socket owns every update.
 
 ```mermaid
-flowchart LR
+flowchart TD
     subgraph server["backend, sync code"]
+        direction TB
         sig["game/signals.py<br>join, start, end, round.completed"]
         ph["game/phases.py<br>stats, vote, stalemate"]
         ro["game/roster.py<br>who is here, who has moved"]
+        sig ~~~ ph ~~~ ro
     end
-    sig --> layer
-    ph --> layer
-    ro --> layer
+    server --> layer
     layer[("channel layer<br>group gamestate_ID")] --> cons["GameConsumer<br>game/consumers.py"]
     cons -->|"game.state on every connect,<br>then every event"| sock["GameSocket, one per game<br>lib/game/socket.ts"]
     snapshot["REST snapshot, read once<br>useLobbySnapshot"] --> reducer
     sock --> reducer["gameReducer<br>lib/game/game-state.ts"]
-    reducer --> screen{"currentScreen"}
-    screen --> lobby["lobby"]
-    screen --> playing["playing<br>RoundScreen, HostDeskScreen"]
-    screen --> between["between rounds<br>BetweenScreen, HostBetweenScreen"]
-    screen --> ended["ended<br>EndScreen"]
+    reducer -->|"currentScreen"| screens
+    subgraph screens["one screen, by phase"]
+        direction TB
+        lobby["lobby"]
+        playing["playing<br>RoundScreen, HostDeskScreen"]
+        between["between rounds<br>BetweenScreen, HostBetweenScreen"]
+        ended["ended<br>EndScreen"]
+        lobby ~~~ playing ~~~ between ~~~ ended
+    end
     sock -.->|"stats ack, votes"| cons
-    cons -.->|"database_sync_to_async"| ph
+    cons -.->|"database_sync_to_async,<br>into game/phases.py"| server
 ```
 
 - **`game.state` arrives on every connect**, so a reconnect is the resync. Nothing polls and nothing
