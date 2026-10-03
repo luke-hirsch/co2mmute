@@ -3,7 +3,6 @@ import uuid
 from io import BytesIO
 
 import qrcode
-from co2mmute.utils import per_passenger
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
@@ -308,61 +307,6 @@ class PlayerMove(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
-
-
-class CarMobility(models.Model):
-    session_round = models.ForeignKey(GameRound, on_delete=models.CASCADE)
-
-    base_emissions_g_per_km = models.FloatField(default=166.8)  # g CO2e / vehicle-km
-    base_cost_per_km = models.FloatField(default=0.32)  # € / vehicle-km
-
-    def emissions_per_km(self, passengers_onboard: float = 1.0) -> float:
-        return per_passenger(self.base_emissions_g_per_km, passengers_onboard)
-
-    def cost_per_km(self, passengers_onboard: float = 1.0) -> float:
-        return per_passenger(self.base_cost_per_km, passengers_onboard)
-
-
-class TrainMobility(models.Model):
-    session_round = models.ForeignKey(GameRound, on_delete=models.CASCADE)
-    # Kept in step with sim.constants.TRAIN_EMISSIONS_G_PER_VEHICLE_KM, which
-    # is what actually calculates. Nothing reads this row — it reaches a
-    # serializer and the admin and no arithmetic — which is exactly why it
-    # would have been left at 3500 as a second, wrong answer to "what does a
-    # train emit".
-    base_emissions_g_per_km = models.FloatField(default=1500.0)  # g CO2e / vehicle-km
-    base_cost_per_km = models.FloatField(default=12.0)  # € / vehicle-km
-
-    def emissions_per_km(self, passengers_onboard: float) -> float:
-        return per_passenger(self.base_emissions_g_per_km, passengers_onboard)
-
-    def cost_per_km(self, passengers_onboard: float) -> float:
-        return per_passenger(self.base_cost_per_km, passengers_onboard)
-
-
-class BusMobility(models.Model):
-    session_round = models.ForeignKey(GameRound, on_delete=models.CASCADE)
-    base_emissions_g_per_km = models.FloatField(default=1200.0)  # g CO2e / vehicle-km
-    base_cost_per_km = models.FloatField(default=4.5)  # € / vehicle-km
-
-    def emissions_per_km(self, passengers_onboard: float) -> float:
-        return per_passenger(self.base_emissions_g_per_km, passengers_onboard)
-
-    def cost_per_km(self, passengers_onboard: float) -> float:
-        return per_passenger(self.base_cost_per_km, passengers_onboard)
-
-
-class BikeMobility(models.Model):
-    session_round = models.ForeignKey(GameRound, on_delete=models.CASCADE)
-
-    emissions_g_per_km = models.FloatField(default=18.0)  # g CO2e / passenger-km
-    # Kept in step with sim.constants.BIKE_COST_PER_KM, for the reason given
-    # on TrainMobility: nothing reads this row.
-    cost_per_km = models.FloatField(default=0.03)  # € / passenger-km
-
-
-class WalkingMobility(models.Model):
-    session_round = models.ForeignKey(GameRound, on_delete=models.CASCADE)
 
 
 # =============================================================================

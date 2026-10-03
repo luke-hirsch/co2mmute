@@ -9,7 +9,7 @@ calibrated as a script.
 
 import random
 
-# Emission factors from Mobility models (defaults)
+# Emission factors. These are the only ones: the game's database carries none.
 CAR_EMISSIONS_G_PER_KM = 166.8  # g CO2e per vehicle-km (1 person = 1 vehicle)
 # A 12 m diesel city bus: ~40 l/100 km x 2.64 kg CO2/l.
 BUS_EMISSIONS_G_PER_VEHICLE_KM = 1200.0  # g CO2e per bus-km
@@ -34,7 +34,7 @@ CAR_EF_ROLLING_TERM = (  # b, g per km
 # a/v diverges at v -> 0,The FACTOR is capped
 MAX_CAR_EMISSION_FACTOR = 2.0
 
-# Cost factors from Mobility models (defaults)
+# Cost factors, likewise the only ones.
 CAR_COST_PER_KM = 0.32  # € per vehicle-km
 BUS_COST_PER_VEHICLE_KM = 4.5  # € per bus-km
 TRAIN_COST_PER_VEHICLE_KM = 12.0  # € per train-km

@@ -71,10 +71,6 @@ def game_map_clean(map_versions, base_game_map):
             )
 
 
-def per_passenger(value_per_vehicle_km: float, passengers_onboard: float) -> float:
-    return float(value_per_vehicle_km) / max(1.0, float(passengers_onboard))
-
-
 def sign_value(value, salt: str) -> str:
     signer = signing.TimestampSigner(salt=salt)
     return signer.sign(str(value))

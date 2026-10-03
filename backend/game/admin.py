@@ -1,15 +1,10 @@
 from django.contrib import admin
 
 from .models import (
-    BikeMobility,
-    BusMobility,
-    CarMobility,
     GameRound,
     GameSession,
     Player,
     PlayerMove,
-    TrainMobility,
-    WalkingMobility,
 )
 
 
@@ -56,33 +51,3 @@ class PlayerMoveAdmin(admin.ModelAdmin):
         "action",
     )
     ordering = ("session_round", "moved_at")
-
-
-@admin.register(CarMobility)
-class CarMobilityAdmin(admin.ModelAdmin):
-    list_display = ("session_round", "base_emissions_g_per_km", "base_cost_per_km")
-    ordering = ("session_round",)
-
-
-@admin.register(TrainMobility)
-class TrainMobilityAdmin(admin.ModelAdmin):
-    list_display = ("session_round", "base_emissions_g_per_km", "base_cost_per_km")
-    ordering = ("session_round",)
-
-
-@admin.register(BusMobility)
-class BusMobilityAdmin(admin.ModelAdmin):
-    list_display = ("session_round", "base_emissions_g_per_km", "base_cost_per_km")
-    ordering = ("session_round",)
-
-
-@admin.register(BikeMobility)
-class BikeMobilityAdmin(admin.ModelAdmin):
-    list_display = ("session_round", "emissions_g_per_km", "cost_per_km")
-    ordering = ("session_round",)
-
-
-@admin.register(WalkingMobility)
-class WalkingMobilityAdmin(admin.ModelAdmin):
-    list_display = ("session_round",)
-    ordering = ("session_round",)
