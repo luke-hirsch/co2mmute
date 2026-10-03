@@ -173,6 +173,7 @@ Let's Encrypt wäre technisch möglich, ist aber mit der TU-IT abzustimmen.
 | [`docs/de-hintergrund.md`](docs/de-hintergrund.md) | Hintergrund: was das Spiel rechnet und warum — auch `/hintergrund` |
 | [`docs/kalibrierung.md`](docs/kalibrierung.md)     | die Zahlen, gegen die gespielt wird, und wie sie gemessen sind  |
 | [`docs/testfaelle.md`](docs/testfaelle.md)         | was das Spiel können muss, Fall für Fall, mit Status            |
+| [`docs/technical/flowcharts.md`](docs/technical/flowcharts.md) | wie es läuft: Ablaufdiagramme für Runde, Routensuche, Simulation, Spielerzugang (englisch) |
 
 ### Lizenz
 
@@ -345,6 +346,7 @@ be agreed with TU IT first.
 | [`docs/en-background.md`](docs/en-background.md)   | background: what the game computes and why — German on `/hintergrund` |
 | [`docs/kalibrierung.md`](docs/kalibrierung.md)     | the numbers the game is played against, and how they were measured (German) |
 | [`docs/testfaelle.md`](docs/testfaelle.md)         | what the game has to do, case by case, with status (German)  |
+| [`docs/technical/flowcharts.md`](docs/technical/flowcharts.md) | how it runs: flowcharts of a round, the route search, the simulation, player access |
 
 ### License
 
