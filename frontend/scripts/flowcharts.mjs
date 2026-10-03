@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * Draw the flowcharts on /docs/ablaufdiagramme/ and /docs/en/flowcharts/ again,
- * from the Mermaid in docs/de-flowcharts.md and docs/en-flowcharts.md.
+ * Draw the flowcharts on /docs/ablaufdiagramme/ again, from the Mermaid in
+ * docs/de-flowcharts.md. Its English twin, docs/en-flowcharts.md, has no page
+ * on the site — the site is German — and GitHub draws its Mermaid itself.
  *
  *   npm run flowcharts          (from frontend/)
  *
@@ -31,7 +32,6 @@ const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", ".
 const out = path.join(repo, "backend", "template", "docs", "flowcharts");
 const pages = {
   de: path.join(repo, "backend", "template", "docs", "ablaufdiagramme.html"),
-  en: path.join(repo, "backend", "template", "docs", "en", "flowcharts.html"),
 };
 
 const SANS =
@@ -199,7 +199,7 @@ try {
   }, themeVariables);
 
   mkdirSync(out, { recursive: true });
-  for (const lang of ["de", "en"]) {
+  for (const lang of Object.keys(pages)) {
     const blocks = charts(lang);
     const written = new Set();
     for (const [index, code] of blocks.entries()) {

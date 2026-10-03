@@ -1,5 +1,3 @@
-import type { NavItem } from "@/lib/queries/navigation";
-
 /**
  * Links the SPA can follow without a reload.
  *
@@ -33,13 +31,4 @@ export function placeBelow(
   const centred = anchor.left + anchor.width / 2 - panelWidth / 2;
   const left = Math.max(edge, Math.min(centred, viewportWidth - panelWidth - edge));
   return { top: anchor.bottom + gap, left };
-}
-
-/**
- * Whether a menu draws a rule above this item: where the language of its links
- * changes. The docs menu lists three pages in German and the same three in
- * English (F13); `base.html` does the same with `{% ifchanged %}`.
- */
-export function startsLanguageGroup(items: readonly NavItem[], index: number): boolean {
-  return index > 0 && items[index].lang !== items[index - 1].lang;
 }

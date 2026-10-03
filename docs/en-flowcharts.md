@@ -24,37 +24,39 @@ server-rendered pages. The simulation never runs in a request — it runs on a C
 results reach the browsers over the websocket.
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph browser["Browser"]
         spa["SPA under /app/<br>frontend/ — game, host pages, editor"]
         pages["Django pages<br>landing, /docs, legal, login"]
     end
     nginx["nginx<br>serves the SPA bundle,<br>proxies everything else"]
     subgraph daphne["Daphne — backend/"]
+        ws["websockets<br>game/consumers.py"]
         rest["REST API<br>game/, maps/"]
         tpl["templates<br>backend/template/"]
-        ws["websockets<br>game/consumers.py"]
     end
+    redis[("Redis<br>channel layer, cache,<br>Celery broker")]
     subgraph celery["Celery"]
-        worker["worker<br>simulates a round<br>game/tasks.py"]
         beat["beat<br>anonymise hourly, idle games 02:30,<br>old sessions 03:00"]
+        worker["worker<br>simulates a round<br>game/tasks.py"]
     end
     pg[("Postgres<br>games, maps, results")]
-    redis[("Redis<br>channel layer, cache,<br>Celery broker")]
 
     spa -->|"/api/…"| nginx
     spa -->|"/ws/…"| nginx
     pages --> nginx
-    nginx --> rest
-    nginx --> tpl
-    nginx --> ws
-    rest --> pg
+    nginx --> daphne
+    %% ~~~ is invisible: it keeps the websockets above Redis and beat below it,
+    %% so the chart stays upright and fits beside the list of stops
+    ws ~~~ redis
     rest -->|"a round is complete"| redis
-    beat -->|"schedules"| redis
+    redis ~~~ beat
     redis -->|"tasks"| worker
-    worker --> pg
     worker -->|"events"| redis
+    beat -->|"schedules"| redis
     redis -->|"group_send"| ws
+    rest --> pg
+    worker --> pg
 ```
 
 ## A game, start to end

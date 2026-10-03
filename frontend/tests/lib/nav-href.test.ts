@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { placeBelow, routerPath, startsLanguageGroup } from "@/lib/nav-href";
+import { placeBelow, routerPath } from "@/lib/nav-href";
 
 describe("routerPath", () => {
   it("turns an href under /app/ into the path inside the router", () => {
@@ -47,36 +47,5 @@ describe("placeBelow", () => {
 
   it("keeps it inside the left edge too", () => {
     expect(placeBelow({ left: 0, width: 40, bottom: 60 }, 224, 1440).left).toBe(16);
-  });
-});
-
-describe("startsLanguageGroup", () => {
-  // The docs menu: three German pages, then the same three in English (F13).
-  const docs = [
-    { id: "schnellstart", label: "Schnellstart" },
-    { id: "hintergrund", label: "Hintergrund" },
-    { id: "ablaufdiagramme", label: "Ablaufdiagramme" },
-    { id: "quick-start", label: "Quick start", lang: "en" },
-    { id: "background", label: "Background", lang: "en" },
-    { id: "flowcharts", label: "Flowcharts", lang: "en" },
-  ];
-
-  it("draws one rule, where the language changes", () => {
-    expect(docs.map((_, index) => startsLanguageGroup(docs, index))).toEqual([
-      false,
-      false,
-      false,
-      true,
-      false,
-      false,
-    ]);
-  });
-
-  it("draws none in a menu of one language", () => {
-    const play = [
-      { id: "erstellen", label: "Erstellen" },
-      { id: "beitreten", label: "Beitreten" },
-    ];
-    expect(play.map((_, index) => startsLanguageGroup(play, index))).toEqual([false, false]);
   });
 });

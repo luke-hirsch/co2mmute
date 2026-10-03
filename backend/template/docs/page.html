@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
 {% comment %}
-  One page of the docs on the site (F13), in either language. Every page is a
-  copy of a file in docs/, kept in step by hand: the backend image carries no
+  One page of the docs on the site (F13). Every page is a copy of a German
+  file in docs/, kept in step by hand: the backend image carries no
   docs/, and no test holds a page to its file, so an edit to the copy can never
   stop a deploy. The figures are files of their own, included inline so the
   page's colours reach them.
@@ -13,15 +13,11 @@
 
   A page fills `title`, `description`, the start (`kicker`, `heading`, `lead`),
   `stations` (the list beside the text), `doc` (the text) and the end
-  (`end_kicker`, `end_heading`, `end_lead`). DocView hands it `lang`, its twin's
-  address and `repository_url`.
+  (`end_kicker`, `end_heading`, `end_lead`). DocView hands it `repository_url`.
 {% endcomment %}
-
-{% block html_lang %}{{ lang }}{% endblock %}
 
 {% block extra_head %}
 <meta name="description" content="{% block description %}{% endblock %}" />
-<link rel="alternate" hreflang="{{ twin_lang }}" href="{{ twin_url }}" />
 {% endblock %}
 
 {% block main_class %}{% endblock %}
@@ -49,13 +45,6 @@
         <div class="doc-lead mt-6 max-w-(--measure-lead) space-y-4 text-lg/8 text-pretty text-muted dark:text-darkmutedtext">
           {% block lead %}{% endblock %}
         </div>
-        <p class="mt-6 text-sm/6">
-          {% if lang == "de" %}
-            <a href="{{ twin_url }}" lang="en" hreflang="en" class="text-link">This page in English</a>
-          {% else %}
-            <a href="{{ twin_url }}" lang="de" hreflang="de" class="text-link">Diese Seite auf Deutsch</a>
-          {% endif %}
-        </p>
       </div>
     </div>
   </section>
@@ -63,9 +52,9 @@
   {# --- the document; on wide screens its stations ride along on the right --- #}
   <div class="relative mx-auto max-w-7xl pr-6 lg:pr-8">
     <div class="pl-(--gutter) lg:grid lg:grid-cols-[minmax(0,1fr)_13rem] lg:gap-x-16">
-      <nav aria-label="{% if lang == "de" %}Haltestellen auf dieser Seite{% else %}Stops on this page{% endif %}" class="toc lg:col-start-2 lg:row-start-1">
+      <nav aria-label="Haltestellen auf dieser Seite" class="toc lg:col-start-2 lg:row-start-1">
         <div class="lg:sticky lg:top-8 lg:max-h-[calc(100dvh-4rem)] lg:overflow-y-auto">
-          <p class="text-sm font-medium text-main dark:text-darktext">{% if lang == "de" %}Haltestellen{% else %}Stops{% endif %}</p>
+          <p class="text-sm font-medium text-main dark:text-darktext">Haltestellen</p>
           <ol class="mt-4">
             {% block stations %}{% endblock %}
           </ol>
@@ -89,7 +78,7 @@
           <span class="metro-terminus" aria-hidden="true">
             <svg class="size-5 text-main dark:text-darktext" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></svg>
           </span>
-          {% block end_kicker %}{% if lang == "de" %}Ziel: zurück ins Spiel{% else %}Destination: back to the game{% endif %}{% endblock %}
+          {% block end_kicker %}Ziel: zurück ins Spiel{% endblock %}
         </p>
         <h2 class="mt-6 max-w-3xl text-4xl/[1.05] font-medium tracking-tight text-balance text-main sm:text-5xl/[1.05] dark:text-darktext">
           {% block end_heading %}{% endblock %}
@@ -102,13 +91,13 @@
             href="{% url 'session-create' %}"
             class="rounded-lg bg-primary-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-primary-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 dark:bg-primary-500 dark:hover:bg-primary-400"
           >
-            {% if lang == "de" %}Spiel erstellen{% else %}Create a game{% endif %}
+            Spiel erstellen
           </a>
           <a
             href="{% url 'index' %}"
             class="text-sm/6 font-semibold text-main transition hover:text-primary-600 dark:text-darktext dark:hover:text-primary-300"
           >
-            {% if lang == "de" %}Zur Startseite{% else %}To the start page{% endif %} <span aria-hidden="true">→</span>
+            Zur Startseite <span aria-hidden="true">→</span>
           </a>
         </div>
       </div>

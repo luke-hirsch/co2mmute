@@ -82,23 +82,22 @@ class NavigationListTests(TestCase):
             [("Alle Karten", "/app/maps"), ("Hochladen", "/app/maps/upload")],
         )
 
-    def test_the_docs_menu_has_three_pages_in_german_then_the_same_in_english(self):
-        """F13. The English links say which language they lead to, so a screen
-        reader on a German page reads them in English and the menu can set the
-        two languages apart."""
+    def test_the_docs_menu_has_the_three_pages(self):
+        """F13. In German only since the English pages came off the site."""
         docs = _build()["header"][-1]
 
         self.assertEqual(docs["label"], "Docs")
         self.assertNotIn("href", docs)
         self.assertEqual(
-            [(child["label"], child["href"], child.get("lang")) for child in docs["children"]],
+            [sorted(child) for child in docs["children"]],
+            [["href", "id", "label"]] * 3,
+        )
+        self.assertEqual(
+            [(child["label"], child["href"]) for child in docs["children"]],
             [
-                ("Schnellstart", "/docs/schnellstart/", None),
-                ("Hintergrund", "/docs/hintergrund/", None),
-                ("Ablaufdiagramme", "/docs/ablaufdiagramme/", None),
-                ("Quick start", "/docs/en/quick-start/", "en"),
-                ("Background", "/docs/en/background/", "en"),
-                ("Flowcharts", "/docs/en/flowcharts/", "en"),
+                ("Schnellstart", "/docs/schnellstart/"),
+                ("Hintergrund", "/docs/hintergrund/"),
+                ("Ablaufdiagramme", "/docs/ablaufdiagramme/"),
             ],
         )
 
@@ -213,8 +212,7 @@ class BaseTemplateTests(TestCase):
         return response.content.decode()
 
     def _header(self):
-        # The element, not everything above it: a docs page's <head> names
-        # its twin in a <link rel="alternate">.
+        # The element, not the whole page, whose text may link the same pages.
         return self._page().split("<header", 1)[1].split("</header>", 1)[0]
 
     def test_the_desktop_bar_and_the_phone_menu_offer_the_same_links(self):
@@ -230,17 +228,6 @@ class BaseTemplateTests(TestCase):
             )
         self.assertNotIn(">Upload<", header)
         self.assertNotIn(">Liste<", header)
-
-    def test_the_english_links_carry_their_language_in_both_menus(self):
-        header = self._header()
-
-        for href in ("/docs/en/quick-start/", "/docs/en/background/", "/docs/en/flowcharts/"):
-            links = re.findall(rf'<a href="{href}"[^>]*>', header)
-            self.assertEqual(len(links), 2, href)
-            for link in links:
-                self.assertIn('lang="en"', link)
-                self.assertIn('hreflang="en"', link)
-        self.assertNotIn('<a href="/docs/hintergrund/" lang=', header)
 
     def test_a_visitor_is_offered_no_map_menu(self):
         html = self._page()

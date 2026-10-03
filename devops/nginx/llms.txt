@@ -30,7 +30,6 @@ erhalten.
 - [Schnellstart](https://co2mmute.stsds.tu-berlin.de/docs/schnellstart/): Wie gespielt wird, vom Konto der Spielleitung bis zum Karteneditor.
 - [Hintergrund](https://co2mmute.stsds.tu-berlin.de/docs/hintergrund/): Wie die Simulation rechnet und woher ihre Zahlen kommen.
 - [Ablaufdiagramme](https://co2mmute.stsds.tu-berlin.de/docs/ablaufdiagramme/): Wie der Code läuft, in zwölf Diagrammen.
-- [Quick start](https://co2mmute.stsds.tu-berlin.de/docs/en/quick-start/), [Background](https://co2mmute.stsds.tu-berlin.de/docs/en/background/), [Flowcharts](https://co2mmute.stsds.tu-berlin.de/docs/en/flowcharts/): dieselben drei auf Englisch.
 - [Datenschutzerklärung](https://co2mmute.stsds.tu-berlin.de/legal/dsgvo/): Welche Daten verarbeitet werden, wie lange, und welche Rechte du hast.
 - [Cookies](https://co2mmute.stsds.tu-berlin.de/legal/cookies/): Welche Cookies gesetzt werden und wofür.
 - [Impressum](https://co2mmute.stsds.tu-berlin.de/legal/impressum/): Anbieter und Verantwortliche.

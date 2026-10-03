@@ -168,7 +168,7 @@ Let's Encrypt wäre technisch möglich, ist aber mit der TU-IT abzustimmen.
 ### Dokumentation
 
 Schnellstart, Hintergrund und Ablaufdiagramme stehen auch auf der Seite, unter „Docs“ in der
-Kopfzeile, jeweils auf Deutsch und Englisch. Die Seiten sind Kopien der Dateien
+Kopfzeile, auf Deutsch wie die ganze Seite. Die Seiten sind Kopien der deutschen Dateien
 (`backend/template/docs/`) und werden von Hand nachgezogen: Wer die eine ändert, ändert die andere.
 Die Diagramme zeichnet `npm run flowcharts` in `frontend/` aus dem Mermaid in den Dateien neu.
 
@@ -346,17 +346,18 @@ be agreed with TU IT first.
 ### Documentation
 
 The quick start, the background and the flowcharts are on the site too, under "Docs" in the
-header, each in German and English. The pages are copies of the files (`backend/template/docs/`),
-kept in step by hand: change one, change the other. The charts are drawn again from the files'
+header, in German like the rest of the site; the English files have no page of their own. The
+pages are copies of the German files (`backend/template/docs/`), kept in step by hand: change one,
+change the other. The charts are drawn again from the files'
 Mermaid by `npm run flowcharts` in `frontend/`.
 
 | File                                               | On the site                                                         | What                                                         |
 | -------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------ |
-| [`docs/en-quick-start.md`](docs/en-quick-start.md) | [`/docs/en/quick-start/`](https://co2mmute.stsds.tu-berlin.de/docs/en/quick-start/)   | quick start: how the game is played                          |
-| [`docs/en-background.md`](docs/en-background.md)   | [`/docs/en/background/`](https://co2mmute.stsds.tu-berlin.de/docs/en/background/)     | background: what the game computes and why                   |
+| [`docs/en-quick-start.md`](docs/en-quick-start.md) | [`/docs/schnellstart/`](https://co2mmute.stsds.tu-berlin.de/docs/schnellstart/) (German)       | quick start: how the game is played                          |
+| [`docs/en-background.md`](docs/en-background.md)   | [`/docs/hintergrund/`](https://co2mmute.stsds.tu-berlin.de/docs/hintergrund/) (German)         | background: what the game computes and why                   |
 | [`docs/kalibrierung.md`](docs/kalibrierung.md)     | —                                                                   | the numbers the game is played against, and how they were measured (German) |
 | [`docs/testfaelle.md`](docs/testfaelle.md)         | —                                                                   | what the game has to do, case by case, with status (German)  |
-| [`docs/en-flowcharts.md`](docs/en-flowcharts.md)   | [`/docs/en/flowcharts/`](https://co2mmute.stsds.tu-berlin.de/docs/en/flowcharts/)     | how it runs: flowcharts of a round, the route search, the simulation, player access |
+| [`docs/en-flowcharts.md`](docs/en-flowcharts.md)   | [`/docs/ablaufdiagramme/`](https://co2mmute.stsds.tu-berlin.de/docs/ablaufdiagramme/) (German) | how it runs: flowcharts of a round, the route search, the simulation, player access |
 
 ### License
 
