@@ -31,9 +31,9 @@ jobs:
       POSTGRES_PORT: 5432
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
           cache: pip
@@ -52,3 +52,118 @@ jobs:
       - name: Run the suite
         working-directory: backend
         run: ./manage.py test --settings=co2mmute.settings_test --verbosity=2
+
+  frontend:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Three tsconfigs: `tsc -b` deliberately does not reach the tests or the
+      # e2e specs, so each gets its own check.
+      - name: Type-check the app
+        run: npx tsc -b
+      - name: Type-check the unit tests
+        run: npx tsc -p tests --noEmit
+      - name: Type-check the e2e specs
+        run: npx tsc -p e2e --noEmit
+
+      - name: Unit tests
+        run: npx vitest run
+
+      # What the nginx image runs at deploy time. Until this job it was the
+      # first place a broken bundle showed up.
+      - name: Build
+        run: npx vite build
+
+  e2e:
+    # Pinned: Playwright installs WebKit's system libraries per Ubuntu release,
+    # and ubuntu-latest moves to 26.04 on 2026-10-19.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    env:
+      # The production stack, fresh, for this job only.
+      COMPOSE_FILE: devops/docker-compose.yaml
+      E2E_BASE_URL: https://localhost
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Made per run: settings refuse a short key or a published one, and the
+      # stack is gone with the runner.
+      - name: Secret key
+        run: echo "DJANGO_SECRET_KEY=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Self-signed certificate
+        run: |
+          mkdir -p devops/nginx/certs
+          openssl req -x509 -nodes -newkey rsa:2048 -days 2 \
+            -keyout devops/nginx/certs/selfsigned.key \
+            -out devops/nginx/certs/selfsigned.crt \
+            -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+
+      # Also proves both images build, which nothing else in CI does.
+      - name: Build and start the stack
+        run: docker compose up -d --build --wait
+
+      - name: Wait for the site
+        run: |
+          for i in $(seq 60); do
+            curl -skf -o /dev/null https://localhost/accounts/login/ && exit 0
+            sleep 5
+          done
+          echo "the site never answered" && exit 1
+
+      # The one thing e2e/seed.mjs cannot do over HTTP.
+      - name: Staff account
+        run: |
+          docker compose exec -T -e DJANGO_SUPERUSER_PASSWORD=e2e-local-only backend \
+            ./manage.py createsuperuser --noinput --username e2e --email e2e@example.invalid
+
+      - name: Install Playwright and WebKit
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps webkit
+
+      - name: Seed
+        working-directory: frontend
+        run: node e2e/seed.mjs
+
+      - name: Playwright
+        working-directory: frontend
+        run: npx playwright test
+
+      - name: Stack logs
+        if: failure()
+        run: docker compose logs --no-color > compose.log
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: e2e
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+            compose.log
+          retention-days: 7
