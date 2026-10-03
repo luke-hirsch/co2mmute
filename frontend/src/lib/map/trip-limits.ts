@@ -19,11 +19,13 @@
  *
  * ### What it does to the shipped map
  *
- * Measured over all 36 home/workplace pairs: the shortest routed walk is 4.8 km,
- * the median 8.4, the longest 11.5. So the walk cap refuses **33 of 36** — this
- * map has no walkable commute, and the game now says so instead of offering a
- * 101-minute walk. The bike cap refuses **none of them**, and is a guard for a
- * map that has not been drawn yet.
+ * Measured over all 36 home/workplace pairs, in every version: the shortest
+ * routed walk is 2.75 km, the median 5.4, the longest 10.0. So the walk cap
+ * refuses **22 of 36** and leaves 14 walkable — the three Bellevue homes to
+ * Brandenburger Tor, Lützowplatz, TU Berlin and Hegelplatz, and two to
+ * Lützowplatz from the south. Before the Tiergarten paths (F11) it refused 33
+ * and the map had no walkable commute. The bike cap refuses **none of them**,
+ * and is a guard for a map that has not been drawn yet.
  *
  * ### Two places it is checked, and why both
  *
@@ -31,8 +33,8 @@
  * offered; the routed distance is the real cap and refuses the rest. The air
  * gate has to be sound rather than complete — it may only refuse a mode that
  * could not have worked — and it is, because the straight line is a lower bound
- * on any route. On this map it catches 14 of the 33 walk refusals and the router
- * catches the other 19; the detour factor runs 1.24 to 2.76, so nothing tighter
+ * on any route. On this map it catches 14 of the 22 walk refusals and the router
+ * catches the other 8; the detour factor runs 1.06 to 1.54, so nothing tighter
  * would be safe.
  */
 

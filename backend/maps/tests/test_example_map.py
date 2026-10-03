@@ -26,7 +26,9 @@ whether the *file* is broken, wherever it is about to be imported. The import
 class at the bottom then proves the same map arrives through `/map/upload/`.
 """
 
+import heapq
 import json
+import math
 from pathlib import Path
 
 from django.test import SimpleTestCase, TestCase
@@ -55,7 +57,7 @@ TRAIN_SPEEDS_KMH = {40, 50}
 # 60-seat U-Bahn survived two passes: the numbers are the map, not a sanity
 # check on the loader.
 NODE_COUNT = 55
-EDGE_COUNT = 170
+EDGE_COUNT = 186
 VERSION_COUNT = 8
 BUS_LINE_COUNT = 6
 TRAIN_LINE_COUNT = 6
@@ -65,18 +67,35 @@ LINE_PAIR_COUNT = 6
 # each pair counted once.
 BALLOT_PAIR_COUNT = 12
 
-# The four links drawn as shortcuts for bikes and pedestrians: three homes to
-# the S-Bahn at Bellevue, and the Justizministerium to Checkpoint Charlie. They
-# carry no `StreetEdge` row on purpose, which is how both sides already refuse
-# a car on them — `canUseEdge` answers `edge.street_edge != null` and
-# `_validate_routes` answers "cars not allowed on edge N". Named by their ends
-# rather than by index, because an index moves whenever the file is rewritten.
+# The links drawn for bikes and pedestrians only. The first four came with the
+# map: three homes to the S-Bahn at Bellevue, and the Justizministerium to
+# Checkpoint Charlie. The other eight are F11's (drawn 2026-10-02): paths
+# through the Tiergarten and round Potsdamer Platz, without which no commute on
+# this map could be walked (see `ShippedMapWalkingTests`). They carry no
+# `StreetEdge` row on purpose, which is how both sides already refuse a car on
+# them — `canUseEdge` answers `edge.street_edge != null` and `_validate_routes`
+# answers "cars not allowed on edge N". Named by their ends rather than by
+# index, because an index moves whenever the file is rewritten.
 SHORTCUT_ENDS = {
     ("Wohnort 1", "Bellevue"),
     ("Wohnort 2", "Bellevue"),
     ("Wohnort 3", "Bellevue"),
     ("Arbeit Justizministerium", "Checkpoint Charlie"),
+    ("Bellevue", "Großer Stern"),
+    ("Bellevue", "Brandenburger Tor"),
+    ("Unter den Linden", "Arbeit Brandenburger Tor"),
+    ("Philarmonie", "Botschaftsviertel"),
+    ("Philarmonie", "U Potsdamer Platz"),
+    ("U Potsdamer Platz", "Urania Berlin"),
+    ("Helper Station 4", "Bundestag"),
+    ("Helper Station 4", "Friedrichstadtpalast"),
 }
+# Every one of them both ways, but Philharmonie-Botschaftsviertel only where
+# the Umgehungsstraße Süd is not drawn over it (four versions).
+SHORTCUT_EDGE_COUNT = 2 * len(SHORTCUT_ENDS)
+
+# How far anybody walks: `MAX_WALK_M` in `frontend/src/lib/map/trip-limits.ts`.
+WALK_LIMIT_M = 5000
 
 
 def load_shipped_map():
@@ -271,6 +290,25 @@ class ShippedMapMembershipTests(SimpleTestCase):
                         self.assertIsInstance(other, int)
                         self.assertLess(other, count)
                         self.assertGreaterEqual(other, 0)
+
+    def test_no_version_has_two_links_between_the_same_nodes(self):
+        """One link per direction per node pair, in every version.
+
+        The editor refuses a second one (`edge-exists`), whatever its type, so
+        a file carrying two is a map the editor cannot make. F11's
+        Philharmonie-Botschaftsviertel path is the case that needs it: the
+        Umgehungsstraße Süd runs over the same pair in four versions and
+        already lets people walk and cycle, so the path stays out of those.
+        """
+        for version in range(len(self.graph["versions"])):
+            seen = set()
+            for idx, edge in enumerate(self.graph["edges"]):
+                if version not in element_versions(self.graph, edge):
+                    continue
+                ends = (edge["start_node"], edge["end_node"])
+                with self.subTest(version=version, edge=idx):
+                    self.assertNotIn(ends, seen)
+                seen.add(ends)
 
     def test_an_edge_lives_wherever_both_its_nodes_live(self):
         """An edge in a version whose node is missing there is a dangling edge.
@@ -620,19 +658,20 @@ class ShippedMapEdgeTests(SimpleTestCase):
                 self.assertIn("dedicated_bus_lane", edge)
 
     def test_the_shortcuts_are_for_bikes_and_pedestrians_only(self):
-        """Four links with no street under them, and that is the point.
+        """Twelve links with no street under them, and that is the point.
 
         Three homes reach the S-Bahn at Bellevue and the Justizministerium
         reaches Checkpoint Charlie on foot or by bike; a car has to go round by
-        Turmstraße. Carrying no `StreetEdge` row is how the map says so, and
-        both sides already read it: `canUseEdge` answers
-        `edge.street_edge != null` for a car and `_validate_routes` refuses the
-        submit with "cars not allowed on edge N".
+        Turmstraße. The Tiergarten paths take the walk to Brandenburger Tor,
+        Lützowplatz, TU Berlin and Hegelplatz under an hour. Carrying no
+        `StreetEdge` row is how the map says so, and both sides already read
+        it: `canUseEdge` answers `edge.street_edge != null` for a car and
+        `_validate_routes` refuses the submit with "cars not allowed on edge N".
 
-        Pinned by their ends, in both directions, because these eight are the
-        only street-typed edges in the file without a street row — and an
-        editor pass that gave them lanes would silently open a fast shortcut
-        past every front door.
+        Pinned by their ends, in both directions, because these are the only
+        edges in the file without a street row or a railway — and an editor
+        pass that gave them lanes would silently open a fast shortcut past
+        every front door.
         """
         names = {node["id"]: node.get("name") for node in self.graph["nodes"]}
         found = set()
@@ -690,6 +729,85 @@ class ShippedMapEdgeTests(SimpleTestCase):
             with self.subTest(edge=edge["name"]):
                 self.assertFalse(edge["biking"])
                 self.assertFalse(edge["walking"])
+
+
+class ShippedMapWalkingTests(SimpleTestCase):
+    """Whether anybody can walk to work on this map.
+
+    Before F11 three of 36 home/workplace pairs fell inside the 5 km walk cap,
+    the shortest at 4.84 km: walking was a mode the game offered and almost
+    never allowed. The Tiergarten paths make it 14 in every version, the
+    shortest 2.75 km (Wohnort 2 to Arbeit Brandenburger Tor). Measured here the
+    way the client router measures it — a link is as long as the straight line
+    between its nodes times the map's scale, and anything not saying
+    `"walking": false` may be walked — so this is the same number the student
+    meets when "zu Fuß" is or is not offered.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.graph = load_shipped_map()
+        nodes = {node["id"]: node for node in cls.graph["nodes"]}
+        cls.homes = [n["id"] for n in cls.graph["nodes"] if "home" in n["types"]]
+        cls.workplaces = [
+            n["id"] for n in cls.graph["nodes"] if "workplace" in n["types"]
+        ]
+        cls.names = {node_id: node["name"] for node_id, node in nodes.items()}
+        cls.walks = {}
+        for version in range(len(cls.graph["versions"])):
+            links = {}
+            for edge in cls.graph["edges"]:
+                if version not in element_versions(cls.graph, edge):
+                    continue
+                if edge.get("walking") is False:
+                    continue
+                a, b = nodes[edge["start_node"]], nodes[edge["end_node"]]
+                length = math.hypot(a["x"] - b["x"], a["y"] - b["y"]) * cls.graph["scale"]
+                links.setdefault(edge["start_node"], []).append((edge["end_node"], length))
+            cls.walks[version] = links
+
+    def shortest_walk_m(self, version, start, end):
+        links = self.walks[version]
+        best = {start: 0.0}
+        queue = [(0.0, start)]
+        while queue:
+            dist, node = heapq.heappop(queue)
+            if node == end:
+                return dist
+            if dist > best[node]:
+                continue
+            for other, length in links.get(node, []):
+                if dist + length < best.get(other, math.inf):
+                    best[other] = dist + length
+                    heapq.heappush(queue, (dist + length, other))
+        return math.inf
+
+    def walkable(self, version):
+        """The pairs inside the cap both ways — a round is there and back."""
+        return {
+            (home, work)
+            for home in self.homes
+            for work in self.workplaces
+            if self.shortest_walk_m(version, home, work) <= WALK_LIMIT_M
+            and self.shortest_walk_m(version, work, home) <= WALK_LIMIT_M
+        }
+
+    def test_a_commute_can_be_walked_in_every_version(self):
+        self.assertEqual(len(self.homes) * len(self.workplaces), 36)
+        for version in range(len(self.graph["versions"])):
+            with self.subTest(version=self.graph["versions"][version]["name"]):
+                self.assertEqual(len(self.walkable(version)), 14)
+
+    def test_the_shortest_walk_is_through_the_tiergarten(self):
+        base = base_index(self.graph)
+        shortest = min(
+            (self.shortest_walk_m(base, home, work), self.names[home], self.names[work])
+            for home in self.homes
+            for work in self.workplaces
+        )
+        self.assertAlmostEqual(shortest[0], 2750, delta=5)
+        self.assertEqual(shortest[1:], ("Wohnort 2", "Arbeit Brandenburger Tor"))
 
 
 class ShippedMapImportsTests(MapUploadMixin, TestCase):
@@ -833,7 +951,7 @@ class ShippedMapImportsTests(MapUploadMixin, TestCase):
             )
             if not edge.streetedge_set.exists() and not edge.trainedge_set.exists()
         ]
-        self.assertEqual(len(carless), 8)
+        self.assertEqual(len(carless), SHORTCUT_EDGE_COUNT)
         for edge in carless:
             with self.subTest(edge=edge.pk):
                 self.assertTrue(edge.walking)

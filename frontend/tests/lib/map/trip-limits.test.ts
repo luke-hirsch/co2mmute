@@ -65,16 +65,17 @@ describe("exceedsModeLimit", () => {
     expect(exceedsModeLimit("bike", 15001)).toBe(true);
   });
 
-  it("refuses the shipped map's median walk, which is 8.4 km", () => {
-    // Measured over all 36 home/workplace pairs: shortest routed walk 4.8 km,
-    // median 8.4, longest 11.5. So the cap refuses walking on 33 of 36 pairs —
-    // this map has no walkable commute, and the game now says so instead of
-    // offering a 101-minute walk.
-    expect(exceedsModeLimit("walk", 8393)).toBe(true);
+  it("refuses the shipped map's median walk, which is 5.4 km", () => {
+    // Measured over all 36 home/workplace pairs since the Tiergarten paths
+    // (F11): shortest routed walk 2.75 km, median 5.4, longest 10.0. So the cap
+    // refuses walking on 22 of 36 pairs and allows 14. Before the paths it
+    // refused 33 — the map had no walkable commute at all.
+    expect(exceedsModeLimit("walk", 5378)).toBe(true);
+    expect(exceedsModeLimit("walk", 2754)).toBe(false);
   });
 
-  it("refuses nothing on a bike on this map, where the longest trip is 11.5 km", () => {
-    expect(exceedsModeLimit("bike", 11516)).toBe(false);
+  it("refuses nothing on a bike on this map, where the longest trip is 10.0 km", () => {
+    expect(exceedsModeLimit("bike", 10000)).toBe(false);
   });
 
   it("never refuses a car or a PT trip, however long", () => {
@@ -95,9 +96,9 @@ describe("airDistanceM", () => {
 
   it("is a lower bound on the routed distance, so it can gate before the pick", () => {
     // The gate has to be sound: it may only refuse a mode that could not have
-    // worked. Berlin Mitte-West's detour factor runs 1.24 to 2.76 (median
-    // 1.54), so air distance is well under the routed distance everywhere and
-    // a mode refused on it was never reachable.
+    // worked. Berlin Mitte-West's detour factor runs 1.06 to 1.54 (median
+    // 1.27), so air distance is under the routed distance everywhere and a
+    // mode refused on it was never reachable.
     const home = node(1, 0, 0);
     const work = node(2, 6, 0);
     expect(airDistanceM(home, work, 1000)).toBe(6000);

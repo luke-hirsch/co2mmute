@@ -45,9 +45,10 @@ have to agree about them:
   every version the line belongs to".
 * **``"type": "path"`` is a link with neither a street nor a railway under
   it** — a way for bikes and pedestrians and nothing else. The map the group
-  plays has four of them: three homes reaching the S-Bahn at Bellevue, and the
-  Justizministerium reaching Checkpoint Charlie. It needs its own name because
-  the export used to write them as ``"street"`` (the ``else`` branch of a
+  plays has twelve of them: three homes reaching the S-Bahn at Bellevue, the
+  Justizministerium reaching Checkpoint Charlie, and since F11 eight through
+  the Tiergarten and round Potsdamer Platz. It needs its own name because the
+  export used to write such links as ``"street"`` (the ``else`` branch of a
   three-way choice) and the importer then gave each one a ``StreetEdge`` at the
   default 50 km/h and one lane — so the map could not survive its own round
   trip, and every front door gained a fast car shortcut. A legacy file saying
