@@ -4,3 +4,4 @@ Disallow: /app/
 Disallow: /ws/
 Disallow: /media/
 Disallow: /static/
+Disallow: /admin/

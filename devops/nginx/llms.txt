@@ -1,21 +1,24 @@
 # CO₂mmute
 
-> Ein browserbasiertes Mehrspieler-Spiel über den Weg zur Schule und zur Arbeit.
-> Eine Klasse wählt Runde für Runde Verkehrsmittel und Route für ihre Fahrgäste,
-> eine Verkehrssimulation rechnet CO₂, Kosten und Reisezeit aus, und zwischen den
-> Runden stimmt die Klasse über eine Änderung an der Karte ab — eine Busspur, eine
-> neue Linie. Danach wird auf der geänderten Karte weitergespielt.
+> Ein browserbasiertes Mehrspieler-Spiel über den Weg zur Arbeit. Alle, die
+> mitspielen, wählen Runde für Runde Verkehrsmittel und Route für ihre Gruppen —
+> jede steht für viele Pendler —, eine Verkehrssimulation rechnet CO₂, Kosten und
+> Reisezeit aus, und zwischen den Runden stimmen alle über eine Änderung an der
+> Karte ab — eine Busspur, eine neue Linie. Danach wird auf der geänderten Karte
+> weitergespielt.
 
-CO₂mmute ist der Softwareteil einer Masterarbeit über agentenbasierte
-Pendlermodelle an der TU Berlin. Die Simulation ist ein Link-Queue-Modell in der
+Die Idee stammt aus einer Masterarbeit über agentenbasierte Pendlermodelle an der
+Freien Universität Berlin (2025); entwickelt wird das Spiel an der TU Berlin, als
+vollständige Neuentwicklung. Die Simulation ist ein Link-Queue-Modell in der
 Tradition von MATSim: Jede Straßenkante hat eine Kapazität und einen Rückstau,
-Busse und Bahnen fahren einen Fahrplan und nehmen echte Fahrgäste mit, und die
-CO₂-Emission hängt von der Geschwindigkeit ab, die eine Straße tatsächlich
+Busse und Bahnen fahren einen Fahrplan, in den Menschen wirklich einsteigen, und
+die CO₂-Emission hängt von der Geschwindigkeit ab, die eine Straße tatsächlich
 erreicht hat.
 
 ## Für wen das gedacht ist
 
-Für den Unterricht. Gespielt wird ohne Konto und ohne Login: Wer mitspielt,
+Für eine Gruppe in einem Raum: eine Spielleitung, deren Rechner am Beamer hängt,
+und alle anderen am Handy. Gespielt wird ohne Konto und ohne Login: Wer mitspielt,
 scannt einen QR-Code und gibt einen Namen ein, mehr wird nicht erhoben. Nur die
 Spielleitung hat ein Konto. Am Spielende werden die Namen durch "Spieler 1",
 "Spieler 2" ersetzt; die Fahrten und Ergebnisse bleiben für die Forschung
@@ -24,7 +27,10 @@ erhalten.
 ## Seiten
 
 - [Startseite](https://co2mmute.stsds.tu-berlin.de/): Was das Spiel ist und wie eine Runde abläuft.
-- [Mitspielen](https://co2mmute.stsds.tu-berlin.de/join/): Einstieg für Spielerinnen und Spieler, mit Spiel-ID oder über den QR-Code.
+- [Schnellstart](https://co2mmute.stsds.tu-berlin.de/docs/schnellstart/): Wie gespielt wird, vom Konto der Spielleitung bis zum Karteneditor.
+- [Hintergrund](https://co2mmute.stsds.tu-berlin.de/docs/hintergrund/): Wie die Simulation rechnet und woher ihre Zahlen kommen.
+- [Ablaufdiagramme](https://co2mmute.stsds.tu-berlin.de/docs/ablaufdiagramme/): Wie der Code läuft, in zwölf Diagrammen.
+- [Quick start](https://co2mmute.stsds.tu-berlin.de/docs/en/quick-start/), [Background](https://co2mmute.stsds.tu-berlin.de/docs/en/background/), [Flowcharts](https://co2mmute.stsds.tu-berlin.de/docs/en/flowcharts/): dieselben drei auf Englisch.
 - [Datenschutzerklärung](https://co2mmute.stsds.tu-berlin.de/legal/dsgvo/): Welche Daten verarbeitet werden, wie lange, und welche Rechte du hast.
 - [Cookies](https://co2mmute.stsds.tu-berlin.de/legal/cookies/): Welche Cookies gesetzt werden und wofür.
 - [Impressum](https://co2mmute.stsds.tu-berlin.de/legal/impressum/): Anbieter und Verantwortliche.
@@ -33,8 +39,9 @@ erhalten.
 
 - `/api/`, `/ws/` — die Schnittstellen des laufenden Spiels. Sie brauchen ein
   signiertes Cookie oder eine Sitzung und geben ohne beides nichts heraus.
-- `/app/` — die Spieloberfläche selbst. Sie wird im Browser gerendert und hat
-  ohne ein laufendes Spiel keinen Inhalt.
+- `/app/` — die Spieloberfläche selbst, auch das Beitreten (`/app/join`, mit
+  Spiel-ID oder über den QR-Code). Sie wird im Browser gerendert und hat ohne ein
+  laufendes Spiel keinen Inhalt.
 - `/admin/` — die Verwaltung.
 
 Dasselbe steht in `/robots.txt`.
