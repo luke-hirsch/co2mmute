@@ -170,6 +170,7 @@ Let's Encrypt wäre technisch möglich, ist aber mit der TU-IT abzustimmen.
 Schnellstart, Hintergrund und Ablaufdiagramme stehen auch auf der Seite, unter „Docs“ in der
 Kopfzeile, jeweils auf Deutsch und Englisch. Die Seiten sind Kopien der Dateien
 (`backend/template/docs/`) und werden von Hand nachgezogen: Wer die eine ändert, ändert die andere.
+Die Diagramme zeichnet `npm run flowcharts` in `frontend/` aus dem Mermaid in den Dateien neu.
 
 | Datei                                              | auf der Seite                                                       | Inhalt                                                          |
 | -------------------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------- |
@@ -346,7 +347,8 @@ be agreed with TU IT first.
 
 The quick start, the background and the flowcharts are on the site too, under "Docs" in the
 header, each in German and English. The pages are copies of the files (`backend/template/docs/`),
-kept in step by hand: change one, change the other.
+kept in step by hand: change one, change the other. The charts are drawn again from the files'
+Mermaid by `npm run flowcharts` in `frontend/`.
 
 | File                                               | On the site                                                         | What                                                         |
 | -------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------ |
