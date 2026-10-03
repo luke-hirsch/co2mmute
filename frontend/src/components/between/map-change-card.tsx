@@ -13,7 +13,8 @@ import type { VoteOption } from "@/lib/game/events";
  * contributes is what `is_rollback` means, and it says it in words rather than
  * printing the English `rollback` badge the old screen did.
  *
- * `change_img_url` is a media path from `_get_delta_img_url`, and it is the part
+ * `change_img_url` is a media path, the picture of the one change the option
+ * makes (`game/phases.py:ballot_option`), and it is the part
  * that actually explains the change: the map with what it touches highlighted.
  * It is optional — a version without one is normal — so the card stands up
  * without it. Where the card is read-only (the discussion) the picture sits in

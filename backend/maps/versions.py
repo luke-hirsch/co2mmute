@@ -103,33 +103,93 @@ def versions_built_on(version, ignoring=None):
     if version.base_version:
         return versions
 
-    source = version.source_version
-    if source is None:
-        source = next((v for v in versions if v.base_version and v != version), None)
-    if source is None:
-        return [version]
+    held = _holdings(version.game_map_id)
+    if ignoring is not None:
+        for model, pks in held[version.pk].items():
+            if isinstance(ignoring, model):
+                pks.discard(ignoring.pk)
+    built_on = set(_built_on(version, versions, held))
+    return [version] + [v for v in versions if v.pk in built_on and v != version]
+
+
+def changes_held(game_map_id):
+    """Which changes each version of a map holds: `{version_pk: {change_pk}}`.
+
+    A change is a version made from another one — `source_version` set, as the
+    editor's create-from-diff and the shipped file's three hand-drawn versions
+    have it. A generated combination records no source and is no change of its
+    own; it holds the changes it is built on, by `versions_built_on`'s rule.
+    Base holds none.
+
+    The ballot reads it to name what a step changes (`game/phases.py`), once per
+    ballot for all its options: one query per model, not one per pair.
+    """
+    from maps.models import MapVersion
+
+    versions = list(MapVersion.objects.filter(game_map_id=game_map_id))
+    held = _holdings(game_map_id)
+    changes = {version.pk: set() for version in versions}
+    for change in versions:
+        if change.base_version or change.source_version_id is None:
+            continue
+        for pk in _built_on(change, versions, held):
+            changes[pk].add(change.pk)
+    return changes
+
+
+def _built_on(version, versions, held):
+    """The pks of `version` and of every version built on it, from `_holdings`."""
+    source_pk = version.source_version_id
+    if source_pk is None:
+        source_pk = next(
+            (v.pk for v in versions if v.base_version and v != version), None
+        )
+    if source_pk is None:
+        return [version.pk]
+
+    own, theirs = held[version.pk], held[source_pk]
+    added = {model: own[model] - theirs[model] for model in own}
+    removed = {model: theirs[model] - own[model] for model in own}
+    if not any(added.values()) and not any(removed.values()):
+        return [version.pk]
+
+    return [version.pk] + [
+        other.pk
+        for other in versions
+        if other != version
+        and all(
+            added[model] <= held[other.pk][model]
+            and not (removed[model] & held[other.pk][model])
+            for model in own
+        )
+    ]
+
+
+def _holdings(game_map_id):
+    """Every versioned row of a map, by version: `{version_pk: {model: pks}}`.
+
+    One query per model through the m2m table, rather than one per model and
+    version — the ballot asks about every version of the map at once.
+    """
+    from maps.models import MapVersion
 
     models = _versioned_models()
-    added, removed = {}, {}
+    held = {
+        pk: {model: set() for model in models}
+        for pk in MapVersion.objects.filter(game_map_id=game_map_id).values_list(
+            "pk", flat=True
+        )
+    }
     for model in models:
-        own, theirs = _pks(model, version), _pks(model, source)
-        if ignoring is not None and isinstance(ignoring, model):
-            own.discard(ignoring.pk)
-        added[model], removed[model] = own - theirs, theirs - own
-    if not any(added.values()) and not any(removed.values()):
-        return [version]
-
-    built_on = [version]
-    for other in versions:
-        if other == version:
-            continue
-        holds = {model: _pks(model, other) for model in models}
-        if all(
-            added[model] <= holds[model] and not (removed[model] & holds[model])
-            for model in models
-        ):
-            built_on.append(other)
-    return built_on
+        field = model._meta.get_field("map_versions")
+        rows = field.remote_field.through.objects.filter(
+            **{f"{field.m2m_reverse_field_name()}__game_map_id": game_map_id}
+        ).values_list(
+            f"{field.m2m_field_name()}_id", f"{field.m2m_reverse_field_name()}_id"
+        )
+        for row_pk, version_pk in rows:
+            held[version_pk][model].add(row_pk)
+    return held
 
 
 def spread_to_built_on(row, drawn_in):

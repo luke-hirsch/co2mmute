@@ -49,7 +49,7 @@ export type RosterSeat = {
   is_muted: boolean;
 };
 
-/** One option on the ballot. `game/phases.py:_build_version_dict`. */
+/** One option on the ballot. `game/phases.py:ballot_option`. */
 export type VoteOption = {
   id: number;
   name: string;

@@ -810,14 +810,8 @@ class ShippedMapWalkingTests(SimpleTestCase):
         self.assertEqual(shortest[1:], ("Wohnort 2", "Arbeit Brandenburger Tor"))
 
 
-class ShippedMapImportsTests(MapUploadMixin, TestCase):
-    """The file through `/map/upload/`, which is how it reaches a box.
-
-    `MapUploadMixin` comes from `test_portability` rather than being copied:
-    the upload form has two required fields and a rejected form answers 200
-    with the form re-rendered, so the mixin's `uploaded_map` failure message is
-    the difference between a readable red and a bare DoesNotExist.
-    """
+class ShippedUploadMixin(MapUploadMixin):
+    """The shipped file, uploaded the way staff upload it on a box."""
 
     def upload_shipped_map(self):
         graph = load_shipped_map()
@@ -827,6 +821,16 @@ class ShippedMapImportsTests(MapUploadMixin, TestCase):
         # the image round trip on a 2x2 PNG.
         graph.pop("background_image", None)
         return self.upload(graph, name="Berlin Mitte-West", max_players=6)
+
+
+class ShippedMapImportsTests(ShippedUploadMixin, TestCase):
+    """The file through `/map/upload/`, which is how it reaches a box.
+
+    `MapUploadMixin` comes from `test_portability` rather than being copied:
+    the upload form has two required fields and a rejected form answers 200
+    with the form re-rendered, so the mixin's `uploaded_map` failure message is
+    the difference between a readable red and a bare DoesNotExist.
+    """
 
     def test_the_shipped_map_imports_whole(self):
         game_map = self.upload_shipped_map()
@@ -1024,3 +1028,92 @@ class ShippedMapImportsTests(MapUploadMixin, TestCase):
             with self.subTest(edge=edge.pk):
                 self.assertTrue(edge.walking)
                 self.assertTrue(edge.biking)
+
+
+class ShippedMapBallotTests(ShippedUploadMixin, TestCase):
+    """What the class is asked, on each of the 24 options of this ballot.
+
+    Every step on it adds one of the three changes or takes one away, and each
+    change carries a question either way, written for exactly that change. So
+    an option asks the question of the one change it makes — never the
+    combination's own sentence: from »Buslinie« the step to »Buslinie +
+    Umgehungsstraßen« builds the bypasses and nothing else, and asking whether
+    to build both "zusammen" asks about a bus line that already runs.
+
+    Until F16 a step *down* from a combination was not even seen as one. A
+    combination records no source version, so on »Buslinie +
+    Umgehungsstraßen« the option back to »Buslinie« asked whether to build bus
+    147 — nine of the 24 options asked the wrong question, and would have shown
+    the wrong picture once the versions had pictures.
+    """
+
+    CHANGES = ("Busspuren", "Buslinie", "Umgehungsstraßen")
+
+    def held(self, version):
+        """The changes a version holds, read off its name — the test's own
+        answer, independent of the membership rule under test."""
+        return set() if version.base_version else set(version.name.split(" + "))
+
+    def steps(self, game_map):
+        """Every option: (on, to, the change, whether the step adds it)."""
+        versions = MapVersion.objects.filter(game_map=game_map)
+        changes = {v.name: v for v in versions if v.name in self.CHANGES}
+        for active in versions:
+            for target in active.compatible_versions.all():
+                added = self.held(target) - self.held(active)
+                removed = self.held(active) - self.held(target)
+                self.assertEqual(
+                    len(added) + len(removed), 1, f"{active.name} → {target.name}"
+                )
+                (name,) = added or removed
+                yield active, target, changes[name], bool(added)
+
+    def test_every_option_asks_about_the_change_it_makes(self):
+        from game.phases import ballot_option
+
+        game_map = self.upload_shipped_map()
+        steps = list(self.steps(game_map))
+        self.assertEqual(len(steps), 24)
+
+        for active, target, change, adds in steps:
+            with self.subTest(on=active.name, to=target.name):
+                option = ballot_option(active, target)
+                self.assertEqual(
+                    option["poll_text"],
+                    change.poll_text if adds else change.revert_poll_text,
+                )
+                self.assertEqual(option["is_rollback"], not adds)
+                self.assertEqual(option["name"], target.name)
+
+    def test_base_never_asks_its_own_question(self):
+        """Base's two texts are the model default, "Die Karte soll ...", and
+        no option ever reads them: base is never the change a step makes."""
+        from game.phases import ballot_option
+
+        game_map = self.upload_shipped_map()
+
+        asked = {
+            ballot_option(active, target)["poll_text"]
+            for active, target, _, _ in self.steps(game_map)
+        }
+        self.assertFalse([text for text in asked if text.startswith("Die Karte soll")])
+
+    def test_an_option_shows_the_picture_of_its_change(self):
+        """Give every version a picture: only the three changes' are ever
+        shown, so a combination needs none drawn."""
+        from django.core.files.base import ContentFile
+
+        from game.phases import ballot_option
+
+        game_map = self.upload_shipped_map()
+        for version in MapVersion.objects.filter(game_map=game_map):
+            version.change_img.save(
+                f"bild-{version.pk}.png", ContentFile(b"png"), save=True
+            )
+
+        for active, target, change, _ in self.steps(game_map):
+            with self.subTest(on=active.name, to=target.name):
+                self.assertEqual(
+                    ballot_option(active, target)["change_img_url"],
+                    change.change_img.url,
+                )
