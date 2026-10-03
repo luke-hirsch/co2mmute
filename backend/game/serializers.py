@@ -326,64 +326,6 @@ class PlayerMoveSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class CarMobilitySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = gm.CarMobility
-        fields = (
-            "id",
-            "session_round",
-            "base_emissions_g_per_km",
-            "base_cost_per_km",
-        )
-        read_only_fields = ("id",)
-
-
-class TrainMobilitySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = gm.TrainMobility
-        fields = (
-            "id",
-            "session_round",
-            "base_emissions_g_per_km",
-            "base_cost_per_km",
-        )
-        read_only_fields = ("id",)
-
-
-class BusMobilitySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = gm.BusMobility
-        fields = (
-            "id",
-            "session_round",
-            "base_emissions_g_per_km",
-            "base_cost_per_km",
-        )
-        read_only_fields = ("id",)
-
-
-class BikeMobilitySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = gm.BikeMobility
-        fields = (
-            "id",
-            "session_round",
-            "emissions_g_per_km",
-            "cost_per_km",
-        )
-        read_only_fields = ("id",)
-
-
-class WalkingMobilitySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = gm.WalkingMobility
-        fields = (
-            "id",
-            "session_round",
-        )
-        read_only_fields = ("id",)
-
-
 # =============================================================================
 # Route Serializers (for traffic simulation)
 # =============================================================================

@@ -1,5 +1,6 @@
 import importlib
 import os
+import re
 import shutil
 import tempfile
 import uuid
@@ -518,25 +519,22 @@ class CalibratedModelDefaultsTests(TestCase):
             field.default, people_per_agent(max_players=16, agent_per_player=4)
         )
 
-    def test_the_legacy_train_mobility_row_agrees_with_the_engine(self):
-        """Nothing reads it, which is exactly why it drifts.
+    def test_no_model_carries_a_mode_s_emission_or_cost_factor(self):
+        """`sim/constants.py` is the one answer to "what does a mode emit and
+        cost per kilometre".
 
-        `TrainMobility` is wired to a serializer and the admin and to no
-        calculation at all. Leaving 3500 on it would leave a second, wrong
-        answer to "what does a train emit" for the next reader to find.
+        Five `*Mobility` models carried a second answer from 1.x on — a row
+        per round that nothing ever created, served through serializers no
+        view used — and two of them had drifted (a train at 3500 g, a bike at
+        18 g and 0,08 €), held in step only by tests like this one's
+        predecessors. They are deleted; a field like theirs coming back is a
+        second source of truth for a number the engine owns.
         """
-        from game.models import TrainMobility
-        from sim.constants import TRAIN_EMISSIONS_G_PER_VEHICLE_KM
+        factors = [
+            f"{model._meta.label}.{field.name}"
+            for model in apps.get_models()
+            for field in model._meta.get_fields()
+            if re.search(r"(emissions|cost)(_g)?_per_km", field.name)
+        ]
 
-        field = TrainMobility._meta.get_field("base_emissions_g_per_km")
-
-        self.assertEqual(field.default, TRAIN_EMISSIONS_G_PER_VEHICLE_KM)
-
-    def test_the_legacy_bike_mobility_row_agrees_with_the_engine(self):
-        """Same row, same reason: it said 0,08 €/km while the engine said 0."""
-        from game.models import BikeMobility
-        from sim.constants import BIKE_COST_PER_KM
-
-        field = BikeMobility._meta.get_field("cost_per_km")
-
-        self.assertEqual(field.default, BIKE_COST_PER_KM)
+        self.assertEqual(factors, [])
