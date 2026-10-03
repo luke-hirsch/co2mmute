@@ -22,8 +22,6 @@ export type NavItem = {
   label: string;
   href?: string | null;
   children?: NavItem[];
-  /** Set on a link in another language than the site's, e.g. the English docs. */
-  lang?: string;
 };
 
 export type Navigation = {

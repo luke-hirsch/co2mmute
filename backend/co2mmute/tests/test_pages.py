@@ -1,12 +1,13 @@
 """The landing page, the docs on the site, and the background documents.
 
-The docs pages under /docs/ (F13) are copies of `docs/*.md` and are not held to
-them by a test on purpose: they are edited often, and an edit to their copy
+The docs pages under /docs/ (F13) are copies of `docs/de-*.md` and are not held
+to them by a test on purpose: they are edited often, and an edit to their copy
 must not be able to stop a deploy (Lukas, 2026-10-01). What is tested here is
-the frame — that each page is where the menu says, in its language, and links
-its twin — and that every German page is German. What stays of the documents
-is the English background mirroring the German one. Every template is still
-compiled and read for retired words and third-party loads by `test_sanity`.
+the frame — that each page is where the menu says, that the English ones are
+gone — and that every page is German. What stays of the documents is the
+English background mirroring the German one: the English docs live on in
+`docs/`, for GitHub, and nowhere on the site. Every template is still compiled
+and read for retired words and third-party loads by `test_sanity`.
 
 The doc tests read `docs/` from the repository root, the way `maps/tests/
 test_example_map.py` reads `map_examples/`: CI checks out the whole repo.
@@ -126,51 +127,41 @@ class LandingPageTests(TestCase):
         self.assertEqual(english_in(visible_text(self.html)), [])
 
 
-# path -> (url name, language, its twin in the other language)
+# path -> url name
 DOCS = {
-    "/docs/schnellstart/": ("docs-schnellstart", "de", "/docs/en/quick-start/"),
-    "/docs/hintergrund/": ("docs-hintergrund", "de", "/docs/en/background/"),
-    "/docs/ablaufdiagramme/": ("docs-ablaufdiagramme", "de", "/docs/en/flowcharts/"),
-    "/docs/en/quick-start/": ("docs-quick-start", "en", "/docs/schnellstart/"),
-    "/docs/en/background/": ("docs-background", "en", "/docs/hintergrund/"),
-    "/docs/en/flowcharts/": ("docs-flowcharts", "en", "/docs/ablaufdiagramme/"),
+    "/docs/schnellstart/": "docs-schnellstart",
+    "/docs/hintergrund/": "docs-hintergrund",
+    "/docs/ablaufdiagramme/": "docs-ablaufdiagramme",
 }
 
 
-def _main(html):
-    """The page without the header and footer, which link every doc."""
-    return html.split("<main", 1)[1].split("</main>", 1)[0]
-
-
 class DocsPagesTests(TestCase):
-    """F13: the docs where the research group can read them — three pages, in
-    German and in English, under one item in the header."""
+    """F13: the docs where the research group can read them — three pages
+    under one item in the header, in German like the rest of the site."""
 
     def test_every_page_is_where_the_menu_says_and_answers(self):
-        for path, (name, _, _) in DOCS.items():
+        for path, name in DOCS.items():
             with self.subTest(path=path):
                 self.assertEqual(resolve(path).url_name, name)
                 self.assertEqual(self.client.get(path).status_code, 200)
 
-    def test_every_page_says_its_language(self):
-        """The English pages are English to a screen reader and to the
-        browser's hyphenation; the header and footer around them stay German."""
-        for path, (_, lang, _) in DOCS.items():
-            with self.subTest(path=path):
-                html = self.client.get(path).content.decode()
-                self.assertIn(f'<html class="" lang="{lang}">', html)
-                self.assertRegex(html, r'<header lang="de"')
-                self.assertRegex(html, r'<footer lang="de"')
-
-    def test_every_page_links_its_twin_in_the_other_language(self):
-        for path, (_, lang, twin) in DOCS.items():
+    def test_every_page_is_german_and_offers_no_other_language(self):
+        for path in DOCS:
             with self.subTest(path=path):
                 response = self.client.get(path)
                 self.assertEqual(response.status_code, 200)
                 html = response.content.decode()
-                other = "de" if lang == "en" else "en"
-                self.assertRegex(_main(html), rf'<a href="{twin}"[^>]*hreflang="{other}"')
-                self.assertIn(f'<link rel="alternate" hreflang="{other}" href="{twin}"', html)
+                self.assertIn('<html class="" lang="de">', html)
+                self.assertNotIn("hreflang", html)
+                self.assertNotIn("/docs/en/", html)
+
+    def test_the_english_pages_are_gone(self):
+        """A German site with three English pages in its menu read as a
+        mistake (Lukas, 2026-10-03). Taken off, not redirected: the English
+        text stays in `docs/en-*.md`, where GitHub shows it."""
+        for path in ("/docs/en/quick-start/", "/docs/en/background/", "/docs/en/flowcharts/"):
+            with self.subTest(path=path):
+                self.assertEqual(self.client.get(path).status_code, 404)
 
     def test_the_background_moved_and_its_old_address_is_gone(self):
         """Moved, not redirected — like the old join (S22)."""
@@ -196,19 +187,17 @@ class EveryGermanPageIsGermanTests(TestCase):
     list of the pages that once had English on them — `/map/upload/` was
     English for months behind a green suite because nobody had listed it.
 
-    The English docs are exempt by path and by nothing else, so a German page
-    added tomorrow is read too. The admin is Django's own, in English by
-    design, and `api/` answers JSON.
+    The admin is Django's own, in English by design, and `api/` answers JSON.
+    Nothing else is exempt, so a page added tomorrow is read too.
     """
 
-    ENGLISH = ("/docs/en/",)
     NOT_PAGES = ("/admin/", "/api/")
 
     def test_no_german_page_has_english_on_it(self):
         read, failures = [], []
 
         for path in sorted(set(_plain_paths(get_resolver().url_patterns))):
-            if path.startswith(self.ENGLISH + self.NOT_PAGES):
+            if path.startswith(self.NOT_PAGES):
                 continue
             response = self.client.get(path)
             if response.status_code != 200 or "text/html" not in response.get("Content-Type", ""):

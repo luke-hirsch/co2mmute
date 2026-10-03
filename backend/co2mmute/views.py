@@ -79,12 +79,12 @@ class IndexView(TemplateView):
 
 @method_decorator(gzip_page, name="dispatch")
 class DocView(TemplateView):
-    """One page of the docs on the site (F13), in German or in English.
+    """One page of the docs on the site (F13).
 
-    Each page is a copy of a file in `docs/`, by hand: the backend image has no
-    `docs/`, and the pages are designed rather than rendered markdown. `twin`
-    names the same page in the other language, which every page links. Links
-    into the repository go through the footer's own constant, so a move of the
+    Each page is a copy of one of the `docs/de-*.md` files, by hand: the
+    backend image has no `docs/`, and the pages are designed rather than rendered markdown.
+    The English files in `docs/` have no page — the site is German. Links into
+    the repository go through the footer's own constant, so a move of the
     repository is still one line.
 
     Compressed here because nginx compresses nothing, and the flowcharts are
@@ -92,16 +92,7 @@ class DocView(TemplateView):
     token or echoes the request, so compressing them gives BREACH nothing.
     """
 
-    lang = "de"
-    twin = ""
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["repository_url"] = navigation.REPOSITORY_URL
-        context["lang"] = self.lang
-        context["twin_lang"] = "en" if self.lang == "de" else "de"
-        context["twin_url"] = reverse_lazy(self.twin)
-        return context
+    extra_context = {"repository_url": navigation.REPOSITORY_URL}
 
 
 class SpaView(TemplateView):

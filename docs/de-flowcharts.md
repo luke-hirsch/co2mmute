@@ -24,37 +24,39 @@ die serverseitig gerenderten Seiten. Die Simulation läuft nie in einer Anfrage 
 Celery-Worker, und ihre Ergebnisse kommen über den Websocket bei den Browsern an.
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph browser["Browser"]
         spa["SPA unter /app/<br>frontend/ — Spiel, Seiten der Spielleitung, Editor"]
         pages["Django-Seiten<br>Startseite, /docs, Rechtliches, Anmeldung"]
     end
     nginx["nginx<br>liefert das SPA-Bundle aus,<br>reicht alles andere weiter"]
     subgraph daphne["Daphne — backend/"]
+        ws["Websockets<br>game/consumers.py"]
         rest["REST-API<br>game/, maps/"]
         tpl["Templates<br>backend/template/"]
-        ws["Websockets<br>game/consumers.py"]
     end
+    redis[("Redis<br>Channel Layer, Cache,<br>Celery-Broker")]
     subgraph celery["Celery"]
-        worker["Worker<br>simuliert eine Runde<br>game/tasks.py"]
         beat["Beat<br>anonymisieren stündlich, ruhende Spiele 02:30,<br>alte Sitzungen 03:00"]
+        worker["Worker<br>simuliert eine Runde<br>game/tasks.py"]
     end
     pg[("Postgres<br>Spiele, Karten, Ergebnisse")]
-    redis[("Redis<br>Channel Layer, Cache,<br>Celery-Broker")]
 
     spa -->|"/api/…"| nginx
     spa -->|"/ws/…"| nginx
     pages --> nginx
-    nginx --> rest
-    nginx --> tpl
-    nginx --> ws
-    rest --> pg
+    nginx --> daphne
+    %% ~~~ ist unsichtbar: hält die Websockets über Redis und Beat darunter,
+    %% damit das Diagramm hochkant bleibt und neben die Haltestellen passt
+    ws ~~~ redis
     rest -->|"eine Runde ist komplett"| redis
-    beat -->|"plant ein"| redis
+    redis ~~~ beat
     redis -->|"Tasks"| worker
-    worker --> pg
     worker -->|"Events"| redis
+    beat -->|"plant ein"| redis
     redis -->|"group_send"| ws
+    rest --> pg
+    worker --> pg
 ```
 
 ## Ein Spiel von Anfang bis Ende
