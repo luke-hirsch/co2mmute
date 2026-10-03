@@ -161,19 +161,19 @@ nicht gemessen.
 | ID   | Fall                               | Erwartet                                                                                                                 | Status    | E2E             |
 | ---- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | --------- | --------------- |
 | Z-01 | Runde fertig                       | Ergebnis pro Spieler: CO₂, Kosten, Zeit                                                                                  | geht      | numbers.spec.ts |
-| Z-02 | alle haben gelesen                 | weiter zur Diskussion                                                                                                    | geht      | -               |
+| Z-02 | alle haben gelesen                 | weiter zur Diskussion                                                                                                    | geht      | f15-leitstelle  |
 | Z-03 | keine Kartenversionen zur Wahl     | direkt die nächste Runde                                                                                                 | geht      | -               |
-| Z-04 | Host öffnet die Abstimmung         | nur aus der Diskussion heraus                                                                                            | geht      | -               |
-| Z-05 | abstimmen                          | Fortschritt „x von y"                                                                                                    | geht      | -               |
+| Z-04 | Host öffnet die Abstimmung         | nur aus der Diskussion heraus                                                                                            | geht      | f15-leitstelle  |
+| Z-05 | abstimmen                          | Fortschritt „x von y"                                                                                                    | geht      | f15-leitstelle  |
 | Z-06 | Gleichstand                        | Patt-Runde                                                                                                               | geht      | -               |
 | Z-07 | Patt: Mehrheit will nochmal        | gleiche Optionen, Stimmen gelöscht                                                                                       | ungeprüft | -               |
 | Z-08 | Patt: Mehrheit will nicht          | Karte bleibt wie sie ist                                                                                                 | geht      | -               |
 | Z-09 | Host beendet das Patt              | „so lassen"                                                                                                              | ungeprüft | -               |
 | Z-10 | Reconnect mitten in der Abstimmung | **dieselben** Optionen, nicht neu gezogen                                                                                | geht      | -               |
-| Z-11 | Gewinner wird angewendet           | nächste Runde läuft auf der neuen Karte                                                                                  | geht      | -               |
+| Z-11 | Gewinner wird angewendet           | nächste Runde läuft auf der neuen Karte                                                                                  | geht      | f15-leitstelle  |
 | Z-12 | zweimal abstimmen                  | sagt „schon abgestimmt", statt einen Fehler zu zeigen                                                                    | geht      | -               |
 | Z-13 | Pause in einer Phase               | Banner da, Phase läuft nicht weiter                                                                                      | geht      | -               |
-| Z-14 | Host stimmt für seine Plätze ab    | einer nach dem anderen, verdeckter Zwischenschritt                                                                       | geht      | -               |
+| Z-14 | Host stimmt für seine Plätze ab    | einer nach dem anderen, verdeckter Zwischenschritt                                                                       | geht      | f15-leitstelle  |
 | Z-15 | Tabelle nach der Runde             | steht auf „pro Person" und sagt, für wie viele Menschen eine Gruppe steht                                               | geht      | numbers.spec.ts |
 | Z-16 | Schalter „alle Pendler"            | jede CO₂- und Kostenzelle wird eine andere Zahl; die Zeit bleibt der Schnitt pro Weg                                     | geht      | numbers.spec.ts |
 | Z-17 | Zeilen ergeben nicht die Summe     | Zeile „Linien ohne Gruppen" schließt die Lücke genau, mit einem Satz warum                                             | geht      | numbers.spec.ts |
@@ -186,20 +186,20 @@ nicht gemessen.
 | Z-24 | Leitstelle während der Wahl        | sagt, wie man abstimmt: tippen, klicken oder die Zahl; „reihum weitergeben“ steht nicht da, wenn an der Leitstelle niemand spielt (F3) | geht      | f3-zwischen-den-runden |
 | Z-25 | jemand ist während der Wahl gegangen | „Plätze anzeigen“ an der Leitstelle, Platz entfernen, die Wahl schließt ohne den Platz (F3)                              | geht      | f3-zwischen-den-runden |
 | Z-26 | Karte daneben auf dem Beamer       | die Spielbildschirme gehen bis an den Rand, die Karte bekommt die halbe Breite statt eines Drittels (F3)                 | geht      | -               |
-| Z-27 | Plätze an der Leitstelle in der Wahl | „Gib den Rechner reihum weiter“ steht über der Liste der Plätze, die noch abstimmen (F3)                                 | ungeprüft | -               |
+| Z-27 | Plätze an der Leitstelle in der Wahl | „Gib den Rechner reihum weiter“ steht über der Liste der Plätze, die noch abstimmen (F3)                                 | geht      | f15-leitstelle  |
 | Z-28 | eine Gruppe fährt Rad              | Kosten und „selbst bezahlt“ sind gleich, 0,03 € pro km und Person, kein CO₂; zu Fuß bleibt beides 0 (F12)                 | geht      | -               |
 
 ## E — spielende
 
 | ID   | Fall                             | Erwartet                                                                                           | Status    | E2E             |
 | ---- | -------------------------------- | -------------------------------------------------------------------------------------------------- | --------- | --------------- |
-| E-01 | letzte Runde gespielt            | Ende mit Grund `max_rounds`                                                                        | geht      | -               |
+| E-01 | letzte Runde gespielt            | Ende mit Grund `max_rounds`                                                                        | geht      | f15-leitstelle  |
 | E-02 | CO₂-Budget überschritten         | Ende mit Grund `co2_limit`                                                                         | geht      | -               |
 | E-03 | Auswertung                       | pro Spieler über alle Runden, drei Reihenfolgen, niemand gekürt                                    | geht      | -               |
 | E-04 | Host beendet von Hand            | Ende, alle sehen es                                                                                | geht      | -               |
 | E-05 | Spiel endet wegen Inaktivität    | meldet heute `max_rounds` — **falsch**, offen im Backend                                           | kaputt    | -               |
 | E-06 | nach dem Ende                    | Anonymisierung greift nach `ANONYMISE_GRACE_HOURS`                                                 | offen     | -               |
-| E-07 | Auswertung Runde für Runde       | eine Linie mit einem Halt pro Runde; bei nur einer Runde keine                                     | geht      | -               |
+| E-07 | Auswertung Runde für Runde       | eine Linie mit einem Halt pro Runde; bei nur einer Runde keine                                     | geht      | f15-leitstelle  |
 | E-08 | Auswertung neu geladen           | Zahlen und Grund stehen weiter da, ohne Socket                                                     | geht      | -               |
 | E-09 | Auswertung auf dem Handy         | eigener Platz in allen drei Listen mit „du" markiert                                               | geht      | -               |
 | E-10 | Spiel mit den Vorgabewerten (S2) | endet **nicht** in Runde 1; sechs Runden sind fahrbar, wenn die Klasse umsteigt                    | geht      | -               |
@@ -216,14 +216,14 @@ nicht gemessen.
 | ID   | Fall                                                     | Erwartet                                                                                                         | Status    | E2E                |
 | ---- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | --------- | ------------------ |
 | H-01 | Host spielt nicht mit                                    | eigene Zeile bleibt stumm, Runde wartet nicht auf sie                                                            | geht      | -                  |
-| H-02 | Host legt einen Platz an                                 | wird an der Leitstelle gespielt                                                                                   | geht      | -                  |
-| H-03 | Host spielt die Plätze reihum                            | einer nach dem anderen                                                                                           | geht      | -                  |
-| H-04 | Wechsel zwischen zwei Plätzen                            | verdeckter Zwischenschritt, Beamer zeigt nichts                                                                  | geht      | -                  |
+| H-02 | Host legt einen Platz an                                 | wird an der Leitstelle gespielt                                                                                   | geht      | f15-leitstelle     |
+| H-03 | Host spielt die Plätze reihum                            | einer nach dem anderen                                                                                           | geht      | f15-leitstelle     |
+| H-04 | Wechsel zwischen zwei Plätzen                            | verdeckter Zwischenschritt, Beamer zeigt nichts                                                                  | geht      | f15-leitstelle     |
 | H-05 | Host übernimmt den Platz eines Schülers                  | dessen Gerät fliegt raus (`taken_over`)                                                                          | geht      | -                  |
 | H-06 | Host gibt den Platz per Code zurück                      | Handy scannt/tippt, Platz ist zurück                                                                             | geht      | -                  |
 | H-07 | Code nach 5 Minuten                                      | abgelaufen                                                                                                       | ungeprüft | -                  |
 | H-08 | neuer Code für denselben Platz                           | macht den alten ungültig                                                                                         | geht      | -                  |
-| H-09 | ganzes Spiel auf einem Rechner                           | läuft durch, ohne ein einziges Handy                                                                             | geht      | -                  |
+| H-09 | ganzes Spiel auf einem Rechner                           | läuft durch, ohne ein einziges Handy                                                                             | geht      | f15-leitstelle     |
 | H-10 | Pause-Knopf                                              | beim Host, wirkt überall                                                                                         | geht      | -                  |
 | H-11 | Host beendet aus der Lobby                               | geht auch bei einem Spiel ohne Karte, Grund `host`                                                               | geht      | -                  |
 | H-12 | Spiel anlegen: CO₂-Budget und Menschen pro Gruppe (S2) | vorgeschlagen werden 48.000 kg und 100, nicht 500 und 1000                                                       | geht      | `e2e/host.spec.ts` |
