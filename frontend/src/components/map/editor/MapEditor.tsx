@@ -1,5 +1,5 @@
 import { de } from "@/lib/de";
-import { useReducer, useState, useCallback, useRef } from "react";
+import { useReducer, useState, useCallback, useMemo, useRef } from "react";
 import { useParams, Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -16,6 +16,7 @@ import {
   useCreateEdge,
   useDeleteEdge,
 } from "@/lib/queries/map-editor";
+import { diffGraphs } from "@/lib/map/version-diff";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import Loading from "../../Loading";
@@ -142,6 +143,44 @@ const MapEditor = () => {
   );
 
   const [state, dispatch] = useReducer(editorReducer, initialState);
+
+  // "Anlegen" or "Verwalten" in the versions mode. Up here rather than in the
+  // sidebar because the canvas draws differently under each: Verwalten shows
+  // what the version on the canvas changes.
+  const [versionTab, setVersionTab] = useState<"create" | "manage">("create");
+  /**
+   * What the version on the canvas is compared with. `undefined` is "the
+   * obvious one" — a change against the version it was drawn from, anything
+   * else against base — and `null` is nothing.
+   */
+  const [compareVersionId, setCompareVersionId] = useState<
+    number | null | undefined
+  >(undefined);
+
+  const shownVersion = versions?.find((v) => v.id === mapGraph?.version_id);
+  const baseVersion = versions?.find((v) => v.base_version);
+  const compareId =
+    compareVersionId !== undefined
+      ? compareVersionId
+      : (shownVersion?.source_version ??
+        (shownVersion && !shownVersion.base_version ? baseVersion?.id : null) ??
+        null);
+  const comparing =
+    state.mode === "version-diff" &&
+    versionTab === "manage" &&
+    compareId !== null &&
+    compareId !== mapGraph?.version_id;
+  const { data: compareGraph } = useMapGraph(
+    comparing ? mapId : undefined,
+    compareId ?? undefined,
+  );
+  const diff = useMemo(
+    () =>
+      comparing && compareGraph && mapGraph
+        ? diffGraphs(compareGraph, mapGraph)
+        : null,
+    [comparing, compareGraph, mapGraph],
+  );
 
   // PT line creation/editing state
   const [ptLineEdgeIds, setPtLineEdgeIds] = useState<number[]>([]);
@@ -534,6 +573,18 @@ const MapEditor = () => {
             <h1 className="text-2xl font-semibold">
               {de.editor.title(gameMap.name)}
             </h1>
+            {/* Which version everything below draws into. "Ansehen" puts any
+                version on the canvas, and a street drawn in Graph mode then goes
+                into that version and what is built on it — not into base. */}
+            {mapGraph && versions && versions.length > 1 ? (
+              <span className="text-sm text-muted-foreground">
+                {de.editor.onVersion(
+                  shownVersion?.base_version
+                    ? de.editor.version.base
+                    : mapGraph.version_name,
+                )}
+              </span>
+            ) : null}
           </div>
           {state.isDirty && (
             <span className="text-sm font-medium text-destructive">
@@ -605,6 +656,7 @@ const MapEditor = () => {
               deletedEdgeIds={deletedEdgeIds}
               edgeSourceTempId={edgeSourceTempId}
               onVirtualNodeClick={handleVirtualNodeClick}
+              diff={diff}
             />
           </div>
 
@@ -617,7 +669,20 @@ const MapEditor = () => {
               state={state}
               versions={versions}
               selectedVersionId={selectedVersionId}
-              onVersionChange={setSelectedVersionId}
+              onVersionChange={(id) => {
+                setSelectedVersionId(id);
+                // A new version on the canvas gets its own obvious comparison.
+                setCompareVersionId(undefined);
+              }}
+              versionTab={versionTab}
+              onVersionTabChange={setVersionTab}
+              compare={{
+                shownId: mapGraph?.version_id,
+                compareId,
+                onCompareChange: setCompareVersionId,
+                diff,
+                graphs: [compareGraph, mapGraph],
+              }}
               ptLineCreating={ptLineCreating}
               ptLineEdgeIds={ptLineEdgeIds}
               setPtLineEdgeIds={setPtLineEdgeIds}

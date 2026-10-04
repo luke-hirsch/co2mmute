@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,12 +10,21 @@ import {
   editorControl,
 } from "@/components/map/editor/editor-panel";
 import { de } from "@/lib/de";
+import { cn } from "@/lib/utils";
+import { PT_LINE_PAINT } from "@/lib/map/palette";
+import {
+  linkEntries,
+  type DiffableGraph,
+  type LinkAspect,
+  type Network,
+  type Sense,
+  type VersionDiff,
+} from "@/lib/map/version-diff";
 import {
   useGenerateCombinations,
   useMapVersions,
   useUpdateMapVersion,
 } from "@/lib/queries/map-graph";
-import { API_BASE_URL } from "../../../config";
 import type { MapVersion } from "../../../types/mapTypes";
 
 /**
@@ -32,13 +41,34 @@ import type { MapVersion } from "../../../types/mapTypes";
  * `german.test.ts` for being one word and the rest carried none of its giveaway
  * words — which is why a panel a researcher uses every time they draw a version
  * was still half English after S17.
+ *
+ * ### What a version does (the version comparison)
+ *
+ * "Verwalten" used to change nothing on the canvas: you could tick versions and
+ * build combinations, and the only way to learn what `Busspuren` actually does
+ * was the database. Now each version can be put on the canvas ("Ansehen") and is
+ * drawn against the version it was made from — or any other, by the select —
+ * with the change list in words beside it (`lib/map/version-diff.ts`). The
+ * ballot draws the same comparison, so the change picture (`change_img`) is no
+ * longer offered here: nothing in the game shows it any more.
  */
+
+/** Which version the canvas shows, what it is compared with, and the result. */
+export type VersionComparison = {
+  shownId: number | undefined;
+  compareId: number | null;
+  onCompareChange: (versionId: number | null) => void;
+  diff: VersionDiff | null;
+  /** The two graphs compared, for the names of the places in the list. */
+  graphs: (DiffableGraph | undefined)[];
+};
 
 interface VersionManagerPanelProps {
   mapId: string;
   /** The version the editor is showing, so a delete can step off it first. */
   selectedVersionId?: number;
   onVersionChange?: (versionId: number | undefined) => void;
+  compare: VersionComparison;
 }
 
 interface EditState {
@@ -47,7 +77,6 @@ interface EditState {
   poll_text: string;
   revert_poll_text: string;
   compatible_versions: number[];
-  newImage: File | null;
 }
 
 function VersionEditor({
@@ -70,9 +99,7 @@ function VersionEditor({
     poll_text: version.poll_text,
     revert_poll_text: version.revert_poll_text,
     compatible_versions: version.compatible_versions ?? [],
-    newImage: null,
   });
-  const fileRef = useRef<HTMLInputElement>(null);
   const updateMutation = useUpdateMapVersion(mapId, version.id);
 
   const handleSave = () => {
@@ -84,9 +111,6 @@ function VersionEditor({
     values.compatible_versions.forEach((id) =>
       fd.append("compatible_versions", String(id))
     );
-    if (values.newImage) {
-      fd.append("change_img", values.newImage);
-    }
     updateMutation.mutate(fd, { onSuccess: onDone });
   };
 
@@ -100,13 +124,6 @@ function VersionEditor({
   };
 
   const otherVersions = allVersions.filter((v) => v.id !== version.id);
-  const imgUrl = values.newImage
-    ? URL.createObjectURL(values.newImage)
-    : version.change_img_url
-      ? version.change_img_url.startsWith("http")
-        ? version.change_img_url
-        : `${API_BASE_URL}${version.change_img_url}`
-      : null;
 
   return (
     <div className="space-y-3 pt-2">
@@ -171,42 +188,6 @@ function VersionEditor({
         </EditorField>
       )}
 
-      <EditorField label={de.editor.version.changeImage}>
-        {imgUrl && (
-          <img
-            src={imgUrl}
-            alt={de.editor.version.changeImageAlt}
-            className="mb-1.5 max-h-32 w-full rounded-md border object-contain"
-          />
-        )}
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) =>
-            setValues({ ...values, newImage: e.target.files?.[0] ?? null })
-          }
-        />
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            size="xs"
-            variant="outline"
-            onClick={() => fileRef.current?.click()}
-          >
-            {imgUrl
-              ? de.editor.version.replaceImage
-              : de.editor.version.uploadImage}
-          </Button>
-          {values.newImage && (
-            <span className="truncate text-xs text-muted-foreground">
-              {values.newImage.name}
-            </span>
-          )}
-        </div>
-      </EditorField>
-
       <div className="flex gap-2 pt-1">
         <Button
           type="button"
@@ -265,6 +246,7 @@ const VersionManagerPanel = ({
   mapId,
   selectedVersionId,
   onVersionChange,
+  compare,
 }: VersionManagerPanelProps) => {
   const { data: versions, isLoading } = useMapVersions(mapId);
   const generateMutation = useGenerateCombinations(mapId);
@@ -309,32 +291,64 @@ const VersionManagerPanel = ({
       )}
 
       <div className="space-y-2">
-        {versionList.map((v) => (
-          <div key={v.id} className="overflow-hidden rounded-md border">
-            <div className="flex items-center gap-2 px-3 py-2">
-              {!v.base_version && (
-                <input
-                  type="checkbox"
-                  title={de.editor.selectForCombination}
-                  checked={selectedIds.has(v.id)}
-                  onChange={() => toggleSelected(v.id)}
-                  className="size-4 shrink-0 rounded accent-primary"
-                />
-              )}
-              <span className="flex-1 truncate text-sm font-medium">
-                {v.name}
-              </span>
-              {v.base_version && (
-                <Badge variant="outline">{de.editor.version.base}</Badge>
-              )}
-              <Button
-                type="button"
-                size="xs"
-                variant="ghost"
-                onClick={() => setExpandedId(expandedId === v.id ? null : v.id)}
-              >
-                {expandedId === v.id ? de.actions.close : de.editor.edit}
-              </Button>
+        {versionList.map((v) => {
+          const shown = v.id === compare.shownId;
+          return (
+          <div
+            key={v.id}
+            className={cn(
+              "overflow-hidden rounded-md border",
+              shown && "border-primary",
+            )}
+          >
+            {/* Name on a line of its own: a combination is called
+                "Buslinie + Busspuren + Umgehungsstraßen", and beside two
+                buttons in a quarter-width sidebar it was "Buslinie + …"
+                three times over. */}
+            <div className="px-3 py-2">
+              <div className="flex items-start gap-2">
+                {!v.base_version && (
+                  <input
+                    type="checkbox"
+                    title={de.editor.selectForCombination}
+                    checked={selectedIds.has(v.id)}
+                    onChange={() => toggleSelected(v.id)}
+                    className="mt-0.5 size-4 shrink-0 rounded accent-primary"
+                  />
+                )}
+                <span className="flex-1 text-sm font-medium hyphens-auto">
+                  {v.name}
+                </span>
+                {v.base_version && (
+                  <Badge variant="outline">{de.editor.version.base}</Badge>
+                )}
+              </div>
+              <div className="mt-1 flex items-center justify-end gap-1">
+                {shown ? (
+                  <Badge>{de.editor.version.shown}</Badge>
+                ) : (
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="ghost"
+                    // Base by the base endpoint, as the editor opens it, so
+                    // the two share one cached graph.
+                    onClick={() =>
+                      onVersionChange?.(v.base_version ? undefined : v.id)
+                    }
+                  >
+                    {de.editor.version.show}
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="ghost"
+                  onClick={() => setExpandedId(expandedId === v.id ? null : v.id)}
+                >
+                  {expandedId === v.id ? de.actions.close : de.editor.edit}
+                </Button>
+              </div>
             </div>
 
             {expandedId === v.id && (
@@ -358,8 +372,11 @@ const VersionManagerPanel = ({
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
+
+      <Comparison versions={versionList} compare={compare} />
 
       {nonBase.length >= 2 && (
         <div className="space-y-2 border-t pt-3">
@@ -391,5 +408,211 @@ const VersionManagerPanel = ({
     </EditorPanel>
   );
 };
+
+/**
+ * The version on the canvas against another one: the select, and what changes
+ * in words, grouped by the network it changes — the same two colours the
+ * canvas draws them in.
+ */
+function Comparison({
+  versions,
+  compare,
+}: {
+  versions: MapVersion[];
+  compare: VersionComparison;
+}) {
+  const shown = versions.find((v) => v.id === compare.shownId);
+  if (!shown) return null;
+
+  const names = new Map<number, string>();
+  for (const graph of compare.graphs) {
+    for (const node of graph?.nodes ?? []) {
+      names.set(node.id, node.name || de.map.diff.unnamed(node.id));
+    }
+  }
+  const name = (id: number) => names.get(id) ?? de.map.diff.unnamed(id);
+
+  const { diff } = compare;
+
+  return (
+    <section className="space-y-3 border-t pt-3">
+      <h3 className="text-sm font-medium">
+        {de.editor.version.diffTitle(shown.name)}
+      </h3>
+      <EditorField label={de.editor.version.compareWith}>
+        <select
+          className={editorControl}
+          aria-label={de.editor.version.compareWith}
+          value={compare.compareId ?? ""}
+          onChange={(e) =>
+            compare.onCompareChange(e.target.value ? Number(e.target.value) : null)
+          }
+        >
+          <option value="">{de.editor.version.compareNothing}</option>
+          {versions
+            .filter((v) => v.id !== shown.id)
+            .map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.base_version ? `${v.name} ${de.editor.version.baseSuffix}` : v.name}
+              </option>
+            ))}
+        </select>
+      </EditorField>
+
+      {compare.compareId === null ? (
+        <EditorNote>{de.editor.version.compareHint}</EditorNote>
+      ) : !diff ? (
+        <p className="text-sm text-muted-foreground">{de.editor.loading}</p>
+      ) : diff.empty ? (
+        <EditorNote>{de.map.diff.nothing}</EditorNote>
+      ) : (
+        <ChangeList diff={diff} name={name} />
+      )}
+    </section>
+  );
+}
+
+const PAINT: Record<Network, string> = {
+  street: "var(--color-primary)",
+  pt: PT_LINE_PAINT,
+};
+
+/** A short stroke in the canvas's own paint: full for what comes, hollow for what goes. */
+function Swatch({ network, sense }: { network: Network; sense: Sense }) {
+  return (
+    <svg
+      width="20"
+      height="10"
+      viewBox="0 0 20 10"
+      aria-hidden="true"
+      className="mt-1 shrink-0"
+    >
+      <line
+        x1="3"
+        y1="5"
+        x2="17"
+        y2="5"
+        stroke={PAINT[network]}
+        strokeWidth="6"
+        strokeLinecap="round"
+      />
+      {sense === "removed" ? (
+        <line
+          x1="3"
+          y1="5"
+          x2="17"
+          y2="5"
+          stroke="var(--color-card)"
+          strokeWidth="2.7"
+          strokeLinecap="round"
+        />
+      ) : null}
+    </svg>
+  );
+}
+
+function aspectText(aspect: LinkAspect, sense: Sense): string {
+  const added = sense !== "removed";
+  switch (aspect.kind) {
+    case "street":
+      return de.map.diff.street(added, aspect.lanes, aspect.speedLimit);
+    case "rail":
+      return de.map.diff.rail(added);
+    case "path":
+      return de.map.diff.path(added, aspect.biking, aspect.walking);
+    case "busLane":
+      return de.map.diff.busLane(added);
+    case "bikeLane":
+      return de.map.diff.bikeLane(added);
+    case "biking":
+      return de.map.diff.biking(added);
+    case "walking":
+      return de.map.diff.walking(added);
+    case "lanes":
+      return de.map.diff.lanes(aspect.from, aspect.to);
+    case "speed":
+      return de.map.diff.speed(aspect.from, aspect.to);
+  }
+}
+
+type Item = { key: string; network: Network; sense: Sense; title: string; detail: string };
+
+function ChangeList({
+  diff,
+  name,
+}: {
+  diff: VersionDiff;
+  name: (id: number) => string;
+}) {
+  const items: Item[] = [
+    ...linkEntries(diff.links).map((entry, i) => ({
+      key: `link-${i}`,
+      network: entry.network,
+      sense: entry.sense,
+      title: entry.bothWays
+        ? de.map.diff.both(name(entry.start), name(entry.end))
+        : de.map.diff.oneWay(name(entry.start), name(entry.end)),
+      detail: [
+        ...(entry.bothWays ? [de.map.diff.bothWays] : []),
+        ...entry.aspects.map((aspect) => aspectText(aspect, entry.sense)),
+      ].join(", "),
+    })),
+    ...diff.lines.map((line) => {
+      const first = line.stops[0] ?? line.segments[0]?.start;
+      const last =
+        line.stops[line.stops.length - 1] ??
+        line.segments[line.segments.length - 1]?.end;
+      const gained = line.segments.filter((s) => s.sense === "added").length;
+      return {
+        key: `line-${line.type}-${line.id}`,
+        network: "pt" as const,
+        sense: line.sense,
+        title: de.map.diff.line(line.type, line.name),
+        detail:
+          line.sense === "added"
+            ? de.map.diff.lineAdded(name(first), name(last))
+            : line.sense === "removed"
+              ? de.map.diff.lineRemoved
+              : de.map.diff.lineChanged(gained, line.segments.length - gained),
+      };
+    }),
+  ];
+  const nodes = diff.nodes.map((node) => ({
+    key: `node-${node.id}`,
+    network: "street" as const,
+    sense: node.sense,
+    title: node.name || de.map.diff.unnamed(node.id),
+    detail: node.sense === "added" ? de.map.diff.nodeAdded : de.map.diff.nodeRemoved,
+  }));
+
+  const groups: { label: string; items: Item[] }[] = [
+    { label: de.map.diff.streets, items: items.filter((i) => i.network === "street") },
+    { label: de.map.diff.pt, items: items.filter((i) => i.network === "pt") },
+    { label: de.map.diff.places, items: nodes },
+  ].filter((group) => group.items.length > 0);
+
+  return (
+    <div className="max-h-[50vh] space-y-4 overflow-y-auto pr-1">
+      {groups.map((group) => (
+        <div key={group.label}>
+          <p className="text-xs text-muted-foreground">
+            {group.label} ({group.items.length})
+          </p>
+          <ul className="mt-1.5 space-y-2">
+            {group.items.map((item) => (
+              <li key={item.key} className="flex gap-2 text-sm">
+                <Swatch network={item.network} sense={item.sense} />
+                <div className="min-w-0">
+                  <p className="font-medium">{item.title}</p>
+                  <p className="text-muted-foreground">{item.detail}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default VersionManagerPanel;

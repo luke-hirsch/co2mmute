@@ -13,15 +13,13 @@ import type { VoteOption } from "@/lib/game/events";
  * contributes is what `is_rollback` means, and it says it in words rather than
  * printing the English `rollback` badge the old screen did.
  *
- * `change_img_url` is a media path, the picture of the one change the option
- * makes (`game/phases.py:ballot_option`), and it is the part
- * that actually explains the change: the map with what it touches highlighted.
- * It is optional — a version without one is normal — so the card stands up
- * without it. Where the card is read-only (the discussion) the picture sits in
- * the card, as it always did. On the ballot, since S24, the card is handed a
- * toggle instead and the picture goes to the stage's map (`VoteStage`); **the
- * toggle exists only when an image is stored.** It is used as sent: the path is
- * relative and the SPA is served from the same origin as `/media`.
+ * **What the option changes is shown on the stage's map**, behind the toggle:
+ * the stage asks for the option's graph and draws its difference from the map
+ * the game is on (`lib/map/version-diff.ts`). Until the version comparison that
+ * was a PNG somebody had to draw per change (`change_img`), the toggle existed
+ * only where one was stored, and the shipped map had none — so the class voted
+ * on the poll text alone. Now every option has the toggle, computed from the
+ * data, and the picture is read by nothing in the game.
  */
 export function MapChangeCard({
   option,
@@ -31,7 +29,7 @@ export function MapChangeCard({
   className,
 }: {
   option: VoteOption;
-  /** Whether the stage is showing this option's change picture right now. */
+  /** Whether the stage's map is showing this option's change right now. */
   changeShown?: boolean;
   onToggleChange?: () => void;
   /** The control that acts on this option, when there is one. */
@@ -54,16 +52,7 @@ export function MapChangeCard({
         ) : null}
       </div>
 
-      {option.change_img_url && !onToggleChange ? (
-        <img
-          src={option.change_img_url}
-          alt=""
-          loading="lazy"
-          className="w-full rounded-md border border-border bg-subtle object-contain dark:bg-darksubtle"
-        />
-      ) : null}
-
-      {option.change_img_url && onToggleChange ? (
+      {onToggleChange ? (
         <div>
           <Button
             variant="outline"

@@ -5,6 +5,11 @@ import type { EditorState, EdgeChange, VirtualNode, VirtualEdge } from "../../..
 import { imageRect, viewBox, type ImageFields } from "@/lib/map/view-box";
 import { EdgeHitArea } from "@/components/map/edge-hit-area";
 import { MapLegend } from "@/components/map/map-legend";
+import {
+  VersionDiffLayer,
+  VersionDiffLegend,
+} from "@/components/map/version-diff-layer";
+import type { VersionDiff } from "@/lib/map/version-diff";
 import { de } from "@/lib/de";
 import {
   bundleKey,
@@ -33,6 +38,12 @@ interface EditorCanvasProps {
   deletedEdgeIds?: Set<number>;
   edgeSourceTempId?: string | null;
   onVirtualNodeClick?: (tempId: string) => void;
+  /**
+   * What the version on the canvas changes against the one it is compared
+   * with ("Verwalten"). Drawn over a veil, so the change is the only thing in
+   * colour; nothing under it can be clicked while it is shown.
+   */
+  diff?: VersionDiff | null;
 }
 
 /**
@@ -52,6 +63,12 @@ interface EditorCanvasProps {
  *   coordinates — so whichever came last was the only one you could see, which
  *   is most corridors. They are all the accent and they sit side by side.
  */
+
+/**
+ * A change in "Verwalten", in the canvas's own fixed units: well over the 3 of
+ * an edge and the 6 of a line, so one bus lane is found at a glance.
+ */
+const DIFF_SIZES = { line: 9, halo: 16, node: 12 };
 
 /** The arrowhead for one layer, so a marker id is a name and not a hex. */
 const ARROW_ID: Record<EdgeLayer["kind"] | "proposed", string> = {
@@ -127,6 +144,7 @@ const EditorCanvas = ({
   deletedEdgeIds = new Set(),
   edgeSourceTempId,
   onVirtualNodeClick,
+  diff,
 }: EditorCanvasProps) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -730,7 +748,26 @@ const EditorCanvas = ({
             </g>
           );
         })}
+
+        {diff && (
+          <>
+            <rect
+              data-layer="version-diff-veil"
+              x={minX}
+              y={minY}
+              width={width}
+              height={height}
+              fill="var(--color-card)"
+              opacity={0.75}
+            />
+            <VersionDiffLayer diff={diff} sizes={DIFF_SIZES} />
+          </>
+        )}
       </svg>
+
+      {diff && !diff.empty && (
+        <VersionDiffLegend diff={diff} className="border-t px-5 py-3" />
+      )}
 
       {/* "Legende fehlt" on the old README list: you draw a map in six colours
           and nothing says which is a tram track and which is a footpath. */}

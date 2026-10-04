@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 import { Button } from "@/components/ui/button";
 import { EditorPanel } from "@/components/map/editor/editor-panel";
 import { de } from "@/lib/de";
@@ -22,7 +20,9 @@ import EdgePropertyPanel from "./EdgePropertyPanel";
 import NodePropertyPanel from "./NodePropertyPanel";
 import PTLinePanel from "./PTLinePanel";
 import VersionDiffPanel from "./VersionDiffPanel";
-import VersionManagerPanel from "./VersionManagerPanel";
+import VersionManagerPanel, {
+  type VersionComparison,
+} from "./VersionManagerPanel";
 
 interface EditorSidebarProps {
   mapId: string;
@@ -32,6 +32,9 @@ interface EditorSidebarProps {
   versions: MapVersion[] | undefined;
   selectedVersionId: number | undefined;
   onVersionChange: (versionId: number | undefined) => void;
+  versionTab: "create" | "manage";
+  onVersionTabChange: (tab: "create" | "manage") => void;
+  compare: VersionComparison;
   ptLineCreating: "bus" | "train" | null;
   ptLineEdgeIds: number[];
   setPtLineEdgeIds: (ids: number[]) => void;
@@ -65,6 +68,9 @@ const EditorSidebar = ({
   versions,
   selectedVersionId,
   onVersionChange,
+  versionTab,
+  onVersionTabChange: setVersionTab,
+  compare,
   ptLineCreating,
   ptLineEdgeIds,
   setPtLineEdgeIds,
@@ -89,8 +95,6 @@ const EditorSidebar = ({
   cascadeDeletedEdgeIds,
   setCascadeDeletedEdgeIds,
 }: EditorSidebarProps) => {
-  const [versionTab, setVersionTab] = useState<"create" | "manage">("create");
-
   const selectedNode = state.selectedNodeId
     ? mapGraph?.nodes.find((n) => n.id === state.selectedNodeId)
     : null;
@@ -213,6 +217,7 @@ const EditorSidebar = ({
               mapId={mapId}
               selectedVersionId={selectedVersionId}
               onVersionChange={onVersionChange}
+              compare={compare}
             />
           )}
         </>

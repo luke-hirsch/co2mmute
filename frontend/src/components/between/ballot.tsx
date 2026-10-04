@@ -43,7 +43,7 @@ export function Ballot({
   disabled?: boolean;
   /** One column from `lg` up — the ballot is half a screen wide (S24). */
   stacked?: boolean;
-  /** The option whose change picture the stage is showing, if any. */
+  /** The option whose change the stage's map is showing, if any. */
   changeShownId?: number | null;
   onToggleChange?: (versionId: number) => void;
 }) {

@@ -27,8 +27,9 @@ export function useVoteMap() {
   const seat = useSeatGame(state.gameId, seatId);
   const host = useHostGame(state.gameId, isHost);
 
+  const mapId = seat.data?.game_map ?? host.data?.game_map;
   const graph = useMapGraph(
-    seat.data?.game_map ?? host.data?.game_map,
+    mapId,
     state.activeMapVersionId ?? seat.data?.active_map_version,
     trafficAfter(state.gameId, state.currentRound),
   );
@@ -39,5 +40,5 @@ export function useVoteMap() {
     [graph.data],
   );
 
-  return { graph: graph.data ?? null, jam, isLoading: graph.isLoading };
+  return { graph: graph.data ?? null, jam, isLoading: graph.isLoading, mapId };
 }

@@ -188,6 +188,7 @@ nicht gemessen.
 | Z-26 | Karte daneben auf dem Beamer       | die Spielbildschirme gehen bis an den Rand, die Karte bekommt die halbe Breite statt eines Drittels (F3)                 | geht      | -               |
 | Z-27 | Plätze an der Leitstelle in der Wahl | „Gib den Rechner reihum weiter“ steht über der Liste der Plätze, die noch abstimmen (F3)                                 | geht      | f15-leitstelle  |
 | Z-28 | eine Gruppe fährt Rad              | Kosten und „selbst bezahlt“ sind gleich, 0,03 € pro km und Person, kein CO₂; zu Fuß bleibt beides 0 (F12)                 | geht      | -               |
+| Z-29 | Änderung auf der Karte             | jede Option hat „Auf der Karte zeigen“, in der Diskussion und auf dem Stimmzettel, am Handy und an der Leitstelle: die Karte zeigt, was sie gegenüber der gespielten Version ändert — Straßen blau, Bus & Bahn gelb, was wegfällt hohl; der Stau tritt so lange zurück | geht      | f15-leitstelle  |
 
 ## E — spielende
 
@@ -331,7 +332,9 @@ nicht gemessen.
 | K-53 | Editor: Version löschen, auf der gespielt wurde            | abgelehnt, wenn ein Spiel auf ihr gespielt hat, sie zur Wahl stand, für sie gestimmt wurde oder über ihre Straßen gefahren ist — sonst gingen Wege und Stimmen mit; der Satz nennt die Spiele und den Ausweg „Verträglich mit“ (F14) | geht      | - |
 | K-54 | Admin: Version löschen                                     | dieselbe Aufräumregel wie im Editor, einzeln und über „ausgewählte löschen“; die Bestätigungsseite nennt, was mitgeht, eine Ablehnung steht dort als geschützt und löscht nichts (F14) | geht      | - |
 | K-55 | Wahlzettel fragt nach der einen Änderung | jede der 24 Optionen der ausgelieferten Karte stellt die Frage der Änderung, die der Schritt macht — hinzu ihre Frage, zurück ihre Rückfrage; von „Buslinie + Umgehungsstraßen“ zurück auf „Buslinie“ fragt nach dem Schließen der Umgehungsstraßen, nicht nach dem Bau der 147 (F16) | geht | - |
-| K-56 | Bild auf dem Wahlzettel | jede Option zeigt das Bild der Änderung, die sie macht; die Bilder der vier Kombiversionen erscheinen nie, die Grundversion fragt nie mit „Die Karte soll ...“ (F16) | geht | - |
+| K-56 | Bild auf dem Wahlzettel | entfällt: der Wahlzettel zeigt kein Bild mehr, sondern die Änderung selbst auf der Karte (Z-29); der Server schickt das Bild der Änderung weiter mit, gelesen wird es nicht. Die Grundversion fragt nie mit „Die Karte soll ...“ (F16) | geht | - |
+| K-57 | Editor: Version ansehen | „Ansehen“ unter „Verwalten“ legt die Version auf die Karte und zeichnet, was sie gegenüber ihrer Ausgangsversion ändert, daneben in Worten: Busspuren = 15 Straßen, beide Richtungen, „eine Autospur wird Busspur“, keine Linie; Buslinie = Bus 147 hin und zurück; Umgehungsstraßen = Bundestag – Wohnort 2 neu und der Weg Botschaftsviertel – Philharmonie wird Straße | geht | `versionsvergleich.spec.ts` |
+| K-58 | Editor: mit einer anderen Version vergleichen | „Verglichen mit“ nimmt jede Version; Grundversion gegen Busspuren zeigt die 30 Busspuren hohl, „die Busspur wird wieder Autospur“; eine Kombiversion gegen eine ihrer Änderungen ist genau die andere | geht | `versionsvergleich.spec.ts`, vitest |
 
 ## S — sonstiges
 

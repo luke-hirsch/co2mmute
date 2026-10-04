@@ -1,5 +1,6 @@
 import { MapChangeCard } from "@/components/between/map-change-card";
 import { MapStage, VoteMap } from "@/components/between/vote-stage";
+import { useShownChange } from "@/hooks/use-shown-change";
 import { NumbersExplainerPanel } from "@/components/numbers/numbers-explainer";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
 import { de } from "@/lib/de";
@@ -52,8 +53,9 @@ export function DiscussionScreen() {
  * (F3) — for the phone and, in `host-between-screen.tsx`, for the projector.
  *
  * The map is the same one the ballot shows, so the class argues over the picture
- * it will vote on. The cards keep their change pictures inline: here nothing is
- * picked, so there is no toggle to hang them on.
+ * it will vote on — and each card can put its change on that map, as on the
+ * ballot. On the projector that is the moment the room sees what a bus lane
+ * actually takes.
  */
 export function DiscussionStage({
   layout,
@@ -63,9 +65,14 @@ export function DiscussionStage({
   onLayoutChange: (layout: MapLayout) => void;
 }) {
   const { state } = useGame();
+  const { shown, toggle } = useShownChange(state.voteOptions);
 
   return (
-    <MapStage layout={layout} onLayoutChange={onLayoutChange} map={<VoteMap />}>
+    <MapStage
+      layout={layout}
+      onLayoutChange={onLayoutChange}
+      map={<VoteMap change={shown} />}
+    >
       {state.voteOptions.length === 0 ? (
         <p className="max-w-(--measure-body) text-muted-foreground">
           {de.between.noOptions}
@@ -78,7 +85,12 @@ export function DiscussionStage({
           )}
         >
           {state.voteOptions.map((option) => (
-            <MapChangeCard key={option.id} option={option} />
+            <MapChangeCard
+              key={option.id}
+              option={option}
+              changeShown={shown?.id === option.id}
+              onToggleChange={() => toggle(option.id)}
+            />
           ))}
         </div>
       )}

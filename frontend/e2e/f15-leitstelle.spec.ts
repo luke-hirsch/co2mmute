@@ -173,6 +173,20 @@ test("a whole game at the Leitstelle: two seats, two rounds, a vote by keyboard,
       if (winner) expect(first).toBe(winner);
       winner = first;
 
+      // What the option would change, drawn on the map from the two versions'
+      // graphs — no picture behind it (the version comparison).
+      if (name === SEATS[0]) {
+        await page
+          .locator("article")
+          .first()
+          .getByRole("button", { name: "Auf der Karte zeigen" })
+          .click();
+        await expect(page.getByText(`Auf der Karte: was „${first}“ ändert.`)).toBeVisible();
+        await expect(
+          page.locator('[data-layer="version-diff"] line').first(),
+        ).toBeAttached();
+      }
+
       // A key, not a click: a mouse crossing a projector tells the room the vote.
       await page.keyboard.press("1");
       await expect(pick).toHaveCount(0);

@@ -96,6 +96,11 @@ export interface MapVersion {
   base_version: boolean;
   poll_text: string;
   revert_poll_text: string;
+  /**
+   * The version this one was drawn from, for a change; empty for base and for a
+   * generated combination, which records no members.
+   */
+  source_version: number | null;
   compatible_versions: number[];
   change_img_url: string | null;
 }
