@@ -143,6 +143,8 @@ Alle drücken „Weiter“, wenn sie fertig gelesen haben. Für die Plätze an d
 
 Hat die Karte Versionen und hast du Kartenänderungen zugelassen, sehen jetzt alle, was für die nächste Runde zur Wahl steht — „Was soll sich ändern?“. Redet darüber. Wenn du findest, dass der Raum so weit ist, öffne die Abstimmung („Abstimmung öffnen“).
 
+Was eine Änderung wirklich macht, zeigt „Auf der Karte zeigen“ unter ihr: Straßen, Rad- und Fußwege in Blau, Bus und Bahn in Gelb, und was wegfällt, ist hohl. Das gibt es auf dem Stimmzettel auch.
+
 Steht nichts zur Wahl, fallen dieser Schritt und der nächste weg, und die nächste Runde startet sofort.
 
 #### Abstimmen
@@ -237,7 +239,8 @@ Jetzt, wo wir alles über die Karte wissen, können wir sie bearbeiten. Der Edit
   - Hier legst du neue Versionen an. Eine Version ist keine Kopie der Karte. Es ist derselbe Graph, nur mit ein paar Dingen an- oder ausgeschaltet. Zuerst wählst du die Version aus, auf der du aufbauen willst („Ausgangsversion“). Das ist wichtig, weil es die Abstimmung beeinflusst.
   - Eine neue Version anzulegen geht in mehreren Schritten. Im ersten Schritt schreibst du nur die Abstimmungstexte: einen, um die Änderung einzuführen, und einen, um sie wieder abzuschaffen. Denn über jede Version kann abgestimmt werden, und ist sie angenommen, kann auch dagegen abgestimmt werden. Beispiel: Du hast eine Version, die eine neue Buslinie zwischen zwei wichtigen Knoten anlegt. Sind die Spielenden dafür, kommt die Linie. In einer späteren Runde kann diese Version wieder zur Wahl stehen, nur jetzt andersrum. Also musst du beide Abstimmungstexte schreiben.
   - Im zweiten Schritt änderst du die Karte, mit den Werkzeugen aus der Graph-Ebene und den Linien.
-  - Unter „Versionen verwalten“ kannst du vorhandene Versionen ändern: die Texte, das Bild auf dem Stimmzettel und „Verträglich mit“. Das Letzte ist der Stimmzettel. Nach einer Runde können die Spielenden nur für Versionen stimmen, die mit der verträglich sind, auf der sie gerade spielen.
+  - Unter „Versionen verwalten“ kannst du vorhandene Versionen ändern: die Texte und „Verträglich mit“. Das Letzte ist der Stimmzettel. Nach einer Runde können die Spielenden nur für Versionen stimmen, die mit der verträglich sind, auf der sie gerade spielen.
+  - „Ansehen“ legt eine Version auf die Karte und zeigt, was sie gegenüber der Version ändert, aus der sie gemacht ist — farbig auf der Karte und daneben in Worten. Unter „Verglichen mit“ kannst du sie mit jeder anderen vergleichen. So sieht auch die Abstimmung eine Änderung.
   - „Kombinationen erzeugen“ nimmt zwei oder mehr Versionen und legt jede Kombination aus ihnen an. Aus einer Busspur und einer Umgehungsstraße wird so auch „Busspur + Umgehungsstraße“.
   - Löschen kannst du eine Version hier nicht.
 

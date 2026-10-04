@@ -1,41 +1,60 @@
-import { useState, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 
 import GameMapViewer from "@/components/game/GameMapViewer";
 import { Ballot } from "@/components/between/ballot";
 import { MapLayoutToggle } from "@/components/layout/map-layout-toggle";
 import { de } from "@/lib/de";
 import { cn } from "@/lib/utils";
+import { useShownChange } from "@/hooks/use-shown-change";
 import { useVoteMap } from "@/hooks/use-vote-map";
+import { VersionDiffLegend } from "@/components/map/version-diff-layer";
+import { diffGraphs } from "@/lib/map/version-diff";
+import { useMapGraph } from "@/lib/queries/map-graph";
 import type { VoteOption } from "@/lib/game/events";
 import type { MapLayout } from "@/lib/game/map-layout";
 
 /**
  * The map the class is deciding about — on its own.
  *
- * Either the live network with last round's traffic on it, or, when an option's
- * toggle is on, that option's change picture. The picture is a PNG somebody
- * highlighted by hand because an SVG diff of one bus lane is not something a
- * room can see; it is only ever offered when the version has one stored.
+ * The live network with last round's traffic on it, or, when an option's
+ * toggle is on, the same map with what that option changes drawn over it: the
+ * option's graph against the one the game is on (`lib/map/version-diff.ts`),
+ * streets in the primary, Bus & Bahn in the accent, what goes hollow. It used to
+ * swap the map for a PNG somebody had highlighted by hand, on the argument that
+ * an SVG diff of one bus lane is not something a room can see; drawn heavier
+ * than a route on a quiet network, it is, and it needs nobody to draw it.
  */
-export function VoteMap({ changeImage }: { changeImage?: VoteOption | null }) {
-  const { graph, jam, isLoading } = useVoteMap();
+export function VoteMap({ change }: { change?: VoteOption | null }) {
+  const { graph, jam, isLoading, mapId } = useVoteMap();
+  // Only fetched while an option is shown; the graph has no traffic attached,
+  // and the diff never reads any.
+  const option = useMapGraph(change ? mapId : undefined, change?.id);
+  const diff = useMemo(
+    () => (change && graph && option.data ? diffGraphs(graph, option.data) : null),
+    [change, graph, option.data],
+  );
 
   return (
     <section aria-label={de.vote.mapTitle}>
-      {changeImage?.change_img_url ? (
-        <figure>
-          <img
-            src={changeImage.change_img_url}
-            alt={de.vote.changeAlt(changeImage.name)}
-            className="w-full rounded-md border border-border bg-subtle object-contain dark:bg-darksubtle"
-          />
-          <figcaption className="mt-3 text-sm text-muted-foreground">
-            {de.vote.changeCaption(changeImage.name)}
-          </figcaption>
-        </figure>
-      ) : (
-        <GameMapViewer mapGraph={graph} isLoading={isLoading} compact jam={jam} />
-      )}
+      <GameMapViewer
+        mapGraph={graph}
+        isLoading={isLoading}
+        compact
+        jam={jam}
+        change={diff}
+      />
+      {change ? (
+        <div className="mt-3 space-y-2">
+          <p className="text-sm text-muted-foreground">
+            {!diff
+              ? de.vote.changeLoading
+              : diff.empty
+                ? de.map.diff.nothing
+                : de.vote.changeCaption(change.name)}
+          </p>
+          {diff && !diff.empty ? <VersionDiffLegend diff={diff} /> : null}
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -87,16 +106,13 @@ export function VoteStage({
   onPick: (versionId: number | null) => void;
   disabled?: boolean;
 }) {
-  const [changeShownId, setChangeShownId] = useState<number | null>(null);
-  // Looked up rather than trusted: a ballot that is redrawn after a tie may no
-  // longer hold the option that was toggled.
-  const shown = options.find((option) => option.id === changeShownId) ?? null;
+  const { shown, toggle } = useShownChange(options);
 
   return (
     <MapStage
       layout={layout}
       onLayoutChange={onLayoutChange}
-      map={<VoteMap changeImage={shown} />}
+      map={<VoteMap change={shown} />}
     >
       <Ballot
         options={options}
@@ -104,9 +120,7 @@ export function VoteStage({
         disabled={disabled}
         stacked={layout === "beside"}
         changeShownId={shown?.id ?? null}
-        onToggleChange={(id) =>
-          setChangeShownId((current) => (current === id ? null : id))
-        }
+        onToggleChange={toggle}
       />
     </MapStage>
   );

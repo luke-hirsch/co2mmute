@@ -702,10 +702,10 @@ export const de = {
     keepHint: "Die Karte bleibt, wie sie ist.",
     /** The map above the ballot, and what an option would change on it. */
     mapTitle: "Karte der letzten Runde",
-    showChange: "Änderung auf der Karte zeigen",
-    hideChange: "Aktuelle Karte zeigen",
-    changeAlt: (name: string) => `So sieht die Änderung „${name}“ auf der Karte aus.`,
-    changeCaption: (name: string) => `Änderung: ${name}`,
+    showChange: "Auf der Karte zeigen",
+    hideChange: "Karte ohne Änderung",
+    changeCaption: (name: string) => `Auf der Karte: was „${name}“ ändert.`,
+    changeLoading: "Die Änderung wird geladen …",
     progress: (cast: number, needed: number) =>
       `${cast} von ${needed} haben abgestimmt`,
     cast: "Deine Stimme ist da.",
@@ -1011,6 +1011,52 @@ export const de = {
       other: "sonstiger Knoten",
     },
 
+    /**
+     * What one version changes against another (`lib/map/version-diff.ts`),
+     * on the editor's canvas and the vote's map. Plain words, the way a class
+     * would say it: "eine Autospur wird Busspur", not "dedicated_bus_lane".
+     */
+    diff: {
+      legendStreet: "Straße, Rad, Fuß",
+      legendPt: "Bus & Bahn",
+      legendGone: "fällt weg",
+      nothing: "Auf der Karte ändert sich zwischen den beiden nichts.",
+      streets: "Straße, Rad, Fuß",
+      pt: "Bus & Bahn",
+      places: "Knoten",
+      /** A street whose two directions changed alike. */
+      both: (a: string, b: string) => `${a} – ${b}`,
+      oneWay: (a: string, b: string) => `${a} → ${b}`,
+      bothWays: "beide Richtungen",
+      street: (added: boolean, lanes: number, speed: number) =>
+        added
+          ? `neue Straße, ${lanes} ${lanes === 1 ? "Spur" : "Spuren"}, ${speed} km/h`
+          : "keine Straße mehr",
+      rail: (added: boolean) => (added ? "neue Bahnstrecke" : "keine Bahnstrecke mehr"),
+      path: (added: boolean, biking: boolean, walking: boolean) =>
+        added
+          ? `neuer Weg ${biking && walking ? "für Rad und Fuß" : biking ? "fürs Rad" : "zu Fuß"}`
+          : "kein Weg mehr",
+      busLane: (added: boolean) =>
+        added ? "eine Autospur wird Busspur" : "die Busspur wird wieder Autospur",
+      bikeLane: (added: boolean) =>
+        added ? "eine Autospur wird Radspur" : "die Radspur wird wieder Autospur",
+      biking: (added: boolean) => (added ? "für Räder offen" : "für Räder gesperrt"),
+      walking: (added: boolean) => (added ? "zu Fuß offen" : "für Fußgänger gesperrt"),
+      lanes: (from: number, to: number) => `Spuren ${from} → ${to}`,
+      speed: (from: number, to: number) => `Tempo ${from} → ${to} km/h`,
+      line: (type: "bus" | "train", name: string) =>
+        `${type === "bus" ? "Bus" : "Bahn"} ${name}`,
+      lineAdded: (first: string, last: string) => `neue Linie, ${first} → ${last}`,
+      lineRemoved: "fährt nicht mehr",
+      lineChanged: (gained: number, lost: number) =>
+        `fährt anders: ${gained} ${gained === 1 ? "Abschnitt" : "Abschnitte"} neu, ${lost} weg`,
+      nodeAdded: "neuer Knoten",
+      nodeRemoved: "Knoten fällt weg",
+      /** A node with no name of its own. */
+      unnamed: (id: number) => `Knoten ${id}`,
+    },
+
     /** The map detail page (`/app/maps/<id>`), which is not the editor. */
     loading: "Karte wird geladen …",
     loadFailed: "Die Karte ließ sich nicht laden.",
@@ -1195,6 +1241,8 @@ export const de = {
    */
   editor: {
     title: (name: string) => `Karte bearbeiten: ${name}`,
+    /** Beside the title: the version the canvas shows and every edit goes into. */
+    onVersion: (name: string) => `Version: ${name}`,
     back: "Zurück zur Karte",
     loading: "Karte wird geladen …",
     failed: "Die Karte ließ sich nicht laden.",
@@ -1415,9 +1463,13 @@ export const de = {
       compatible: "Verträglich mit",
       generate: "Kombinationen erzeugen",
       hint: "Eine Version ist ein Filter über einen Graphen, keine Kopie.",
-      changeImage: "Bild ändern",
-      replaceImage: "Bild austauschen",
-      uploadImage: "Bild hochladen",
+      /** "Verwalten": which version is on the canvas, and against what. */
+      show: "Ansehen",
+      shown: "Auf der Karte",
+      diffTitle: (name: string) => `Was „${name}“ ändert`,
+      compareWith: "Verglichen mit",
+      compareNothing: "nichts",
+      compareHint: "Wähl eine Version, dann zeigt die Karte, was sich gegenüber ihr ändert.",
       loading: "Versionen werden geladen …",
       none: "Noch keine Versionen.",
       manage: "Versionen verwalten",
@@ -1499,7 +1551,6 @@ export const de = {
         `Kombinationen erzeugen (${n} ausgewählt)`,
       generated: (n: number) =>
         `${n} ${n === 1 ? "Kombination" : "Kombinationen"} angelegt.`,
-      changeImageAlt: "Vorschau der Änderung",
 
       /**
        * F14: deleting a version. The dialog asks the server what goes before it

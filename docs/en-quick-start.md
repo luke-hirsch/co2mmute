@@ -145,6 +145,8 @@ Every player presses "Weiter" when they're done reading. For the seats at the Le
 
 If the map has versions and you allowed map changes, the class now sees the options for the next round — "Was soll sich ändern?". Talk about it. When you think the room is ready, open the vote ("Abstimmung öffnen").
 
+What a change actually does is shown by "Auf der Karte zeigen" (show on the map) under it: streets, bike and foot paths in blue, bus and train in yellow, and whatever goes is hollow. The ballot has it too.
+
 If nothing is up for a vote, this step and the next are skipped and the next round starts straight away.
 
 #### Vote
@@ -239,7 +241,8 @@ Now that we learned all there is about the map, we can edit it. The editor needs
   - here you can create new versions. A version is not a copy of the map. It is the same graph with some things switched on or off. First you select a version you want to build on ("Ausgangsversion"). This is important, because it will influence the voting mechanism.
   - creating a new version is a multi-step thing. In the first step you just create the voting texts: one for voting the change in, one for voting it out again. Because each version can be voted for, and once it is accepted it can be voted against. E.g.: you have a version that creates a new bus line connecting two important nodes. If the players are in favour, this line gets created. In a later round it is possible that this version is up for voting again, but now in reverse. So you will have to write both voting texts.
   - in the second step you make the changes on the map, with the tools from the graph layer and the lines.
-  - under "Versionen verwalten" you can update existing versions: the texts, the picture shown on the ballot, and "Verträglich mit" (compatible with). That last one is the ballot. After a round, the players can only vote for versions that are compatible with the one they are playing on.
+  - under "Versionen verwalten" you can update existing versions: the texts and "Verträglich mit" (compatible with). That last one is the ballot. After a round, the players can only vote for versions that are compatible with the one they are playing on.
+  - "Ansehen" (view) puts a version on the map and shows what it changes against the version it was made from — in colour on the map and in words beside it. "Verglichen mit" (compared with) compares it with any other. This is also how the vote shows a change.
   - "Kombinationen erzeugen" takes two or more versions and creates every combination of them. A bus lane and a bypass give you "bus lane + bypass" as well.
   - you can't delete a version here.
 

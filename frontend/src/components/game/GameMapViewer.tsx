@@ -50,6 +50,8 @@ import { de } from "@/lib/de";
 import { modeStyle } from "@/components/metro/mode";
 import { jamTint, type EdgeLoad } from "@/lib/map/traffic";
 import { traceStepMs, type SearchTrace } from "@/lib/map/search-trace";
+import type { VersionDiff } from "@/lib/map/version-diff";
+import { VersionDiffLayer } from "@/components/map/version-diff-layer";
 import type { Edge, MapGraph, Node } from "@/types/mapTypes";
 import type {
   ExtendedMapGraph,
@@ -75,6 +77,12 @@ interface GameMapViewerProps {
    * anything (S24).
    */
   search?: SearchTrace | null;
+  /**
+   * What a version on the ballot would change, drawn over the network. While
+   * it is shown the jam steps aside: a jam turns a street towards the accent,
+   * which is also the colour of every public-transport change.
+   */
+  change?: VersionDiff | null;
 }
 
 /**
@@ -141,6 +149,14 @@ const SIZES = {
   search: 0.008,
   jamMin: 0.005,
   jamMax: 0.015,
+  /**
+   * A change on the ballot: heavier than a route, because on the vote it is the
+   * only thing on the map that matters, and one bus lane among 170 links has to
+   * be seen from the back of the room.
+   */
+  change: 0.013,
+  changeHalo: 0.024,
+  changeNode: 0.009,
 } as const;
 
 const GameMapViewer = ({
@@ -152,6 +168,7 @@ const GameMapViewer = ({
   routeSegments,
   jam,
   search,
+  change,
 }: GameMapViewerProps) => {
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
 
@@ -185,7 +202,7 @@ const GameMapViewer = ({
   const searchShown = !!search && searchPhase !== "done";
 
   const jamMap = useMemo(() => {
-    if (!jam?.length) return null;
+    if (!jam?.length || change) return null;
     const map = new Map<number, number>();
     // Only what actually slowed down is worth drawing. A link at free flow is
     // the baseline the network is already drawn at, and painting 170 of them
@@ -194,7 +211,7 @@ const GameMapViewer = ({
       if (load.congestionRatio > 0.05) map.set(load.edgeId, load.congestionRatio);
     }
     return map.size ? map : null;
-  }, [jam]);
+  }, [jam, change]);
 
   if (isLoading) {
     return (
@@ -345,6 +362,17 @@ const GameMapViewer = ({
                 );
               })}
             </g>
+          )}
+
+          {change && (
+            <VersionDiffLayer
+              diff={change}
+              sizes={{
+                line: u(SIZES.change),
+                halo: u(SIZES.changeHalo),
+                node: u(SIZES.changeNode),
+              }}
+            />
           )}
 
           {search && searchShown && mapGraph && (
