@@ -143,15 +143,15 @@ Datei, die beim Import wegbricht, nimmt ihre eigenen Tests aus dem Lauf.
 **Ausgeliefert wird durch einen Push, nicht von Hand auf der Box.** In `.github/workflows/` liegen
 zwei Workflows:
 
-- `tests` — bei jedem Push und PR: `makemigrations --check` und die Backend-Suite gegen Postgres;
-  das Frontend (drei `tsc`, Vitest, `vite build`); und Playwright in WebKit gegen den ganzen Stack
-  aus `devops/docker-compose.yaml`, frisch gebaut und mit `e2e/seed.mjs` befüllt.
-- `go live` — bei jedem Push auf **`prod`**: dieselbe Backend-Suite und dieselben Frontend-Checks,
-  danach per SSH auf die TU-Box, dort `git checkout -B prod origin/prod` und
+- `tests` — bei jedem Push und PR, außer auf `prod`: `makemigrations --check` und die
+  Backend-Suite gegen Postgres; das Frontend (drei `tsc`, Vitest, `vite build`); und Playwright in
+  WebKit gegen den ganzen Stack aus `devops/docker-compose.yaml`, frisch gebaut und mit
+  `e2e/seed.mjs` befüllt.
+- `go live` — bei jedem Push auf **`prod`**: dieselben drei Jobs, und erst wenn alle grün sind,
+  per SSH auf die TU-Box, dort `git checkout -B prod origin/prod` und
   `docker compose -f devops/docker-compose.yaml up -d --build`.
 
-Playwright hält ein Deployment nicht auf: `tests` läuft beim selben Push auf `prod` mit, und sein
-Ergebnis steht daneben.
+Bis die Seite live ist, vergehen so gut zehn Minuten; Playwright braucht die meisten davon.
 
 `prod` ist ein **Deploy-Zeiger, kein Entwicklungszweig**. Es wird nie darauf committet und nie
 hineingemergt, es wird nur vorgespult:
@@ -326,15 +326,15 @@ removes its own tests from the run.
 **Shipping happens by pushing, not by hand on the box.** There are two workflows in
 `.github/workflows/`:
 
-- `tests` — on every push and PR: `makemigrations --check` and the backend suite against Postgres;
-  the frontend (three `tsc`, Vitest, `vite build`); and Playwright in WebKit against the whole stack
-  from `devops/docker-compose.yaml`, freshly built and filled by `e2e/seed.mjs`.
-- `go live` — on every push to **`prod`**: the same backend suite and the same frontend checks, then
-  SSH to the TU box, where it runs `git checkout -B prod origin/prod` and
+- `tests` — on every push and PR except to `prod`: `makemigrations --check` and the backend suite
+  against Postgres; the frontend (three `tsc`, Vitest, `vite build`); and Playwright in WebKit
+  against the whole stack from `devops/docker-compose.yaml`, freshly built and filled by
+  `e2e/seed.mjs`.
+- `go live` — on every push to **`prod`**: the same three jobs, and only once all are green, SSH to
+  the TU box, where it runs `git checkout -B prod origin/prod` and
   `docker compose -f devops/docker-compose.yaml up -d --build`.
 
-Playwright does not hold a deploy up: `tests` runs on the same push to `prod`, and its result sits
-beside it.
+A deploy is live a good ten minutes after the push; Playwright takes most of that.
 
 `prod` is a **deploy pointer, not a development branch**. Nothing is ever committed to it or merged
 into it; it only fast-forwards:
