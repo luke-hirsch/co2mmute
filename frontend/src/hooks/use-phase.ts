@@ -38,6 +38,13 @@ type PhaseRecord = {
   epoch: string;
   /** This device has acked the stats. For the host that covers all its seats. */
   acked: boolean;
+  /**
+   * The seats that ack was for. The host's covers the seats at the machine *at
+   * the moment it was pressed* — `ack_host_seats` writes one row per seat it
+   * finds then — so a seat taken over afterwards has read nothing, and the desk
+   * has to ask again rather than go on saying it is through.
+   */
+  ackedSeats: string[];
   /** Seats this device has voted for, and seats it has answered the tie for. */
   voted: string[];
   answered: string[];
@@ -46,7 +53,14 @@ type PhaseRecord = {
 };
 
 function emptyRecord(epoch: string): PhaseRecord {
-  return { epoch, acked: false, voted: [], answered: [], refused: null };
+  return {
+    epoch,
+    acked: false,
+    ackedSeats: [],
+    voted: [],
+    answered: [],
+    refused: null,
+  };
 }
 
 export function usePhase() {
@@ -111,10 +125,19 @@ export function usePhase() {
     [send, amend],
   );
 
-  const ackStats = useCallback(() => {
-    if (!dispatch({ type: "player.stats_ack" }, null)) return;
-    amend((previous) => ({ ...previous, acked: true, refused: null }));
-  }, [dispatch, amend]);
+  /** `seatIds`: the seats the ack is for. Only the desk's can grow afterwards. */
+  const ackStats = useCallback(
+    (seatIds: string[] = []) => {
+      if (!dispatch({ type: "player.stats_ack" }, null)) return;
+      amend((previous) => ({
+        ...previous,
+        acked: true,
+        ackedSeats: seatIds,
+        refused: null,
+      }));
+    },
+    [dispatch, amend],
+  );
 
   const openVote = useCallback(() => {
     dispatch({ type: "vote.open" }, null);
@@ -159,12 +182,19 @@ export function usePhase() {
     dispatch({ type: "stalemate.force_leave" }, null);
   }, [dispatch]);
 
+  const ackedSeats = useMemo(
+    () => new Set(current.ackedSeats),
+    [current.ackedSeats],
+  );
   const voted = useMemo(() => new Set(current.voted), [current.voted]);
   const answered = useMemo(() => new Set(current.answered), [current.answered]);
 
   return {
     epoch,
     acked: current.acked,
+    /** Has this device acked for every one of these seats? */
+    ackedFor: (seatIds: string[]) =>
+      current.acked && seatIds.every((seatId) => ackedSeats.has(seatId)),
     voted,
     answered,
     hasVoted: (seatId: string | null) => !!seatId && voted.has(seatId),
