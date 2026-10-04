@@ -233,6 +233,7 @@ nicht gemessen.
 | H-16 | `/game/create/` aufrufen                                 | leitet in die SPA weiter; ohne Login erst zum Login                                                              | geht      | `e2e/host.spec.ts` |
 | H-17 | Karte mit ungemessenen Zahlen auswählen (S21)            | Warnung: Menschen pro Gruppe und CO₂-Budget sind nur Vorgabewerte; die mitgelieferte Karte hat keine             | geht      | `e2e/host.spec.ts` |
 | H-18 | „Weitere Einstellungen" (S21)                            | zu, bis man es aufmacht; lehnt der Server ein Feld darin ab, geht es von selbst auf                              | geht      | -                  |
+| H-19 | Platz übernehmen, nachdem die Leitstelle „Weiter für alle hier" gedrückt hat | der Knopf kommt wieder (der Platz hat nichts gelesen); ein Druck, und es geht weiter                             | geht      | f3-zwischen-den-runden |
 
 ## C — chat
 

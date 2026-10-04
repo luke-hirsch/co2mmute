@@ -71,7 +71,11 @@ export function StatsScreen() {
             </p>
           </div>
         ) : (
-          <Button size="lg" onClick={phase.ackStats} disabled={!!state.pausedAt}>
+          <Button
+            size="lg"
+            onClick={() => phase.ackStats()}
+            disabled={!!state.pausedAt}
+          >
             {de.between.ack}
           </Button>
         )}

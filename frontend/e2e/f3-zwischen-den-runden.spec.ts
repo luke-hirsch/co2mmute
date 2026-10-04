@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { createGame, joinAsPlayer } from "./game";
+import { createGame, joinAsPlayer, pickMode } from "./game";
 import { loginAsHost } from "./host";
 
 /**
@@ -161,5 +161,74 @@ test("a seat that has gone can be removed during the vote, and the vote closes w
     await expect(ana.getByText("0 von 1 abgeschickt")).toBeVisible();
   } finally {
     await Promise.all(contexts.map((c) => c.close()));
+  }
+});
+
+test("a seat taken over after the desk has read the stats gets its own Weiter", async ({
+  browser,
+  page,
+}) => {
+  test.setTimeout(420_000);
+  await loginAsHost(page);
+  const gameId = await createGame(page, {
+    name: "E2E Übernahme nach Weiter",
+    maxPlayers: 2,
+    maxRounds: 3,
+    peoplePerAgent: 100,
+  });
+
+  const context = await browser.newContext({
+    ignoreHTTPSErrors: true,
+    viewport: { width: 1200, height: 900 },
+  });
+  const ana = await context.newPage();
+
+  try {
+    // Ben at the desk, Ana on her phone.
+    await page.getByRole("button", { name: "Platz anlegen" }).click();
+    await page.getByLabel("Name").fill("Ben");
+    await page.getByRole("button", { name: "Anlegen", exact: true }).click();
+    await expect(page.getByText("Ben", { exact: true }).first()).toBeVisible();
+    await joinAsPlayer(ana, gameId, "Ana");
+    await page.getByRole("button", { name: "Spiel starten" }).click();
+
+    await page.getByRole("button", { name: "Nächster Platz" }).click({ timeout: 60_000 });
+    await page.getByRole("button", { name: "Los", exact: true }).click();
+    await pickMode(page, 0, "Auto");
+    await page.getByRole("button", { name: "Losfahren" }).click();
+    await driveByCar(ana);
+
+    // The desk reads for Ben. Ana's phone never does.
+    await expect(page.getByText("Runde 1 ist gefahren")).toBeVisible({
+      timeout: 300_000,
+    });
+    await page.getByRole("button", { name: "Überspringen" }).click();
+    await page.getByRole("button", { name: "Weiter für alle hier" }).click();
+    await expect(page.getByText("Für die Plätze hier ist gelesen.")).toBeVisible();
+
+    // Ana's phone has gone quiet, so the desk takes her seat over.
+    await page.getByText("Plätze anzeigen").click();
+    const seats = page.locator("details").filter({ hasText: "Plätze anzeigen" });
+    await seats
+      .locator("li")
+      .filter({ hasText: "Ana" })
+      .getByRole("button", { name: "Übernehmen" })
+      .click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Übernehmen" })
+      .click();
+
+    // Her seat is at the desk now and has read nothing — the earlier press was
+    // for Ben alone. Until 2026-10-04 the desk kept saying it had read, and the
+    // phase waited for an ack nobody could send short of a reload.
+    await page
+      .getByRole("button", { name: "Weiter für alle hier" })
+      .click({ timeout: 15_000 });
+    await expect(
+      page.getByRole("button", { name: "Abstimmung öffnen" }),
+    ).toBeVisible({ timeout: 60_000 });
+  } finally {
+    await context.close();
   }
 });

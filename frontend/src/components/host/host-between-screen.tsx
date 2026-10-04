@@ -72,6 +72,7 @@ function HostStats() {
   const { state } = useGame();
   const phase = usePhase();
   const seats = hostControlledSeats(state);
+  const seatIds = seats.map((seat) => seat.player_id);
   const roundNumber = state.lastRound?.roundNumber ?? state.currentRound;
   const [watched, setWatched] = useState(() => phase.acked);
 
@@ -104,10 +105,17 @@ function HostStats() {
           <p className="max-w-(--measure-body) text-muted-foreground">
             {de.host.waitingForPhones}
           </p>
-        ) : phase.acked ? (
+        ) : phase.ackedFor(seatIds) ? (
           <p className="font-medium">{de.host.ackedAll}</p>
         ) : (
-          <Button size="lg" onClick={phase.ackStats} disabled={!!state.pausedAt}>
+          // Again after a takeover: the seat came to this machine after the
+          // press, so it has read nothing. A second press re-acks the others,
+          // which `get_or_create` makes harmless.
+          <Button
+            size="lg"
+            onClick={() => phase.ackStats(seatIds)}
+            disabled={!!state.pausedAt}
+          >
             {de.host.ackAll}
           </Button>
         )}
