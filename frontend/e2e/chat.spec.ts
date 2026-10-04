@@ -126,6 +126,11 @@ test("the rate limit says so in German", async ({ page, baseURL }) => {
   // C-03. `INDIVIDUAL_RATE_LIMIT_SECONDS` is 0.35, so two messages typed as
   // fast as a script can type them trip it. The backend answers "Slow down";
   // what the class must not see is that sentence.
+  //
+  // Two, never three. The window runs from the last message that *landed*, and
+  // a message that lands clears the refusal on screen (`chat-state.ts`). On a
+  // slow CI runner a third send came 415 ms after the first, went through, and
+  // took the German line away again before this could read it.
   await loginAsHost(page);
   const gameId = await createGame(page, { name: "E2E Chat", agentPerPlayer: 1 });
 
@@ -133,7 +138,7 @@ test("the rate limit says so in German", async ({ page, baseURL }) => {
     await page.getByRole("button", { name: "Chat" }).click();
     const panel = page.getByRole("region", { name: "Chat" });
 
-    for (const text of ["eins", "zwei", "drei"]) {
+    for (const text of ["eins", "zwei"]) {
       await panel.getByRole("textbox").fill(text);
       await panel.getByRole("button", { name: "Senden" }).click();
     }
