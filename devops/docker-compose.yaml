@@ -1,5 +1,3 @@
-# Every container's log is capped: json-file grows forever without a limit,
-# and the box has 9.7 GB. Three files of 10 MB each per container.
 x-logging: &logging
   driver: json-file
   options:
@@ -16,11 +14,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-co2mmute}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-co2mmute}
     volumes:
-      # The mount point is /var/lib/postgresql, NOT .../data. The postgres:18
-      # image sets PGDATA=/var/lib/postgresql/18/docker and declares its own
-      # VOLUME one level up, so mounting at .../data left the named volume
-      # empty and the real data in an anonymous volume — which `down` then
-      # orphans. Moving this needs a dump/restore, it is not a live migration.
       - postgres-data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
@@ -145,8 +138,6 @@ services:
       - backend-static:/var/www/backend-static:ro
       - backend-media:/var/www/backend-media:ro
       - ./nginx/certs:/etc/nginx/certs:ro
-      # Let's Encrypt's webroot: certbot on the host writes the challenge here,
-      # nginx answers it on port 80. Gitignored; compose creates it if missing.
       - ./nginx/acme:/var/www/acme:ro
 
 volumes:

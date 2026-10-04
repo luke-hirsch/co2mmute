@@ -8,32 +8,12 @@
 #   devops/dev.sh test          the suite, in the environment CI has
 #   devops/dev.sh down          stop it again
 #
-# Docker was here to spare a developer who is no longer on the team the job of
-# setting five services up by hand. Everything now runs on the host, the way jac
-# does. `devops/docker-compose.yaml` stays exactly as it is — it is how the box
-# is deployed and `main → prod` still goes through it — it is just not what a
-# working day touches any more.
-#
-# Everything lands on ONE origin, https://localhost:5173. The Vite dev server
-# proxies every path Django owns, the way nginx does in the container, so the
-# landing page, the lobby, the join flow, the legal pages and the admin are all
-# there beside the SPA — and a session cookie set by one reaches the other. That
-# matters more here than in a pure SPA: this is a hybrid, the funnel is
-# server-rendered.
-#
 # WHICH DATABASE
 #   The app runs on sqlite, at backend/db.sqlite3. That is settings.py's own
 #   default whenever DEBUG is on, so it needs no override: disposable, no server
 #   to keep running. `dev.sh reset-db` throws it away.
 #
-#   The SUITE runs on Postgres, and that is not a preference — settings_test.py
-#   has forced it since 1.5, because sqlite makes select_for_update() a no-op,
-#   so the row locks the capacity check and the anonymisation depend on would go
-#   untested while staying green. On top of that the simulation is seeded off
-#   the round pk: Postgres sequences climb through a run while sqlite reuses the
-#   rowid after each TestCase, so a sqlite suite draws different seeds than CI
-#   does. That has cost a day twice. Hence `brew install postgresql@18` — the
-#   same major the box runs, native, no container.
+#   The SUITE runs on Postgres, 
 #
 #   To run the app on Postgres too (closer to the box, and it keeps its data):
 #       DJANGO_DB=postgres devops/dev.sh up
@@ -68,14 +48,8 @@ mkdir -p "$STATE"
 
 # ── the environment ──────────────────────────────────────────────────────────
 
-# A key of its own, generated once and kept out of git. It has to be stable
-# across restarts or every player cookie in flight is invalidated: both are
-# TimestampSigner values salted from SECRET_KEY.
 secret_key() {
   if [ ! -f "$STATE/secret" ]; then
-    # Alphanumerics only. This value is interpolated into `export` lines that
-    # get eval'd, and a shell metacharacter in it is a syntax error rather than
-    # a weaker key. 64 of these is ~380 bits.
     LC_ALL=C tr -dc 'a-zA-Z0-9' </dev/urandom | head -c 64 >"$STATE/secret"
   fi
   cat "$STATE/secret"
@@ -149,9 +123,6 @@ start_service() {
     echo "  $name already running"
     return
   fi
-  # `set -m` gives the background job a process group of its own, so stopping it
-  # signals the whole tree. Django's autoreloader forks a child, and killing the
-  # parent alone would leave that child holding port 8000.
   set -m
   ( cd "$dir" && exec "$@" ) >"$(log_file "$name")" 2>&1 &
   local pid=$!
@@ -311,12 +282,7 @@ cmd_manage() {
   ( cd "$REPO/backend" && exec "$PYTHON" manage.py "$@" )
 }
 
-# The suite, in the environment CI actually has — which is POSTGRES_* and
-# nothing else. Deliberately does NOT load the dev environment: settings.py
-# derives things at import from os.environ, and a run carrying DJANGO_DEBUG or
-# DJANGO_SECRET_KEY is not the run the runner does. Four red CI runs once looked
-# unexplainable from a locally green suite for exactly that reason, and against
-# the container it took a wall of `env -u` flags to reproduce.
+
 cmd_test() {
   ensure_postgres
   ( cd "$REPO/backend" && env -i \
