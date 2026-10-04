@@ -1,7 +1,10 @@
 name: tests
 
 on:
+  # Not on prod: workflow-prod.yml runs a copy of every job there, before the
+  # deploy, and this one would only run them all a second time.
   push:
+    branches-ignore: ["prod"]
   pull_request:
 
 jobs:
