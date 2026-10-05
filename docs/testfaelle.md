@@ -335,6 +335,7 @@ nicht gemessen.
 | K-56 | Bild auf dem Wahlzettel | entfällt: der Wahlzettel zeigt kein Bild mehr, sondern die Änderung selbst auf der Karte (Z-29); der Server schickt das Bild der Änderung weiter mit, gelesen wird es nicht. Die Grundversion fragt nie mit „Die Karte soll ...“ (F16) | geht | - |
 | K-57 | Editor: Version ansehen | „Ansehen“ unter „Verwalten“ legt die Version auf die Karte und zeichnet, was sie gegenüber ihrer Ausgangsversion ändert, daneben in Worten: Busspuren = 15 Straßen, beide Richtungen, „eine Autospur wird Busspur“, keine Linie; Buslinie = Bus 147 hin und zurück; Umgehungsstraßen = Bundestag – Wohnort 2 neu und der Weg Botschaftsviertel – Philharmonie wird Straße | geht | `versionsvergleich.spec.ts` |
 | K-58 | Editor: mit einer anderen Version vergleichen | „Verglichen mit“ nimmt jede Version; Grundversion gegen Busspuren zeigt die 30 Busspuren hohl, „die Busspur wird wieder Autospur“; eine Kombiversion gegen eine ihrer Änderungen ist genau die andere | geht | `versionsvergleich.spec.ts`, vitest |
+| K-59 | Kartendatei prüfen | `./manage.py check_map datei.json` sagt zur ausgelieferten Karte „in Ordnung“; eine kaputte Datei bekommt jedes Problem mit seiner Regel genannt — eine Linie gegen ihre Richtung, zwei Kanten zwischen denselben Knoten, ein Wohnort ohne Weg zur Arbeit und zurück — und der Befehl endet mit Fehler (F8) | geht | `test_checks` |
 
 ## S — sonstiges
 
