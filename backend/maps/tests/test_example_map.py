@@ -20,6 +20,11 @@ moved the chain row onto the clone. One route per line could not even express
 the defect, let alone catch it. So a line is checked in each version it belongs
 to, and "connected" means connected there.
 
+The rules any map keeps — that one included — are in `maps/checks.py`, and
+`ExampleMapChecksTests` runs them over every file in `map_examples/`. The
+classes after it pin what is true of this map only: its counts, its names,
+its three interventions, its seats and its walks.
+
 These tests read the file directly, so they fail on the file rather than on a
 database — which is what you want from a data test: the same run tells you
 whether the *file* is broken, wherever it is about to be imported. The import
@@ -33,6 +38,7 @@ from pathlib import Path
 
 from django.test import SimpleTestCase, TestCase
 
+from maps.checks import check_map
 from maps.models import BusLine, Edge, MapVersion, Node, TrainLine
 from maps.serializer import serialize_bus_line_for_graph, serialize_train_line_for_graph
 from maps.tests.test_portability import MapUploadMixin
@@ -155,14 +161,23 @@ def base_name(line_name):
     return line_name.rsplit(" ", 1)[0] if " " in line_name else line_name
 
 
-def has_street_row(edge):
-    """A street edge carries its numbers; a shortcut carries none.
+class ExampleMapChecksTests(SimpleTestCase):
+    """The rules every map keeps, on every file in `map_examples/`.
 
-    The export writes `speed_limit`, `lanes` and `dedicated_bus_lane` only when
-    a `StreetEdge` row exists, so their absence is the file saying "no street
-    here" rather than "this file is old".
+    `maps/checks.py` holds them — one line per version, links where their
+    nodes are, lines whole and on their own side of the street, a way from
+    every home to every workplace and back — and `manage.py check_map` asks
+    the same of any file. What follows this class is true of this map only.
     """
-    return "speed_limit" in edge
+
+    def test_every_shipped_map_passes_every_check(self):
+        files = sorted(SHIPPED_MAP.parent.glob("*.json"))
+        self.assertIn(SHIPPED_MAP, files)
+        for path in files:
+            with self.subTest(file=path.name):
+                with path.open(encoding="utf-8") as fh:
+                    problems = check_map(json.load(fh))
+                self.assertEqual([f"[{p.check}] {p.message}" for p in problems], [])
 
 
 class ShippedMapVersionTests(SimpleTestCase):
@@ -183,51 +198,20 @@ class ShippedMapVersionTests(SimpleTestCase):
         """
         self.assertEqual(len(self.versions), VERSION_COUNT)
 
-    def test_exactly_one_version_is_the_base(self):
-        flags = [bool(v.get("base_version")) for v in self.versions]
-        self.assertEqual(flags.count(True), 1, f"base flags: {flags}")
-
-    def test_every_version_is_named(self):
-        for idx, version in enumerate(self.versions):
-            with self.subTest(version=idx):
-                self.assertTrue((version.get("name") or "").strip())
-
-    def test_the_ballot_is_symmetric_and_complete(self):
+    def test_the_ballot_is_complete(self):
         """`compatible_versions` *is* the vote.
 
         `_get_voteable_map_versions()` offers what the active version's m2m
         reaches, so a missing pair is a change the class can never be asked
-        about. The m2m is symmetric, so a file naming one side only would
-        re-import as a one-way ballot.
+        about. That each pair is offered both ways is `ballot-one-way` in
+        `maps/checks.py`.
         """
-        pairs = set()
-        for idx, version in enumerate(self.versions):
-            for other in version.get("compatible_versions") or []:
-                with self.subTest(version=idx, other=other):
-                    self.assertIn(
-                        idx,
-                        self.versions[other].get("compatible_versions") or [],
-                        f"{self.versions[idx]['name']} offers "
-                        f"{self.versions[other]['name']} but not the other way",
-                    )
-                pairs.add(tuple(sorted((idx, other))))
+        pairs = {
+            tuple(sorted((idx, other)))
+            for idx, version in enumerate(self.versions)
+            for other in version.get("compatible_versions") or []
+        }
         self.assertEqual(len(pairs), BALLOT_PAIR_COUNT)
-
-    def test_every_version_can_be_reached_from_the_base(self):
-        """A version no vote leads to is a version nobody ever plays."""
-        base = base_index(self.graph)
-        seen = {base}
-        frontier = [base]
-        while frontier:
-            current = frontier.pop()
-            for other in self.versions[current].get("compatible_versions") or []:
-                if other not in seen:
-                    seen.add(other)
-                    frontier.append(other)
-        unreachable = [
-            self.versions[i]["name"] for i in range(len(self.versions)) if i not in seen
-        ]
-        self.assertEqual(unreachable, [])
 
     def test_the_hand_drawn_versions_say_what_they_came_from(self):
         """`source_version` is what the revert poll offers to undo.
@@ -256,75 +240,11 @@ class ShippedMapMembershipTests(SimpleTestCase):
         super().setUpClass()
         cls.graph = load_shipped_map()
 
-    def test_nothing_belongs_to_no_version_at_all(self):
-        """`"versions": []` is a piece of the map nobody can ever see.
-
-        The box carried 19 such edges, 2 nodes and 3 `Bus 147` lines: third
-        copies left behind when a version was drawn and redrawn, each one a
-        street that already had a live original *and* a live clone. The format
-        keeps `[]` distinct from absent on purpose — a backup that quietly
-        promoted them to the base version would invent streets the map never
-        had — so the file can say it, and this says the file does not.
-        """
-        for kind in ("nodes", "edges", "bus_lines", "train_lines"):
-            for idx, element in enumerate(self.graph[kind]):
-                with self.subTest(kind=kind, index=idx):
-                    self.assertNotEqual(
-                        element_versions(self.graph, element),
-                        [],
-                        f"{kind}[{idx}] {element.get('name')!r} belongs nowhere",
-                    )
-
     def test_the_graph_is_counted(self):
         self.assertEqual(len(self.graph["nodes"]), NODE_COUNT)
         self.assertEqual(len(self.graph["edges"]), EDGE_COUNT)
         self.assertEqual(len(self.graph["bus_lines"]), BUS_LINE_COUNT)
         self.assertEqual(len(self.graph["train_lines"]), TRAIN_LINE_COUNT)
-
-    def test_every_version_index_points_at_a_version(self):
-        count = len(self.graph["versions"])
-        for kind in ("nodes", "edges", "bus_lines", "train_lines"):
-            for idx, element in enumerate(self.graph[kind]):
-                for other in element_versions(self.graph, element):
-                    with self.subTest(kind=kind, index=idx):
-                        self.assertIsInstance(other, int)
-                        self.assertLess(other, count)
-                        self.assertGreaterEqual(other, 0)
-
-    def test_no_version_has_two_links_between_the_same_nodes(self):
-        """One link per direction per node pair, in every version.
-
-        The editor refuses a second one (`edge-exists`), whatever its type, so
-        a file carrying two is a map the editor cannot make. F11's
-        Philharmonie-Botschaftsviertel path is the case that needs it: the
-        Umgehungsstraße Süd runs over the same pair in four versions and
-        already lets people walk and cycle, so the path stays out of those.
-        """
-        for version in range(len(self.graph["versions"])):
-            seen = set()
-            for idx, edge in enumerate(self.graph["edges"]):
-                if version not in element_versions(self.graph, edge):
-                    continue
-                ends = (edge["start_node"], edge["end_node"])
-                with self.subTest(version=version, edge=idx):
-                    self.assertNotIn(ends, seen)
-                seen.add(ends)
-
-    def test_an_edge_lives_wherever_both_its_nodes_live(self):
-        """An edge in a version whose node is missing there is a dangling edge.
-
-        The renderer draws from the node coordinates, so this is the difference
-        between a line on screen and a crash.
-        """
-        node_versions = {
-            node["id"]: set(element_versions(self.graph, node))
-            for node in self.graph["nodes"]
-        }
-        for idx, edge in enumerate(self.graph["edges"]):
-            for version in element_versions(self.graph, edge):
-                with self.subTest(edge=idx, version=version):
-                    self.assertIn(version, node_versions[edge["start_node"]])
-                    self.assertIn(version, node_versions[edge["end_node"]])
 
     def test_a_bus_lane_version_carries_its_own_copy_of_the_street(self):
         """`Busspuren` is the clone pattern, and it should look like one.
@@ -379,120 +299,6 @@ class ShippedMapLineTests(SimpleTestCase):
             ("train", line) for line in cls.graph["train_lines"]
         ]
         cls.names = [v["name"] for v in cls.graph["versions"]]
-
-    def test_a_line_runs_in_every_version_it_belongs_to(self):
-        """A line present in a version with no route is the S15 damage itself.
-
-        Bus `100` belonged to all eight versions and ran zero links in four of
-        them: `_register_pt_line` measures it at 0 km, logs twice and returns
-        before it gets a run to drive, so the map showed a line nobody could
-        board and Brandenburger Tor had no bus at all.
-        """
-        for mode, line in self.lines:
-            routes = routes_by_version(self.graph, line)
-            for version in element_versions(self.graph, line):
-                with self.subTest(line=line["name"], version=self.names[version]):
-                    self.assertGreater(
-                        len(routes.get(version, [])),
-                        0,
-                        f"{mode} {line['name']} runs nothing in "
-                        f"{self.names[version]}",
-                    )
-
-    def test_a_line_runs_nowhere_it_does_not_belong(self):
-        """The mirror image: a route in a version the line is not in.
-
-        Cheap to state and it pins the file's own consistency — a chain group
-        naming a version the line left is a row the importer would drop.
-        """
-        for _, line in self.lines:
-            belongs = set(element_versions(self.graph, line))
-            for version in routes_by_version(self.graph, line):
-                with self.subTest(line=line["name"], version=self.names[version]):
-                    self.assertIn(version, belongs)
-
-    def test_every_line_is_one_connected_walk_in_every_version(self):
-        """`node_chain` has to reach the end of the edge list.
-
-        This is the check `_register_pt_line` makes at runtime, where the answer
-        is a truncated line and a warning in the log nobody reads — and a
-        truncated line is charged only for what it drives, so it silently
-        becomes a different line. A chain that is whole has exactly one more
-        node than it has edges.
-        """
-        for mode, line in self.lines:
-            for version, route in routes_by_version(self.graph, line).items():
-                with self.subTest(line=line["name"], version=self.names[version]):
-                    chain = node_chain(edge_ends(self.graph, route))
-                    self.assertEqual(
-                        len(chain),
-                        len(route) + 1,
-                        f"{mode} {line['name']} in {self.names[version]} breaks "
-                        f"after {max(0, len(chain) - 1)} of {len(route)} edges",
-                    )
-
-    def test_every_line_runs_on_edges_that_exist_in_that_version(self):
-        """A route over a street the version does not have is not a route.
-
-        This is the invariant the chain damage broke from the other side: the
-        rows moved onto the `Busspuren` clones, and a version without
-        `Busspuren` then pointed at streets it does not contain.
-        """
-        for _, line in self.lines:
-            for version, route in routes_by_version(self.graph, line).items():
-                for edge_index in route:
-                    edge = self.graph["edges"][edge_index]
-                    with self.subTest(
-                        line=line["name"], version=self.names[version], edge=edge_index
-                    ):
-                        self.assertIn(
-                            version,
-                            element_versions(self.graph, edge),
-                            f"{line['name']} runs {edge['name']!r} in "
-                            f"{self.names[version]}, which does not have it",
-                        )
-
-    def test_every_line_names_the_side_of_the_street_it_drives(self):
-        """A line names the link going ITS way wherever the version has one.
-
-        Each direction of a street is its own link with its own queue (F2a), and
-        `node_chain` reads a line's travel order from the nodes, so a chain row
-        naming the other direction passes every test above. Bus `100` eastbound
-        named the westbound links from Ernst-Reuter Platz to Arbeit Brandenburger
-        Tor, in all eight versions. The simulator now drives the right side
-        whatever the file says (`TrafficSimulator._its_own_way`); this keeps the
-        file honest, and what the editor and the replay draw with it.
-        """
-        edges = self.graph["edges"]
-        for mode, line in self.lines:
-            for version, route in routes_by_version(self.graph, line).items():
-                stops = node_chain(edge_ends(self.graph, route))
-                for i, edge_index in enumerate(route[: len(stops) - 1]):
-                    here, there = stops[i], stops[i + 1]
-                    edge = edges[edge_index]
-                    if (edge["start_node"], edge["end_node"]) != (there, here):
-                        continue
-                    own_way = [
-                        j
-                        for j, other in enumerate(edges)
-                        if (other["start_node"], other["end_node"]) == (here, there)
-                        and version in element_versions(self.graph, other)
-                        and (
-                            has_street_row(other)
-                            if mode == "bus"
-                            else other["type"] in ("train", "both")
-                        )
-                    ]
-                    with self.subTest(
-                        line=line["name"], version=self.names[version], edge=edge_index
-                    ):
-                        self.assertEqual(
-                            own_way,
-                            [],
-                            f"{mode} {line['name']} runs {edge['name']!r} against "
-                            f"its direction in {self.names[version]}; edge "
-                            f"{own_way} goes its way",
-                        )
 
     def test_rail_runs_in_every_version(self):
         """`GenerateCombinationsView` copies nodes, edges and `BusLine` — not rail.
@@ -628,35 +434,6 @@ class ShippedMapEdgeTests(SimpleTestCase):
         super().setUpClass()
         cls.graph = load_shipped_map()
 
-    def test_every_edge_states_its_bike_lane(self):
-        """The file has to describe the map, not a diff against a default.
-
-        Same argument as the export's (`test_the_export_carries_a_missing_bike_
-        lane_too`): a key that only appears when it is True re-imports to the
-        same value, but the next reader cannot tell "no bike lane here" from
-        "this file is older than the field". `maps/0006` added it.
-        """
-        for idx, edge in enumerate(self.graph["edges"]):
-            with self.subTest(edge=idx):
-                self.assertIn("bike_lane", edge)
-
-    def test_every_street_a_car_can_use_states_its_speed_limit_and_lanes(self):
-        """The speed limit is what the free-flow time and the CO2 curve run on.
-
-        Stated for every street that carries a `StreetEdge` row. The shortcuts
-        below are the deliberate exception and are checked by name, so this
-        cannot quietly pass because a street lost its row.
-        """
-        for idx, edge in enumerate(self.graph["edges"]):
-            if edge.get("type", "both") not in ("street", "both"):
-                continue
-            if not has_street_row(edge):
-                continue
-            with self.subTest(edge=idx):
-                self.assertIn("speed_limit", edge)
-                self.assertIn("lanes", edge)
-                self.assertIn("dedicated_bus_lane", edge)
-
     def test_the_shortcuts_are_for_bikes_and_pedestrians_only(self):
         """Twelve links with no street under them, and that is the point.
 
@@ -690,29 +467,6 @@ class ShippedMapEdgeTests(SimpleTestCase):
                 self.assertNotIn("speed_limit", edge)
             found.add(frozenset(ends))
         self.assertEqual(found, {frozenset(pair) for pair in SHORTCUT_ENDS})
-
-    def test_no_street_hides_behind_a_missing_speed_limit(self):
-        """The other half: a `street` edge always states its numbers.
-
-        Before `"path"` existed the export wrote both cases as `"street"` and
-        the importer answered by inventing a 50 km/h lane, so this is the
-        assertion that says the file no longer relies on that reading.
-        """
-        for idx, edge in enumerate(self.graph["edges"]):
-            if edge.get("type", "both") not in ("street", "both"):
-                continue
-            with self.subTest(edge=idx):
-                self.assertTrue(has_street_row(edge))
-
-    def test_no_edge_has_a_speed_limit_of_zero(self):
-        """Fixed once already — a zero divides into the free-flow time.
-
-        The simulator now warns and falls back to the map default, which means
-        a new zero would cost nothing but a log line. Pinned so it stays fixed.
-        """
-        for idx, edge in enumerate(self.graph["edges"]):
-            with self.subTest(edge=idx):
-                self.assertNotEqual(edge.get("speed_limit", 50), 0)
 
     def test_a_railway_is_not_a_bike_route(self):
         """`"type": "train"` says false outright since 2026-09-24.
