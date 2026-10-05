@@ -323,7 +323,64 @@ endet durchgehend Fahren in Runde 5, und wer umsteigt, bleibt 284 kg darunter. *
 16.000** (entschieden am 2. Oktober 2026): Wer alle sechs Runden schaffen will, muss früher umsteigen
 als die Klasse oben. Die Zahl steht in der Kartendatei.
 
-## 12. Was offen bleibt
+## 12. Eine Regel für jede Karte
+
+Bis hierhin sind die beiden Zahlen von Berlin Mitte-West von Hand gefunden, in Messreihen, die für
+jede Frage neu gebaut wurden. Für jede weitere Karte gilt eine Regel, einmal pro Karte gemessen:
+
+- **Pendler:** so viele, dass ein Morgen, an dem alle Auto fahren, so langsam ist wie der
+  Berufsverkehr der echten Stadt. Das Tempo der Stadt kommt von außen, mit Quelle.
+- **Budget pro Runde:** was eine Runde mit Hin- und Rückweg kostet, wenn die Hälfte der Gruppen Auto
+  fährt und die andere Hälfte Bus und Bahn, auf zwei Stellen gerundet.
+- **Der Anteil ist der Schwierigkeitsregler:** bei 40 % Auto wird das Budget knapper, bei 60 %
+  großzügiger.
+
+Gemessen wird das mit einem Befehl:
+
+```
+./manage.py calibrate_map karte.json --speed 24          # Pendler suchen, dann das Budget
+./manage.py calibrate_map karte.json --commuters 6400    # Pendler behalten, nur das Budget
+            [--share 50] [--seeds 6] [--map-version …] [--out neu.json]
+```
+
+Er prüft die Datei zuerst mit `check_map`, lädt sie in eine Datenbank, die danach wieder verschwindet,
+und spielt echte Runden mit der Simulation des Spiels. Die Wege sucht der Router des Spiels
+(`frontend/scripts/routes.mjs`, dafür braucht es Node und `npm ci` in `frontend/`): jeder Wohnort zu
+jedem Arbeitsplatz und zurück, so wie der Rundenbildschirm sie zuerst anbietet. Die Gruppen verteilen
+sich gleichmäßig auf die Paare, auf Berlin Mitte-West 72 Gruppen, zwei pro Paar. Bei einem
+Autoanteil fährt jedes Paar seinen Anteil, bei der Hälfte also genau eine der beiden Gruppen. Eine
+zufällige Hälfte aller Gruppen setzt in einer Runde die langen Wege ins Auto und in der nächsten die
+kurzen: Auf Berlin streute die halbe Runde damit um 4 % zwischen den Seeds, mit festem Anteil pro
+Paar um 0,5 %. Die Pendler sucht der Befehl in ganzen Menschen pro Gruppe. `--out` schreibt eine Kopie
+der Datei mit beiden Zahlen und `calibrated: true`.
+
+Gemessen wird auf Postgres (`DJANGO_DB=postgres`), wie auf dem Server. Die Simulation liest ihre
+Strecken in der Reihenfolge ihrer Namen, und die sortiert jede Datenbank anders: Unter SQLite liegen
+Runden mit Bus und Bahn um gut 1 % daneben, Runden nur mit Autos gar nicht.
+
+Auf Berlin Mitte-West, gemessen am 5. Oktober 2026 auf Postgres, sechs Seeds, 6.400 Pendler:
+
+| Autoanteil | Runde gesamt |      Auto |  Fahrplan | Fahrzeit Auto hin / zurück | Bus & Bahn | Warten |
+| ---------: | -----------: | --------: | --------: | -------------------------: | ---------: | -----: |
+|      100 % |    26.542 kg | 19.578 kg |  6.964 kg |            22,2 / 19,5 min |          — |      — |
+|       75 % |    20.481 kg | 13.835 kg |  6.645 kg |            15,9 / 14,6 min |   31,4 min | 20,3 min |
+|       50 % |    15.854 kg |  8.555 kg |  7.299 kg |            11,3 / 11,1 min |   32,7 min | 23,4 min |
+|       25 % |    13.062 kg |  4.212 kg |  8.850 kg |            10,2 / 10,3 min |   37,5 min | 33,2 min |
+|        0 % |    10.163 kg |         — | 10.163 kg |                          — |   41,9 min | 41,9 min |
+
+- **Das Budget ist die Regel.** Die halbe Runde kostet 15.854 kg, gerundet 16.000, die Zahl, die die
+  Karte trägt. Mit dem Aufbau aus Abschnitt 11, einer festen zufälligen Hälfte, waren es 16.174 kg.
+- **Die Pendlerzahl ist es nicht ganz.** Bei 6.400 Pendlern fahren alle Autos morgens 20,7 km/h,
+  nicht die 24 km/h der Berliner Innenstadt. Das stand schon in Abschnitt 3: Das Modell liegt etwas
+  über der echten Stadt. Mit 24 km/h ergibt die Regel 5.700 Pendler und ein Budget von 14.000 kg
+  (die halbe Runde: 14.168 kg). Die Karte trägt weiter 6.400 und 16.000.
+- **Die Suche findet zurück.** Mit 20,8 km/h als Ziel kommt sie bei 6.400 Pendlern an.
+
+Mit Abschnitt 11 ist die Tabelle nur Zeile für Zeile ungefähr vergleichbar (ohne Auto 10.163 gegen
+10.402 kg): Der Aufbau ist ein anderer, 72 Gruppen und auf jedes Paar gleich viele statt 64, die auf
+36 Paare nicht aufgehen.
+
+## 13. Was offen bleibt
 
 - **Die Abfahrten liegen sehr eng beieinander.** `departure_std_dev_min = 10` heißt, dass praktisch
   alle innerhalb von 20 Minuten losfahren; real verteilt sich ein Berufsverkehr über eine Stunde und
@@ -336,15 +393,18 @@ als die Klasse oben. Die Zahl steht in der Kartendatei.
   auch ein Spiel beendet, das sich wie oben verbessert; mit 18.000 bliebe dieses 284 kg darunter.
 - **Die Vorgabewerte anderer Karten sind ungeprüft.** Jede neue Karte startet mit 6.400 und 16.000 —
   den Werten von Berlin Mitte-West. Für eine kleinere Karte sind beide zu hoch. Die Karte sagt
-  inzwischen selbst, ob ihre Zahlen gemessen sind (`GameMap.calibrated`, geht mit der JSON-Datei
-  mit), und „Spiel anlegen" warnt, solange sie es nicht sind. Gemessen ist damit noch nichts: das
-  heißt weiterhin Runden auf der Karte nachspielen (Abschnitt 13), die beiden Zahlen im Admin
-  eintragen und dort den Haken setzen. Die mitgelieferte Datei hat ihn gesetzt.
+  selbst, ob ihre Zahlen gemessen sind (`GameMap.calibrated`, geht mit der JSON-Datei mit), und
+  „Spiel anlegen" warnt, solange sie es nicht sind. `calibrate_map` misst beide (Abschnitt 12),
+  `--out` setzt den Haken in der Datei. Die mitgelieferte Datei hat ihn gesetzt.
+- **Die Reihenfolge hängt an der Datenbank.** Wie in Abschnitt 12: eine Runde mit Bus und Bahn
+  kommt unter SQLite um gut 1 % anders heraus als unter Postgres, weil die Strecken nach Namen
+  sortiert gelesen werden.
 
-## 13. Nachrechnen
+## 14. Nachrechnen
 
 Die Zahlen oben stammen nicht aus einem Play-Test, sondern aus wiederholten Läufen mit festem Seed
 auf der ausgelieferten Karte. Wer sie nach einer Modelländerung neu braucht, spielt Runden auf der
-betreffenden Karte nach — nicht: dreht an den Werten, bis sich ein Play-Test gut anfühlt. Die
+betreffenden Karte nach, mit `calibrate_map` (Abschnitt 12) — nicht: dreht an den Werten, bis sich
+ein Play-Test gut anfühlt. Die
 Herleitung mit allen Messwerten steht in `backend/game/calibration.py`; wofür jede Zahl da ist,
 steht als Testfall in `backend/game/tests/test_join.py`.

@@ -159,10 +159,21 @@ before), all-car is out in round 4, so the budget no longer separates the two.
 16 000 (decided 2026-10-02), so finishing all six rounds takes switching sooner.
 docs/kalibrierung.md §11.
 
+**Since 2026-10-05 a new map is measured by one rule** (the functions at the
+bottom of this module, run by `manage.py calibrate_map`). On Berlin Mitte-West,
+on Postgres, its half-driving round trip is 15 854 kg — 16 000, the map's
+number — while its 6 400 commuters drive at 20.7 km/h when everybody drives,
+not the city's 24; at 24 km/h the rule says 5 700 and 14 000.
+docs/kalibrierung.md §12.
+
 Re-deriving these after a model change means replaying rounds on the map in
-question, not adjusting them until a play-test feels right. What each number is
-FOR is asserted in `game/tests/test_join.py`.
+question (`calibrate_map`), not adjusting them until a play-test feels right.
+What each number is FOR is asserted in `game/tests/test_join.py`.
 """
+
+import math
+import statistics
+from dataclasses import dataclass, field
 
 # What the create form offers, and what the GameSession model defaults agree
 # with. The class size, not the calibration — that comes off the map.
@@ -241,3 +252,201 @@ def per_person(total: float, agent_count: int, people_per_agent_value: int) -> f
     """
     people = agent_count * (people_per_agent_value or 1)
     return total / people if people else 0.0
+
+
+# ---------------------------------------------------------------------------
+# Calibrating a new map: one rule, measured once (`manage.py calibrate_map`).
+#
+# Budget per round = what a round costs when half the Gruppen drive and the
+# rest ride, rounded to a number a class can hold. Commuters = as many as make
+# a morning where everybody drives as slow as the city's own rush hour. The
+# share is the difficulty: more driving Gruppen is a looser budget. On Berlin
+# Mitte-West the half-driving round trip is 16 174 kg (docs/kalibrierung.md
+# §11), so its 16 000 is this rule.
+#
+# The functions below take `play`, a function that plays one round and
+# returns what it cost (`game/measure.py:MapRounds.play`), so the rule can be
+# read and tested apart from the database.
+# ---------------------------------------------------------------------------
+
+BUDGET_SHARE = 0.5
+TABLE_SHARES = (1.0, 0.75, 0.5, 0.25, 0.0)
+
+# The seeds every measurement in docs/kalibrierung.md was taken over.
+SEEDS = (101, 102, 103, 104, 105, 106)
+
+# How far the search for the commuter count may grow from where it starts —
+# 2^5, i.e. 32 times the map's current figure — before it says the map cannot
+# get that slow. A round's cost grows with its people, so this also bounds how
+# long a calibration can take.
+GROWTH_STEPS = 5
+BISECTION_STEPS = 12
+
+
+class CalibrationRefused(Exception):
+    """The rule has no answer on this map, and the message says why."""
+
+
+def round_figure(value: float) -> int:
+    """Two significant figures: a number a class can hold in its head.
+
+    16 174 → 16 000, 6 437 → 6 400, 853 → 850. A half rounds up.
+    """
+    if value <= 0:
+        return 0
+    step = 10 ** max(0, math.floor(math.log10(value)) - 1)
+    return int(math.floor(value / step + 0.5) * step)
+
+
+def car_speed(rounds) -> float | None:
+    """The cars' mean speed over these rounds' mornings, in km/h.
+
+    Kilometres driven over hours taken, pooled over all rounds — the network's
+    speed, not a mean of Gruppen speeds, so a long jammed commute weighs as
+    much as it costs. None if anybody was still out when a pass hit its guard:
+    that round has no speed, and it is slower than any target.
+    """
+    if any(r.not_home for r in rounds):
+        return None
+    hours = sum(r.car_hours for r in rounds)
+    if hours <= 0:
+        return None
+    return sum(r.car_km for r in rounds) / hours
+
+
+def find_commuters(speed_at, *, target_kmh, start, smallest):
+    """The most commuters at which everybody driving still reaches `target_kmh`.
+
+    `speed_at(commuters)` is the cars' speed on a morning where everybody
+    drives, or None for one that never ended. `smallest` is one person per
+    Gruppe; a round has whole people in each, so every population tried is a
+    multiple of it — anything between would be rounded to the same round and
+    measured twice. Doubles or halves from `start` until the target lies
+    between two measurements, then halves the gap (in proportion, since the
+    populations span orders of magnitude) until both ends round to the same
+    figure or are one person per Gruppe apart.
+
+    Returns the rounded commuter count and every measurement taken, by
+    commuters, so the caller can show the search.
+    """
+    step = int(smallest)
+    searched = {}
+
+    def fast_enough(per_gruppe):
+        population = per_gruppe * step
+        if population not in searched:
+            searched[population] = speed_at(population)
+        speed = searched[population]
+        return speed is not None and speed >= target_kmh
+
+    def shown(per_gruppe):
+        speed = searched[per_gruppe * step]
+        return "nie fertig" if speed is None else f"{speed:.1f} km/h"
+
+    per_gruppe = max(1, round(start / step))
+    if fast_enough(per_gruppe):
+        fast, slow = per_gruppe, None
+        for _ in range(GROWTH_STEPS):
+            per_gruppe *= 2
+            if not fast_enough(per_gruppe):
+                slow = per_gruppe
+                break
+            fast = per_gruppe
+        if slow is None:
+            raise CalibrationRefused(
+                f"Auch bei {fast * step} Pendlern fahren alle Autos noch "
+                f"{shown(fast)}, schneller als {target_kmh:g} km/h. Die Wege der "
+                "Karte verteilen sich auf zu viele Spuren, um so langsam zu werden."
+            )
+    else:
+        fast, slow = None, per_gruppe
+        while per_gruppe > 1:
+            per_gruppe = max(1, per_gruppe // 2)
+            if fast_enough(per_gruppe):
+                fast = per_gruppe
+                break
+            slow = per_gruppe
+        if fast is None:
+            raise CalibrationRefused(
+                f"Schon bei {step} Pendlern, einem Menschen pro Gruppe, fahren "
+                f"die Autos nur {shown(1)}, langsamer als {target_kmh:g} km/h. "
+                "So schnell ist die Karte auch leer nicht."
+            )
+
+    for _ in range(BISECTION_STEPS):
+        if slow - fast <= 1 or round_figure(fast * step) == round_figure(slow * step):
+            break
+        middle = min(slow - 1, max(fast + 1, round(math.sqrt(fast * slow))))
+        if fast_enough(middle):
+            fast = middle
+        else:
+            slow = middle
+    return round_figure(fast * step), searched
+
+
+@dataclass
+class Calibration:
+    """What the rule says about one map, and the rounds it read that off."""
+
+    commuters: int
+    budget_kg: int
+    budget_measured_kg: float
+    share: float
+    target_kmh: float | None
+    # The cars' morning speed when everybody drives, at `commuters`.
+    speed_kmh: float | None
+    # Every population the search tried, and the speed it measured.
+    searched: dict = field(default_factory=dict)
+    # Share → the rounds played at `commuters`, one per seed, there and back.
+    rows: dict = field(default_factory=dict)
+
+
+def calibrate(
+    play,
+    *,
+    start,
+    smallest,
+    target_kmh=None,
+    commuters=None,
+    share=BUDGET_SHARE,
+    seeds=SEEDS,
+):
+    """Apply the rule on the map `play` plays.
+
+    Give `target_kmh` to search the commuter count, or `commuters` to keep
+    one — the budget is measured at it either way. `start` is where the search
+    begins (the map's current figure), `smallest` the fewest commuters a round
+    can have (one person per Gruppe).
+    """
+    searched = {}
+    if commuters is None:
+        if target_kmh is None:
+            raise ValueError("calibrate needs a target speed or a commuter count")
+
+        def speed_at(population):
+            return car_speed(
+                [
+                    play(commuters=population, share=1.0, seed=seed, way_home=False)
+                    for seed in seeds
+                ]
+            )
+
+        commuters, searched = find_commuters(
+            speed_at, target_kmh=target_kmh, start=start, smallest=smallest
+        )
+
+    rows = {
+        level: [play(commuters=commuters, share=level, seed=seed) for seed in seeds]
+        for level in sorted(set(TABLE_SHARES) | {share}, reverse=True)
+    }
+    measured = statistics.mean(r.total_kg for r in rows[share])
+    return Calibration(
+        commuters=commuters,
+        budget_kg=max(1, round_figure(measured)),
+        budget_measured_kg=measured,
+        share=share,
+        target_kmh=target_kmh,
+        speed_kmh=car_speed(rows[1.0]),
+        searched=searched,
+        rows=rows,
+    )
