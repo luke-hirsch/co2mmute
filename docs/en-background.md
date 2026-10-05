@@ -306,13 +306,18 @@ measures the fault along with it. Check beforehand that:
 
 On Berlin Mitte-West one bus line at first had no edges at all, another broke mid-route, and every
 vehicle had 60 seats. Six of the 36 pairs had no public transport connection as a result, and a
-round with nobody in a car cost almost twice what it does today.
-`backend/maps/tests/test_example_map.py` shows how to check this for the shipped map.
+round with nobody in a car cost almost twice what it does today. `./manage.py check_map map.json`
+checks this and more for any map; the rules are in `backend/maps/checks.py`.
 
 ### Measure with test rounds
 
 Measure with test rounds, not with a play-test. A play-test shows how a game feels, not how much
 traffic a map carries.
+
+For a finished map one command does it: `./manage.py calibrate_map map.json --speed 24` plays the
+rounds in a throwaway database, with the routes the game's own router finds, and works out both
+numbers by the rule in `docs/kalibrierung.md`, section 12. It needs Node and `npm ci` in
+`frontend/`. By hand it goes like this:
 
 1. Upload the map to a local instance (`devops/dev.sh up`), not to the server people play on.
 2. Create a game with few seats. Turn map changes off so that every round runs on the base version,
@@ -359,6 +364,8 @@ hour in the real city.
 3. Play test rounds in which everybody drives, and adjust the commuter count until the mean trip
    time lands in that range.
 
+`calibrate_map` searches for the number itself and needs only the speed from step 2 (`--speed`).
+
 The result is not the district's real number of commuters, which is far higher. But the graph only
 depicts the main corridors, and what you are after is how much traffic **those corridors** carry.
 For Berlin Mitte-West it is **6400 commuters**: with everybody driving, 7.66 km then takes 21.5
@@ -396,9 +403,14 @@ averaged over six seeds. The spread between seeds is at most 3 %.
 
 ### The budget
 
-For the budget, measure two games over the planned number of rounds: one in which nobody gets out of
-the car, and one that works its way down, for example at 100 / 75 / 50 / 50 / 25 / 25 % car share.
-The budget has to lie between the two: the first game should break it, the second should get by on
+The rule for any map: the budget is what a round costs when half the agents drive and the other half
+take public transport, rounded to two figures. On Berlin Mitte-West that is 15 854 kg, so the 16 000
+the map carries. The share is the difficulty dial: at 40 % car the budget gets tighter, at 60 %
+looser (`--share`).
+
+What the budget means in a game is shown by two games over the planned number of rounds: one in
+which nobody gets out of the car, and one that works its way down, for example at 100 / 75 / 50 / 50
+/ 25 / 25 % car share. The budget should lie between the two: the first game should break it, the second should get by on
 it. The floor is the timetable, which runs without passengers too, on Berlin Mitte-West 6736 kg a
 round there and back. The number should be round so that everybody can keep it in their head.
 

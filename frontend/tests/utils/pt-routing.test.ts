@@ -33,7 +33,7 @@ import { buildGraph, raw } from "./shipped-map";
  * This file stopped running entirely when that format landed — `raw_line.edges`
  * became `undefined` and the `.map` over it threw at import, so vitest reported
  * a failed *suite* and every assertion below silently left the count. That is
- * the failure mode CLAUDE.md names: read the test count, not OK/FAILED.
+ * why a run is read by its test count, not by OK/FAILED.
  */
 
 
@@ -101,10 +101,38 @@ describe("bus & bahn on Berlin Mitte-West", () => {
 
     expect(result.success).toBe(true);
     const lines = result.ptSegments
-      .map((segment) => segment.ptLineId)
-      .filter((id): id is number => id != null);
+      .filter((segment) => segment.mode === "bus")
+      .map((segment) => segment.ptLineId);
     const bus = graph.bus_lines.find((l) => lines.includes(l.id));
     expect(bus?.name).toBe("100");
+  });
+
+  it("rides every line only from one of its stops to the next", async () => {
+    // A bus and a train can share an id — they are rows of two tables — and
+    // the router once took them for one line: the way home from Brandenburger
+    // Tor rode bus `100 reverse` to S Tiergarten and stayed "on line 2" over
+    // the Stadtbahn's tracks to Charlottenburg, every segment labelled bus.
+    // The simulation then carried those riders to the bus's own terminus.
+    const wrong: string[] = [];
+    for (const from of [...Object.values(HOMES), ...Object.values(WORKPLACES)]) {
+      const targets = Object.values(HOMES).includes(from) ? WORKPLACES : HOMES;
+      for (const to of Object.values(targets)) {
+        const result = await findPTRoute(graph, from, to, { scale: graph.scale });
+        for (const segment of result.ptSegments) {
+          const pool = segment.mode === "bus" ? graph.bus_lines : graph.train_lines;
+          const line = pool.find((l) => l.id === segment.ptLineId);
+          const at = line?.stops.indexOf(segment.startNode) ?? -1;
+          if (at < 0 || line?.stops[at + 1] !== segment.endNode) {
+            wrong.push(
+              `${from} → ${to}: ${segment.mode} ${line?.name ?? segment.ptLineId} ` +
+                `${segment.startNode} → ${segment.endNode}`,
+            );
+          }
+        }
+      }
+    }
+
+    expect(wrong).toEqual([]);
   });
 });
 

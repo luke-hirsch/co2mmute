@@ -123,6 +123,7 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | R-27 | sehr kurzer Weg                                                | die Suche ist trotzdem zu sehen, mindestens eine gute halbe Sekunde (F3)                                                     | geht      | `search-trace.test.ts`    |
 | R-28 | Zuhause und Ziel auf dem Handy                                 | kleiner als bisher, decken die Straßen daneben nicht zu, sind aber noch zu finden (F3, 390px)                                | geht      | -                         |
 | R-29 | zu Fuß durch den Tiergarten                                    | von einem Wohnort an der S-Bahn Bellevue zur Arbeit Brandenburger Tor, Lützowplatz oder TU Berlin lässt sich zu Fuß gehen, 2,8–4,1 km über die Wege im Tiergarten, gepunktet auf der Karte; zur Arbeit Justizministerium „Weiter als 5.0 km“ (F11, WebKit) | geht      | -                         |
+| R-30 | Bus und Bahn mit derselben Nummer | eine Fahrt bleibt auf ihrer Linie: der Rückweg von Arbeit Brandenburger Tor nach Wohnort 4–6 fährt Bus 100 bis Großer Stern und steigt in die 101 um — vorher fuhr er als „Bus 100“ ab S Tiergarten auf den Gleisen der Stadtbahn weiter, weil Bus 2 und Zug 2 für eine Linie galten; jede Fahrt auf der ausgelieferten Karte geht von einer Haltestelle ihrer Linie zur nächsten (F8) | geht | `pt-routing.test.ts` |
 
 ## A — die animation
 
@@ -336,6 +337,7 @@ nicht gemessen.
 | K-57 | Editor: Version ansehen | „Ansehen“ unter „Verwalten“ legt die Version auf die Karte und zeichnet, was sie gegenüber ihrer Ausgangsversion ändert, daneben in Worten: Busspuren = 15 Straßen, beide Richtungen, „eine Autospur wird Busspur“, keine Linie; Buslinie = Bus 147 hin und zurück; Umgehungsstraßen = Bundestag – Wohnort 2 neu und der Weg Botschaftsviertel – Philharmonie wird Straße | geht | `versionsvergleich.spec.ts` |
 | K-58 | Editor: mit einer anderen Version vergleichen | „Verglichen mit“ nimmt jede Version; Grundversion gegen Busspuren zeigt die 30 Busspuren hohl, „die Busspur wird wieder Autospur“; eine Kombiversion gegen eine ihrer Änderungen ist genau die andere | geht | `versionsvergleich.spec.ts`, vitest |
 | K-59 | Kartendatei prüfen | `./manage.py check_map datei.json` sagt zur ausgelieferten Karte „in Ordnung“; eine kaputte Datei bekommt jedes Problem mit seiner Regel genannt — eine Linie gegen ihre Richtung, zwei Kanten zwischen denselben Knoten, ein Wohnort ohne Weg zur Arbeit und zurück — und der Befehl endet mit Fehler (F8) | geht | `test_checks` |
+| K-60 | Karte kalibrieren | `./manage.py calibrate_map datei.json --commuters 6400` auf der ausgelieferten Karte: Budget 16.000 kg, die halbe Runde 15.854 kg (Postgres); `--speed 20.8` findet 6.400 Pendler wieder, `--speed 24` ergibt 5.700 und 14.000 kg; eine Karte, die `check_map` nicht besteht, wird nicht gemessen (F8) | geht | `test_calibration` |
 
 ## S — sonstiges
 

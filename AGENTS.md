@@ -111,6 +111,17 @@ an adapter method must never take an engine method's name.
 - **Calibration is a property of the map**: `GameMap.district_commuters`,
   `co2_budget_kg_per_round`, and `calibrated` (true only for a pair measured on that map).
   `docs/kalibrierung.md` says how the shipped map's pair was found.
+- **A new map is measured by one rule** (`game/calibration.py`): commuters are as many as make a
+  morning where everybody drives as slow as the real city's rush hour; the budget per round is what a
+  round costs when half the Gruppen drive, rounded to two figures. `manage.py calibrate_map <file>
+  --speed <km/h>` measures both (`--commuters N` keeps a count), playing real rounds in a throwaway
+  database (`game/measure.py`) on the routes the game's own router finds. It needs Node and `npm ci`
+  in `frontend/`. Run it on Postgres (`DJANGO_DB=postgres`): the simulation reads its links in name
+  order, every database sorts names its own way, and a round with riders comes out ~1.5 % apart on
+  sqlite.
+- **A PT line is its type and its id.** Bus and train lines are rows of two tables, so bus 2 and
+  train 2 are different lines. Whatever looks a line up by `pt_line_id` takes the segment's mode
+  along.
 - **Two golden masters** (`game/tests/test_sim_golden.py`). Regenerate with `GOLDEN_REGENERATE=1`
   only for a deliberate change, and say so in the commit.
 
@@ -147,6 +158,9 @@ versions *is* the ballot. A row naming no version is in no version.
   pattern (car solid, bike dashed, walk dotted), and mode colours come only from
   `src/components/metro/mode.ts`. No `font-bold`.
 - Graph rendering is hand-written SVG. There is no graph library.
+- **There is one router.** `searchTrip` in `src/lib/map/trip-search.ts` is how the round screen finds
+  a trip, and `scripts/routes.mjs` runs the same code under Node for `calibrate_map`. Don't write a
+  second one in Python: two routers disagree about which way a class goes.
 - WebKit stalls a fetch sent in the same task as a new `WebSocket`; `BaseWSClient.connect()` opens
   the socket one task later. Keep that. Safari and phones are the browsers that matter — the e2e
   suite runs WebKit.

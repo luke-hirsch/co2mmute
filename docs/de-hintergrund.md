@@ -327,13 +327,18 @@ den Fehler mit. Vorher prüfen:
 
 Auf Berlin Mitte-West hatte eine Buslinie anfangs gar keine Kanten, eine andere riss in der Mitte,
 und jedes Fahrzeug hatte 60 Plätze. Sechs der 36 Paare hatten dadurch keine ÖPNV-Verbindung, und eine
-Runde ganz ohne Auto kostete fast doppelt so viel wie heute. Wie man das prüft, zeigt
-`backend/maps/tests/test_example_map.py` für die mitgelieferte Karte.
+Runde ganz ohne Auto kostete fast doppelt so viel wie heute. `./manage.py check_map karte.json`
+prüft das und mehr für jede Karte, die Regeln stehen in `backend/maps/checks.py`.
 
 ### Mit Testrunden messen
 
 Gemessen wird mit Testrunden, nicht mit einem Play-Test. Ein Play-Test zeigt, wie sich ein Spiel
 anfühlt, aber nicht, wie viel Verkehr eine Karte trägt.
+
+Für eine fertige Karte erledigt das ein Befehl: `./manage.py calibrate_map karte.json --speed 24`
+spielt die Runden in einer Wegwerf-Datenbank, mit den Wegen, die der Router des Spiels findet, und
+rechnet beide Zahlen nach der Regel aus `docs/kalibrierung.md`, Abschnitt 12, aus. Er braucht Node
+und `npm ci` in `frontend/`. Von Hand geht es so:
 
 1. Die Karte auf einer lokalen Instanz hochladen (`devops/dev.sh up`), nicht auf dem Server, auf dem
    gespielt wird.
@@ -381,6 +386,8 @@ dauert wie der Berufsverkehr in der echten Stadt.
 3. Testrunden spielen, in denen alle Auto fahren, und die Pendlerzahl anpassen, bis die mittlere
    Fahrzeit in dieser Gegend liegt.
 
+`calibrate_map` sucht die Zahl selbst und braucht dafür nur das Tempo aus Schritt 2 (`--speed`).
+
 Das Ergebnis ist nicht die echte Pendlerzahl des Stadtteils, die ist viel höher. Der Graph bildet
 aber nur die Hauptachsen ab, und gesucht ist, wie viel Verkehr **diese Achsen** tragen. Für Berlin
 Mitte-West sind es **6.400 Pendler**: Fahren alle Auto, dauern 7,66 km dann 21,5 Minuten, 11,4 davon
@@ -419,10 +426,15 @@ und Bahn, gemittelt über sechs Seeds. Die Streuung zwischen den Seeds liegt bei
 
 ### Das Budget
 
-Für das Budget zwei Spiele über die geplante Rundenzahl messen: eines, in dem niemand aus dem Auto
-steigt, und eines, das sich herunterarbeitet, zum Beispiel mit 100 / 75 / 50 / 50 / 25 / 25 %
-Autoanteil. Das Budget muss zwischen beiden liegen: Das erste Spiel soll es sprengen, das zweite
-damit auskommen. Nach unten begrenzt es der Fahrplan, der auch fährt, wenn niemand einsteigt, auf Berlin
+Die Regel für jede Karte: Das Budget ist, was eine Runde kostet, wenn die Hälfte der Gruppen Auto
+fährt und die andere Hälfte Bus und Bahn, auf zwei Stellen gerundet. Auf Berlin Mitte-West sind das
+15.854 kg, also die 16.000, die die Karte trägt. Der Anteil ist der Schwierigkeitsregler: bei 40 %
+Auto wird das Budget knapper, bei 60 % großzügiger (`--share`).
+
+Was das Budget im Spiel bedeutet, zeigen zwei Spiele über die geplante Rundenzahl: eines, in dem
+niemand aus dem Auto steigt, und eines, das sich herunterarbeitet, zum Beispiel mit 100 / 75 / 50 /
+50 / 25 / 25 % Autoanteil. Das Budget sollte zwischen beiden liegen: Das erste Spiel soll es
+sprengen, das zweite damit auskommen. Nach unten begrenzt es der Fahrplan, der auch fährt, wenn niemand einsteigt, auf Berlin
 Mitte-West 6.736 kg pro Runde mit Hin- und Rückweg. Die Zahl sollte rund sein, damit alle sie im Kopf
 behalten.
 
