@@ -123,6 +123,7 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | R-27 | sehr kurzer Weg                                                | die Suche ist trotzdem zu sehen, mindestens eine gute halbe Sekunde (F3)                                                     | geht      | `search-trace.test.ts`    |
 | R-28 | Zuhause und Ziel auf dem Handy                                 | kleiner als bisher, decken die Straßen daneben nicht zu, sind aber noch zu finden (F3, 390px)                                | geht      | -                         |
 | R-29 | zu Fuß durch den Tiergarten                                    | von einem Wohnort an der S-Bahn Bellevue zur Arbeit Brandenburger Tor, Lützowplatz oder TU Berlin lässt sich zu Fuß gehen, 2,8–4,1 km über die Wege im Tiergarten, gepunktet auf der Karte; zur Arbeit Justizministerium „Weiter als 5.0 km“ (F11, WebKit) | geht      | -                         |
+| R-30 | Bus und Bahn mit derselben Nummer | eine Fahrt bleibt auf ihrer Linie: der Rückweg von Arbeit Brandenburger Tor nach Wohnort 4–6 fährt Bus 100 bis Großer Stern und steigt in die 101 um — vorher fuhr er als „Bus 100“ ab S Tiergarten auf den Gleisen der Stadtbahn weiter, weil Bus 2 und Zug 2 für eine Linie galten; jede Fahrt auf der ausgelieferten Karte geht von einer Haltestelle ihrer Linie zur nächsten (F8) | geht | `pt-routing.test.ts` |
 
 ## A — die animation
 

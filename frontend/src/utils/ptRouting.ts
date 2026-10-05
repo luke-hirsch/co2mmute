@@ -46,6 +46,15 @@ interface ProductNode {
 
 type StateKey = string;
 
+/**
+ * Whether `line` is the one a PT state rides. By id **and** type: bus and train
+ * lines are rows of two tables, so bus 2 and train 2 are different lines — and
+ * comparing the id alone let a ride on one carry on along the other.
+ */
+function rides(line: PTLine, mode: { lineId: number; lineType: "bus" | "train" }): boolean {
+  return line.id === mode.lineId && line.type === mode.lineType;
+}
+
 function stateKey(n: ProductNode): StateKey {
   const m = n.mode;
   if (m.tag === "walk") return `w${m.hasBoarded ? "1" : "0"}:${n.nodeId}`;
@@ -302,11 +311,10 @@ function getNeighbours(
   } else {
     // mode.tag === "pt"
     const lineEntries = stopIndex.get(nodeId) ?? [];
-    const lineId = mode.lineId;
 
     // Find this node's position(s) on the line
     for (const { line, stopIndex: idx } of lineEntries) {
-      if (line.id !== lineId) continue;
+      if (!rides(line, mode)) continue;
 
       // --- Ride forward one stop ---
       if (idx + 1 < line.stops.length) {
@@ -496,7 +504,7 @@ function reconstructPath(
     if (state.mode.tag !== "pt") return null;
     const entries = stopIndex.get(state.nodeId) ?? [];
     for (const { line } of entries) {
-      if (line.id === state.mode.lineId) return line;
+      if (rides(line, state.mode)) return line;
     }
     return null;
   }
@@ -618,7 +626,7 @@ export async function findPTRoute(
   // We do NOT add single-line intermediate nodes, to prevent the algorithm
   // from "teleporting" by alighting mid-route and re-boarding further along.
   for (const [nodeId, entries] of stopIndex.entries()) {
-    const distinctLines = new Set(entries.map((e) => e.line.id));
+    const distinctLines = new Set(entries.map((e) => `${e.line.type}:${e.line.id}`));
     if (distinctLines.size >= 2) {
       designatedStops.add(nodeId);
     }

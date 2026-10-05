@@ -205,8 +205,11 @@ export function buildGraph(raw: RawMap, version: number): ExtendedMapGraph {
     edges,
     node_count: nodes.length,
     edge_count: edges.length,
+    // Ids per table, as the database hands them out: bus 2 and train 2 are
+    // two different lines. Numbering the trains from 101 here is what hid the
+    // router taking one for the other.
     bus_lines: lines(raw.bus_lines, 1, "bus"),
-    train_lines: lines(raw.train_lines, 101, "train"),
+    train_lines: lines(raw.train_lines, 1, "train"),
     scale: raw.scale,
   };
 }
