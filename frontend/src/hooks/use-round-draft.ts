@@ -29,18 +29,15 @@ import {
 } from "@/lib/game/round-draft";
 import { createTraceRecorder, type SearchTrace } from "@/lib/map/search-trace";
 import { airDistanceM, exceedsModeLimit } from "@/lib/map/trip-limits";
+import { searchTrip, toLeg, withLines } from "@/lib/map/trip-search";
 import { useMapGraph } from "@/lib/queries/map-graph";
 import { useSeatGame } from "@/lib/queries/seat";
-import { findPath, NO_WAY_HOME } from "@/utils/pathfinding";
-import { findBestPTRoute } from "@/utils/ptRouting";
+import { NO_WAY_HOME } from "@/utils/pathfinding";
 import type {
   AgentRoute,
   CarOptimization,
   ExtendedMapGraph,
-  PathfindingResult,
   PTOptimization,
-  PTRoutingResult,
-  RouteLeg,
   TransportMode,
 } from "@/types/routeTypes";
 
@@ -52,25 +49,6 @@ export type AgentDistance = {
   /** Modes the straight line already rules out. A lower bound, so it is sound. */
   tooFar: TransportMode[];
 };
-
-/**
- * The two routers answer in different shapes: the PT one splits the walk to the
- * stop, the ride and the walk off again.
- */
-function toLeg(result: PathfindingResult | PTRoutingResult): RouteLeg {
-  if ("ptSegments" in result) {
-    return {
-      segments: [...result.walkToStation, ...result.ptSegments, ...result.walkFromStation],
-      totalDistanceM: result.totalDistanceM,
-      estimatedTimeMin: result.totalTimeMin,
-    };
-  }
-  return {
-    segments: result.segments,
-    totalDistanceM: result.totalDistanceM,
-    estimatedTimeMin: result.estimatedTimeMin,
-  };
-}
 
 export function useRoundDraft({
   gameId,
@@ -177,17 +155,11 @@ export function useRoundDraft({
     writeStoredChoices(storage, gameId, draft, choices, roundNumber);
   }, [storage, gameId, draft, choices, submitted, roundNumber]);
 
-  // The graph as the pathfinders want it. They read `bus_lines`, `train_lines`
-  // and `scale` unconditionally, and a map with no PT lines omits them.
-  const extended = useMemo<ExtendedMapGraph | null>(() => {
-    if (!graph.data) return null;
-    return {
-      ...graph.data,
-      bus_lines: graph.data.bus_lines ?? [],
-      train_lines: graph.data.train_lines ?? [],
-      scale: graph.data.scale ?? 100,
-    };
-  }, [graph.data]);
+  // The graph as the pathfinders want it (`withLines`).
+  const extended = useMemo<ExtendedMapGraph | null>(
+    () => (graph.data ? withLines(graph.data) : null),
+    [graph.data],
+  );
 
   /**
    * How far each passenger is going, before anything is chosen.
@@ -257,20 +229,14 @@ export function useRoundDraft({
         // trip is a circle. Only the way there is traced — it is the flourish
         // on the route the player just asked for.
         const search = (from: number, to: number, trace: boolean) =>
-          mode === "public"
-            ? findBestPTRoute(extended, from, to, {
-                scale: extended.scale,
-                ptOptimization: agent.ptOptimization,
-              })
-            : findPath(extended, from, to, mode, {
-                optimization: agent.carOptimization,
-                scale: extended.scale,
-                // "schnellste" and "klimafreundlichste" read it — a jam costs
-                // time and, on the simulation's curve, CO2. Only "kürzeste"
-                // ignores it: a jam does not change a distance.
-                trafficData: extended.previous_round_traffic,
-                onStateChange: trace ? recorder.onStateChange : undefined,
-              });
+          searchTrip(
+            extended,
+            from,
+            to,
+            mode,
+            agent,
+            trace ? recorder.onStateChange : undefined,
+          );
 
         const there = await search(home, agent.destinationNode, true);
         if (runs.current.get(agentId) !== token) return;

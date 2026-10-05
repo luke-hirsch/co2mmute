@@ -314,7 +314,7 @@ export function draftPayload(draft: RoundDraft): RouteSubmissionPayload | null {
   };
 }
 
-function legPayload(leg: RouteLeg): RouteSubmissionLeg {
+export function legPayload(leg: RouteLeg): RouteSubmissionLeg {
   return {
     total_distance_m: leg.totalDistanceM,
     estimated_time_min: leg.estimatedTimeMin,
