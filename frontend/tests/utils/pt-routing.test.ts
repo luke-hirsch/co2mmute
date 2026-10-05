@@ -33,7 +33,7 @@ import { buildGraph, raw } from "./shipped-map";
  * This file stopped running entirely when that format landed — `raw_line.edges`
  * became `undefined` and the `.map` over it threw at import, so vitest reported
  * a failed *suite* and every assertion below silently left the count. That is
- * the failure mode CLAUDE.md names: read the test count, not OK/FAILED.
+ * why a run is read by its test count, not by OK/FAILED.
  */
 
 
