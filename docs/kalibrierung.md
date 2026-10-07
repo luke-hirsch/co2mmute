@@ -467,7 +467,46 @@ kauft; `--share` gibt es nicht mehr. Die mitgelieferte Karte trägt 6.800. Eine 
 einem Server liegt, behält ihre Zahl, bis sie neu importiert oder im Admin geändert wird — die
 Migration ändert nur die Vorgabe.
 
-## 14. Was offen bleibt
+## 14. Die Tram
+
+Eine Tram ist eine Bahnlinie, die von Straßenbahnen gefahren wird (`TrainLine.kind`). Ob sie im Stau
+steht, hängt an ihrem Gleis, nicht an ihr: Liegt es in der Autospur, wie auf der Friedrichstraße
+nördlich des Bahnhofs, wo die M1 und die 12 fahren, steht sie mit den Autos in der Schlange und die
+Autos hinter ihr. Hat sie ein eigenes Gleis, fährt sie frei, wie in der Mitte der Landsberger Allee.
+„Eigenes Gleis" nimmt wie die Busspur eine Spur weg (`StreetEdge.tram_track`).
+
+Ihre Zahlen, jede mit Quelle:
+
+| Zahl         | Wert             | woher                                                                                      |
+| ------------ | ---------------- | ------------------------------------------------------------------------------------------ |
+| Plätze       | 248              | Flexity Berlin, 40 m: 84 Sitz- und 164 Stehplätze bei 4 Personen/m² (Bombardier)           |
+| Tempo        | 30 km/h          | wie der Bus; BVG 2025: Tram 17,1, Bus 17,9 km/h, beide mit Halten und Verkehr (BVG in Zahlen) |
+| CO₂          | 1.400 g/Tram-km  | 3,9 kWh/km einer 240-Platz-Niederflurtram (Bremen 2010, Deiters 2009, Tab. 5) × 363 g/kWh  |
+| Kosten       | 7,10 €/Tram-km   | Tram 4,47 €, Solobus 2,82 € je Fahrzeug-km (Deiters 2009, Tab. 5): 1,59 × die 4,50 € des Busses |
+| Pkw-Einheiten | 5,3             | 40 m Tram ÷ 7,5 m je Auto im Stau (133 Fz/km und Spur)                                     |
+
+Die Quellen für den Strom reichen von 2,76 kWh/km (Standardisierte Bewertung 2016, eine 30-m-Tram)
+bis 4,55 kWh/km (die ganze Flotte der Wiener Linien 2012, Heizung eingeschlossen), also von 1.000
+bis 1.650 g. Das Tempo der schnellsten Berliner Linien, rund 20 km/h (Senat, Drucksache 19/25552),
+war der erste Vorschlag; neben dem Bus mit 30 machte es jede Tram langsamer als jeden Bus. Die 30 des
+Busses lassen die Halte aus, weil das Modell keine Haltezeit kennt, und eine Tram fährt in der Spitze
+schneller als ein Bus.
+
+Gemessen auf der ausgelieferten Karte, sechs Seeds, normal, 6.800 Pendler:
+
+- **Eine M1 von Hegelplatz über die Georgenstraße zum Friedrichstadtpalast** fährt leer. Vom
+  S-Bahnhof Friedrichstraße geht man die 400 m zu Fuß, und kein Auto nimmt die beiden Straßen.
+- **Die 101 als Tram** (Bundesallee bis Lessingstraße, Gleis in der Autospur) trägt bei 20 km/h
+  1.128 Menschen pro Runde statt 1.692 als Bus, bei 30 km/h alle 1.692. Die Autos dort fahren bei
+  normal 48 km/h, ein Stau, der die Tram aufhält, entsteht nicht. 5,3 oder 3 Pkw-Einheiten machen
+  keinen messbaren Unterschied.
+- **Dieselbe Tram auf eigenem Gleis** nimmt jeder der zweispurigen Straßen eine Spur: die Autos dort
+  fallen auf 28 km/h, eine Autofahrt dauert 22,5 statt 11,6 Minuten, die Runde kostet 2,63 statt
+  2,39 kg pro Person. Das eigene Gleis lohnt sich nur, wo die Straße schon im Stau steht.
+
+Die ausgelieferte Karte hat keine Tram; beide Golden Masters bleiben, wie sie waren.
+
+## 15. Was offen bleibt
 
 - **Die Abfahrten liegen sehr eng beieinander.** `departure_std_dev_min = 10` heißt, dass praktisch
   alle innerhalb von 20 Minuten losfahren; real verteilt sich ein Berufsverkehr über eine Stunde und
@@ -489,7 +528,7 @@ Migration ändert nur die Vorgabe.
   kommt unter SQLite um gut 1 % anders heraus als unter Postgres, weil die Strecken nach Namen
   sortiert gelesen werden.
 
-## 15. Nachrechnen
+## 16. Nachrechnen
 
 Die Zahlen oben stammen nicht aus einem Play-Test, sondern aus wiederholten Läufen mit festem Seed
 auf der ausgelieferten Karte. Wer sie nach einer Modelländerung neu braucht, spielt Runden auf der

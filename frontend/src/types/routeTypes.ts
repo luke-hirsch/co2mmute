@@ -94,6 +94,8 @@ export interface PTLine {
   id: number;
   name: string;
   type: "bus" | "train";
+  /** A train line's kind; "tram" runs it with trams. Absent on a bus line. */
+  kind?: "train" | "tram";
   interval: number; // Minutes between vehicles
   capacity: number;
   speed_kmh: number;

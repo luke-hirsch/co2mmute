@@ -841,6 +841,215 @@ class PTLinePortabilityTests(MapUploadMixin, TestCase):
         self.assertEqual(train.edges.count(), 1)
 
 
+class TramTravelsTests(MapUploadMixin, TestCase):
+    """Where a tram's rails lie, and that a line is a tram, through the file.
+
+    `"type": "tram"` is a street with rails in it, the M1's on Friedrichstraße
+    north; `tram_track` says whether they lie in the car lane or on a lane of
+    their own. A train line says its `kind`.
+    """
+
+    def tram_payload(self, *, edges=None, train=None):
+        payload = self.graph_payload()
+        payload["edges"] = edges or [
+            {
+                "start_node": "1",
+                "end_node": "2",
+                "name": "Friedrichstraße",
+                "type": "tram",
+                "speed_limit": 30,
+                "lanes": 1,
+            },
+            {
+                "start_node": "2",
+                "end_node": "1",
+                "name": "Friedrichstraße",
+                "type": "tram",
+                "tram_track": "own",
+                "speed_limit": 30,
+                "lanes": 2,
+            },
+        ]
+        if train is not None:
+            payload["train_lines"] = [{"name": "M1", "edges": [0], **train}]
+        return payload
+
+    def refused(self, payload, name):
+        with muted():
+            response = self.client.post(
+                reverse("maps:map-import"),
+                {
+                    "map_name": name,
+                    "max_players": 4,
+                    "description": "",
+                    "json_file": ContentFile(
+                        json.dumps(payload).encode("utf-8"), name="map.json"
+                    ),
+                },
+            )
+        self.assertFalse(GameMap.objects.filter(name=name).exists())
+        return refusal_of(response)
+
+    def streets(self, game_map):
+        from maps.models import StreetEdge
+
+        return {
+            street.lanes: street
+            for street in StreetEdge.objects.filter(edge__game_map=game_map)
+        }
+
+    def test_a_tram_street_arrives_with_rails_in_the_car_lane(self):
+        game_map = self.upload(self.tram_payload(), name="Tram in der Spur")
+
+        street = self.streets(game_map)[1]
+        self.assertEqual(street.tram_track, "lane")
+        self.assertTrue(street.edge.trainedge_set.exists())
+
+    def test_its_own_track_arrives_as_its_own_track(self):
+        game_map = self.upload(self.tram_payload(), name="Tram eigenes Gleis")
+
+        street = self.streets(game_map)[2]
+        self.assertEqual(street.tram_track, "own")
+        self.assertTrue(street.edge.trainedge_set.exists())
+
+    def test_a_tram_line_arrives_as_a_tram_with_a_trams_defaults(self):
+        game_map = self.upload(
+            self.tram_payload(train={"kind": "tram"}), name="Tramlinie"
+        )
+
+        line = TrainLine.objects.get(game_map=game_map)
+        self.assertEqual(line.kind, "tram")
+        self.assertEqual(
+            (line.train_capacity, line.train_speed_kmh),
+            (
+                TrainLine.DEFAULTS["tram"]["capacity"],
+                TrainLine.DEFAULTS["tram"]["speed_kmh"],
+            ),
+        )
+        self.assertEqual((line.train_capacity, line.train_speed_kmh), (248, 30))
+
+    def test_a_train_line_that_says_nothing_is_a_train(self):
+        game_map = self.upload(self.tram_payload(train={}), name="Bahnlinie")
+
+        line = TrainLine.objects.get(game_map=game_map)
+        self.assertEqual(line.kind, "train")
+        self.assertEqual((line.train_capacity, line.train_speed_kmh), (1000, 40))
+
+    def test_the_export_writes_them_back_out(self):
+        game_map = self.upload(
+            self.tram_payload(train={"kind": "tram"}), name="Tram Export"
+        )
+
+        exported = self.client.get(
+            reverse("maps:map-export", kwargs={"pk": game_map.pk})
+        ).json()
+
+        by_lanes = {edge["lanes"]: edge for edge in exported["edges"]}
+        self.assertEqual(by_lanes[1]["type"], "tram")
+        self.assertEqual(by_lanes[1]["tram_track"], "lane")
+        self.assertEqual(by_lanes[2]["type"], "tram")
+        self.assertEqual(by_lanes[2]["tram_track"], "own")
+        self.assertEqual(exported["train_lines"][0]["kind"], "tram")
+
+    def test_a_train_line_is_written_as_a_train(self):
+        """Written out, not left out — the file describes the map."""
+        game_map = self.upload(self.tram_payload(train={}), name="Bahn Export")
+
+        exported = self.client.get(
+            reverse("maps:map-export", kwargs={"pk": game_map.pk})
+        ).json()
+
+        self.assertEqual(exported["train_lines"][0]["kind"], "train")
+
+    def test_rails_beside_a_street_stay_both(self):
+        """The U2 under Bismarckstraße: a street and a railway, no tram track."""
+        payload = self.tram_payload(
+            edges=[
+                {
+                    "start_node": "1",
+                    "end_node": "2",
+                    "name": "Bismarckstraße",
+                    "type": "both",
+                    "speed_limit": 50,
+                    "lanes": 2,
+                }
+            ]
+        )
+        game_map = self.upload(payload, name="U2 darunter")
+
+        exported = self.client.get(
+            reverse("maps:map-export", kwargs={"pk": game_map.pk})
+        ).json()
+
+        self.assertEqual(self.streets(game_map)[2].tram_track, "")
+        self.assertEqual(exported["edges"][0]["type"], "both")
+        self.assertNotIn("tram_track", exported["edges"][0])
+
+    def test_the_graph_the_client_reads_carries_the_track_and_the_kind(self):
+        """`carLanes` counts its own track like a bus lane; the screen says Tram."""
+        from maps.serializer import EdgeSerializer, serialize_train_line_for_graph
+
+        game_map = self.upload(
+            self.tram_payload(train={"kind": "tram"}), name="Tram Graph"
+        )
+        streets = self.streets(game_map)
+        line = TrainLine.objects.get(game_map=game_map)
+        version = MapVersion.objects.get(game_map=game_map)
+
+        self.assertEqual(
+            EdgeSerializer(streets[1].edge).data["street_edge"]["tram_track"], "lane"
+        )
+        self.assertEqual(
+            EdgeSerializer(streets[2].edge).data["street_edge"]["tram_track"], "own"
+        )
+        self.assertEqual(serialize_train_line_for_graph(line, version)["kind"], "tram")
+
+    def test_a_tram_survives_export_and_import(self):
+        original = self.upload(
+            self.tram_payload(train={"kind": "tram", "speed_kmh": 18}),
+            name="Tram vorher",
+        )
+        exported = self.client.get(
+            reverse("maps:map-export", kwargs={"pk": original.pk})
+        ).json()
+
+        copy = self.upload(exported, name="Tram nachher")
+
+        self.assertEqual(map_summary(copy), map_summary(original))
+        line = TrainLine.objects.get(game_map=copy)
+        self.assertEqual((line.kind, line.train_speed_kmh), ("tram", 18))
+
+    def test_a_track_on_anything_but_a_tram_street_is_refused(self):
+        payload = self.tram_payload(
+            edges=[
+                {
+                    "start_node": "1",
+                    "end_node": "2",
+                    "type": "both",
+                    "tram_track": "own",
+                    "lanes": 2,
+                }
+            ]
+        )
+
+        notes = self.refused(payload, "Gleis ohne Tram")
+
+        self.assertIn("tram_track", notes)
+
+    def test_a_track_that_is_neither_lane_nor_own_is_refused(self):
+        payload = self.tram_payload()
+        payload["edges"][0]["tram_track"] = "median"
+
+        notes = self.refused(payload, "Gleis unbekannt")
+
+        self.assertIn("median", notes)
+
+    def test_a_kind_that_is_neither_train_nor_tram_is_refused(self):
+        notes = self.refused(self.tram_payload(train={"kind": "metro"}), "Unbekannt")
+
+        self.assertIn("metro", notes)
+
+
 class PTChainExportTests(MapUploadMixin, TestCase):
     """The export writes the chain of the version it is exporting, and says so.
 
@@ -976,7 +1185,9 @@ def edge_key(edge):
         edge.bike_lane,
         edge.walking,
         edge.max_lanes,
-        (se.speed_limit, se.lanes, se.dedicated_bus_lane) if se else None,
+        (se.speed_limit, se.lanes, se.dedicated_bus_lane, se.tram_track)
+        if se
+        else None,
         te is not None,
     )
 
@@ -1022,7 +1233,7 @@ def map_summary(game_map):
                 )
             },
             "train": {
-                line.name: [
+                (line.name, line.kind): [
                     edge_key(row.train_edge.edge)
                     for row in train_chain_rows(line, version).select_related(
                         "train_edge__edge"

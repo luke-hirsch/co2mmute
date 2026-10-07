@@ -522,6 +522,8 @@ function aspectText(aspect: LinkAspect, sense: Sense): string {
       return de.map.diff.path(added, aspect.biking, aspect.walking);
     case "busLane":
       return de.map.diff.busLane(added);
+    case "tramTrack":
+      return de.map.diff.tramTrack(aspect.from, aspect.to);
     case "bikeLane":
       return de.map.diff.bikeLane(added);
     case "biking":
@@ -567,7 +569,7 @@ function ChangeList({
         key: `line-${line.type}-${line.id}`,
         network: "pt" as const,
         sense: line.sense,
-        title: de.map.diff.line(line.type, line.name),
+        title: de.map.diff.line(line.type, line.name, line.kind),
         detail:
           line.sense === "added"
             ? de.map.diff.lineAdded(name(first), name(last))

@@ -36,11 +36,12 @@ standing still and passes about 150 in a five-minute tick.
 Lanes are counted as they are on the street:
 
 ```
-car lanes = lanes − (1 if bus lane) − (1 if bike lane)
+car lanes = lanes − (1 if bus lane) − (1 if bike lane) − (1 if the tram has its own track)
 ```
 
 The number is floored at zero, and **zero car lanes is legal**: the street becomes a _gate_, closed
-to cars, open to buses and optionally to bikes and pedestrians.
+to cars, open to buses, trams and optionally to bikes and pedestrians. Tram rails in the car lane
+take no lane away: the cars drive on them.
 
 ### One tick
 
@@ -106,6 +107,10 @@ next round all rest on the same measured number.
 - **Buses** queue in mixed traffic and free-run on a dedicated bus lane. A bus is 3 car-equivalents
   (PCU), so it takes the room of three cars in the queue it shares with them. It always queues in its
   own direction of travel, even where the map draws the line on the opposite direction.
+- **Trams** queue where their rails lie in the car lane, like the M1 on Friedrichstraße north of the
+  station, and the cars behind them wait for them. On a track of their own they free-run, like down
+  the middle of Landsberger Allee. A tram is 5.3 PCU: a 40 m Flexity over the 7.5 m a car takes in
+  a jam. S- and U-Bahn never queue.
 - **Bikes** are in traffic only where they share a street with cars. A bike has a queue of its own
   on the link, with its own discharge budget of 2000 bikes/h. So a car jam never holds a cyclist up
   and a cyclist never holds a driver up. They do share the link's _storage_, though: a bike is
@@ -134,7 +139,8 @@ ways, with a short midday in between.
 ## Public transport runs a timetable
 
 In the simulation a line vehicle is an **ordinary vehicle on a synthetic route**. A bus therefore
-queues and spills back like any car, unless it has a bus lane of its own.
+queues and spills back like any car, unless it has a bus lane of its own. So does a tram, where its
+rails lie in the car lane.
 
 People board at stops keyed by line _and_ node: someone waiting for the M1 does not get on the U7.
 You can only board if there is room, otherwise you keep waiting. Seats free up when somebody gets
@@ -205,7 +211,8 @@ It follows that:
   and follows the emission factor; the other half (depreciation, insurance, tax) is paid whether the
   car moves today or not. So cost caps at 1.50× and CO₂ at 2.00×.
 
-Public transport has a fixed value per vehicle-kilometre: 1200 g for a bus, 1500 g for a train.
+Public transport has a fixed value per vehicle-kilometre: 1200 g for a bus, 1400 g for a tram,
+1500 g for a train.
 There is no speed curve here, because the vehicles run to a timetable rather than to traffic.
 
 Beside the cost there is the **fare**: 1.30 € per trip, transfers included, and for the car the part
@@ -303,7 +310,7 @@ measures the fault along with it. Check beforehand that:
 
 - Every line runs its route without a gap.
 - A line's outbound and return directions serve the same stops.
-- Buses have 85 seats, trains 1000.
+- Buses have 85 seats, trams 248, trains 1000.
 - Every home-and-workplace pair can be reached by public transport.
 
 On Berlin Mitte-West one bus line at first had no edges at all, another broke mid-route, and every
@@ -458,6 +465,7 @@ vehicle-kilometre and has to be checkable:
 | ----- | --------------- | ---------------------------------------------------------------- |
 | car   | 166.8 g/km      | fleet average, one person per vehicle                            |
 | bus   | 1200 g/bus-km   | a 12 m city bus at ~45 l/100 km diesel × 2.64 kg CO₂ per litre   |
+| tram  | 1400 g/tram-km  | 3.9 kWh/tram-km for a 240-place low-floor tram (Deiters 2009) × 363 g CO₂/kWh |
 | train | 1500 g/train-km | ~4 kWh/train-km including auxiliaries × 363 g CO₂/kWh (UBA 2024) |
 
 Check a factor through consumption: energy per vehicle-kilometre times CO₂ per unit of energy. That

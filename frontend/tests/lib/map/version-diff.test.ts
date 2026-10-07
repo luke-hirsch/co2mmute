@@ -105,6 +105,49 @@ const graph = (
 
 const NODES = [node(1), node(2), node(3), node(4)];
 
+/** Friedrichstraße north: one lane, rails under it; `track` says where they lie. */
+const tramStreet = (id: number, start: number, end: number, track: "" | "lane" | "own") =>
+  street(id, start, end, {
+    street_edge: {
+      id,
+      speed_limit: 30,
+      lanes: 1,
+      dedicated_bus_lane: false,
+      tram_track: track,
+    },
+    train_edge: { id },
+  });
+
+describe("diffGraphs and a tram's track", () => {
+  it("reads „eigenes Gleis“ as public transport's change, like a bus lane", () => {
+    const before = graph(NODES, [tramStreet(1, 1, 2, "lane")]);
+    const after = graph(NODES, [tramStreet(9, 1, 2, "own")]);
+
+    expect(diffGraphs(before, after).links).toEqual([
+      expect.objectContaining({
+        network: "pt",
+        sense: "changed",
+        aspects: [{ kind: "tramTrack", from: "lane", to: "own" }],
+      }),
+    ]);
+  });
+
+  it("finds nothing where the track stayed where it was", () => {
+    const before = graph(NODES, [tramStreet(1, 1, 2, "lane")]);
+    const after = graph(NODES, [tramStreet(9, 1, 2, "lane")]);
+
+    expect(diffGraphs(before, after).empty).toBe(true);
+  });
+
+  it("names the track of a tram street that arrives whole", () => {
+    const before = graph(NODES, []);
+    const after = graph(NODES, [tramStreet(1, 1, 2, "lane")]);
+
+    const pt = diffGraphs(before, after).links.find((l) => l.network === "pt");
+    expect(pt?.aspects).toContainEqual({ kind: "tramTrack", from: "", to: "lane" });
+  });
+});
+
 describe("diffGraphs on a toy map", () => {
   it("finds nothing between a graph and itself", () => {
     const g = graph(NODES, [street(1, 1, 2), street(2, 2, 3)], [bus(1, "A", [1, 2])]);

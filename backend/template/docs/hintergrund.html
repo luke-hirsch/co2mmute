@@ -63,10 +63,11 @@ Speicherkapazität  S  = 133 Fahrzeuge/km je Autospur × Länge</pre>
   Stoßstange. Eine 900&nbsp;m lange einspurige Straße fasst also rund 120 stehende Fahrzeuge
   und lässt in einem Fünf-Minuten-Tick rund 150 durch.</p>
   <p>Spuren werden gezählt, wie sie auf der Straße liegen. Dabei gilt:</p>
-  <pre>Autospuren = Spuren − (1 bei Busspur) − (1 bei Radspur)</pre>
+  <pre>Autospuren = Spuren − (1 bei Busspur) − (1 bei Radspur) − (1 bei eigenem Tramgleis)</pre>
   <p>Die Zahl ist nach unten auf null begrenzt, und <strong>null Autospuren sind
   erlaubt</strong>: Die Straße wird zur <em>Busschleuse</em> – für Autos gesperrt, offen für
-  Busse und wahlweise auch für Räder und Fußgänger.</p>
+  Busse, Trams und wahlweise auch für Räder und Fußgänger. Ein Tramgleis in der Autospur
+  nimmt keine Spur weg: Die Autos fahren darauf.</p>
   <h3>Ein Tick</h3>
   <ol>
     <li>Jede Kante bekommt ihr Budget für den Tick: <code>Q × Ticklänge</code>.</li>
@@ -132,6 +133,11 @@ Speicherkapazität  S  = 133 Fahrzeuge/km je Autospur × Länge</pre>
     frei. Ein Bus zählt 3 Pkw-Einheiten, nimmt in der gemeinsamen Schlange also den Platz
     von drei Autos ein. Er steht immer in der Schlange seiner Fahrtrichtung, auch wo die
     Linie auf der Karte auf der Gegenrichtung eingezeichnet ist.</li>
+    <li><strong>Trams</strong> stehen dort im Stau, wo ihr Gleis in der Autospur liegt, wie
+    die M1 auf der Friedrichstraße nördlich des Bahnhofs, und die Autos hinter ihnen warten
+    auf sie. Auf einem eigenen Gleis fahren sie frei, wie in der Mitte der Landsberger
+    Allee. Eine Tram zählt 5,3 Pkw-Einheiten: 40&nbsp;m Flexity durch 7,5&nbsp;m je Auto im
+    Stau. S- und U-Bahn stehen nie im Stau.</li>
     <li><strong>Räder</strong> stehen nur dort im Verkehr, wo sie sich die Straße mit Autos
     teilen. Ein Rad hat auf der Kante eine eigene Schlange mit eigenem Abflussbudget von
     2.000 Rädern/h. Ein Autostau hält also keinen Radfahrer auf und ein Radfahrer keinen
@@ -162,7 +168,8 @@ Speicherkapazität  S  = 133 Fahrzeuge/km je Autospur × Länge</pre>
   <h2>Der ÖPNV fährt einen Fahrplan</h2>
   <p>Ein Linienfahrzeug ist in der Simulation ein <strong>ganz normales Fahrzeug auf einer
   künstlichen Route</strong>. Ein Bus steht deshalb in der Schlange und staut zurück wie
-  jedes Auto, es sei denn, er hat eine eigene Busspur.</p>
+  jedes Auto, es sei denn, er hat eine eigene Busspur. Eine Tram ebenso, wo ihr Gleis in der
+  Autospur liegt.</p>
   <p>Menschen steigen an Haltestellen ein, die nach Linie <em>und</em> Knoten unterschieden
   werden: Wer auf die M1 wartet, steigt nicht in die U7. Einsteigen kann man nur, wenn Platz
   ist, sonst wartet man weiter. Plätze werden frei, wenn jemand aussteigt. Beim Umsteigen
@@ -238,7 +245,7 @@ Speicherkapazität  S  = 133 Fahrzeuge/km je Autospur × Länge</pre>
     CO<sub>2</sub> bei 2,00×.</li>
   </ul>
   <p>Beim ÖPNV gilt ein fester Wert pro Fahrzeugkilometer: 1.200&nbsp;g für einen Bus,
-  1.500&nbsp;g für einen Zug. Eine Geschwindigkeitskurve gibt es hier nicht, weil die
+  1.400&nbsp;g für eine Tram, 1.500&nbsp;g für einen Zug. Eine Geschwindigkeitskurve gibt es hier nicht, weil die
   Fahrzeuge nach Fahrplan fahren und nicht nach Verkehrslage.</p>
   <p>Neben den Kosten steht der <strong>Fahrpreis</strong>: 1,30&nbsp;€ pro Fahrt, Umstiege
   eingeschlossen, und beim Auto der Teil der Kosten, den man aus der eigenen Tasche zahlt.

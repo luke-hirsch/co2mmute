@@ -28,6 +28,7 @@ from maps.portability import (
     STREET_FIELDS,
     base_index,
     chain_groups,
+    element_versions,
     states_a_street,
     version_block,
     version_indices,
@@ -272,7 +273,7 @@ def street_numbers(found):
     problems = []
     for idx, edge in enumerate(found.edges):
         kind = edge.get("type", "both")
-        if kind not in ("street", "both"):
+        if kind not in ("street", "both", "tram"):
             continue
         missing = [field for field in STREET_FIELDS if field not in edge]
         if not missing:
@@ -545,6 +546,59 @@ def line_end_not_a_stop(found):
     )
 
 
+def train_in_car_lane(found):
+    """Only a tram runs on rails in the car lane.
+
+    Whatever runs there waits with the cars (`StreetEdge.tram_track`), which
+    is a tram on Friedrichstraße north and nothing an S- or U-Bahn does. A
+    line that does not say its kind is a train.
+    """
+    wrong = defaultdict(set)
+    for mode, line in found.lines:
+        if mode != "train" or line.get("kind", "train") == "tram":
+            continue
+        for version, route in found.routes(line).items():
+            for idx in route:
+                if _rails_in_car_lane(found.edges[idx]):
+                    wrong[(line.get("name"), idx)].add(version)
+    return _per_version(
+        wrong,
+        lambda key, versions: Problem(
+            "train-in-car-lane",
+            f"{found.line('train', key[0])} ist keine Tram, fährt aber in "
+            f"{found.in_versions(versions)} über {found.edge(key[1])}, wo die "
+            f"Gleise in der Fahrspur liegen. Dort fährt nur eine Tram "
+            f"(„kind“: „tram“).",
+        ),
+    )
+
+
+def tram_without_rails(found):
+    """A tram street has its rails wherever it has its street.
+
+    `"type": "tram"` says the street's rails lie in it; a version that keeps
+    the street but drops the railway under it (`train_versions`) would have a
+    tram track with no track.
+    """
+    missing = defaultdict(set)
+    for idx, edge in enumerate(found.edges):
+        if edge.get("type") != "tram":
+            continue
+        own = found.members(edge)
+        street = set(element_versions(edge, "street_versions", own, found.count))
+        rails = set(element_versions(edge, "train_versions", own, found.count))
+        for version in street - rails:
+            missing[idx].add(version)
+    return _per_version(
+        missing,
+        lambda idx, versions: Problem(
+            "tram-without-rails",
+            f"{found.edge(idx)} ist eine Tram-Straße, hat aber in "
+            f"{found.in_versions(versions)} keine Gleise.",
+        ),
+    )
+
+
 # ---------------------------------------------------------------------------
 # whether the map can be played
 # ---------------------------------------------------------------------------
@@ -645,6 +699,8 @@ CHECKS = (
     line_off_version,
     line_wrong_side,
     line_end_not_a_stop,
+    train_in_car_lane,
+    tram_without_rails,
     no_home_or_work,
     no_way,
 )
@@ -657,8 +713,13 @@ def _positive(value):
 def _may_carry(mode, edge):
     """Whether a line of this mode can run on the edge — a bus needs a street."""
     if mode == "bus":
-        return states_a_street(edge)
-    return edge.get("type", "both") in ("train", "both")
+        return states_a_street(edge) or edge.get("type") == "tram"
+    return edge.get("type", "both") in ("train", "both", "tram")
+
+
+def _rails_in_car_lane(edge):
+    """A tram street whose rails lie in the car lane — its default."""
+    return edge.get("type") == "tram" and edge.get("tram_track", "lane") == "lane"
 
 
 def _reachable(reach, origin):

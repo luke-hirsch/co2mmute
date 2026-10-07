@@ -573,6 +573,21 @@ class TrainEdgeDetailView(RetrieveUpdateDestroyAPIView):
     lookup_field = "pk"
     lookup_url_kwarg = "trainedge_pk"
 
+    @transaction.atomic
+    def perform_destroy(self, instance):
+        """The rails go, and where they lay goes with them.
+
+        A street whose tram track outlived its rails would keep a lane
+        reserved for a tram that cannot come, and the editor shows the track
+        only beside rails — so nobody could see it to clear it.
+        """
+        edge = instance.edge
+        instance.delete()
+        if not TrainEdge.objects.filter(edge=edge).exists():
+            for street in StreetEdge.objects.filter(edge=edge).exclude(tram_track=""):
+                street.tram_track = StreetEdge.TRAM_TRACK_NONE
+                street.save(update_fields=["tram_track"])
+
 
 # TrainLine Views
 class TrainLineListView(MapScopedQuerysetMixin, ListCreateAPIView):
@@ -1061,6 +1076,7 @@ class VersionDiffCreateView(GenericAPIView):
                     dedicated_bus_lane=change.get(
                         "dedicated_bus_lane", original_se.dedicated_bus_lane
                     ),
+                    tram_track=change.get("tram_track", original_se.tram_track),
                 )
                 cloned_se.map_versions.add(new_version)
 
@@ -1145,12 +1161,19 @@ class VersionDiffCreateView(GenericAPIView):
                             [new_version],
                         )
                 else:
+                    kind = pt_change.get("kind", TrainLine.KIND_TRAIN)
+                    defaults = TrainLine.DEFAULTS[kind]
                     tl = TrainLine.objects.create(
                         game_map=game_map,
                         name=pt_change.get("name", "New Train Line"),
+                        kind=kind,
                         intervall=pt_change.get("interval", 10),
-                        train_capacity=pt_change.get("capacity", 1000),
-                        train_speed_kmh=pt_change.get("speed_kmh", 40),
+                        train_capacity=pt_change.get(
+                            "capacity", defaults["capacity"]
+                        ),
+                        train_speed_kmh=pt_change.get(
+                            "speed_kmh", defaults["speed_kmh"]
+                        ),
                     )
                     tl.map_versions.add(new_version)
                     if pt_change.get("edge_ids"):
@@ -1272,6 +1295,7 @@ class VersionDiffCreateView(GenericAPIView):
                         cloned = TrainLine.objects.create(
                             game_map=game_map,
                             name=pt_change.get("name", original.name),
+                            kind=pt_change.get("kind", original.kind),
                             intervall=pt_change.get("interval", original.intervall),
                             train_capacity=pt_change.get(
                                 "capacity", original.train_capacity

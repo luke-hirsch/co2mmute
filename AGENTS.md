@@ -98,8 +98,13 @@ an adapter method must never take an engine method's name.
 
 - **A link queue model.** Free-flow time, flow capacity, storage capacity; a full link blocks the one
   behind it. Speed is an output, measured over cars. There is no speed floor — don't add one.
-- **Each direction of a street is its own link.** `lanes` counts the whole street; a bus lane and a
-  bike lane each take a car lane, and zero car lanes is a legal gate, closed to cars only.
+- **Each direction of a street is its own link.** `lanes` counts the whole street; a bus lane, a
+  bike lane and a tram's own track each take a car lane, and zero car lanes is a legal gate, closed
+  to cars only.
+- **Where the rails lie is the street's** (`StreetEdge.tram_track`, `"type": "tram"` in the file).
+  Rails beside or under a street run free (the U2 under Bismarckstraße); rails in the car lane queue
+  with the cars and hold them up (the M1 on Friedrichstraße north); a tram's own track takes a lane.
+  The engine asks the link, not the line, whether something on rails queues.
 - **Nobody is stranded.** A pass runs until everyone has arrived, and every line keeps running while
   anybody is out. A non-arrival is a defect, never a third metric.
 - **Society pays for the timetable**: a line emits and costs per vehicle-km whether anyone rides or
@@ -129,7 +134,9 @@ an adapter method must never take an engine method's name.
   riders comes out ~1.5 % apart on sqlite.
 - **A PT line is its type and its id.** Bus and train lines are rows of two tables, so bus 2 and
   train 2 are different lines. Whatever looks a line up by `pt_line_id` takes the segment's mode
-  along.
+  along. A tram is a train line run by trams (`TrainLine.kind`): it rides rails and the same router
+  finds it, and its kind sets its seats, speed, figures per km and length in a queue. Only a tram
+  runs on rails in the car lane — `check_map` says so.
 - **Two golden masters** (`game/tests/test_sim_golden.py`). Regenerate with `GOLDEN_REGENERATE=1`
   only for a deliberate change, and say so in the commit.
 
@@ -189,6 +196,8 @@ versions *is* the ballot. A row naming no version is in no version.
   `maps/tests/test_portability.py`.
 - **A simulation constant** → both golden masters, `docs/kalibrierung.md`, the figures in the
   background doc.
+- **A new line's seats and speed**: `BusLine`'s defaults and `TrainLine.DEFAULTS` in
+  `maps/models.py`, and `frontend/src/lib/map/pt-defaults.ts`, per bus, train and tram.
 - **The budget dial**: `game/calibration.py` and `frontend/src/lib/calibration.ts` carry the same
   normal, step and range; `game/tests/test_join.py` and `tests/lib/calibration.test.ts` assert the
   same cases.

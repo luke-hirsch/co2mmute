@@ -42,6 +42,9 @@
 import type { Edge, Node } from "@/types/mapTypes";
 import type { ExtendedMapGraph, PTLine } from "@/types/routeTypes";
 
+/** Where a street's rails lie (`StreetEdge.tram_track`). */
+export type TramTrack = "" | "lane" | "own";
+
 /** A position in the map's own units (`x_position`, not the SVG's ×100). */
 export type Point = { x: number; y: number };
 
@@ -57,6 +60,12 @@ export type LinkAspect =
   /** A link with neither street nor railway under it: a way for bikes and feet. */
   | { kind: "path"; biking: boolean; walking: boolean }
   | { kind: "busLane" }
+  /**
+   * Where a tram's rails lie in the street: "" beside or under it, "lane" in
+   * the car lane, "own" a lane of their own. Public transport's, like the bus
+   * lane, and the ballot's „eigenes Gleis“ is "lane" → "own".
+   */
+  | { kind: "tramTrack"; from: TramTrack; to: TramTrack }
   | { kind: "bikeLane" }
   /** Whether a bike may use the link at all. */
   | { kind: "biking" }
@@ -86,6 +95,8 @@ export type LineSegment = {
 export type LineChange = {
   id: number;
   type: "bus" | "train";
+  /** A train line's kind, for its name on the list ("Tram M1"). */
+  kind?: "train" | "tram";
   name: string;
   /** `added`: a new line; `removed`: a line that goes; `changed`: rerouted. */
   sense: Sense;
@@ -120,7 +131,12 @@ const pairKey = (start: number, end: number) => `${start}-${end}`;
 
 /** What a link is, read once so the comparison below is over plain values. */
 type LinkShape = {
-  street: { lanes: number; speedLimit: number; busLane: boolean } | null;
+  street: {
+    lanes: number;
+    speedLimit: number;
+    busLane: boolean;
+    tramTrack: TramTrack;
+  } | null;
   rail: boolean;
   bikeLane: boolean;
   biking: boolean;
@@ -133,6 +149,7 @@ function shapeOf(edge: Edge): LinkShape {
         lanes: edge.street_edge.lanes,
         speedLimit: edge.street_edge.speed_limit,
         busLane: edge.street_edge.dedicated_bus_lane,
+        tramTrack: edge.street_edge.tram_track ?? "",
       }
     : null;
   return {
@@ -157,6 +174,12 @@ function wholeLink(shape: LinkShape): { network: Network; aspect: LinkAspect }[]
       },
     });
     if (shape.street.busLane) out.push({ network: "pt", aspect: { kind: "busLane" } });
+    if (shape.street.tramTrack) {
+      out.push({
+        network: "pt",
+        aspect: { kind: "tramTrack", from: "", to: shape.street.tramTrack },
+      });
+    }
     if (shape.bikeLane) out.push({ network: "street", aspect: { kind: "bikeLane" } });
   }
   if (shape.rail) out.push({ network: "pt", aspect: { kind: "rail" } });
@@ -196,6 +219,13 @@ function linkDelta(
   }
   presence(before.rail, after.rail, "pt", { kind: "rail" });
   presence(!!s0?.busLane, !!s1?.busLane, "pt", { kind: "busLane" });
+  if (s0 && s1 && s0.tramTrack !== s1.tramTrack) {
+    out.push({
+      network: "pt",
+      sense: "changed",
+      aspect: { kind: "tramTrack", from: s0.tramTrack, to: s1.tramTrack },
+    });
+  }
   presence(before.bikeLane, after.bikeLane, "street", { kind: "bikeLane" });
   // Access is the street network's question only where a link stayed: a street
   // appearing over a path keeps the path's bikes and feet, and a street with no
@@ -307,6 +337,7 @@ export function diffGraphs(from: DiffableGraph, to: DiffableGraph): VersionDiff 
       lines.push({
         id: line.id,
         type: line.type,
+        ...(line.kind ? { kind: line.kind } : {}),
         name: line.name,
         sense: "added",
         segments: [...runs.values()].map((pair) => segment(pair, "added")),
@@ -321,6 +352,7 @@ export function diffGraphs(from: DiffableGraph, to: DiffableGraph): VersionDiff 
     lines.push({
       id: line.id,
       type: line.type,
+      ...(line.kind ? { kind: line.kind } : {}),
       name: line.name,
       sense: "changed",
       segments: [
@@ -335,6 +367,7 @@ export function diffGraphs(from: DiffableGraph, to: DiffableGraph): VersionDiff 
     lines.push({
       id: line.id,
       type: line.type,
+      ...(line.kind ? { kind: line.kind } : {}),
       name: line.name,
       sense: "removed",
       segments: [...lineLinks(line, edgesBefore).values()].map((pair) =>

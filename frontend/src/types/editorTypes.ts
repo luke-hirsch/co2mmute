@@ -37,12 +37,16 @@ export interface EdgeChange {
   speed_limit?: number;
   lanes?: number;
   dedicated_bus_lane?: boolean;
+  /** Where the street's rails lie — „eigenes Gleis“ is the ballot change. */
+  tram_track?: "" | "lane" | "own";
 }
 
 export interface PTLineChange {
   id?: number;
   action: "add" | "modify" | "remove";
   line_type: "bus" | "train";
+  /** A train line's kind; a bus has none. */
+  kind?: "train" | "tram";
   name?: string;
   interval?: number;
   capacity?: number;

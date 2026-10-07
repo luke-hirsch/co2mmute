@@ -10,7 +10,7 @@ import {
 } from "@/components/map/editor/editor-panel";
 import { de } from "@/lib/de";
 import { cn } from "@/lib/utils";
-import { defaultPtCapacity } from "@/lib/map/pt-defaults";
+import { defaultPtCapacity, defaultPtSpeed } from "@/lib/map/pt-defaults";
 import type { ExtendedMapGraph } from "../../../types/routeTypes";
 import type { PTLine } from "../../../types/routeTypes";
 import {
@@ -53,22 +53,32 @@ const PTLinePanel = ({
   const [name, setName] = useState("");
   const [interval, setInterval] = useState(5);
   const [capacity, setCapacity] = useState(defaultPtCapacity("bus"));
-  const [speed, setSpeed] = useState(30);
+  const [speed, setSpeed] = useState(defaultPtSpeed("bus"));
+  // A train line's kind. A tram rides rails like any train line; its kind
+  // sets its seats, its speed and its figures per km in the simulation.
+  const [kind, setKind] = useState<TrainKind>("train");
 
   // Edit mode state
   const [editingLine, setEditingLine] = useState<PTLine | null>(null);
   const [editName, setEditName] = useState("");
   const [editInterval, setEditInterval] = useState(5);
   const [editCapacity, setEditCapacity] = useState(defaultPtCapacity("bus"));
-  const [editSpeed, setEditSpeed] = useState(30);
+  const [editSpeed, setEditSpeed] = useState(defaultPtSpeed("bus"));
+  const [editKind, setEditKind] = useState<TrainKind>("train");
 
   // One panel serves both modes, so the seat default has to follow the mode
   // the host just picked rather than being fixed when the component mounts —
   // a train that opens at a bus's 85 seats is the bug this closes, one order
   // of magnitude smaller.
+  //
+  // The kind does the same for a train line: a tram starts at a tram's seats
+  // and speed, not a U-Bahn's.
   useEffect(() => {
-    if (ptLineCreating) setCapacity(defaultPtCapacity(ptLineCreating));
-  }, [ptLineCreating]);
+    if (!ptLineCreating) return;
+    const vehicle = ptLineCreating === "bus" ? "bus" : kind;
+    setCapacity(defaultPtCapacity(vehicle));
+    setSpeed(defaultPtSpeed(vehicle));
+  }, [ptLineCreating, kind]);
 
   // Sync edit edge IDs when editing
   useEffect(() => {
@@ -90,6 +100,7 @@ const PTLinePanel = ({
     setEditInterval(line.interval);
     setEditCapacity(line.capacity);
     setEditSpeed(line.speed_kmh);
+    setEditKind(line.kind ?? "train");
     // Set edge IDs — these are the underlying edge IDs from the graph
     setPtLineEdgeIds(line.edges);
     // Clear any create mode
@@ -150,6 +161,7 @@ const PTLinePanel = ({
         {
           lineId: editingLine.id,
           name: editName,
+          kind: editKind,
           intervall: editInterval,
           train_capacity: editCapacity,
           train_speed_kmh: editSpeed,
@@ -231,6 +243,7 @@ const PTLinePanel = ({
       createTrainMutation.mutate(
         {
           name: name || de.editor.newTrainLine,
+          kind,
           intervall: interval,
           train_capacity: capacity,
           train_speed_kmh: speed,
@@ -322,7 +335,7 @@ const PTLinePanel = ({
                 >
                   <div className="flex flex-wrap items-baseline gap-2">
                     <Badge variant="outline">
-                      {de.editor.ptLine.kind(line.type)}
+                      {de.editor.ptLine.kind(line.type, line.kind)}
                     </Badge>
                     <span className="text-sm font-medium">{line.name}</span>
                     <span className="text-xs text-muted-foreground">
@@ -387,6 +400,10 @@ const PTLinePanel = ({
               className={editorControl}
             />
           </EditorField>
+
+          {editingLine.type === "train" && (
+            <KindField value={editKind} onChange={setEditKind} />
+          )}
 
           <div className="grid grid-cols-3 gap-2">
             <EditorField label={de.editor.ptLine.interval}>
@@ -484,6 +501,8 @@ const PTLinePanel = ({
             />
           </EditorField>
 
+          {ptLineCreating === "train" && <KindField value={kind} onChange={setKind} />}
+
           <div className="grid grid-cols-3 gap-2">
             <EditorField label={de.editor.ptLine.interval}>
               <input
@@ -555,6 +574,30 @@ const PTLinePanel = ({
     </div>
   );
 };
+
+type TrainKind = "train" | "tram";
+
+/** S- or U-Bahn, or tram: what runs a train line. */
+function KindField({
+  value,
+  onChange,
+}: {
+  value: TrainKind;
+  onChange: (kind: TrainKind) => void;
+}) {
+  return (
+    <EditorField label={de.editor.ptLine.kindLabel}>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value as TrainKind)}
+        className={editorControl}
+      >
+        <option value="train">{de.editor.ptLine.kinds.train}</option>
+        <option value="tram">{de.editor.ptLine.kinds.tram}</option>
+      </select>
+    </EditorField>
+  );
+}
 
 /**
  * The line's route as a list of links.

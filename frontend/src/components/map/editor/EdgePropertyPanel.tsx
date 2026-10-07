@@ -11,6 +11,7 @@ import {
   editorControlNarrow,
 } from "@/components/map/editor/editor-panel";
 import { de } from "@/lib/de";
+import { cn } from "@/lib/utils";
 import type { Edge, Node } from "../../../types/mapTypes";
 import {
   useUpdateEdge,
@@ -60,7 +61,11 @@ interface EdgeChangeFields {
   speed_limit: number;
   lanes: number;
   dedicated_bus_lane: boolean;
+  tram_track: TramTrack;
 }
+
+/** Where a street's rails lie: beside or under it, in the car lane, or their own. */
+type TramTrack = "" | "lane" | "own";
 
 interface EdgePropertyPanelProps {
   edge: Edge;
@@ -125,6 +130,12 @@ const EdgePropertyPanel = ({
   const [speedLimit, setSpeedLimit] = useState(edge.street_edge?.speed_limit ?? 50);
   const [lanes, setLanes] = useState(edge.street_edge?.lanes ?? 1);
   const [busLane, setBusLane] = useState(edge.street_edge?.dedicated_bus_lane ?? false);
+  const [tramTrack, setTramTrack] = useState<TramTrack>(
+    edge.street_edge?.tram_track ?? "",
+  );
+  // The track is a fact about rails in a street, so it is asked only where a
+  // link carries both — the server refuses it anywhere else.
+  const hasTrack = !!edge.street_edge && !!edge.train_edge;
 
   useEffect(() => {
     setEdgeName(edge.name ?? "");
@@ -134,6 +145,7 @@ const EdgePropertyPanel = ({
     setSpeedLimit(edge.street_edge?.speed_limit ?? 50);
     setLanes(edge.street_edge?.lanes ?? 1);
     setBusLane(edge.street_edge?.dedicated_bus_lane ?? false);
+    setTramTrack(edge.street_edge?.tram_track ?? "");
   }, [edge.id, edge.name, edge.biking, edge.walking, edge.max_lanes, edge.street_edge]);
 
   const handleSave = () => {
@@ -151,6 +163,7 @@ const EdgePropertyPanel = ({
         speed_limit: speedLimit,
         lanes,
         dedicated_bus_lane: busLane,
+        ...(hasTrack ? { tram_track: tramTrack } : {}),
       });
     }
     // Sync reverse edge properties
@@ -168,6 +181,7 @@ const EdgePropertyPanel = ({
           speed_limit: speedLimit,
           lanes,
           dedicated_bus_lane: busLane,
+          ...(hasTrack && reverseEdge.train_edge ? { tram_track: tramTrack } : {}),
         });
       }
     }
@@ -183,6 +197,9 @@ const EdgePropertyPanel = ({
       if (speedLimit !== edge.street_edge.speed_limit) changes.speed_limit = speedLimit;
       if (lanes !== edge.street_edge.lanes) changes.lanes = lanes;
       if (busLane !== edge.street_edge.dedicated_bus_lane) changes.dedicated_bus_lane = busLane;
+      if (hasTrack && tramTrack !== (edge.street_edge.tram_track ?? "")) {
+        changes.tram_track = tramTrack;
+      }
     }
     if (Object.keys(changes).length > 0) {
       onChange?.(changes);
@@ -454,7 +471,7 @@ const EdgePropertyPanel = ({
           {edge.train_edge ? (
             <div className="flex w-full items-center gap-1">
               <Badge variant="outline" className="flex-1">
-                {de.editor.edge.train}
+                {de.editor.edge.rails(edge.street_edge?.tram_track ?? "")}
               </Badge>
               {directEdit && (
                 <Button
@@ -614,6 +631,34 @@ const EdgePropertyPanel = ({
                 </span>
               )}
             </div>
+            {hasTrack && (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {de.editor.edge.tramTrack}
+                </span>
+                {editable || isModifyMode ? (
+                  <select
+                    value={useLocalState ? tramTrack : (edge.street_edge.tram_track ?? "")}
+                    onChange={(e) => {
+                      const v = e.target.value as TramTrack;
+                      if (useLocalState) setTramTrack(v);
+                      else onChange?.({ tram_track: v });
+                    }}
+                    className={cn(editorControl, "w-40 text-xs")}
+                  >
+                    {(["", "lane", "own"] as const).map((track) => (
+                      <option key={track} value={track}>
+                        {de.editor.edge.tramTracks[track]}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="text-xs">
+                    {de.editor.edge.tramTracks[edge.street_edge.tram_track ?? ""]}
+                  </span>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>

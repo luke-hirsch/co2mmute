@@ -267,6 +267,7 @@ class EdgeSerializer(MapVersionsMixin, serializers.ModelSerializer):
                     "speed_limit": street_edge.speed_limit,
                     "lanes": street_edge.lanes,
                     "dedicated_bus_lane": street_edge.dedicated_bus_lane,
+                    "tram_track": street_edge.tram_track,
                 }
             return None
         except Exception:
@@ -369,6 +370,7 @@ class StreetEdgeSerializer(MapVersionsMixin, serializers.ModelSerializer):
             "speed_limit",
             "lanes",
             "dedicated_bus_lane",
+            "tram_track",
             "map_versions",
         )
         read_only_fields = ("id",)
@@ -377,6 +379,18 @@ class StreetEdgeSerializer(MapVersionsMixin, serializers.ModelSerializer):
         edge = attrs.get("edge") or getattr(self.instance, "edge", None)
         if edge is None:
             raise serializers.ValidationError({"edge": "edge is required."})
+
+        # A track needs rails: a street with none under it would keep a lane
+        # reserved for a tram that cannot come (`StreetEdge.tram_track`).
+        if attrs.get("tram_track") and not edge.trainedge_set.exists():
+            raise serializers.ValidationError(
+                {
+                    "tram_track": (
+                        "Unter dieser Straße liegt kein Gleis. Leg erst das "
+                        "Gleis an, dann sag, wo es liegt."
+                    )
+                }
+            )
 
         map_versions = attrs.get("map_versions")
         if map_versions is not None:
@@ -497,6 +511,7 @@ class TrainLineSerializer(MapVersionsMixin, serializers.ModelSerializer):
             "id",
             "game_map",
             "name",
+            "kind",
             "intervall",
             "train_capacity",
             "train_speed_kmh",
@@ -629,6 +644,7 @@ def serialize_train_line_for_graph(train_line, version):
         "id": train_line.id,
         "name": train_line.name,
         "type": "train",
+        "kind": train_line.kind,
         "interval": train_line.intervall,
         "capacity": train_line.train_capacity,
         "speed_kmh": train_line.train_speed_kmh,
@@ -707,6 +723,11 @@ class EdgeChangeSerializer(serializers.Serializer):
     speed_limit = serializers.IntegerField(required=False)
     lanes = serializers.IntegerField(required=False)
     dedicated_bus_lane = serializers.BooleanField(required=False)
+    tram_track = serializers.ChoiceField(
+        choices=[choice for choice, _ in mm.StreetEdge.TRAM_TRACK_CHOICES],
+        required=False,
+        allow_blank=True,
+    )
 
 
 class PTLineChangeSerializer(serializers.Serializer):
@@ -715,6 +736,10 @@ class PTLineChangeSerializer(serializers.Serializer):
     id = serializers.IntegerField(required=False)
     action = serializers.ChoiceField(choices=["add", "modify", "remove"])
     line_type = serializers.ChoiceField(choices=["bus", "train"])
+    # A train line's kind; a bus has none.
+    kind = serializers.ChoiceField(
+        choices=list(mm.TrainLine.DEFAULTS), required=False
+    )
     name = serializers.CharField(required=False)
     interval = serializers.IntegerField(required=False)
     capacity = serializers.IntegerField(required=False)

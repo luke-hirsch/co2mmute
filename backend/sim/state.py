@@ -123,6 +123,9 @@ class PTLineState:
     base_vehicles: int  # minimum
     vehicles: int = 0
     person_km: float = 0.0
+    # What runs the line where that is not the mode's own vehicle — "tram"
+    # for a train line run by trams. See `sim.scenario.Line`.
+    kind: str = ""
 
     edge_ids: list[int] = field(default_factory=list)
     stops: list[int] = field(default_factory=list)
@@ -132,6 +135,11 @@ class PTLineState:
     stranded: int = 0
 
     @property
+    def vehicle(self) -> str:
+        """What runs the line, for its figures: its kind, else its mode."""
+        return self.kind or self.mode
+
+    @property
     def vehicle_km(self) -> float:
         """Vehicle-kilometres this line actually ran this round."""
         return self.vehicles * self.line_km
@@ -139,12 +147,12 @@ class PTLineState:
     @property
     def society_co2_g(self) -> float:
         """What the line emits this round. Not a function of its riders."""
-        return pt_emissions_g_per_vehicle_km(self.mode) * self.vehicle_km
+        return pt_emissions_g_per_vehicle_km(self.vehicle) * self.vehicle_km
 
     @property
     def society_cost_eur(self) -> float:
         """What running the line costs this round. Not a function of riders."""
-        return pt_cost_eur_per_vehicle_km(self.mode) * self.vehicle_km
+        return pt_cost_eur_per_vehicle_km(self.vehicle) * self.vehicle_km
 
     def share_of(self, society_total: float, person_km: float) -> float:
         """This many person-kilometres' slice of a society total.
@@ -201,6 +209,8 @@ class EdgeState:
 
     car_lanes: int = 1
     has_dedicated_bus_lane: bool = False
+    # Rails in the car lane: whatever runs on them waits with the cars.
+    rails_in_car_lane: bool = False
 
     # Whether a bike shares this link with cars. Both default to the values
     # that leave an EdgeState built by hand in a test behaving exactly as it

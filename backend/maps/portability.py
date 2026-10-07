@@ -54,6 +54,13 @@ have to agree about them:
   trip, and every front door gained a fast car shortcut. A legacy file saying
   ``"street"`` while stating no ``speed_limit``, ``lanes`` or
   ``dedicated_bus_lane`` means the same thing and is read the same way.
+* **``"type": "tram"`` is a street with rails in it**, and ``tram_track``
+  says where they lie: ``"lane"``, in the car lane, where a tram waits with
+  the cars (the M1 on Friedrichstraße north), or ``"own"``, a lane of their
+  own taken from ``lanes`` like a bus lane. ``"both"`` stays what it was:
+  a street with rails beside or under it, the U2 under Bismarckstraße.
+* **A train line says its ``kind``**, ``"train"`` or ``"tram"``, written out
+  on every line. A file without it is an older one, and its lines are trains.
 
 The version's own name wins over the form's. A copy imported under a new map
 name keeps the base version called after the map it was drawn on, which is what
@@ -68,6 +75,21 @@ import os
 logger = logging.getLogger(__name__)
 
 DEFAULT_POLL_TEXT = "Die Karte soll ... "
+
+# What an edge entry's `type` may say. The upload form checks the shape and
+# the importer the content; both read this, so they cannot disagree.
+EDGE_TYPES = ("street", "train", "both", "path", "tram")
+
+# Where a tram street's rails lie (`StreetEdge.tram_track`, less its "none").
+TRAM_TRACKS = ("lane", "own")
+
+
+def edge_type_error(where, edge_type):
+    """The sentence for a `type` this format does not know."""
+    return (
+        f"{where}: 'type' muss 'street', 'train', 'both', 'path' oder 'tram' "
+        f"sein, hier steht '{edge_type}'."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -136,7 +158,9 @@ def build_export(game_map, version=None):
     for edge in edges:
         street = streets.get(edge.pk)
         train = trains.get(edge.pk)
-        if street and train:
+        if street and train and street.tram_track:
+            edge_type = "tram"
+        elif street and train:
             edge_type = "both"
         elif train:
             edge_type = "train"
@@ -159,6 +183,8 @@ def build_export(game_map, version=None):
             entry["speed_limit"] = street.speed_limit
             entry["lanes"] = street.lanes
             entry["dedicated_bus_lane"] = street.dedicated_bus_lane
+        if edge_type == "tram":
+            entry["tram_track"] = street.tram_track
         if whole:
             own = _indices(edge.map_versions.all(), index_of)
             entry["versions"] = own
@@ -280,6 +306,7 @@ def _line_entry(line, kind, version, versions, index_of, edge_index):
     else:
         entry = {
             "name": line.name,
+            "kind": line.kind,
             "interval": line.intervall,
             "capacity": line.train_capacity,
             "speed_kmh": line.train_speed_kmh,
