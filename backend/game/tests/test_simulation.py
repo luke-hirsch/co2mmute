@@ -4907,6 +4907,25 @@ class PTEmissionFactorTests(SimpleTestCase):
 
         self.assertAlmostEqual(TRAIN_EMISSIONS_G_PER_VEHICLE_KM, 1500.0, places=6)
 
+    def test_a_tram_is_a_low_floor_tram_on_the_grid_mix(self):
+        """3.9 kWh per tram-km, Bremen's 240-place trams (Deiters 2009, Tab. 5).
+
+        Times the same 363 g/kWh as the train: 1416 g, rounded down to 1400.
+        Its cost keeps the ratio the same table measured to a 12 m solo bus,
+        4.47 against 2.82 € per vehicle-km, on the bus's 4.50.
+        """
+        from sim.constants import (
+            BUS_COST_PER_VEHICLE_KM,
+            TRAM_COST_PER_VEHICLE_KM,
+            TRAM_EMISSIONS_G_PER_VEHICLE_KM,
+        )
+
+        self.assertAlmostEqual(TRAM_EMISSIONS_G_PER_VEHICLE_KM, 1400.0, places=6)
+        self.assertAlmostEqual(TRAM_COST_PER_VEHICLE_KM, 7.10, places=6)
+        self.assertAlmostEqual(
+            TRAM_COST_PER_VEHICLE_KM, BUS_COST_PER_VEHICLE_KM * 4.47 / 2.82, places=1
+        )
+
     def test_a_train_still_costs_more_per_vehicle_km_than_a_bus(self):
         """The cost side is untouched — only the emission factor moved.
 
@@ -5602,3 +5621,64 @@ class LinesRunUntilEverybodyIsHomeTests(PTBoardingScenarioMixin, TestCase):
             sum(line.society_co2_g for line in simulator.pt_lines.values()),
             places=3,
         )
+
+
+class TramAdapterTests(PTBoardingScenarioMixin, TestCase):
+    """The street says where its rails lie, the line says it is a tram.
+
+    Friedrichstraße north: one lane, the M1's rails in it. Its own track on a
+    two-lane street takes one of the two, like a Busspur.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="tram", password="12345")
+        self.game_map, self.version, self.nodes = _grid_map("Tram map", 3)
+
+    def _tram_street(self, start, end, track, lanes):
+        edge = _street(self.game_map, self.version, start, end, lanes=lanes)
+        StreetEdge.objects.filter(edge=edge).update(tram_track=track)
+        TrainEdge.objects.create(edge=edge).map_versions.add(self.version)
+        return edge
+
+    def _tram_line(self, edges, kind="tram"):
+        line = TrainLine.objects.create(
+            game_map=self.game_map, name="M1", intervall=10, kind=kind
+        )
+        line.map_versions.add(self.version)
+        for order, edge in enumerate(edges):
+            TrainLineEdge.objects.create(
+                train_line=line, train_edge=edge.trainedge_set.first(), order=order
+            ).map_versions.add(self.version)
+        return line
+
+    def _simulator(self, car_edges):
+        session = self._pt_session(self.game_map, self.version, people=10)
+        game_round = self._round(session)
+        _route(game_round, self._player(session), car_edges, mode="car")
+        return TrafficSimulator(game_round, scale=100.0, seed=7)
+
+    def test_the_street_says_where_its_rails_lie(self):
+        in_the_lane = self._tram_street(self.nodes[0], self.nodes[1], "lane", lanes=1)
+        own_track = self._tram_street(self.nodes[1], self.nodes[2], "own", lanes=2)
+
+        simulator = self._simulator([in_the_lane, own_track])
+
+        lane = simulator.edge_states[in_the_lane.pk]
+        self.assertTrue(lane.rails_in_car_lane)
+        self.assertEqual(lane.car_lanes, 1)
+        own = simulator.edge_states[own_track.pk]
+        self.assertFalse(own.rails_in_car_lane)
+        self.assertEqual(own.car_lanes, 1)
+
+    def test_a_tram_line_runs_as_a_tram_and_a_train_line_as_a_train(self):
+        edges = [
+            self._tram_street(self.nodes[0], self.nodes[1], "lane", lanes=1),
+            self._tram_street(self.nodes[1], self.nodes[2], "lane", lanes=1),
+        ]
+        tram = self._tram_line(edges)
+        train = self._tram_line(edges, kind="train")
+
+        simulator = self._simulator(edges)
+
+        self.assertEqual(simulator.pt_lines[("train", tram.pk)].vehicle, "tram")
+        self.assertEqual(simulator.pt_lines[("train", train.pk)].vehicle, "train")

@@ -10,11 +10,17 @@ from the adapter but the scenario and a generator.
 import logging
 import random
 from contextlib import contextmanager
+from dataclasses import replace
 
 from django.test import SimpleTestCase
 
 from sim import (
     PT_FARE_EUR,
+    TRAIN_COST_PER_VEHICLE_KM,
+    TRAIN_EMISSIONS_G_PER_VEHICLE_KM,
+    TRAM_COST_PER_VEHICLE_KM,
+    TRAM_EMISSIONS_G_PER_VEHICLE_KM,
+    TRAM_PCU,
     Engine,
     Line,
     Link,
@@ -74,19 +80,20 @@ def _route(pk, links, mode="car", line_id=None, transport_mode=None):
     )
 
 
-def _scenario(routes, links, lines=(), direction="out", people=PEOPLE):
+def _scenario(routes, links, lines=(), direction="out", people=PEOPLE, std_dev=5):
     return Scenario(
         params=Params(
             people_per_agent=people,
             walk_speed_kmh=5,
             bike_speed_kmh=20,
             default_car_speed_kmh=50,
-            departure_std_dev_min=5,
+            departure_std_dev_min=std_dev,
         ),
         links=tuple(links),
         routes=tuple(routes),
         lines=tuple(lines),
         bus_speeds={7: 25},
+        train_speeds={9: 20},
         direction=direction,
         title="Testrunde",
     )
@@ -185,3 +192,168 @@ class EngineWithoutDatabaseTests(SimpleTestCase):
         engine = LinkQueueEngine(_scenario([_route(1, links)], links), random.Random(1))
 
         self.assertIsInstance(engine, Engine)
+
+
+def _with_rails(links, track, lanes=1):
+    """The corridor with rails along it, `track` saying where they lie."""
+    return tuple(replace(link, tram_track=track, lanes=lanes) for link in links)
+
+
+def _tram(links, kind="tram", capacity=10_000):
+    """The M1 over the corridor, every ten minutes.
+
+    Room for everybody by default, so a rider's time is the wait for the
+    timetable and the ride, never a full tram.
+    """
+    return Line(
+        mode="train",
+        line_id=9,
+        name="M1",
+        edge_ids=tuple(link.edge_id for link in links),
+        interval_min=10,
+        capacity=capacity,
+        kind=kind,
+    )
+
+
+class TramTests(SimpleTestCase):
+    """Where a tram's rails lie decides whether it waits with the cars.
+
+    Friedrichstraße north, where the M1 and 12 run: the rails are in the one
+    car lane, so the tram stands in the cars' queue and the cars behind it
+    wait for it. Landsberger Allee: the track runs down the middle beside
+    three lanes each way, and the tram passes the jam. "Die Tram bekommt ein
+    eigenes Gleis" is the ballot change between the two, and like a Busspur it
+    takes a lane from the cars — the last one, on a one-lane street.
+    """
+
+    def _engine(self, links, lines=(), routes=None):
+        routes = routes if routes is not None else [_route(1, links)]
+        return LinkQueueEngine(
+            _scenario(routes, links, lines=lines), random.Random(1)
+        )
+
+    def test_rails_in_the_car_lane_put_the_tram_in_the_cars_queue(self):
+        links = _with_rails(_corridor(), "lane")
+
+        engine = self._engine(links, lines=[_tram(links)])
+        state = engine.edge_states[10]
+
+        self.assertTrue(state.rails_in_car_lane)
+        self.assertTrue(engine._queues_for_traffic("train", state))
+        # The rails take nothing from the cars: they drive on them.
+        self.assertEqual(state.car_lanes, 1)
+
+    def test_its_own_track_takes_a_lane_and_runs_free(self):
+        links = _with_rails(_corridor(), "own", lanes=2)
+
+        engine = self._engine(links, lines=[_tram(links)])
+        state = engine.edge_states[10]
+
+        self.assertFalse(state.rails_in_car_lane)
+        self.assertFalse(engine._queues_for_traffic("train", state))
+        self.assertEqual(state.car_lanes, 1)
+
+    def test_its_own_track_on_a_one_lane_street_closes_it_to_cars(self):
+        links = _with_rails(_corridor(), "own", lanes=1)
+
+        engine = self._engine(links, lines=[_tram(links)])
+        state = engine.edge_states[10]
+
+        self.assertEqual(state.car_lanes, 0)
+        self.assertFalse(state.open_to_cars)
+
+    def test_rails_beside_or_under_the_street_stay_out_of_the_queue(self):
+        """The U2 under Bismarckstraße, the median track on Landsberger Allee."""
+        links = _with_rails(_corridor(), "", lanes=2)
+
+        engine = self._engine(links, lines=[_tram(links, kind="")])
+        state = engine.edge_states[10]
+
+        self.assertFalse(state.rails_in_car_lane)
+        self.assertFalse(engine._queues_for_traffic("train", state))
+        self.assertEqual(state.car_lanes, 2)
+
+    def test_the_jam_holds_the_tram_up_only_where_its_rails_lie_in_the_lane(self):
+        """The same cars on the same one car lane; only the rails differ.
+
+        1500 cars on one lane is a jam: they take about 13 minutes for 1.2 km
+        that is 1.44 at the speed limit. In the lane the tram's riders sit in
+        it with them; on its own track they take what the timetable and 20
+        km/h give, about 8.5, whatever the cars do.
+        """
+
+        def minutes(track, lanes):
+            links = _with_rails(_corridor(), track, lanes=lanes)
+            drivers = _route(1, links)
+            riders = _route(2, links, mode="train", line_id=9, transport_mode="public")
+            engine = LinkQueueEngine(
+                _scenario([drivers, riders], links, lines=[_tram(links)], people=1500),
+                random.Random(3),
+            )
+            with _quietly():
+                engine.run_round()
+            self.assertEqual(engine.edge_states[10].car_lanes, 1)
+            outcomes = engine.outcomes
+            return outcomes[1].mean_trip_time_min, outcomes[2].mean_trip_time_min
+
+        cars, riders = minutes("lane", lanes=1)
+        self.assertGreater(cars, 10)
+        self.assertGreaterEqual(riders, cars - 1)
+
+        cars, riders = minutes("own", lanes=2)
+        self.assertGreater(cars, 10)
+        self.assertLess(riders, cars - 3)
+
+    def test_a_tram_takes_a_trams_room_in_the_queue(self):
+        """Nothing but the tram on the street, so its length is all there is."""
+        rails = _with_rails(_corridor(), "lane")
+        other_way = _corridor(east=False)
+
+        engine = _run(
+            _scenario(
+                [_route(1, other_way)], rails + other_way, lines=[_tram(rails)]
+            )
+        )
+
+        self.assertEqual(engine.edge_states[10].peak_occupancy_pcu, TRAM_PCU)
+
+    def test_society_pays_a_tram_per_tram_km(self):
+        rails = _with_rails(_corridor(), "")
+        other_way = _corridor(east=False)
+
+        engine = _run(
+            _scenario(
+                [_route(1, other_way)], rails + other_way, lines=[_tram(rails)]
+            )
+        )
+
+        line = engine.pt_lines[("train", 9)]
+        self.assertEqual(line.kind, "tram")
+        self.assertGreater(line.vehicle_km, 0)
+        self.assertAlmostEqual(
+            line.society_co2_g, TRAM_EMISSIONS_G_PER_VEHICLE_KM * line.vehicle_km
+        )
+        self.assertAlmostEqual(
+            line.society_cost_eur, TRAM_COST_PER_VEHICLE_KM * line.vehicle_km
+        )
+
+    def test_a_train_line_with_no_kind_is_still_a_train(self):
+        rails = _with_rails(_corridor(), "")
+        other_way = _corridor(east=False)
+
+        engine = _run(
+            _scenario(
+                [_route(1, other_way)],
+                rails + other_way,
+                lines=[_tram(rails, kind="")],
+            )
+        )
+
+        line = engine.pt_lines[("train", 9)]
+        self.assertAlmostEqual(
+            line.society_co2_g, TRAIN_EMISSIONS_G_PER_VEHICLE_KM * line.vehicle_km
+        )
+        self.assertAlmostEqual(
+            line.society_cost_eur, TRAIN_COST_PER_VEHICLE_KM * line.vehicle_km
+        )

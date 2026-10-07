@@ -40,11 +40,12 @@ rund 150 durch.
 Spuren werden gezählt, wie sie auf der Straße liegen. Dabei gilt:
 
 ```
-Autospuren = Spuren − (1 bei Busspur) − (1 bei Radspur)
+Autospuren = Spuren − (1 bei Busspur) − (1 bei Radspur) − (1 bei eigenem Tramgleis)
 ```
 
 Die Zahl ist nach unten auf null begrenzt, und **null Autospuren sind erlaubt**: Die Straße wird
-zur _Busschleuse_ – für Autos gesperrt, offen für Busse und wahlweise auch für Räder und Fußgänger.
+zur _Busschleuse_ – für Autos gesperrt, offen für Busse, Trams und wahlweise auch für Räder und
+Fußgänger. Ein Tramgleis in der Autospur nimmt keine Spur weg: Die Autos fahren darauf.
 
 ### Ein Tick
 
@@ -113,6 +114,10 @@ Spieler in der nächsten Runde bekommt, beruhen also alle auf derselben gemessen
   Pkw-Einheiten, nimmt in der gemeinsamen Schlange also den Platz von drei Autos ein. Er steht immer
   in der Schlange seiner Fahrtrichtung, auch wo die Linie auf der Karte auf der Gegenrichtung
   eingezeichnet ist.
+- **Trams** stehen dort im Stau, wo ihr Gleis in der Autospur liegt, wie die M1 auf der
+  Friedrichstraße nördlich des Bahnhofs, und die Autos hinter ihnen warten auf sie. Auf einem eigenen
+  Gleis fahren sie frei, wie in der Mitte der Landsberger Allee. Eine Tram zählt 5,3
+  Pkw-Einheiten: 40 m Flexity durch 7,5 m je Auto im Stau. S- und U-Bahn stehen nie im Stau.
 - **Räder** stehen nur dort im Verkehr, wo sie sich die Straße mit Autos teilen. Ein Rad hat auf der
   Kante eine eigene Schlange mit eigenem Abflussbudget von 2.000 Rädern/h. Ein Autostau hält also
   keinen Radfahrer auf und ein Radfahrer keinen Autofahrer. Den _Speicher_ der Kante teilen sie sich
@@ -144,7 +149,7 @@ zeigt beide Wege, dazwischen eine kurze Mittagspause.
 
 Ein Linienfahrzeug ist in der Simulation ein **ganz normales Fahrzeug auf einer künstlichen Route**.
 Ein Bus steht deshalb in der Schlange und staut zurück wie jedes Auto, es sei denn, er hat eine
-eigene Busspur.
+eigene Busspur. Eine Tram ebenso, wo ihr Gleis in der Autospur liegt.
 
 Menschen steigen an Haltestellen ein, die nach Linie _und_ Knoten unterschieden werden: Wer auf die
 M1 wartet, steigt nicht in die U7. Einsteigen kann man nur, wenn Platz ist, sonst wartet man weiter.
@@ -221,7 +226,8 @@ Daraus folgt:
   (Abschreibung, Versicherung, Steuer) fällt an, ob das Auto heute fährt oder nicht. Die Kosten sind
   deshalb bei 1,50× gedeckelt, CO₂ bei 2,00×.
 
-Beim ÖPNV gilt ein fester Wert pro Fahrzeugkilometer: 1.200 g für einen Bus, 1.500 g für einen Zug.
+Beim ÖPNV gilt ein fester Wert pro Fahrzeugkilometer: 1.200 g für einen Bus, 1.400 g für eine Tram,
+1.500 g für einen Zug.
 Eine Geschwindigkeitskurve gibt es hier nicht, weil die Fahrzeuge nach Fahrplan fahren und nicht
 nach Verkehrslage.
 
@@ -324,7 +330,7 @@ den Fehler mit. Vorher prüfen:
 
 - Jede Linie fährt ihre Strecke ohne Lücke.
 - Hin- und Rückrichtung einer Linie halten an denselben Haltestellen.
-- Busse haben 85 Plätze, Züge 1.000.
+- Busse haben 85 Plätze, Trams 248, Züge 1.000.
 - Jedes Paar aus Wohnort und Arbeitsplatz ist mit Bus und Bahn erreichbar.
 
 Auf Berlin Mitte-West hatte eine Buslinie anfangs gar keine Kanten, eine andere riss in der Mitte,
@@ -482,6 +488,7 @@ pro Fahrzeugkilometer und muss sich nachrechnen lassen:
 | ----- | -------------- | ---------------------------------------------------------------- |
 | Auto  | 166,8 g/km     | Flottendurchschnitt, eine Person pro Fahrzeug                    |
 | Bus   | 1.200 g/Bus-km | ein 12-m-Stadtbus mit ~45 l/100 km Diesel × 2,64 kg CO₂ je Liter |
+| Tram  | 1.400 g/Tram-km | 3,9 kWh/Tram-km einer 240-Platz-Niederflurtram (Deiters 2009) × 363 g CO₂/kWh |
 | Zug   | 1.500 g/Zug-km | ~4 kWh/Zug-km mit Nebenverbrauchern × 363 g CO₂/kWh (UBA 2024)   |
 
 Nachgerechnet wird über den Verbrauch: Energie pro Fahrzeugkilometer mal CO₂ pro Energieeinheit. So

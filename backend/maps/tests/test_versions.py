@@ -216,6 +216,74 @@ class VersionDiffChainTests(VersionFixtureMixin, TestCase):
             ],
         )
 
+    def test_its_own_track_for_the_tram_is_a_version_change(self):
+        """„Die Tram bekommt ein eigenes Gleis“, drawn like Busspuren.
+
+        Edge B carries a tram's rails in its car lane; the version clones the
+        street with a track of its own, and the tram runs over the clone there
+        while the base keeps the rails in the lane.
+        """
+        StreetEdge.objects.filter(edge=self.edge_b).update(tram_track="lane")
+        TrainLine.objects.filter(pk=self.train.pk).update(kind="tram")
+
+        own_track = self.create_version(
+            "Eigenes Gleis",
+            edge_changes=[{"edge_id": self.edge_b.pk, "tram_track": "own"}],
+        )
+
+        chain = self.train_chain(own_track)
+        self.assertNotEqual(chain[0], self.edge_b.pk)
+        clone = Edge.objects.get(pk=chain[0])
+        self.assertEqual(StreetEdge.objects.get(edge=clone).tram_track, "own")
+        self.assertEqual(StreetEdge.objects.get(edge=self.edge_b).tram_track, "lane")
+        self.assertEqual(self.train_chain(self.base)[0], self.edge_b.pk)
+
+    def test_a_new_tram_line_in_a_version_starts_with_a_trams_defaults(self):
+        rails = [TrainEdge.objects.get(edge=e).pk for e in (self.edge_b, self.edge_c)]
+
+        version = self.create_version(
+            "Neue Tram",
+            pt_line_changes=[
+                {
+                    "action": "add",
+                    "line_type": "train",
+                    "kind": "tram",
+                    "name": "M1",
+                    "edge_ids": rails,
+                }
+            ],
+        )
+
+        line = TrainLine.objects.get(game_map=self.game_map, name="M1")
+        self.assertEqual(line.kind, "tram")
+        self.assertEqual(
+            (line.train_capacity, line.train_speed_kmh),
+            (
+                TrainLine.DEFAULTS["tram"]["capacity"],
+                TrainLine.DEFAULTS["tram"]["speed_kmh"],
+            ),
+        )
+        self.assertIn(version, line.map_versions.all())
+
+    def test_a_tram_changed_in_a_version_stays_a_tram(self):
+        """A modified line is a clone; the clone keeps what it was."""
+        TrainLine.objects.filter(pk=self.train.pk).update(kind="tram")
+
+        self.create_version(
+            "Takt",
+            pt_line_changes=[
+                {
+                    "action": "modify",
+                    "line_type": "train",
+                    "id": self.train.pk,
+                    "interval": 5,
+                }
+            ],
+        )
+
+        clone = TrainLine.objects.exclude(pk=self.train.pk).get(name="U2")
+        self.assertEqual((clone.kind, clone.intervall), ("tram", 5))
+
     def test_the_base_version_keeps_the_whole_bus_chain(self):
         """The bug, exactly as measured: 100 reaches 0 of 7 edges in base."""
         self.busspuren()

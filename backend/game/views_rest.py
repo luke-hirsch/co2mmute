@@ -815,6 +815,8 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
                         reserved.append("bus lane")
                     if edge.bike_lane:
                         reserved.append("bike lane")
+                    if street_edge.tram_track == "own":
+                        reserved.append("tram track")
                     if reserved and street_edge.lanes - len(reserved) <= 0:
                         errors.append(
                             f"{who}: edge {edge_id} is a "

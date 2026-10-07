@@ -29,6 +29,7 @@ from sim.constants import (
     BIKE_COST_PER_KM,
     BIKE_PCU,
     BUS_PCU,
+    TRAM_PCU,
     CAR_EMISSIONS_G_PER_KM,
     DEADLOCK_TICKS,
     PT_FARE_EUR,
@@ -355,6 +356,7 @@ class LinkQueueEngine:
                 [links[edge_id] for edge_id in line.edge_ids],
                 line.interval_min,
                 line.capacity,
+                kind=line.kind,
             )
         logger.info(f"[SIM] Loaded {len(self.pt_lines)} PT lines from the timetable")
 
@@ -440,6 +442,7 @@ class LinkQueueEngine:
         edges: list[Link],
         interval_min: int,
         capacity: int,
+        kind: str = "",
     ):
         """Measure one line, put it in the registry, and give it a run to drive.
 
@@ -487,6 +490,7 @@ class LinkQueueEngine:
             base_vehicles=base_vehicles,
             edge_ids=edge_ids,
             stops=stops,
+            kind=kind,
         )
         if line_km <= 0:
             logger.warning(
@@ -566,15 +570,17 @@ class LinkQueueEngine:
                 continue
             distance_m = link.distance_m
 
-            # Speed limit, lanes and bus lane come with the street
+            # Speed limit, lanes, bus lane and rails come with the street
             if link.is_street:
                 speed_limit = link.speed_limit_kmh
                 lanes = link.lanes
                 has_dedicated_bus_lane = link.has_dedicated_bus_lane
+                tram_track = link.tram_track
             else:
                 speed_limit = self.default_car_speed_kmh
                 lanes = 1
                 has_dedicated_bus_lane = False
+                tram_track = ""
 
             if speed_limit <= 0:
                 logger.warning(
@@ -607,11 +613,16 @@ class LinkQueueEngine:
                     reserved.append("a bus lane")
                 if has_bike_lane:
                     reserved.append("a bike lane")
+                # A tram's own track is a lane taken from the street like the
+                # two above. Rails in the car lane take nothing: the cars
+                # drive on them, and the tram waits with the cars.
+                if tram_track == "own":
+                    reserved.append("a tram track")
                 car_lanes = max(0, lanes - len(reserved))
                 if car_lanes == 0 and reserved:
                     logger.info(
                         "[SIM] Edge %s is a gate (%s): closed to cars, open "
-                        "to buses, bikes and pedestrians.",
+                        "to buses, trams, bikes and pedestrians.",
                         link.edge_id,
                         " and ".join(reserved),
                     )
@@ -624,6 +635,7 @@ class LinkQueueEngine:
                 free_flow_speed_kmh=speed_limit,
                 car_lanes=car_lanes,
                 has_dedicated_bus_lane=has_dedicated_bus_lane,
+                rails_in_car_lane=tram_track == "lane",
                 is_street=is_street,
                 has_bike_lane=has_bike_lane,
                 capacity_factor=draw_capacity_factor(self.rng),
@@ -681,27 +693,47 @@ class LinkQueueEngine:
             ]
 
     def _queues_for_traffic(self, mode: str, edge_state: "EdgeState") -> bool:
-        """Cars queue; buses and bikes queue only in mixed traffic.
+        """Cars queue; buses, trams and bikes queue only in mixed traffic.
 
         A bike is in traffic iff it shares space with cars — a street edge
         with no bike lane. A path, a cycle track and a rail alignment with a
         way alongside all free-run. Pedestrians stay outside the queue model
         deliberately.
+
+        Anything on rails queues only where the rails lie in the car lane — a
+        fact of the street, not of the line, which is why it asks the mode and
+        not the kind: on Friedrichstraße north the M1 waits with the cars, on
+        Landsberger Allee's median track it passes them.
         """
         if mode == "car":
             return True
         if mode == "bus":
             return not edge_state.has_dedicated_bus_lane
+        if mode == "train":
+            return edge_state.rails_in_car_lane
         if mode == "bike":
             return edge_state.bikes_share_the_road
         return False
 
-    def _pcu_for(self, mode: str) -> float:
-        if mode == "bus":
+    def _pcu_for(self, vehicle: str) -> float:
+        """Car-equivalents one vehicle takes in a queue.
+
+        `vehicle` is what drives — "car", "bus", "bike", "tram" — which for a
+        line's own run is the line's kind (`_vehicle_of`).
+        """
+        if vehicle == "bus":
             return BUS_PCU
-        if mode == "bike":
+        if vehicle == "tram":
+            return TRAM_PCU
+        if vehicle == "bike":
             return BIKE_PCU
         return 1.0
+
+    def _vehicle_of(self, vehicle: Vehicle) -> str:
+        """What a vehicle is, for its size: a line run's kind, else its mode."""
+        line_key = self.line_by_route_key.get(vehicle.route_pk)
+        line = self.pt_lines.get(line_key) if line_key is not None else None
+        return line.vehicle if line is not None else vehicle.mode
 
     def _state_for_segment(self, route_pk: int, segment_index: int):
         """The link a route's Nth segment runs on, or None past the end."""
@@ -763,7 +795,7 @@ class LinkQueueEngine:
             #
             # Ordered by readiness rather than strictly FIFO, because one
             # cyclist can always pass another.
-            pcu = self._pcu_for(vehicle.mode)
+            pcu = self._pcu_for(self._vehicle_of(vehicle))
             bisect.insort(
                 edge_state.bike_queue,
                 QueuedVehicle(
@@ -789,7 +821,7 @@ class LinkQueueEngine:
                 edge_state.edge_id,
             )
 
-        pcu = self._pcu_for(vehicle.mode)
+        pcu = self._pcu_for(self._vehicle_of(vehicle))
         if not edge_state.has_room_for(pcu):
             return False
 
@@ -1218,7 +1250,7 @@ class LinkQueueEngine:
             vehicle.arrived = True
             vehicle.arrived_min = at_min
             return
-        pcu = self._pcu_for(vehicle.mode)
+        pcu = self._pcu_for(self._vehicle_of(vehicle))
         speed = self._free_speed_for(vehicle, edge_state)
         travel_min = edge_state.distance_m / 1000.0 / speed * 60.0 if speed > 0 else 0.0
         vehicle.entered_edge_min = at_min

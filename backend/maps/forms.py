@@ -2,6 +2,7 @@ import json
 from django import forms
 from django.core.exceptions import ValidationError
 from maps.models import GameMap
+from maps.portability import EDGE_TYPES, edge_type_error
 
 
 class MapUploadForm(forms.Form):
@@ -114,16 +115,8 @@ class MapUploadForm(forms.Form):
                     f"Kante {i} fehlen Angaben: {', '.join(edge_missing)}"
                 )
             # Validate edge type specification
-            if "type" in edge and edge["type"] not in (
-                "street",
-                "train",
-                "both",
-                "path",
-            ):
-                raise ValidationError(
-                    f"Kante {i}: 'type' muss 'street', 'train', 'both' oder "
-                    f"'path' sein, hier steht '{edge['type']}'"
-                )
+            if "type" in edge and edge["type"] not in EDGE_TYPES:
+                raise ValidationError(edge_type_error(f"Kante {i}", edge["type"]))
 
         # Validate bus lines if present
         self._check_lines(data, "bus_lines", "Buslinie")

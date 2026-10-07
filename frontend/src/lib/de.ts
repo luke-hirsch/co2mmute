@@ -1039,14 +1039,23 @@ export const de = {
           : "kein Weg mehr",
       busLane: (added: boolean) =>
         added ? "eine Autospur wird Busspur" : "die Busspur wird wieder Autospur",
+      /** Where a tram's rails lie: "" beside the street, "lane" in it, "own" a lane of their own. */
+      tramTrack: (from: string, to: string) =>
+        to === "own"
+          ? "eine Autospur wird eigenes Tramgleis"
+          : from === "own"
+            ? "das Tramgleis wird wieder Autospur"
+            : to === "lane"
+              ? "Tramgleis in der Autospur"
+              : "kein Tramgleis mehr in der Autospur",
       bikeLane: (added: boolean) =>
         added ? "eine Autospur wird Radspur" : "die Radspur wird wieder Autospur",
       biking: (added: boolean) => (added ? "für Räder offen" : "für Räder gesperrt"),
       walking: (added: boolean) => (added ? "zu Fuß offen" : "für Fußgänger gesperrt"),
       lanes: (from: number, to: number) => `Spuren ${from} → ${to}`,
       speed: (from: number, to: number) => `Tempo ${from} → ${to} km/h`,
-      line: (type: "bus" | "train", name: string) =>
-        `${type === "bus" ? "Bus" : "Bahn"} ${name}`,
+      line: (type: "bus" | "train", name: string, kind?: string) =>
+        `${type === "bus" ? "Bus" : kind === "tram" ? "Tram" : "Bahn"} ${name}`,
       lineAdded: (first: string, last: string) => `neue Linie, ${first} → ${last}`,
       lineRemoved: "fährt nicht mehr",
       lineChanged: (gained: number, lost: number) =>
@@ -1207,12 +1216,13 @@ export const de = {
             fields: [
               ["start_node, end_node", "Pflicht — die ids der beiden Knoten"],
               ["name", "der angezeigte Name"],
-              ["type", "street, train, both oder path (Vorgabe: both) — path ist ein Weg ohne Straße und ohne Gleis darunter"],
+              ["type", "street, train, both, tram oder path (Vorgabe: both) — both ist eine Straße mit Gleis daneben oder darunter, tram eine Straße mit Gleis darin, path ein Weg ohne Straße und ohne Gleis darunter"],
               ["biking, walking", "ob Räder fahren und Fußgänger gehen dürfen (Vorgabe: ja, auf einem reinen Gleis nein)"],
               ["bike_lane", "ein Radweg; nimmt eine Autospur weg und braucht biking (Vorgabe: nein)"],
               ["speed_limit", "Tempolimit in km/h (Vorgabe: 50)"],
               ["lanes", "Spuren der ganzen Straße, Bus- und Radspur eingeschlossen (Vorgabe: 1)"],
               ["dedicated_bus_lane", "eine Busspur; nimmt eine Autospur weg (Vorgabe: nein)"],
+              ["tram_track", "nur bei tram: lane, das Gleis liegt in der Autospur und die Tram steht mit den Autos im Stau, oder own, ein eigenes Gleis, das eine Autospur wegnimmt (Vorgabe: lane)"],
               ["max_lanes", "wie viele Spuren die Straße höchstens haben kann (Vorgabe: 2)"],
             ],
           },
@@ -1222,8 +1232,9 @@ export const de = {
               ["name", "der Name der Linie, z. B. M1 oder U6"],
               ["edges", "die Nummern der Kanten, über die sie fährt, gezählt ab 0"],
               ["interval", "der Takt in Minuten (Vorgabe: 5)"],
-              ["capacity", "Plätze im Fahrzeug (Vorgabe: Bus 85, Bahn 1.000)"],
-              ["speed_kmh", "Reisetempo (Vorgabe: Bus 30, Bahn 40)"],
+              ["kind", "nur bei einer Bahnlinie: train für S- und U-Bahn, tram für eine Tram (Vorgabe: train)"],
+              ["capacity", "Plätze im Fahrzeug (Vorgabe: Bus 85, Bahn 1.000, Tram 248)"],
+              ["speed_kmh", "Reisetempo (Vorgabe: Bus 30, Bahn 40, Tram 30)"],
             ],
           },
         ] as { title: string; fields: [string, string][] }[],
@@ -1375,6 +1386,16 @@ export const de = {
       streetSummary: (speed: number, lanes: number) =>
         `Straße (${speed} km/h, ${lanes} ${lanes === 1 ? "Spur" : "Spuren"})`,
       busLaneSuffix: "+ Busspur",
+      /** Where the rails lie, on a link that is street and railway at once. */
+      tramTrack: "Gleis",
+      tramTracks: {
+        "": "daneben oder darunter",
+        lane: "in der Autospur",
+        own: "eigenes Gleis (eine Spur)",
+      } as Record<string, string>,
+      /** The rails' badge, saying where they lie when they lie in the street. */
+      rails: (track: string) =>
+        track === "lane" ? "Bahn, in der Autospur" : track === "own" ? "Bahn, eigenes Gleis" : "Bahn",
       addStreet: "+ Straße anlegen",
       addTrain: "+ Bahn anlegen",
       /**
@@ -1424,8 +1445,13 @@ export const de = {
        * ("bus" / "train"), which went on screen raw — a data value is not copy,
        * but it becomes copy the moment it is rendered.
        */
-      kind: (type: string) => (type === "bus" ? "Bus" : "Bahn"),
-      unnamed: (type: string) => (type === "bus" ? "Buslinie" : "Bahnlinie"),
+      kind: (type: string, kind?: string) =>
+        type === "bus" ? "Bus" : kind === "tram" ? "Tram" : "Bahn",
+      unnamed: (type: string, kind?: string) =>
+        type === "bus" ? "Buslinie" : kind === "tram" ? "Tramlinie" : "Bahnlinie",
+      /** A train line's kind: what runs it, and so its seats, speed and figures. */
+      kindLabel: "Art",
+      kinds: { train: "S- oder U-Bahn", tram: "Tram" } as Record<string, string>,
       editBus: "Buslinie bearbeiten",
       editTrain: "Bahnlinie bearbeiten",
       routeCount: (edges: number) => `Route (${edges} Kanten)`,

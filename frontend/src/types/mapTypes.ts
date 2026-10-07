@@ -41,6 +41,13 @@ export interface Edge {
     speed_limit: number;
     lanes: number;
     dedicated_bus_lane: boolean;
+    /**
+     * Where the street's rails lie: "" none, or beside or under it (the U2
+     * under Bismarckstraße); "lane" in the car lane, where a tram waits with
+     * the cars; "own" a lane of their own, taken from `lanes` like a bus lane.
+     * Optional only because a fixture or a graph cached before it may not say.
+     */
+    tram_track?: "" | "lane" | "own";
   } | null;
   train_edge?: {
     id: number;

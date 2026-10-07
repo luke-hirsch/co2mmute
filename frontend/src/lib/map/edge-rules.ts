@@ -2,9 +2,9 @@
  * Who may use a link — the client's copy of a rule the backend already owns.
  *
  * `lanes` counts the whole street, every reservation included, so ticking
- * "Busspur" or "Radweg" **is** the trade-off: it takes a lane off the cars. When
- * it takes the last one the street becomes a **gate** — closed to cars, open to
- * buses, bikes and pedestrians. Zero car lanes is legal and deliberate (Lukas:
+ * "Busspur", "Radweg" or a tram's "eigenes Gleis" **is** the trade-off: it takes
+ * a lane off the cars. When it takes the last one the street becomes a **gate**
+ * — closed to cars, open to buses, trams, bikes and pedestrians. Zero car lanes is legal and deliberate (Lukas:
  * "if that means a road gets closed for the car entirely, then this is what it
  * is. People can decide and vote about it").
  *
@@ -51,6 +51,9 @@ export function carLanes(edge: Edge): number {
   let reserved = 0;
   if (street.dedicated_bus_lane) reserved += 1;
   if (edge.bike_lane) reserved += 1;
+  // A tram's own track is a lane taken like the two above. Rails in the car
+  // lane take nothing: the cars drive on them.
+  if (street.tram_track === "own") reserved += 1;
 
   return Math.max(0, street.lanes - reserved);
 }

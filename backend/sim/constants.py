@@ -21,6 +21,13 @@ BUS_EMISSIONS_G_PER_VEHICLE_KM = 1200.0  # g CO2e per bus-km
 # the timetable runs whether anyone rides it or not, so on a map with six
 # train lines this number alone sets the floor under every round.
 TRAIN_EMISSIONS_G_PER_VEHICLE_KM = 1500.0  # g CO2e per train-km
+# A low-floor tram of 30 to 40 m: 3.9 kWh per tram-km, the figure Bremen's
+# 240-place trams drew in 2010 (Deiters 2009, Tab. 5, with the Standardisierte
+# Bewertung's own rates beside it), times the same 363 g CO2/kWh as the train.
+# 1416 g, rounded down to 1400. The sources span 2.76 kWh (Standardisierte
+# Bewertung 2016, a 30 m car) to 4.55 (Wiener Linien's whole fleet in 2012,
+# heating and all); Berlin's Flexity is a 40 m car with 248 places.
+TRAM_EMISSIONS_G_PER_VEHICLE_KM = 1400.0  # g CO2e per tram-km
 
 # Speed-dependent CO2 for cars, COPERT/HBEFA-style: an emission factor as a
 # continuous function of the average speed on a link.
@@ -38,6 +45,11 @@ MAX_CAR_EMISSION_FACTOR = 2.0
 CAR_COST_PER_KM = 0.32  # € per vehicle-km
 BUS_COST_PER_VEHICLE_KM = 4.5  # € per bus-km
 TRAIN_COST_PER_VEHICLE_KM = 12.0  # € per train-km
+# Deiters 2009, Tab. 5, on the Standardisierte Bewertung's rates: a low-floor
+# tram costs 4.47 € per vehicle-km where a 12 m solo bus costs 2.82, 1.59
+# times as much. Applied to the bus above rather than taken in 2009 euros, so
+# the two keep the ratio the source measured.
+TRAM_COST_PER_VEHICLE_KM = 7.10  # € per tram-km
 
 # known estimate
 CAR_COST_TRAFFIC_SHARE = 0.5
@@ -56,6 +68,11 @@ SATURATION_FLOW_VEH_PER_H_LANE = 1800.0
 
 # bus size = 3x car
 BUS_PCU = 3.0
+
+# A tram where its rails lie in the car lane, in the same units: Berlin's
+# Flexity is 40 m long, and a car takes 7.5 m of a jammed lane
+# (1000 / JAM_DENSITY_VEH_PER_KM_LANE), so 5.3 cars' worth of street.
+TRAM_PCU = 5.3
 
 # A bicycle in mixed traffic, in the same units. HCM/HBS put a bicycle at
 # roughly a fifth of a car: it is short, and riders do not keep a car's
@@ -142,23 +159,30 @@ def car_cost_eur_per_km(speed_kmh: float) -> float:
 PT_FARE_EUR = 1.30
 
 
-def pt_emissions_g_per_vehicle_km(mode: str) -> float:
+def pt_emissions_g_per_vehicle_km(vehicle: str) -> float:
     """CO2 per vehicle-km for a PT vehicle. Per VEHICLE, never per seat.
+
+    `vehicle` is "bus", "train" or "tram" — a line's kind where it has one,
+    its mode where it does not (`PTLineState.vehicle`).
 
     Dividing by capacity is what made an empty bus as clean as a full one and
     a line nobody rides free. The seats do not come into it: the vehicle runs
     because the timetable says so.
     """
-    return (
-        TRAIN_EMISSIONS_G_PER_VEHICLE_KM
-        if mode == "train"
-        else BUS_EMISSIONS_G_PER_VEHICLE_KM
-    )
+    if vehicle == "train":
+        return TRAIN_EMISSIONS_G_PER_VEHICLE_KM
+    if vehicle == "tram":
+        return TRAM_EMISSIONS_G_PER_VEHICLE_KM
+    return BUS_EMISSIONS_G_PER_VEHICLE_KM
 
 
-def pt_cost_eur_per_vehicle_km(mode: str) -> float:
+def pt_cost_eur_per_vehicle_km(vehicle: str) -> float:
     """Operating cost per vehicle-km for a PT vehicle. Per VEHICLE."""
-    return TRAIN_COST_PER_VEHICLE_KM if mode == "train" else BUS_COST_PER_VEHICLE_KM
+    if vehicle == "train":
+        return TRAIN_COST_PER_VEHICLE_KM
+    if vehicle == "tram":
+        return TRAM_COST_PER_VEHICLE_KM
+    return BUS_COST_PER_VEHICLE_KM
 
 
 def generate_departure_minutes(

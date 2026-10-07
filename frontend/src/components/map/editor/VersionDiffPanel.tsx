@@ -10,7 +10,7 @@ import {
 } from "@/components/map/editor/editor-panel";
 import { de } from "@/lib/de";
 import { cn } from "@/lib/utils";
-import { defaultPtCapacity } from "@/lib/map/pt-defaults";
+import { defaultPtCapacity, defaultPtSpeed } from "@/lib/map/pt-defaults";
 import type { Dispatch } from "react";
 import type { MapVersion, Edge } from "../../../types/mapTypes";
 import type { ExtendedMapGraph, PTLine } from "../../../types/routeTypes";
@@ -116,8 +116,9 @@ const VersionDiffPanel = ({
   // Local form state for PT line draft
   const [ptDraftName, setPtDraftName] = useState("");
   const [ptDraftInterval, setPtDraftInterval] = useState(5);
-  const [ptDraftCapacity, setPtDraftCapacity] = useState(60);
-  const [ptDraftSpeed, setPtDraftSpeed] = useState(30);
+  const [ptDraftCapacity, setPtDraftCapacity] = useState(defaultPtCapacity("bus"));
+  const [ptDraftSpeed, setPtDraftSpeed] = useState(defaultPtSpeed("bus"));
+  const [ptDraftKind, setPtDraftKind] = useState<"train" | "tram">("train");
   const [ptDraftError, setPtDraftError] = useState<string | null>(null);
 
   const sourceVersionId = selectedVersionId ?? mapGraph?.version_id;
@@ -208,12 +209,13 @@ const VersionDiffPanel = ({
       name: "",
       interval: 5,
       capacity: defaultPtCapacity(type),
-      speed_kmh: type === "bus" ? 30 : 60,
+      speed_kmh: defaultPtSpeed(type),
     });
     setPtDraftName("");
     setPtDraftInterval(5);
     setPtDraftCapacity(defaultPtCapacity(type));
-    setPtDraftSpeed(type === "bus" ? 30 : 60);
+    setPtDraftSpeed(defaultPtSpeed(type));
+    setPtDraftKind("train");
     setPtLineEdgeIds([]);
     setPtDraftError(null);
   };
@@ -236,6 +238,7 @@ const VersionDiffPanel = ({
     setPtDraftInterval(existingChange?.interval ?? line.interval);
     setPtDraftCapacity(existingChange?.capacity ?? line.capacity);
     setPtDraftSpeed(existingChange?.speed_kmh ?? line.speed_kmh);
+    setPtDraftKind(existingChange?.kind ?? line.kind ?? "train");
     // Restore previously saved edges or use original line edges
     const savedEdgeIds = existingChange?.edge_ids;
     if (savedEdgeIds) {
@@ -291,6 +294,7 @@ const VersionDiffPanel = ({
       id: versionDiffEditingPtLine.existingLineId,
       action: versionDiffEditingPtLine.action,
       line_type: type,
+      ...(type === "train" ? { kind: ptDraftKind } : {}),
       name: ptDraftName || undefined,
       interval: ptDraftInterval,
       capacity: ptDraftCapacity,
@@ -641,6 +645,27 @@ const VersionDiffPanel = ({
                 className={editorControl}
               />
             </EditorField>
+            {versionDiffEditingPtLine.line_type === "train" && (
+              <EditorField label={de.editor.ptLine.kindLabel}>
+                <select
+                  value={ptDraftKind}
+                  onChange={(e) => {
+                    const kind = e.target.value as "train" | "tram";
+                    setPtDraftKind(kind);
+                    // A new line starts at its kind's seats and speed; a line
+                    // being changed keeps the numbers it has.
+                    if (versionDiffEditingPtLine.action === "add") {
+                      setPtDraftCapacity(defaultPtCapacity(kind));
+                      setPtDraftSpeed(defaultPtSpeed(kind));
+                    }
+                  }}
+                  className={editorControl}
+                >
+                  <option value="train">{de.editor.ptLine.kinds.train}</option>
+                  <option value="tram">{de.editor.ptLine.kinds.tram}</option>
+                </select>
+              </EditorField>
+            )}
             <div className="grid grid-cols-3 gap-1">
               <EditorField label={de.editor.ptLine.interval}>
                 <input
@@ -737,7 +762,7 @@ const VersionDiffPanel = ({
                     >
                       <div className="min-w-0 flex-1 space-x-1">
                         <Badge variant="outline">
-                          {de.editor.ptLine.kind(line.type)}
+                          {de.editor.ptLine.kind(line.type, line.kind)}
                         </Badge>
                         <span className="text-xs font-medium">{line.name}</span>
                         {changeAction && (
@@ -861,7 +886,7 @@ const VersionDiffPanel = ({
                   >
                     {de.editor.version.action(change.action)}
                   </Badge>
-                  {change.name || de.editor.ptLine.unnamed(change.line_type)}
+                  {change.name || de.editor.ptLine.unnamed(change.line_type, change.kind)}
                 </ChangeRow>
               ))}
             </ChangeGroup>

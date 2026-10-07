@@ -33,8 +33,11 @@ from maps.models import (
 )
 from maps.portability import (
     DEFAULT_POLL_TEXT,
+    EDGE_TYPES,
+    TRAM_TRACKS,
     base_index,
     chain_groups,
+    edge_type_error,
     element_versions,
     states_a_street,
     validate_versions,
@@ -352,11 +355,23 @@ class MapImporter:
 
                 # Validate edge type
                 edge_type = edge.get("type", "both")
-                if edge_type not in ("street", "train", "both", "path"):
-                    errors.append(
-                        f"Kante {idx}: 'type' muss 'street', 'train', 'both' oder "
-                        f"'path' sein, hier steht '{edge_type}'."
-                    )
+                if edge_type not in EDGE_TYPES:
+                    errors.append(edge_type_error(f"Kante {idx}", edge_type))
+                # Where a tram's rails lie is a fact of a tram street only:
+                # `both` is rails beside or under the street, and a street
+                # with no rails has no track to put anywhere.
+                if "tram_track" in edge:
+                    track = edge["tram_track"]
+                    if edge_type != "tram":
+                        errors.append(
+                            f"Kante {idx}: tram_track steht nur an einer Kante "
+                            f"mit 'type': 'tram', hier ist sie '{edge_type}'."
+                        )
+                    elif track not in TRAM_TRACKS:
+                        errors.append(
+                            f"Kante {idx}: tram_track muss 'lane' oder 'own' "
+                            f"sein, hier steht '{track}'."
+                        )
                 # A bike lane implies bike access. Read against the same
                 # default _create_edges uses, so a train edge that asks for a
                 # bike lane has to say `biking` too rather than inherit a
@@ -383,6 +398,12 @@ class MapImporter:
             errors += self._line_edge_errors(
                 f"Bahnlinie '{train_name}'", train_line, edges_data
             )
+            kind = train_line.get("kind", TrainLine.KIND_TRAIN)
+            if kind not in TrainLine.DEFAULTS:
+                errors.append(
+                    f"Bahnlinie '{train_name}': kind muss 'train' oder 'tram' "
+                    f"sein, hier steht '{kind}'."
+                )
 
         return errors
 
@@ -661,6 +682,9 @@ class MapImporter:
             edge = edge_mapping[edge_idx]
             edge_type = edge_data.get("type", "both")
             own = element_versions(edge_data, "versions", [base_idx], len(versions))
+            # A tram street is a street with rails in it, whatever else the
+            # entry states: the type says both.
+            is_tram = edge_type == "tram"
 
             # Create StreetEdge if type is 'street' or 'both' — but only when
             # the file actually states a street. `"type": "path"` says there is
@@ -669,19 +693,26 @@ class MapImporter:
             # the shipped map were written before the type existed. Creating one
             # anyway handed each of them 50 km/h and a lane, which is a car
             # shortcut past three front doors that nobody drew.
-            if edge_type in ("street", "both") and states_a_street(edge_data):
+            if is_tram or (
+                edge_type in ("street", "both") and states_a_street(edge_data)
+            ):
                 street_edge = StreetEdge.objects.create(
                     edge=edge,
                     speed_limit=edge_data.get("speed_limit", 50),
                     lanes=edge_data.get("lanes", 1),
                     dedicated_bus_lane=edge_data.get("dedicated_bus_lane", False),
+                    tram_track=(
+                        edge_data.get("tram_track", StreetEdge.TRAM_TRACK_LANE)
+                        if is_tram
+                        else StreetEdge.TRAM_TRACK_NONE
+                    ),
                 )
                 street_edge.map_versions.add(
                     *self._sub_versions(edge_data, "street_versions", own, versions)
                 )
 
-            # Create TrainEdge if type is 'train' or 'both'
-            if edge_type in ("train", "both"):
+            # Create TrainEdge if type is 'train', 'both' or 'tram'
+            if edge_type in ("train", "both", "tram"):
                 train_edge = TrainEdge.objects.create(edge=edge)
                 train_edge.map_versions.add(
                     *self._sub_versions(edge_data, "train_versions", own, versions)
@@ -731,12 +762,17 @@ class MapImporter:
             # the bus above all say 5: three places, two answers, the same shape
             # as the 60-seat U-Bahn. A file without an interval asked for a
             # timetable and got half of one.
+            kind = train_line_data.get("kind", TrainLine.KIND_TRAIN)
+            defaults = TrainLine.DEFAULTS[kind]
             train_line = TrainLine.objects.create(
                 game_map=game_map,
                 name=train_line_data["name"],
+                kind=kind,
                 intervall=train_line_data.get("interval", 5),
-                train_capacity=train_line_data.get("capacity", 1000),
-                train_speed_kmh=train_line_data.get("speed_kmh", 40),
+                train_capacity=train_line_data.get("capacity", defaults["capacity"]),
+                train_speed_kmh=train_line_data.get(
+                    "speed_kmh", defaults["speed_kmh"]
+                ),
             )
             line_indices = version_indices(train_line_data, len(versions), base_idx)
             train_line.map_versions.add(*[versions[i] for i in line_indices])

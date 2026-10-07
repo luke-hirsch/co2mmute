@@ -62,6 +62,40 @@ describe("carLanes", () => {
   });
 });
 
+const withTramTrack = (lanes: number, track: "" | "lane" | "own") =>
+  edge({
+    street_edge: {
+      id: 1,
+      speed_limit: 30,
+      lanes,
+      dedicated_bus_lane: false,
+      tram_track: track,
+    },
+    train_edge: { id: 1 },
+  });
+
+describe("carLanes with rails in the street", () => {
+  // Friedrichstraße north: one lane, the M1's rails in it. The cars drive on
+  // the rails, so they lose nothing; the tram's own track is a lane taken
+  // from the street like a bus lane, and on one lane it is the last one.
+  it("leaves the car lane to the cars where the rails lie in it", () => {
+    expect(carLanes(withTramTrack(1, "lane"))).toBe(1);
+  });
+
+  it("takes a lane for the tram's own track", () => {
+    expect(carLanes(withTramTrack(2, "own"))).toBe(1);
+  });
+
+  it("closes a one-lane street to cars once the tram has its own track", () => {
+    expect(canDriveOn(withTramTrack(1, "own"))).toBe(false);
+  });
+
+  it("takes nothing for rails beside or under the street", () => {
+    // The U2 under Bismarckstraße.
+    expect(carLanes(withTramTrack(2, ""))).toBe(2);
+  });
+});
+
 describe("canDriveOn", () => {
   it("allows the shipped map's bus-lane streets, which keep a car lane", () => {
     // Berlin Mitte-West: all 30 `Busspuren` edges are two-lane, so the version

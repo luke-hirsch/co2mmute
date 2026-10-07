@@ -45,6 +45,12 @@ class Link:
 
     `speed_limit_kmh` is read only on a street; zero or less there means "not
     set", and the engine falls back to the map's default car speed and says so.
+
+    `tram_track` says where a street's rails lie, and only a street has one:
+    "" for none, or rails beside or under it (the U2 under Bismarckstraße, the
+    median track on Landsberger Allee); "lane" for rails in the car lane,
+    where whatever runs on them waits with the cars (Friedrichstraße north);
+    "own" for a lane of their own, taken from `lanes` like a bus lane.
     """
 
     edge_id: int
@@ -56,6 +62,7 @@ class Link:
     lanes: int = 1
     has_dedicated_bus_lane: bool = False
     has_bike_lane: bool = False
+    tram_track: str = ""
     # The map's own name for the link, for the server log, and "A → B" for the
     # report the host downloads.
     name: str = ""
@@ -90,6 +97,10 @@ class Line:
 
     `edge_ids` in travel order, each the link the line actually drives. The
     engine runs it as far as the links connect and charges only that far.
+
+    `kind` is what runs it where that is not the mode's own vehicle: "tram"
+    for a train line run by trams. It sets the figures per vehicle-km and the
+    room a vehicle takes in a queue; which links it may use is the mode's.
     """
 
     mode: str  # "bus" or "train"
@@ -98,6 +109,7 @@ class Line:
     edge_ids: tuple[int, ...]
     interval_min: int
     capacity: int
+    kind: str = ""
 
 
 @dataclass(frozen=True)

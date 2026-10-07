@@ -234,11 +234,29 @@ class Edge(models.Model):
 
 
 class StreetEdge(models.Model):
+    # Where the street's rails lie, if it has any (the edge's `TrainEdge`).
+    # None, or beside or under it: the U2 under Bismarckstraße, the median
+    # track on Landsberger Allee — the train passes the jam. In the car lane:
+    # whatever runs on the rails waits with the cars and they behind it, as
+    # the M1 does on Friedrichstraße north. Its own track: a lane taken from
+    # `lanes` like a bus lane, and the ballot change between the two.
+    TRAM_TRACK_NONE = ""
+    TRAM_TRACK_LANE = "lane"
+    TRAM_TRACK_OWN = "own"
+    TRAM_TRACK_CHOICES = [
+        (TRAM_TRACK_NONE, "keins in der Fahrbahn"),
+        (TRAM_TRACK_LANE, "Gleis in der Fahrspur"),
+        (TRAM_TRACK_OWN, "eigenes Gleis"),
+    ]
+
     edge = models.ForeignKey(Edge, on_delete=models.CASCADE)
     map_versions = models.ManyToManyField(MapVersion)
     speed_limit = models.PositiveSmallIntegerField(default=50)
     lanes = models.PositiveSmallIntegerField(default=1)
     dedicated_bus_lane = models.BooleanField(default=False)
+    tram_track = models.CharField(
+        max_length=4, choices=TRAM_TRACK_CHOICES, default=TRAM_TRACK_NONE, blank=True
+    )
 
     def clean(self) -> None:
         game_map_clean(self.map_versions.all(), self.edge.game_map)
@@ -313,9 +331,32 @@ class TrainEdge(models.Model):
 
 
 class TrainLine(models.Model):
+    # A tram is a train line run by trams: it rides rails, stops where a
+    # train does and is found by the same router. Its kind sets its figures
+    # per vehicle-km (`sim/constants.py`) and its length in a queue, where
+    # its rails lie in the car lane (`StreetEdge.tram_track`).
+    KIND_TRAIN = "train"
+    KIND_TRAM = "tram"
+    KIND_CHOICES = [(KIND_TRAIN, "S- oder U-Bahn"), (KIND_TRAM, "Tram")]
+    # What a new line of each kind starts with where nobody says otherwise —
+    # the importer and the version builder read these, the editor its mirror
+    # in `frontend/src/lib/map/pt-defaults.ts`. A tram: Berlin's Flexity,
+    # 40 m, 84 seats and 164 standing at 4 people/m² (Bombardier's datasheet),
+    # and the bus's 30 km/h (Lukas, 2026-10-07). BVG's own averages put the
+    # two level — tram 17.1, bus 17.9 km/h in 2025 (BVG in Zahlen) — but they
+    # count stops and traffic, and the model has no dwell time: the bus's 30
+    # leaves its stops out too, and a tram's top speed is higher. 20, what the
+    # fastest tram lines average, made every tram slower than every bus and
+    # lost the 101 a third of its riders, measured as a tram at normal.
+    DEFAULTS = {
+        KIND_TRAIN: {"capacity": 1000, "speed_kmh": 40},
+        KIND_TRAM: {"capacity": 248, "speed_kmh": 30},
+    }
+
     game_map = models.ForeignKey(GameMap, on_delete=models.CASCADE)
     map_versions = models.ManyToManyField(MapVersion)
     name = models.CharField(max_length=20)
+    kind = models.CharField(max_length=5, choices=KIND_CHOICES, default=KIND_TRAIN)
     intervall = models.PositiveSmallIntegerField(default=5)
     train_capacity = models.PositiveIntegerField(default=1000)
     train_speed_kmh = models.PositiveSmallIntegerField(default=40)

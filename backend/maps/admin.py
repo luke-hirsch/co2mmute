@@ -248,12 +248,12 @@ class EdgeAdmin(admin.ModelAdmin):
 
 @admin.register(StreetEdge)
 class StreetEdgeAdmin(admin.ModelAdmin):
-    list_display = ("edge", "speed_limit", "lanes", "dedicated_bus_lane")
+    list_display = ("edge", "speed_limit", "lanes", "dedicated_bus_lane", "tram_track")
     search_fields = (
         "edge__name",
         "edge__game_map__name",
     )
-    list_filter = ("dedicated_bus_lane",)
+    list_filter = ("dedicated_bus_lane", "tram_track")
     ordering = ("edge__game_map__name", "edge__name")
 
 
@@ -274,7 +274,7 @@ class BusLineAdmin(admin.ModelAdmin):
 
 @admin.register(TrainLine)
 class TrainLineAdmin(admin.ModelAdmin):
-    list_display = ("name", "game_map", "intervall", "train_capacity")
+    list_display = ("name", "game_map", "kind", "intervall", "train_capacity")
     search_fields = ("name", "game_map__name")
-    list_filter = ("game_map",)
+    list_filter = ("game_map", "kind")
     ordering = ("game_map", "name")

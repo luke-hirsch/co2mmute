@@ -330,6 +330,7 @@ class TrafficSimulator(LinkQueueEngine):
                     tuple(edge.pk for edge in edges),
                     line.intervall,
                     line.train_capacity,
+                    kind=line.kind,
                 )
             )
         return lines
@@ -414,6 +415,7 @@ class TrafficSimulator(LinkQueueEngine):
                         street_edge.dedicated_bus_lane if street_edge else False
                     ),
                     has_bike_lane=edge.bike_lane,
+                    tram_track=street_edge.tram_track if street_edge else "",
                     name=edge.name or "",
                     label=f"{start_name} → {end_name}",
                 )

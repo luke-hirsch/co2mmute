@@ -24,7 +24,7 @@ from django.urls import reverse
 
 from game.tests._helpers import TEST_BACKENDS
 from maps import views_rest
-from maps.models import Edge, Node, StreetEdge, TrainEdge
+from maps.models import Edge, Node, StreetEdge, TrainEdge, TrainLine
 from maps.tests.test_versions import VersionFixtureMixin
 
 
@@ -189,3 +189,84 @@ class GraphAfterAWriteTests(VersionFixtureMixin, TestCase):
             self._edge(f"X{i}", len(self.nodes) - 1, 0, street=True, rail=True)
 
         self.assertEqual(queries_for_a_fresh_graph(), small)
+
+
+@override_settings(**TEST_BACKENDS)
+class TramWritesTests(VersionFixtureMixin, TestCase):
+    """What the editor writes for a tram: the street's track, the line's kind.
+
+    Edge B is street and rail; edge A is a street with no rails under it.
+    """
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="staff", password="password123", is_staff=True
+        )
+        self.client.force_login(self.user)
+        self.build_map()
+
+    def patch_street(self, edge, data):
+        street = StreetEdge.objects.get(edge=edge)
+        return self.client.patch(
+            reverse(
+                "maps:streetedge-detail",
+                kwargs={"pk": self.game_map.pk, "streetedge_pk": street.pk},
+            ),
+            data=data,
+            content_type="application/json",
+        )
+
+    def graph_street(self, edge):
+        response = self.client.get(
+            reverse("maps:mapversion-graph", kwargs={"pk": self.game_map.pk})
+        )
+        edges = {e["id"]: e for e in response.json()["edges"]}
+        return edges[edge.pk]["street_edge"]
+
+    def test_rails_in_the_car_lane_are_set_on_the_street(self):
+        response = self.patch_street(self.edge_b, {"tram_track": "lane"})
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(self.graph_street(self.edge_b)["tram_track"], "lane")
+
+    def test_a_street_with_no_rails_under_it_refuses_a_track(self):
+        response = self.patch_street(self.edge_a, {"tram_track": "own"})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("tram_track", response.json())
+        self.assertEqual(StreetEdge.objects.get(edge=self.edge_a).tram_track, "")
+
+    def test_taking_the_rails_away_takes_the_track_with_them(self):
+        """Or the street would keep a lane reserved for a tram that has no rails."""
+        self.patch_street(self.edge_b, {"tram_track": "own"})
+        rails = TrainEdge.objects.get(edge=self.edge_b)
+
+        response = self.client.delete(
+            reverse(
+                "maps:trainedge-detail",
+                kwargs={"pk": self.game_map.pk, "trainedge_pk": rails.pk},
+            )
+        )
+
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(StreetEdge.objects.get(edge=self.edge_b).tram_track, "")
+        self.assertEqual(self.graph_street(self.edge_b)["tram_track"], "")
+
+    def test_a_train_line_is_written_with_its_kind(self):
+        response = self.client.post(
+            reverse("maps:trainline-list", kwargs={"pk": self.game_map.pk}),
+            data={
+                "game_map": self.game_map.pk,
+                "name": "M1",
+                "kind": "tram",
+                "intervall": 10,
+                "train_capacity": 248,
+                "train_speed_kmh": 30,
+                "map_versions": [self.base.pk],
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(TrainLine.objects.get(name="M1").kind, "tram")
+        self.assertEqual(response.json()["kind"], "tram")

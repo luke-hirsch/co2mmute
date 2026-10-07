@@ -399,6 +399,64 @@ class CheckMapTests(SimpleTestCase):
         self.assertEqual(self.found(flat), [])
 
 
+class TramCheckTests(SimpleTestCase):
+    """A→B becomes a tram street: the M1's rails in the car lane, both ways."""
+
+    def setUp(self):
+        self.graph = small_map()
+        for idx in (2, 3):
+            self.graph["edges"][idx]["type"] = "tram"
+            self.graph["edges"][idx]["tram_track"] = "lane"
+        tram = {"interval": 10, "capacity": 248, "speed_kmh": 20, "kind": "tram"}
+        self.graph["train_lines"] += [
+            {"name": "M1", "versions": [0, 1], "edges": [2], **tram},
+            {"name": "M1 reverse", "versions": [0, 1], "edges": [3], **tram},
+        ]
+
+    def checks(self):
+        return {problem.check for problem in check_map(self.graph)}
+
+    def test_a_tram_on_rails_in_the_car_lane_is_sound(self):
+        self.assertEqual(check_map(self.graph), [])
+
+    def test_an_s_or_u_bahn_on_rails_in_the_car_lane_is_reported(self):
+        self.graph["train_lines"][2]["kind"] = "train"
+
+        problems = [p for p in check_map(self.graph) if p.check == "train-in-car-lane"]
+
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIn("M1", problems[0].message)
+        self.assertIn("Kante 2", problems[0].message)
+
+    def test_a_line_that_does_not_say_its_kind_is_a_train(self):
+        del self.graph["train_lines"][3]["kind"]
+
+        self.assertIn("train-in-car-lane", self.checks())
+
+    def test_its_own_track_takes_any_train(self):
+        """The rule is the car lane: on its own track nothing waits with cars."""
+        for idx in (2, 3):
+            self.graph["edges"][idx]["tram_track"] = "own"
+            self.graph["edges"][idx]["lanes"] = 2
+        self.graph["train_lines"][2]["kind"] = "train"
+
+        self.assertNotIn("train-in-car-lane", self.checks())
+
+    def test_a_tram_street_without_its_rails_in_a_version_is_reported(self):
+        self.graph["edges"][2]["train_versions"] = [0]
+
+        problems = [p for p in check_map(self.graph) if p.check == "tram-without-rails"]
+
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIn("Umgehung", problems[0].message)
+        self.assertNotIn("Klein", problems[0].message)
+
+    def test_a_tram_street_states_its_numbers_like_a_street(self):
+        del self.graph["edges"][2]["lanes"]
+
+        self.assertIn("street-numbers", self.checks())
+
+
 class CheckMapCommandTests(SimpleTestCase):
     def run_command(self, *paths):
         out = StringIO()

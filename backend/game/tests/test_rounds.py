@@ -1181,6 +1181,28 @@ class BusGateSubmitTests(GateFixtureMixin, TestCase):
             msg=f"expected a bus-lane refusal, got {errors}",
         )
 
+    def test_a_one_lane_street_with_its_own_tram_track_refuses_a_car(self):
+        """Friedrichstraße north once the M1 has its own track: no car lane."""
+        self.street.lanes = 1
+        self.street.tram_track = "own"
+        self.street.save()
+
+        errors = self._validate()
+
+        self.assertIsNotNone(errors)
+        self.assertTrue(
+            any("tram track" in error for error in errors),
+            msg=f"expected a tram-track refusal, got {errors}",
+        )
+
+    def test_rails_in_the_car_lane_still_take_a_car(self):
+        """The cars drive on the rails; nothing is taken from them."""
+        self.street.lanes = 1
+        self.street.tram_track = "lane"
+        self.street.save()
+
+        self.assertIsNone(self._validate())
+
     def test_an_edge_with_no_street_at_all_refuses_a_car(self):
         """The check this replaces short-circuited and never ran."""
         self.street.delete()
