@@ -36,40 +36,33 @@ class GameMap(models.Model):
     bike_speed_kmh = models.PositiveSmallIntegerField(default=20)
     default_car_speed_kmh = models.PositiveSmallIntegerField(default=50)
 
-    # What a game on this map is played against. Both belong here rather than
-    # in code because both are properties of THIS graph: how much traffic its
-    # corridors carry, and what a playable round costs on its distances and
-    # its timetable. Another city is another pair. `game/calibration.py` has
-    # the measurements the shipped defaults come from — they are
-    # Berlin_Mitte-West's, and a smaller map wants smaller ones.
+    # What a game on this map is played against: its traffic. A property of
+    # THIS graph — the car demand its corridors carry at the real city's rush
+    # hour — so another city is another count. `game/calibration.py` has the
+    # measurement the default comes from: Berlin_Mitte-West's, and a smaller
+    # map wants a smaller one. The budget is not here since F8 step 2b: it is
+    # kg per person per round, the same on every map, the game's own field.
     district_commuters = models.PositiveIntegerField(
-        default=6400,
+        default=6800,
         help_text=(
             "Pendler, die die Straßen dieser Karte im Berufsverkehr "
             "verkraften. Wird auf die Gruppen aufgeteilt, damit auf der "
             "Karte gleich viel Verkehr ist, egal wie viele mitspielen."
         ),
     )
-    co2_budget_kg_per_round = models.PositiveIntegerField(
-        default=16000,
-        help_text=(
-            "Vorschlag für das CO₂-Budget, pro Runde in kg. Genug, wenn viele "
-            "umsteigen, zu wenig, wenn alle mit dem Auto fahren."
-        ),
-    )
-    # Whether the two numbers above were measured on THIS map. S21. Every map
-    # starts at the Berlin defaults, and comparing against them cannot tell a
-    # small map that inherited them from the one map they were measured on —
-    # so the map says it. False until somebody who replayed rounds on it says
+    # Whether the number above was measured on THIS map. S21. Every map
+    # starts at the Berlin default, and comparing against it cannot tell a
+    # small map that inherited it from the one map it was measured on — so
+    # the map says it. False until somebody who replayed rounds on it says
     # otherwise; the create form warns while it is. It travels in the file,
-    # and only an explicit `true` beside both numbers counts
+    # and only an explicit `true` beside the number counts
     # (`maps/importer.py`).
     calibrated = models.BooleanField(
         default=False,
         help_text=(
-            "Ob Pendlerzahl und CO₂-Budget für diese Karte gemessen sind. "
-            "Solange nicht, warnt das Formular „Spiel anlegen“, dass die "
-            "Vorschläge nicht zur Karte passen müssen."
+            "Ob die Pendlerzahl für diese Karte gemessen ist. Solange nicht, "
+            "warnt das Formular „Spiel anlegen“, dass die Menschen pro Gruppe "
+            "nicht zur Karte passen müssen."
         ),
     )
 

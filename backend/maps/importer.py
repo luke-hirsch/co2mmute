@@ -159,42 +159,44 @@ class MapImporter:
                     # export is the only way a map moves between boxes, so a
                     # key read on the way out and ignored on the way back in is
                     # a field that does not exist off this machine. Absent on
-                    # every map exported before S2, which is why each is
-                    # guarded rather than defaulted — the field default then
-                    # stands, and that is the right answer for an old file.
+                    # every map exported before S2, which is why it is guarded
+                    # rather than defaulted — the field default then stands,
+                    # and that is the right answer for an old file. Files
+                    # written before F8 step 2b also carry
+                    # `co2_budget_kg_per_round`; the budget is kg per person
+                    # now, the same on every map, so that key is left behind.
                     # (`max_player` and the three speeds are still dropped on
                     # import; that half of the round trip is S5's.)
-                    for key in ("district_commuters", "co2_budget_kg_per_round"):
-                        if key in map_meta:
-                            try:
-                                value = int(map_meta[key])
-                            except (TypeError, ValueError):
-                                logger.warning(
-                                    "Map %s: %s is not a number (%r), keeping "
-                                    "the default",
-                                    game_map.pk,
-                                    key,
-                                    map_meta[key],
-                                )
-                                continue
+                    key = "district_commuters"
+                    if key in map_meta:
+                        try:
+                            value = int(map_meta[key])
+                        except (TypeError, ValueError):
+                            logger.warning(
+                                "Map %s: %s is not a number (%r), keeping "
+                                "the default",
+                                game_map.pk,
+                                key,
+                                map_meta[key],
+                            )
+                        else:
                             if value > 0:
-                                setattr(game_map, key, value)
+                                game_map.district_commuters = value
                                 changed.append(key)
-                    # Whether that pair was measured on this map (S21). Only an
-                    # explicit `true` counts, and only beside both numbers: the
-                    # export has written the pair on every map since S2,
-                    # measured or not, so the pair alone says nothing — and a
-                    # flag with no pair would certify the field defaults as
-                    # this map's measurements.
+                    # Whether that count was measured on this map (S21). Only
+                    # an explicit `true` counts, and only beside the count: the
+                    # export has written it on every map since S2, measured or
+                    # not, so the count alone says nothing — and a flag with no
+                    # count would certify the field default as this map's
+                    # measurement.
                     if map_meta.get("calibrated") is True:
-                        pair = {"district_commuters", "co2_budget_kg_per_round"}
-                        if pair <= set(changed):
+                        if key in changed:
                             game_map.calibrated = True
                             changed.append("calibrated")
                         else:
                             logger.warning(
-                                "Map %s: says calibrated but does not state "
-                                "both numbers, keeping it unmeasured",
+                                "Map %s: says calibrated but states no "
+                                "commuter count, keeping it unmeasured",
                                 game_map.pk,
                             )
                     if changed:

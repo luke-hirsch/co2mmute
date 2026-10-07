@@ -595,15 +595,19 @@ class ShippedMapImportsTests(ShippedUploadMixin, TestCase):
             MapVersion.objects.filter(game_map=game_map).count(), VERSION_COUNT
         )
         self.assertEqual(game_map.max_player, 6)
-        self.assertEqual(game_map.district_commuters, 6400)
-        self.assertEqual(game_map.co2_budget_kg_per_round, 16000)
+        self.assertEqual(game_map.district_commuters, 6800)
 
     def test_the_shipped_map_arrives_measured(self):
-        """S2 measured the pair on this map, so the create form must not
+        """F8 measured its commuters on this map, so the create form must not
         warn about it. Every other map starts unmeasured."""
         game_map = self.upload_shipped_map()
 
         self.assertTrue(game_map.calibrated)
+
+    def test_the_file_carries_no_budget(self):
+        """The budget is kg per person, the same on every map (F8 step 2b);
+        a per-map figure left in the file would be read by nobody."""
+        self.assertNotIn("co2_budget_kg_per_round", load_shipped_map()["map"])
 
     def test_the_ballot_survives_the_import(self):
         """`compatible_versions` is the one thing the flattened export lost.

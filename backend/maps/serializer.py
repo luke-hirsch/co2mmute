@@ -96,7 +96,6 @@ class GameMapSerializer(serializers.ModelSerializer):
             "bike_speed_kmh",
             "default_car_speed_kmh",
             "district_commuters",
-            "co2_budget_kg_per_round",
             "calibrated",
             "created",
             "author",

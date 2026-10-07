@@ -69,8 +69,7 @@ export interface GameMap {
   default_car_speed_kmh: number;
   /** The calibration, per map because it is a property of the graph. */
   district_commuters: number;
-  co2_budget_kg_per_round: number;
-  /** Whether that pair was measured on this map, or is still the default. */
+  /** Whether that count was measured on this map, or is still the default. */
   calibrated: boolean;
   /** Whether a game on this map can ever reach a ballot. */
   offers_map_changes: boolean;

@@ -4,10 +4,10 @@
  * This mirrors `backend/game/calibration.py`. It is a mirror on purpose, the
  * same way `lib/map/edge-rules.ts` mirrors the simulation's rule: the whole
  * point of S13 is that the offer follows the class size *while it is being
- * chosen*, and a round trip per keystroke is not that. The inputs both come off
- * the selected map (`GET api/maps/` carries `district_commuters` and
- * `co2_budget_kg_per_round` per row), so nothing here is a constant that could
- * drift away from a particular neighbourhood's measurements.
+ * chosen*, and a round trip per keystroke is not that. The scale comes off the
+ * selected map (`GET api/maps/` carries `district_commuters` per row); the
+ * budget is kg per person per round, the same on every map since F8 step 2b,
+ * so the dial's four numbers are the one constant here, mirrored from Python.
  *
  * What the arithmetic is FOR is in the Python module's docstring and in
  * `docs/kalibrierung.md`; the short version:
@@ -18,11 +18,14 @@
  *   when more students turn up. Pin the scale instead and a half-full class
  *   sees 0.4 min of delay where a full one sees 11.3 — a different game
  *   depending on who came to the lesson.
- * - **The budget carries no Gruppe term**, for the same reason: the district's
- *   population is constant, so a round costs what it costs however many play.
+ * - **The budget is kg per person × the map's commuters × the rounds**, and
+ *   carries no Gruppe term: the district's population is constant, so a round
+ *   costs what it costs however many play. The kg is the host's dial; a map
+ *   with long commutes or a thin timetable is harder at the same kg by itself,
+ *   which is the lesson, not a flaw.
  *
- * Neither is a rule. Both are written into fields the host can type over, and
- * the endpoint takes whatever it is sent.
+ * Neither is a rule. The scale is written into a field the host can type over,
+ * the budget follows the dial, and the endpoint takes whatever it is sent.
  */
 
 /** What the create screen opens on. `game/calibration.py` has the same three. */
@@ -31,7 +34,26 @@ export const DEFAULT_AGENT_PER_PLAYER = 4;
 export const DEFAULT_MAX_ROUNDS = 6;
 
 /**
- * The two fields the derivation reads off whichever map is selected.
+ * The dial: kg of CO₂ per person per round, there and back. Normal is Berlin
+ * Mitte-West's half-driving round, 2.41 kg a head, rounded to the step — a
+ * design anchor, the same on every map. Strings, because they are what the
+ * select holds and what the endpoint's decimal field reads; the arithmetic
+ * below works in tenths so no float ever reaches a budget.
+ */
+export const CO2_KG_PER_PERSON_NORMAL = "2.4";
+const KG_TENTHS = { min: 10, max: 60, step: 2 } as const;
+
+/** Every value the dial offers, smallest first: "1.0" … "6.0". */
+export function co2KgPerPersonChoices(): string[] {
+  const choices: string[] = [];
+  for (let t = KG_TENTHS.min; t <= KG_TENTHS.max; t += KG_TENTHS.step) {
+    choices.push((t / 10).toFixed(1));
+  }
+  return choices;
+}
+
+/**
+ * The field the derivation reads off whichever map is selected.
  *
  * A subset of the map row rather than the whole thing, so it is obvious that
  * nothing else about a map reaches this file.
@@ -45,7 +67,6 @@ export const DEFAULT_MAX_ROUNDS = 6;
  */
 export type CalibrationInputs = {
   district_commuters: number;
-  co2_budget_kg_per_round: number;
 };
 
 /**
@@ -85,7 +106,23 @@ export function peoplePerAgent(
   return Math.max(1, roundHalfToEven(map.district_commuters / agents));
 }
 
-/** The CO₂ budget in kg for a game of this many rounds on this map. */
-export function co2BudgetKg(maxRounds: number, map: CalibrationInputs): number {
-  return map.co2_budget_kg_per_round * Math.max(1, Math.trunc(maxRounds) || 0);
+/**
+ * The CO₂ budget in kg for a game: kg per person × the map's commuters ×
+ * rounds.
+ *
+ * The map's commuters, not the people the scale field puts on it: they are the
+ * same figure while the scale is derived, and a host who lightens a round by
+ * typing over the scale must not get a budget the timetable alone exceeds —
+ * the lines run whether anybody rides. Whole kg, because `max_CO2_level` is;
+ * half-to-even like Python, though the dial's even tenths never make a tie.
+ */
+export function co2BudgetKg(
+  maxRounds: number,
+  map: CalibrationInputs,
+  kgPerPerson: string,
+): number {
+  const tenths = Math.round(Number(kgPerPerson) * 10);
+  const total =
+    tenths * map.district_commuters * Math.max(1, Math.trunc(maxRounds) || 0);
+  return roundHalfToEven(total / 10);
 }

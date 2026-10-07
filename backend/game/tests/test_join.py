@@ -10,6 +10,8 @@ the SPA hardcodes, so a rename should fail here rather than be papered over by
 reverse().
 """
 
+from decimal import Decimal
+
 from django.conf import settings
 from django.core import signing
 from django.test import TestCase, override_settings
@@ -1130,6 +1132,9 @@ class CalibratedCreateFormTests(TempMediaRootMixin, TestCase):
     / 11.5 min and car CO2 within 3 %. Hold `people_per_agent` at a number
     instead and a half-full class sees 0.4 min of delay against 11.3, which is
     a different game depending on who turned up.
+
+    The budget is kg per person per round since F8 step 2b, the same on every
+    map: the people on the map times the kg times the rounds.
     """
 
     def setUp(self):
@@ -1144,6 +1149,7 @@ class CalibratedCreateFormTests(TempMediaRootMixin, TestCase):
         the half that has to agree with the simulation.
         """
         from game.calibration import (
+            CO2_KG_PER_PERSON_NORMAL,
             DEFAULT_AGENT_PER_PLAYER,
             DEFAULT_MAX_PLAYERS,
             DEFAULT_MAX_ROUNDS,
@@ -1154,20 +1160,21 @@ class CalibratedCreateFormTests(TempMediaRootMixin, TestCase):
         self.assertEqual(DEFAULT_MAX_PLAYERS, 16)
         self.assertEqual(DEFAULT_AGENT_PER_PLAYER, 4)
         self.assertEqual(DEFAULT_MAX_ROUNDS, 6)
-        self.assertEqual(
-            people_per_agent(
-                max_players=DEFAULT_MAX_PLAYERS,
-                agent_per_player=DEFAULT_AGENT_PER_PLAYER,
-            ),
-            100,
+        self.assertEqual(CO2_KG_PER_PERSON_NORMAL, Decimal("2.4"))
+        per_gruppe = people_per_agent(
+            max_players=DEFAULT_MAX_PLAYERS,
+            agent_per_player=DEFAULT_AGENT_PER_PLAYER,
         )
-        self.assertEqual(co2_budget_kg(max_rounds=DEFAULT_MAX_ROUNDS), 96_000)
+        self.assertEqual(per_gruppe, 106)
+        # 2.4 kg × 6 800 commuters × 6 rounds.
+        self.assertEqual(co2_budget_kg(max_rounds=DEFAULT_MAX_ROUNDS), 97_920)
 
     def test_people_per_agent_follows_the_class_size(self):
         """Half the seats, twice the people behind each Gruppe."""
         from game.calibration import people_per_agent
 
-        for seats, expected in ((16, 100), (8, 200), (4, 400), (2, 800)):
+        # 6 800 / 32 is 212.5, and Python's round() goes to even.
+        for seats, expected in ((16, 106), (8, 212), (4, 425), (2, 850)):
             with self.subTest(seats=seats):
                 self.assertEqual(
                     people_per_agent(max_players=seats, agent_per_player=4),
@@ -1179,20 +1186,36 @@ class CalibratedCreateFormTests(TempMediaRootMixin, TestCase):
         from game.calibration import people_per_agent
 
         self.assertEqual(
-            people_per_agent(max_players=16, agent_per_player=2), 200
+            people_per_agent(max_players=16, agent_per_player=2), 212
         )
 
-    def test_the_budget_follows_the_round_count_and_nothing_else(self):
-        """Per round, because the pressure is spread over the whole game.
+    def test_the_budget_is_kilograms_times_commuters_times_rounds(self):
+        """Per person and per round, so the pressure is spread over the whole
+        game and a map with more commuters gets a bigger budget for them.
 
-        It carries no agent term on purpose: the district's population is
-        constant, so a round costs what it costs however many students play.
+        It carries no Gruppe term on purpose: the district's population is
+        constant, so a round costs what it costs however many students play —
+        and the timetable runs whether anybody rides, so a host who types over
+        the scale must not shrink the budget under it.
         """
         from game.calibration import co2_budget_kg
 
-        for rounds, expected in ((6, 96_000), (3, 48_000), (10, 160_000)):
-            with self.subTest(rounds=rounds):
-                self.assertEqual(co2_budget_kg(max_rounds=rounds), expected)
+        cases = (
+            (dict(max_rounds=6), 97_920),
+            (dict(max_rounds=3), 48_960),
+            (dict(max_rounds=10), 163_200),
+            (dict(max_rounds=6, kg_per_person=Decimal("1.0")), 40_800),
+            (dict(max_rounds=6, kg_per_person=Decimal("6.0")), 244_800),
+        )
+        for arguments, expected in cases:
+            with self.subTest(**arguments):
+                self.assertEqual(co2_budget_kg(**arguments), expected)
+
+    def test_an_empty_field_counts_as_one_round(self):
+        """The fields are strings while they are being retyped."""
+        from game.calibration import co2_budget_kg
+
+        self.assertEqual(co2_budget_kg(max_rounds=0), 16_320)
 
     def test_the_host_keeps_whatever_they_send(self):
         """Derived is an offer, not a rule. The host stays in charge.
@@ -1217,24 +1240,63 @@ class CalibratedCreateFormTests(TempMediaRootMixin, TestCase):
         self.assertEqual(game.max_CO2_level, 500)
 
     def test_the_budget_is_beatable_and_losable(self):
-        """What the two numbers are FOR, in one assertion.
+        """What the normal kg is FOR, in one assertion.
 
-        Measured on the shipped map, there and back (F2, six seeds): an all-car
-        round trip is 25 614 kg and a round nobody drives is 6 582 kg, the
-        timetables' own floor. So over six rounds a class that never gets out
-        of the car spends 153 684 kg, and one that goes 100/75/50/50/25/25 %
-        spends 95 946 — the budget sits on that edge, as it did one trip ago
-        (48 001 against 48 000). The budget has to sit between them or it is
-        not a budget.
+        Measured on the shipped map at 6 800 commuters, there and back
+        (`calibrate_map`, six seeds, Postgres): a round where everybody drives
+        is 4.17 kg a head, a round nobody drives 1.53 kg, the timetables' own
+        floor. Normal has to sit between them or it is not a budget. A class
+        that goes 100/75/50/50/25/25 % spends 16.09 kg a head over six rounds
+        against 14.4 — over, as it has been since every line runs until
+        everybody is home (docs/kalibrierung.md §11, §13).
         """
-        from game.calibration import co2_budget_kg
+        from game.calibration import CO2_KG_PER_PERSON_NORMAL
 
-        budget = co2_budget_kg(max_rounds=6)
-        all_car_six_rounds = 6 * 25_614
-        improving_six_rounds = 95_946
+        self.assertLess(CO2_KG_PER_PERSON_NORMAL, Decimal("4.17"))
+        self.assertGreater(CO2_KG_PER_PERSON_NORMAL, Decimal("1.53"))
 
-        self.assertLess(budget, all_car_six_rounds)
-        self.assertGreater(budget, improving_six_rounds)
+    def test_the_game_records_the_kg_it_was_played_at(self):
+        """The dial is what the host chose; `max_CO2_level` is what follows
+        from it. A game's research data has to say which was chosen."""
+        self.client.force_login(self.host)
+
+        with muted():
+            response = post_create(
+                self.client, game_name="Normal", co2_kg_per_person="2.4"
+            )
+
+        self.assertEqual(response.status_code, 201, msg=response.content)
+        game = GameSession.objects.get(game_name="Normal")
+        self.assertEqual(game.co2_kg_per_person, Decimal("2.4"))
+
+    def test_a_game_made_without_the_dial_says_so(self):
+        """Every game before the dial, and one made over the API without it,
+        was played against a total nobody stated per head."""
+        self.client.force_login(self.host)
+
+        with muted():
+            response = post_create(self.client, game_name="Ohne Regler")
+
+        self.assertEqual(response.status_code, 201, msg=response.content)
+        self.assertIsNone(
+            GameSession.objects.get(game_name="Ohne Regler").co2_kg_per_person
+        )
+
+    def test_the_dial_takes_only_its_own_steps(self):
+        """Refused in German, beside the field: the screen renders it."""
+        self.client.force_login(self.host)
+
+        for value in ("2.5", "0.8", "6.2", "2.45", "zwei", "-2.4"):
+            with self.subTest(value=value):
+                with muted():
+                    response = post_create(
+                        self.client, game_name="Falsch", co2_kg_per_person=value
+                    )
+                self.assertEqual(response.status_code, 400)
+                message = " ".join(response.json()["co2_kg_per_person"])
+                self.assertNotRegex(message, r"[Ee]nsure|valid|digits|number")
+                self.assertTrue(message)
+        self.assertFalse(GameSession.objects.filter(game_name="Falsch").exists())
 
     def test_the_map_the_screen_derives_from_carries_the_pair(self):
         """What the host sees is derived in the browser, from these two fields.
@@ -1254,19 +1316,17 @@ class CalibratedCreateFormTests(TempMediaRootMixin, TestCase):
 
         self.assertEqual(response.status_code, 200)
         row = {r["id"]: r for r in response.json()}[game_map.pk]
-        self.assertEqual(row["district_commuters"], 6_400)
-        self.assertEqual(row["co2_budget_kg_per_round"], 16_000)
+        self.assertEqual(row["district_commuters"], 6_800)
+        self.assertNotIn("co2_budget_kg_per_round", row)
 
 
 class MapCarriedCalibrationTests(TempMediaRootMixin, TestCase):
-    """The two calibrated numbers belong to the map, not to a constant.
+    """The commuter count belongs to the map, not to a constant.
 
-    Both are properties of the graph: the commuter population is what its
-    corridors can carry at a realistic peak, and the CO2 budget is what a
-    playable game costs on it — which depends on its distances and on how much
-    timetable it runs. Another city is another pair. Keeping them as module
-    constants would have made Berlin_Mitte-West's measurements a property of
-    the software.
+    It is a property of the graph: the car demand its corridors carry at the
+    real city's rush hour. Another city is another count. The budget used to
+    be one too, until F8 step 2b: it is kg per person now, the same on every
+    map, so a map with long commutes or a thin timetable is harder by itself.
     """
 
     def setUp(self):
@@ -1284,7 +1344,7 @@ class MapCarriedCalibrationTests(TempMediaRootMixin, TestCase):
         fields.update(overrides)
         return GameMap.objects.create(**fields)
 
-    def test_a_map_carries_its_own_pair(self):
+    def test_a_map_carries_its_own_count(self):
         from maps.models import GameMap
 
         game_map = self._map()
@@ -1293,20 +1353,22 @@ class MapCarriedCalibrationTests(TempMediaRootMixin, TestCase):
             game_map.district_commuters,
             GameMap._meta.get_field("district_commuters").default,
         )
-        self.assertEqual(
-            game_map.co2_budget_kg_per_round,
-            GameMap._meta.get_field("co2_budget_kg_per_round").default,
-        )
 
-    def test_the_shipped_defaults_are_the_measured_berlin_figures(self):
+    def test_the_shipped_default_is_the_measured_berlin_figure(self):
+        """6 800: an all-car morning on Berlin Mitte-West at TomTom's 19 km/h."""
         from maps.models import GameMap
 
         self.assertEqual(
-            GameMap._meta.get_field("district_commuters").default, 6_400
+            GameMap._meta.get_field("district_commuters").default, 6_800
         )
-        self.assertEqual(
-            GameMap._meta.get_field("co2_budget_kg_per_round").default, 16_000
-        )
+
+    def test_no_map_carries_a_budget(self):
+        """A number that is the same on every map is not a map's."""
+        from django.core.exceptions import FieldDoesNotExist
+        from maps.models import GameMap
+
+        with self.assertRaises(FieldDoesNotExist):
+            GameMap._meta.get_field("co2_budget_kg_per_round")
 
     def test_the_scale_comes_off_the_map_that_was_chosen(self):
         """A quieter map means fewer people behind each Gruppe."""
@@ -1319,22 +1381,24 @@ class MapCarriedCalibrationTests(TempMediaRootMixin, TestCase):
             25,
         )
 
-    def test_the_budget_comes_off_the_map_that_was_chosen(self):
+    def test_a_quieter_map_gets_a_smaller_budget_for_the_same_kg(self):
+        """Through its commuters, and only through them: the kg is the same
+        on every map."""
         from game.calibration import co2_budget_kg
 
-        quiet = self._map(name="Kleinstadt", co2_budget_kg_per_round=2_000)
+        quiet = self._map(name="Kleinstadt", district_commuters=1_600)
 
-        self.assertEqual(co2_budget_kg(max_rounds=6, game_map=quiet), 12_000)
+        self.assertEqual(co2_budget_kg(max_rounds=6, game_map=quiet), 23_040)
 
-    def test_without_a_map_the_field_defaults_stand_in(self):
+    def test_without_a_map_the_field_default_stands_in(self):
         """The create form renders before a map is chosen, and must offer
         something coherent rather than nothing."""
         from game.calibration import co2_budget_kg, people_per_agent
 
         self.assertEqual(
-            people_per_agent(max_players=16, agent_per_player=4), 100
+            people_per_agent(max_players=16, agent_per_player=4), 106
         )
-        self.assertEqual(co2_budget_kg(max_rounds=6), 96_000)
+        self.assertEqual(co2_budget_kg(max_rounds=6), 97_920)
 
     def test_a_tie_rounds_down(self):
         """800 over 64 Gruppen is 12.5, and Python's round() goes to even.
@@ -1353,32 +1417,26 @@ class MapCarriedCalibrationTests(TempMediaRootMixin, TestCase):
             12,
         )
 
-    def test_the_pair_travels_to_the_client_per_map(self):
-        """The screen derives from whichever map is selected, so both numbers
-        have to be on every row of the list, not only on the default."""
+    def test_the_count_travels_to_the_client_per_map(self):
+        """The screen derives from whichever map is selected, so the count
+        has to be on every row of the list, not only on the default."""
         self.client.force_login(self.host)
-        quiet = self._map(
-            name="Kleinstadt",
-            district_commuters=1_600,
-            co2_budget_kg_per_round=2_000,
-        )
+        quiet = self._map(name="Kleinstadt", district_commuters=1_600)
 
         response = self.client.get("/api/maps/")
 
         self.assertEqual(response.status_code, 200)
         row = {r["id"]: r for r in response.json()}[quiet.pk]
         self.assertEqual(row["district_commuters"], 1_600)
-        self.assertEqual(row["co2_budget_kg_per_round"], 2_000)
 
 
 class MapCalibrationRoundTripTests(TempMediaRootMixin, TestCase):
-    """The pair has to survive an export and a re-import.
+    """The count has to survive an export and a re-import.
 
     The JSON export is the only way a map moves between boxes, so a field the
-    export drops is a field that does not exist off this machine. The `map`
-    block already carried four keys the import silently ignored
-    (`max_player` and the three speeds) — that half of the round trip is S5's,
-    but these two are wired both ways from the start rather than joining them.
+    export drops is a field that does not exist off this machine. Every file
+    written before F8 step 2b also carries `co2_budget_kg_per_round`; it
+    still imports, and the budget is left behind.
     """
 
     def setUp(self):
@@ -1386,7 +1444,7 @@ class MapCalibrationRoundTripTests(TempMediaRootMixin, TestCase):
         self.host.is_staff = True
         self.host.save(update_fields=["is_staff"])
 
-    def test_the_export_carries_the_pair(self):
+    def test_the_export_carries_the_count(self):
         from maps.models import GameMap, MapVersion
 
         game_map = GameMap.objects.create(
@@ -1395,7 +1453,6 @@ class MapCalibrationRoundTripTests(TempMediaRootMixin, TestCase):
             y_dim=10,
             scale=1000.0,
             district_commuters=3_200,
-            co2_budget_kg_per_round=5_000,
         )
         MapVersion.objects.create(
             game_map=game_map, name="Base", base_version=True
@@ -1407,9 +1464,9 @@ class MapCalibrationRoundTripTests(TempMediaRootMixin, TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload["map"]["district_commuters"], 3_200)
-        self.assertEqual(payload["map"]["co2_budget_kg_per_round"], 5_000)
+        self.assertNotIn("co2_budget_kg_per_round", payload["map"])
 
-    def test_an_import_reads_the_pair_back(self):
+    def test_an_import_reads_the_count_back_and_leaves_an_old_budget(self):
         import json
 
         from django.core.files.uploadedfile import SimpleUploadedFile
@@ -1455,9 +1512,9 @@ class MapCalibrationRoundTripTests(TempMediaRootMixin, TestCase):
         self.assertEqual(response.status_code, 201)
         game_map = GameMap.objects.get(name="Reimport")
         self.assertEqual(game_map.district_commuters, 3_200)
-        self.assertEqual(game_map.co2_budget_kg_per_round, 5_000)
+        self.assertFalse(hasattr(game_map, "co2_budget_kg_per_round"))
 
-    def test_an_old_export_without_the_pair_still_imports(self):
+    def test_an_old_export_without_the_count_still_imports(self):
         """Every map exported before today has no such keys."""
         import json
 
@@ -1494,24 +1551,24 @@ class MapCalibrationRoundTripTests(TempMediaRootMixin, TestCase):
 
         self.assertEqual(response.status_code, 201)
         game_map = GameMap.objects.get(name="Alt")
-        self.assertEqual(game_map.district_commuters, 6_400)
-        self.assertEqual(game_map.co2_budget_kg_per_round, 16_000)
+        self.assertEqual(game_map.district_commuters, 6_800)
 
 
-class MapSaysWhetherItsPairWasMeasuredTests(TempMediaRootMixin, TestCase):
-    """S21: a map says whether its two numbers were measured on it.
+class MapSaysWhetherItsCountWasMeasuredTests(TempMediaRootMixin, TestCase):
+    """S21: a map says whether its commuter count was measured on it.
 
-    Every map starts at Berlin Mitte-West's 6 400 commuters and 16 000 kg a
-    round, because those are the field defaults. On a smaller map both are too
-    high, and the create form used to offer them without a word. Comparing a
-    map's pair against the defaults cannot tell the two cases apart — the one
-    map where 6 400 / 16 000 *is* measured carries exactly those — so the map
-    says it: `calibrated`, false until somebody who measured it says otherwise.
+    Every map starts at Berlin Mitte-West's 6 800 commuters, because that is
+    the field default. On a smaller map it is too high, and the create form
+    used to offer it without a word. Comparing a map's count against the
+    default cannot tell the two cases apart — the one map where 6 800 *is*
+    measured carries exactly that — so the map says it: `calibrated`, false
+    until somebody who measured it says otherwise. (It named a pair until F8
+    step 2b took the budget off the map.)
 
     It travels in the file, because the file is how a map moves between boxes.
-    The export has written both numbers on every map since S2, measured or not,
-    so a file stating the pair is not a file stating it was measured; only the
-    flag is.
+    The export has written the count on every map since S2, measured or not,
+    so a file stating it is not a file stating it was measured; only the flag
+    is.
     """
 
     def setUp(self):
@@ -1590,44 +1647,46 @@ class MapSaysWhetherItsPairWasMeasuredTests(TempMediaRootMixin, TestCase):
         self.assertIs(response.json()["map"]["calibrated"], True)
 
     def test_an_import_reads_the_flag_back(self):
+        game_map = self._import({"district_commuters": 1_600, "calibrated": True})
+
+        self.assertTrue(game_map.calibrated)
+        self.assertEqual(game_map.district_commuters, 1_600)
+
+    def test_a_file_from_before_the_dial_is_still_measured(self):
+        """Its budget is left behind; the count it measured is still its own."""
         game_map = self._import(
             {
-                "district_commuters": 1_600,
-                "co2_budget_kg_per_round": 2_000,
+                "district_commuters": 6_400,
+                "co2_budget_kg_per_round": 16_000,
                 "calibrated": True,
             }
         )
 
         self.assertTrue(game_map.calibrated)
-        self.assertEqual(game_map.district_commuters, 1_600)
-
-    def test_a_file_stating_the_pair_without_the_flag_is_not_measured(self):
-        """The case the flag exists for: a map exported after S2 carries
-        Berlin's defaults as plainly as Berlin itself does."""
-        game_map = self._import(
-            {"district_commuters": 6_400, "co2_budget_kg_per_round": 16_000}
-        )
-
-        self.assertFalse(game_map.calibrated)
-
-    def test_the_flag_without_the_pair_is_not_honoured(self):
-        """"Measured" names two numbers. A file that says so and gives neither
-        would mark the field defaults as this map's measurements."""
-        with muted():
-            game_map = self._import({"calibrated": True})
-
-        self.assertFalse(game_map.calibrated)
         self.assertEqual(game_map.district_commuters, 6_400)
+
+    def test_a_file_stating_the_count_without_the_flag_is_not_measured(self):
+        """The case the flag exists for: a map exported after S2 carries
+        Berlin's default as plainly as Berlin itself does."""
+        game_map = self._import({"district_commuters": 6_800})
+
+        self.assertFalse(game_map.calibrated)
+
+    def test_the_flag_without_the_count_is_not_honoured(self):
+        """"Measured" names a number. A file that says so and gives none would
+        mark the field default as this map's measurement — a budget beside it
+        is no count."""
+        with muted():
+            game_map = self._import(
+                {"calibrated": True, "co2_budget_kg_per_round": 2_000}
+            )
+
+        self.assertFalse(game_map.calibrated)
+        self.assertEqual(game_map.district_commuters, 6_800)
 
     def test_only_true_is_true(self):
         """A hand-edited file saying "ja" or 1 is not a statement anybody
         should be held to."""
-        game_map = self._import(
-            {
-                "district_commuters": 1_600,
-                "co2_budget_kg_per_round": 2_000,
-                "calibrated": "ja",
-            }
-        )
+        game_map = self._import({"district_commuters": 1_600, "calibrated": "ja"})
 
         self.assertFalse(game_map.calibrated)

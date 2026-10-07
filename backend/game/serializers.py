@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 import game.models as gm
+from game import calibration
 
 # Django's and DRF's own refusals for a number are English — "Ensure this value
 # is less than or equal to 365." — and the create screen renders whatever comes
@@ -22,6 +23,33 @@ NUMBER_FIELDS = (
     "people_per_agent",
     "idle_end_days",
 )
+
+
+def _kg(value):
+    """1.0 → "1,0": the German way, as the dial writes it."""
+    return f"{value:.1f}".replace(".", ",")
+
+
+# The dial offers a list, so every refusal says the same thing: what the list
+# is. DRF's own for a decimal ("Ensure that there are no more than 1 decimal
+# places.") is English and names a rule the host never sees.
+KG_PER_PERSON_ERROR = (
+    f"Wähle zwischen {_kg(calibration.CO2_KG_PER_PERSON_MIN)} und "
+    f"{_kg(calibration.CO2_KG_PER_PERSON_MAX)} kg, in Schritten von "
+    f"{_kg(calibration.CO2_KG_PER_PERSON_STEP)} kg."
+)
+KG_PER_PERSON_ERRORS = {
+    key: KG_PER_PERSON_ERROR
+    for key in (
+        "invalid",
+        "max_value",
+        "min_value",
+        "max_digits",
+        "max_decimal_places",
+        "max_whole_digits",
+        "max_string_length",
+    )
+}
 
 
 class GameSessionSerializer(serializers.ModelSerializer):
@@ -56,6 +84,7 @@ class GameSessionSerializer(serializers.ModelSerializer):
             "agent_per_player",
             "max_rounds",
             "max_CO2_level",
+            "co2_kg_per_person",
             "people_per_agent",
             "chat_enabled",
             "is_active",
@@ -80,7 +109,8 @@ class GameSessionSerializer(serializers.ModelSerializer):
             "ended_at",
         )
         extra_kwargs = {
-            name: {"error_messages": NUMBER_ERRORS} for name in NUMBER_FIELDS
+            **{name: {"error_messages": NUMBER_ERRORS} for name in NUMBER_FIELDS},
+            "co2_kg_per_person": {"error_messages": KG_PER_PERSON_ERRORS},
         }
 
     def validate(self, attrs):
@@ -125,6 +155,15 @@ class GameSessionSerializer(serializers.ModelSerializer):
             errors["people_per_agent"] = (
                 "Eine Gruppe muss für mindestens einen Menschen stehen."
             )
+
+        # Only what the dial offers. `max_CO2_level` is not checked against
+        # it: the screen derives one from the other, and the endpoint takes
+        # what it is sent, as it does for the scale.
+        kg_per_person = attrs.get("co2_kg_per_person")
+        if kg_per_person is not None and (
+            kg_per_person not in calibration.co2_kg_per_person_choices()
+        ):
+            errors["co2_kg_per_person"] = KG_PER_PERSON_ERROR
 
         if errors:
             raise serializers.ValidationError(errors)

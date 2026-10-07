@@ -256,8 +256,10 @@ Nobody picks how big the factor is; it is derived from the map.
 
 The traffic physics above holds for every map: 1800 veh/h/lane and 133 veh/km/lane are measurements
 from traffic engineering, and the emission curve hangs on its two anchor conditions. What changes
-from map to map is the size of the world: how many people commute on the map and how much CO₂ a
-round may cost. Both have to be measured for each map. If they are off, the game stops making sense:
+from map to map is the size of the world: how many people commute on the map. That has to be
+measured for each map. The CO₂ budget, on the other hand, is the same per person and round on every
+map; what is measured is only how far it goes on a map. If the numbers are off, the game stops
+making sense:
 
 - **Too many commuters**, and the network stands still whatever anyone plays. Berlin Mitte-West was
   first played at 1000 people per agent, which with every seat taken is 64 000 cars. The model
@@ -266,28 +268,28 @@ round may cost. Both have to be measured for each map. If they are off, the game
 - **A budget that is too tight** is spent in the first round, **one that is too generous** does not
   matter.
 
-This chapter is how to find the two numbers for a map. Berlin Mitte-West, the map that ships with the
-game, is the example.
+This chapter is how to find the commuter count for a map and how far the budget goes on it. Berlin
+Mitte-West, the map that ships with the game, is the example.
 
-### Two numbers per map
+### One number per map, one budget per person
 
 Every map carries:
 
 ```
 district_commuters        commuters the map carries
-co2_budget_kg_per_round   CO₂ budget per round, in kg
-calibrated                whether both were measured on this map
+calibrated                whether the count was measured on this map
 ```
 
 The values are in the map's JSON file, can be changed in the admin, and travel with an export. A new
-map takes 6400 and 16 000 from Berlin Mitte-West until somebody measures it. Only once `calibrated` is
-set does the notice on the create form go away.
+map takes Berlin Mitte-West's 6800 until somebody measures it. Only once `calibrated` is set does the
+notice on the create form go away.
 
-Everything else is derived from them:
+The budget is not the map's. It is a number per person and round, the same on every map, and the
+create form sets it: 1.0 to 6.0 kg in steps of 0.2, normal 2.4. Everything else is derived:
 
 ```
 people_per_agent = district_commuters / (seats × agents per seat)
-CO₂ budget       = budget per round × rounds
+CO₂ budget       = kg per person and round × district_commuters × rounds
 ```
 
 Whoever plays **divides** the map's commuters between the agents; more seats do not summon new
@@ -314,14 +316,15 @@ checks this and more for any map; the rules are in `backend/maps/checks.py`.
 Measure with test rounds, not with a play-test. A play-test shows how a game feels, not how much
 traffic a map carries.
 
-For a finished map one command does it: `./manage.py calibrate_map map.json --speed 24` plays the
-rounds in a throwaway database, with the routes the game's own router finds, and works out both
-numbers by the rule in `docs/kalibrierung.md`, section 12. It needs Node and `npm ci` in
-`frontend/`. By hand it goes like this:
+For a finished map one command does it: `./manage.py calibrate_map map.json --speed 19` plays the
+rounds in a throwaway database, with the routes the game's own router finds, searches for the
+commuter count by the rule in `docs/kalibrierung.md`, section 12, and shows how far the budget per
+person goes on the map (section 13). It needs Node and `npm ci` in `frontend/`. By hand it goes like
+this:
 
 1. Upload the map to a local instance (`devops/dev.sh up`), not to the server people play on.
 2. Create a game with few seats. Turn map changes off so that every round runs on the base version,
-   and set the CO₂ budget high enough that the game does not end.
+   and set the CO₂ per person to 6.0 kg so that the game does not end early.
 3. Enter the candidate under "Menschen pro Gruppe": commuters ÷ (seats × agents per seat).
 4. Add the seats at the Leitstelle (the host machine) and choose mode and route for every agent
    yourself.
@@ -335,7 +338,8 @@ from a scenario (`backend/sim/scenario.py`), built by hand or taken from a playe
 on any `TrafficSimulator`).
 
 Because the scale follows from the number of seats, a few seats are enough. On Berlin Mitte-West two
-seats give almost the same round as sixteen:
+seats give almost the same round as sixteen (measured at 6400 commuters, the count until October
+2026):
 
 | seats | agents | people/agent |   car CO₂ | mean trip | mean delay |
 | ----: | -----: | -----------: | --------: | --------: | ---------: |
@@ -355,84 +359,95 @@ and only 42 % of the CO₂.
 
 ### The commuter count
 
-Pick the commuter count so that a morning on which everybody drives takes about as long as the rush
-hour in the real city.
+Pick the commuter count so that a morning on which everybody drives is about as slow as the rush hour
+in the real city.
 
 1. Work out the mean length of a commute on the map. On Berlin Mitte-West it is 7.66 km.
-2. Look up how fast the morning peak flows in the city the map depicts. In inner Berlin it is
-   roughly 24 km/h, so 19 minutes for 7.66 km.
-3. Play test rounds in which everybody drives, and adjust the commuter count until the mean trip
-   time lands in that range.
+2. Look up how fast the morning peak flows in the city the map depicts, with a source. For Berlin
+   the TomTom Traffic Index (2025 data, 15th edition, January 2026) says 19.0 km/h in the morning
+   rush, so 24 minutes for 7.66 km.
+3. Play test rounds in which everybody drives, and adjust the commuter count until the cars drive
+   that fast on average.
 
 `calibrate_map` searches for the number itself and needs only the speed from step 2 (`--speed`).
 
 The result is not the district's real number of commuters, which is far higher. But the graph only
 depicts the main corridors, and what you are after is how much traffic **those corridors** carry.
-For Berlin Mitte-West it is **6400 commuters**: with everybody driving, 7.66 km then takes 21.5
-minutes, 11.4 of them delay. That puts the model a little above the real city.
+For Berlin Mitte-West it is **6800 commuters**: with everybody driving they drive 19.4 km/h in the
+morning, and a commute takes 23.7 minutes against 10.0 at free flow.
+
+The count is an anchor, not a statistic, for two reasons:
+
+- **It counts cars, not people.** TomTom measures traffic while the rest of the city already rides
+  the U-Bahn and bikes. The 6800 are the car demand that makes the rush hour on this graph when
+  everybody drives. Calibrating on Berlin's real mode split does not work: the map has more buses and
+  less rail than the city.
+- **It stands in for the traffic lights too.** The model has none. Its free flow is the speed limit,
+  46.1 km/h, where TomTom's Berlin drives about 30 at night. Matching the speed makes the jam carry
+  the lights as well: a commute takes 2.4 times free flow, in the city 1.59 times. Matched on the
+  congestion level instead of the speed, it would be 4800 commuters.
 
 Then check that the jam depends on what players decide. That is what the game is about. Play rounds
 with fewer cars, say three quarters, half and a quarter:
 
-| car share | round total |       car | timetable | car trip | car delay |
-| --------: | ----------: | --------: | --------: | -------: | --------: |
-|     100 % |   13 326 kg | 10 001 kg |  3 325 kg | 21.5 min |  11.4 min |
-|      75 % |   10 247 kg |  6 843 kg |  3 405 kg | 14.9 min |   4.9 min |
-|      50 % |    8 036 kg |  4 159 kg |  3 877 kg | 10.6 min |   0.7 min |
-|      25 % |    7 118 kg |  2 206 kg |  4 912 kg | 10.8 min |   0.1 min |
-|       0 % |    5 151 kg |         — |  5 151 kg |        — |         — |
+| car share | per person | round total |       car | timetable | car trip there / back |
+| --------: | ---------: | ----------: | --------: | --------: | --------------------: |
+|     100 % |    4.17 kg |   28 379 kg | 21 080 kg |  7 299 kg |       23.7 / 22.4 min |
+|      75 % |    3.16 kg |   21 498 kg | 14 773 kg |  6 725 kg |       16.8 / 15.4 min |
+|      50 % |    2.41 kg |   16 420 kg |  9 122 kg |  7 299 kg |       11.6 / 11.7 min |
+|      25 % |    1.96 kg |   13 340 kg |  4 449 kg |  8 890 kg |       10.2 / 10.3 min |
+|       0 % |    1.53 kg |   10 402 kg |         — | 10 402 kg |                     — |
 
 ![What a round costs, by car share](../backend/template/hintergrund/runde.svg)
 
-_Each bar is a round: the car in blue, the timetable in amber. The timetable runs either way and
-gets dearer as more people board, because the lines run until the last person is home; the car
-decides how long the bar is. The line is the half the budget of 16 000 kg a round, which is the
-budget for one way._
+_Each bar is a round there and back: the car in blue, the timetable in amber. The timetable runs
+either way and gets dearer as more people board, because the lines run until the last person is
+home; the car decides how long the bar is. The line is a round's budget at normal, 2.4 kg × 6800
+commuters = 16 320 kg._
 
 On Berlin Mitte-West the jam is gone once half switch. Congestion is a threshold phenomenon close to
 capacity: just below it traffic flows, just above it jams. If the jam stays at half the car share,
 the commuter count is too high. If there is hardly a jam even when everybody drives, it is too low.
 
-On public transport, too much demand shows up as waiting. On Berlin Mitte-West bus and train take 33
-to 44 minutes, and the wait at the stop grows from 9 to 22 minutes as more people switch, because
+On public transport, too much demand shows up as waiting. On Berlin Mitte-West bus and train take 32
+to 43 minutes, and the wait at the stop grows from 21 to 44 minutes as more people switch, because
 the vehicles are full.
 
-The table holds for one way, the way there. It was measured on the base version of Berlin Mitte-West: 64 agents of 100 people each,
-spread evenly over the 36 home-and-workplace pairs, everybody not driving on public transport,
-averaged over six seeds. The spread between seeds is at most 3 %.
+Measured with `calibrate_map` on the base version of Berlin Mitte-West, on Postgres: 72 agents of 94
+people each, spread evenly over the 36 home-and-workplace pairs, every pair driving its share and
+the rest on public transport, averaged over six seeds. Per person means: the round divided by the
+6800 commuters, the way the budget counts them.
 
 ### The budget
 
-The rule for any map: the budget is what a round costs when half the agents drive and the other half
-take public transport, rounded to two figures. On Berlin Mitte-West that is 15 854 kg, so the 16 000
-the map carries. The share is the difficulty dial: at 40 % car the budget gets tighter, at 60 %
-looser (`--share`).
+The budget is a number per person and round, the same on every map. A budget per map, measured on
+the map itself, would make every city look equally hard; per person, a city with long commutes or
+thin public transport is harder by itself. That is the lesson, not a flaw.
 
-What the budget means in a game is shown by two games over the planned number of rounds: one in
-which nobody gets out of the car, and one that works its way down, for example at 100 / 75 / 50 / 50
-/ 25 / 25 % car share. The budget should lie between the two: the first game should break it, the second should get by on
-it. The floor is the timetable, which runs without passengers too, on Berlin Mitte-West 6736 kg a
-round there and back. The number should be round so that everybody can keep it in their head.
+**Normal is 2.4 kg.** That is what a round costs on Berlin Mitte-West per person when half the
+agents drive (2.41 kg), rounded to the dial's step. It was measured once and stays, an anchor for
+every map. On Berlin Mitte-West normal lasts if 49 % of the agents drive; for a new map
+`calibrate_map` says which share it is there. The dial on the create form runs from 1.0 to 6.0 kg in
+steps of 0.2, because on Berlin 0.5 kg is about a quarter of the class switching. The game records
+how many kilograms it was played at.
 
-A round simulates there and back, and the table above holds for one way. Measured on Berlin
-Mitte-West (the same 64 agents, six seeds), a round with both ways costs 1.98 to 2.02 times what the
-way there costs alone:
+The budget counts the map's commuters, not the people the agents put on the map (106 × 64 = 6784).
+If someone types over the people per agent to make a round lighter, the budget does not shrink with
+it: the timetable runs whether anybody boards or not.
 
-| car share | round total |       car | timetable |
-| --------: | ----------: | --------: | --------: |
-|     100 % |   26 367 kg | 19 631 kg |  6 736 kg |
-|      75 % |   20 323 kg | 13 530 kg |  6 792 kg |
-|      50 % |   16 174 kg |  8 318 kg |  7 856 kg |
-|      25 % |   14 340 kg |  4 415 kg |  9 925 kg |
-|       0 % |   10 402 kg |         — | 10 402 kg |
+What the budget means in a game is shown by two games over six rounds: one in which nobody gets out
+of the car, and one that works its way down, at 100 / 75 / 50 / 50 / 25 / 25 % car share. The floor
+is the timetable, which runs without passengers too: 1.53 kg per person, and below that no round can
+be won.
 
-So the first game costs 158 201 kg over six rounds, the second 107 716 kg. The 16 000 kg a round on
-the map, 96 000 for six, no longer separates the two: driving throughout runs out in round 4, and
-improving goes over the budget by 11 716 kg in the last round. The timetable is why: the lines run
-until the last person is home, and the more people switch, the longer people are on the way. The map
-keeps 16 000 (decided 2026-10-02): to finish all six rounds a class has to switch sooner than the
-second game does. At 18 000 kg a round, 108 000 for six, driving throughout would end in round 5,
-and switching would stay 284 kg under.
+At normal that is 97 920 kg for six rounds. Driving throughout runs out in round 4. Working down
+comes to 109 397 kg, 16.09 kg per person against 14.4, and goes over the budget in the last round.
+The timetable is why: the lines run until the last person is home, and the more people switch, the
+longer people are on the way. At 2.8 kg the second game would finish. To finish all six rounds at
+normal, a class has to switch sooner.
+
+Until 2026-10-07 the budget was a number of the map, 16 000 kg a round on Berlin Mitte-West; how it
+got there is in `docs/kalibrierung.md`.
 
 ### Checking the emission factors
 
@@ -477,7 +492,8 @@ rather than a smaller σ.
 
 ### When to measure again
 
-The two numbers hold for one map and one model. Measure again when
+The commuter count holds for one map and one model, and so does the share normal buys on it.
+Measure again when
 
 - the map's capacity changes: new streets, different lanes, new lines;
 - demand in the model changes. Departures are spread σ = 10 minutes around the departure hour today,
@@ -485,8 +501,9 @@ The two numbers hold for one map and one model. Measure again when
   commuters;
 - the evening gets a peak of its own. Today it is a copy of the morning, with the same spread of
   departures; a different peak would have the same network carry more or fewer commuters;
-- an emission factor changes, or how long the lines run. That moves the budget.
+- an emission factor changes, or how long the lines run. That moves what normal buys on the map —
+  and on Berlin perhaps normal itself.
 
-Then enter both numbers in the map file or in the admin, set `calibrated`, and export the map so the
-measurement travels with the file. The measurements for Berlin Mitte-West, with every table, are in
+Then enter the commuter count in the map file or in the admin, set `calibrated`, and export the map
+so the measurement travels with the file (`calibrate_map --out` writes both). The measurements for Berlin Mitte-West, with every table, are in
 `docs/kalibrierung.md` and `backend/game/calibration.py`.

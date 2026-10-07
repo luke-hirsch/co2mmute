@@ -470,7 +470,7 @@ class CalibratedModelDefaultsTests(TestCase):
 
         field = GameSession._meta.get_field("people_per_agent")
 
-        self.assertEqual(field.default, 100)
+        self.assertEqual(field.default, 106)
 
     def test_map_updates_stays_off_on_the_model(self):
         """The one default that deliberately disagrees with the form.

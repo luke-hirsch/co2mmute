@@ -37,14 +37,14 @@ Now that you have an account you can create games. Super. Let's go through each 
 
 - seats ("Plätze insgesamt", 16 by default): how many players do you want to allow? It doesn't matter if they play locally or over the internet, you can't have more players than this. You, the host, don't count.
 - groups per person ("Gruppen pro Person", 4 by default): the number of groups each player has to manage. Every group gets its own home and its own workplace on the map, and needs a means of transportation and a route every round.
-- people per group ("Menschen pro Gruppe"): you don't pick this one. The map knows how many people commute through it — 6,400 on Berlin Mitte-West — and the form divides them over seats × groups. 16 seats with 4 groups each makes 100 people per group. Fewer seats, more people per group, so the streets carry the same traffic whether 16 or 6 people play. You can type over it, and "Vorschlag übernehmen" puts the computed number back. Don't, unless you know why.
+- people per group ("Menschen pro Gruppe"): you don't pick this one. The map knows how many people commute through it — 6,800 on Berlin Mitte-West — and the form divides them over seats × groups. 16 seats with 4 groups each makes 106 people per group. Fewer seats, more people per group, so the streets carry the same traffic whether 16 or 6 people play. You can type over it, and "Vorschlag übernehmen" puts the computed number back. Don't, unless you know why.
 
 So set the seats to the number of people who will actually play. The number of people per group is fixed when you create the game: if you open 16 seats and 8 people show up, the streets carry half the traffic and the jams never happen.
 
 #### When It Ends ("Wann das Spiel endet")
 
 - rounds ("Runden", 6 by default): how many rounds are played, if the budget lasts that long.
-- CO2 budget ("CO₂-Budget (kg)"): how much CO2 the whole class may emit over the whole game. The form suggests what the map thinks a round may cost, times the rounds — 16,000 kg × 6 = 96,000 kg on Berlin Mitte-West. Once it is used up, the game is over. On that map, a class that keeps driving is out in round 4; a class that switches makes it to the last round.
+- CO2 per person and round ("CO₂ pro Person und Runde", 2.4 kg by default, "normal"): the difficulty dial. How much CO2 every person on the map may emit per round, there and back, from 1.0 to 6.0 kg in steps of 0.2. Below it the form says what that means for the whole game: 2.4 kg × 6,800 commuters × 6 rounds = 97,920 kg on Berlin Mitte-West. Once it is used up, the game is over. Normal lasts on that map if half the groups drive. A class that keeps driving is out in round 4; a class that switches step by step makes it to the last round. The kilograms are the same on every map, so a map with long commutes or thin public transport is harder by itself.
 
 #### More Settings ("Weitere Einstellungen")
 

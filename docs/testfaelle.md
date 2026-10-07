@@ -228,14 +228,15 @@ nicht gemessen.
 | H-09 | ganzes Spiel auf einem Rechner                           | läuft durch, ohne ein einziges Handy                                                                             | geht      | f15-leitstelle     |
 | H-10 | Pause-Knopf                                              | beim Host, wirkt überall                                                                                         | geht      | -                  |
 | H-11 | Host beendet aus der Lobby                               | geht auch bei einem Spiel ohne Karte, Grund `host`                                                               | geht      | -                  |
-| H-12 | Spiel anlegen: CO₂-Budget und Menschen pro Gruppe (S2) | vorgeschlagen werden 48.000 kg und 100, nicht 500 und 1000                                                       | geht      | `e2e/host.spec.ts` |
-| H-13 | Spiel anlegen mit weniger Plätzen                        | Vorschlag folgt der Klassengröße sofort: 8 Plätze → 200 Menschen pro Gruppe, 3 Runden → 24.000 kg              | geht      | `e2e/host.spec.ts` |
+| H-12 | Spiel anlegen: CO₂-Budget und Menschen pro Gruppe (S2) | vorgeschlagen werden 106 Menschen pro Gruppe und 2,4 kg pro Person und Runde („normal“), zusammen 97.920 kg für 6 Runden — nicht 500 und 1000 | geht      | `e2e/host.spec.ts` |
+| H-13 | Spiel anlegen mit weniger Plätzen                        | Vorschlag folgt der Klassengröße sofort: 8 Plätze → 212 Menschen pro Gruppe, das Budget bleibt; 3 Runden → 48.960 kg | geht      | `e2e/host.spec.ts` |
 | H-14 | Vorschlag überschreiben                                  | eigene Zahl bleibt stehen, auch wenn sich die Klassengröße danach ändert; „Vorschlag übernehmen" holt sie zurück | geht      | `e2e/host.spec.ts` |
 | H-15 | Karte ohne Abstimmung auswählen                          | die Auswahl sagt, dass es auf dieser Karte nichts abzustimmen gibt                                               | geht      | -                  |
 | H-16 | `/game/create/` aufrufen                                 | leitet in die SPA weiter; ohne Login erst zum Login                                                              | geht      | `e2e/host.spec.ts` |
-| H-17 | Karte mit ungemessenen Zahlen auswählen (S21)            | Warnung: Menschen pro Gruppe und CO₂-Budget sind nur Vorgabewerte; die mitgelieferte Karte hat keine             | geht      | `e2e/host.spec.ts` |
+| H-17 | Karte mit ungemessener Pendlerzahl auswählen (S21)       | Warnung: Menschen pro Gruppe ist nur ein Vorgabewert, und mit ihm das CO₂-Budget; die mitgelieferte Karte hat keine | geht      | `e2e/host.spec.ts` |
 | H-18 | „Weitere Einstellungen" (S21)                            | zu, bis man es aufmacht; lehnt der Server ein Feld darin ab, geht es von selbst auf                              | geht      | -                  |
 | H-19 | Platz übernehmen, nachdem die Leitstelle „Weiter für alle hier" gedrückt hat | der Knopf kommt wieder (der Platz hat nichts gelesen); ein Druck, und es geht weiter                             | geht      | f3-zwischen-den-runden |
+| H-20 | Spiel anlegen: CO₂ pro Person und Runde (F8)             | Auswahl 1,0 bis 6,0 kg in Schritten von 0,2, „normal“ bei 2,4; 2,0 kg bei 3 Runden → 40.800 kg; das Spiel speichert die Kilo; der Server lehnt alles außerhalb der Auswahl auf Deutsch ab | geht      | `e2e/host.spec.ts`, `test_join` |
 
 ## C — chat
 
@@ -337,7 +338,7 @@ nicht gemessen.
 | K-57 | Editor: Version ansehen | „Ansehen“ unter „Verwalten“ legt die Version auf die Karte und zeichnet, was sie gegenüber ihrer Ausgangsversion ändert, daneben in Worten: Busspuren = 15 Straßen, beide Richtungen, „eine Autospur wird Busspur“, keine Linie; Buslinie = Bus 147 hin und zurück; Umgehungsstraßen = Bundestag – Wohnort 2 neu und der Weg Botschaftsviertel – Philharmonie wird Straße | geht | `versionsvergleich.spec.ts` |
 | K-58 | Editor: mit einer anderen Version vergleichen | „Verglichen mit“ nimmt jede Version; Grundversion gegen Busspuren zeigt die 30 Busspuren hohl, „die Busspur wird wieder Autospur“; eine Kombiversion gegen eine ihrer Änderungen ist genau die andere | geht | `versionsvergleich.spec.ts`, vitest |
 | K-59 | Kartendatei prüfen | `./manage.py check_map datei.json` sagt zur ausgelieferten Karte „in Ordnung“; eine kaputte Datei bekommt jedes Problem mit seiner Regel genannt — eine Linie gegen ihre Richtung, zwei Kanten zwischen denselben Knoten, ein Wohnort ohne Weg zur Arbeit und zurück — und der Befehl endet mit Fehler (F8) | geht | `test_checks` |
-| K-60 | Karte kalibrieren | `./manage.py calibrate_map datei.json --commuters 6400` auf der ausgelieferten Karte: Budget 16.000 kg, die halbe Runde 15.854 kg (Postgres); `--speed 20.8` findet 6.400 Pendler wieder, `--speed 24` ergibt 5.700 und 14.000 kg; eine Karte, die `check_map` nicht besteht, wird nicht gemessen (F8) | geht | `test_calibration` |
+| K-60 | Karte kalibrieren | `./manage.py calibrate_map datei.json --speed 19` auf der ausgelieferten Karte (Postgres): 6.800 Pendler, alle im Auto 19,4 km/h; Tabelle pro Person 4,17 / 3,16 / 2,41 / 1,96 / 1,53 kg, „normal, 2,4 kg, reicht hier, wenn 49 % der Gruppen Auto fahren“; `--commuters 6800` misst dieselbe Tabelle ohne Suche; eine Karte, die `check_map` nicht besteht, wird nicht gemessen (F8) | geht | `test_calibration` |
 
 ## S — sonstiges
 

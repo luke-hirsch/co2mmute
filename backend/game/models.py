@@ -40,6 +40,14 @@ class GameSession(models.Model):
     agent_per_player = models.PositiveIntegerField()
     max_rounds = models.PositiveIntegerField()
     max_CO2_level = models.PositiveIntegerField()  # in kg
+    # What the host set the budget at: kg per person per round, the create
+    # form's difficulty dial (F8 step 2b). `max_CO2_level` is what follows
+    # from it — kg × people on the map × rounds — and what the game ends on;
+    # this is the record of the choice, for the research data. Null on every
+    # game before the dial and on one made over the API without it.
+    co2_kg_per_person = models.DecimalField(
+        max_digits=3, decimal_places=1, null=True, blank=True
+    )
     chat_enabled = models.BooleanField(default=True)
     is_active = models.BooleanField(default=False)
     paused_at = models.DateTimeField(null=True, blank=True)
@@ -48,13 +56,14 @@ class GameSession(models.Model):
     )
 
     # Simulation parameters
-    # 100 is DISTRICT_COMMUTERS / (16 seats x 4 Gruppen), the shipped class
-    # size — written as a literal because a model default has to be one, and
-    # pinned against game.calibration.people_per_agent() by a test. The create
-    # form derives it from the class size the host actually chooses; this is
-    # what the REST API and the admin get. It was 1000, which put 64 000 cars
-    # on a 90-edge map and reported a 298-minute commute for 7.66 km.
-    people_per_agent = models.PositiveIntegerField(default=100)
+    # 106 is the map default's 6 800 commuters / (16 seats x 4 Gruppen), the
+    # shipped class size — written as a literal because a model default has
+    # to be one, and pinned against game.calibration.people_per_agent() by a
+    # test. The create form derives it from the class size the host actually
+    # chooses; this is what the REST API and the admin get. It was 1000, which
+    # put 64 000 cars on a 90-edge map and reported a 298-minute commute for
+    # 7.66 km.
+    people_per_agent = models.PositiveIntegerField(default=106)
     tick_duration_min = models.PositiveSmallIntegerField(default=5)
     morning_departure_hour = models.PositiveSmallIntegerField(default=9)  # 9:00 AM
     evening_departure_hour = models.PositiveSmallIntegerField(default=17)  # 5:00 PM

@@ -276,9 +276,10 @@ Wie groß der Faktor, wird aus der Karte abgeleitet.
 
 Die Verkehrsphysik oben gilt für jede Karte: 1.800 Fz/h und 133 Fz/km pro Spur sind Messwerte aus
 der Verkehrstechnik, und die Emissionskurve hängt an ihren zwei Ankerbedingungen. Was sich von Karte
-zu Karte ändert, ist die Größe der Welt: wie viele Menschen auf der Karte pendeln und wie viel CO₂
-eine Runde kosten darf. Beides muss für jede Karte gemessen werden. Liegen die Zahlen daneben,
-verliert das Spiel seinen Spass:
+zu Karte ändert, ist die Größe der Welt: wie viele Menschen auf der Karte pendeln. Das muss für jede
+Karte gemessen werden. Das CO₂-Budget dagegen ist pro Person und Runde auf jeder Karte dasselbe; zu
+messen ist nur, was es auf einer Karte reicht. Liegen die Zahlen daneben, verliert das Spiel seinen
+Spass:
 
 - **Zu viele Pendler**, und das Netz steht still, egal was gespielt wird. Berlin Mitte-West wurde
   anfangs mit 1.000 Menschen pro Gruppe gespielt, bei voller Besetzung also mit 64.000 Autos. Das
@@ -287,28 +288,29 @@ verliert das Spiel seinen Spass:
 - **Ein zu knappes Budget** ist schon in der ersten Runde aufgebraucht, **ein zu großes** spielt
   keine Rolle.
 
-Wie man die beiden Zahlen für eine Karte findet, steht in diesem Kapitel. Als Beispiel dient Berlin
-Mitte-West.
+Wie man die Pendlerzahl für eine Karte findet und was das Budget auf ihr reicht, steht in diesem
+Kapitel. Als Beispiel dient Berlin Mitte-West.
 
-### Zwei Zahlen pro Karte
+### Eine Zahl pro Karte, ein Budget pro Person
 
 Jede Karte trägt:
 
 ```
 district_commuters        Pendler, die die Karte trägt
-co2_budget_kg_per_round   CO₂-Budget pro Runde in kg
-calibrated                ob beide für diese Karte gemessen sind
+calibrated                ob die Zahl für diese Karte gemessen ist
 ```
 
 Die Werte stehen in der JSON-Datei der Karte, lassen sich im Admin ändern und gehen beim Export mit.
-Eine neue Karte übernimmt 6.400 und 16.000 von Berlin Mitte-West, bis jemand für sie misst. Erst wenn
+Eine neue Karte übernimmt die 6.800 von Berlin Mitte-West, bis jemand für sie misst. Erst wenn
 `calibrated` gesetzt ist, verschwindet der Hinweis bei „Spiel anlegen“.
 
-Alles andere wird daraus abgeleitet:
+Das Budget gehört nicht zur Karte. Es ist eine Zahl pro Person und Runde, auf jeder Karte dieselbe,
+und „Spiel anlegen“ stellt sie ein: 1,0 bis 6,0 kg in Schritten von 0,2, normal 2,4. Alles andere
+wird abgeleitet:
 
 ```
 Menschen pro Gruppe = Pendler / (Plätze × Gruppen pro Platz)
-CO₂-Budget          = CO₂-Budget pro Runde × Runden
+CO₂-Budget          = kg pro Person und Runde × Pendler × Runden
 ```
 
 Wer mitspielt, **teilt** die Pendler der Karte unter den Gruppen auf; mehr Plätze erzeugen keine
@@ -335,15 +337,17 @@ prüft das und mehr für jede Karte, die Regeln stehen in `backend/maps/checks.p
 Gemessen wird mit Testrunden, nicht mit einem Play-Test. Ein Play-Test zeigt, wie sich ein Spiel
 anfühlt, aber nicht, wie viel Verkehr eine Karte trägt.
 
-Für eine fertige Karte erledigt das ein Befehl: `./manage.py calibrate_map karte.json --speed 24`
-spielt die Runden in einer Wegwerf-Datenbank, mit den Wegen, die der Router des Spiels findet, und
-rechnet beide Zahlen nach der Regel aus `docs/kalibrierung.md`, Abschnitt 12, aus. Er braucht Node
-und `npm ci` in `frontend/`. Von Hand geht es so:
+Für eine fertige Karte erledigt das ein Befehl: `./manage.py calibrate_map karte.json --speed 19`
+spielt die Runden in einer Wegwerf-Datenbank, mit den Wegen, die der Router des Spiels findet, sucht
+die Pendlerzahl nach der Regel aus `docs/kalibrierung.md`, Abschnitt 12, und zeigt, was das Budget
+pro Person auf der Karte reicht (Abschnitt 13). Er braucht Node und `npm ci` in `frontend/`. Von Hand
+geht es so:
 
 1. Die Karte auf einer lokalen Instanz hochladen (`devops/dev.sh up`), nicht auf dem Server, auf dem
    gespielt wird.
 2. Ein Spiel mit wenigen Plätzen anlegen. Kartenänderungen nicht zulassen, damit jede Runde auf der
-   Basisversion fährt, und das CO₂-Budget so hoch setzen, dass das Spiel nicht endet.
+   Basisversion fährt, und das CO₂ pro Person auf 6,0 kg stellen, damit das Spiel nicht vorzeitig
+   endet.
 3. Bei „Menschen pro Gruppe“ den Kandidaten eintragen: Pendler ÷ (Plätze × Gruppen pro Platz).
 4. Die Plätze an der Leitstelle anlegen und für jede Gruppe Verkehrsmittel und Weg selbst wählen.
 5. Nach jeder Runde CO₂ und mittlere Fahrzeit ablesen. Unter Last streut eine Runde um 16–18 %,
@@ -356,7 +360,8 @@ Datenbank: Sie rechnet eine Runde aus einem Szenario (`backend/sim/scenario.py`)
 oder aus einer gespielten Runde übernommen (`.scenario` an jedem `TrafficSimulator`).
 
 Weil sich der Maßstab aus der Platzzahl ergibt, reichen dafür wenige Plätze. Auf Berlin Mitte-West
-ergeben zwei Plätze fast dieselbe Runde wie sechzehn:
+ergeben zwei Plätze fast dieselbe Runde wie sechzehn (gemessen mit 6.400 Pendlern, der Zahl bis
+Oktober 2026):
 
 | Plätze | Gruppen | Menschen/Gruppe |  CO₂ Auto | Fahrzeit | Verspätung |
 | -----: | ------: | --------------: | --------: | -------: | ---------: |
@@ -376,87 +381,97 @@ Verspätung statt 12,5 und nur 42 % des CO₂.
 
 ### Die Pendlerzahl
 
-Die Pendlerzahl soll so gewählt sein, dass ein Morgen, an dem alle Auto fahren, ungefähr so lange
-dauert wie der Berufsverkehr in der echten Stadt.
+Die Pendlerzahl soll so gewählt sein, dass ein Morgen, an dem alle Auto fahren, ungefähr so langsam
+ist wie der Berufsverkehr in der echten Stadt.
 
 1. Die mittlere Länge eines Arbeitswegs auf der Karte bestimmen. Auf Berlin Mitte-West sind es
    7,66 km.
-2. Nachschlagen, wie schnell der Berufsverkehr in der abgebildeten Stadt fließt. In der Berliner
-   Innenstadt sind es rund 24 km/h, für 7,66 km also 19 Minuten.
-3. Testrunden spielen, in denen alle Auto fahren, und die Pendlerzahl anpassen, bis die mittlere
-   Fahrzeit in dieser Gegend liegt.
+2. Nachschlagen, wie schnell der Berufsverkehr in der abgebildeten Stadt fließt, mit Quelle. Für
+   Berlin sagt der TomTom Traffic Index (Daten von 2025, 15. Ausgabe, Januar 2026): 19,0 km/h im
+   morgendlichen Berufsverkehr, für 7,66 km also 24 Minuten.
+3. Testrunden spielen, in denen alle Auto fahren, und die Pendlerzahl anpassen, bis die Autos im
+   Mittel so schnell fahren.
 
 `calibrate_map` sucht die Zahl selbst und braucht dafür nur das Tempo aus Schritt 2 (`--speed`).
 
 Das Ergebnis ist nicht die echte Pendlerzahl des Stadtteils, die ist viel höher. Der Graph bildet
 aber nur die Hauptachsen ab, und gesucht ist, wie viel Verkehr **diese Achsen** tragen. Für Berlin
-Mitte-West sind es **6.400 Pendler**: Fahren alle Auto, dauern 7,66 km dann 21,5 Minuten, 11,4 davon
-Verspätung. Das Modell liegt damit etwas über der echten Stadt.
+Mitte-West sind es **6.800 Pendler**: Fahren alle Auto, fahren sie morgens 19,4 km/h, und ein Weg
+dauert 23,7 Minuten statt 10,0 bei freier Fahrt.
+
+Die Zahl ist ein Anker, keine Statistik, und das aus zwei Gründen:
+
+- **Sie zählt Autos, keine Menschen.** TomTom misst den Verkehr, während der Rest der Stadt schon in
+  der U-Bahn und auf dem Rad sitzt. Die 6.800 sind die Autonachfrage, die auf diesem Graphen den
+  Berufsverkehr ergibt, wenn alle fahren. Mit Berlins echter Verkehrsmittelwahl zu eichen, geht
+  nicht: Die Karte hat mehr Busse und weniger Schiene als die Stadt.
+- **Sie steht für die Ampeln mit.** Das Modell hat keine. Seine freie Fahrt ist das Tempolimit,
+  46,1 km/h, TomToms Berlin fährt nachts um 30. Wer das Tempo trifft, lässt den Stau die Ampeln
+  mittragen: Ein Weg dauert 2,4-mal so lang wie bei freier Fahrt, in der Stadt das 1,59-fache. Auf
+  das Stauniveau geeicht statt auf das Tempo, wären es 4.800 Pendler.
 
 Danach prüfen, ob der Stau von den Entscheidungen abhängt. Darum geht es im Spiel. Dafür Runden mit
 weniger Autos spielen, etwa mit drei Vierteln, der Hälfte und einem Viertel:
 
-| Autoanteil | Runde gesamt |      Auto | Fahrplan | Fahrzeit Auto | Verspätung |
-| ---------: | -----------: | --------: | -------: | ------------: | ---------: |
-|      100 % |    13.326 kg | 10.001 kg | 3.325 kg |      21,5 min |   11,4 min |
-|       75 % |    10.247 kg |  6.843 kg | 3.405 kg |      14,9 min |    4,9 min |
-|       50 % |     8.036 kg |  4.159 kg | 3.877 kg |      10,6 min |    0,7 min |
-|       25 % |     7.118 kg |  2.206 kg | 4.912 kg |      10,8 min |    0,1 min |
-|        0 % |     5.151 kg |         — | 5.151 kg |             — |          — |
+| Autoanteil | pro Person | Runde gesamt |      Auto |  Fahrplan | Fahrzeit Auto hin / zurück |
+| ---------: | ---------: | -----------: | --------: | --------: | -------------------------: |
+|      100 % |    4,17 kg |    28.379 kg | 21.080 kg |  7.299 kg |            23,7 / 22,4 min |
+|       75 % |    3,16 kg |    21.498 kg | 14.773 kg |  6.725 kg |            16,8 / 15,4 min |
+|       50 % |    2,41 kg |    16.420 kg |  9.122 kg |  7.299 kg |            11,6 / 11,7 min |
+|       25 % |    1,96 kg |    13.340 kg |  4.449 kg |  8.890 kg |            10,2 / 10,3 min |
+|        0 % |    1,53 kg |    10.402 kg |         — | 10.402 kg |                          — |
 
 ![Was eine Runde kostet, nach Autoanteil](../backend/template/hintergrund/runde.svg)
 
-_Jeder Balken ist eine Runde: Auto in Blau, der Fahrplan in Gelb. Der Fahrplan fährt so oder so und
-wird teurer, je mehr Leute einsteigen, weil die Linien fahren, bis der Letzte zu Hause ist; das Auto
-bestimmt, wie lang der Balken wird. Die Linie ist das halbe Budget von 16.000 kg pro Runde, also das
-für einen Weg._
+_Jeder Balken ist eine Runde mit Hin- und Rückweg: Auto in Blau, der Fahrplan in Gelb. Der Fahrplan
+fährt so oder so und wird teurer, je mehr Leute einsteigen, weil die Linien fahren, bis der Letzte
+zu Hause ist; das Auto bestimmt, wie lang der Balken wird. Die Linie ist das Budget einer Runde bei
+normal, 2,4 kg × 6.800 Pendler = 16.320 kg._
 
 Auf Berlin Mitte-West ist der Stau weg, wenn die Hälfte umsteigt. Stau ist ein Schwellenphänomen
 dicht an der Kapazität: Knapp darunter fließt der Verkehr, knapp darüber staut er. Bleibt der Stau
 auch bei halbem Autoanteil, ist die Pendlerzahl zu hoch. Staut es schon dann kaum, wenn alle Auto
 fahren, ist sie zu niedrig.
 
-Beim ÖPNV zeigt sich zu viel Nachfrage als Wartezeit. Auf Berlin Mitte-West brauchen Bus und Bahn 33
-bis 44 Minuten, und die Wartezeit an der Haltestelle wächst von 9 auf 22 Minuten, je mehr Leute
+Beim ÖPNV zeigt sich zu viel Nachfrage als Wartezeit. Auf Berlin Mitte-West brauchen Bus und Bahn 32
+bis 43 Minuten, und die Wartezeit an der Haltestelle wächst von 21 auf 44 Minuten, je mehr Leute
 umsteigen, weil die Fahrzeuge voll sind.
 
-Die Tabelle gilt für einen Weg, den Hinweg. Sie ist auf der Basisversion von Berlin Mitte-West gemessen: 64 Gruppen zu je 100 Menschen,
-gleichmäßig über die 36 Paare aus Wohnort und Arbeitsplatz verteilt, wer nicht Auto fährt, fährt Bus
-und Bahn, gemittelt über sechs Seeds. Die Streuung zwischen den Seeds liegt bei höchstens 3 %.
+Gemessen mit `calibrate_map` auf der Basisversion von Berlin Mitte-West, auf Postgres: 72 Gruppen zu
+je 94 Menschen, gleichmäßig über die 36 Paare aus Wohnort und Arbeitsplatz verteilt, jedes Paar
+fährt seinen Anteil Auto und der Rest Bus und Bahn, gemittelt über sechs Seeds. Pro Person heißt: die
+Runde geteilt durch die 6.800 Pendler, so wie das Budget sie zählt.
 
 ### Das Budget
 
-Die Regel für jede Karte: Das Budget ist, was eine Runde kostet, wenn die Hälfte der Gruppen Auto
-fährt und die andere Hälfte Bus und Bahn, auf zwei Stellen gerundet. Auf Berlin Mitte-West sind das
-15.854 kg, also die 16.000, die die Karte trägt. Der Anteil ist der Schwierigkeitsregler: bei 40 %
-Auto wird das Budget knapper, bei 60 % großzügiger (`--share`).
+Das Budget ist eine Zahl pro Person und Runde, auf jeder Karte dieselbe. Ein Budget pro Karte, an
+ihr selbst gemessen, ließe jede Stadt gleich schwer aussehen; pro Person ist eine Stadt mit langen
+Wegen oder wenig Bus und Bahn von selbst schwerer. Das ist die Lektion, kein Fehler.
 
-Was das Budget im Spiel bedeutet, zeigen zwei Spiele über die geplante Rundenzahl: eines, in dem
-niemand aus dem Auto steigt, und eines, das sich herunterarbeitet, zum Beispiel mit 100 / 75 / 50 /
-50 / 25 / 25 % Autoanteil. Das Budget sollte zwischen beiden liegen: Das erste Spiel soll es
-sprengen, das zweite damit auskommen. Nach unten begrenzt es der Fahrplan, der auch fährt, wenn niemand einsteigt, auf Berlin
-Mitte-West 6.736 kg pro Runde mit Hin- und Rückweg. Die Zahl sollte rund sein, damit alle sie im Kopf
-behalten.
+**Normal sind 2,4 kg.** So viel kostet eine Runde auf Berlin Mitte-West pro Person, wenn die Hälfte
+der Gruppen Auto fährt (2,41 kg), auf den Schritt des Reglers gerundet. Die Zahl ist einmal gemessen
+und bleibt, ein Anker für alle Karten. Auf Berlin Mitte-West reicht normal, wenn 49 % der Gruppen
+Auto fahren; für eine neue Karte sagt `calibrate_map`, welcher Anteil es dort ist. Der Regler bei
+„Spiel anlegen“ geht von 1,0 bis 6,0 kg in Schritten von 0,2, weil auf Berlin 0,5 kg etwa ein Viertel
+der Klasse ist, das umsteigt. Das Spiel speichert, mit wie viel Kilo es gespielt wurde.
 
-Eine Runde rechnet Hin- und Rückweg, die Tabelle oben gilt für einen Weg. Gemessen auf Berlin
-Mitte-West (dieselben 64 Gruppen, sechs Seeds) kostet eine Runde mit Hin- und Rückweg 1,98- bis
-2,02-mal so viel wie der Hinweg allein:
+Gerechnet wird mit den Pendlern der Karte, nicht mit den Menschen, die die Gruppen auf die Karte
+bringen (106 × 64 = 6.784). Überschreibt jemand die Menschen pro Gruppe, um eine Runde leichter zu
+machen, schrumpft das Budget nicht mit: Der Fahrplan fährt, ob jemand einsteigt oder nicht.
 
-| Autoanteil | Runde gesamt |      Auto |  Fahrplan |
-| ---------: | -----------: | --------: | --------: |
-|      100 % |    26.367 kg | 19.631 kg |  6.736 kg |
-|       75 % |    20.323 kg | 13.530 kg |  6.792 kg |
-|       50 % |    16.174 kg |  8.318 kg |  7.856 kg |
-|       25 % |    14.340 kg |  4.415 kg |  9.925 kg |
-|        0 % |    10.402 kg |         — | 10.402 kg |
+Was das Budget im Spiel bedeutet, zeigen zwei Spiele über sechs Runden: eines, in dem niemand aus dem
+Auto steigt, und eines, das sich herunterarbeitet, mit 100 / 75 / 50 / 50 / 25 / 25 % Autoanteil.
+Nach unten begrenzt es der Fahrplan, der auch fährt, wenn niemand einsteigt: 1,53 kg pro Person, und
+darunter ist keine Runde zu schaffen.
 
-Das erste Spiel kostet damit über sechs Runden 158.201 kg, das zweite 107.716 kg. Die eingetragenen
-16.000 kg pro Runde, 96.000 für sechs, trennen die beiden nicht mehr: Wer durchgehend fährt, ist in
-Runde 4 raus, und wer sich verbessert, überschreitet das Budget in der letzten Runde um 11.716 kg.
-Das liegt am Fahrplan: Die Linien fahren, bis der Letzte zu Hause ist, und je mehr umsteigen, desto
-länger sind Leute unterwegs. Die Karte behält 16.000 (entschieden am 2. Oktober 2026): Wer alle sechs
-Runden schaffen will, muss früher umsteigen als das zweite Spiel. Mit 18.000 kg pro Runde, 108.000
-für sechs, wäre durchgehend Fahren in Runde 5 vorbei, und wer umsteigt, bliebe 284 kg darunter.
+Bei normal sind das 97.920 kg für sechs Runden. Wer durchgehend fährt, ist in Runde 4 raus. Wer sich
+herunterarbeitet, kommt auf 109.397 kg, 16,09 kg pro Person gegen 14,4, und überschreitet das Budget
+in der letzten Runde. Das liegt am Fahrplan: Die Linien fahren, bis der Letzte zu Hause ist, und je
+mehr umsteigen, desto länger sind Leute unterwegs. Mit 2,8 kg käme das zweite Spiel durch. Wer alle
+sechs Runden schaffen will, muss bei normal früher umsteigen.
+
+Bis zum 7. Oktober 2026 war das Budget eine Zahl der Karte, auf Berlin Mitte-West 16.000 kg pro
+Runde; wie es dahin kam, steht in `docs/kalibrierung.md`.
 
 ### Emissionsfaktoren nachrechnen
 
@@ -503,7 +518,8 @@ Straßen eine Ordnung in der Warteschlange und kein kleineres σ.
 
 ### Wann neu gemessen werden muss
 
-Die beiden Zahlen gelten für eine Karte und ein Modell. Neu messen, wenn
+Die Pendlerzahl gilt für eine Karte und ein Modell, ebenso der Anteil, den normal auf ihr kauft.
+Neu messen, wenn
 
 - sich die Kapazität der Karte ändert: neue Straßen, andere Spuren, neue Linien;
 - sich die Nachfrage im Modell ändert. Die Abfahrten streuen heute mit σ = 10 Minuten um die
@@ -511,8 +527,9 @@ Die beiden Zahlen gelten für eine Karte und ein Modell. Neu messen, wenn
   Achsen mehr Pendler;
 - der Abend eine eigene Spitze bekommt. Heute ist er ein Abbild des Morgens, mit derselben Streuung
   der Abfahrten; eine andere Spitze trägt dasselbe Netz mit mehr oder weniger Pendlern;
-- sich ein Emissionsfaktor ändert oder wie lange die Linien fahren. Dann verschiebt sich das Budget.
+- sich ein Emissionsfaktor ändert oder wie lange die Linien fahren. Dann verschiebt sich, was normal
+  auf der Karte kauft — und auf Berlin vielleicht normal selbst.
 
-Danach beide Zahlen in die Kartendatei oder in den Admin eintragen, `calibrated` setzen und die
-Karte exportieren, damit die Messung mit der Datei mitgeht. Die Messungen für Berlin Mitte-West
+Danach die Pendlerzahl in die Kartendatei oder in den Admin eintragen, `calibrated` setzen und die
+Karte exportieren, damit die Messung mit der Datei mitgeht (`calibrate_map --out` schreibt beides). Die Messungen für Berlin Mitte-West
 stehen mit allen Tabellen in `docs/kalibrierung.md` und `backend/game/calibration.py`.

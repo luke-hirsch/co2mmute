@@ -35,14 +35,14 @@ Jetzt, wo du ein Konto hast, kannst du Spiele anlegen. Super. Gehen wir die Feld
 
 - „Plätze insgesamt“ (Vorgabe: 16): Wie viele Leute sollen mitspielen dürfen? Egal ob an der Leitstelle oder übers Internet, mehr als das geht nicht. Du als Spielleitung zählst nicht mit.
 - „Gruppen pro Person“ (Vorgabe: 4): Wie viele Gruppen jede Person steuern muss. Jede Gruppe bekommt ihr eigenes Zuhause und ihren eigenen Arbeitsplatz auf der Karte und braucht jede Runde ein Verkehrsmittel und eine Route.
-- „Menschen pro Gruppe“: Das suchst du dir nicht aus. Die Karte weiß, wie viele Menschen durch sie pendeln — 6.400 auf Berlin Mitte-West — und das Formular verteilt sie auf Plätze × Gruppen. 16 Plätze mit je 4 Gruppen macht 100 Menschen pro Gruppe. Weniger Plätze, mehr Menschen pro Gruppe, damit auf den Straßen gleich viel los ist, ob nun 16 oder 6 spielen. Du kannst die Zahl überschreiben, und „Vorschlag übernehmen“ holt die gerechnete zurück. Lass es, außer du weißt, warum.
+- „Menschen pro Gruppe“: Das suchst du dir nicht aus. Die Karte weiß, wie viele Menschen durch sie pendeln — 6.800 auf Berlin Mitte-West — und das Formular verteilt sie auf Plätze × Gruppen. 16 Plätze mit je 4 Gruppen macht 106 Menschen pro Gruppe. Weniger Plätze, mehr Menschen pro Gruppe, damit auf den Straßen gleich viel los ist, ob nun 16 oder 6 spielen. Du kannst die Zahl überschreiben, und „Vorschlag übernehmen“ holt die gerechnete zurück. Lass es, außer du weißt, warum.
 
 Stell die Plätze also auf die Zahl der Leute, die wirklich mitspielen. Wie viele Menschen in einer Gruppe stecken, steht fest, sobald das Spiel angelegt ist: Machst du 16 Plätze auf und es kommen 8, ist auf den Straßen nur halb so viel los, und es staut sich nie.
 
 #### Wann das Spiel endet
 
 - „Runden“ (Vorgabe: 6): So viele Runden werden gefahren, wenn das Budget so lange reicht.
-- „CO₂-Budget (kg)“: So viel CO₂ dürfen alle zusammen über das ganze Spiel ausstoßen. Das Formular schlägt vor, was eine Runde laut Karte kosten darf, mal die Runden — 16.000 kg × 6 = 96.000 kg auf Berlin Mitte-West. Ist es aufgebraucht, ist das Spiel vorbei. Fahren auf dieser Karte alle weiter Auto, ist in Runde 4 Schluss; steigen sie um, schaffen sie es bis in die letzte Runde.
+- „CO₂ pro Person und Runde“ (Vorgabe: 2,4 kg, „normal“): Der Schwierigkeitsregler. So viel CO₂ darf jeder Mensch auf der Karte pro Runde ausstoßen, hin und zurück, von 1,0 bis 6,0 kg in Schritten von 0,2. Darunter steht, was das fürs ganze Spiel heißt: 2,4 kg × 6.800 Pendler × 6 Runden = 97.920 kg auf Berlin Mitte-West. Ist es aufgebraucht, ist das Spiel vorbei. Normal reicht auf dieser Karte, wenn die Hälfte der Gruppen Auto fährt. Fahren alle weiter Auto, ist in Runde 4 Schluss; steigen sie nach und nach um, schaffen sie es bis in die letzte Runde. Die Kilos gelten auf jeder Karte gleich, eine Karte mit langen Wegen oder wenig Bus und Bahn ist also von selbst schwerer.
 
 #### Weitere Einstellungen
 

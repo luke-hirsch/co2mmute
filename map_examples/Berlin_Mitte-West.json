@@ -8,8 +8,7 @@
     "walk_speed_kmh": 5,
     "bike_speed_kmh": 20,
     "default_car_speed_kmh": 50,
-    "district_commuters": 6400,
-    "co2_budget_kg_per_round": 16000,
+    "district_commuters": 6800,
     "calibrated": true
   },
   "versions": [
