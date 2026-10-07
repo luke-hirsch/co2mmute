@@ -183,7 +183,6 @@ def build_export(game_map, version=None):
             "bike_speed_kmh": game_map.bike_speed_kmh,
             "default_car_speed_kmh": game_map.default_car_speed_kmh,
             "district_commuters": game_map.district_commuters,
-            "co2_budget_kg_per_round": game_map.co2_budget_kg_per_round,
             "calibrated": game_map.calibrated,
         },
     }

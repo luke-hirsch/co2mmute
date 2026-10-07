@@ -1,12 +1,14 @@
-"""Measure what a map's two numbers should be.
+"""Measure a map's commuters, and what the budget buys on it.
 
-./manage.py calibrate_map map.json --speed 24        # find the commuters, then the budget
-./manage.py calibrate_map map.json --commuters 6400  # keep the commuters, measure the budget
+./manage.py calibrate_map map.json --speed 19        # find the commuters, then the table
+./manage.py calibrate_map map.json --commuters 6800  # keep the commuters, measure the table
 
-The rule is in `game/calibration.py`: the budget per round is what a round
-costs when half the Gruppen drive, rounded; the commuters are as many as make
-a morning where everybody drives as slow as the city's rush hour (`--speed`,
-in km/h — the figure and its source come from whoever runs this).
+The rule is in `game/calibration.py`: the commuters are as many as make a
+morning where everybody drives as slow as the city's rush hour (`--speed`, in
+km/h — the figure and its source come from whoever runs this; for Berlin, the
+TomTom Traffic Index's 19.0). The budget is kg per person per round, the same
+on every map, so what is measured about it is what it buys here: a round at
+each car share, per person, and the share the normal kg stays inside.
 
 The file is imported into a throwaway database, never the one the app runs
 on: a test database of its own, in memory under sqlite. Measure on Postgres
@@ -16,7 +18,7 @@ with riders comes out about 1.5 % apart on sqlite and on the box. Its graph goes
 game's own router (`frontend/scripts/routes.mjs`, so Node and `npm ci` in
 frontend/ are needed) and its rounds through the simulation, every one rolled
 back. Prints the answer and the table it came from; `--out` writes a copy of
-the file carrying both numbers and `calibrated: true`.
+the file carrying the count and `calibrated: true`.
 """
 
 import json
@@ -55,7 +57,10 @@ def minutes(value):
 
 
 class Command(BaseCommand):
-    help = "Misst Pendlerzahl und CO₂-Budget einer Karte nach der Kalibrierungsregel."
+    help = (
+        "Misst die Pendlerzahl einer Karte nach der Kalibrierungsregel und was "
+        "das CO₂-Budget pro Person auf ihr reicht."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument("file", metavar="datei.json")
@@ -68,13 +73,7 @@ class Command(BaseCommand):
         which.add_argument(
             "--commuters",
             type=int,
-            help="Pendlerzahl behalten und nur das Budget messen.",
-        )
-        parser.add_argument(
-            "--share",
-            type=int,
-            default=round(calibration.BUDGET_SHARE * 100),
-            help="Autoanteil in Prozent, bei dem das Budget gemessen wird (50).",
+            help="Pendlerzahl behalten und nur die Tabelle messen.",
         )
         parser.add_argument(
             "--seeds",
@@ -88,11 +87,11 @@ class Command(BaseCommand):
             help="Name der Version (Vorgabe: die Basisversion, auf der ein Spiel beginnt).",
         )
         parser.add_argument(
-            "--out", help="Kopie der Datei mit beiden Zahlen und calibrated: true."
+            "--out", help="Kopie der Datei mit der Pendlerzahl und calibrated: true."
         )
 
     def handle(
-        self, *args, file, speed, commuters, share, seeds, version_name, out, **options
+        self, *args, file, speed, commuters, seeds, version_name, out, **options
     ):
         path = Path(file)
         try:
@@ -107,8 +106,6 @@ class Command(BaseCommand):
             raise CommandError(
                 f"{path}: {len(problems)} Probleme — erst `check_map`, dann kalibrieren."
             )
-        if not 0 <= share <= 100:
-            raise CommandError("--share ist ein Prozentsatz zwischen 0 und 100.")
         if not 1 <= seeds <= len(calibration.SEEDS):
             raise CommandError(
                 f"--seeds liegt zwischen 1 und {len(calibration.SEEDS)}."
@@ -143,7 +140,6 @@ class Command(BaseCommand):
                     path,
                     speed=speed,
                     commuters=commuters,
-                    share=share / 100,
                     seeds=calibration.SEEDS[:seeds],
                     version_name=version_name,
                 )
@@ -155,14 +151,15 @@ class Command(BaseCommand):
         if out:
             meta = graph.setdefault("map", {})
             meta["district_commuters"] = result.commuters
-            meta["co2_budget_kg_per_round"] = result.budget_kg
+            # A file from before the budget was per person (F8 step 2b).
+            meta.pop("co2_budget_kg_per_round", None)
             meta["calibrated"] = True
             Path(out).write_text(
                 json.dumps(graph, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
             )
             self.stdout.write(f"Geschrieben: {out}")
 
-    def _calibrate(self, graph, path, *, speed, commuters, share, seeds, version_name):
+    def _calibrate(self, graph, path, *, speed, commuters, seeds, version_name):
         """Import, route and play — inside the throwaway database."""
         from game.measure import (
             MapRounds,
@@ -219,7 +216,6 @@ class Command(BaseCommand):
                 smallest=rounds.gruppen,
                 target_kmh=speed,
                 commuters=commuters,
-                share=share,
                 seeds=seeds,
             )
         except calibration.CalibrationRefused as exc:
@@ -265,19 +261,37 @@ class Command(BaseCommand):
             write(
                 f"Pendler: {de(result.commuters)} (vorgegeben) — alle im Auto: {speed}"
             )
-        write(
-            f"Budget pro Runde: {de(result.budget_kg)} kg — die Runde bei "
-            f"{round(result.share * 100)} % Auto kostet {de(result.budget_measured_kg)} kg"
-        )
+        normal = de(calibration.CO2_KG_PER_PERSON_NORMAL, 1)
+        share = result.normal_share
+        if share is None:
+            write(
+                f"Normal, {normal} kg pro Person und Runde, reicht hier nicht einmal "
+                "für eine Runde ohne Auto."
+            )
+        elif share >= 1.0:
+            write(
+                f"Normal, {normal} kg pro Person und Runde, reicht hier auch, "
+                "wenn alle Gruppen Auto fahren."
+            )
+        else:
+            write(
+                f"Normal, {normal} kg pro Person und Runde, reicht hier, wenn "
+                f"{de(share * 100)} % der Gruppen Auto fahren."
+            )
+        people = rounds.gruppen * rounds.people_per_gruppe(result.commuters)
         write(
             f"  {de(rounds.people_per_gruppe(result.commuters))} Menschen pro Gruppe, "
-            f"Mittel über {len(next(iter(result.rows.values())))} Seeds, hin und zurück"
+            f"{de(people)} auf der Karte, Mittel über "
+            f"{len(next(iter(result.rows.values())))} Seeds, hin und zurück; "
+            f"pro Person heißt: die Runde durch {de(result.commuters)} Pendler, "
+            "wie das Budget"
         )
         write("")
         write(
-            "Autoanteil       Runde        Auto    Fahrplan   Auto hin / zurück"
-            "   Bus & Bahn   Warten   nicht da"
+            "Autoanteil   pro Person       Runde        Auto    Fahrplan"
+            "   Auto hin / zurück   Bus & Bahn   Warten   nicht da"
         )
+        per_person = result.per_person
         for share, played in result.rows.items():
 
             def mean(attribute):
@@ -289,7 +303,8 @@ class Command(BaseCommand):
             back = mean("car_return_min")
             trip = "—" if car is None else f"{de(car, 1)} / {de(back or 0, 1)} min"
             write(
-                f"{round(share * 100):>8} % {de(mean('total_kg')):>10} kg "
+                f"{round(share * 100):>8} % {de(per_person[share], 2):>9} kg "
+                f"{de(mean('total_kg')):>8} kg "
                 f"{de(mean('car_kg')):>8} kg {de(mean('timetable_kg')):>8} kg "
                 f"{trip:>19} {minutes(mean('pt_trip_min')):>12} "
                 f"{minutes(mean('pt_wait_min')):>8} {max(r.not_home for r in played):>10}"

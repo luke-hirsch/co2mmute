@@ -1189,9 +1189,8 @@ export const de = {
               ["walk_speed_kmh", "Gehtempo (Vorgabe: 5)"],
               ["bike_speed_kmh", "Radtempo (Vorgabe: 20)"],
               ["default_car_speed_kmh", "Autotempo ohne Tempolimit (Vorgabe: 50)"],
-              ["district_commuters", "wie viele Pendler die Karte trägt (Vorgabe: 6.400)"],
-              ["co2_budget_kg_per_round", "was eine Runde an CO₂ kosten darf (Vorgabe: 16.000, Hin- und Rückweg)"],
-              ["calibrated", "true, wenn die beiden Zahlen darüber für diese Karte gemessen sind — sonst warnt „Spiel anlegen“"],
+              ["district_commuters", "wie viele Pendler die Karte trägt (Vorgabe: 6.800)"],
+              ["calibrated", "true, wenn die Pendlerzahl darüber für diese Karte gemessen ist — sonst warnt „Spiel anlegen“"],
             ],
           },
           {
@@ -1651,13 +1650,13 @@ export const de = {
       "Diese Karte hat nur eine Version. Es gibt also nichts abzustimmen, und die Diskussion zwischen den Runden fällt weg.",
     /**
      * S21. `GameMap.calibrated` is false: nobody replayed rounds on this map,
-     * so both offers below are whatever it was given — as a rule the field
-     * defaults, measured on Berlin Mitte-West, which is the bigger map. Says
-     * which way they are likely wrong, because "may not fit" alone gives a
-     * host nothing to do.
+     * so its commuter count is whatever it was given — as a rule the field
+     * default, measured on Berlin Mitte-West, which is the bigger map. Says
+     * which way it is likely wrong, because "may not fit" alone gives a host
+     * nothing to do. The budget follows the people, so it is wrong with them.
      */
     mapUncalibrated:
-      "Für diese Karte ist nicht gemessen, wie viel Verkehr sie trägt und was eine Runde kostet. Menschen pro Gruppe und CO₂-Budget sind deshalb nur Vorgabewerte – auf einer kleinen Karte sind beide zu hoch.",
+      "Für diese Karte ist nicht gemessen, wie viel Verkehr sie trägt. Menschen pro Gruppe ist deshalb nur ein Vorgabewert – auf einer kleinen Karte ist er zu hoch, und mit ihm das CO₂-Budget.",
 
     /** The box beside both switches; the label above it names the thing. */
     allow: "zulassen",
@@ -1684,12 +1683,19 @@ export const de = {
     groupEnd: "Wann das Spiel endet",
     maxRounds: "Runden",
     maxRoundsHelp: "So viele Runden werden gefahren, wenn das Budget reicht.",
-    co2Budget: "CO₂-Budget (kg)",
-    co2BudgetHelp: (perRound: number, rounds: number) =>
-      `${perRound.toLocaleString("de-DE")} kg pro Runde × ${rounds} ${
+    /**
+     * F8 step 2b. The budget is kg per person per round, the same on every
+     * map; the total follows from the people and the rounds and is what the
+     * game ends on. Normal is Berlin Mitte-West's half-driving round.
+     */
+    co2PerPerson: "CO₂ pro Person und Runde",
+    co2PerPersonOption: (kg: string, normal: boolean) =>
+      `${kg.replace(".", ",")} kg${normal ? " – normal" : ""}`,
+    co2PerPersonHelp: (total: number, rounds: number) =>
+      `Zusammen ${total.toLocaleString("de-DE")} kg für ${rounds} ${
         rounds === 1 ? "Runde" : "Runden"
-      }. Ist das Budget aufgebraucht, ist das Spiel vorbei – genug, wenn viele umsteigen, zu wenig, wenn alle fahren.`,
-    /** Shown once either number no longer matches what the map would suggest. */
+      }, hin und zurück. Ist das aufgebraucht, ist das Spiel vorbei. Normal reicht auf Berlin Mitte-West, wenn die Hälfte der Gruppen Auto fährt – weniger ist schwerer.`,
+    /** Shown once the scale no longer matches what the map would suggest. */
     overridden: "Von dir überschrieben.",
     reset: "Vorschlag übernehmen",
 

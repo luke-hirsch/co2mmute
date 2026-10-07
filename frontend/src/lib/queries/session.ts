@@ -127,9 +127,10 @@ export function useResumeGame(gameId: string) {
  * the model defaulted it on and no screen could switch it off until S21.
  *
  * `people_per_agent` and `max_CO2_level` are derived by `lib/calibration.ts`
- * and written into their fields as the host changes the class size, the round
- * count or the map. They are ordinary fields from there on: the endpoint takes
- * whatever it is sent, so a host who types over either keeps their own number.
+ * as the host changes the class size, the round count, the dial or the map.
+ * The scale is an ordinary field from there on: the endpoint takes whatever it
+ * is sent, so a host who types over it keeps their own number. The budget
+ * follows `co2_kg_per_person`, the dial, which the game records (F8 step 2b).
  */
 export type CreateGameBody = {
   game_name: string;
@@ -140,6 +141,7 @@ export type CreateGameBody = {
   agent_per_player: number;
   max_rounds: number;
   max_CO2_level: number;
+  co2_kg_per_person: string;
   people_per_agent: number;
   idle_end_days: number;
   chat_enabled: boolean;

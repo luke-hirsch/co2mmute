@@ -6,13 +6,14 @@ been calibrated — the shipped pair was 1000 people per Gruppe against a
 500 kg budget, on a map whose public transport timetable alone emits 2 449 kg
 a round before anybody plays. Every game ended in round 1.
 
-**The two inputs live on `GameMap`, not here.** `district_commuters` and
-`co2_budget_kg_per_round` are properties of a particular graph: how much
-traffic its corridors carry, and what a playable round costs on its distances
-and its timetable. Another city is another pair, so a module constant would
-have made one neighbourhood's measurements a property of the software. This
-module is only the arithmetic on top, plus the record of where the shipped
-defaults came from.
+**Since F8 step 2b (2026-10-07) one is the map's and one is the game's.**
+`GameMap.district_commuters` is a property of a particular graph: the car
+demand its corridors carry at the real city's rush hour. The budget is kg of
+CO2 per person per round, the same on every map — `CO2_KG_PER_PERSON_NORMAL`
+below, the create form's difficulty dial — so a map with long commutes or a
+thin timetable is harder by itself. Until then the budget per round was a map
+field too (`co2_budget_kg_per_round`, 16 000 kg on Berlin Mitte-West); the
+sections below are its history, in the units of the day.
 
 Measured on `map_examples/Berlin_Mitte-West.json` (55 nodes, 90 street edges,
 6 homes, 6 workplaces, 13 x 10 km at scale 1000), mean home-to-work distance
@@ -43,8 +44,9 @@ graph abstracts a district to its main corridors, so the population it can
 carry is the population those corridors carry. At 6 400, everybody driving puts
 the busiest links (Hansaplatz — Großer Stern — Brandenburger Tor) at about
 115 % of their flow capacity and gives a 7.66 km commute 20.4 min against
-9.5 min free flow. Inner Berlin's morning peak runs at roughly 24 km/h, which
-is the same 11 minutes of delay. Raise it and the model reports commutes no
+9.5 min free flow. S2 took inner Berlin's morning peak to be roughly 24 km/h,
+the same 11 minutes of delay — a figure with no source, replaced in F8 by
+TomTom's measured 19.0 km/h (below). Raise it and the model reports commutes no
 city has: 1 000 people per Gruppe at 64 Gruppen is 298 min, with no
 deadlock and no forced release — the model is fine, the demand is not, and
 64 000 cars would need about five times the lanes the map has.
@@ -162,9 +164,32 @@ docs/kalibrierung.md §11.
 **Since 2026-10-05 a new map is measured by one rule** (the functions at the
 bottom of this module, run by `manage.py calibrate_map`). On Berlin Mitte-West,
 on Postgres, its half-driving round trip is 15 854 kg — 16 000, the map's
-number — while its 6 400 commuters drive at 20.7 km/h when everybody drives,
-not the city's 24; at 24 km/h the rule says 5 700 and 14 000.
-docs/kalibrierung.md §12.
+number then — while its 6 400 commuters drive at 20.7 km/h when everybody
+drives, not the 24 S2 had assumed. docs/kalibrierung.md §12.
+
+**Since 2026-10-07 the budget is per person (F8 step 2b).** The commuters are
+matched on the TomTom Traffic Index, 2025 data (15th edition, January 2026):
+Berlin's city area drives 19.0 km/h in the morning rush, congestion 58.7 %.
+An all-car morning on Berlin Mitte-West reaches that at 6 800 commuters. The
+count is car demand, not a headcount — TomTom measures traffic with the city's
+riders already on the U-Bahn and bikes — and a design anchor rather than a
+derived figure. The model has no traffic lights, so its free flow is the speed
+limit (46 km/h; Berlin at night is ~30) and matching the speed makes the jam
+stand in for the lights: all-car trips take 2.4 times free flow against the
+city's 1.59. Matching the congestion level instead would have meant 4 800
+commuters; the map is matched on the speed (decided 2026-10-07). Per person,
+there and back, six seeds on Postgres:
+
+    car share   kg per person and round
+         100 %    4.17
+          75 %    3.16
+          50 %    2.41
+          25 %    1.96
+           0 %    1.53
+
+Normal is the 50 % row rounded to the dial's 0.2 kg step, 2.4 — a constant
+from here on, the same on every map. A class going 100/75/50/50/25/25 % spends
+16.09 kg a head over six rounds against 14.4. docs/kalibrierung.md §13.
 
 Re-deriving these after a model change means replaying rounds on the map in
 question (`calibrate_map`), not adjusting them until a play-test feels right.
@@ -174,12 +199,35 @@ What each number is FOR is asserted in `game/tests/test_join.py`.
 import math
 import statistics
 from dataclasses import dataclass, field
+from decimal import ROUND_HALF_EVEN, Decimal
 
 # What the create form offers, and what the GameSession model defaults agree
 # with. The class size, not the calibration — that comes off the map.
 DEFAULT_MAX_PLAYERS = 16
 DEFAULT_AGENT_PER_PLAYER = 4
 DEFAULT_MAX_ROUNDS = 6
+
+# The budget: kg of CO2 per person per round, there and back, the same on
+# every map. Normal is what a round costs on Berlin Mitte-West when half the
+# Gruppen drive (2.41 at 6 800 commuters), rounded to the step — measured
+# once and kept, a design anchor. The step is 0.2 because on Berlin 0.5 kg is
+# about a quarter of the class switching mode. The range runs below a round
+# nobody drives (1.53) and above one everybody does (4.17), so a host can make
+# a game unwinnable or free. `frontend/src/lib/calibration.ts` mirrors all four.
+CO2_KG_PER_PERSON_NORMAL = Decimal("2.4")
+CO2_KG_PER_PERSON_STEP = Decimal("0.2")
+CO2_KG_PER_PERSON_MIN = Decimal("1.0")
+CO2_KG_PER_PERSON_MAX = Decimal("6.0")
+
+
+def co2_kg_per_person_choices() -> list[Decimal]:
+    """Every value the dial offers, smallest first."""
+    steps = int(
+        (CO2_KG_PER_PERSON_MAX - CO2_KG_PER_PERSON_MIN) / CO2_KG_PER_PERSON_STEP
+    )
+    return [
+        CO2_KG_PER_PERSON_MIN + i * CO2_KG_PER_PERSON_STEP for i in range(steps + 1)
+    ]
 
 
 def _map_value(game_map, field_name: str) -> int:
@@ -219,18 +267,29 @@ def people_per_agent(
     return max(1, round(commuters / agents))
 
 
-def co2_budget_kg(max_rounds: int, game_map=None) -> int:
-    """The CO2 budget in kg for a game of this many rounds on this map.
+def co2_budget_kg(
+    max_rounds: int, game_map=None, kg_per_person=CO2_KG_PER_PERSON_NORMAL
+) -> int:
+    """The CO2 budget in kg for a game: kg per person × commuters × rounds.
+
+    The map's commuters, not the people the scale puts on it: they are the
+    same figure whenever the scale is derived, and a host who lightens a round
+    by typing over the scale must not get a budget the timetable alone
+    exceeds — the lines run whether anybody rides or not. So the budget still
+    carries no Gruppe term. Whole kg, because `GameSession.max_CO2_level` is;
+    the dial's even step makes a tie impossible.
 
     Args:
         max_rounds: Rounds the game is played over.
-        game_map: The map being played, for its `co2_budget_kg_per_round`.
+        game_map: The map being played, for its `district_commuters`.
+        kg_per_person: The dial, kg per person per round.
 
     Returns:
         Kilograms of CO2 for the whole game.
     """
-    per_round = _map_value(game_map, "co2_budget_kg_per_round")
-    return per_round * max(1, int(max_rounds or 0))
+    commuters = _map_value(game_map, "district_commuters")
+    total = Decimal(kg_per_person) * commuters * max(1, int(max_rounds or 0))
+    return int(total.quantize(Decimal(1), rounding=ROUND_HALF_EVEN))
 
 
 def per_person(total: float, agent_count: int, people_per_agent_value: int) -> float:
@@ -257,19 +316,16 @@ def per_person(total: float, agent_count: int, people_per_agent_value: int) -> f
 # ---------------------------------------------------------------------------
 # Calibrating a new map: one rule, measured once (`manage.py calibrate_map`).
 #
-# Budget per round = what a round costs when half the Gruppen drive and the
-# rest ride, rounded to a number a class can hold. Commuters = as many as make
-# a morning where everybody drives as slow as the city's own rush hour. The
-# share is the difficulty: more driving Gruppen is a looser budget. On Berlin
-# Mitte-West the half-driving round trip is 16 174 kg (docs/kalibrierung.md
-# §11), so its 16 000 is this rule.
+# Commuters = as many as make a morning where everybody drives as slow as the
+# city's own rush hour. Then a round at each car share of the table, per
+# person: which share the normal kg buys on this map is what a host needs to
+# know about it, since the kg is the same everywhere.
 #
 # The functions below take `play`, a function that plays one round and
 # returns what it cost (`game/measure.py:MapRounds.play`), so the rule can be
 # read and tested apart from the database.
 # ---------------------------------------------------------------------------
 
-BUDGET_SHARE = 0.5
 TABLE_SHARES = (1.0, 0.75, 0.5, 0.25, 0.0)
 
 # The seeds every measurement in docs/kalibrierung.md was taken over.
@@ -290,7 +346,7 @@ class CalibrationRefused(Exception):
 def round_figure(value: float) -> int:
     """Two significant figures: a number a class can hold in its head.
 
-    16 174 → 16 000, 6 437 → 6 400, 853 → 850. A half rounds up.
+    6 837 → 6 800, 16 174 → 16 000, 853 → 850. A half rounds up.
     """
     if value <= 0:
         return 0
@@ -384,14 +440,35 @@ def find_commuters(speed_at, *, target_kmh, start, smallest):
     return round_figure(fast * step), searched
 
 
+def car_share_at(kg_per_person, per_person) -> float | None:
+    """The car share a budget of `kg_per_person` buys, read off a table.
+
+    `per_person` is share → kg a head for a round at that share. The answer
+    is the largest share whose round stays inside the budget, interpolated
+    between the two rows around it: 1.0 if even everybody driving fits, None
+    if not even a round nobody drives does — the timetable runs either way.
+    """
+    kg = float(kg_per_person)
+    shares = sorted(per_person)
+    fits = [share for share in shares if per_person[share] <= kg]
+    if not fits:
+        return None
+    lower = max(fits)
+    above = [share for share in shares if share > lower]
+    if not above:
+        return lower
+    upper = min(above)
+    low_kg, high_kg = per_person[lower], per_person[upper]
+    if high_kg <= low_kg:
+        return lower
+    return lower + (upper - lower) * (kg - low_kg) / (high_kg - low_kg)
+
+
 @dataclass
 class Calibration:
     """What the rule says about one map, and the rounds it read that off."""
 
     commuters: int
-    budget_kg: int
-    budget_measured_kg: float
-    share: float
     target_kmh: float | None
     # The cars' morning speed when everybody drives, at `commuters`.
     speed_kmh: float | None
@@ -399,6 +476,24 @@ class Calibration:
     searched: dict = field(default_factory=dict)
     # Share → the rounds played at `commuters`, one per seed, there and back.
     rows: dict = field(default_factory=dict)
+
+    @property
+    def per_person(self) -> dict:
+        """Share → kg a head for a round at that share, mean over seeds.
+
+        A head of the map's commuters, not of the people the rounds put on it
+        (whole people per Gruppe, so 6 768 of Berlin's 6 800): the budget is
+        kg × commuters × rounds, and this is the figure it is held to.
+        """
+        return {
+            share: statistics.mean(r.total_kg for r in rounds) / self.commuters
+            for share, rounds in self.rows.items()
+        }
+
+    @property
+    def normal_share(self) -> float | None:
+        """The car share the normal kg buys on this map (`car_share_at`)."""
+        return car_share_at(CO2_KG_PER_PERSON_NORMAL, self.per_person)
 
 
 def calibrate(
@@ -408,13 +503,12 @@ def calibrate(
     smallest,
     target_kmh=None,
     commuters=None,
-    share=BUDGET_SHARE,
     seeds=SEEDS,
 ):
     """Apply the rule on the map `play` plays.
 
     Give `target_kmh` to search the commuter count, or `commuters` to keep
-    one — the budget is measured at it either way. `start` is where the search
+    one — the table is measured at it either way. `start` is where the search
     begins (the map's current figure), `smallest` the fewest commuters a round
     can have (one person per Gruppe).
     """
@@ -437,14 +531,10 @@ def calibrate(
 
     rows = {
         level: [play(commuters=commuters, share=level, seed=seed) for seed in seeds]
-        for level in sorted(set(TABLE_SHARES) | {share}, reverse=True)
+        for level in TABLE_SHARES
     }
-    measured = statistics.mean(r.total_kg for r in rows[share])
     return Calibration(
         commuters=commuters,
-        budget_kg=max(1, round_figure(measured)),
-        budget_measured_kg=measured,
-        share=share,
         target_kmh=target_kmh,
         speed_kmh=car_speed(rows[1.0]),
         searched=searched,

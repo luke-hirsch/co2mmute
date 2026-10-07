@@ -10,6 +10,10 @@ schon 2.449 kg pro Runde ausstößt, bevor irgendwer spielt. Jedes Spiel war nac
 
 Das ist jetzt geändert. Was sich geändert hat und warum, steht hier.
 
+Seit dem 7. Oktober 2026 ist das Budget eine Zahl pro Person und Runde, auf jeder Karte dieselbe, und
+die Pendlerzahl ist am gemessenen Berufsverkehr Berlins geeicht (Abschnitt 13). Die Abschnitte davor
+sind die Geschichte, in den Zahlen ihrer Zeit.
+
 ---
 
 ## 1. Was vorher passiert ist
@@ -66,9 +70,10 @@ Achsen** tragen.
 
 Bei 6.400 Pendlern und 100 % Autoanteil laufen die meistbelasteten Kanten (Hansaplatz — Großer
 Stern — Brandenburger Tor) auf etwa **115 % ihrer Kapazität**, und 7,66 km dauern 20,4 statt 9,5
-Minuten im freien Fluss. Der Berufsverkehr in der Berliner Innenstadt läuft mit rund 24 km/h — das
-sind dieselben 11 Minuten Verspätung. Die Zahl ist also an einem Wert draußen geeicht, nicht am
-Spielgefühl.
+Minuten im freien Fluss. Damals hieß es, der Berufsverkehr in der Berliner Innenstadt laufe mit rund
+24 km/h, das wären dieselben 11 Minuten Verspätung. Für die 24 km/h gab es keine Quelle; gemessen
+sind 19,0 km/h (TomTom Traffic Index, Abschnitt 13). Geeicht ist die Zahl an einem Wert draußen,
+nicht am Spielgefühl — seit Abschnitt 13 an einem mit Quelle.
 
 Und der Stau bleibt eine Folge von Entscheidungen, nicht eine Gewissheit:
 
@@ -87,6 +92,8 @@ Steigt die Hälfte der Klasse um, ist der Stau weg. Das ist physikalisch richtig
 Schwellenphänomen dicht an der Kapazität — und es ist die Lektion, um die es geht.
 
 ## 4. Das Budget gilt pro Runde
+
+(So bis zum 7. Oktober 2026. Seitdem gilt es pro Person und Runde, Abschnitt 13.)
 
 Weil die Pendlerzahl konstant ist, kostet eine Runde, was sie kostet — unabhängig davon, wie viele
 Schüler spielen. Das Budget braucht deshalb **keinen Term für die Gruppengröße**, nur die Rundenzahl:
@@ -119,6 +126,10 @@ festgeschrieben.
 
 Beide gehen beim Export mit und werden beim Import wieder eingelesen. Eine ältere Kartendatei ohne
 diese Schlüssel behält die Vorgabewerte.
+
+Seit Abschnitt 13 gehört nur noch die Pendlerzahl zur Karte; `co2_budget_kg_per_round` gibt es nicht
+mehr. Eine ältere Datei, die den Schlüssel noch trägt, lässt sich weiter importieren, das Budget
+bleibt dabei liegen.
 
 ---
 
@@ -335,12 +346,13 @@ jede Frage neu gebaut wurden. Für jede weitere Karte gilt eine Regel, einmal pr
 - **Der Anteil ist der Schwierigkeitsregler:** bei 40 % Auto wird das Budget knapper, bei 60 %
   großzügiger.
 
-Gemessen wird das mit einem Befehl:
+Seit Abschnitt 13 ist das Budget keine Zahl der Karte mehr. Die Pendler sucht der Befehl wie hier,
+danach misst er, was das Budget pro Person auf der Karte reicht:
 
 ```
-./manage.py calibrate_map karte.json --speed 24          # Pendler suchen, dann das Budget
-./manage.py calibrate_map karte.json --commuters 6400    # Pendler behalten, nur das Budget
-            [--share 50] [--seeds 6] [--map-version …] [--out neu.json]
+./manage.py calibrate_map karte.json --speed 19          # Pendler suchen, dann die Tabelle
+./manage.py calibrate_map karte.json --commuters 6800    # Pendler behalten, nur die Tabelle
+            [--seeds 6] [--map-version …] [--out neu.json]
 ```
 
 Er prüft die Datei zuerst mit `check_map`, lädt sie in eine Datenbank, die danach wieder verschwindet,
@@ -352,7 +364,7 @@ Autoanteil fährt jedes Paar seinen Anteil, bei der Hälfte also genau eine der 
 zufällige Hälfte aller Gruppen setzt in einer Runde die langen Wege ins Auto und in der nächsten die
 kurzen: Auf Berlin streute die halbe Runde damit um 4 % zwischen den Seeds, mit festem Anteil pro
 Paar um 0,5 %. Die Pendler sucht der Befehl in ganzen Menschen pro Gruppe. `--out` schreibt eine Kopie
-der Datei mit beiden Zahlen und `calibrated: true`.
+der Datei mit der Pendlerzahl und `calibrated: true`.
 
 Gemessen wird auf Postgres (`DJANGO_DB=postgres`), wie auf dem Server. Die Simulation liest ihre
 Strecken in der Reihenfolge ihrer Namen, und die sortiert jede Datenbank anders: Unter SQLite liegen
@@ -371,16 +383,91 @@ Auf Berlin Mitte-West, gemessen am 5. Oktober 2026 auf Postgres, sechs Seeds, 6.
 - **Das Budget ist die Regel.** Die halbe Runde kostet 15.854 kg, gerundet 16.000, die Zahl, die die
   Karte trägt. Mit dem Aufbau aus Abschnitt 11, einer festen zufälligen Hälfte, waren es 16.174 kg.
 - **Die Pendlerzahl ist es nicht ganz.** Bei 6.400 Pendlern fahren alle Autos morgens 20,7 km/h,
-  nicht die 24 km/h der Berliner Innenstadt. Das stand schon in Abschnitt 3: Das Modell liegt etwas
-  über der echten Stadt. Mit 24 km/h ergibt die Regel 5.700 Pendler und ein Budget von 14.000 kg
-  (die halbe Runde: 14.168 kg). Die Karte trägt weiter 6.400 und 16.000.
+  nicht die 24 km/h, mit denen bis dahin gerechnet wurde. Mit 24 km/h ergibt die Regel 5.700 Pendler
+  und ein Budget von 14.000 kg (die halbe Runde: 14.168 kg). Die 24 km/h hatten aber keine Quelle,
+  und die Karte trug weiter 6.400 und 16.000 — bis Abschnitt 13.
 - **Die Suche findet zurück.** Mit 20,8 km/h als Ziel kommt sie bei 6.400 Pendlern an.
 
 Mit Abschnitt 11 ist die Tabelle nur Zeile für Zeile ungefähr vergleichbar (ohne Auto 10.163 gegen
 10.402 kg): Der Aufbau ist ein anderer, 72 Gruppen und auf jedes Paar gleich viele statt 64, die auf
 36 Paare nicht aufgehen.
 
-## 13. Was offen bleibt
+## 13. Das Budget pro Person
+
+Seit dem 7. Oktober 2026 ist das Budget keine Zahl der Karte mehr, sondern eine pro Person und Runde,
+auf jeder Karte dieselbe:
+
+```
+CO₂-Budget = kg pro Person und Runde × Pendler der Karte × Runden
+```
+
+Warum. Ein Budget, das an jeder Karte selbst gemessen ist, lässt jede Stadt gleich schwer aussehen.
+Pro Person ist eine Stadt mit langen Wegen oder wenig Bus und Bahn von selbst schwerer, und das ist
+die Lektion, kein Fehler. Pro Karte gemessen wird nur noch die Pendlerzahl.
+
+**Die Pendlerzahl.** Die 24 km/h aus Abschnitt 3 hatten keine Quelle. Die Quelle ist jetzt der
+TomTom Traffic Index mit den Daten von 2025 (15. Ausgabe, Januar 2026): Berlin, Stadtgebiet,
+**19,0 km/h im morgendlichen Berufsverkehr, 58,7 % Stau** — eine Fahrt dauert 58,7 % länger als bei
+freier Fahrt. `calibrate_map --speed 19` findet auf Berlin Mitte-West **6.800 Pendler**: Bei 6.840
+fahren alle Autos morgens 19,1 km/h, bei 6.912 schon 18,9.
+
+Zwei Dinge sagt diese Zahl nicht:
+
+- **Sie zählt keine Menschen.** TomTom misst den Verkehr, während der Rest der Stadt schon in der
+  U-Bahn und auf dem Rad sitzt. Die 6.800 sind die Autonachfrage, die auf diesem Graphen den
+  Berufsverkehr ergibt, wenn alle fahren — ein Anker mit einer Regel, keine Zahl aus der Statistik.
+  Mit Berlins echter Verkehrsmittelwahl zu eichen, geht nicht: Die Karte hat mehr Busse und weniger
+  Schiene als die Stadt.
+- **Sie steht für etwas, das fehlt.** Das Modell hat keine Ampeln, seine freie Fahrt ist das
+  Tempolimit, 46,1 km/h (TomToms Berlin fährt nachts um 30). Wer das Tempo trifft, lässt den Stau für
+  die Ampeln mitstehen: Fahren alle Auto, dauert ein Weg 23,7 Minuten, 2,4-mal so lang wie bei
+  freier Fahrt; in der Stadt ist es das 1,59-fache. Auf das Stauniveau statt auf das Tempo geeicht,
+  29 km/h auf der freien Fahrt des Modells, wären es 4.800 Pendler gewesen. Entschieden ist das
+  Tempo.
+
+**Was eine Runde pro Person kostet.** Gemessen am 7. Oktober 2026 auf Postgres, sechs Seeds, 6.800
+Pendler, Hin- und Rückweg (`calibrate_map --speed 19`). Pro Person heißt: die Runde geteilt durch
+die 6.800 Pendler, so wie das Budget sie zählt.
+
+| Autoanteil | pro Person | Runde gesamt |      Auto |  Fahrplan | Fahrzeit Auto hin / zurück | Bus & Bahn |   Warten |
+| ---------: | ---------: | -----------: | --------: | --------: | -------------------------: | ---------: | -------: |
+|      100 % |    4,17 kg |    28.379 kg | 21.080 kg |  7.299 kg |            23,7 / 22,4 min |          — |        — |
+|       75 % |    3,16 kg |    21.498 kg | 14.773 kg |  6.725 kg |            16,8 / 15,4 min |   31,9 min | 20,6 min |
+|       50 % |    2,41 kg |    16.420 kg |  9.122 kg |  7.299 kg |            11,6 / 11,7 min |   32,9 min | 24,0 min |
+|       25 % |    1,96 kg |    13.340 kg |  4.449 kg |  8.890 kg |            10,2 / 10,3 min |   38,4 min | 34,8 min |
+|        0 % |    1,53 kg |    10.402 kg |         — | 10.402 kg |                          — |   43,1 min | 44,2 min |
+
+**Normal: 2,4 kg.** Die halbe Runde kostet 2,41 kg pro Person, auf den Schritt des Reglers gerundet
+2,4. Das ist ab jetzt eine feste Zahl für alle Karten, einmal auf Berlin gemessen, ein Anker
+(`CO2_KG_PER_PERSON_NORMAL` in `backend/game/calibration.py`). Auf Berlin Mitte-West reicht sie, wenn
+49 % der Gruppen Auto fahren; für jede neue Karte sagt `calibrate_map`, welcher Anteil es dort ist.
+
+**Der Regler.** „Spiel anlegen“ bietet 1,0 bis 6,0 kg in Schritten von 0,2. Der Schritt ist so fein,
+weil auf Berlin 0,5 kg etwa ein Viertel der Klasse ist, das umsteigt. Unter 1,53 kg ist auf Berlin
+keine Runde zu schaffen, über 4,17 kg jede. Das Spiel speichert, mit wie viel Kilo es gespielt wurde
+(`GameSession.co2_kg_per_person`), und rechnet das Budget daraus: 2,4 × 6.800 × 6 = **97.920 kg** für
+sechs Runden, bisher 96.000.
+
+**Pendler der Karte, nicht Menschen auf der Karte.** Menschen pro Gruppe sind ganze Menschen: 106 ×
+64 Gruppen sind 6.784, nicht 6.800. Gerechnet wird mit den Pendlern der Karte. Solange die Zahl
+abgeleitet ist, macht das kaum etwas aus. Überschreibt aber jemand die Menschen pro Gruppe, um eine
+Runde leichter zu machen, darf das Budget nicht mitschrumpfen: Der Fahrplan fährt, ob jemand
+einsteigt oder nicht, und ein Budget aus zwanzig Menschen wäre vom Fahrplan allein in der ersten
+Runde aufgebraucht.
+
+**Die beiden Spiele.** Wer durchgehend Auto fährt, ist in Runde 4 raus. Wer sich herunterarbeitet
+(100 / 75 / 50 / 50 / 25 / 25 %), kommt auf 109.397 kg, 16,09 kg pro Person, und überschreitet die
+97.920 in der letzten Runde — wie seit Abschnitt 11. Mit 2,8 kg käme diese Klasse durch. Normal ist
+trotzdem die halbe Runde, nicht das zweite Spiel.
+
+**Was sich geändert hat.** `GameMap.co2_budget_kg_per_round` ist weg, Export und Import kennen es
+nicht mehr. `calibrated` heißt jetzt: Die Pendlerzahl ist gemessen. `calibrate_map` sucht die
+Pendler wie bisher und zeigt danach die Tabelle pro Person und den Anteil, den normal auf der Karte
+kauft; `--share` gibt es nicht mehr. Die mitgelieferte Karte trägt 6.800. Eine Karte, die schon auf
+einem Server liegt, behält ihre Zahl, bis sie neu importiert oder im Admin geändert wird — die
+Migration ändert nur die Vorgabe.
+
+## 14. Was offen bleibt
 
 - **Die Abfahrten liegen sehr eng beieinander.** `departure_std_dev_min = 10` heißt, dass praktisch
   alle innerhalb von 20 Minuten losfahren; real verteilt sich ein Berufsverkehr über eine Stunde und
@@ -389,22 +476,24 @@ Mit Abschnitt 11 ist die Tabelle nur Zeile für Zeile ungefähr vergleichbar (oh
 - **Der Abend ist ein Abbild des Morgens.** Dieselbe Streuung der Abfahrten, dieselbe Spitze:
   `evening_departure_hour` verschiebt in der Simulation nichts, weil die Zeit ab Fensterbeginn läuft.
   Eine eigene Abendspitze wäre eine Modellfrage.
-- **Das Budget von Berlin Mitte-West** bleibt bei 16.000 kg pro Runde, obwohl es seit Abschnitt 11
-  auch ein Spiel beendet, das sich wie oben verbessert; mit 18.000 bliebe dieses 284 kg darunter.
-- **Die Vorgabewerte anderer Karten sind ungeprüft.** Jede neue Karte startet mit 6.400 und 16.000 —
-  den Werten von Berlin Mitte-West. Für eine kleinere Karte sind beide zu hoch. Die Karte sagt
-  selbst, ob ihre Zahlen gemessen sind (`GameMap.calibrated`, geht mit der JSON-Datei mit), und
-  „Spiel anlegen" warnt, solange sie es nicht sind. `calibrate_map` misst beide (Abschnitt 12),
+- **Normal reicht dem zweiten Spiel nicht.** Eine Klasse, die sich herunterarbeitet, überschreitet
+  2,4 kg pro Person in der letzten Runde; mit 2,8 käme sie durch (Abschnitt 13).
+- **Keine Ampeln.** Die Pendlerzahl trifft das Tempo des Berufsverkehrs, und der Stau steht dabei
+  für die Ampeln mit, die das Modell nicht hat (Abschnitt 13).
+- **Die Vorgabe anderer Karten ist ungeprüft.** Jede neue Karte startet mit 6.800 Pendlern, der Zahl
+  von Berlin Mitte-West. Für eine kleinere Karte ist das zu viel, und mit den Pendlern das Budget. Die
+  Karte sagt selbst, ob ihre Zahl gemessen ist (`GameMap.calibrated`, geht mit der JSON-Datei mit),
+  und „Spiel anlegen" warnt, solange sie es nicht ist. `calibrate_map` misst sie (Abschnitt 12),
   `--out` setzt den Haken in der Datei. Die mitgelieferte Datei hat ihn gesetzt.
 - **Die Reihenfolge hängt an der Datenbank.** Wie in Abschnitt 12: eine Runde mit Bus und Bahn
   kommt unter SQLite um gut 1 % anders heraus als unter Postgres, weil die Strecken nach Namen
   sortiert gelesen werden.
 
-## 14. Nachrechnen
+## 15. Nachrechnen
 
 Die Zahlen oben stammen nicht aus einem Play-Test, sondern aus wiederholten Läufen mit festem Seed
 auf der ausgelieferten Karte. Wer sie nach einer Modelländerung neu braucht, spielt Runden auf der
 betreffenden Karte nach, mit `calibrate_map` (Abschnitt 12) — nicht: dreht an den Werten, bis sich
 ein Play-Test gut anfühlt. Die
 Herleitung mit allen Messwerten steht in `backend/game/calibration.py`; wofür jede Zahl da ist,
-steht als Testfall in `backend/game/tests/test_join.py`.
+steht als Testfall in `backend/game/tests/test_join.py` und `test_calibration.py`.

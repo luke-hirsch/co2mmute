@@ -8,10 +8,12 @@ import { Field } from "@/components/layout/field";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
 import { apiErrorMessage, ApiError } from "@/lib/api";
 import {
+  CO2_KG_PER_PERSON_NORMAL,
   DEFAULT_AGENT_PER_PLAYER,
   DEFAULT_MAX_PLAYERS,
   DEFAULT_MAX_ROUNDS,
   co2BudgetKg,
+  co2KgPerPersonChoices,
   peoplePerAgent,
 } from "@/lib/calibration";
 import { de } from "@/lib/de";
@@ -23,18 +25,19 @@ import { useGameMaps, type GameMapRow } from "@/lib/queries/maps";
  *
  * `people_per_agent` divides the map's commuter population between the
  * Gruppen, so it changes whenever the seats, the Gruppen per seat or the
- * map change; `max_CO2_level` is the map's per-round budget times the rounds.
- * A server-rendered form derives both once per GET, which meant a host who
- * changed the Platzzahl had to pull both numbers across by hand
- * (`docs/testfaelle.md` H-13). Here they follow.
+ * map change; `max_CO2_level` is the dial's kg per person times the map's
+ * commuters times the rounds (F8 step 2b). A server-rendered form derives both
+ * once per GET, which meant a host who changed the Platzzahl had to pull both
+ * numbers across by hand (`docs/testfaelle.md` H-13). Here they follow.
  *
- * **Each of the two is one piece of state, not two.** What the field shows is
+ * **Each is one piece of state, not two.** What the people field shows is
  * `override ?? derived` — an override is set the moment the host types in the
- * field and cleared by "Vorschlag übernehmen". Nothing writes the derived value
- * *into* the form state, so there is no effect to fight, no moment where the
- * two disagree, and no way for a re-render to undo a host's own number. That is
- * the same rule the round draft and the lobby roster are built on: one source of
- * truth per field.
+ * field and cleared by "Vorschlag übernehmen". The budget has no field of its
+ * own any more: the dial is the host's say, and the total is derived from it
+ * on every render and sent. Nothing writes a derived value *into* the form
+ * state, so there is no effect to fight, no moment where the two disagree, and
+ * no way for a re-render to undo a host's own number. That is the same rule the
+ * round draft and the lobby roster are built on: one source of truth per field.
  *
  * Validation is the server's. The endpoint's messages are German
  * (`GameSessionSerializer`) and the fields render what comes back, so no rule is
@@ -61,7 +64,7 @@ export function CreateGameScreen() {
    * server refuses a field inside it, which a closed disclosure would hide.
    */
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [co2Override, setCo2Override] = useState<string | null>(null);
+  const [kgPerPerson, setKgPerPerson] = useState(CO2_KG_PER_PERSON_NORMAL);
   const [peopleOverride, setPeopleOverride] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
 
@@ -82,17 +85,13 @@ export function CreateGameScreen() {
         : null,
     [selected, maxPlayers, agentPerPlayer],
   );
-  const derivedCo2 = useMemo(
-    () => (selected ? co2BudgetKg(Number(maxRounds), selected) : null),
-    [selected, maxRounds],
-  );
-
   const peopleValue = peopleOverride ?? (derivedPeople?.toString() ?? "");
-  const co2Value = co2Override ?? (derivedCo2?.toString() ?? "");
 
   const agentCount =
     Math.max(1, Math.trunc(Number(maxPlayers)) || 0) *
     Math.max(1, Math.trunc(Number(agentPerPlayer)) || 0);
+  const rounds = Math.max(1, Math.trunc(Number(maxRounds)) || 0);
+  const co2Total = selected ? co2BudgetKg(rounds, selected, kgPerPerson) : 0;
 
   /**
    * The one message that is not under a field.
@@ -110,6 +109,10 @@ export function CreateGameScreen() {
     errors.non_field_errors?.join(" ") ??
     errors.detail?.join(" ") ??
     (create.isError && fieldNames.length === 0 ? de.create.failed : null);
+  const co2Errors =
+    errors.co2_kg_per_person || errors.max_CO2_level
+      ? [...(errors.co2_kg_per_person ?? []), ...(errors.max_CO2_level ?? [])]
+      : undefined;
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -124,7 +127,8 @@ export function CreateGameScreen() {
         max_players: Number(maxPlayers),
         agent_per_player: Number(agentPerPlayer),
         max_rounds: Number(maxRounds),
-        max_CO2_level: Number(co2Value),
+        max_CO2_level: co2Total,
+        co2_kg_per_person: kgPerPerson,
         people_per_agent: Number(peopleValue),
         idle_end_days: Number(idleEndDays),
         chat_enabled: chatEnabled,
@@ -320,29 +324,44 @@ export function CreateGameScreen() {
                 invalid={!!errors.max_rounds}
               />
             </Field>
+            {/*
+              The dial, a native select like the map's: the platform picker on
+              a phone, and no way to type a value the endpoint refuses. The
+              total is what the game ends on, so it is in the help, where it
+              changes as the rounds and the dial do — not with the class size,
+              which divides the commuters and adds none. A refused total is
+              shown here too; it has no field of its own.
+            */}
             <Field
-              id="max_CO2_level"
-              label={de.create.co2Budget}
+              id="co2_kg_per_person"
+              label={de.create.co2PerPerson}
               help={
                 selected
-                  ? de.create.co2BudgetHelp(
-                      selected.co2_budget_kg_per_round,
-                      Math.max(1, Math.trunc(Number(maxRounds)) || 0),
-                    )
+                  ? de.create.co2PerPersonHelp(co2Total, rounds)
                   : undefined
               }
-              errors={errors.max_CO2_level}
+              errors={co2Errors}
             >
-              <NumberInput
-                id="max_CO2_level"
-                value={co2Value}
-                onChange={setCo2Override}
-                invalid={!!errors.max_CO2_level}
-              />
-              <Suggestion
-                overridden={co2Override !== null}
-                onReset={() => setCo2Override(null)}
-              />
+              <select
+                id="co2_kg_per_person"
+                name="co2_kg_per_person"
+                className={selectClass}
+                value={kgPerPerson}
+                onChange={(event) => setKgPerPerson(event.target.value)}
+                aria-invalid={co2Errors ? true : undefined}
+                aria-describedby={
+                  co2Errors ? "co2_kg_per_person-error" : "co2_kg_per_person-help"
+                }
+              >
+                {co2KgPerPersonChoices().map((kg) => (
+                  <option key={kg} value={kg}>
+                    {de.create.co2PerPersonOption(
+                      kg,
+                      kg === CO2_KG_PER_PERSON_NORMAL,
+                    )}
+                  </option>
+                ))}
+              </select>
             </Field>
           </div>
         </section>

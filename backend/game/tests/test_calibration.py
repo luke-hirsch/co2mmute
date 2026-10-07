@@ -1,10 +1,11 @@
 """Calibrating a map: the rule, the search, and rounds played on a real map.
 
-The rule: a map's budget per round is what a round costs when half the
-Gruppen drive and the rest ride, rounded to a number a class can hold; its
-commuters are as many as make a round where everybody drives as slow as the
-city's own rush hour. `game/calibration.py` holds the rule, `game/measure.py`
-plays the rounds it is measured on.
+The rule: a map's commuters are as many as make a round where everybody
+drives as slow as the city's own rush hour. The budget is not the map's: it
+is kg of CO2 per person per round, the same on every map, so what a map can
+say about it is which car share the normal kg buys there.
+`game/calibration.py` holds the rule, `game/measure.py` plays the rounds it
+is measured on.
 
 The search and the rule are tested on made-up rounds, where the answer is
 known exactly. The rounds themselves are played on the six-node map from
@@ -14,6 +15,7 @@ is TypeScript, and the suite does not run Node.
 
 import json
 from dataclasses import dataclass
+from decimal import Decimal
 
 from django.core.files.base import ContentFile
 from django.test import SimpleTestCase, TestCase, override_settings
@@ -28,10 +30,10 @@ from maps.tests.test_checks import small_map
 
 
 class RoundFigureTests(SimpleTestCase):
-    """Two significant figures: 16 174 kg is a 16 000 kg budget."""
+    """Two significant figures: 6 837 commuters are 6 800."""
 
-    def test_the_shipped_budget_is_its_own_measurement_rounded(self):
-        self.assertEqual(calibration.round_figure(16174), 16000)
+    def test_a_commuter_count_is_its_measurement_rounded(self):
+        self.assertEqual(calibration.round_figure(6837), 6800)
 
     def test_two_figures_at_every_size(self):
         cases = {6437: 6400, 853: 850, 95: 95, 1249: 1200, 128_400: 130_000}
@@ -126,27 +128,98 @@ class FakeMap:
     def play(self, *, commuters, share, seed, way_home=True):
         self.calls.append((commuters, share, seed, way_home))
         hours = 0.5 if commuters <= 4000 else 1.0
-        # 10 000 kg at all car, 6 000 at none, and one kg per seed of noise.
-        return FakeRound(total_kg=6000 + 4000 * share + seed, car_hours=hours)
+        # 1.5 kg a head when nobody drives, 2.5 when everybody does, and a
+        # kilogram per seed of noise over the whole round.
+        return FakeRound(total_kg=commuters * (1.5 + share) + seed, car_hours=hours)
+
+
+# Berlin Mitte-West at 6 800 commuters, kg per person per round, there and
+# back (docs/kalibrierung.md §13).
+BERLIN = {1.0: 4.17, 0.75: 3.16, 0.5: 2.41, 0.25: 1.96, 0.0: 1.53}
+
+
+class NormalTests(SimpleTestCase):
+    """What a game is played against: kg per person per round, one dial."""
+
+    def test_normal_is_berlins_half_driving_round_rounded_to_the_step(self):
+        """2.41 kg a head is what a round costs on Berlin Mitte-West when half
+        the Gruppen drive. Rounded to the dial's step, that is normal."""
+        half = Decimal(str(BERLIN[0.5]))
+        step = calibration.CO2_KG_PER_PERSON_STEP
+
+        self.assertEqual(
+            calibration.CO2_KG_PER_PERSON_NORMAL,
+            (half / step).quantize(Decimal(1)) * step,
+        )
+        self.assertEqual(calibration.CO2_KG_PER_PERSON_NORMAL, Decimal("2.4"))
+
+    def test_the_dial_goes_in_steps_of_two_hundred_grams(self):
+        choices = calibration.co2_kg_per_person_choices()
+
+        self.assertEqual(choices[0], calibration.CO2_KG_PER_PERSON_MIN)
+        self.assertEqual(choices[-1], calibration.CO2_KG_PER_PERSON_MAX)
+        self.assertEqual(
+            {b - a for a, b in zip(choices, choices[1:])}, {Decimal("0.2")}
+        )
+        self.assertIn(calibration.CO2_KG_PER_PERSON_NORMAL, choices)
+
+    def test_the_dial_spans_more_than_berlin_does(self):
+        """Below what a round costs when nobody drives, above what it costs
+        when everybody does: a host can make the game unwinnable or free."""
+        self.assertLess(calibration.CO2_KG_PER_PERSON_MIN, Decimal(str(BERLIN[0.0])))
+        self.assertGreater(calibration.CO2_KG_PER_PERSON_MAX, Decimal(str(BERLIN[1.0])))
+
+
+class CarShareTests(SimpleTestCase):
+    """Which car share a kg per person buys on a map, read off its table."""
+
+    def test_normal_buys_half_the_cars_on_berlin(self):
+        share = calibration.car_share_at(Decimal("2.4"), BERLIN)
+        # Between 25 % (1.96) and 50 % (2.41), just short of the half.
+        self.assertAlmostEqual(share, 0.25 + 0.25 * (2.4 - 1.96) / (2.41 - 1.96))
+        self.assertAlmostEqual(share, 0.494, places=3)
+
+    def test_a_row_of_the_table_is_its_share(self):
+        self.assertAlmostEqual(calibration.car_share_at(Decimal("3.16"), BERLIN), 0.75)
+
+    def test_more_than_everybody_driving_is_everybody(self):
+        self.assertEqual(calibration.car_share_at(Decimal("5.0"), BERLIN), 1.0)
+
+    def test_less_than_nobody_driving_buys_nothing(self):
+        """The timetable runs whether anybody rides or not."""
+        self.assertIsNone(calibration.car_share_at(Decimal("1.4"), BERLIN))
 
 
 class CalibrateTests(SimpleTestCase):
-    def test_the_budget_is_the_half_driving_round_rounded(self):
+    def test_the_table_is_per_commuter(self):
+        """Per head of the map's commuters: the figure the budget is held to."""
         fake = FakeMap()
         result = calibration.calibrate(
             fake.play, commuters=4000, start=4000, smallest=64, seeds=(1, 2, 3)
         )
         self.assertEqual(result.commuters, 4000)
-        self.assertAlmostEqual(result.budget_measured_kg, 8002)
-        self.assertEqual(result.budget_kg, 8000)
+        self.assertAlmostEqual(result.per_person[0.5], 2.0 + 2 / 4000)
+        self.assertAlmostEqual(result.per_person[1.0], 2.5 + 2 / 4000)
 
-    def test_the_share_is_the_difficulty_dial(self):
+    def test_it_says_which_car_share_normal_buys(self):
         fake = FakeMap()
         result = calibration.calibrate(
-            fake.play, commuters=4000, start=4000, smallest=64, share=0.6, seeds=(1,)
+            fake.play, commuters=4000, start=4000, smallest=64, seeds=(1,)
         )
-        self.assertEqual(result.budget_kg, 8400)
-        self.assertIn(0.6, result.rows)
+        # 1.5 + share = 2.4, less the noise.
+        self.assertAlmostEqual(result.normal_share, 0.9, places=3)
+
+    def test_there_is_no_budget_to_measure(self):
+        """The budget is the dial's, not the map's: no `--share`, no figure."""
+        fake = FakeMap()
+        result = calibration.calibrate(
+            fake.play, commuters=4000, start=4000, smallest=64, seeds=(1,)
+        )
+        self.assertFalse(hasattr(result, "budget_kg"))
+        with self.assertRaises(TypeError):
+            calibration.calibrate(
+                fake.play, commuters=4000, start=4000, smallest=64, share=0.6
+            )
 
     def test_given_commuters_are_not_searched(self):
         fake = FakeMap()
@@ -174,6 +247,7 @@ class CalibrateTests(SimpleTestCase):
             fake.play, commuters=4000, start=4000, smallest=64, seeds=(1, 2)
         )
         self.assertEqual(sorted(result.rows), [0.0, 0.25, 0.5, 0.75, 1.0])
+        self.assertEqual(sorted(result.per_person), [0.0, 0.25, 0.5, 0.75, 1.0])
         self.assertTrue(all(len(rounds) == 2 for rounds in result.rows.values()))
         self.assertAlmostEqual(result.speed_kmh, 20.0)
 
@@ -181,7 +255,7 @@ class CalibrateTests(SimpleTestCase):
 def map_file():
     """The six-node map, with its one home and one workplace an hour's queue apart."""
     graph = small_map()
-    graph["map"].update(district_commuters=640, co2_budget_kg_per_round=100)
+    graph["map"].update(district_commuters=640)
     return graph
 
 

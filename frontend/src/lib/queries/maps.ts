@@ -6,18 +6,18 @@
  * point here is that a host who is not staff can still see the list, which is
  * the common case (uploading a map needs `is_staff`, playing on one does not).
  *
- * Four fields on a row matter to the create screen and to nothing else in the
+ * Three fields on a row matter to the create screen and to nothing else in the
  * SPA:
  *
- * - `district_commuters` and `co2_budget_kg_per_round` are the calibration, and
- *   they are per map because they are properties of a *graph* — how much
- *   traffic its corridors carry, and what a playable round costs on its
- *   distances and its timetable. `lib/calibration.ts` derives the two offered
- *   numbers from them.
- * - `calibrated` says whether that pair was measured on this map (S21). Every
- *   map starts at Berlin Mitte-West's, and the pair alone cannot tell the one
+ * - `district_commuters` is the calibration, and it is per map because it is a
+ *   property of a *graph* — how much traffic its corridors carry.
+ *   `lib/calibration.ts` derives the people per Gruppe from it, and with them
+ *   the budget. The budget itself is kg per person, the same on every map, so
+ *   no row carries one (F8 step 2b).
+ * - `calibrated` says whether that count was measured on this map (S21). Every
+ *   map starts at Berlin Mitte-West's, and the count alone cannot tell the one
  *   map it was measured on from a small one that inherited it — so the screen
- *   warns on the flag, never on the numbers.
+ *   warns on the flag, never on the number.
  * - `offers_map_changes` is whether a game on this map can ever reach a ballot.
  *   A single-version map removes the discussion and the vote from the whole
  *   game silently, and the select is the last place a host can change their
@@ -33,7 +33,6 @@ export type GameMapRow = {
   id: number;
   name: string;
   district_commuters: number;
-  co2_budget_kg_per_round: number;
   calibrated: boolean;
   offers_map_changes: boolean;
 };

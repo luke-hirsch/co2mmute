@@ -667,8 +667,8 @@ class RailIsNotACycleTrackTests(MapUploadMixin, TestCase):
 # ---------------------------------------------------------------------------
 # The rest of the map block, and the lines.
 #
-# S2 read `district_commuters` and `co2_budget_kg_per_round` on the way in and
-# named what it left behind: `_create_game_map` takes a `map_meta` argument that
+# S2 read `district_commuters` (and a per-map budget, gone since F8 step 2b) on
+# the way in and named what it left behind: `_create_game_map` takes a `map_meta` argument that
 # no caller passes, so `max_player` and the three speeds are written into every
 # export and dropped by every import. A PT line's `speed_kmh` is the same story
 # one level down — `_create_bus_lines` and `_create_train_lines` never read it,
@@ -741,7 +741,6 @@ class MapBlockPortabilityTests(MapUploadMixin, TestCase):
                     "bike_speed_kmh": 18,
                     "default_car_speed_kmh": 45,
                     "district_commuters": 4200,
-                    "co2_budget_kg_per_round": 5500,
                 }
             ),
             name="Vorher",
@@ -757,7 +756,7 @@ class MapBlockPortabilityTests(MapUploadMixin, TestCase):
         self.assertEqual(copy.bike_speed_kmh, 18)
         self.assertEqual(copy.default_car_speed_kmh, 45)
         self.assertEqual(copy.district_commuters, 4200)
-        self.assertEqual(copy.co2_budget_kg_per_round, 5500)
+        self.assertNotIn("co2_budget_kg_per_round", exported["map"])
         self.assertEqual(copy.x_dim, 7)
         self.assertEqual(copy.y_dim, 5)
 
