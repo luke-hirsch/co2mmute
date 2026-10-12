@@ -14,6 +14,7 @@ is TypeScript, and the suite does not run Node.
 """
 
 import json
+from collections import Counter
 from dataclasses import dataclass
 from decimal import Decimal
 
@@ -260,6 +261,89 @@ def map_file():
 
 
 @override_settings(**TEST_BACKENDS)
+def commutes(homes, workplaces):
+    """Every home to every workplace, as the router lists them; no legs."""
+    return {
+        "choice": {"carOptimization": "time", "ptOptimization": "fastest"},
+        "commutes": [
+            {"home": home, "workplace": workplace, "there": {}, "back": {}}
+            for home in range(1, homes + 1)
+            for workplace in range(101, 101 + workplaces)
+        ],
+    }
+
+
+class DealTests(SimpleTestCase):
+    """Which Gruppen a round plays: every pair, or the workplaces dealt to each
+    home for its seed, when a map has more of them than a home plays."""
+
+    def rounds(self, homes, workplaces, per_home):
+        return MapRounds(None, None, commutes(homes, workplaces), None, per_home)
+
+    def dealt(self, rounds, seed=1, share=1.0):
+        return {
+            home: [rounds.commutes[index]["workplace"] for index, _ in gruppen]
+            for home, gruppen in rounds.gruppen_at(share, seed).items()
+        }
+
+    def test_a_home_plays_every_workplace_while_it_can(self):
+        rounds = self.rounds(3, 5, per_home=5)
+        # 15 pairs, five Gruppen each: a full class
+        self.assertEqual(rounds.gruppen, 75)
+        for workplaces in self.dealt(rounds).values():
+            self.assertEqual(Counter(workplaces), {w: 5 for w in range(101, 106)})
+
+    def test_with_more_workplaces_each_home_is_dealt_its_own(self):
+        rounds = self.rounds(32, 5, per_home=2)
+        self.assertEqual(rounds.gruppen, 64)
+        dealt = self.dealt(rounds)
+        self.assertEqual(sorted(dealt), list(range(1, 33)))
+        for workplaces in dealt.values():
+            self.assertEqual(len(set(workplaces)), 2)
+
+    def test_a_few_homes_still_play_a_full_class(self):
+        rounds = self.rounds(5, 46, per_home=4)
+        self.assertEqual(rounds.gruppen, 65)
+        for workplaces in self.dealt(rounds).values():
+            self.assertEqual(len(set(workplaces)), 13)
+
+    def test_every_workplace_is_dealt_as_often_as_the_others(self):
+        # 96 Gruppen on five workplaces: 19 or 20 each
+        rounds = self.rounds(32, 5, per_home=3)
+        for seed in range(1, 21):
+            counts = Counter(w for ws in self.dealt(rounds, seed).values() for w in ws)
+            self.assertEqual(set(counts), set(range(101, 106)))
+            self.assertLessEqual(max(counts.values()) - min(counts.values()), 1)
+
+    def test_each_seed_deals_anew_and_the_same_seed_alike(self):
+        rounds = self.rounds(32, 9, per_home=2)
+        self.assertEqual(self.dealt(rounds, 1), self.dealt(rounds, 1))
+        self.assertNotEqual(self.dealt(rounds, 1), self.dealt(rounds, 2))
+
+    def test_over_many_seeds_every_pair_is_played_alike(self):
+        rounds = self.rounds(32, 5, per_home=2)
+        played = Counter(
+            (home, w)
+            for seed in range(600)
+            for home, ws in self.dealt(rounds, seed).items()
+            for w in ws
+        )
+        # 600 rounds, two of five workplaces each: 240 a pair
+        self.assertEqual(len(played), 160)
+        for count in played.values():
+            self.assertAlmostEqual(count, 240, delta=40)
+
+    def test_the_commuters_are_spread_over_the_dealt_gruppen(self):
+        rounds = self.rounds(32, 5, per_home=2)
+        self.assertEqual(rounds.people_per_gruppe(6400), 100)
+
+    def test_every_home_drives_its_share(self):
+        rounds = self.rounds(16, 9, per_home=4)
+        for seed in range(1, 6):
+            for gruppen in rounds.gruppen_at(0.5, seed).values():
+                self.assertEqual(sum(mode == "car" for _, mode in gruppen), 2)
+
+
 class MapRoundsTests(TempMediaRootMixin, TestCase):
     """Rounds played for real on a small map, through the move endpoint's writer."""
 
