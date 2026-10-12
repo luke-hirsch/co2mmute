@@ -345,6 +345,10 @@ nicht gemessen.
 | K-64 | Editor: Tramlinie | „+ Bahnlinie“ fragt nach der Art; „Tram“ startet mit 248 Plätzen und 30 km/h, „S- oder U-Bahn“ mit 1.000 und 40; die Liste zeigt „Tram“ (F8) | geht | - |
 | K-65 | Editor: Version „eigenes Gleis“ | in einer Änderung das Gleis auf „eigenes Gleis“ gestellt: die Version hat eine Kopie der Straße, die Tram fährt dort darüber, die Basis behält das Gleis in der Autospur; „Ansehen“ unter „Verwalten“ sagt „eine Autospur wird eigenes Tramgleis“; eine geänderte Tramlinie bleibt eine Tram (F8) | geht | `test_versions`, `version-diff.test.ts` |
 | K-66 | Kartendatei prüfen: Tram | `check_map` meldet eine S- oder U-Bahn auf Gleis in der Autospur und eine Tramstraße, die in einer Version kein Gleis hat (F8) | geht | `test_checks` |
+| K-67 | Straßenlänge in der Kartendatei | `circuity` an einer Kante kommt an und geht mit dem Export wieder hinaus, an jeder Kante, 1 an einer geraden; eine Datei ohne kommt mit geraden Kanten an; ein Wort statt einer Zahl wird auf Deutsch abgelehnt (F8) | geht | `test_portability` |
+| K-68 | Straßenlänge im Spiel | eine Kante mit `circuity` 1,5 ist für die Router (`distance_m`) und für die Simulation anderthalbmal so lang wie die Luftlinie, und ein Auto braucht entsprechend länger; die Grenzen für Fuß und Rad bleiben die Luftlinie (F8) | geht | `test_graph`, `test_simulation` |
+| K-69 | Editor: Straßenlänge | „Länge“ an einer Kante ist die Straße; einen Knoten verschieben streckt die Straße mit; „+ Gegenrichtung anlegen“ und eine Änderung an der Straße in einer Version behalten die Länge; weniger als 1 lehnt der Server ab (F8) | geht | `test_graph`, `test_versions`, `map-editor.test.ts` |
+| K-70 | Kartendatei prüfen: Straßenlänge | `check_map` meldet eine Kante mit `circuity` unter 1 — kürzer als die Luftlinie (F8) | geht | `test_checks` |
 
 ## S — sonstiges
 

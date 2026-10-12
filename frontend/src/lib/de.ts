@@ -1224,6 +1224,7 @@ export const de = {
               ["dedicated_bus_lane", "eine Busspur; nimmt eine Autospur weg (Vorgabe: nein)"],
               ["tram_track", "nur bei tram: lane, das Gleis liegt in der Autospur und die Tram steht mit den Autos im Stau, oder own, ein eigenes Gleis, das eine Autospur wegnimmt (Vorgabe: lane)"],
               ["max_lanes", "wie viele Spuren die Straße höchstens haben kann (Vorgabe: 2)"],
+              ["circuity", "wie viel länger der Weg ist als die Luftlinie zwischen den Knoten, mindestens 1 — 1.25 heißt ein Viertel länger; wird ein Knoten verschoben, wächst der Weg mit (Vorgabe: 1)"],
             ],
           },
           {

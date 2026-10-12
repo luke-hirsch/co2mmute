@@ -108,6 +108,39 @@ describe("edges", () => {
     });
   });
 
+  it("draws the other direction down the same road", async () => {
+    // "+ Gegenrichtung anlegen": a road that bends one way bends the other way
+    // too, so the reverse carries `circuity` or it would come out straight.
+    const spy = stubFetch(201);
+    const edge = {
+      id: 7,
+      name: "Landstraße",
+      start_node: 1,
+      end_node: 2,
+      biking: true,
+      walking: false,
+      max_lanes: 2,
+      circuity: 1.3,
+    };
+
+    await editor.createEdge(5, editor.reverseEdgeInput(edge, [4]));
+
+    expect(sent(spy)).toEqual({
+      url: "/api/maps/5/edges/",
+      method: "POST",
+      body: {
+        game_map: 5,
+        start_node: 2,
+        end_node: 1,
+        biking: true,
+        walking: false,
+        max_lanes: 2,
+        circuity: 1.3,
+        map_versions: [4],
+      },
+    });
+  });
+
   it("puts street and train edges on their own paths, without the map id", async () => {
     // These two hang off an edge and carry `edge` instead of `game_map` —
     // the asymmetry is the backend's and the port kept it.

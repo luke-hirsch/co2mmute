@@ -22,6 +22,7 @@ import {
   useDeleteStreetEdge,
   useCreateTrainEdge,
   useDeleteTrainEdge,
+  reverseEdgeInput,
 } from "@/lib/queries/map-editor";
 
 /**
@@ -373,14 +374,7 @@ const EdgePropertyPanel = ({
                   disabled={isPending}
                   onClick={() => {
                     createEdgeMutation.mutate(
-                      {
-                        start_node: edge.end_node,
-                        end_node: edge.start_node,
-                        biking: edge.biking,
-                        walking: edge.walking,
-                        max_lanes: edge.max_lanes,
-                        map_versions: versionId ? [versionId] : [],
-                      },
+                      reverseEdgeInput(edge, versionId ? [versionId] : []),
                       {
                         onSuccess: (newEdge: { id: number }) => {
                           const versions = versionId ? [versionId] : [];

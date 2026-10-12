@@ -35,7 +35,13 @@ export interface Edge {
   bike_lane?: boolean;
   walking?: boolean;
   max_lanes?: number;
-  distance_m?: number; // Euclidean distance in meters (computed from nodes * scale)
+  /**
+   * How much longer the road is than the straight line between its nodes —
+   * 1 for the line as drawn. A ratio, so the road moves with its nodes.
+   */
+  circuity?: number;
+  /** The road's length in metres: the straight line × the map's scale × `circuity`. */
+  distance_m?: number;
   street_edge?: {
     id: number;
     speed_limit: number;

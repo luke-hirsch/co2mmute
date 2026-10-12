@@ -154,6 +154,10 @@ versions *is* the ballot. A row naming no version is in no version.
   every version and the ballot; `POST api/maps/import/` always makes a **new** map (an import that
   overwrote one would take its games with it). `maps/portability.py` owns the format. Export before
   touching a map anyone plays — maps are hours of work.
+- **An edge is as long as its road**: the straight line × the map's `scale` × `Edge.circuity`, the
+  road's length over that line (1 as drawn). `Edge.length_m` is the one answer — the graph's
+  `distance_m`, which both routers read, and the simulation's link. A ratio, so a dragged node takes
+  the bends along. The walk and bike limits read the straight line on purpose.
 - **`manage.py check_map <file>`** checks a map file against what every finished map has to keep:
   one link per direction per node pair in a version, lines whole and on their own side of the street,
   line ends where someone can board, a way from every home to every workplace and back. The rules are

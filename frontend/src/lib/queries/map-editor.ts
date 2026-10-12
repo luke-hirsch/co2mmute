@@ -30,6 +30,7 @@ import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-q
 import { apiFetch } from "@/lib/api";
 import { csrfToken } from "@/lib/api";
 import type { ImageTransformValues, VersionDiffPayload } from "@/types/editorTypes";
+import type { Edge } from "@/types/mapTypes";
 
 type MapId = string | number;
 
@@ -149,9 +150,27 @@ export type EdgeInput = {
   biking?: boolean;
   walking?: boolean;
   max_lanes?: number;
+  /** The road's length over the straight line; the backend's default is 1. */
+  circuity?: number;
   map_versions?: number[];
   bidirectional?: boolean;
 };
+
+/**
+ * What "+ Gegenrichtung anlegen" sends: the same road the other way, so it
+ * bends as much (`circuity`). The street on it is a second write.
+ */
+export function reverseEdgeInput(edge: Edge, versions: number[]): EdgeInput {
+  return {
+    start_node: edge.end_node,
+    end_node: edge.start_node,
+    biking: edge.biking,
+    walking: edge.walking,
+    max_lanes: edge.max_lanes,
+    circuity: edge.circuity,
+    map_versions: versions,
+  };
+}
 
 /** DRF answers a create with the serialised row, so the new id comes back. */
 export function createEdge(mapId: MapId, data: EdgeInput) {
