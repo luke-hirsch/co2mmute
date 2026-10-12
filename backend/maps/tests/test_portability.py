@@ -1050,6 +1050,92 @@ class TramTravelsTests(MapUploadMixin, TestCase):
         self.assertIn("metro", notes)
 
 
+class RoadLengthTravelsTests(MapUploadMixin, TestCase):
+    """How much longer the road is than the straight line, through the file.
+
+    A country road bends between two villages; the edge between them is
+    drawn straight. `circuity` is the road's length over the straight line,
+    so 1.25 says the road is a quarter longer, and an edge that says nothing
+    is the straight line.
+    """
+
+    def street_payload(self, **edge_extra):
+        payload = self.graph_payload()
+        payload["edges"] = [
+            {
+                "start_node": "1",
+                "end_node": "2",
+                "name": "Landstraße",
+                "type": "street",
+                "speed_limit": 100,
+                "lanes": 2,
+                **edge_extra,
+            }
+        ]
+        return payload
+
+    def exported_edge(self, game_map):
+        response = self.client.get(
+            reverse("maps:map-export", kwargs={"pk": game_map.pk})
+        )
+        return response.json()["edges"][0]
+
+    def test_a_road_length_arrives(self):
+        game_map = self.upload(self.street_payload(circuity=1.25), name="Kurvig")
+
+        self.assertEqual(Edge.objects.get(game_map=game_map).circuity, 1.25)
+
+    def test_an_edge_that_does_not_mention_it_is_the_straight_line(self):
+        game_map = self.upload(self.street_payload(), name="Gerade")
+
+        self.assertEqual(Edge.objects.get(game_map=game_map).circuity, 1.0)
+
+    def test_the_export_writes_it_back_out(self):
+        game_map = self.upload(
+            self.street_payload(circuity=1.25), name="Kurvig Export"
+        )
+
+        self.assertEqual(self.exported_edge(game_map)["circuity"], 1.25)
+
+    def test_the_export_writes_a_straight_road_too(self):
+        """Written out, not left out — the file describes the map."""
+        game_map = self.upload(self.street_payload(), name="Gerade Export")
+
+        self.assertEqual(self.exported_edge(game_map)["circuity"], 1.0)
+
+    def test_a_road_length_survives_export_and_import(self):
+        original = self.upload(
+            self.street_payload(circuity=1.137), name="Kurvig vorher"
+        )
+        exported = self.client.get(
+            reverse("maps:map-export", kwargs={"pk": original.pk})
+        ).json()
+
+        copy = self.upload(exported, name="Kurvig nachher")
+
+        self.assertEqual(map_summary(copy), map_summary(original))
+        self.assertEqual(Edge.objects.get(game_map=copy).circuity, 1.137)
+
+    def test_a_length_that_is_not_a_number_is_refused(self):
+        payload = self.street_payload(circuity="lang")
+
+        with muted():
+            response = self.client.post(
+                reverse("maps:map-import"),
+                {
+                    "map_name": "Keine Zahl",
+                    "max_players": 4,
+                    "description": "",
+                    "json_file": ContentFile(
+                        json.dumps(payload).encode("utf-8"), name="map.json"
+                    ),
+                },
+            )
+
+        self.assertFalse(GameMap.objects.filter(name="Keine Zahl").exists())
+        self.assertIn("circuity", refusal_of(response))
+
+
 class PTChainExportTests(MapUploadMixin, TestCase):
     """The export writes the chain of the version it is exporting, and says so.
 
@@ -1189,6 +1275,7 @@ def edge_key(edge):
         if se
         else None,
         te is not None,
+        edge.circuity,
     )
 
 

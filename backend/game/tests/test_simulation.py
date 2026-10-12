@@ -842,6 +842,40 @@ class DedicatedBusLaneTests(TestCase):
         self.assertTrue(self._simulator_over(edge).edge_states[edge.pk].open_to_cars)
 
 
+class RoadLengthTests(TestCase):
+    """A link is as long as its road, which can bend between its two nodes.
+
+    `Edge.circuity` is the road's length over the straight line. Nodes three
+    units apart at 100 m per unit: 300 m straight, 450 m down a road half as
+    long again.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="road", password="12345")
+        self.game_map, self.version, self.nodes = _grid_map("Road length map", 2)
+        self.edge = _street(self.game_map, self.version, *self.nodes)
+
+    def _state(self):
+        session = _session(self.user, self.game_map)
+        game_round = GameRound.objects.create(game=session, round_number=1)
+        player = Player.objects.create(name="Fahrer", game=session)
+        _route(game_round, player, [self.edge])
+        simulator = TrafficSimulator(game_round, scale=100.0)
+        return simulator.edge_states[self.edge.pk]
+
+    def test_an_edge_that_says_nothing_is_its_straight_line(self):
+        self.assertAlmostEqual(self._state().distance_m, 300.0)
+
+    def test_a_bending_road_is_longer_than_its_straight_line(self):
+        Edge.objects.filter(pk=self.edge.pk).update(circuity=1.5)
+
+        state = self._state()
+
+        self.assertAlmostEqual(state.distance_m, 450.0)
+        # 450 m at 50 km/h
+        self.assertAlmostEqual(state.free_flow_min, 0.54)
+
+
 class FreeFlowTripTimeTests(TestCase):
     """A trip on an empty network takes its free-flow time.
 

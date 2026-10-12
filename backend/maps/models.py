@@ -4,6 +4,7 @@ import math
 
 from co2mmute.utils import game_map_clean
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.db import models
 from game.models import GameRound
 
@@ -212,6 +213,12 @@ class Edge(models.Model):
     bike_lane = models.BooleanField(default=False)
     walking = models.BooleanField(default=True)
     max_lanes = models.PositiveSmallIntegerField(default=1)
+    # How much longer the road is than the straight line between its two
+    # nodes: a country road bending between two villages, an interchange
+    # merged into one node. 1.0 is the line as drawn. A ratio rather than
+    # metres so the road moves with its nodes — drag one and the bends come
+    # along (Lukas, 2026-10-12) — and with the map's `scale`.
+    circuity = models.FloatField(default=1.0, validators=[MinValueValidator(1.0)])
 
     objects = EdgeQuerySet.as_manager()
 
@@ -219,6 +226,13 @@ class Edge(models.Model):
         dx = self.end_node.x_position - self.start_node.x_position
         dy = self.end_node.y_position - self.start_node.y_position
         return math.sqrt((dx * dx) + (dy * dy))
+
+    def length_m(self, scale: float) -> float:
+        """The road's length in metres, on a map of `scale` metres per unit.
+
+        What the routers and the simulation both take as the link's length.
+        """
+        return self.euclidean_2d_distance() * scale * self.circuity
 
     def clean(self) -> None:
         if self.bike_lane and not self.biking:

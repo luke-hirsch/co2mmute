@@ -61,6 +61,9 @@ have to agree about them:
   a street with rails beside or under it, the U2 under Bismarckstraße.
 * **A train line says its ``kind``**, ``"train"`` or ``"tram"``, written out
   on every line. A file without it is an older one, and its lines are trains.
+* **An edge says how much longer its road is than the straight line**,
+  ``circuity``, 1.0 for the line as drawn and written out on every edge. A
+  file without it is an older one, and its edges are straight.
 
 The version's own name wins over the form's. A copy imported under a new map
 name keeps the base version called after the map it was drawn on, which is what
@@ -178,6 +181,7 @@ def build_export(game_map, version=None):
             "bike_lane": edge.bike_lane,
             "walking": edge.walking,
             "max_lanes": edge.max_lanes,
+            "circuity": edge.circuity,
         }
         if street:
             entry["speed_limit"] = street.speed_limit

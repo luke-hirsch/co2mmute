@@ -270,3 +270,98 @@ class TramWritesTests(VersionFixtureMixin, TestCase):
         self.assertEqual(response.status_code, 201, response.content)
         self.assertEqual(TrainLine.objects.get(name="M1").kind, "tram")
         self.assertEqual(response.json()["kind"], "tram")
+
+
+@override_settings(**TEST_BACKENDS)
+class RoadLengthTests(VersionFixtureMixin, TestCase):
+    """What the router reads as an edge's length: the road, not the line.
+
+    `circuity` is the road's length over the straight line between its two
+    nodes. Stored as that ratio, the road moves with its nodes: drag one and
+    the bends come along (Lukas, 2026-10-12: the length scales).
+
+    Edge A runs N0 → N1, one unit on a map of 500 m per unit.
+    """
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="staff", password="password123", is_staff=True
+        )
+        self.client.force_login(self.user)
+        self.build_map()
+        self.game_map.scale = 500.0
+        self.game_map.save()
+
+    def graph(self):
+        response = self.client.get(
+            reverse("maps:mapversion-graph", kwargs={"pk": self.game_map.pk})
+        )
+        self.assertEqual(response.status_code, 200)
+        return {edge["id"]: edge for edge in response.json()["edges"]}
+
+    def draw_edge(self, start, end, **fields):
+        return self.client.post(
+            reverse("maps:edge-list", kwargs={"pk": self.game_map.pk}),
+            data={
+                "game_map": self.game_map.pk,
+                "start_node": self.nodes[start].pk,
+                "end_node": self.nodes[end].pk,
+                "map_versions": [self.base.pk],
+                **fields,
+            },
+            content_type="application/json",
+        )
+
+    def patch_edge(self, edge, data):
+        return self.client.patch(
+            reverse(
+                "maps:edge-detail",
+                kwargs={"pk": self.game_map.pk, "edge_pk": edge.pk},
+            ),
+            data=data,
+            content_type="application/json",
+        )
+
+    def test_an_edge_that_says_nothing_is_its_straight_line(self):
+        self.assertAlmostEqual(self.graph()[self.edge_a.pk]["distance_m"], 500.0)
+
+    def test_the_graph_gives_the_road_its_length(self):
+        Edge.objects.filter(pk=self.edge_a.pk).update(circuity=1.3)
+
+        self.assertAlmostEqual(self.graph()[self.edge_a.pk]["distance_m"], 650.0)
+
+    def test_dragging_a_node_scales_the_road_with_it(self):
+        Edge.objects.filter(pk=self.edge_a.pk).update(circuity=1.3)
+
+        response = self.client.patch(
+            reverse(
+                "maps:node-detail",
+                kwargs={"pk": self.game_map.pk, "node_pk": self.nodes[1].pk},
+            ),
+            data={"x_position": 2.0},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertAlmostEqual(self.graph()[self.edge_a.pk]["distance_m"], 1300.0)
+
+    def test_an_edge_is_drawn_with_its_road(self):
+        """What "+ Gegenrichtung anlegen" sends: the other way down the same road."""
+        response = self.draw_edge(1, 0, circuity=1.3)
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(Edge.objects.get(pk=response.json()["id"]).circuity, 1.3)
+
+    def test_both_directions_drawn_at_once_run_down_one_road(self):
+        response = self.draw_edge(0, 2, circuity=1.3, bidirectional=True)
+
+        self.assertEqual(response.status_code, 201, response.content)
+        back = Edge.objects.get(start_node=self.nodes[2], end_node=self.nodes[0])
+        self.assertEqual(back.circuity, 1.3)
+
+    def test_a_road_shorter_than_its_straight_line_is_refused(self):
+        response = self.patch_edge(self.edge_a, {"circuity": 0.9})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("circuity", response.json())
+        self.assertEqual(Edge.objects.get(pk=self.edge_a.pk).circuity, 1.0)

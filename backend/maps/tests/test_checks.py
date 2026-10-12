@@ -357,6 +357,17 @@ class CheckMapTests(SimpleTestCase):
         self.graph["edges"][0]["lanes"] = 0
         self.assertReports("street-figures")
 
+    def test_a_road_shorter_than_its_straight_line(self):
+        self.graph["edges"][0]["circuity"] = 0.9
+        problems = self.assertReports("road-length")
+        message = next(p.message for p in problems if p.check == "road-length")
+        self.assertIn("0.9", message)
+
+    def test_a_road_that_bends_is_sound(self):
+        self.graph["edges"][0]["circuity"] = 1.3
+        self.graph["edges"][1]["circuity"] = 1.0
+        self.assertEqual(self.found(), [])
+
     def test_a_map_with_nowhere_to_live(self):
         self.graph["nodes"][0]["types"] = ["intersection"]
         self.assertReports("no-home-or-work")

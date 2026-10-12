@@ -407,7 +407,7 @@ class TrafficSimulator(LinkQueueEngine):
                     edge_id=edge.pk,
                     start_node_id=edge.start_node_id,  # type: ignore
                     end_node_id=edge.end_node_id,  # type: ignore
-                    distance_m=edge.euclidean_2d_distance() * scale,
+                    distance_m=edge.length_m(scale),
                     is_street=street_edge is not None,
                     speed_limit_kmh=street_edge.speed_limit if street_edge else 0.0,
                     lanes=street_edge.lanes if street_edge else 1,

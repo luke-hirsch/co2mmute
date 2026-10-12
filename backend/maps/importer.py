@@ -372,6 +372,17 @@ class MapImporter:
                             f"Kante {idx}: tram_track muss 'lane' oder 'own' "
                             f"sein, hier steht '{track}'."
                         )
+                # The road's length over the straight line. Whether it is at
+                # least the line is a check (`maps/checks.py`); a word where
+                # the number goes is a file nothing can be made of.
+                circuity = edge.get("circuity", 1.0)
+                if isinstance(circuity, bool) or not isinstance(
+                    circuity, (int, float)
+                ):
+                    errors.append(
+                        f"Kante {idx}: circuity muss eine Zahl sein, hier steht "
+                        f"'{circuity}'."
+                    )
                 # A bike lane implies bike access. Read against the same
                 # default _create_edges uses, so a train edge that asks for a
                 # bike lane has to say `biking` too rather than inherit a
@@ -658,6 +669,7 @@ class MapImporter:
                 biking=edge_data.get("biking", default_biking),
                 walking=edge_data.get("walking", default_walking),
                 max_lanes=edge_data.get("max_lanes", 2),
+                circuity=edge_data.get("circuity", 1.0),
             )
 
             edge.map_versions.add(

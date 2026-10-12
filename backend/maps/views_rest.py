@@ -398,6 +398,7 @@ class EdgeListView(MapScopedQuerysetMixin, ListCreateAPIView):
                 bike_lane=edge.bike_lane,
                 walking=edge.walking,
                 max_lanes=edge.max_lanes,
+                circuity=edge.circuity,
             )
             reverse_edge.map_versions.set(drawn)
             spread_to_built_on(reverse_edge, drawn)
@@ -1060,6 +1061,7 @@ class VersionDiffCreateView(GenericAPIView):
                 bike_lane=change.get("bike_lane", original_edge.bike_lane),
                 walking=change.get("walking", original_edge.walking),
                 max_lanes=change.get("max_lanes", original_edge.max_lanes),
+                circuity=original_edge.circuity,
             )
             cloned_edge.map_versions.add(new_version)
 

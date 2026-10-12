@@ -317,6 +317,24 @@ def street_figures(found):
     return problems
 
 
+def road_length(found):
+    """No road is shorter than the straight line between its ends.
+
+    `circuity` is the road's length over that line; under 1 a car would
+    cross the gap faster than the crow flies. The importer has refused a
+    word in its place already.
+    """
+    return [
+        Problem(
+            "road-length",
+            f"{found.edge(idx)}: circuity {edge['circuity']} — die Straße wäre "
+            f"kürzer als die Luftlinie zwischen ihren Knoten.",
+        )
+        for idx, edge in enumerate(found.edges)
+        if edge.get("circuity", 1.0) < 1.0
+    ]
+
+
 def path_numbers(found):
     """A path has no street under it, and a street number says otherwise.
 
@@ -689,6 +707,7 @@ CHECKS = (
     edge_without_node,
     street_numbers,
     street_figures,
+    road_length,
     path_numbers,
     path_closed,
     bike_lane_unstated,

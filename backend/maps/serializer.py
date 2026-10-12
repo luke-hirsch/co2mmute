@@ -245,6 +245,7 @@ class EdgeSerializer(MapVersionsMixin, serializers.ModelSerializer):
             "bike_lane",
             "walking",
             "max_lanes",
+            "circuity",
             "map_versions",
             "street_edge",
             "train_edge",
@@ -254,6 +255,14 @@ class EdgeSerializer(MapVersionsMixin, serializers.ModelSerializer):
         read_only_fields = ("id", "street_edge", "train_edge", "distance_m")
         extra_kwargs = {
             "name": {"required": False, "allow_blank": True},
+            "circuity": {
+                "error_messages": {
+                    "min_value": (
+                        "Eine Straße ist mindestens so lang wie die Luftlinie "
+                        "zwischen ihren Knoten: circuity ist 1 oder mehr."
+                    )
+                }
+            },
         }
 
     def get_street_edge(self, obj):
@@ -287,8 +296,8 @@ class EdgeSerializer(MapVersionsMixin, serializers.ModelSerializer):
             return None
 
     def get_distance_m(self, obj):
-        """Calculate distance in meters using euclidean_2d_distance * scale."""
-        return obj.euclidean_2d_distance() * obj.game_map.scale
+        """The road's length in metres: the straight line, scaled, bent."""
+        return obj.length_m(obj.game_map.scale)
 
     def validate(self, attrs):
         """Everything an edge has to be true about itself, in one place.
