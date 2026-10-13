@@ -82,6 +82,14 @@ class Command(BaseCommand):
             help="Wie viele Seeds pro Messung (6).",
         )
         parser.add_argument(
+            "--per-home",
+            type=int,
+            help=(
+                "Arbeitsorte, die jeder Wohnort pro Runde spielt, neu gezogen je "
+                "Seed (Vorgabe: alle)."
+            ),
+        )
+        parser.add_argument(
             "--map-version",
             dest="version_name",
             help="Name der Version (Vorgabe: die Basisversion, auf der ein Spiel beginnt).",
@@ -91,7 +99,16 @@ class Command(BaseCommand):
         )
 
     def handle(
-        self, *args, file, speed, commuters, seeds, version_name, out, **options
+        self,
+        *args,
+        file,
+        speed,
+        commuters,
+        seeds,
+        per_home,
+        version_name,
+        out,
+        **options,
     ):
         path = Path(file)
         try:
@@ -112,6 +129,8 @@ class Command(BaseCommand):
             )
         if speed is not None and speed <= 0:
             raise CommandError("--speed ist ein Tempo in km/h, größer als null.")
+        if per_home is not None and per_home < 1:
+            raise CommandError("--per-home ist mindestens 1.")
 
         self.verbose = options["verbosity"] >= 1
         old_name = connection.settings_dict["NAME"]
@@ -141,6 +160,7 @@ class Command(BaseCommand):
                     speed=speed,
                     commuters=commuters,
                     seeds=calibration.SEEDS[:seeds],
+                    per_home=per_home,
                     version_name=version_name,
                 )
             finally:
@@ -159,7 +179,9 @@ class Command(BaseCommand):
             )
             self.stdout.write(f"Geschrieben: {out}")
 
-    def _calibrate(self, graph, path, *, speed, commuters, seeds, version_name):
+    def _calibrate(
+        self, graph, path, *, speed, commuters, seeds, per_home, version_name
+    ):
         """Import, route and play — inside the throwaway database."""
         from game.measure import (
             MapRounds,
@@ -199,14 +221,15 @@ class Command(BaseCommand):
 
         try:
             routes = client_routes(version_graph(game_map, version))
-            rounds = MapRounds(game_map, version, routes, host)
+            rounds = MapRounds(game_map, version, routes, host, per_home)
         except RoutesUnavailable as exc:
             raise CommandError(f"Keine Routen: {exc}")
 
         if self.verbose:
+            dealt = f"je Wohnort {rounds.per_seat} gezogen, " if rounds.dealt else ""
             self.stdout.write(
                 f"{game_map.name} — {version.name}: {len(rounds.commutes)} Wege, "
-                f"{rounds.gruppen} Gruppen, {len(seeds)} Seeds, "
+                f"{dealt}{rounds.gruppen} Gruppen, {len(seeds)} Seeds, "
                 f"gemessen auf {connection.vendor}"
             )
         try:

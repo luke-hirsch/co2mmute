@@ -131,7 +131,10 @@ an adapter method must never take an engine method's name.
   playing real rounds in a throwaway database (`game/measure.py`) on the routes the game's own router
   finds. It needs Node and `npm ci` in `frontend/`. Run it on Postgres (`DJANGO_DB=postgres`): the
   simulation reads its links in name order, every database sorts names its own way, and a round with
-  riders comes out ~1.5 % apart on sqlite.
+  riders comes out ~1.5 % apart on sqlite. The count is searched in whole people per Gruppe, so it
+  moves in steps of the Gruppen a round plays: a map with many homes and workplaces is played dealt
+  (`--per-home`), each home a fresh draw of that many workplaces per seed, every workplace as often
+  as the others — the seeds average it back to every home with every workplace.
 - **A PT line is its type and its id.** Bus and train lines are rows of two tables, so bus 2 and
   train 2 are different lines. Whatever looks a line up by `pt_line_id` takes the segment's mode
   along. A tram is a train line run by trams (`TrainLine.kind`): it rides rails and the same router

@@ -506,7 +506,71 @@ Gemessen auf der ausgelieferten Karte, sechs Seeds, normal, 6.800 Pendler:
 
 Die ausgelieferte Karte hat keine Tram; beide Golden Masters bleiben, wie sie waren.
 
-## 15. Was offen bleibt
+## 15. Große Karten: jede Runde zieht ihre Paare
+
+Eine aus OpenStreetMap gebaute Karte hat viele Wohnorte und viele Arbeitsorte: der Ausschnitt von
+Berlin Mitte-West 31 und 49, ganz Berlin 236 und 220. Spielt jede Runde jedes Paar, trägt jedes Paar
+mindestens einen ganzen Menschen, auf ganz Berlin also mindestens 51.920 Pendler — mehr, als die
+Regel dort findet. Und die Suche geht in Schritten von einem Menschen pro Gruppe, auf dem Ausschnitt
+von 1.519 Pendlern, 8 %: Bei 18.228 fahren alle Autos 30,1 km/h, bei 19.747 stehen sie (3,2 km/h).
+19 km/h liegt dazwischen und wird nie gemessen; der Befehl antwortet 18.000.
+
+Darum zieht eine Runde auf so einer Karte ihre Paare, wie ein Spiel sie austeilt: Jeder Wohnort
+spielt in jeder Runde, mit `--per-home` Arbeitsorten, für jeden Seed neu gezogen. Die Arbeitsorte
+werden gemischt und reihum ausgeteilt, so dass jeder gleich oft drankommt (höchstens einmal mehr) und
+kein Wohnort einen doppelt hat. Über die Seeds kommt jeder Wohnort zu jedem Arbeitsort, im Mittel
+also dasselbe wie jedes Paar. Bei einem Autoanteil fährt jeder Wohnort seinen Anteil. Es bleiben
+mindestens 64 Gruppen, eine volle Klasse. Ohne `--per-home`, oder wenn ein Wohnort ohnehin jeden
+Arbeitsort spielt, bleibt alles wie in Abschnitt 12.
+
+```
+./manage.py calibrate_map karte.json --speed 19 --per-home 8
+```
+
+Was das Ziehen kostet, gemessen am 13. Oktober 2026 auf dem Ausschnitt (31 Wohnorte, 49 Arbeitsorte,
+nur Autos, also fahren bei jedem Anteil alle), Postgres, zwölf Seeds, bei jeder Größe genau
+dieselben Menschen auf der Karte:
+
+| Arbeitsorte pro Wohnort | Gruppen | 12.152 Pendler: alle im Auto | kg pro Person | 18.228 Pendler: alle im Auto | kg pro Person | Sekunden pro Seed |
+| ----------------------: | ------: | ---------------------------: | ------------: | ---------------------------: | ------------: | ----------------: |
+|                       4 |     124 |              37,1 ± 1,8 km/h |  2,05 ± 3,3 % |              25,8 ± 8,0 km/h |  2,20 ± 3,9 % |                14 |
+|                       7 |     217 |              36,3 ± 2,5 km/h |  2,06 ± 3,4 % |              23,9 ± 9,3 km/h |  2,19 ± 5,0 % |                18 |
+|                      14 |     434 |              36,7 ± 1,5 km/h |  2,09 ± 2,2 % |              24,2 ± 9,9 km/h |  2,24 ± 3,5 % |                28 |
+|                      28 |     868 |              36,6 ± 1,1 km/h |  2,08 ± 1,0 % |             11,9 ± 12,8 km/h |  2,23 ± 1,3 % |                48 |
+|            alle 49 Paare |   1.519 |              36,6 ± 1,1 km/h |  2,08 ± 0,3 % |              23,6 ± 9,7 km/h |  2,22 ± 1,2 % |                86 |
+
+(± ist die Streuung zwischen den Seeds, nicht der Fehler des Mittels; die Kalibrierung mittelt über
+sechs.)
+
+- **Ruhig kostet das Ziehen wenig.** Bei 12.152 Pendlern streut das Tempo um höchstens gut einen
+  km/h mehr als die Simulation von selbst, das kg pro Person um 1 bis 3 % statt 0,3 %. Die Mittel
+  liegen innerhalb von 1,5 % beieinander.
+- **Kurz vor dem Kippen streut die Simulation selbst.** Bei 18.228 Pendlern und jedem Paar stehen an
+  zwei von zwölf Seeds alle (4,2 und 4,9 km/h), an einem fahren sie 16 km/h, an den übrigen neun 27
+  bis 32. Mit sieben gezogenen Arbeitsorten ist es dasselbe Bild (2,9 und 8,4 km/h, sonst 21 bis
+  35). Das Ziehen ändert daran nichts.
+- **Die Zeit wächst mit den Gruppen.** Eine Runde dauert etwa proportional zu den Gruppen, die sie
+  spielt.
+
+Kalibriert mit sieben gezogenen Arbeitsorten und sechs Seeds (`--speed 19 --per-home 7`, 13 Minuten)
+sucht der Befehl in Schritten von 217 Pendlern, 1,1 %, und findet den Rand: 18.662 Pendler fahren im
+Mittel der sechs Seeds 27,2 km/h, 19.096 nur noch 16,2. Auf zwei Stellen gerundet sind beide 19.000,
+und die Tabelle spielt 19.096 — jenseits des Randes. 19 km/h liegt auf dieser Karte genau dort, wo
+sie kippt (Abschnitt 16).
+
+Ein Schritt der Suche ist ein Mensch pro Gruppe. Weniger Gruppen heißt also feinere Schritte, und
+mehr Gruppen heißt weniger Streuung durch das Ziehen.
+
+Ganz Berlin (236 Wohnorte, 220 Arbeitsorte) mit acht gezogenen Arbeitsorten und sechs Seeds
+(`--speed 19 --per-home 8`): 3 Stunden 11 Minuten, davon gut eine halbe Stunde für die 51.920
+Wege, 3,4 GB Speicher. 1.888 Gruppen, also Schritte von 1.888 Pendlern, 5 %. Gemessen, im Mittel
+der sechs Seeds: 35.872 Pendler 20,5 km/h, 37.760 38,5, 39.648 15,7, 43.424 14,9. Mehr Pendler
+fahren hier nicht immer langsamer, und 19 km/h trifft keine Zahl; der Befehl antwortet 38.000, wo
+alle 38,5 km/h fahren. Je Seed ist es auf Berlin nicht gemessen; auf dem Ausschnitt waren es Seeds,
+an denen alles stand. Bei 60.416 Pendlern kommen an zwei der sechs Seeds rund 2.750 Menschen nach
+1.000 Takten, 83 Stunden, nicht an, und die Sperre der Simulation bricht den Hinweg ab.
+
+## 16. Was offen bleibt
 
 - **Die Abfahrten liegen sehr eng beieinander.** `departure_std_dev_min = 10` heißt, dass praktisch
   alle innerhalb von 20 Minuten losfahren; real verteilt sich ein Berufsverkehr über eine Stunde und
@@ -524,11 +588,18 @@ Die ausgelieferte Karte hat keine Tram; beide Golden Masters bleiben, wie sie wa
   Karte sagt selbst, ob ihre Zahl gemessen ist (`GameMap.calibrated`, geht mit der JSON-Datei mit),
   und „Spiel anlegen" warnt, solange sie es nicht ist. `calibrate_map` misst sie (Abschnitt 12),
   `--out` setzt den Haken in der Datei. Die mitgelieferte Datei hat ihn gesetzt.
+- **Wie viele Arbeitsorte ein Wohnort zieht**, steht noch nicht fest; ohne `--per-home` spielt der
+  Befehl jedes Paar (Abschnitt 15).
+- **Die gebauten Karten kippen.** Auf dem Ausschnitt aus OpenStreetMap fahren 18.228 Pendler an
+  den meisten Seeds um 30 km/h, an zwei von zwölf stehen sie (Abschnitt 15). Die Pendlerzahl, die
+  19 km/h im Mittel trifft, mischt Morgen, an denen es fließt, mit Morgen, an denen nichts mehr geht —
+  und eine Runde im Spiel ist ein Seed. Auf ganz Berlin springt schon das Mittel (35.872 Pendler
+  20,5 km/h, 37.760 38,5), und bei 60.416 kommen Menschen nicht mehr an (Abschnitt 15).
 - **Die Reihenfolge hängt an der Datenbank.** Wie in Abschnitt 12: eine Runde mit Bus und Bahn
   kommt unter SQLite um gut 1 % anders heraus als unter Postgres, weil die Strecken nach Namen
   sortiert gelesen werden.
 
-## 16. Nachrechnen
+## 17. Nachrechnen
 
 Die Zahlen oben stammen nicht aus einem Play-Test, sondern aus wiederholten Läufen mit festem Seed
 auf der ausgelieferten Karte. Wer sie nach einer Modelländerung neu braucht, spielt Runden auf der

@@ -156,9 +156,17 @@ class MapRounds:
     classes on it average to. A seat is a home, as in a game, with its
     Gruppen going to every workplace; the game's own `people_per_agent` rule
     turns the commuter count into people per Gruppe.
+
+    A map with more workplaces than a home plays (`per_home`) is dealt
+    instead, as a game deals: each round, every home gets that many
+    workplaces, a fresh draw per seed, each workplace as often as the others.
+    Every pair carrying a whole person would put more people on a large map
+    than it has commuters — all of Berlin has 236 homes, and as many
+    workplaces would be 50 000 pairs — so the rounds play a draw, and the
+    seeds average it back to every home with every workplace.
     """
 
-    def __init__(self, game_map, version, routes, host):
+    def __init__(self, game_map, version, routes, host, per_home=None):
         self.game_map = game_map
         self.version = version
         self.host = host
@@ -168,16 +176,29 @@ class MapRounds:
             raise RoutesUnavailable(
                 "Die Karte hat kein Paar aus Wohnort und Arbeitsplatz."
             )
-        self.per_pair = max(1, math.ceil(MIN_GRUPPEN / len(self.commutes)))
         # Commutes by the seat that plays them, in order: index into
         # `self.commutes`, which is also where a Gruppe's number comes from.
         self.seats = {}
+        self.pair = {}
         for index, commute in enumerate(self.commutes):
             self.seats.setdefault(commute["home"], []).append(index)
-        self.per_seat = max(len(pairs) for pairs in self.seats.values()) * self.per_pair
+            self.pair[commute["home"], commute["workplace"]] = index
+        self.workplaces = list(dict.fromkeys(c["workplace"] for c in self.commutes))
+        dealt = max(per_home or 0, math.ceil(MIN_GRUPPEN / len(self.seats)))
+        self.dealt = per_home is not None and dealt < len(self.workplaces)
+        if self.dealt:
+            self.per_pair = 1
+            self.per_seat = dealt
+        else:
+            self.per_pair = max(1, math.ceil(MIN_GRUPPEN / len(self.commutes)))
+            self.per_seat = (
+                max(len(pairs) for pairs in self.seats.values()) * self.per_pair
+            )
 
     @property
     def gruppen(self):
+        if self.dealt:
+            return len(self.seats) * self.per_seat
         return len(self.commutes) * self.per_pair
 
     def people_per_gruppe(self, commuters):
@@ -187,6 +208,27 @@ class MapRounds:
             SimpleNamespace(district_commuters=commuters),
         )
 
+    def strata(self, seed):
+        """The round's Gruppen, as commute indexes in groups that each drive
+        their share: a pair and its `per_pair` Gruppen, or a home and the
+        workplaces dealt to it for `seed`.
+
+        The deal shuffles the workplaces and hands them round, `per_seat` to a
+        home, so each goes to as many homes as the others (one more at most)
+        and no home gets one twice.
+        """
+        if not self.dealt:
+            return [[index] * self.per_pair for index in range(len(self.commutes))]
+        order = list(self.workplaces)
+        _draw(seed, "deal").shuffle(order)
+        return [
+            [
+                self.pair[home, order[(number * self.per_seat + slot) % len(order)]]
+                for slot in range(self.per_seat)
+            ]
+            for number, home in enumerate(self.seats)
+        ]
+
     def drivers(self, share, seed):
         """The Gruppen that drive at `share` in the round of `seed`, by index.
 
@@ -195,18 +237,31 @@ class MapRounds:
         in one round and the short ones in the next — on Berlin that spread
         the half-driving round by 4 % between seeds, which is the question
         "what does half driving cost" answered with noise. Only a remainder
-        is drawn: which pairs drive one Gruppe more.
+        is drawn: which pairs drive one Gruppe more. Dealt, every home drives
+        its share of the workplaces it was dealt.
         """
-        pairs = len(self.commutes)
-        whole, extra = divmod(round(share * self.gruppen), pairs)
-        order = list(range(pairs))
+        strata = self.strata(seed)
+        size = len(strata[0])
+        whole, extra = divmod(round(share * self.gruppen), len(strata))
+        order = list(range(len(strata)))
         _draw(seed, "drivers").shuffle(order)
         more = set(order[:extra])
         return {
-            pair * self.per_pair + slot
-            for pair in range(pairs)
-            for slot in range(whole + (pair in more))
+            number * size + slot
+            for number in range(len(strata))
+            for slot in range(whole + (number in more))
         }
+
+    def gruppen_at(self, share, seed):
+        """Each seat's Gruppen in the round of `seed`: (commute index, the mode
+        it is given), by home."""
+        drivers = self.drivers(share, seed)
+        seats = {home: [] for home in self.seats}
+        for number, stratum in enumerate(self.strata(seed)):
+            for slot, index in enumerate(stratum):
+                wanted = "car" if number * len(stratum) + slot in drivers else "public"
+                seats[self.commutes[index]["home"]].append((index, wanted))
+        return seats
 
     def seat_order(self, seed):
         """The seats in the order they sit down in the round of `seed`."""
@@ -236,54 +291,49 @@ class MapRounds:
             max_CO2_level=10**9,
         )
         game_round = GameRound.objects.create(game=session, round_number=1)
-        drivers = self.drivers(share, seed)
+        gruppen = self.gruppen_at(share, seed)
         view = PlayerMoveView()
         errors = []
         switched = 0
 
         for number, home in enumerate(self.seat_order(seed), start=1):
-            pairs = self.seats[home]
             player = Player.objects.create(game=session, name=f"Wohnort {number}")
             agents = []
-            for index in pairs:
+            for index, wanted in gruppen[home]:
                 commute = self.commutes[index]
-                for slot in range(self.per_pair):
-                    wanted = (
-                        "car" if index * self.per_pair + slot in drivers else "public"
-                    )
-                    mode = self._mode(commute, wanted)
-                    switched += mode != wanted
-                    there, back = commute["there"][mode], commute["back"][mode]
-                    who = f"{commute['home']} → {commute['workplace']}, {mode}"
-                    view._check_route(
-                        who,
-                        there["segments"],
-                        commute["home"],
-                        "home node",
-                        commute["workplace"],
-                        "destination",
-                        errors,
-                    )
-                    view._check_route(
-                        f"{who} (way home)",
-                        back["segments"],
-                        commute["workplace"],
-                        "destination",
-                        commute["home"],
-                        "home node",
-                        errors,
-                    )
-                    agents.append(
-                        {
-                            "id": len(agents) + 1,
-                            "transport_mode": mode,
-                            "optimization": (
-                                self.car_optimization if mode == "car" else None
-                            ),
-                            "route": there,
-                            "return_route": back,
-                        }
-                    )
+                mode = self._mode(commute, wanted)
+                switched += mode != wanted
+                there, back = commute["there"][mode], commute["back"][mode]
+                who = f"{commute['home']} → {commute['workplace']}, {mode}"
+                view._check_route(
+                    who,
+                    there["segments"],
+                    commute["home"],
+                    "home node",
+                    commute["workplace"],
+                    "destination",
+                    errors,
+                )
+                view._check_route(
+                    f"{who} (way home)",
+                    back["segments"],
+                    commute["workplace"],
+                    "destination",
+                    commute["home"],
+                    "home node",
+                    errors,
+                )
+                agents.append(
+                    {
+                        "id": len(agents) + 1,
+                        "transport_mode": mode,
+                        "optimization": (
+                            self.car_optimization if mode == "car" else None
+                        ),
+                        "route": there,
+                        "return_route": back,
+                    }
+                )
 
             serializer = PlayerMoveWithRoutesInputSerializer(data={"agents": agents})
             if not serializer.is_valid():
