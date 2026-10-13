@@ -252,6 +252,7 @@ function getNeighbours(
   designatedStops: Set<number>,
   boardableStops: Set<number>,
   nodeMap: Map<number, Node>,
+  edgeMap: Map<number, Edge>,
   scale: number,
   ptOptimization: PTOptimization
 ): Transition[] {
@@ -322,14 +323,12 @@ function getNeighbours(
         const edgeId = line.edges[idx] ?? null;
         const startNode = nodeMap.get(nodeId);
         const endNode = nodeMap.get(nextNodeId);
+        // As long as the track, the length the simulation plays — not the
+        // straight line between the stops, which a bent rail edge outruns.
+        const edge = edgeId !== null ? edgeMap.get(edgeId) : undefined;
         let distM = 0;
-        if (edgeId !== null) {
-          // Use edge distance if available via nodeMap lookup — we approximate from nodes
-          if (startNode && endNode) {
-            distM = calculateDistance(startNode, endNode, scale);
-          }
-        } else if (startNode && endNode) {
-          distM = calculateDistance(startNode, endNode, scale);
+        if (startNode && endNode) {
+          distM = edge?.distance_m ?? calculateDistance(startNode, endNode, scale);
         }
         const costMin = (distM / 1000 / line.speed_kmh) * 60;
         const nextState: ProductNode = { nodeId: nextNodeId, mode };
@@ -372,6 +371,7 @@ function productGraphDijkstra(
   designatedStops: Set<number>,
   boardableStops: Set<number>,
   nodeMap: Map<number, Node>,
+  edgeMap: Map<number, Edge>,
   scale: number,
   ptOptimization: PTOptimization
 ): ProductGraphResult | null {
@@ -411,6 +411,7 @@ function productGraphDijkstra(
       designatedStops,
       boardableStops,
       nodeMap,
+      edgeMap,
       scale,
       ptOptimization
     );
@@ -686,6 +687,7 @@ export async function findPTRoute(
     designatedStops,
     boardableStops,
     nodeMap,
+    edgeMap,
     scale,
     ptOptimization
   );
