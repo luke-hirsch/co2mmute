@@ -331,6 +331,12 @@ TABLE_SHARES = (1.0, 0.75, 0.5, 0.25, 0.0)
 # The seeds every measurement in docs/kalibrierung.md was taken over.
 SEEDS = (101, 102, 103, 104, 105, 106)
 
+# The workplaces a round deals each home on a map with more of them
+# (`calibrate_map --per-home`). On the box built from OSM, four spread no more
+# between seeds than seven or fourteen, and search in the finest steps
+# (docs/kalibrierung.md, section 15). A map with fewer plays every pair.
+PER_HOME = 4
+
 # How far the search for the commuter count may grow from where it starts —
 # 2^5, i.e. 32 times the map's current figure — before it says the map cannot
 # get that slow. A round's cost grows with its people, so this also bounds how

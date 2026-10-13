@@ -520,10 +520,15 @@ spielt in jeder Runde, mit `--per-home` Arbeitsorten, für jeden Seed neu gezoge
 werden gemischt und reihum ausgeteilt, so dass jeder gleich oft drankommt (höchstens einmal mehr) und
 kein Wohnort einen doppelt hat. Über die Seeds kommt jeder Wohnort zu jedem Arbeitsort, im Mittel
 also dasselbe wie jedes Paar. Bei einem Autoanteil fährt jeder Wohnort seinen Anteil. Es bleiben
-mindestens 64 Gruppen, eine volle Klasse. Ohne `--per-home`, oder wenn ein Wohnort ohnehin jeden
-Arbeitsort spielt, bleibt alles wie in Abschnitt 12.
+mindestens 64 Gruppen, eine volle Klasse. Ohne `--per-home` zieht jeder Wohnort vier: Die Tabelle
+unten zeigt, dass vier nicht mehr streuen als sieben oder vierzehn, und sie suchen in den feinsten
+Schritten. Spielt ein Wohnort ohnehin jeden Arbeitsort, bleibt alles wie in Abschnitt 12 — auf der
+ausgelieferten Karte (sechs Wohnorte, sechs Arbeitsorte) braucht die volle Klasse elf pro Wohnort,
+mehr als es gibt. Wer jedes Paar spielen will, gibt `--per-home` so groß, wie die Karte Arbeitsorte
+hat.
 
 ```
+./manage.py calibrate_map karte.json --speed 19
 ./manage.py calibrate_map karte.json --speed 19 --per-home 8
 ```
 
@@ -588,8 +593,6 @@ an denen alles stand. Bei 60.416 Pendlern kommen an zwei der sechs Seeds rund 2.
   Karte sagt selbst, ob ihre Zahl gemessen ist (`GameMap.calibrated`, geht mit der JSON-Datei mit),
   und „Spiel anlegen" warnt, solange sie es nicht ist. `calibrate_map` misst sie (Abschnitt 12),
   `--out` setzt den Haken in der Datei. Die mitgelieferte Datei hat ihn gesetzt.
-- **Wie viele Arbeitsorte ein Wohnort zieht**, steht noch nicht fest; ohne `--per-home` spielt der
-  Befehl jedes Paar (Abschnitt 15).
 - **Die gebauten Karten kippen.** Auf dem Ausschnitt aus OpenStreetMap fahren 18.228 Pendler an
   den meisten Seeds um 30 km/h, an zwei von zwölf stehen sie (Abschnitt 15). Die Pendlerzahl, die
   19 km/h im Mittel trifft, mischt Morgen, an denen es fließt, mit Morgen, an denen nichts mehr geht —
