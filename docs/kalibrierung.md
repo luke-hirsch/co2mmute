@@ -558,6 +558,18 @@ Mittel der sechs Seeds 27,2 km/h, 19.096 nur noch 16,2. Auf zwei Stellen gerunde
 und die Tabelle spielt 19.096 — jenseits des Randes. 19 km/h liegt auf dieser Karte genau dort, wo
 sie kippt (Abschnitt 16).
 
+Ein Schritt der Suche ist ein Mensch pro Gruppe. Weniger Gruppen heißt also feinere Schritte, und
+mehr Gruppen heißt weniger Streuung durch das Ziehen.
+
+Ganz Berlin (236 Wohnorte, 220 Arbeitsorte) mit acht gezogenen Arbeitsorten und sechs Seeds
+(`--speed 19 --per-home 8`): 3 Stunden 11 Minuten, davon gut eine halbe Stunde für die 51.920
+Wege, 3,4 GB Speicher. 1.888 Gruppen, also Schritte von 1.888 Pendlern, 5 %. Gemessen, im Mittel
+der sechs Seeds: 35.872 Pendler 20,5 km/h, 37.760 38,5, 39.648 15,7, 43.424 14,9. Mehr Pendler
+fahren hier nicht immer langsamer, und 19 km/h trifft keine Zahl; der Befehl antwortet 38.000, wo
+alle 38,5 km/h fahren. Je Seed ist es auf Berlin nicht gemessen; auf dem Ausschnitt waren es Seeds,
+an denen alles stand. Bei 60.416 Pendlern kommen an zwei der sechs Seeds rund 2.750 Menschen nach
+1.000 Takten, 83 Stunden, nicht an, und die Sperre der Simulation bricht den Hinweg ab.
+
 ## 16. Was offen bleibt
 
 - **Die Abfahrten liegen sehr eng beieinander.** `departure_std_dev_min = 10` heißt, dass praktisch
@@ -581,7 +593,8 @@ sie kippt (Abschnitt 16).
 - **Die gebauten Karten kippen.** Auf dem Ausschnitt aus OpenStreetMap fahren 18.228 Pendler an
   den meisten Seeds um 30 km/h, an zwei von zwölf stehen sie (Abschnitt 15). Die Pendlerzahl, die
   19 km/h im Mittel trifft, mischt Morgen, an denen es fließt, mit Morgen, an denen nichts mehr geht —
-  und eine Runde im Spiel ist ein Seed.
+  und eine Runde im Spiel ist ein Seed. Auf ganz Berlin springt schon das Mittel (35.872 Pendler
+  20,5 km/h, 37.760 38,5), und bei 60.416 kommen Menschen nicht mehr an (Abschnitt 15).
 - **Die Reihenfolge hängt an der Datenbank.** Wie in Abschnitt 12: eine Runde mit Bus und Bahn
   kommt unter SQLite um gut 1 % anders heraus als unter Postgres, weil die Strecken nach Namen
   sortiert gelesen werden.
