@@ -1,6 +1,9 @@
 import { beforeAll, afterAll, describe, expect, it, vi } from "vitest";
 
 import { findPTRoute } from "@/utils/ptRouting";
+import type { Edge, Node } from "@/types/mapTypes";
+import type { ExtendedMapGraph, PTLine } from "@/types/routeTypes";
+
 import { buildGraph, raw } from "./shipped-map";
 
 /**
@@ -201,4 +204,89 @@ describe("every version of the map keeps its public transport", () => {
       expect(failures).toEqual([]);
     },
   );
+});
+
+/**
+ * A ride is as long as its track, not as the straight line between its stops.
+ *
+ * The simulation plays a ride over `Edge.length_m` — the straight line × the
+ * map's scale × `circuity` — and the graph sends that as `distance_m`. A map
+ * built from OSM gives its rail edges the bends of the real track, so a router
+ * that priced a ride by the straight line would send a class onto a line the
+ * simulation then plays three times as long.
+ *
+ * Two stations a kilometre apart, two ways between them: a train over a track
+ * that bends to three kilometres, and a bus on a straight street.
+ */
+describe("a ride on a bent track", () => {
+  const station = [{ id: 1, name: "station", short: "S" }];
+  const S: Node = { id: 1, name: "S", x_position: 0, y_position: 0, node_type: station };
+  const T: Node = { id: 2, name: "T", x_position: 1, y_position: 0, node_type: station };
+  const track: Edge = {
+    id: 20,
+    name: "Gleis",
+    start_node: 1,
+    end_node: 2,
+    walking: false,
+    biking: false,
+    circuity: 3,
+    distance_m: 3000,
+    street_edge: null,
+    train_edge: { id: 20 },
+  };
+  const street: Edge = {
+    id: 21,
+    name: "Straße",
+    start_node: 1,
+    end_node: 2,
+    walking: true,
+    biking: true,
+    circuity: 1,
+    distance_m: 1000,
+    street_edge: { id: 21, speed_limit: 50, lanes: 2, dedicated_bus_lane: false },
+  };
+  const train: PTLine = {
+    id: 2, name: "S1", type: "train", interval: 10, capacity: 1000, speed_kmh: 40,
+    edges: [20], stops: [1, 2],
+  };
+  const bus: PTLine = {
+    id: 2, name: "100", type: "bus", interval: 10, capacity: 85, speed_kmh: 30,
+    edges: [21], stops: [1, 2],
+  };
+  const graphWith = (lines: { bus: PTLine[]; train: PTLine[] }) =>
+    ({
+      nodes: [S, T],
+      edges: [track, street],
+      bus_lines: lines.bus,
+      train_lines: lines.train,
+      scale: 1000,
+    }) as unknown as ExtendedMapGraph;
+
+  const quiet: ReturnType<typeof vi.spyOn>[] = [];
+  beforeAll(() => {
+    quiet.push(vi.spyOn(console, "log").mockImplementation(() => {}));
+  });
+  afterAll(() => quiet.forEach((spy) => spy.mockRestore()));
+
+  it("takes as long as the track: 3 km at 40 km/h is 4.5 minutes", async () => {
+    const result = await findPTRoute(graphWith({ bus: [], train: [train] }), 1, 2, {
+      scale: 1000,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.ptSegments).toHaveLength(1);
+    expect(result.ptSegments[0].distanceM).toBe(3000);
+    expect(result.ptSegments[0].estimatedTimeMin).toBeCloseTo(4.5);
+  });
+
+  it("takes the bus when the track's bends make the train slower", async () => {
+    // By the straight line the train is 1.5 minutes and the bus 2; by the
+    // track the train is 4.5.
+    const result = await findPTRoute(graphWith({ bus: [bus], train: [train] }), 1, 2, {
+      scale: 1000,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.ptSegments.map((s) => s.mode)).toEqual(["bus"]);
+  });
 });
