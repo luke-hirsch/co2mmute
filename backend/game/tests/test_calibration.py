@@ -22,12 +22,14 @@ from django.core.files.base import ContentFile
 from django.test import SimpleTestCase, TestCase, override_settings
 
 from game import calibration
+from game.management.commands.calibrate_map import Command
 from game.measure import MapRounds, RoutesRefused
 from game.models import GameSession, Player
 from game.tests._helpers import TEST_BACKENDS, TempMediaRootMixin, create_host, muted
 from maps.importer import MapImporter
 from maps.models import BusLine, Edge, MapVersion
 from maps.tests.test_checks import small_map
+from maps.tests.test_example_map import SHIPPED_MAP
 
 
 class RoundFigureTests(SimpleTestCase):
@@ -342,6 +344,31 @@ class DealTests(SimpleTestCase):
         for seed in range(1, 6):
             for gruppen in rounds.gruppen_at(0.5, seed).values():
                 self.assertEqual(sum(mode == "car" for _, mode in gruppen), 2)
+
+
+class DealtUnlessToldTests(SimpleTestCase):
+    """`calibrate_map` without `--per-home`: four workplaces a home, the
+    cheapest deal measured and no noisier than seven or fourteen
+    (docs/kalibrierung.md, section 15)."""
+
+    def per_home(self, *argv):
+        parser = Command().create_parser("manage.py", "calibrate_map")
+        return parser.parse_args(["karte.json", "--speed", "19", *argv]).per_home
+
+    def test_a_home_is_dealt_four_workplaces(self):
+        self.assertEqual(self.per_home(), 4)
+        self.assertEqual(self.per_home("--per-home", "7"), 7)
+
+    def test_the_shipped_map_still_plays_every_pair(self):
+        graph = json.loads(SHIPPED_MAP.read_text(encoding="utf-8"))
+        homes, workplaces = (
+            sum(kind in node["types"] for node in graph["nodes"])
+            for kind in ("home", "workplace")
+        )
+        rounds = MapRounds(
+            None, None, commutes(homes, workplaces), None, self.per_home()
+        )
+        self.assertFalse(rounds.dealt)
 
 
 class MapRoundsTests(TempMediaRootMixin, TestCase):

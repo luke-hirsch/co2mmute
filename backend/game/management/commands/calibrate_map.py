@@ -84,9 +84,11 @@ class Command(BaseCommand):
         parser.add_argument(
             "--per-home",
             type=int,
+            default=calibration.PER_HOME,
             help=(
                 "Arbeitsorte, die jeder Wohnort pro Runde spielt, neu gezogen je "
-                "Seed (Vorgabe: alle)."
+                f"Seed (Vorgabe: {calibration.PER_HOME}; so viele, wie die Karte "
+                "Arbeitsorte hat: jedes Paar)."
             ),
         )
         parser.add_argument(

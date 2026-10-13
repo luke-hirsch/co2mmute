@@ -349,7 +349,7 @@ nicht gemessen.
 | K-68 | Straßenlänge im Spiel | eine Kante mit `circuity` 1,5 ist für die Router (`distance_m`) und für die Simulation anderthalbmal so lang wie die Luftlinie, und ein Auto braucht entsprechend länger; die Grenzen für Fuß und Rad bleiben die Luftlinie (F8) | geht | `test_graph`, `test_simulation` |
 | K-69 | Editor: Straßenlänge | „Länge“ an einer Kante ist die Straße; einen Knoten verschieben streckt die Straße mit; „+ Gegenrichtung anlegen“ und eine Änderung an der Straße in einer Version behalten die Länge; weniger als 1 lehnt der Server ab (F8) | geht | `test_graph`, `test_versions`, `map-editor.test.ts` |
 | K-70 | Kartendatei prüfen: Straßenlänge | `check_map` meldet eine Kante mit `circuity` unter 1 — kürzer als die Luftlinie (F8) | geht | `test_checks` |
-| K-71 | Karte kalibrieren: Paare ziehen | `calibrate_map datei.json --speed 19 --per-home 7` auf einer Karte mit mehr Arbeitsorten als 7: „je Wohnort 7 gezogen“, jeder Wohnort spielt jede Runde, jeder Arbeitsort gleich oft (± 1), kein Wohnort einen doppelt, jeder Seed neu gezogen; ohne `--per-home` jedes Paar wie bisher; `--per-home 0` lehnt der Befehl ab (F8) | geht | `test_calibration` |
+| K-71 | Karte kalibrieren: Paare ziehen | `calibrate_map datei.json --speed 19 --per-home 7` auf einer Karte mit mehr Arbeitsorten als 7: „je Wohnort 7 gezogen“, jeder Wohnort spielt jede Runde, jeder Arbeitsort gleich oft (± 1), kein Wohnort einen doppelt, jeder Seed neu gezogen; ohne `--per-home` „je Wohnort 4 gezogen“, auf der ausgelieferten Karte (sechs Arbeitsorte) jedes Paar wie bisher; `--per-home 0` lehnt der Befehl ab (F8) | geht | `test_calibration` |
 
 ## S — sonstiges
 
