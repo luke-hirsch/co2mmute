@@ -39,7 +39,7 @@ export function AddSeatDialog({
   gameId: string;
   /**
    * Every seat is taken. The dialog then says so instead of offering a name
-   * field that can only be refused (S24) — the server still checks, so a
+   * field that can only be refused — the server still checks, so a
    * roster that is a beat behind gets the 409 the old way.
    */
   full?: boolean;

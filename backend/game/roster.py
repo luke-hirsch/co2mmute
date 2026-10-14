@@ -3,7 +3,7 @@
 The list comes from the Player rows, so a removed player disappears and a seat
 played at the host machine shows up without a socket of its own. The cache
 (Redis in production) only answers "is this seat connected right now", keyed by
-Player.pk so a new player_id (1.7) keeps it. That answer runs out by itself: a
+Player.pk so a new player_id keeps it. That answer runs out by itself: a
 presence key lives PRESENCE_TTL seconds and every client ping renews it, so a
 backend restart that never ran disconnect() leaves nobody "online" for long.
 
@@ -169,7 +169,7 @@ def revoke(player_pk: int, reason: str) -> None:
     """Tell every socket of this seat it is no longer theirs, and close them.
 
     reason: "removed" (the host removed the player) or "left" (the player
-    left). 1.6 and 1.7 add "taken_over" and "handed_over".
+    left), "taken_over" and "handed_over" (the seat moved).
     GameConsumer.player_revoked sends player.revoked and closes with 4403.
     """
     channel_layer = get_channel_layer()

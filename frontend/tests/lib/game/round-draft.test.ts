@@ -196,8 +196,9 @@ describe("roundDraftReducer — assignment", () => {
   });
 
   it("starts over when another seat is being played", () => {
-    // F4 plays someone else's seat through this same screen. Carrying the
-    // previous seat's choices over would submit them for the wrong player.
+    // The host desk plays someone else's seat through this same screen.
+    // Carrying the previous seat's choices over would submit them for the wrong
+    // player.
     const chosen = apply(initialRoundDraft(), ASSIGN, {
       kind: "mode",
       agentId: 1,
@@ -451,7 +452,7 @@ describe("round draft selectors", () => {
 });
 
 /**
- * A reload in the middle of an unfinished turn (S7).
+ * A reload in the middle of an unfinished turn.
  *
  * A locked phone discards the page; in a classroom that is the ordinary case,
  * not the edge case. What comes back is the **taps** — the mode and the two

@@ -34,10 +34,10 @@ def signed_game_cookie(game_id, token="test-token"):
 
 
 def signed_player_cookie(game_id, player_id):
-    """The post-1.2 format: the player id bound to its game inside the signature.
+    """The player id bound to its game inside the signature.
 
-    Before 1.2 this signs the bare player_id, so only the cookie *name* carries
-    the game — rename it in the browser and the signature still verifies.
+    It used to sign the bare player_id, so only the cookie *name* carried the
+    game — rename it in the browser and the signature still verified.
     """
     return sign_value(f"{game_id}:{player_id}", settings.COOKIE_PLAYER_SALT)
 
@@ -50,8 +50,8 @@ def scope_with_cookies(**cookies):
 def request_with_session():
     """A request with a real session, like the join views have.
 
-    Before 1.2 both cookie helpers stashed a value in request.session, so a bare
-    RequestFactory request was not enough. After 1.2 they must not touch it —
+    Both cookie helpers used to stash a value in request.session, so a bare
+    RequestFactory request was not enough. Now they must not touch it —
     the session is still attached so a test can prove that.
     """
     request = RequestFactory().get("/")
@@ -62,11 +62,11 @@ def request_with_session():
 
 @override_settings(**TEST_BACKENDS)
 class WsAuthTests(TempMediaRootMixin, TransactionTestCase):
-    """The two cases that have been failing since before phase 0.
+    """The two cases that had been failing since before the 2026-08-13 audit.
 
     resolve_player calls channels.auth.get_user unconditionally, and get_user
     needs scope["session"], which a hand-built scope does not have:
-    `ValueError: Cannot find session in scope`. 1.2 guards the call.
+    `ValueError: Cannot find session in scope`. The call is guarded now.
 
     TransactionTestCase, not TestCase — for every class here that awaits
     resolve_player. channels' database_sync_to_async runs
@@ -997,7 +997,7 @@ class GameDeletionPermissionTests(TempMediaRootMixin, TestCase):
     def test_a_game_that_does_not_exist_answers_the_same_way(self):
         """403, not 404 — otherwise the answer says which ids are real.
 
-        It matters more since S13: the confirm page that used to 404 for
+        It matters more now: the confirm page that used to 404 for
         somebody else's game is gone, and this endpoint is the only door.
         """
         self.client.force_login(self.stranger)
@@ -1011,7 +1011,7 @@ class GameDeletionPermissionTests(TempMediaRootMixin, TestCase):
         """End it first, so `end_reason` is written while it is still known.
 
         The rule used to live on the Django confirm page (`GameDeleteView`),
-        which S13 deleted. A rule only one of two doors enforces is not a rule,
+        which is deleted. A rule only one of two doors enforces is not a rule,
         so it moved onto the endpoint.
         """
         GameSession.objects.filter(pk=self.game.pk).update(

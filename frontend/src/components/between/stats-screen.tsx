@@ -20,7 +20,7 @@ import { usePhase } from "@/hooks/use-phase";
  * on the seat, so a second ack is a no-op, which is why this screen does not
  * have to remember anything across a page load.
  *
- * Since S3 the round is **watched before it is read**: the animation is the front
+ * The round is **watched before it is read**: the animation is the front
  * half of this phase, and the numbers and the button arrive when it has played
  * through or been skipped. A seat that has already acked skips straight to the
  * numbers on a reload — the class has moved past that screen and replaying the

@@ -36,7 +36,7 @@ def clear_chat_on_toggle(sender, instance: GameSession, **kwargs):
             logger.info(
                 f"Chat {'enabled' if instance.chat_enabled else 'disabled'} for game {instance.game_id}, messages cleared"
             )
-            # Every screen in the room, not only the host's (F3): a phone that
+            # Every screen in the room, not only the host's: a phone that
             # loaded with the chat on would keep its dock and type into a
             # refusal, and one that loaded it off would never get one back.
             game_id, chat_enabled = instance.game_id, instance.chat_enabled
@@ -79,7 +79,7 @@ def set_up_player(sender, instance: Player, created: bool, **kwargs):
         )
         player_name = instance.name or "A new player"
         # German, like every other player-facing string: this line is printed
-        # straight into the chat the class reads (S8). Not via a de.ts
+        # straight into the chat the class reads. Not via a de.ts
         # dictionary — that one belongs to the SPA, and this text is composed
         # here with a name in it.
         send_chat_system_message(
@@ -455,7 +455,7 @@ def _run_simulation(game_session, game_round, moves):
     def on_progress(tick, _guard):
         """Broadcast simulation progress, as the share of people home.
 
-        Not tick / max_ticks: a pass runs until everybody is home (F2d), and
+        Not tick / max_ticks: a pass runs until everybody is home, and
         max_ticks is only the guard behind that, so a tick count has no total
         to be a fraction of.
         """

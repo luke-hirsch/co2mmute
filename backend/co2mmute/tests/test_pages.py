@@ -1,6 +1,6 @@
 """The landing page, the docs on the site, and the background documents.
 
-The docs pages under /docs/ (F13) are copies of `docs/de-*.md` and are not held
+The docs pages under /docs/ are copies of `docs/de-*.md` and are not held
 to them by a test on purpose: they are edited often, and an edit to their copy
 must not be able to stop a deploy (Lukas, 2026-10-01). What is tested here is
 the frame — that each page is where the menu says, that the English ones are
@@ -106,7 +106,7 @@ class LandingPageTests(TestCase):
 
     def test_the_detour_leads_to_the_background_page(self):
         """The public-transport line's detour is the way to the background,
-        wherever it lives — /docs/hintergrund/ since F13."""
+        wherever it lives — /docs/hintergrund/ now."""
         self.assertEqual(self.response.status_code, 200)
         detour = re.search(r'<section class="metro-detour">(.*?)</section>', self.html, flags=re.S)
         self.assertIsNotNone(detour)
@@ -136,7 +136,7 @@ DOCS = {
 
 
 class DocsPagesTests(TestCase):
-    """F13: the docs where the research group can read them — three pages
+    """The docs where the research group can read them — three pages
     under one item in the header, in German like the rest of the site."""
 
     def test_every_page_is_where_the_menu_says_and_answers(self):
@@ -164,7 +164,7 @@ class DocsPagesTests(TestCase):
                 self.assertEqual(self.client.get(path).status_code, 404)
 
     def test_the_background_moved_and_its_old_address_is_gone(self):
-        """Moved, not redirected — like the old join (S22)."""
+        """Moved, not redirected — like the old join page."""
         self.assertEqual(self.client.get("/hintergrund/").status_code, 404)
 
 

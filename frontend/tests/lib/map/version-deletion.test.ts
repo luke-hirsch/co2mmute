@@ -4,7 +4,7 @@ import { afterLines, goesLines, quotedList } from "@/lib/map/version-deletion";
 import type { VersionDeletion } from "@/types/mapTypes";
 
 /**
- * F14: the dialog that asks before a version is deleted.
+ * The dialog that asks before a version is deleted.
  *
  * The server says what goes in numbers and names; these are the lines the
  * dialog makes of them. Nothing of a kind is no line, not "0 Knoten" — on the

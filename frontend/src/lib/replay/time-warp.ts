@@ -14,11 +14,12 @@
  * gap is the one place time is spent fast: a short fixed "Mittag", and everything
  * else runs at **one constant rate**.
  *
- * It used to be handed out by how many dots were moving (F2b, replaced). That
- * made every dot — the trains too, whose link times the simulation holds
- * constant — run five to seven times faster in the quiet tails than at the peak,
- * and it read as "everything slows down when it jams". A dot's speed on screen
- * is now the same all morning, so a dot that crawls is a dot that crawls.
+ * It used to be handed out by how many dots were moving (replaced 2026-10-02).
+ * That made every dot — the trains too, whose link times the simulation holds
+ * constant — run five to seven times faster in the quiet tails than at the
+ * peak, and it read as "everything slows down when it jams". A dot's speed on
+ * screen is now the same all morning, so a dot that crawls is a dot that
+ * crawls.
  *
  * The budget is the fixed thing. A round can drain for four hours or for one, so
  * playback normalises whatever the round did into the budget rather than

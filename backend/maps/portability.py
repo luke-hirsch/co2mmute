@@ -1,6 +1,6 @@
 """The JSON a map travels in — the whole map, every version of it.
 
-A map only ever moves between boxes as a file, and until S14 that file was a
+A map only ever moves between boxes as a file, and until 2026-09-28 that file was a
 snapshot of **one** version, flattened: the export picked a `MapVersion`,
 filtered nodes, edges and lines to it and wrote no version information at all,
 and the importer answered with exactly one `base_version`. A map with four
@@ -39,14 +39,14 @@ have to agree about them:
   version**: ``chains`` is a list of ``{"versions": [...], "edges": [...]}``
   groups, and four versions that run the same three links produce one entry.
   A version the line belongs to but runs no link in gets ``"edges": []`` rather
-  than being left out — that is the damaged state S15 recorded and S16 repairs,
-  and it has to be legible in the file.
+  than being left out — that is the damaged state the box's map was in before
+  its repair, and it has to be legible in the file.
 * **A flat file's ``edges`` on a line still works** and means "this route, in
   every version the line belongs to".
 * **``"type": "path"`` is a link with neither a street nor a railway under
   it** — a way for bikes and pedestrians and nothing else. The map the group
   plays has twelve of them: three homes reaching the S-Bahn at Bellevue, the
-  Justizministerium reaching Checkpoint Charlie, and since F11 eight through
+  Justizministerium reaching Checkpoint Charlie, and since 2026-10-02 eight through
   the Tiergarten and round Potsdamer Platz. It needs its own name because the
   export used to write such links as ``"street"`` (the ``else`` branch of a
   three-way choice) and the importer then gave each one a ``StreetEdge`` at the
@@ -473,7 +473,7 @@ def chain_groups(line_data, line_indices):
 def validate_versions(graph_data):
     """Everything about versioning a file can get wrong, as upload errors.
 
-    A hand-edited file is how S16 repairs the map the group plays, so an index
+    A hand-edited file is how the map the group plays was repaired, so an index
     that points nowhere has to come back as a sentence on the upload page rather
     than as a map with a hole in it.
     """

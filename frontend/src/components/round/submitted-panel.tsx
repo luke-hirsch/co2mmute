@@ -9,7 +9,7 @@ import { playingSeats } from "@/lib/game/game-state";
  * That this seat has submitted is not stored here or anywhere else on the
  * client — it is `seat.status === "waiting"` in the roster. Which is why this
  * panel is still correct after a reload, after a reconnect, and when the seat
- * was submitted from another device (F4, R-11).
+ * was submitted from another device (R-11).
  *
  * Names appear here because the roster is exactly the list of who is in the
  * room, and the players can see each other. They must not reach a log, a toast

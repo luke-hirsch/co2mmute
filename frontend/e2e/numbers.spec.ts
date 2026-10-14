@@ -4,7 +4,7 @@ import { createGame, endAndDelete, pickMode } from "./game";
 import { loginAsHost } from "./host";
 
 /**
- * S4: the numbers say what scale they are on, and the summary says what the
+ * The numbers say what scale they are on, and the summary says what the
  * class decided.
  *
  * Covers Z-15 … Z-18 and E-11 … E-13 in `docs/testfaelle.md`. One round is
@@ -139,7 +139,7 @@ test("the numbers name their scale, and the summary names the vote", async ({
     await expect(page.getByText("Was der Fahrplan gekostet hat")).toBeVisible();
     await expect(page.getByText("Fahrplan insgesamt")).toBeVisible();
     // Nobody in this round rides, so the unridden share *is* the timetable and
-    // the second row would repeat the first number (S24): one sentence instead.
+    // the second row would repeat the first number: one sentence instead.
     await expect(
       page.getByText("Niemand ist mitgefahren: Der ganze Fahrplan lief leer."),
     ).toBeVisible();

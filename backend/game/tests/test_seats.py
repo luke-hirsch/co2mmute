@@ -226,9 +226,9 @@ class AddSeatTests(SeatsMixin, TestCase):
         self.assertIn(player_id, [p["player_id"] for p in last_roster])
 
     def test_the_chat_is_told_in_german(self):
-        """S8. The line goes straight into the chat the class reads.
+        """The line goes straight into the chat the class reads.
 
-        It said "<name> joined the game" until S8 put the chat back on screen
+        It said "<name> joined the game" until the chat came back on screen
         and made that visible — an English sentence in a German classroom, on a
         screen where every other string goes through `de.ts`. This one cannot:
         it is composed here, with a name in it.
@@ -289,7 +289,7 @@ class RemoveSeatTests(SeatsMixin, TestCase):
         ]
 
     def test_the_chat_says_in_german_that_someone_left(self):
-        """S8 — see AddSeatTests.test_the_chat_is_told_in_german."""
+        """See AddSeatTests.test_the_chat_is_told_in_german."""
         self.start()
         listener = GroupListener(group=f"chat_{self.game.game_id}")
         self.as_player(self.anna)
@@ -964,7 +964,7 @@ class TakeoverTests(HandoverMixin, TestCase):
 
 @override_settings(**TEST_BACKENDS)
 class ClassroomScenarioTests(HandoverMixin, TestCase):
-    """The whole 1.6 + 1.7 story, as the plan tells it.
+    """A seat played at the host machine and moved back, the whole story.
 
     The bell pauses the game. Next lesson Anna is missing, and the host takes
     her seat over. She comes back, the host shows a code, her phone takes the
@@ -1073,9 +1073,9 @@ def mute_url(game_id, player_id):
 
 @override_settings(**TEST_BACKENDS)
 class MuteSeatTests(SeatsMixin, TestCase):
-    """POST /api/game/<game_id>/player/<player_id>/mute/ — S9.
+    """POST /api/game/<game_id>/player/<player_id>/mute/.
 
-    `MuteUnmutePlayerView` existed since 1.x and was routed nowhere, so
+    `MuteUnmutePlayerView` existed from the start and was routed nowhere, so
     `is_muted` could never change — and nothing read it either: neither
     consumer looked at it and no screen rendered it. Routing it alone would
     have shipped a button that changes a flag nobody obeys, which is why the

@@ -165,7 +165,7 @@ class PlayerHostRowTests(TempMediaRootMixin, TestCase):
         self.assertIn(elsewhere, Player.objects.playing())
 
     def test_the_create_endpoint_makes_a_host_row_that_is_not_host_controlled(self):
-        """From 1.6 on, controlled_by_host means "played at the host machine".
+        """controlled_by_host means "played at the host machine".
         The host's own row is found by its account."""
         self.client.force_login(self.host)
 
@@ -270,7 +270,7 @@ class HostRowMigrationTests(TempMediaRootMixin, TestCase):
         self.host = create_host()
         with muted():
             self.game = create_game_session(self.host)
-            # A host row the way GameSessionCreateView made it before 1.6.
+            # A host row the way GameSessionCreateView used to make it.
             self.host_row = Player.objects.create(
                 game=self.game, name="Host", user=self.host, controlled_by_host=True
             )
@@ -326,7 +326,7 @@ class GameMapRequiredTests(TempMediaRootMixin, TestCase):
     model stays nullable for the rows that already exist; the way in is where
     it is refused.
 
-    Since S13 that way in is `POST api/game/`, and the rule moved with it:
+    That way in is `POST api/game/` now, and the rule moved with it:
     `GameSessionCreateSerializer` makes `game_map` required while its parent
     leaves it optional, because the lobby's PATCH must stay free to send a body
     that only changes `is_active`.
@@ -460,7 +460,7 @@ class CalibratedModelDefaultsTests(TestCase):
     `map_updates` is the counter-example and stays one: its model default
     disagrees with the form's initial on purpose, pinned rather than changed
     because flipping it is the group's call. `people_per_agent` is not that —
-    the roadmap's S2 says to change the defaults, and a game created over the
+    the calibration changed the defaults on purpose, and a game created over the
     REST API at 1000 people per Gruppe puts 64 000 cars on a 90-edge map and
     reports a 298-minute commute.
     """
@@ -491,7 +491,7 @@ class CalibratedModelDefaultsTests(TestCase):
         """The other half of the disagreement. Pinned together, or a change to
         one of them reads as agreement rather than as the drift it is.
 
-        The offer moved to React with S13, so what is pinned here is that the
+        The offer moved to React, so what is pinned here is that the
         endpoint takes the answer rather than imposing the model's: a body
         saying `map_updates: true` has to survive the default that says False.
         `frontend/tests/lib/create-game.test.ts` pins the offer itself.
@@ -523,7 +523,7 @@ class CalibratedModelDefaultsTests(TestCase):
         """`sim/constants.py` is the one answer to "what does a mode emit and
         cost per kilometre".
 
-        Five `*Mobility` models carried a second answer from 1.x on — a row
+        Five `*Mobility` models carried a second answer from the start — a row
         per round that nothing ever created, served through serializers no
         view used — and two of them had drifted (a train at 3500 g, a bike at
         18 g and 0,08 €), held in step only by tests like this one's

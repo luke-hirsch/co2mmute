@@ -7,7 +7,7 @@ from game import calibration
 # is less than or equal to 365." — and the create screen renders whatever comes
 # back beside the field. `validate()` below words the lower bounds that mean
 # something in the game; these are the column's range, `idle_end_days`'s 365
-# and anything that is not a number at all. S21 met the first one by typing
+# and anything that is not a number at all. The first one turned up by typing
 # 99 999 into "Ende nach Tagen ohne Spiel".
 NUMBER_ERRORS = {
     "invalid": "Hier gehört eine ganze Zahl hin.",
@@ -59,7 +59,7 @@ class GameSessionSerializer(serializers.ModelSerializer):
     English, which was harmless only for as long as nothing rendered them: the
     create form was a Django `ModelForm` with its own German copy, and this
     serializer answered the lobby's PATCH, whose errors the screen never
-    showed. S13 put the create form in React, so these strings are now the
+    showed. The create form is React now, so these strings are now the
     sentence a host meets when they ask for a round with no seats in it.
 
     There is no second copy of them in `de.ts`. A rule the client can check
@@ -209,7 +209,7 @@ class GameSessionCreateSerializer(GameSessionSerializer):
 
 
 class HostGameListSerializer(serializers.ModelSerializer):
-    """`GET api/game/` — the host's own games, for `/app/host`. S13.
+    """`GET api/game/` — the host's own games, for `/app/host`.
 
     Not `GameSessionSerializer`: that one is the whole row, including the
     password, and this list renders for a host looking at a page, not for a
@@ -270,7 +270,7 @@ class PlayerSerializer(serializers.ModelSerializer):
 
 
 class SeatRequestSerializer(serializers.Serializer):
-    """Body of POST /api/game/<game_id>/player/: the host adds a seat (1.6).
+    """Body of POST /api/game/<game_id>/player/: the host adds a seat.
 
     `name` is the only identifying thing this project collects from a player —
     see the data-minimisation note in the DSGVO page. There is no account.

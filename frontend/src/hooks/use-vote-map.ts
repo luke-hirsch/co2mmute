@@ -7,7 +7,7 @@ import { useSeatGame } from "@/lib/queries/seat";
 import { useHostGame } from "@/lib/queries/session";
 
 /**
- * The map to show while the class votes (S24): the version the game is on, with
+ * The map to show while the class votes: the version the game is on, with
  * the round that has just been played drawn on it.
  *
  * It asks for exactly what the next round's screen will ask for — same version,

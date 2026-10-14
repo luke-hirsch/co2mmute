@@ -78,7 +78,7 @@ def drop_rows_from(rows, version):
 def versions_built_on(version, ignoring=None):
     """`version` and every version built on it — where a row drawn there goes.
 
-    The editor's rule since F10 (decided 2026-10-02): what is drawn in a version
+    The editor's rule since 2026-10-02: what is drawn in a version
     is in every version built on it. Drawn in base, that is every version of the
     map. Drawn in a change, it is that change and every combination holding it —
     otherwise a class that votes in two changes plays a combination that
@@ -292,7 +292,7 @@ def combination_members(model, base_version, member_versions):
     return (base_pks - removed) | added
 
 
-# ── deleting a version (F14) ──────────────────────────────────────────────
+# ── deleting a version ────────────────────────────────────────────────────
 
 
 class VersionDeleteRefused(Exception):
@@ -617,7 +617,7 @@ def backfill_chain_versions(BusLine, BusLineEdge, TrainLine, TrainLineEdge):
     and its street or train edge are already present. On the live box that
     records the damage rather than repairing it — buslinie 100 keeps reaching 0
     of its 7 edges in the base version — because a migration guessing at what a
-    hand-drawn version meant is worse than the explicit repair S16 does with the
+    hand-drawn version meant is worse than an explicit repair in a file, with the
     test suite watching. A row whose line belongs to no version at all (the box
     has three such `Bus 147` leftovers) stays in no version, which is what it
     already meant.

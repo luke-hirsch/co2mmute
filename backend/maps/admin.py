@@ -187,7 +187,7 @@ class MapVersionAdmin(admin.ModelAdmin):
     ordering = ("name",)
 
     # Deleting goes through `maps.versions.delete_version`, the editor's
-    # cleanup (F14). The admin's own delete removed the bare row and left every
+    # cleanup. The admin's own delete removed the bare row and left every
     # node, edge and line that was only in it in no version — that is where the
     # stray rows in the box's 2026-10-02 export came from. Both doors: the
     # delete page and the list's "delete selected", which share these hooks.

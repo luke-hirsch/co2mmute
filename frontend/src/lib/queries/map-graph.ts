@@ -51,7 +51,7 @@ export type TrafficFor = { gameId: string; roundNumber: number };
  * Named by the round just played, the key is the one that round's own screen
  * filled while it was still running, so `staleTime: Infinity` hands back the
  * response from before it finished: the round before's speeds, and after round 1
- * none at all. That is how the vote's map lost its jams (F3) while the host's,
+ * none at all. That is how the vote's map lost its jams while the host's,
  * which has no round screen to fill the cache, kept them. Named by the next
  * round, it is exactly what that round's screen will ask for, so the class
  * routes on the picture it voted over.
@@ -106,7 +106,7 @@ export function useMapGraph(
   });
 }
 
-// ── the rest of the map's reads, moved out of `hooks/mapHooks.ts` (F7) ───────
+// ── the rest of the map's reads, moved out of `hooks/mapHooks.ts` ────────────
 //
 // Same queries, same keys, same shapes — only the layer changed: relative URLs
 // through `apiFetch`, so a failure carries its status and nothing depends on
@@ -148,7 +148,7 @@ export function useMapVersions(mapId: string | number) {
 }
 
 /**
- * What deleting a version would take, asked when the dialog opens (F14).
+ * What deleting a version would take, asked when the dialog opens.
  *
  * Under `["mapVersions", mapId]`, so every write that invalidates the version
  * list asks again — and never kept: what goes depends on every other version,

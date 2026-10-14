@@ -41,7 +41,7 @@ describe("traceStepMs", () => {
     expect(traceStepMs(4) * 4).toBe(TRACE_DURATION_MS);
   });
 
-  it("does not blink through a very short one (F3)", () => {
+  it("does not blink through a very short one", () => {
     // At 120 ms a step, a commute of two or three links was over in a quarter
     // of a second, which is what "missing or too fast" was.
     expect(traceStepMs(2)).toBe(350);

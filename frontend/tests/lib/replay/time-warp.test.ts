@@ -12,10 +12,10 @@ import type { Replay, ReplayDot } from "@/lib/replay/types";
  * A round, there and back, in about two minutes.
  *
  * Morning and evening run at ONE constant rate and the empty middle of the day
- * is the only fast-forward. It was handed out by how many dots moved until F2b,
- * and that made every dot — the trains too, whose link times the simulation
- * holds constant — run five to seven times faster in the quiet tails than at
- * the peak. Lukas read it as "all buses and trains slow down" in a jam.
+ * is the only fast-forward. It was handed out by how many dots moved until
+ * 2026-10-02, and that made every dot — the trains too, whose link times the
+ * simulation holds constant — run five to seven times faster in the quiet tails
+ * than at the peak. Lukas read it as "all buses and trains slow down" in a jam.
  */
 
 /** A shaped like a real round: 135 minutes there, 1000-minute tick budget, 135 back. */

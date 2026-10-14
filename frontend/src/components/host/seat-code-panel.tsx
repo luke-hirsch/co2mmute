@@ -17,7 +17,7 @@ type HeldCode = {
 };
 
 /**
- * A seat's transfer code, made on request (1.7).
+ * A seat's transfer code, made on request.
  *
  * The same panel serves both directions, because it is the same code: the host
  * hands a seat back to a student who turned up with a phone, and a student

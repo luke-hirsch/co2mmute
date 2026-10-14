@@ -15,7 +15,7 @@ import { buildGraph, raw } from "./shipped-map";
  * asked the question that matters — can you get from this map's homes to this
  * map's workplaces by public transport at all?
  *
- * On the shipped file before the S5 data pass, six of thirty-six pairs could
+ * On the shipped file before its data pass, six of thirty-six pairs could
  * not: bus line `100` had no edges, so nothing served Brandenburger Tor, and
  * U Potsdamer Platz — the only other station within two kilometres — has no
  * street edge at all, so it cannot be walked to either. `101` broke mid-chain
@@ -27,7 +27,7 @@ import { buildGraph, raw } from "./shipped-map";
  *
  * ### One version at a time
  *
- * Since S14 the file carries **all eight** versions of the map, and a line's
+ * The file carries **all eight** versions of the map, and a line's
  * route is written per route rather than per version (`chains`). So a graph is
  * a filter over the file and this builder needs to be told which version to
  * cut: nodes, edges and lines each carry their own `versions`, and a line takes
@@ -142,13 +142,13 @@ describe("bus & bahn on Berlin Mitte-West", () => {
 /**
  * The same question, asked of every version the class can vote its way into.
  *
- * Until S16 the box's map had one version in the repo and the other seven only
- * in a database, so this could not be asked at all — and the two bugs S15 fixed
- * are exactly the ones it catches. A line's chain was not version-scoped, so
- * drawing `Busspuren` moved buslinie `100` onto the cloned street in *every*
- * version and left the base one reaching 0 of its 7 edges; and
- * `GenerateCombinationsView` never copied `TrainLine`, so a generated
- * combination had no rail at all.
+ * Until 2026-09-28 the box's map had one version in the repo and the other
+ * seven only in a database, so this could not be asked at all — and the two
+ * versioning bugs fixed then are exactly the ones it catches. A line's chain
+ * was not version-scoped, so drawing `Busspuren` moved buslinie `100` onto the
+ * cloned street in *every* version and left the base one reaching 0 of its 7
+ * edges; and `GenerateCombinationsView` never copied `TrainLine`, so a
+ * generated combination had no rail at all.
  *
  * Both are the kind of damage a player meets as "keine Verbindung gefunden" on
  * a map that looks right on screen. Per version, so a failure names the ballot
@@ -162,7 +162,7 @@ describe("every version of the map keeps its public transport", () => {
   });
   afterAll(() => quiet.forEach((spy) => spy.mockRestore()));
 
-  it("has the eight versions S16 put in the repo", () => {
+  it("has the eight versions of the box's map", () => {
     expect(raw.versions.map((v) => v.name)).toEqual([
       "Berlin Mitte-West - Base",
       "Busspuren",

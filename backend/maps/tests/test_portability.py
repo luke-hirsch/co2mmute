@@ -186,7 +186,7 @@ def refusal_of(response):
 class MapUploadMixin(TempMediaRootMixin):
     """Posting `api/maps/import/` the way the upload screen does.
 
-    It was `/map/upload/` until S19 moved the page into the SPA; the endpoint
+    It was `/map/upload/` until the page moved into the SPA; the endpoint
     reads the same form, so every test here moved with it unchanged.
 
     Extracted so the bike and rail tests below can upload a map without
@@ -510,15 +510,15 @@ class PathHasNoStreetUnderItTests(MapUploadMixin, TestCase):
     """A way for bikes and pedestrians, and no car lane at all.
 
     The map the group plays has twelve: three homes reaching the S-Bahn at
-    Bellevue, the Justizministerium reaching Checkpoint Charlie, and since F11
+    Bellevue, the Justizministerium reaching Checkpoint Charlie, and since 2026-10-02
     eight through the Tiergarten and round Potsdamer Platz. A car goes round.
 
     `type` used to have three values, so the export wrote such a link as
     `"street"` — the `else` branch of the three-way choice — and the importer
     answered by creating a `StreetEdge` at the default 50 km/h and one lane. The
     map therefore could not survive its own round trip: every front door gained
-    a fast car shortcut that nobody drew, and S5 "corrected" the shipped file by
-    writing those invented numbers out.
+    a fast car shortcut that nobody drew, and a data pass "corrected" the
+    shipped file by writing those invented numbers out.
     """
 
     def path_payload(self, **edge_extra):
@@ -667,13 +667,13 @@ class RailIsNotACycleTrackTests(MapUploadMixin, TestCase):
 # ---------------------------------------------------------------------------
 # The rest of the map block, and the lines.
 #
-# S2 read `district_commuters` (and a per-map budget, gone since F8 step 2b) on
-# the way in and named what it left behind: `_create_game_map` takes a `map_meta` argument that
-# no caller passes, so `max_player` and the three speeds are written into every
-# export and dropped by every import. A PT line's `speed_kmh` is the same story
-# one level down — `_create_bus_lines` and `_create_train_lines` never read it,
-# which is why every line on every imported map has run at the model default
-# whatever its file said.
+# The calibration read `district_commuters` (and a per-map budget, gone since
+# 2026-10-07) on the way in and named what it left behind: `_create_game_map`
+# takes a `map_meta` argument that no caller passes, so `max_player` and the
+# three speeds are written into every export and dropped by every import. A PT
+# line's `speed_kmh` is the same story one level down — `_create_bus_lines` and
+# `_create_train_lines` never read it, which is why every line on every imported
+# map has run at the model default whatever its file said.
 # ---------------------------------------------------------------------------
 
 
@@ -1143,8 +1143,9 @@ class PTChainExportTests(MapUploadMixin, TestCase):
     edges at all. The export writes a line's links as indices into the edge list
     it has just built for one version, and a link whose street is missing from
     that version has no index — so it was skipped without a word. Ten silent
-    drops read as a map author who never finished drawing the line, and S5 fixed
-    the file on that reading. The file was right about what it had been given.
+    drops read as a map author who never finished drawing the line, and a data
+    pass fixed the file on that reading. The file was right about what it had
+    been given.
 
     So: the chain comes from the version's own through rows, and a link the file
     cannot carry is a warning naming the line and the edge.
@@ -1230,7 +1231,7 @@ class PTChainExportTests(MapUploadMixin, TestCase):
 
 
 # ---------------------------------------------------------------------------
-# S14 — the whole map in one file.
+# The whole map in one file.
 #
 # Until now the export was a snapshot of one version, flattened: it picked a
 # `MapVersion`, filtered nodes, edges and lines to it and wrote no version
@@ -1587,7 +1588,7 @@ class WholeMapExportTests(VersionedMapMixin, TestCase):
         self.assertTrue(self.exported["edges"][with_lane[1]]["dedicated_bus_lane"])
 
     def test_a_version_that_runs_no_link_of_a_line_is_written_as_an_empty_chain(self):
-        """The damaged state has to be legible, because S16 repairs it here.
+        """The damaged state has to be legible, because it is repaired here.
 
         On the box buslinie 100 reaches 0 of its 7 street edges in the base
         version. A file that simply omitted that version would read as a line
@@ -1853,7 +1854,7 @@ class WholeMapImportTests(VersionedMapMixin, TestCase):
 
 
 class VersionedFileValidationTests(VersionedMapMixin, TestCase):
-    """A hand-edited file is how S16 repairs the box's map.
+    """A hand-edited file is how the box's map was repaired.
 
     So every way of getting one wrong is refused loudly, on the upload page.
     """
@@ -1925,9 +1926,10 @@ class VersionedFileValidationTests(VersionedMapMixin, TestCase):
 class WholeMapRoundTripTests(VersionedMapMixin, TestCase):
     """Out of one box and into the next, with the ballot intact.
 
-    This is the test S16 rehearses: export the map the group plays, repair the
-    file, import it as a new map. Everything below is compared through
-    `map_summary`, which reads a map the way the game does — per version.
+    This is the repair the box's map went through: export the map the group
+    plays, repair the file, import it as a new map. Everything below is compared
+    through `map_summary`, which reads a map the way the game does — per
+    version.
     """
 
     def setUp(self):
@@ -2010,14 +2012,14 @@ class WholeMapRoundTripTests(VersionedMapMixin, TestCase):
 
 
 # ---------------------------------------------------------------------------
-# The upload page is German (S17)
+# The upload page is German
 # ---------------------------------------------------------------------------
 
 
 class MapUploadIsGermanTests(TempMediaRootMixin, TestCase):
     """The map import speaks German, labels and refusals alike.
 
-    The detector is the join funnel's (`game/tests/_helpers.py`), and until S17
+    The detector is the join funnel's (`game/tests/_helpers.py`), and until 2026-09-29
     it ran over `/join/` and `player/create/` and nowhere else. This page had
     English labels ("Map JSON File", "Background Image"), English help text and
     English validation errors, live on the site, and nothing was watching — two
@@ -2040,10 +2042,10 @@ class MapUploadIsGermanTests(TempMediaRootMixin, TestCase):
     def test_the_import_refuses_in_german(self):
         """What the file got wrong, read out on the upload screen.
 
-        S17 translated the form and missed these: they are
+        The form's translation missed these: they are
         `_validate_graph_data`'s and `validate_versions`'s, and they only
         appear after a failed upload, so a check of the rendered page never
-        saw one. Since S19 the SPA prints them as they come, which makes them
+        saw one. The SPA prints them as they come, which makes them
         copy. Key names stay English (`start_node`, `base_version`): they are
         the file's field names, the same rule as the form's help text.
         """
@@ -2152,7 +2154,7 @@ class MapUploadIsGermanTests(TempMediaRootMixin, TestCase):
 
 
 class MapImportEndpointTests(TempMediaRootMixin, TestCase):
-    """`POST api/maps/import/`, the one door a map file comes in through. S19.
+    """`POST api/maps/import/`, the one door a map file comes in through.
 
     `/map/upload/` was a Django form page; the SPA's upload screen replaced it,
     and the page's URL is a redirect now. Two doors taking the same file would

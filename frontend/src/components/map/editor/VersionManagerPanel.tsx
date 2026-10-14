@@ -30,17 +30,18 @@ import type { MapVersion } from "../../../types/mapTypes";
 /**
  * The versions of a map, and the ballot between them.
  *
- * Presentation only, as everywhere in S18 — the `FormData` this panel PATCHes is
- * what wires `compatible_versions` up, and `compatible_versions` **is the vote**:
- * `vote_options()` walks that M2M from the active version. So the checkboxes and
- * the save are untouched; what changed is that they are no longer indigo.
+ * Presentation only, as everywhere in the map area's pass — the `FormData` this
+ * panel PATCHes is what wires `compatible_versions` up, and
+ * `compatible_versions` **is the vote**: `vote_options()` walks that M2M from
+ * the active version. So the checkboxes and the save are untouched; what
+ * changed is that they are no longer indigo.
  *
  * Four English strings were here too: `"Saving..."`, `"Generating..."`,
  * `Generate combinations (n selected)` and `Created n combination version(s)`,
  * plus an `alt="change preview"` on the image. Two were invisible to
  * `german.test.ts` for being one word and the rest carried none of its giveaway
  * words — which is why a panel a researcher uses every time they draw a version
- * was still half English after S17.
+ * was still half English after the word pass.
  *
  * ### What a version does (the version comparison)
  *
@@ -215,7 +216,7 @@ function VersionEditor({
         </EditorNote>
       )}
 
-      {/* F14. Not for the base version: every game starts on it, and the
+      {/* Not for the base version: every game starts on it, and the
           server refuses it anyway. */}
       {!version.base_version && (
         <>

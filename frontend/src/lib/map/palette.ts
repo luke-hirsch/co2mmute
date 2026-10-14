@@ -10,9 +10,9 @@
  * called the walk path `#22c55e` while the renderer drew `#10b981`. A comment
  * in `MapViewer` claimed both "come off `getEdgeColorAndStyle`". They did not.
  *
- * So the graph's palette came from nowhere central — F7's open item, and the
- * reason S10 counted 118 off-palette hits in `map/` and 102 in `map/editor/`
- * against **zero** everywhere else in the SPA.
+ * So the graph's palette came from nowhere central — left open when the editor
+ * was ported, and the reason the ux pass counted 118 off-palette hits in `map/`
+ * and 102 in `map/editor/` against **zero** everywhere else in the SPA.
  *
  * ### What the colours are now
  *

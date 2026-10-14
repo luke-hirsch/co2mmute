@@ -166,7 +166,7 @@ describe("snapshot", () => {
     expect(start().seats.every((s) => !s.online)).toBe(true);
   });
 
-  // The generalised form of the race F1 found in the lobby: the snapshot is
+  // The generalised form of the race first found in the lobby: the snapshot is
   // read once at mount and says nothing about what happened since, so once the
   // socket has spoken it must not move lifecycle fields back.
   it("does not move the game backwards when it resolves late", () => {
@@ -308,7 +308,7 @@ describe("rounds and phases", () => {
    * `phases._tally_if_complete` broadcasts `vote.result` and then immediately
    * starts the next round, so the two events arrive together. An outcome
    * cleared by `round.started` would therefore never be on screen at all —
-   * which is precisely what happened before F5: the vote decided something and
+   * which is precisely what happened once: the vote decided something and
    * nothing ever said what.
    */
   it("carries the vote's outcome into the round it applies to", () => {
@@ -387,8 +387,8 @@ describe("rounds and phases", () => {
   /**
    * The whole between-round machine in one go, in the order `game/phases.py`
    * actually sends it. Each step is cheap on its own; what this pins is that
-   * they compose — F5's screens are routed by `state.phase` alone, so a phase
-   * the reducer gets wrong is a screen that shows the wrong thing.
+   * they compose — the between-round screens are routed by `state.phase` alone,
+   * so a phase the reducer gets wrong is a screen that shows the wrong thing.
    */
   it("walks stats → discussion → voting → stalemate → next round", () => {
     const busspur = {
@@ -494,7 +494,7 @@ describe("rounds and phases", () => {
 });
 
 describe("the chat switch", () => {
-  it("follows the host's switch, both ways, without a reload (F3)", () => {
+  it("follows the host's switch, both ways, without a reload", () => {
     let state = apply(start(), {
       type: "game.chat",
       game_id: "ABC123",
@@ -768,7 +768,7 @@ describe("selectors", () => {
     expect(hostSeat(state)?.player_id).toBe("H-1");
   });
 
-  // 1.6: a seat played at the host machine is still a seat. That is the whole
+  // A seat played at the host machine is still a seat. That is the whole
   // point — a class where not everyone has a phone.
   it("counts seats played at the host machine, and can list them", () => {
     const state = withRoster();

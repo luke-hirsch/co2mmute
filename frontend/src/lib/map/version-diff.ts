@@ -13,7 +13,7 @@
  * A version is a filter over one shared graph, and a change to a street is
  * stored as a **clone**: `Busspuren` holds a second `Edge` row for each street
  * it gives a bus lane and leaves the original to base, and every line that ran
- * over the original moves its chain row onto the clone (S15). Compared by id,
+ * over the original moves its chain row onto the clone. Compared by id,
  * `Busspuren` reads as thirty streets removed, thirty added and four lines
  * rerouted. What it does is give thirty links a bus lane. So a link is its
  * `start → end` pair — the editor allows one link per direction per node pair

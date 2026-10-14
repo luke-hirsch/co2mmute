@@ -1,7 +1,7 @@
 import type { VoteOption } from "@/lib/game/events";
 
 /**
- * Voting by keyboard (S24): `1`, `2`, … for the options in the order they are
+ * Voting by keyboard: `1`, `2`, … for the options in the order they are
  * printed, `0` for "so lassen".
  *
  * The reason is not convenience. A mouse crossing a projected screen towards one

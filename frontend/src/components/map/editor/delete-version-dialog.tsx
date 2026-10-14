@@ -15,7 +15,7 @@ import { useVersionDeletion } from "@/lib/queries/map-graph";
 import type { MapVersion } from "../../../types/mapTypes";
 
 /**
- * "Version löschen" asks first (F14), like the map delete does (S19).
+ * "Version löschen" asks first, like the map delete does.
  *
  * It asks the server what goes before it offers the button, because only the
  * server can know: what is in this version and no other, which ballot pairs go

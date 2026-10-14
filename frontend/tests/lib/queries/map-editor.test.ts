@@ -8,7 +8,7 @@ import { mapKeys } from "@/lib/queries/map-graph";
  * The editor's writes, pinned.
  *
  * This file exists for one reason: **these are the only calls in the app that
- * change a real map**, and F7 moved every one of them out of
+ * change a real map**, and the editor's port moved every one of them out of
  * `hooks/mapEditorHooks.ts`. Maps take real work to build, so the port was
  * allowed to move this code and not to change what it sends. A wrong path here
  * does not 404 into a test failure either — DRF answers a bad map id with a 404
@@ -252,7 +252,7 @@ describe("versions", () => {
   });
 
   it("deletes a version under its own map", async () => {
-    // F14. The server scopes the version to the map in the URL since then, so
+    // The server scopes the version to the map in the URL, so
     // a version id under the wrong map is a 404, not a delete.
     const spy = stubFetch(204);
 
@@ -289,7 +289,7 @@ describe("the failure path", () => {
 
 describe("a write and the graph that shows it", () => {
   /**
-   * F10. "+ Gegenrichtung anlegen" answered in 20 ms and the graph that drew
+   * "+ Gegenrichtung anlegen" answered in 20 ms and the graph that drew
    * the new direction took 1.8 s to build. The button was enabled again for
    * all of that time with "Einbahn" still on the panel, and a second click
    * wrote a second edge — Bellevue – Großer Stern sits twice in the box's base

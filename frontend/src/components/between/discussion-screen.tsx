@@ -50,7 +50,7 @@ export function DiscussionScreen() {
 
 /**
  * The map with the round just played on it, and the options beside or under it
- * (F3) — for the phone and, in `host-between-screen.tsx`, for the projector.
+ * — for the phone and, in `host-between-screen.tsx`, for the projector.
  *
  * The map is the same one the ballot shows, so the class argues over the picture
  * it will vote on — and each card can put its change on that map, as on the

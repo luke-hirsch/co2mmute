@@ -8,7 +8,7 @@ import {
 } from "@/lib/game/map-layout";
 
 /**
- * The map's place on a large screen, remembered on this device (S24).
+ * The map's place on a large screen, remembered on this device.
  *
  * Read once on mount: the round screen and the vote are separate screens that
  * mount in turn, so each reads what the last one wrote, and nothing needs a

@@ -138,12 +138,12 @@ class PlayerListView(GameScopedQuerysetMixin, ListModelMixin, GenericAPIView):
 
 
 class MuteUnmutePlayerView(GameScopedQuerysetMixin, GenericAPIView):
-    """POST /api/game/<game_id>/player/<player_id>/mute/ — S9.
+    """POST /api/game/<game_id>/player/<player_id>/mute/.
 
     One endpoint, both directions: the flag flips, so a host looking for the
     way back does not have to find a second button.
 
-    **This was routed nowhere until S9**, and `is_muted` was read by nothing —
+    **This was routed nowhere at first**, and `is_muted` was read by nothing —
     neither consumer looked at it, no screen rendered it. Routing it on its own
     would have shipped a control that changes a field no code obeys, which is
     why `seats.is_muted`, `roster.build` and `ChatConsumer` are in the same
@@ -152,7 +152,7 @@ class MuteUnmutePlayerView(GameScopedQuerysetMixin, GenericAPIView):
     **IsGameHost, not HasGameAccess.** A logged-in researcher holding a seat in
     somebody else's game satisfies `HasGameAccess` *and* `IsAuthenticated` —
     exactly how `DELETE /api/game/<id>/` came to be reachable by the wrong
-    person (S1). The host is identified by account.
+    person. The host is identified by account.
     """
 
     serializer_class = PlayerSerializer
@@ -182,7 +182,7 @@ class MuteUnmutePlayerView(GameScopedQuerysetMixin, GenericAPIView):
 class GameSessionListCreateView(
     GameAccessCookieMixin, PlayerCookieMixin, ListCreateAPIView
 ):
-    """`api/game/` — the host's own games, and making one. S13.
+    """`api/game/` — the host's own games, and making one.
 
     **GET** is the list `/app/host` renders, scoped to the logged-in host and
     nobody else: a game id is not a stranger's business, and the profile page
@@ -311,8 +311,8 @@ class GameSessionDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIVie
         # A running game is ended first, so `end_reason` gets written while it
         # is still known — a game deleted mid-round records nothing, and a game
         # vanishing under a class is not something to offer in two clicks.
-        # This rule used to live on the Django confirm page; S13 deleted that
-        # page, and a rule that only one of two doors enforces is not a rule.
+        # This rule used to live on the Django confirm page; that page is
+        # deleted, and a rule that only one of two doors enforces is not a rule.
         if game.is_active and game.ended_at is None:
             return Response(
                 {

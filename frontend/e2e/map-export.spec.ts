@@ -5,7 +5,7 @@ import { loginAsHost } from "./host";
 /**
  * The backup button on the map detail page.
  *
- * A map only ever moves between boxes as this file, and until S14 it carried
+ * A map only ever moves between boxes as this file, and once it carried
  * one version flattened — so the other versions, `compatible_versions` (which
  * *is* the vote) and both poll texts were lost on every move. The button now
  * writes the whole map, and this is the only place that proves the browser

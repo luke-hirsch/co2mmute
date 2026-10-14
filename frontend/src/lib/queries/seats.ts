@@ -1,7 +1,7 @@
 /**
  * Seats: adding one, removing one, moving one to another device.
  *
- * The backend half is 1.6 and 1.7 (`game/seats.py`). Nothing here refetches
+ * The backend half is `game/seats.py`. Nothing here refetches
  * anything afterwards, and that is deliberate: `add_seat`, `remove_seat` and
  * `take_over` all call `schedule_broadcast`, so the roster arrives over the
  * socket — sooner than a refetch would, and as the same one truth every other
@@ -91,7 +91,7 @@ export function takeOverSeat(gameId: string, seatId: string): Promise<SeatRow> {
 }
 
 /**
- * Mute or unmute a seat in the chat (S9). One endpoint, both directions.
+ * Mute or unmute a seat in the chat. One endpoint, both directions.
  *
  * No body: the flag flips server-side, so there is nothing here that could
  * disagree with it. The answer is the seat, but nothing reads it — `set_muted`

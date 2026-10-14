@@ -63,12 +63,12 @@ export interface Edge {
 /**
  * A map's own row, as `GameMapSerializer` actually sends it.
  *
- * Two fields were wrong here until S18 and both rendered as nothing rather than
- * as an error: `author` is a **primary key**, not a nested user — the serializer
- * declares no nested one, so `gameMap.author.username` on the detail page read
- * `undefined` and printed an empty "Angelegt von" — and `description` is not a
- * column on `GameMap` at all, so the block that rendered it never ran. The
- * Django list template printed the same non-existent field.
+ * Two fields were wrong here until 2026-09-30 and both rendered as nothing
+ * rather than as an error: `author` is a **primary key**, not a nested user —
+ * the serializer declares no nested one, so `gameMap.author.username` on the
+ * detail page read `undefined` and printed an empty "Angelegt von" — and
+ * `description` is not a column on `GameMap` at all, so the block that rendered
+ * it never ran. The Django list template printed the same non-existent field.
  */
 export interface GameMap {
   id: number;
@@ -118,7 +118,7 @@ export interface MapVersion {
 }
 
 /**
- * What deleting a version would take, and whether it may (F14) — the answer
+ * What deleting a version would take, and whether it may — the answer
  * to `GET api/maps/<id>/versions/<id>/deletion/`, asked before the dialog
  * offers the button. `goes` is what only this version holds.
  */

@@ -20,11 +20,11 @@ const t = de.map.upload;
 const NO_REFUSAL: ImportRefusal = { fields: {}, graph: [], other: null };
 
 /**
- * `/app/maps/upload` — a new map, empty or from a file. S19.
+ * `/app/maps/upload` — a new map, empty or from a file.
  *
  * The last staff tool that was still a Django page, beside an editor that has
- * been in the SPA since F7. Two things changed on the way across and nothing
- * else did:
+ * been in the SPA since 2026-09-18. Two things changed on the way across and
+ * nothing else did:
  *
  * - **the file format is behind a toggle.** The page used to open on two
  *   screens of reference, so the four fields were below the fold on every visit

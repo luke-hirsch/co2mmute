@@ -5,7 +5,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MapIndex } from "@/components/map/map-index";
 
 /**
- * `/app/maps` — a real list since S18.
+ * `/app/maps` — a real list since 2026-09-30.
  *
  * It used to be `beforeLoad: () => { throw redirect({ to: "/join" }) }`, which
  * is why "alle Karten", `/app/maps` and the landing spot after deleting a map

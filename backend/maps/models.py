@@ -41,7 +41,7 @@ class GameMap(models.Model):
     # THIS graph — the car demand its corridors carry at the real city's rush
     # hour — so another city is another count. `game/calibration.py` has the
     # measurement the default comes from: Berlin_Mitte-West's, and a smaller
-    # map wants a smaller one. The budget is not here since F8 step 2b: it is
+    # map wants a smaller one. The budget is not here since 2026-10-07: it is
     # kg per person per round, the same on every map, the game's own field.
     district_commuters = models.PositiveIntegerField(
         default=6800,
@@ -51,7 +51,7 @@ class GameMap(models.Model):
             "Karte gleich viel Verkehr ist, egal wie viele mitspielen."
         ),
     )
-    # Whether the number above was measured on THIS map. S21. Every map
+    # Whether the number above was measured on THIS map. Every map
     # starts at the Berlin default, and comparing against it cannot tell a
     # small map that inherited it from the one map it was measured on — so
     # the map says it. False until somebody who replayed rounds on it says

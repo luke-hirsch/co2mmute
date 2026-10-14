@@ -4,7 +4,7 @@ import { createGame, joinAsPlayer, pickMode } from "./game";
 import { loginAsHost } from "./host";
 
 /**
- * Between two rounds (F3): the map the class talks and votes over carries the
+ * Between two rounds: the map the class talks and votes over carries the
  * round it has just played, on the phone and on the projector; the projector
  * says how to vote; and a seat that has gone can be removed while the class
  * votes, as the screen has always told the host to.

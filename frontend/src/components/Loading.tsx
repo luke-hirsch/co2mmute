@@ -6,7 +6,7 @@ import { de } from "@/lib/de";
  * The waiting state, for the screens that fetch a whole map before they can
  * draw anything.
  *
- * ### What S18 changed
+ * ### What changed on 2026-09-30
  *
  * Three things, none of them the animation:
  *

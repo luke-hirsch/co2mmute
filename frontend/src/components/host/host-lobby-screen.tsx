@@ -17,12 +17,12 @@ import { useEndGame, useHostGame, useStartGame } from "@/lib/queries/session";
 /**
  * The host's lobby: get the room in, then start.
  *
- * **This carries the start button, which nothing has had since F3.**
+ * **This carries the start button, which nothing else has.**
  * `currentScreen()` sends a host who has not started to `lobby`, and `lobby`
  * became the player's screen — which has no start, because players do not
- * start games. For one chunk a game could only be started by hand
- * (`PATCH api/game/<ID>/ {"is_active": true}`). Whatever else F4 is, it is
- * first of all that hole closing.
+ * start games. For a while a game could only be started by hand
+ * (`PATCH api/game/<ID>/ {"is_active": true}`). Whatever else the host's
+ * screens are, they are first of all that hole closing.
  *
  * The join QR is the other half of the screen, and it is why this one is not
  * `narrow`: it goes on a projector and the class scans it. It comes from
@@ -45,8 +45,8 @@ export function HostLobbyScreen() {
    * It used to fail *silently*: `GameSession.save()` forces `is_active` back to
    * False whenever `game_map` is None, so `PATCH {is_active: true}` answered
    * 200, wrote `started_at`, made round 1 — and left the game inactive, so no
-   * `game.started` went out and the screen simply did not move. S9 turned that
-   * into a 409 `no-map`, which is what `refusedNoMap` reads.
+   * `game.started` went out and the screen simply did not move. Now that is
+   * a 409 `no-map`, which is what `refusedNoMap` reads.
    *
    * Three guards, because they catch different things. The map is checked up
    * front so the button explains itself before it is pressed. The 409 is read
@@ -79,7 +79,7 @@ export function HostLobbyScreen() {
             <p className="font-mono text-5xl tracking-[0.3em] text-brandaccent uppercase sm:text-6xl">
               {state.gameId}
             </p>
-            {/* The password belongs on the projector beside the id (F3): the
+            {/* The password belongs on the projector beside the id: the
                 join screen asks for both, and the room reads them off here.
                 As typed — it is not a code, and its case matters. */}
             {password ? (

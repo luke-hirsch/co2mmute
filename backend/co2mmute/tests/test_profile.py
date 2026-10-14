@@ -26,12 +26,12 @@ def _host(username="host", email="host@example.com", **extra):
 
 
 class ProfileRedirectTests(TestCase):
-    """`/accounts/profile/` is a doorway into the SPA. S13.
+    """`/accounts/profile/` is a doorway into the SPA.
 
     The page followed the create form across, because the host's own pages
     belong together (Lukas, 2026-09-28). The URL stays because Django's
     `LOGIN_REDIRECT_URL` defaults to it and the account-deletion pages point at
-    it. Both headers link `/app/host` directly since S20.
+    it. Both headers link `/app/host` directly.
     """
 
     def setUp(self):
@@ -265,7 +265,7 @@ class AccountDeleteTests(TempMediaRootMixin, TestCase):
         """DSGVO erasure has to be something a host can actually reach.
 
         It used to be asserted by grepping the profile template for the URL.
-        The profile page is React since S13, so the link itself is pinned there
+        The profile page is React now, so the link itself is pinned there
         — `frontend/e2e/host-page.spec.ts` clicks it — and what stays here is
         that the page it leads to answers.
 
@@ -392,7 +392,7 @@ class AccountDeleteTests(TempMediaRootMixin, TestCase):
 
 
 class HostPageRedirectTests(TempMediaRootMixin, TestCase):
-    """The three funnel URLs that became doorways. S13.
+    """The three funnel URLs that became doorways.
 
     All three keep working because things point at them — the profile page from
     `LOGIN_REDIRECT_URL`, the footer and the app header; the share and delete
@@ -404,8 +404,8 @@ class HostPageRedirectTests(TempMediaRootMixin, TestCase):
     - its game list and per-game delete → `GET api/game/` and
       `DELETE api/game/<id>/`
     - the share page → the host lobby, which has shown the game id and the join
-      QR on a projector-sized departure board since F4. That one is a deletion
-      rather than a port.
+      QR on a projector-sized departure board for longer. That one is a
+      deletion rather than a port.
     - the delete page's "a running game is refused" →
       `GameSessionDetailView.destroy`, so both doors enforce it.
     """
@@ -449,7 +449,7 @@ class HostPageRedirectTests(TempMediaRootMixin, TestCase):
 
 
 class MapPageRedirectTests(TestCase):
-    """`/map/list/` and `/map/<pk>/` are doorways into the SPA. S18.
+    """`/map/list/` and `/map/<pk>/` are doorways into the SPA.
 
     Both pages were Django's, in English, and the list printed a `description`
     `GameMap` does not have. `/app/maps` is the list now and `/app/maps/<pk>/`

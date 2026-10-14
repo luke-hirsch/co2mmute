@@ -1,7 +1,7 @@
 """Turning a map file into a map. The one importer, behind the one door.
 
-This was `MapUploadView`, a Django `FormView` at `/map/upload/`, until S19
-moved the upload screen into the SPA. The page went; what it did did not, so
+This was `MapUploadView`, a Django `FormView` at `/map/upload/`, until the
+upload screen moved into the SPA. The page went; what it did did not, so
 it lives here, with no request and no messages in it, and
 `views_rest.MapImportView` is its only caller. Two doors taking the same file
 would be two places a validation rule could be enforced in only one of.
@@ -138,7 +138,7 @@ class MapImporter:
 
                 # Every version the file describes — one implicit base version
                 # when it describes none, which is every file written before
-                # S14 and every file in `map_examples/`.
+                # 2026-09-28 and every file in `map_examples/`.
                 versions, base_idx = self._create_map_versions(
                     game_map, graph_data, map_name, description
                 )
@@ -162,14 +162,14 @@ class MapImporter:
                     # export is the only way a map moves between boxes, so a
                     # key read on the way out and ignored on the way back in is
                     # a field that does not exist off this machine. Absent on
-                    # every map exported before S2, which is why it is guarded
+                    # every map exported before 2026-09-27, which is why it is guarded
                     # rather than defaulted — the field default then stands,
                     # and that is the right answer for an old file. Files
-                    # written before F8 step 2b also carry
+                    # written before 2026-10-07 also carry
                     # `co2_budget_kg_per_round`; the budget is kg per person
                     # now, the same on every map, so that key is left behind.
                     # (`max_player` and the three speeds are still dropped on
-                    # import; that half of the round trip is S5's.)
+                    # import; that half of the round trip is still open.)
                     key = "district_commuters"
                     if key in map_meta:
                         try:
@@ -186,9 +186,9 @@ class MapImporter:
                             if value > 0:
                                 game_map.district_commuters = value
                                 changed.append(key)
-                    # Whether that count was measured on this map (S21). Only
+                    # Whether that count was measured on this map. Only
                     # an explicit `true` counts, and only beside the count: the
-                    # export has written it on every map since S2, measured or
+                    # export writes it on every map, measured or
                     # not, so the count alone says nothing — and a flag with no
                     # count would certify the field default as this map's
                     # measurement.
@@ -301,7 +301,7 @@ class MapImporter:
 
         # Everything about versioning the file can get wrong, including every
         # index that points into the `versions` block. A hand-edited file is
-        # how S16 repairs the map the group plays, so a wrong index has to come
+        # how the map the group plays was repaired, so a wrong index has to come
         # back as a sentence on the upload page rather than as a map with a
         # hole in it. `maps/portability.py` owns those rules.
         errors += validate_versions(graph_data)
@@ -447,7 +447,7 @@ class MapImporter:
         """The map row itself, from the file's `map` block where it has one.
 
         `map_meta` was accepted here and passed by nobody, so every key in the
-        block except the dimensions and (since S2) the calibration pair was
+        block except the dimensions and the calibration pair was
         written into the export and dropped on the way back in: the copy arrived
         with the form's Platzzahl and the three speed defaults, whatever the
         file said. A map whose walking speed is 4 km/h is a different map on the
@@ -802,7 +802,7 @@ class MapImporter:
     ):
         """A line's links, one set of rows per route rather than per version.
 
-        Since S15 the chain is version-scoped: a version that clones a street
+        The chain is version-scoped: a version that clones a street
         runs the line over the clone while the others keep the original, so one
         line legitimately has two rows of the same `order`. The file writes that
         as one `chains` entry per distinct route, and each entry becomes its own

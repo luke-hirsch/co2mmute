@@ -220,7 +220,7 @@ Karte etwas weniger stauen lässt. Vergleichbar ist jeweils vorher gegen jetzt i
 
 ## 9. Nachgemessen auf der Karte mit acht Versionen
 
-Seit S16 ist die ausgelieferte Karte die mit acht Versionen, die auf dem Server gespielt wird,
+Seit dem 28.09.2026 ist die ausgelieferte Karte die mit acht Versionen, die auf dem Server gespielt wird,
 repariert. Ihre Basisversion war nie in einer Runde simuliert worden. Gemessen am 01.10.2026 mit
 demselben Aufbau wie Abschnitt 8 — 64 Gruppen zu je 100 Menschen gleichmäßig über die 36 Paare,
 wer nicht Auto fährt, fährt Bus und Bahn, Routen aus dem Router des Spiels, sechs Seeds:

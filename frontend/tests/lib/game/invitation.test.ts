@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { invitationText, joinUrl } from "@/lib/game/invitation";
 
 /**
- * What the lobby's share button copies (F3): the way in, in a message somebody
+ * What the lobby's share button copies: the way in, in a message somebody
  * pastes into a class chat.
  */
 

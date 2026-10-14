@@ -4,7 +4,7 @@ import { createGame, endAndDelete, pickMode } from "./game";
 import { loginAsHost } from "./host";
 
 /**
- * A whole game at the Leitstelle (F15): one machine, two seats, two rounds.
+ * A whole game at the Leitstelle: one machine, two seats, two rounds.
  *
  * The classroom without phones. The host makes the game, adds two seats played
  * at this machine, and the keyboard goes round: each turn behind the curtain,
@@ -13,7 +13,7 @@ import { loginAsHost } from "./host";
  * the version that won, and the summary when the last round has run.
  *
  * Every other spec stops somewhere along that line — `replay` and `numbers` after
- * one round, `f3-zwischen-den-runden` with a phone at the vote — so this is the
+ * one round, `zwischen-den-runden` with a phone at the vote — so this is the
  * only one that runs the round loop through Celery twice and reaches the end of
  * a game by the rule rather than by the host's button.
  *

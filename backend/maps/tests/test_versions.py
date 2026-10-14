@@ -404,7 +404,7 @@ class VersionDiffChainTests(VersionFixtureMixin, TestCase):
     def test_a_chain_row_never_claims_a_version_its_line_has_left(self):
         """The invariant the file format depends on, after four operations.
 
-        S14 writes chain membership into the export, so a row naming a version
+        The export writes chain membership, so a row naming a version
         whose line or whose street is not in it would be written out as a link of
         a line that is not there — the same silent nonsense the flattened export
         produces today, only harder to see.
@@ -559,7 +559,7 @@ class ChainBackfillTests(VersionFixtureMixin, TestCase):
     damage rather than repairing it — buslinie 100 keeps reaching 0 of its 7
     edges in the base version — and that is the point. A migration that guessed
     at what a hand-drawn version had meant would be a repair nobody could review;
-    the repair is S16, in a file, under this suite.
+    the repair is a file, under this suite.
     """
 
     def setUp(self):
@@ -600,7 +600,7 @@ class ChainBackfillTests(VersionFixtureMixin, TestCase):
         )
 
     def test_a_line_belonging_to_no_version_gets_nothing(self):
-        """The box has three such `Bus 147` leftovers. S16 drops them."""
+        """The box had three such `Bus 147` leftovers; the repair dropped them."""
         self.strip_membership()
         self.bus.map_versions.clear()
 
@@ -642,9 +642,9 @@ class ChainBackfillTests(VersionFixtureMixin, TestCase):
 
 @override_settings(**TEST_BACKENDS)
 class DrawnInAVersionTests(VersionFixtureMixin, TestCase):
-    """What the editor draws in a version is in every version built on it (F10).
+    """What the editor draws in a version is in every version built on it.
 
-    Before F10 a node or an edge drawn in a version was in that version only, so
+    Before 2026-10-02 a node or an edge drawn in a version was in that version only, so
     every other version lacked it unless it was drawn there again — and the box's
     map shows exactly that: Lukas's footpaths of 2026-10-02 in base and nowhere
     else. Drawn in base, a row is in every version; drawn in a change, it is in
@@ -1050,7 +1050,7 @@ class DeletingAVersionMixin(TempMediaRootMixin, VersionFixtureMixin):
 
 @override_settings(**TEST_BACKENDS)
 class DeletingAVersionTests(DeletingAVersionMixin, TestCase):
-    """Deleting a version in the editor (F14).
+    """Deleting a version in the editor.
 
     The website could not delete one. The admin could, and left every row that
     was only in that version in no version — invisible in the editor, still in
@@ -1183,8 +1183,8 @@ class DeletingAVersionTests(DeletingAVersionMixin, TestCase):
         self.assertFalse(os.path.exists(path))
 
     def test_the_graph_is_read_again_afterwards(self):
-        """A pin, green before F14 as well: every node lists its versions and
-        their ballot, and the graph is cached for an hour."""
+        """A pin, green before deleting existed as well: every node lists its
+        versions and their ballot, and the graph is cached for an hour."""
         url = reverse(
             "maps:mapversion-graph",
             kwargs={"pk": self.game_map.pk, "version_pk": self.base.pk},

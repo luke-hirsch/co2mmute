@@ -1,5 +1,5 @@
 /**
- * The host's own games, and throwing one away. S13.
+ * The host's own games, and throwing one away.
  *
  * `GET api/game/` is scoped to the logged-in host by the endpoint, not by a
  * parameter — there is no way to ask for somebody else's list. Both counts on a

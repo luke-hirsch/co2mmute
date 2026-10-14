@@ -8,10 +8,10 @@
  * What deliberately is **not** here: whether the turn was submitted. The roster
  * says that (`seat.status === "waiting"`, `game/roster.py:build`), and it keeps
  * saying it after a reload, after a reconnect, and when another device
- * submitted the seat (F4). A local `isSubmitted` would be the second source of
+ * submitted the seat. A local `isSubmitted` would be the second source of
  * truth that the one-source rule (AGENTS.md → frontend) exists to remove.
  *
- * The draft *does* survive a reload since S7, and the rule above is what shapes
+ * The draft *does* survive a reload, and the rule above is what shapes
  * how. A locked phone discarding the page is the ordinary case in a classroom,
  * so the taps come back — but only the taps. **A route is never stored.**
  * Mirroring routes into storage is what would put them in two places, which is
@@ -69,9 +69,9 @@ export type AgentChoice = {
 };
 
 export type RoundDraft = {
-  /** Whose turn this is. F4 plays other people's seats through the same screen. */
-  seatId: string | null;
-  /** Which round. A new round drops the choices, not the assignment. */
+  /** Whose turn this is. The host desk plays other people's seats through the
+  same screen. */ seatId: string | null; /** Which round. A new round drops the
+  choices, not the assignment. */
   roundNumber: number;
   homeNode: number | null;
   agents: AgentDraft[];
@@ -85,8 +85,8 @@ export type RoundDraftAction =
       homeNode: number;
       agents: { id: number; destination_node: number }[];
       /**
-       * A turn this seat had begun in this round before the page went away
-       * (S7). Applied only when the draft is actually built fresh — see below.
+       * A turn this seat had begun in this round before the page went away.
+       * Applied only when the draft is actually built fresh — see below.
        */
       choices?: AgentChoice[];
     }

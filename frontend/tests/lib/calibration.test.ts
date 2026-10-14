@@ -11,7 +11,7 @@ import {
 } from "@/lib/calibration";
 
 /**
- * The mirror of `backend/game/calibration.py`, which is the point of S13: the
+ * The mirror of `backend/game/calibration.py`, which is the point of it: the
  * numbers the create screen offers have to follow the class size *while it is
  * being chosen*, and a round trip per keystroke is not that.
  *

@@ -8,11 +8,11 @@
  * whether the animation is playing, holding on the beat, or over.
  *
  * The clock display is throttled on top of that. Playback runs at one constant
- * rate since F2b, several simulated minutes to a screen second, and re-rendering
+ * rate, several simulated minutes to a screen second, and re-rendering
  * at frame rate to advance a number nobody can read that fast is the same mistake
  * by a smaller margin.
  *
- * Measured in WebKit (F3, 2026-10-02): a full round trip, 6 400 people, plays in
+ * Measured in WebKit (2026-10-02): a full round trip, 6 400 people, plays in
  * 120.0 s of wall time against the 120 s budget at 60 fps, 99th-percentile frame
  * about 30 ms — so the 0.25 s frame cap never bites and the clock does not fall
  * behind on a desktop. A real phone is not measured.

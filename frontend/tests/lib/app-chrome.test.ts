@@ -4,8 +4,8 @@ import { showsAppChrome } from "@/lib/app-chrome";
 
 /**
  * `/app` had no chrome at all: `__root.tsx` was a bare `<Outlet/>`, and `/app/`
- * and `/app/game/` redirect to `/app/join` — as `/app/maps/` did, until S18 gave
- * it a list of its own. A logged-in host
+ * and `/app/game/` redirect to `/app/join` — as `/app/maps/` did, until it got
+ * a list of its own. A logged-in host
  * who followed any of those — or whose game screen errored, which lands in the
  * same place — was left on the join screen with no way back to the landing page
  * or their profile.
@@ -15,7 +15,7 @@ import { showsAppChrome } from "@/lib/app-chrome";
  * toolbar. Putting a second header above either would push the thing the screen
  * exists for below the fold on a phone.
  *
- * **S18 moved the map area across.** `/maps` was listed as both full-bleed and
+ * **The map area moved across.** `/maps` was listed as both full-bleed and
  * redirect-only, which was right while it was a stub throwing a redirect. It is
  * a staff list now and the detail page is a page; only the editor stays bare.
  */
@@ -48,9 +48,9 @@ describe("which screens carry the app header", () => {
   });
 
   /**
-   * The split S18 needs: the editor sits *under* a screen that does carry the
-   * header, so a `startsWith("/maps/")` cannot express it. That is why there is
-   * a pattern anchored on `/editor` rather than another prefix.
+   * The split the map area needs: the editor sits *under* a screen that does
+   * carry the header, so a `startsWith("/maps/")` cannot express it. That is
+   * why there is a pattern anchored on `/editor` rather than another prefix.
    */
   it("keeps it off the map editor, which has its own toolbar", () => {
     expect(showsAppChrome("/maps/7/editor")).toBe(false);

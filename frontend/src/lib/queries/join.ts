@@ -1,15 +1,15 @@
 /**
- * The three 1.4 endpoints, as React Query hooks.
+ * The three join and lobby endpoints, as React Query hooks.
  *
  * Toast-free by convention: these return state, the screens
  * decide what a failure looks like. That matters most for the join, where four
  * different statuses come back with deliberately similar prose and only the
  * screen knows which field to put the message next to.
  *
- * `staleTime: Infinity` on the lobby snapshot is the point of 2.2, not a
- * tuning knob: the snapshot exists to have something to draw before the socket
- * is up, and the socket owns every update after that. A refetch here would be
- * the second source of truth coming back.
+ * `staleTime: Infinity` on the lobby snapshot is the point of one source of
+ * truth, not a tuning knob: the snapshot exists to have something to draw
+ * before the socket is up, and the socket owns every update after that. A
+ * refetch here would be the second source of truth coming back.
  */
 
 import { useMutation, useQuery } from "@tanstack/react-query";

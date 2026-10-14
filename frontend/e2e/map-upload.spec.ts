@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 import { loginAsHost } from "./host";
 
 /**
- * A map in and out again through the SPA — S19.
+ * A map in and out again through the SPA.
  *
  * `/map/upload/` was the last staff tool on Django. The screen that replaced
  * it posts a file to `api/maps/import/`, which is new, and deleting a map asks

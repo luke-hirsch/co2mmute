@@ -349,7 +349,7 @@ class TrafficSimulator(LinkQueueEngine):
     def _its_own_way(name: str, edges: list, links: dict) -> list:
         """A line's links, each one the direction the line travels it.
 
-        Each direction of a street is its own link with its own queue (F2a), and
+        Each direction of a street is its own link with its own queue, and
         a line vehicle queues on the link its chain row names. But a row may
         name either direction — node_chain reads the travel order from the
         nodes, and the editor lets a line be drawn on either side — so the

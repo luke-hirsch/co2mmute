@@ -1,4 +1,4 @@
-"""S17: help text only — the agent word changed and "Klasse" went.
+"""Help text only — the agent word changed and "Klasse" went.
 
 Two `AlterField`s carrying nothing but a `help_text`, which is what Django
 tracks. No column changes, no data pass, and reversing it restores the old

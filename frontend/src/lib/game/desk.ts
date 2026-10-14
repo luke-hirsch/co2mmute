@@ -34,10 +34,10 @@ export type DeskState = {
   /**
    * What this desk belongs to. When it changes, whatever was open closes.
    *
-   * A string rather than the round number, because F5 runs the same carousel
-   * for the map vote, where the thing that has to close an open seat is the
-   * *phase* turning over as well as the round — a revote after a tie must not
-   * leave the previous ballot standing on the projector.
+   * A string rather than the round number, because the vote runs the same
+   * carousel for the map vote, where the thing that has to close an open seat
+   * is the *phase* turning over as well as the round — a revote after a tie
+   * must not leave the previous ballot standing on the projector.
    */
   epoch: string;
 };
@@ -62,7 +62,7 @@ export function initialDeskState(epoch: string): DeskState {
  * The seats the roster says have submitted this round.
  *
  * "waiting" is the roster's word for "has moved" (`game/roster.py`), and it is
- * the one truth for it — the same one the round screen reads (F3). The vote
+ * the one truth for it — the same one the round screen reads. The vote
  * desk cannot use it: between rounds the roster reports `ready` for everyone,
  * because there is no open round to have moved in. It builds its own set from
  * what the device has sent instead.

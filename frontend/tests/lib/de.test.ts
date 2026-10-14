@@ -123,7 +123,7 @@ describe("de", () => {
   });
 
   it("heads the summary's three lists with a superlative, not a metric", () => {
-    // F6: the end screen is the same players three times in three orders. The
+    // The end screen is the same players three times in three orders. The
     // headings have to say what being at the top of one *means*, because the
     // order is the only thing that says it — the entries are not numbered.
     expect(de.summary.cleanest).toBe("Am wenigsten CO₂");
@@ -229,9 +229,9 @@ describe("the CO₂ budget line", () => {
 
 describe("the map editor speaks German", () => {
   /**
-   * F7 translated the editor's shell and left the instructional and status
-   * strings in English. These are the keys the components were wired to in the
-   * pass that fixed it; a missing one means a component fell back to a
+   * The editor's port translated its shell and left the instructional and
+   * status strings in English. These are the keys the components were wired to
+   * in the pass that fixed it; a missing one means a component fell back to a
    * hardcoded string. The blank-string check in `describe("de")` above covers
    * their content, so these only assert that they exist.
    */
@@ -299,7 +299,7 @@ describe("the dialog close label", () => {
 });
 
 /**
- * S17. Three words were retired on 2026-09-29, and the reason each one went is
+ * Three words were retired on 2026-09-29, and the reason each one went is
  * the reason it must not come back:
  *
  * - **The agent's name → Gruppe.** The old one was the transit word for a
@@ -331,7 +331,7 @@ describe("the retired vocabulary", () => {
     /\bUnterricht\b/i,
     /\bSch[üu]ler/i,
     /\bLehrer/i,
-    // S23: the landing page still had both — "Ziel: Schule" and "Figur" for a
+    // The landing page still had both — "Ziel: Schule" and "Figur" for a
     // Gruppe — and the Django half's twin of this list is
     // co2mmute/tests/test_sanity.py:RetiredWordsStayOutOfTheTemplatesTests.
     /\bSchule\b/i,

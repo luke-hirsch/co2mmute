@@ -5,7 +5,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MapUploadScreen } from "@/components/map/map-upload";
 
 /**
- * `/app/maps/upload` — a new map, empty or from a file. S19.
+ * `/app/maps/upload` — a new map, empty or from a file.
  *
  * A static segment beside `maps/$mapId`, so the router prefers it; a map whose
  * pk is "upload" cannot exist. `/map/upload/` on the Django side redirects

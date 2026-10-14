@@ -137,7 +137,7 @@ class StatsAckTests(BetweenRoundsMixin, TestCase):
     """The stats phase ends once every playing seat has acked.
 
     Acks used to sit in a Redis set keyed by player_id, with a one-hour TTL:
-    gone after a long break, and a player with a new id (1.7) would count twice.
+    gone after a long break, and a player with a new id would count twice.
     They are rows now, keyed by the Player row.
     """
 
@@ -158,7 +158,7 @@ class StatsAckTests(BetweenRoundsMixin, TestCase):
     def test_the_ack_that_ends_the_phase_is_reported_as_taken(self):
         """ack_stats says True for every ack it stores, the last one included.
 
-        The 1.6 commit left the old body in front of `return _ack(...)`: the
+        A commit once left the old body in front of `return _ack(...)`: the
         first pass ended the phase, so the second found none and said False.
         """
         self.ack(self.anna)
@@ -230,7 +230,7 @@ class StatsAckTests(BetweenRoundsMixin, TestCase):
         self.assertFalse(stats_acks().exists())
 
     def test_an_ack_survives_a_new_player_id(self):
-        """1.7 gives a player a new player_id. The ack belongs to the row."""
+        """A moved seat gives a player a new player_id. The ack belongs to the row."""
         self.ack(self.anna)
         Player.objects.filter(pk=self.anna.pk).update(player_id="P-NEU1")
 

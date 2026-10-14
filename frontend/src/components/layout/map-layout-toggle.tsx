@@ -3,7 +3,7 @@ import { de } from "@/lib/de";
 import type { MapLayout } from "@/lib/game/map-layout";
 
 /**
- * Map above or map beside, for the screens that have a map and a list (S24).
+ * Map above or map beside, for the screens that have a map and a list.
  *
  * Drawn from `lg` up only. Below that there is one column and nothing to choose,
  * and a switch that does nothing is worse than none. It is not drawn *for* a

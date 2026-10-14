@@ -4,11 +4,11 @@ import { createGame, joinAsPlayer } from "./game";
 import { loginAsHost } from "./host";
 
 /**
- * Muting a seat in the chat (S9).
+ * Muting a seat in the chat.
  *
- * `Player.is_muted` and `MuteUnmutePlayerView` had both existed since 1.x and
- * neither did anything: the view was routed nowhere, and no consumer read the
- * flag. So this spec is the first thing that has ever exercised the feature
+ * `Player.is_muted` and `MuteUnmutePlayerView` had both existed from the start
+ * and neither did anything: the view was routed nowhere, and no consumer read
+ * the flag. So this spec is the first thing that has ever exercised the feature
  * end to end, and it needs the whole chain — the host's list writes it, the
  * roster carries it, `ChatConsumer` obeys it.
  *

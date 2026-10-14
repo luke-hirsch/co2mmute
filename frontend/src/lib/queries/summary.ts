@@ -8,7 +8,7 @@
  *
  * Read once and never invalidated. The game is over — this is the single screen
  * where the socket genuinely has nothing left to say, and a poll here would be
- * the 2.2 bug turning up on the last screen of the game.
+ * the two-sources-of-truth bug turning up on the last screen of the game.
  *
  * `HasGameAccess` lets both halves in: the host through their session, a player
  * through the game cookie. So one hook serves both screens.
@@ -36,7 +36,7 @@ export type SummaryRound = {
   /**
    * A sum of agent means, and therefore **not a quantity anybody has** — two
    * Gruppen commuting 30 min each report 60. Kept in the payload because it
-   * was what the screen read before 2.4; read `time_min_per_agent` instead.
+   * was what the screen read once; read `time_min_per_agent` instead.
    */
   time_min: number;
   /** How many agent-trips the figures above are made of. */
@@ -133,7 +133,7 @@ export type SummaryRoundTotals = {
 export type SummaryPlayer = {
   player_id: string;
   /**
-   * Real until anonymisation runs, 24 h after the end of the game (1.3), which
+   * Real until anonymisation runs, 24 h after the end of the game, which
    * is deliberate — the debrief happens in the lesson and the names go after
    * it. On the screen only: never into a log, a toast or an error string.
    */

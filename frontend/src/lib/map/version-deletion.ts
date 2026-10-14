@@ -2,7 +2,7 @@ import { de } from "@/lib/de";
 import type { VersionDeletion } from "@/types/mapTypes";
 
 /**
- * The deletion dialog's text, out of the component so it can be tested (F14).
+ * The deletion dialog's text, out of the component so it can be tested.
  *
  * The server answers in numbers and names (`GET …/versions/<id>/deletion/`);
  * this turns them into the lines the dialog shows. A kind of row nothing of

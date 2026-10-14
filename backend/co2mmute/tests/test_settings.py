@@ -138,8 +138,8 @@ class TestSettingsModuleTests(SimpleTestCase):
 
     def test_the_database_is_postgres_not_sqlite(self):
         """settings.py falls back to sqlite whenever DEBUG is on, and sqlite
-        treats select_for_update() as a no-op — so the row locks 1.4 and 1.3
-        depend on would go untested while the tests still passed."""
+        treats select_for_update() as a no-op — so the row locks the join and
+        the anonymisation depend on would go untested while the tests still passed."""
         settings_test = self.load()
 
         self.assertEqual(
@@ -209,8 +209,8 @@ class DatabaseEngineChoiceTests(SimpleTestCase):
             env["DJANGO_DB"] = db
         # Importing settings mkdir()s MEDIA_ROOT. Keep that out of the repo.
         env["DJANGO_MEDIA_ROOT"] = tempfile.mkdtemp(prefix="co2mmute-settings-")
-        # resolve_secret_key refuses to boot with DEBUG off and no key — the
-        # phase-0 guard, tested by ResolveSecretKeyTests above. It is not what
+        # resolve_secret_key refuses to boot with DEBUG off and no key — a
+        # guard of its own, tested by ResolveSecretKeyTests above. It is not what
         # this class is about, so give it one.
         env["DJANGO_SECRET_KEY"] = "engine-choice-test-key-0123456789abcdef"
 

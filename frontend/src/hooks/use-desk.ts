@@ -7,7 +7,7 @@
  * Nothing here fetches, nothing polls; the roster is already the one truth for
  * all of it.
  *
- * **Two desks use it** (F5): the round's, where a seat is done when the roster
+ * **Two desks use it**: the round's, where a seat is done when the roster
  * says `waiting`, and the map vote's, where the roster says nothing at all and
  * the caller keeps the record. What a seat is *for* is the caller's business;
  * the curtain rules are the same either way, and they are the part worth having

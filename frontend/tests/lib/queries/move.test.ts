@@ -65,7 +65,7 @@ describe("submitMove", () => {
     expect(url).toBe("/api/game/ABC123/player/P-7/move/");
     expect(init?.method).toBe("POST");
     // The seat in the URL is what IsPlayerInGame checks against the cookie —
-    // and, since 1.6, what lets the host play a seat at their own machine.
+    // and what lets the host play a seat at their own machine.
     expect(url).not.toContain("undefined");
   });
 

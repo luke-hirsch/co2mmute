@@ -5,7 +5,7 @@ because a default only decides what a *new* line gets. Every line on every map
 already imported still says 60 — not from the old default but from
 `map_examples/Berlin_Mitte-West.json`, which stated `"capacity": 60` outright
 for both modes, so the importer's own numbers never got a look in. That is the
-60-seat U-Bahn: it is in the shipped file (fixed with S5), and it is in the dev
+60-seat U-Bahn: it is in the shipped file (fixed since), and it is in the dev
 and the live database, where no re-import reaches it.
 
 Only rows that still say exactly 60 are touched. 60 is what that one file said

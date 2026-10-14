@@ -91,7 +91,7 @@ export async function apiFetch<T = unknown>(
   const headers = new Headers(options.headers);
 
   // A FormData body is multipart, and its Content-Type carries a boundary only
-  // fetch knows — so it is left for fetch to write. The map import (S19) is
+  // fetch knows — so it is left for fetch to write. The map import is
   // the first caller; the two older uploads in `map-editor.ts` and
   // `map-graph.ts` still build their own fetch, and are the editor's save path.
   if (

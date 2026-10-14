@@ -28,10 +28,10 @@ import type { Node } from "@/types/mapTypes";
  * the one request that ends the turn.
  *
  * **Parameterised by seat.** The player's route passes their own `player_id`
- * from `whoami`; F4's desk passes a host-controlled seat's, and nothing below
- * cares which it got. The backend allows both — `IsPlayerInGame` has had the
- * host branch since 1.6, and it is narrow: only a seat that is actually played
- * at the host machine.
+ * from `whoami`; the host desk passes a host-controlled seat's, and nothing
+ * below cares which it got. The backend allows both — `IsPlayerInGame` has a
+ * host branch, and it is narrow: only a seat that is actually played at the
+ * host machine.
  *
  * `desk` is what tells the two apart on screen. With it the seat belongs to
  * somebody else and the screen says whose and offers the way back; without it
@@ -40,15 +40,11 @@ import type { Node } from "@/types/mapTypes";
  * Whether this seat has already submitted is **not** state here: it is
  * `seat.status === "waiting"` from the roster. That is what makes a reload
  * mid-round land on the right screen (R-11), and it is also what takes the desk
- * back to its list the moment a turn is sent. Since S7 it is what clears the
+ * back to its list the moment a turn is sent. It is what clears the
  * stored draft too, so the one answer to "is this turn in" drives all three.
  *
- * **No chat on this screen yet.** The chat is `ChatSidebar` + `useChatSocket`,
- * both pre-rewrite: it needs the legacy `AuthProvider`, expects to sit in a
- * sized `<aside>`, and paints its status in green and amber, which this palette
- * does not have. Wiring that into the screen F4 and F5 are built on would copy
- * all three forward, so the chat gets its own small chunk instead. Between
- * rounds the legacy screen still has it.
+ * **The chat is not this screen's.** `ChatDock` sits in `GameFrame`, above
+ * every screen in a game.
  */
 export function RoundScreen({
   seatId,
@@ -64,7 +60,7 @@ export function RoundScreen({
   const beside = layout === "beside";
 
   // Read before the draft, because the draft takes it: a turn that is in has no
-  // unfinished draft to keep (S7).
+  // unfinished draft to keep.
   const seat = seatById(state, seatId);
   const submitted = seat?.status === "waiting";
 
@@ -138,7 +134,7 @@ export function RoundScreen({
       ) : null}
 
       {/*
-        Beside is a large-screen choice (S24): from `lg` the map takes the left
+        Beside is a large-screen choice: from `lg` the map takes the left
         half and stays in view while the list scrolls past it. Every class that
         makes it so is `lg:`-prefixed, so below that the map is simply above.
       */}
@@ -234,7 +230,7 @@ export function RoundScreen({
 }
 
 /**
- * Whose turn this is, when it is not the reader's own (F4).
+ * Whose turn this is, when it is not the reader's own.
  *
  * At the desk the machine is passed around, so the screen has to name the seat
  * it is playing — and always offer the way out, because a student may sit down

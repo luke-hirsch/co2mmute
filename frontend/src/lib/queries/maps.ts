@@ -13,8 +13,8 @@
  *   property of a *graph* — how much traffic its corridors carry.
  *   `lib/calibration.ts` derives the people per Gruppe from it, and with them
  *   the budget. The budget itself is kg per person, the same on every map, so
- *   no row carries one (F8 step 2b).
- * - `calibrated` says whether that count was measured on this map (S21). Every
+ *   no row carries one.
+ * - `calibrated` says whether that count was measured on this map. Every
  *   map starts at Berlin Mitte-West's, and the count alone cannot tell the one
  *   map it was measured on from a small one that inherited it — so the screen
  *   warns on the flag, never on the number.
@@ -53,7 +53,7 @@ export function useGameMaps() {
 }
 
 /**
- * `POST api/maps/import/` — a map file in, a new map out (S19).
+ * `POST api/maps/import/` — a map file in, a new map out.
  *
  * Always a *new* map: the importer never overwrites one, because
  * `GameSession.game_map` would take the games with it. Invalidates `["maps"]`,

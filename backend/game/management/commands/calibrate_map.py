@@ -173,7 +173,7 @@ class Command(BaseCommand):
         if out:
             meta = graph.setdefault("map", {})
             meta["district_commuters"] = result.commuters
-            # A file from before the budget was per person (F8 step 2b).
+            # A file from before the budget was per person (2026-10-07).
             meta.pop("co2_budget_kg_per_round", None)
             meta["calibrated"] = True
             Path(out).write_text(

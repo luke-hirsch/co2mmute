@@ -120,7 +120,7 @@ const MapSettingsPanel = ({ mapId, gameMap }: MapSettingsPanelProps) => {
       >
         {/* Was `"Saving..."`, live, in a German-only SPA. A one-word literal is
             skipped by `german.test.ts` on purpose, so five of these survived
-            S17 across the editor's panels. */}
+            the word pass across the editor's panels. */}
         {updateMutation.isPending ? de.editor.saving : de.editor.saveSettings}
       </Button>
       {updateMutation.isSuccess && <EditorNote>{de.editor.saved}</EditorNote>}

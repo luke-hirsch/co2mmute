@@ -30,15 +30,15 @@ interface ProtectedRouteProps {
  * map detail page and the editor were open to any logged-in account. Nothing
  * leaked: `IsStaffOrReadOnly` refuses every write, so a non-staff user got a
  * read-only editor whose every button failed. But it was a guard that had never
- * once fired, which is the same class of thing as `Player.is_muted` having no
- * reader — see S9.
+ * once fired, which is the same class of thing as `Player.is_muted` having had
+ * no reader.
  *
  * ### The redirect moved into an effect
  *
  * Navigating during render is a state update during render. It was harmless
  * only because the branch was dead; making the condition true would have made
  * it real. `ProtectedLayout` still does it and is left alone — its condition
- * works, and that file is the layout half of S20's header work.
+ * works, and that file is the layout half of the header.
  */
 export function ProtectedRoute({
   children,

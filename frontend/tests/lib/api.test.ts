@@ -116,7 +116,7 @@ describe("apiFetch", () => {
   it("leaves the content type of a FormData body to the browser", async () => {
     // A multipart body needs a boundary in its Content-Type, and only fetch
     // knows it. Setting "application/json" over it made every file upload
-    // hand-roll its own fetch, and the map import (S19) would have been the
+    // hand-roll its own fetch, and the map import would have been the
     // third.
     vi.stubGlobal("document", { cookie: "csrftoken=tok" });
     const spy = stubFetch(jsonResponse(201, { id: 7 }));

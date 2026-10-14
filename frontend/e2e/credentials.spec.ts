@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 /**
- * The credential pages and the front door — S22.
+ * The credential pages and the front door.
  *
  * The Django half's login, sign-up and password pages were the last Tailwind UI
  * boilerplate in the project, and under it three pages of "Passwort vergessen?"

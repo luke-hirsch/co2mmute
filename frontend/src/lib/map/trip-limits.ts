@@ -23,9 +23,9 @@
  * routed walk is 2.75 km, the median 5.4, the longest 10.0. So the walk cap
  * refuses **22 of 36** and leaves 14 walkable — the three Bellevue homes to
  * Brandenburger Tor, Lützowplatz, TU Berlin and Hegelplatz, and two to
- * Lützowplatz from the south. Before the Tiergarten paths (F11) it refused 33
- * and the map had no walkable commute. The bike cap refuses **none of them**,
- * and is a guard for a map that has not been drawn yet.
+ * Lützowplatz from the south. Before the Tiergarten paths (2026-10-02) it
+ * refused 33 and the map had no walkable commute. The bike cap refuses **none
+ * of them**, and is a guard for a map that has not been drawn yet.
  *
  * ### Two places it is checked, and why both
  *

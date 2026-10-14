@@ -1,12 +1,12 @@
 /**
- * The two numbers a game is played against, derived as the host types. S13.
+ * The two numbers a game is played against, derived as the host types.
  *
  * This mirrors `backend/game/calibration.py`. It is a mirror on purpose, the
  * same way `lib/map/edge-rules.ts` mirrors the simulation's rule: the whole
- * point of S13 is that the offer follows the class size *while it is being
+ * point is that the offer follows the class size *while it is being
  * chosen*, and a round trip per keystroke is not that. The scale comes off the
  * selected map (`GET api/maps/` carries `district_commuters` per row); the
- * budget is kg per person per round, the same on every map since F8 step 2b,
+ * budget is kg per person per round, the same on every map,
  * so the dial's four numbers are the one constant here, mirrored from Python.
  *
  * What the arithmetic is FOR is in the Python module's docstring and in

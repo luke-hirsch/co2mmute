@@ -2,7 +2,7 @@
   <!--
     What a round costs on the shipped map, by car share — the table under
     "Die Pendlerzahl" in docs/de-hintergrund.md, measured by calibrate_map
-    (F8 step 2b, 2026-10-07, Postgres): base version, 6 800 commuters, 72
+    (2026-10-07, Postgres): base version, 6 800 commuters, 72
     Gruppen, six seeds, the rest on public transport, there and back. Bars:
     x = 60 + 196 · kg / 28 379, the budget line at normal, 2.4 kg × 6 800 =
     16 320 kg. Re-measure, then move the numbers here and in both docs.

@@ -62,7 +62,7 @@ const DJANGO_PATHS = [
  * `X-Forwarded-Proto https` on every proxied request — so the cookies always
  * come back marked `Secure`, and a browser on `http://localhost:5173` throws
  * them away without a word. The join then succeeds, and every call after it is
- * a 403: no game cookie. Found while checking F1 in WebKit on 2026-09-18.
+ * a 403: no game cookie. Found while checking the join in WebKit on 2026-09-18.
  *
  * Reusing nginx's own self-signed cert keeps this to zero extra setup — the
  * same file, the same `CN=localhost`, and the same warning to click through
