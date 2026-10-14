@@ -465,3 +465,81 @@ describe("where a bus can be boarded", () => {
     expect(result.ptSegments.map((s) => s.ptLineName)).toEqual(["7", "8"]);
   });
 });
+
+/**
+ * A line can pass one stop twice, and a ride is on one pass of it.
+ *
+ * Bremen's 58 runs from Roland-Center out to Sodenmatt, round Huchting, back
+ * through Sodenmatt and home. The router knew a ride only by the node it was
+ * at, so from the second pass at Sodenmatt it rode on into the first, round
+ * the loop again, a ride no bus makes. A line that ends where it starts goes
+ * on round, and waits at its end for the timetable's next departure, like a
+ * change (Lukas, 2026-10-14: "ring can be ring").
+ */
+describe("a line that passes a stop twice", () => {
+  const quiet: ReturnType<typeof vi.spyOn>[] = [];
+  beforeAll(() => {
+    quiet.push(vi.spyOn(console, "log").mockImplementation(() => {}));
+  });
+  afterAll(() => quiet.forEach((spy) => spy.mockRestore()));
+
+  // 1 → 2 → round 5 and 6 → 2 → 4, a kilometre a stretch, 2.5 km from 5 to
+  // 6 and 3 km to 4. Home 8 is 100 m from 6, work 9 100 m from 5, too far to
+  // walk to 5 and ride to 6 the right way. Only 5, 6 and 4 are stops, and
+  // junction 2 when asked: the one way onto the pass to 5 is a change there.
+  const loop = (junctionIsAStop: boolean) => {
+    const nodes = [at(1, 0), at(2, 1, junctionIsAStop), at(5, 2, true),
+      at(6, 1.5, true), at(4, 4, true), at(8, 1.6), at(9, 2.1)];
+    const edges = [
+      ...street(10, 1, 2, 1_000),
+      ...street(20, 2, 5, 1_000),
+      ...street(30, 5, 6, 2_500),
+      ...street(40, 6, 2, 1_000),
+      ...street(50, 2, 4, 3_000),
+      ...street(60, 8, 6, 100),
+      ...street(70, 9, 5, 100),
+    ];
+    return toyGraph(nodes, edges, [busLine(7, "7", [1, 2, 5, 6, 2, 4], [10, 20, 30, 40, 50])]);
+  };
+
+  it("does not ride on from one pass into the other", async () => {
+    const result = await findPTRoute(loop(false), 8, 9, { scale: 1000 });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("changes at the stop to ride the other pass, and waits for it", async () => {
+    const result = await findPTRoute(loop(true), 8, 9, { scale: 1000 });
+
+    expect(result.success).toBe(true);
+    expect(result.ptSegments.map((s) => [s.startNode, s.endNode])).toEqual([[6, 2], [2, 5]]);
+    // Two boardings of a bus every ten minutes, five minutes each.
+    expect(result.waitTimeMin).toBe(10);
+  });
+
+  it("goes on round a line that ends where it starts", async () => {
+    // A ring 1 → 2 → 3 → 4 → 1, a kilometre a stretch. Home 6 is 100 m from
+    // 3, work 7 100 m from 2: 3 → 4 → 1 → 2, on over 1, where it waits for
+    // the next departure.
+    const nodes = [at(1, 0, true), at(2, 1, true), at(3, 2, true), at(4, 1, true),
+      at(6, 2.1), at(7, 1.1)];
+    const edges = [
+      ...street(10, 1, 2, 1_000),
+      ...street(20, 2, 3, 1_000),
+      ...street(30, 3, 4, 1_000),
+      ...street(40, 4, 1, 1_000),
+      ...street(50, 6, 3, 100),
+      ...street(60, 7, 2, 100),
+    ];
+    const ring = busLine(9, "9", [1, 2, 3, 4, 1], [10, 20, 30, 40]);
+    const result = await findPTRoute(toyGraph(nodes, edges, [ring]), 6, 7, { scale: 1000 });
+
+    expect(result.success).toBe(true);
+    expect(result.ptSegments.map((s) => [s.startNode, s.endNode])).toEqual([
+      [3, 4],
+      [4, 1],
+      [1, 2],
+    ]);
+    expect(result.waitTimeMin).toBe(10);
+  });
+});

@@ -87,6 +87,10 @@ class Vehicle:
 
     at_stop: bool = False
     aboard_of: int | None = None
+    # Where it gets off: a count of stops along the vehicle it rides, as in
+    # PTVehicle.stop_index, past the end on a ring that goes on round. None
+    # gets off at the node its leg names, wherever that comes first.
+    alight_at: int | None = None
     stranded: bool = False
 
     reached_stop_min: float = 0.0
@@ -138,6 +142,22 @@ class PTLineState:
     def vehicle(self) -> str:
         """What runs the line, for its figures: its kind, else its mode."""
         return self.kind or self.mode
+
+    @property
+    def is_ring(self) -> bool:
+        """Whether the line ends where it starts, and so goes on round.
+
+        A vehicle runs one lap, from the first stop to the same node again,
+        and the timetable's next departure is the same train going on: the
+        S41 round Berlin, Bremen's 58 round Huchting and back.
+        """
+        return len(self.stops) > 2 and self.stops[0] == self.stops[-1]
+
+    def stop_at(self, at: int) -> int | None:
+        """The node `at` stops along a vehicle's way, on round on a ring."""
+        if self.is_ring:
+            return self.stops[at % (len(self.stops) - 1)]
+        return self.stops[at] if 0 <= at < len(self.stops) else None
 
     @property
     def vehicle_km(self) -> float:

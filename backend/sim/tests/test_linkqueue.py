@@ -11,6 +11,7 @@ import logging
 import random
 from contextlib import contextmanager
 from dataclasses import replace
+from unittest.mock import patch
 
 from django.test import SimpleTestCase
 
@@ -242,6 +243,133 @@ class AWalkAfterATrainTests(SimpleTestCase):
         self.assertEqual(engine.non_arrivals, {"unfinished": 0, "stranded": 0})
         self.assertEqual(engine.agent_results[1]["not_arrived"], 0)
         self.assertEqual(len(engine.agent_results[1]["trip_times"]), PEOPLE)
+
+
+def _rails(*ends, metres=2000.0, first_id=60):
+    """Track between the given node pairs, one link each, in that order."""
+    return tuple(
+        Link(first_id + i, start, end, metres) for i, (start, end) in enumerate(ends)
+    )
+
+
+def _footpath(edge_id, start, end):
+    return Link(edge_id, start, end, 400.0, is_street=True, speed_limit_kmh=50)
+
+
+def _train(links, interval_min=10):
+    """Line 9 over the links, at 20 km/h, with room for everybody."""
+    return Line(
+        mode="train",
+        line_id=9,
+        name="S9",
+        edge_ids=tuple(link.edge_id for link in links),
+        interval_min=interval_min,
+        capacity=10_000,
+    )
+
+
+def _walk_ride_walk(walk_in, rides, walk_out):
+    """Walk to the platform, ride line 9 over `rides`, walk on."""
+    return Route(
+        pk=1,
+        agent_id=1,
+        transport_mode="public",
+        segments=(
+            Segment(edge_id=walk_in.edge_id, order=1, mode="walk"),
+            *(
+                Segment(edge_id=link.edge_id, order=2 + i, mode="train", pt_line_id=9)
+                for i, link in enumerate(rides)
+            ),
+            Segment(edge_id=walk_out.edge_id, order=2 + len(rides), mode="walk"),
+        ),
+        label="Gruppe 1",
+        total_distance_m=800.0 + sum(link.distance_m for link in rides),
+        estimated_time_min=30.0,
+    )
+
+
+def _carried_to_the_end(log) -> list[str]:
+    """The warnings for a rider still aboard where its vehicle ends."""
+    return [
+        call.args[0]
+        for call in log.warning.call_args_list
+        if "terminus" in str(call.args[0])
+    ]
+
+
+class ALineThatPassesAStopTwiceTests(SimpleTestCase):
+    """A line can pass one stop twice, and a vehicle is at one pass at a time.
+
+    Bremen's 94 runs in to Arbeit Lesum and out again past Stader Landstraße;
+    the 58 runs from Roland-Center round Huchting and back to Roland-Center;
+    Berlin's S41 is a ring. Built from OSM, Bremen had 18 such lines,
+    Callenberg 5, all of Berlin 8 (2026-10-14). The engine knew a rider only
+    by the node it waits at, so at Stader Landstraße it boarded whichever 94
+    came first, also one on its way out that never reaches Arbeit Lesum, and
+    carried them to the end of the line. A line that ends where it starts
+    goes on round (Lukas, 2026-10-14: "ring can be ring").
+    """
+
+    def test_a_rider_boards_only_the_pass_that_still_reaches_its_stop(self):
+        # 1 → 2 → 3 and back past 2 to 4: 2 is Stader Landstraße, 3 Arbeit
+        # Lesum. Most riders reach 2 while the next train there is one on its
+        # way out.
+        line = _rails((1, 2), (2, 3), (3, 2), (2, 4), metres=3000.0)
+        walk_in, walk_out = _footpath(80, 5, 2), _footpath(81, 3, 6)
+        rider = _walk_ride_walk(walk_in, line[1:2], walk_out)
+
+        with patch("sim.linkqueue.logger") as log:
+            engine = _run(
+                _scenario([rider], (*line, walk_in, walk_out), lines=[_train(line)])
+            )
+
+        self.assertEqual(_carried_to_the_end(log), [])
+        self.assertEqual(engine.non_arrivals, {"unfinished": 0, "stranded": 0})
+        self.assertEqual(len(engine.agent_results[1]["trip_times"]), PEOPLE)
+
+    def test_a_ring_goes_on_round_past_where_it_starts(self):
+        # 1 → 2 → 3 → 4 → 1, 2 km each. The rider rides 3 → 4 → 1 → 2, over
+        # the point where a run of the timetable ends and the next begins.
+        ring = _rails((1, 2), (2, 3), (3, 4), (4, 1))
+        walk_in, walk_out = _footpath(80, 5, 3), _footpath(81, 2, 6)
+        rider = _walk_ride_walk(walk_in, (ring[2], ring[3], ring[0]), walk_out)
+
+        with patch("sim.linkqueue.logger") as log:
+            engine = _run(
+                _scenario([rider], (*ring, walk_in, walk_out), lines=[_train(ring)])
+            )
+
+        self.assertEqual(_carried_to_the_end(log), [])
+        self.assertEqual(engine.non_arrivals, {"unfinished": 0, "stranded": 0})
+        # Two walks of 400 m at 5 km/h and 6 km at 20 km/h: nobody is faster.
+        # Set down at 1 and walking on from 2, they were 6 minutes faster.
+        trips = engine.agent_results[1]["trip_times"]
+        self.assertEqual(len(trips), PEOPLE)
+        self.assertGreaterEqual(min(trips), 4.8 + 18 + 4.8 - 1e-6)
+
+    def test_getting_off_and_on_the_same_line_at_a_stop_it_passes_twice(self):
+        # 1 → 2 → 5 → 3 → 2 → 4. From 3 to 5: ride to 2, get off, and get on
+        # the next train there that is on its way in. The router finds that;
+        # the two rides, one after the other on one line, read as one, which
+        # no train makes.
+        line = _rails((1, 2), (2, 5), (5, 3), (3, 2), (2, 4))
+        walk_in, walk_out = _footpath(80, 6, 3), _footpath(81, 5, 7)
+        rider = _walk_ride_walk(walk_in, (line[3], line[1]), walk_out)
+
+        with patch("sim.linkqueue.logger") as log:
+            engine = _run(
+                _scenario([rider], (*line, walk_in, walk_out), lines=[_train(line)])
+            )
+
+        self.assertEqual(_carried_to_the_end(log), [])
+        self.assertEqual(
+            [(leg.board_node, leg.alight_node) for leg in engine.route_pt_legs[1]],
+            [(3, 2), (2, 5)],
+        )
+        self.assertEqual(engine.non_arrivals, {"unfinished": 0, "stranded": 0})
+        trips = engine.agent_results[1]["trip_times"]
+        self.assertEqual(len(trips), PEOPLE)
+        self.assertGreaterEqual(min(trips), 4.8 + 12 + 4.8 - 1e-6)
 
 
 def _with_rails(links, track, lanes=1):
