@@ -40,11 +40,7 @@ export type SeatStatus = "ready" | "making_move" | "waiting" | "not_connected";
  * teacher took the seat over on purpose than when someone else scanned your
  * code.
  */
-export type RevokedReason =
-  | "removed"
-  | "left"
-  | "taken_over"
-  | "handed_over";
+export type RevokedReason = "removed" | "left" | "taken_over" | "handed_over";
 
 const revoked: Record<RevokedReason, string> = {
   removed: "Die Spielleitung hat dich aus dem Spiel genommen.",
@@ -287,7 +283,8 @@ export const de = {
       /** This device sent two messages inside 0,35 s. */
       tooFast: "Nicht so schnell — kurz warten.",
       /** The whole game is over 10 messages a second. */
-      roomTooFast: "Gerade schreiben alle gleichzeitig. Versuch es gleich noch mal.",
+      roomTooFast:
+        "Gerade schreiben alle gleichzeitig. Versuch es gleich noch mal.",
       /**
        * The host muted this seat (S9). Says so outright rather than falling
        * back on `unknown`: silence, or a vague "nicht angekommen", reads as a
@@ -356,7 +353,8 @@ export const de = {
     change: "ändern",
 
     routing: "Route wird gesucht …",
-    noRoute: "Auf diesem Weg kommt die Gruppe nicht ans Ziel. Nimm eine andere Linie.",
+    noRoute:
+      "Auf diesem Weg kommt die Gruppe nicht ans Ziel. Nimm eine andere Linie.",
     noWayHome:
       "Die Gruppe kommt hin, aber nicht wieder nach Hause. Nimm ein anderes Verkehrsmittel.",
     /**
@@ -400,17 +398,20 @@ export const de = {
     submitting: "Wird abgeschickt …",
     submitBlocked: "Erst wenn jede Gruppe eine Route hat.",
     submitted: "Abgeschickt",
-    submittedBody: "Deine Wahl steht. Sobald alle durch sind, wird die Runde gefahren.",
+    submittedBody:
+      "Deine Wahl steht. Sobald alle durch sind, wird die Runde gefahren.",
     waitingFor: "Es fehlen noch",
     /** The move was refused. Each one names what to do next, never a player. */
-    failedPaused: "Das Spiel ist angehalten. Sobald es weitergeht, kannst du abschicken.",
+    failedPaused:
+      "Das Spiel ist angehalten. Sobald es weitergeht, kannst du abschicken.",
     failedRoundOver: "Diese Runde ist schon durch.",
     failedSeat: "Dieser Platz gehört dir nicht mehr.",
     failedUnknown: "Das Abschicken hat nicht geklappt. Versuch es nochmal.",
     retry: "Nochmal abschicken",
 
     simulation: "Die Runde wird gefahren …",
-    simulationFailed: "Die Simulation ist steckengeblieben. Die Spielleitung weiß Bescheid.",
+    simulationFailed:
+      "Die Simulation ist steckengeblieben. Die Spielleitung weiß Bescheid.",
 
     mapTitle: "Karte",
     mapHint: "Tippe eine Gruppe an, um ihre Route zu sehen.",
@@ -632,8 +633,8 @@ export const de = {
       "Jede Zeile ist mit allen Menschen gerechnet, für die eine Gruppe steht.",
 
     /** The overlay. */
-    explain: "Wie wird gerechnet?",
-    explainTitle: "Wie diese Zahlen zustande kommen",
+    explain: "Die Simumation erklärt",
+    explainTitle: "Gut zu wissen …",
     explainLead: "Was hinter den Zahlen auf dem Schirm steht.",
     close: "Verstanden",
 
@@ -788,7 +789,8 @@ export const de = {
     societyTimetable: "Fahrplan insgesamt",
     societyUnridden: "davon auf Linien, die niemand genutzt hat",
     /** Replaces the row above when it would repeat the total. */
-    societyAllUnridden: "Niemand ist mitgefahren: Der ganze Fahrplan lief leer.",
+    societyAllUnridden:
+      "Niemand ist mitgefahren: Der ganze Fahrplan lief leer.",
     /** Nothing to say: a map without bus or train lines. */
     societyNone: "Auf dieser Karte fahren keine Linien.",
 
@@ -917,7 +919,8 @@ export const de = {
       `${name} ist danach raus. Schon gefahrene Runden bleiben gespeichert.`,
 
     curtainTitle: (name: string) => `${name} ist dran`,
-    curtainBody: "Gib den Rechner weiter. Erst dann weiter — vorher sieht der Raum alles mit.",
+    curtainBody:
+      "Gib den Rechner weiter. Erst dann weiter — vorher sieht der Raum alles mit.",
     curtainGo: "Los",
 
     /**
@@ -934,7 +937,8 @@ export const de = {
      */
     voteLead:
       "Tippe oder klicke auf deine Wahl. Auf einer Tastatur geht es auch mit der Zahl daneben, 0 lässt die Karte, wie sie ist.",
-    deskVoteLead: "Jeder Platz an diesem Rechner stimmt einmal ab. Gib den Rechner reihum weiter.",
+    deskVoteLead:
+      "Jeder Platz an diesem Rechner stimmt einmal ab. Gib den Rechner reihum weiter.",
     voteSeat: "Abstimmen",
     votedSeats: "Alle Plätze an diesem Rechner haben abgestimmt.",
     /** The phase waits for phones, and nothing here can hurry them along. */
@@ -1032,13 +1036,16 @@ export const de = {
         added
           ? `neue Straße, ${lanes} ${lanes === 1 ? "Spur" : "Spuren"}, ${speed} km/h`
           : "keine Straße mehr",
-      rail: (added: boolean) => (added ? "neue Bahnstrecke" : "keine Bahnstrecke mehr"),
+      rail: (added: boolean) =>
+        added ? "neue Bahnstrecke" : "keine Bahnstrecke mehr",
       path: (added: boolean, biking: boolean, walking: boolean) =>
         added
           ? `neuer Weg ${biking && walking ? "für Rad und Fuß" : biking ? "fürs Rad" : "zu Fuß"}`
           : "kein Weg mehr",
       busLane: (added: boolean) =>
-        added ? "eine Autospur wird Busspur" : "die Busspur wird wieder Autospur",
+        added
+          ? "eine Autospur wird Busspur"
+          : "die Busspur wird wieder Autospur",
       /** Where a tram's rails lie: "" beside the street, "lane" in it, "own" a lane of their own. */
       tramTrack: (from: string, to: string) =>
         to === "own"
@@ -1049,14 +1056,19 @@ export const de = {
               ? "Tramgleis in der Autospur"
               : "kein Tramgleis mehr in der Autospur",
       bikeLane: (added: boolean) =>
-        added ? "eine Autospur wird Radspur" : "die Radspur wird wieder Autospur",
-      biking: (added: boolean) => (added ? "für Räder offen" : "für Räder gesperrt"),
-      walking: (added: boolean) => (added ? "zu Fuß offen" : "für Fußgänger gesperrt"),
+        added
+          ? "eine Autospur wird Radspur"
+          : "die Radspur wird wieder Autospur",
+      biking: (added: boolean) =>
+        added ? "für Räder offen" : "für Räder gesperrt",
+      walking: (added: boolean) =>
+        added ? "zu Fuß offen" : "für Fußgänger gesperrt",
       lanes: (from: number, to: number) => `Spuren ${from} → ${to}`,
       speed: (from: number, to: number) => `Tempo ${from} → ${to} km/h`,
       line: (type: "bus" | "train", name: string, kind?: string) =>
         `${type === "bus" ? "Bus" : kind === "tram" ? "Tram" : "Bahn"} ${name}`,
-      lineAdded: (first: string, last: string) => `neue Linie, ${first} → ${last}`,
+      lineAdded: (first: string, last: string) =>
+        `neue Linie, ${first} → ${last}`,
       lineRemoved: "fährt nicht mehr",
       lineChanged: (gained: number, lost: number) =>
         `fährt anders: ${gained} ${gained === 1 ? "Abschnitt" : "Abschnitte"} neu, ${lost} weg`,
@@ -1186,7 +1198,10 @@ export const de = {
               ["map", "Name, Maße und Werte der Karte, siehe unten"],
               ["bus_lines", "die Buslinien"],
               ["train_lines", "die Bahnlinien"],
-              ["versions", "die Versionen der Karte und welche zur Wahl stehen"],
+              [
+                "versions",
+                "die Versionen der Karte und welche zur Wahl stehen",
+              ],
               ["background_image", "das Hintergrundbild und wo es liegt"],
             ],
           },
@@ -1197,9 +1212,18 @@ export const de = {
               ["max_player", "Plätze — geht vor der Zahl im Formular"],
               ["walk_speed_kmh", "Gehtempo (Vorgabe: 5)"],
               ["bike_speed_kmh", "Radtempo (Vorgabe: 20)"],
-              ["default_car_speed_kmh", "Autotempo ohne Tempolimit (Vorgabe: 50)"],
-              ["district_commuters", "wie viele Pendler die Karte trägt (Vorgabe: 6.800)"],
-              ["calibrated", "true, wenn die Pendlerzahl darüber für diese Karte gemessen ist — sonst warnt „Spiel anlegen“"],
+              [
+                "default_car_speed_kmh",
+                "Autotempo ohne Tempolimit (Vorgabe: 50)",
+              ],
+              [
+                "district_commuters",
+                "wie viele Pendler die Karte trägt (Vorgabe: 6.800)",
+              ],
+              [
+                "calibrated",
+                "true, wenn die Pendlerzahl darüber für diese Karte gemessen ist — sonst warnt „Spiel anlegen“",
+              ],
             ],
           },
           {
@@ -1208,7 +1232,10 @@ export const de = {
               ["id", "Pflicht — eindeutige Kennung, Text oder Zahl"],
               ["x, y", "Pflicht — die Koordinaten"],
               ["name", "der angezeigte Name (sonst die id)"],
-              ["types", "die Arten: home, workplace, intersection, bus_stop, station"],
+              [
+                "types",
+                "die Arten: home, workplace, intersection, bus_stop, station",
+              ],
             ],
           },
           {
@@ -1216,25 +1243,58 @@ export const de = {
             fields: [
               ["start_node, end_node", "Pflicht — die ids der beiden Knoten"],
               ["name", "der angezeigte Name"],
-              ["type", "street, train, both, tram oder path (Vorgabe: both) — both ist eine Straße mit Gleis daneben oder darunter, tram eine Straße mit Gleis darin, path ein Weg ohne Straße und ohne Gleis darunter"],
-              ["biking, walking", "ob Räder fahren und Fußgänger gehen dürfen (Vorgabe: ja, auf einem reinen Gleis nein)"],
-              ["bike_lane", "ein Radweg; nimmt eine Autospur weg und braucht biking (Vorgabe: nein)"],
+              [
+                "type",
+                "street, train, both, tram oder path (Vorgabe: both) — both ist eine Straße mit Gleis daneben oder darunter, tram eine Straße mit Gleis darin, path ein Weg ohne Straße und ohne Gleis darunter",
+              ],
+              [
+                "biking, walking",
+                "ob Räder fahren und Fußgänger gehen dürfen (Vorgabe: ja, auf einem reinen Gleis nein)",
+              ],
+              [
+                "bike_lane",
+                "ein Radweg; nimmt eine Autospur weg und braucht biking (Vorgabe: nein)",
+              ],
               ["speed_limit", "Tempolimit in km/h (Vorgabe: 50)"],
-              ["lanes", "Spuren der ganzen Straße, Bus- und Radspur eingeschlossen (Vorgabe: 1)"],
-              ["dedicated_bus_lane", "eine Busspur; nimmt eine Autospur weg (Vorgabe: nein)"],
-              ["tram_track", "nur bei tram: lane, das Gleis liegt in der Autospur und die Tram steht mit den Autos im Stau, oder own, ein eigenes Gleis, das eine Autospur wegnimmt (Vorgabe: lane)"],
-              ["max_lanes", "wie viele Spuren die Straße höchstens haben kann (Vorgabe: 2)"],
-              ["circuity", "wie viel länger der Weg ist als die Luftlinie zwischen den Knoten, mindestens 1 — 1.25 heißt ein Viertel länger; wird ein Knoten verschoben, wächst der Weg mit (Vorgabe: 1)"],
+              [
+                "lanes",
+                "Spuren der ganzen Straße, Bus- und Radspur eingeschlossen (Vorgabe: 1)",
+              ],
+              [
+                "dedicated_bus_lane",
+                "eine Busspur; nimmt eine Autospur weg (Vorgabe: nein)",
+              ],
+              [
+                "tram_track",
+                "nur bei tram: lane, das Gleis liegt in der Autospur und die Tram steht mit den Autos im Stau, oder own, ein eigenes Gleis, das eine Autospur wegnimmt (Vorgabe: lane)",
+              ],
+              [
+                "max_lanes",
+                "wie viele Spuren die Straße höchstens haben kann (Vorgabe: 2)",
+              ],
+              [
+                "circuity",
+                "wie viel länger der Weg ist als die Luftlinie zwischen den Knoten, mindestens 1 — 1.25 heißt ein Viertel länger; wird ein Knoten verschoben, wächst der Weg mit (Vorgabe: 1)",
+              ],
             ],
           },
           {
             title: "Eine Bus- oder Bahnlinie",
             fields: [
               ["name", "der Name der Linie, z. B. M1 oder U6"],
-              ["edges", "die Nummern der Kanten, über die sie fährt, gezählt ab 0"],
+              [
+                "edges",
+                "die Nummern der Kanten, über die sie fährt, gezählt ab 0",
+              ],
               ["interval", "der Takt in Minuten (Vorgabe: 5)"],
-              ["kind", "nur bei einer Bahnlinie: train für S- und U-Bahn, tram für eine Tram (Vorgabe: train)"],
-              ["capacity", "Plätze im Fahrzeug (Vorgabe: Bus 85, Bahn 1.000, Tram 248)"],
+              [
+                "kind",
+                "nur bei einer Bahnlinie: train für S- und U-Bahn, tram für eine Tram (Vorgabe: train)",
+              ],
+              [
+                "capacity",
+                "Plätze im Fahrzeug (Vorgabe: Bus 85, Bahn 1.000, Tram 248)",
+              ],
               ["speed_kmh", "Reisetempo (Vorgabe: Bus 30, Bahn 40, Tram 30)"],
             ],
           },
@@ -1270,7 +1330,8 @@ export const de = {
       oneWay: "Einbahn",
       bidirectionalHint: "Neue Kanten gelten in beide Richtungen (A↔B).",
       oneWayHint: "Neue Kanten gelten nur in eine Richtung (A→B).",
-      deleteHint: "Klick Knoten oder Kanten an, um sie zum Löschen zu markieren.",
+      deleteHint:
+        "Klick Knoten oder Kanten an, um sie zum Löschen zu markieren.",
       /** What to do next, per tool. The editor used to say all of this in English. */
       addNodeHint: "Klick auf die Fläche, um einen Knoten zu setzen.",
       addEdgeHint: "Klick zwei Knoten an, um sie zu verbinden.",
@@ -1396,7 +1457,11 @@ export const de = {
       } as Record<string, string>,
       /** The rails' badge, saying where they lie when they lie in the street. */
       rails: (track: string) =>
-        track === "lane" ? "Bahn, in der Autospur" : track === "own" ? "Bahn, eigenes Gleis" : "Bahn",
+        track === "lane"
+          ? "Bahn, in der Autospur"
+          : track === "own"
+            ? "Bahn, eigenes Gleis"
+            : "Bahn",
       addStreet: "+ Straße anlegen",
       addTrain: "+ Bahn anlegen",
       /**
@@ -1449,10 +1514,17 @@ export const de = {
       kind: (type: string, kind?: string) =>
         type === "bus" ? "Bus" : kind === "tram" ? "Tram" : "Bahn",
       unnamed: (type: string, kind?: string) =>
-        type === "bus" ? "Buslinie" : kind === "tram" ? "Tramlinie" : "Bahnlinie",
+        type === "bus"
+          ? "Buslinie"
+          : kind === "tram"
+            ? "Tramlinie"
+            : "Bahnlinie",
       /** A train line's kind: what runs it, and so its seats, speed and figures. */
       kindLabel: "Art",
-      kinds: { train: "S- oder U-Bahn", tram: "Tram" } as Record<string, string>,
+      kinds: { train: "S- oder U-Bahn", tram: "Tram" } as Record<
+        string,
+        string
+      >,
       editBus: "Buslinie bearbeiten",
       editTrain: "Bahnlinie bearbeiten",
       routeCount: (edges: number) => `Route (${edges} Kanten)`,
@@ -1473,7 +1545,8 @@ export const de = {
       clickToRemove: "Anklicken, um sie aus der Route zu nehmen",
       incompatibleClickToRemove:
         "Passt nicht zur Linie — anklicken, um sie aus der Route zu nehmen",
-      creatingHint: "Linie wird angelegt — klick Kanten an, um die Route zu bauen.",
+      creatingHint:
+        "Linie wird angelegt — klick Kanten an, um die Route zu bauen.",
     },
 
     /** Versions: what the class votes on. */
@@ -1495,7 +1568,8 @@ export const de = {
       diffTitle: (name: string) => `Was „${name}“ ändert`,
       compareWith: "Verglichen mit",
       compareNothing: "nichts",
-      compareHint: "Wähl eine Version, dann zeigt die Karte, was sich gegenüber ihr ändert.",
+      compareHint:
+        "Wähl eine Version, dann zeigt die Karte, was sich gegenüber ihr ändert.",
       loading: "Versionen werden geladen …",
       none: "Noch keine Versionen.",
       manage: "Versionen verwalten",
@@ -1566,7 +1640,11 @@ export const de = {
         `Version anlegen (${n} ${n === 1 ? "Änderung" : "Änderungen"})`,
       /** What a pending change does to a line, in place of the model's word. */
       action: (action: string) =>
-        action === "add" ? "neu" : action === "remove" ? "gelöscht" : "geändert",
+        action === "add"
+          ? "neu"
+          : action === "remove"
+            ? "gelöscht"
+            : "geändert",
       /**
        * An edge that goes because its node goes. It cannot be taken back on its
        * own, which is what the note has to say — "(cascade)" said the mechanism
@@ -1595,11 +1673,13 @@ export const de = {
         "Alles in ihr steht auch in anderen Versionen – es geht nur die Version selbst.",
       deleteBallot: (list: string) =>
         `Sie fällt aus der Abstimmung: von ${list} aus steht sie nicht mehr zur Wahl.`,
-      deleteKeeps: (list: string) => `Ihre Änderung bleibt in ${list} erhalten.`,
+      deleteKeeps: (list: string) =>
+        `Ihre Änderung bleibt in ${list} erhalten.`,
       deleteConfirm: "Endgültig löschen",
       deleting: "Wird gelöscht …",
       deleteFailed: "Die Version ließ sich nicht löschen.",
-      deleteAskFailed: "Es ließ sich nicht nachsehen, was mit der Version geht.",
+      deleteAskFailed:
+        "Es ließ sich nicht nachsehen, was mit der Version geht.",
       /** One line of "das geht mit", per kind of row. */
       goes: {
         nodes: (n: number) => `${n} Knoten`,
@@ -1666,7 +1746,8 @@ export const de = {
 
     map: "Karte",
     mapLoading: "Karten werden geladen …",
-    mapNone: "Es gibt noch keine Karte. Ohne Karte lässt sich kein Spiel anlegen.",
+    mapNone:
+      "Es gibt noch keine Karte. Ohne Karte lässt sich kein Spiel anlegen.",
     mapFailed: "Die Karten ließen sich nicht laden. Lad die Seite neu.",
     /**
      * A map with one version removes the discussion and the vote from the whole
@@ -1795,7 +1876,8 @@ export const de = {
     account: "Dein Konto",
     accountLead:
       "Hier änderst du deine persönlichen Daten. Dein Passwort änderst du auf einer eigenen Seite.",
-    accountFailed: "Deine Kontodaten ließen sich nicht laden. Lad die Seite neu.",
+    accountFailed:
+      "Deine Kontodaten ließen sich nicht laden. Lad die Seite neu.",
     firstName: "Anzeigename",
     firstNameHelp: "So begrüßt dich die Seite. Darf leer bleiben.",
     username: "Benutzername",
