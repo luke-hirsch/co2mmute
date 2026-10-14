@@ -13,7 +13,7 @@ import { playingSeats } from "@/lib/game/game-state";
  *
  * Names appear here because the roster is exactly the list of who is in the
  * room, and the players can see each other. They must not reach a log, a toast
- * or an error string (CLAUDE.md → players are minors).
+ * or an error string (AGENTS.md → players are minors).
  *
  * And it is one of the two screens that carry the explain-the-numbers text in
  * full (Lukas, 2026-09-22 — never in the ballot). There is nothing to press here

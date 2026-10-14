@@ -19,8 +19,6 @@ The backfill is faithful, not corrective. Each row goes into the versions where
 **both** its line and its street or train edge are already present, which records
 the damage rather than repairing it; the repair is S16, explicit and under the
 test suite. Reverse drops the field, so the backfill has no reverse of its own.
-
-Evidence: `.claude/plans/diagnostics/[findings]-kartenversionen-2026-09-27.md`.
 """
 
 from django.db import migrations, models

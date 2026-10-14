@@ -932,11 +932,11 @@ class PausedPhaseTests(BetweenRoundsMixin, TestCase):
 class VoteResultIsRecordedTests(BetweenRoundsMixin, TestCase):
     """What the class voted is written down when it happens.
 
-    `.claude/plans/to-do/[backend]-abstimmungen-im-summary.md`. The tally is
-    derivable from the MapVersionVote rows — and deriving it is the trap:
-    `_tally_if_complete` counts `player__in=_playing(game)`, so re-tallying at
-    the summary counts a smaller room than voted and can hand back a different
-    winner than the class saw. Same lesson as `GameSession.end_reason`.
+    The tally is derivable from the MapVersionVote rows — and deriving it is
+    the trap: `_tally_if_complete` counts `player__in=_playing(game)`, so
+    re-tallying at the summary counts a smaller room than voted and can hand
+    back a different winner than the class saw. Same lesson as
+    `GameSession.end_reason`.
     """
 
     phase = Phase.VOTING

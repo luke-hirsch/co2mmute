@@ -736,7 +736,7 @@ class PausedRoundTests(PauseMixin, TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Cost units — see `.claude/plans/to-do/[backend]-cost-units.md`.
+# Cost units.
 #
 # AgentSimulationResult.mean_cost_eur is per person; SimulationResult
 # .total_cost_eur is the whole cohort. The round table sums the first into the
@@ -918,13 +918,11 @@ class CostUnitWithOnePersonPerAgentTests(SimulatedRoundMixin, TestCase):
 
 
 # ---------------------------------------------------------------------------
-# The end of a game — see `.claude/plans/to-do/[backend]-game-ending.md`.
+# The end of a game.
 #
-# GameSession.end_reason does not exist yet, so everything below that touches it
-# is red until the field and its migration are typed. The reason is stored once,
-# when the game ends, because it cannot be worked out afterwards: today
-# signals.py and views_rest.py both recompute it as
-# "co2_limit if over budget else max_rounds", which makes every ending that was
+# The reason is stored once, when the game ends, because it cannot be worked
+# out afterwards: signals.py and views_rest.py used to recompute it as
+# "co2_limit if over budget else max_rounds", which made every ending that was
 # neither claim that all rounds were played.
 # ---------------------------------------------------------------------------
 
@@ -1069,7 +1067,7 @@ class EndingAnUnstartedGameTests(TempMediaRootMixin, TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Bus gates — see `.claude/plans/to-do/[backend]-sim-link-model.md`.
+# Bus gates.
 #
 # `lanes` counts the whole street, the bus lane included, so ticking "Busspur"
 # on a one-lane street leaves no car lane at all: the street becomes a bus
@@ -1451,9 +1449,8 @@ class SummaryPayloadTests(SimulatedRoundMixin, TestCase):
 class SummaryVoteListTests(SimulatedRoundMixin, TestCase):
     """The summary can finally say what the class did between the rounds.
 
-    `.claude/plans/to-do/[backend]-abstimmungen-im-summary.md`. The end screen
-    already promises "Daran siehst du, was die Änderungen an der Karte gebracht
-    haben" over a list that has never named a single change.
+    The end screen already promises "Daran siehst du, was die Änderungen an der
+    Karte gebracht haben" over a list that has never named a single change.
     """
 
     def _summary(self):

@@ -126,8 +126,7 @@ export type BetweenRoundPhase =
 /**
  * Why a game ended. `game/signals.py`.
  *
- * `host` and `idle` are here before the backend sends them
- * (`.claude/plans/to-do/[backend]-game-ending.md`). The reason used to be
+ * Recorded when the game ends (`GameSession.end_reason`). It used to be
  * recomputed at read time, so a game the host stopped in round 1 reported
  * `max_rounds` — "Alle Runden sind gefahren" over "0 Runden gefahren".
  */

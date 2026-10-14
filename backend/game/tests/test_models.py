@@ -324,7 +324,7 @@ class GameMapRequiredTests(TempMediaRootMixin, TestCase):
     started_at, creates round 1 — and GameSession.save() forces is_active back
     to False, so no game.started ever goes out and the screen never moves. The
     model stays nullable for the rows that already exist; the way in is where
-    it is refused. See `.claude/plans/to-do/[backend]-game-ending.md`.
+    it is refused.
 
     Since S13 that way in is `POST api/game/`, and the rule moved with it:
     `GameSessionCreateSerializer` makes `game_map` required while its parent

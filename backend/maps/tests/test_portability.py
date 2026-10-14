@@ -387,7 +387,7 @@ class MapRoundTripTests(TempMediaRootMixin, TestCase):
 
 
 # ---------------------------------------------------------------------------
-# The bike lane — see `.claude/plans/to-do/[backend]-bike-lane-and-traffic.md`.
+# The bike lane.
 #
 # `Edge.biking` was carrying two meanings at once: *a bike may use this link*
 # and *a bike is unimpeded on this link*. The first is access, the second is

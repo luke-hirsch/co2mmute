@@ -3,8 +3,7 @@
 `ptRouting.ts` boards and alights only at the node ids a line lists in `stops`,
 so a line that under-reports its stops is a line nobody can take. The shipped
 example maps store every edge of every line reversed relative to the direction
-of travel, which is the case the serializer used to give up on — see
-`.claude/plans/to-do/[backend]-pt-stops.md`.
+of travel, which is the case the serializer used to give up on.
 """
 
 from django.test import TestCase

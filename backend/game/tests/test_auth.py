@@ -922,7 +922,7 @@ class GameDeletionPermissionTests(TempMediaRootMixin, TestCase):
     inherited, so it was guarded only by `HasGameAccess, IsAuthenticated`.
     Those two are both true for **a logged-in researcher who joined someone
     else's game as a player**: the game cookie satisfies the first and their
-    own host session the second. CLAUDE.md names that exact combination as a
+    own host session the second. AGENTS.md names that exact combination as a
     normal thing to happen in this project.
 
     Deleting a game is CASCADE all the way down — every round, move, route and

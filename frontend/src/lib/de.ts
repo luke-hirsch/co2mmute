@@ -110,12 +110,10 @@ const redeemRefusal: Record<RedeemRefusal, string> = {
 /**
  * Why the game is over. `game/signals.py` sends one of these.
  *
- * `host` and `idle` are here ahead of the backend that sends them
- * (`.claude/plans/to-do/[backend]-game-ending.md`): the reason used to be
- * recomputed at read time from "over budget or not", so every ending that was
- * neither reported `max_rounds` — a game stopped by hand in round 1 said "Alle
- * Runden sind gefahren" above "0 Runden gefahren". Adding the words first lets
- * that guide land on its own and be visible the day it does.
+ * The reason is recorded when the game ends (`GameSession.end_reason`). It used
+ * to be recomputed at read time from "over budget or not", so every ending that
+ * was neither reported `max_rounds` — a game stopped by hand in round 1 said
+ * "Alle Runden sind gefahren" above "0 Runden gefahren".
  */
 export type GameEndReason = "co2_limit" | "max_rounds" | "host" | "idle";
 

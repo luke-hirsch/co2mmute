@@ -586,7 +586,7 @@ class NonArrivalAccountingTests(TestCase):
         self.assertEqual(results["not_arrived"], 0)
         self.assertEqual(results["trip_times"], [])
 # =============================================================================
-# The link queue model — .claude/plans/to-do/[backend]-sim-link-model.md
+# The link queue model
 #
 # Names that do not exist yet are imported INSIDE each test on purpose: a
 # module-level import of a missing name would error the whole file and hide
@@ -2261,7 +2261,6 @@ class TrafficHeatmapPayloadTests(TestCase):
 
 # ---------------------------------------------------------------------------
 # PT runs to its timetable — society vs personal numbers
-# `.claude/plans/to-do/[backend]-pt-timetable-and-society.md`
 #
 # Every new symbol below is imported INSIDE the test that needs it. A missing
 # `PTLineState` at module level would raise on import and silently delete the
@@ -2876,7 +2875,6 @@ class PTFareAndOutOfPocketTests(PTScenarioMixin, TestCase):
 
 # ---------------------------------------------------------------------------
 # Passengers board buses — the PT half of the tick loop
-# `.claude/plans/to-do/[backend]-pt-boarding.md`
 #
 # Every new symbol below is imported INSIDE the test that needs it, for the
 # reason given above PTScenarioMixin: a missing name at module level would
@@ -3511,7 +3509,7 @@ class PTRealisedShareTests(PTBoardingScenarioMixin, TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Bikes — see `.claude/plans/to-do/[backend]-bike-lane-and-traffic.md`.
+# Bikes.
 #
 # Two separate claims, and they are tested separately:
 #
