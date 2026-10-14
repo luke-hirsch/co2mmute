@@ -1278,8 +1278,13 @@ class LinkQueueEngine:
         no time either way — arrived_min comes off ready_at_min, which
         _enter_edge set from the moment the doors opened, so the tick that
         picks the walker up cannot move the trip.
+
+        A vehicle leaves the set the moment it is done here, not at the end of
+        the pass: a walker who reaches the platform can be picked up by a train
+        later in the same snapshot and set down again, which puts it back in
+        for its walk — and a removal saved for the end took it out again, so
+        nobody ever moved it.
         """
-        done = []
         for vehicle_id in list(self.free_running):
             vehicle = self.vehicles[vehicle_id]
             while not vehicle.arrived and vehicle.ready_at_min <= tick_end:
@@ -1292,11 +1297,11 @@ class LinkQueueEngine:
                 if vehicle.segment_index >= len(segments):
                     vehicle.arrived = True
                     vehicle.arrived_min = left_at
+                    self.free_running.discard(vehicle_id)
                     pt = self.pt_by_vehicle.get(vehicle_id)
                     if pt is not None:
                         pt.stop_index = vehicle.segment_index
                         self._finish_run(pt, left_at)
-                    done.append(vehicle_id)
                     break
                 vehicle.mode = segments[vehicle.segment_index].mode
                 pt = self.pt_by_vehicle.get(vehicle_id)
@@ -1310,10 +1315,9 @@ class LinkQueueEngine:
                     vehicle.ready_at_min = tick_end
                     break
                 if vehicle.queued or vehicle.at_stop:
-                    done.append(vehicle_id)  # somebody else's problem now
+                    # somebody else's problem now
+                    self.free_running.discard(vehicle_id)
                     break
-        for vehicle_id in done:
-            self.free_running.discard(vehicle_id)
 
     def _serve_stop(self, pt: PTVehicle, at_min: float):
         """Alight, then board, at the stop this vehicle is standing at.

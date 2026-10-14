@@ -194,6 +194,56 @@ class EngineWithoutDatabaseTests(SimpleTestCase):
         self.assertIsInstance(engine, Engine)
 
 
+class AWalkAfterATrainTests(SimpleTestCase):
+    """Off a train and on foot again, in the same minute as getting on.
+
+    A train runs free and covers several stops in one tick, so a rider can
+    walk up to the platform, board, ride one stop and get off within a single
+    pass over the free-running set. The walker who reached the platform was
+    noted to leave that set at the end of the pass; getting off put it back in
+    for its walk, and the note then took it out again. Nobody moved it after
+    that: it walked for ever, the pass ran to its guard, and every line ran on
+    for it. On the built box that was 686 people in one round at 75 % car.
+    """
+
+    def test_everybody_who_rides_one_stop_and_walks_on_gets_there(self):
+        # The train comes from a station 1 km back, so it reaches the platform
+        # in the middle of a tick rather than starting there.
+        before = Link(44, 0, 2, 1000.0)
+        to_platform = Link(40, 1, 2, 400.0, is_street=True, speed_limit_kmh=50)
+        one_stop = Link(41, 2, 3, 200.0)
+        beyond = Link(42, 3, 5, 2000.0)
+        from_platform = Link(43, 3, 4, 400.0, is_street=True, speed_limit_kmh=50)
+        links = (before, to_platform, one_stop, beyond, from_platform)
+        train = Line(
+            mode="train",
+            line_id=9,
+            name="S9",
+            edge_ids=(44, 41, 42),
+            interval_min=1,
+            capacity=10_000,
+        )
+        rider = Route(
+            pk=1,
+            agent_id=1,
+            transport_mode="public",
+            segments=(
+                Segment(edge_id=40, order=1, mode="walk"),
+                Segment(edge_id=41, order=2, mode="train", pt_line_id=9),
+                Segment(edge_id=43, order=3, mode="walk"),
+            ),
+            label="Gruppe 1",
+            total_distance_m=1000.0,
+            estimated_time_min=10.0,
+        )
+
+        engine = _run(_scenario([rider], links, lines=[train]))
+
+        self.assertEqual(engine.non_arrivals, {"unfinished": 0, "stranded": 0})
+        self.assertEqual(engine.agent_results[1]["not_arrived"], 0)
+        self.assertEqual(len(engine.agent_results[1]["trip_times"]), PEOPLE)
+
+
 def _with_rails(links, track, lanes=1):
     """The corridor with rails along it, `track` saying where they lie."""
     return tuple(replace(link, tram_track=track, lanes=lanes) for link in links)
