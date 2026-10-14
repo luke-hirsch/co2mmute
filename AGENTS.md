@@ -141,6 +141,12 @@ an adapter method must never take an engine method's name.
   along. A tram is a train line run by trams (`TrainLine.kind`): it rides rails and the same router
   finds it, and its kind sets its seats, speed, figures per km and length in a queue. Only a tram
   runs on rails in the car lane — `check_map` says so.
+- **A ride is on one pass of its line.** A line can pass one stop twice — in to a terminus and out
+  again, round a loop — so the router (`ptRouting.ts`, `at` in its state) and the engine
+  (`PTLeg.board_stop`) know where on the line a rider is, not only at which node. A rider boards
+  only the vehicle that still reaches its stop, and off and on the same line at one stop is two
+  rides. A line that ends where it starts is a ring and goes on round: whoever rides past its start
+  stays aboard for the next departure, and the time until then is a wait. Change one, change both.
 - **Two golden masters** (`game/tests/test_sim_golden.py`). Regenerate with `GOLDEN_REGENERATE=1`
   only for a deliberate change, and say so in the commit.
 

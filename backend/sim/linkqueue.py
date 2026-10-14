@@ -102,12 +102,18 @@ REPLAY_FORMAT_VERSION = 2
 
 @dataclass(frozen=True)
 class PTLeg:
-    """One unbroken run of a route's segments on one PT line.
+    """One ride: a run of a route's segments on one vehicle of one PT line.
 
-    A route is a list of segments; a leg is the stretch of it spent on a single
-    line. `first_index` and `last_index` are indices into that segment list, so
+    A route is a list of segments; a leg is the stretch of it spent aboard.
+    `first_index` and `last_index` are indices into that segment list, so
     a rider set down at the end of a leg resumes at `last_index + 1` — which is
     the walk to work, or the stop where it waits for the next line.
+
+    `board_stop` and `alight_stop` say where on the line, as the stop index a
+    vehicle there has (PTVehicle.stop_index), because a line can pass one
+    node twice and a vehicle is at one pass at a time. `alight_stop` runs past
+    the line's end for a ride on round a ring. Both are None for a stretch
+    the line does not run at all, which is ridden by node.
     """
 
     first_index: int
@@ -115,6 +121,8 @@ class PTLeg:
     line_key: tuple[str, int]
     board_node: int
     alight_node: int
+    board_stop: int | None = None
+    alight_stop: int | None = None
 
 
 class LinkQueueEngine:
@@ -228,6 +236,10 @@ class LinkQueueEngine:
         # order they got there. A rider waiting for M1 does not board U7, so the
         # line is part of the key.
         self.stop_queues: dict[tuple[tuple[str, int], int], list[int]] = {}
+
+        # People still aboard at the end of a ring's lap, per line, for its
+        # next departure: the same train going on round. See _finish_run.
+        self.ring_riders: dict[tuple[str, int], list[int]] = {}
 
         # Which leg of which line each route rides: route_pk -> [PTLeg]
         self.route_pt_legs: dict[int, list[PTLeg]] = {}
@@ -372,6 +384,9 @@ class LinkQueueEngine:
         order there is no way to say where it would board, and inventing one
         would put people on a bus at a stop the route never reaches. It rides
         nothing, arrives on foot, and the map gets a warning.
+
+        One line's stretch of a route can be two rides: off at a stop the line
+        passes twice and on again for the other pass (`_rides_on`).
         """
         for route_pk, segments in self.route_segments.items():
             if route_pk < 0:
@@ -409,15 +424,22 @@ class LinkQueueEngine:
                     and segments[last + 1].pt_line_id == seg.pt_line_id
                 ):
                     last += 1
-                legs.append(
-                    PTLeg(
-                        first_index=index,
-                        last_index=last,
-                        line_key=line_key,
-                        board_node=chain[index],
-                        alight_node=chain[last + 1],
+                for first, end, board_stop in self._rides_on(line, chain, index, last):
+                    legs.append(
+                        PTLeg(
+                            first_index=first,
+                            last_index=end,
+                            line_key=line_key,
+                            board_node=chain[first],
+                            alight_node=chain[end + 1],
+                            board_stop=board_stop,
+                            alight_stop=(
+                                None
+                                if board_stop is None
+                                else board_stop + end - first + 1
+                            ),
+                        )
                     )
-                )
                 index = last + 1
 
             if legs:
@@ -426,6 +448,45 @@ class LinkQueueEngine:
         for route_pk, legs in self.route_pt_legs.items():
             for leg in legs:
                 self.routes_by_line.setdefault(leg.line_key, set()).add(route_pk)
+
+    @staticmethod
+    def _rides_on(line: PTLineState, chain: list[int], first: int, last: int):
+        """Split one line's stretch of a route into the rides its vehicles make.
+
+        A vehicle runs the line's stops in order, so a ride is a run of them:
+        boarded at one, on stop by stop, on round a ring. Where the route's
+        next node is not the vehicle's next stop, the rider got off and onto
+        the next vehicle of the same line, which happens at a stop the line
+        passes twice: Bremen's 94 goes in to Arbeit Lesum and out again past
+        Stader Landstraße, and from out there to a stop on the way in is a
+        change at Stader Landstraße. Of the places a ride could board, the one
+        it rides furthest from is taken.
+
+        Yields (first_index, last_index, board_stop) per ride. board_stop is
+        None for a stretch this line runs no way at all, a route made on
+        another map; it is ridden by node, as every ride was before.
+        """
+        boardable = len(line.stops) - 1
+        start = first
+        while start <= last:
+            best, ridden = None, 0
+            for stop in range(boardable):
+                if line.stops[stop] != chain[start]:
+                    continue
+                length = 0
+                while (
+                    start + length <= last
+                    and length < boardable
+                    and line.stop_at(stop + length + 1) == chain[start + length + 1]
+                ):
+                    length += 1
+                if length > ridden:
+                    best, ridden = stop, length
+            if best is None:
+                yield start, last, None
+                return
+            yield start, start + ridden - 1, best
+            start += ridden
 
     def _leg_at(self, route_pk: int, segment_index: int) -> "PTLeg | None":
         """The leg starting exactly at this segment, if one does."""
@@ -1064,6 +1125,7 @@ class LinkQueueEngine:
                     vehicle_id, vehicle, max(depart_min, now), "e", segments[0].edge_id
                 )
                 # It is standing at its first stop the moment it sets off.
+                self._seat_riders_going_round(pt, max(depart_min, now))
                 self._serve_stop(pt, max(depart_min, now))
                 continue
 
@@ -1343,17 +1405,36 @@ class LinkQueueEngine:
             if rider is None:
                 continue
             leg = self._current_leg(rider)
-            if leg is not None and leg.alight_node == node:
+            if leg is None:
+                continue
+            if (
+                leg.alight_node == node
+                if rider.alight_at is None
+                else rider.alight_at == pt.stop_index
+            ):
                 self._alight(pt, rider_id, rider, leg, at_min)
 
         queue = self.stop_queues.get((pt.line_key, node))
         if not queue:
             return
+        # At a stop the line passes twice, whoever waits for the other pass
+        # lets this vehicle go: on its way out of Arbeit Lesum, the 94 at
+        # Stader Landstraße never gets back there.
+        other_pass = []
         while queue and pt.free_seats > 0:
             rider_id = queue.pop(0)
             rider = self.vehicles.get(rider_id)
             if rider is None or not rider.at_stop:
                 continue
+            if self._waits_for_another_pass(rider_id, pt):
+                other_pass.append(rider_id)
+                continue
+            leg = self._leg_at(rider.route_pk, rider.segment_index)
+            rider.alight_at = (
+                leg.alight_stop
+                if leg is not None and leg.line_key == pt.line_key
+                else None
+            )
             rider.at_stop = False
             rider.aboard_of = pt.vehicle_id
             self._trace(rider_id, rider, at_min, "r", pt.vehicle_id)
@@ -1366,8 +1447,25 @@ class LinkQueueEngine:
             pt.riders.append(rider_id)
             pt.boarded_total += 1
             line.boarded += 1
-        # Whoever is still standing here was refused for want of a seat.
-        line.denied += len(queue)
+        # Whoever is still standing here for this pass was refused for want
+        # of a seat.
+        line.denied += sum(
+            not self._waits_for_another_pass(rider_id, pt) for rider_id in queue
+        )
+        queue[:0] = other_pass
+
+    def _waits_for_another_pass(self, rider_id: int, pt: PTVehicle) -> bool:
+        """Whether a rider at this vehicle's stop is there for the line's other pass."""
+        rider = self.vehicles.get(rider_id)
+        if rider is None:
+            return False
+        leg = self._leg_at(rider.route_pk, rider.segment_index)
+        return (
+            leg is not None
+            and leg.line_key == pt.line_key
+            and leg.board_stop is not None
+            and leg.board_stop != pt.stop_index
+        )
 
     def _current_leg(self, rider: Vehicle) -> "PTLeg | None":
         """The leg a rider is currently riding, by its segment index."""
@@ -1393,6 +1491,7 @@ class LinkQueueEngine:
         """
         pt.riders.remove(rider_id)
         rider.aboard_of = None
+        rider.alight_at = None
 
         ridden_km = 0.0
         segments = self.route_segments.get(rider.route_pk, [])
@@ -1424,7 +1523,14 @@ class LinkQueueEngine:
             self._trace(rider_id, rider, at_min, "s", leg.alight_node)
 
     def _finish_run(self, pt: PTVehicle, at_min: float):
-        """The vehicle has reached the end of the line. Everybody off."""
+        """The vehicle has reached the end of the line. Everybody off.
+
+        Except on a ring (Lukas, 2026-10-14: "ring can be ring"): whoever
+        rides on past where it starts stays aboard and goes on with the line's
+        next departure, which is this train going on round. It waits for that
+        departure, as a train does at a timing point, so the timetable's
+        vehicle-km stay what the timetable says.
+        """
         line = self.pt_lines.get(pt.line_key)
         pt.finished = True
         self.line_has_finished_run.add(pt.line_key)
@@ -1440,6 +1546,18 @@ class LinkQueueEngine:
                 pt.riders.remove(rider_id)
                 rider.aboard_of = None
                 continue
+            if (
+                line.is_ring
+                and rider.alight_at is not None
+                and rider.alight_at > pt.stop_index
+            ):
+                pt.riders.remove(rider_id)
+                rider.aboard_of = None
+                rider.alight_at -= pt.stop_index
+                rider.reached_stop_min = at_min
+                self.ring_riders.setdefault(pt.line_key, []).append(rider_id)
+                self._trace(rider_id, rider, at_min, "s", terminus)
+                continue
             if leg.alight_node != terminus:
                 logger.warning(
                     "[SIM] %s reached its terminus with a rider still aboard "
@@ -1448,6 +1566,31 @@ class LinkQueueEngine:
                     leg.alight_node,
                 )
             self._alight(pt, rider_id, rider, leg, at_min)
+
+    def _seat_riders_going_round(self, pt: PTVehicle, at_min: float):
+        """Seat whoever stayed aboard at the end of the ring's last run.
+
+        This run is that train going on round, so they are aboard before
+        anybody at the stop gets on, as many as it has seats; the time they sat
+        there is a wait. Somebody who reached the end after this one left
+        waits for the next.
+        """
+        going_round = self.ring_riders.get(pt.line_key)
+        if not going_round:
+            return
+        staying = []
+        for rider_id in going_round:
+            rider = self.vehicles.get(rider_id)
+            if rider is None:
+                continue
+            if pt.free_seats == 0 or rider.reached_stop_min > at_min:
+                staying.append(rider_id)
+                continue
+            rider.aboard_of = pt.vehicle_id
+            rider.wait_min += max(0.0, at_min - rider.reached_stop_min)
+            pt.riders.append(rider_id)
+            self._trace(rider_id, rider, at_min, "r", pt.vehicle_id)
+        going_round[:] = staying
 
     def _visiting_order(self) -> list["EdgeState"]:
         """The order this tick's discharge passes visit the links in.

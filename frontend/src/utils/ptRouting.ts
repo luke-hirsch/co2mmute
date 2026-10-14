@@ -44,11 +44,16 @@ const FEWEST_TRANSFERS_PENALTY_MIN = 30;
  * On a line, `rode` says whether the vehicle has left the stop it was boarded
  * at. Only then can one get off: on and straight off again is a walk with a
  * wait in it, and a walk is not what a player who picked Bus & Bahn gets.
+ *
+ * `at` is where on the line, an index into its `stops`: a line can pass one
+ * stop twice (Bremen's 58 out to Sodenmatt, round the loop and back through
+ * it), and a vehicle at the second pass rides on to the end, not round the
+ * loop again.
  */
 type ProductMode =
   | { tag: "walk"; hasBoarded: false } // pre-first-boarding walk
   | { tag: "walk"; hasBoarded: true; last: boolean } // after a ride
-  | { tag: "pt"; lineId: number; lineType: "bus" | "train"; rode: boolean };
+  | { tag: "pt"; lineId: number; lineType: "bus" | "train"; at: number; rode: boolean };
 
 interface ProductNode {
   nodeId: number;
@@ -76,10 +81,19 @@ function lineOf(line: PTLine): string {
   return `${line.type}:${line.name.replace(/\s+reverse\s*$/i, "")}`;
 }
 
+/**
+ * Whether a line ends where it starts. Such a line goes on round (the S41):
+ * its vehicle waits at the end for the timetable's next departure and carries
+ * on as that one, as the simulation plays it.
+ */
+function isRing(line: PTLine): boolean {
+  return line.stops.length > 2 && line.stops[0] === line.stops[line.stops.length - 1];
+}
+
 function stateKey(n: ProductNode): StateKey {
   const m = n.mode;
   if (m.tag === "walk") return `w${m.hasBoarded ? (m.last ? "2" : "1") : "0"}:${n.nodeId}`;
-  return `pt:${n.nodeId}:${m.lineType}:${m.lineId}:${m.rode ? "1" : "0"}`;
+  return `pt:${n.nodeId}:${m.lineType}:${m.lineId}:${m.at}:${m.rode ? "1" : "0"}`;
 }
 
 interface CameFromEntry {
@@ -306,7 +320,7 @@ function getNeighbours(
       // First boarding: only at stops within 2km of start
       const canBoard = mode.hasBoarded || boardableStops.has(nodeId);
       if (canBoard) {
-        for (const { line } of stopIndex.get(nodeId) ?? []) {
+        for (const { line, stopIndex: at } of stopIndex.get(nodeId) ?? []) {
           // Apply "no_bus" optimization
           if (ptOptimization === "no_bus" && line.type === "bus") continue;
 
@@ -319,6 +333,7 @@ function getNeighbours(
             tag: "pt",
             lineId: line.id,
             lineType: line.type,
+            at,
             rode: false,
           };
           const nextState: ProductNode = { nodeId, mode: nextMode };
@@ -336,9 +351,9 @@ function getNeighbours(
     // mode.tag === "pt"
     const lineEntries = stopIndex.get(nodeId) ?? [];
 
-    // Find this node's position(s) on the line
+    // The line, at the one position this state is on it
     for (const { line, stopIndex: idx } of lineEntries) {
-      if (!rides(line, mode)) continue;
+      if (!rides(line, mode) || idx !== mode.at) continue;
 
       // --- Ride forward one stop ---
       if (idx + 1 < line.stops.length) {
@@ -354,13 +369,29 @@ function getNeighbours(
           distM = edge?.distance_m ?? calculateDistance(startNode, endNode, scale);
         }
         const costMin = (distM / 1000 / line.speed_kmh) * 60;
-        const nextState: ProductNode = { nodeId: nextNodeId, mode: { ...mode, rode: true } };
+        const nextState: ProductNode = {
+          nodeId: nextNodeId,
+          mode: { ...mode, at: idx + 1, rode: true },
+        };
         transitions.push({
           nextState,
           nextKey: stateKey(nextState),
           costMin,
           edgeId,
           distanceM: distM,
+        });
+      }
+
+      // --- At the end of a ring, on round: the same node is its start, and
+      // the wait there for the next departure is estimated like a boarding's ---
+      if (isRing(line) && idx === line.stops.length - 1) {
+        const nextState: ProductNode = { nodeId, mode: { ...mode, at: 0 } };
+        transitions.push({
+          nextState,
+          nextKey: stateKey(nextState),
+          costMin: line.interval / 2,
+          edgeId: null,
+          distanceM: 0,
         });
       }
 
@@ -563,7 +594,10 @@ function reconstructPath(
         phase = "ON_PT";
       }
     } else if (phase === "ON_PT") {
-      if (fromState.mode.tag === "pt" && toState.mode.tag === "pt") {
+      if (fromState.mode.tag === "pt" && toState.mode.tag === "pt" && edgeId === null) {
+        // At the end of a ring, waiting aboard for the next departure
+        totalWaitTimeMin += costMin;
+      } else if (fromState.mode.tag === "pt" && toState.mode.tag === "pt") {
         // Riding on PT
         const line = findLineForState(fromState);
         const edge = edgeId !== null ? edgeMap.get(edgeId) : null;
