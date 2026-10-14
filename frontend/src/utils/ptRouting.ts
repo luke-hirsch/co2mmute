@@ -34,10 +34,21 @@ const FEWEST_TRANSFERS_PENALTY_MIN = 30;
 // Internal product-graph types
 // ---------------------------------------------------------------------------
 
+/**
+ * A walk after a ride is one of two: on the way to the next line (`last`
+ * false), or the last walk, to the destination (`last` true). Only a stop
+ * within the walk limit of the destination starts the last walk, and the search
+ * ends only on it — so a ride that sets you down too far away is never the
+ * answer, and the slower ride that does not is still found.
+ *
+ * On a line, `rode` says whether the vehicle has left the stop it was boarded
+ * at. Only then can one get off: on and straight off again is a walk with a
+ * wait in it, and a walk is not what a player who picked Bus & Bahn gets.
+ */
 type ProductMode =
   | { tag: "walk"; hasBoarded: false } // pre-first-boarding walk
-  | { tag: "walk"; hasBoarded: true } // post-alighting / transfer walk
-  | { tag: "pt"; lineId: number; lineType: "bus" | "train" };
+  | { tag: "walk"; hasBoarded: true; last: boolean } // after a ride
+  | { tag: "pt"; lineId: number; lineType: "bus" | "train"; rode: boolean };
 
 interface ProductNode {
   nodeId: number;
@@ -55,10 +66,20 @@ function rides(line: PTLine, mode: { lineId: number; lineType: "bus" | "train" }
   return line.id === mode.lineId && line.type === mode.lineType;
 }
 
+/**
+ * Which line a row is, for telling lines apart: its type and its name, with a
+ * trailing "reverse" dropped. A line drawn both ways is two rows, `101` and
+ * `101 reverse` (the shipped map also has `U2 Reverse`), and both are the 101.
+ * Bus 2 and train 2 stay two lines.
+ */
+function lineOf(line: PTLine): string {
+  return `${line.type}:${line.name.replace(/\s+reverse\s*$/i, "")}`;
+}
+
 function stateKey(n: ProductNode): StateKey {
   const m = n.mode;
-  if (m.tag === "walk") return `w${m.hasBoarded ? "1" : "0"}:${n.nodeId}`;
-  return `pt:${n.nodeId}:${m.lineType}:${m.lineId}`;
+  if (m.tag === "walk") return `w${m.hasBoarded ? (m.last ? "2" : "1") : "0"}:${n.nodeId}`;
+  return `pt:${n.nodeId}:${m.lineType}:${m.lineId}:${m.rode ? "1" : "0"}`;
 }
 
 interface CameFromEntry {
@@ -251,6 +272,7 @@ function getNeighbours(
   stopIndex: Map<number, { line: PTLine; stopIndex: number }[]>,
   designatedStops: Set<number>,
   boardableStops: Set<number>,
+  alightableStops: Set<number>,
   nodeMap: Map<number, Node>,
   edgeMap: Map<number, Edge>,
   scale: number,
@@ -268,7 +290,7 @@ function getNeighbours(
       if (!startNode || !endNode) continue;
       const distM = edge.distance_m ?? calculateDistance(startNode, endNode, scale);
       const costMin = (distM / 1000 / WALK_SPEED_KMH) * 60;
-      const nextMode: ProductMode = { tag: "walk", hasBoarded: mode.hasBoarded };
+      const nextMode: ProductMode = { ...mode };
       const nextState: ProductNode = { nodeId: neighbor, mode: nextMode };
       transitions.push({
         nextState,
@@ -279,8 +301,8 @@ function getNeighbours(
       });
     }
 
-    // --- Board a PT line ---
-    if (designatedStops.has(nodeId)) {
+    // --- Board a PT line --- (not on the last walk: that one only arrives)
+    if (designatedStops.has(nodeId) && !(mode.hasBoarded && mode.last)) {
       // First boarding: only at stops within 2km of start
       const canBoard = mode.hasBoarded || boardableStops.has(nodeId);
       if (canBoard) {
@@ -297,6 +319,7 @@ function getNeighbours(
             tag: "pt",
             lineId: line.id,
             lineType: line.type,
+            rode: false,
           };
           const nextState: ProductNode = { nodeId, mode: nextMode };
           transitions.push({
@@ -331,7 +354,7 @@ function getNeighbours(
           distM = edge?.distance_m ?? calculateDistance(startNode, endNode, scale);
         }
         const costMin = (distM / 1000 / line.speed_kmh) * 60;
-        const nextState: ProductNode = { nodeId: nextNodeId, mode };
+        const nextState: ProductNode = { nodeId: nextNodeId, mode: { ...mode, rode: true } };
         transitions.push({
           nextState,
           nextKey: stateKey(nextState),
@@ -341,17 +364,22 @@ function getNeighbours(
         });
       }
 
-      // --- Alight (at any designated stop; 2km final-walk limit enforced post-hoc) ---
-      if (designatedStops.has(nodeId)) {
-        const nextMode: ProductMode = { tag: "walk", hasBoarded: true };
-        const nextState: ProductNode = { nodeId, mode: nextMode };
-        transitions.push({
-          nextState,
-          nextKey: stateKey(nextState),
-          costMin: 0,
-          edgeId: null,
-          distanceM: 0,
-        });
+      // --- Alight, once the vehicle has left the stop it was boarded at: at
+      // any designated stop to walk on to another line, and at a stop within
+      // the walk limit of the destination to walk there ---
+      if (designatedStops.has(nodeId) && mode.rode) {
+        const ways = alightableStops.has(nodeId) ? [false, true] : [false];
+        for (const last of ways) {
+          const nextMode: ProductMode = { tag: "walk", hasBoarded: true, last };
+          const nextState: ProductNode = { nodeId, mode: nextMode };
+          transitions.push({
+            nextState,
+            nextKey: stateKey(nextState),
+            costMin: 0,
+            edgeId: null,
+            distanceM: 0,
+          });
+        }
       }
     }
   }
@@ -370,6 +398,7 @@ function productGraphDijkstra(
   stopIndex: Map<number, { line: PTLine; stopIndex: number }[]>,
   designatedStops: Set<number>,
   boardableStops: Set<number>,
+  alightableStops: Set<number>,
   nodeMap: Map<number, Node>,
   edgeMap: Map<number, Edge>,
   scale: number,
@@ -395,11 +424,14 @@ function productGraphDijkstra(
     if (visited.has(key)) continue;
     visited.add(key);
 
-    // Check termination: reached end node in post-boarding walk mode
+    // Check termination: reached end node on the last walk. Its stop is within
+    // the walk limit, and the last walk is the shortest one from there, so no
+    // answer ends in a longer walk than the limit.
     if (
       state.nodeId === endNodeId &&
       state.mode.tag === "walk" &&
-      state.mode.hasBoarded
+      state.mode.hasBoarded &&
+      state.mode.last
     ) {
       return { cameFrom, finalState: state, totalCostMin: cost };
     }
@@ -410,6 +442,7 @@ function productGraphDijkstra(
       stopIndex,
       designatedStops,
       boardableStops,
+      alightableStops,
       nodeMap,
       edgeMap,
       scale,
@@ -626,8 +659,10 @@ export async function findPTRoute(
   // must be alightable for transfers to work.
   // We do NOT add single-line intermediate nodes, to prevent the algorithm
   // from "teleporting" by alighting mid-route and re-boarding further along.
+  // A line's way back is the same line here (`lineOf`): counted as a second
+  // one, every junction between two stops was a place to get on.
   for (const [nodeId, entries] of stopIndex.entries()) {
-    const distinctLines = new Set(entries.map((e) => `${e.line.type}:${e.line.id}`));
+    const distinctLines = new Set(entries.map((e) => lineOf(e.line)));
     if (distinctLines.size >= 2) {
       designatedStops.add(nodeId);
     }
@@ -686,6 +721,7 @@ export async function findPTRoute(
     stopIndex,
     designatedStops,
     boardableStops,
+    alightableStops,
     nodeMap,
     edgeMap,
     scale,
@@ -697,17 +733,10 @@ export async function findPTRoute(
     return failResult("No public transport connection between these locations");
   }
 
+  // The 2 km walk at the end is kept by the search itself (`last` in
+  // `ProductMode`), so the walk from the last stop is within it here.
   const { walkToStation, ptSegments, walkFromStation, totalWaitTimeMin } =
     reconstructPath(result, startNodeId, edgeMap, stopIndex);
-
-  // Enforce 2km final-walk limit: the last walk leg (station → destination) must
-  // have come from an alightable stop. If the alight stop is not in alightableStops,
-  // the walk from there exceeds 2km.
-  const finalWalkDistM = walkFromStation.reduce((s, seg) => s + seg.distanceM, 0);
-  if (finalWalkDistM > maxWalkDistanceM) {
-    console.log(`[ptRouting] Final walk ${finalWalkDistM.toFixed(0)}m exceeds ${maxWalkDistanceM}m limit`);
-    return failResult(`Walk from PT stop to destination is ${(finalWalkDistM / 1000).toFixed(1)}km — exceeds 2km limit`);
-  }
 
   const allSegments = [...walkToStation, ...ptSegments, ...walkFromStation];
   const totalDistanceM = allSegments.reduce((s, seg) => s + seg.distanceM, 0);
