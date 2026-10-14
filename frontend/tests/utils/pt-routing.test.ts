@@ -290,3 +290,178 @@ describe("a ride on a bent track", () => {
     expect(result.ptSegments.map((s) => s.mode)).toEqual(["bus"]);
   });
 });
+
+/** A toy map: nodes on a line, streets both ways, lines over them. */
+const stopType = [{ id: 1, name: "bus_stop", short: "H" }];
+const at = (id: number, x: number, stop = false): Node => ({
+  id,
+  name: `N${id}`,
+  x_position: x,
+  y_position: 0,
+  node_type: stop ? stopType : [],
+});
+const street = (id: number, from: number, to: number, metres: number): Edge[] =>
+  [
+    [id, from, to],
+    [id + 1, to, from],
+  ].map(([edgeId, start, end]) => ({
+    id: edgeId,
+    name: `Straße ${id}`,
+    start_node: start,
+    end_node: end,
+    walking: true,
+    biking: true,
+    circuity: 1,
+    distance_m: metres,
+    street_edge: { id: edgeId, speed_limit: 50, lanes: 2, dedicated_bus_lane: false },
+  }));
+const busLine = (id: number, name: string, stops: number[], edges: number[], kmh = 30): PTLine => ({
+  id, name, type: "bus", interval: 10, capacity: 85, speed_kmh: kmh, edges, stops,
+});
+const toyGraph = (nodes: Node[], edges: Edge[], bus: PTLine[]) =>
+  ({ nodes, edges, bus_lines: bus, train_lines: [], scale: 1000 }) as unknown as ExtendedMapGraph;
+
+/**
+ * The walk at the end of a trip is part of the search, not a check after it.
+ *
+ * Two lines leave the same stop. The fast one sets you down 2.5 km from the
+ * workplace, further than the 2 km anybody walks from a stop; the slow one
+ * 500 m from it. Checked only once the search was over, the fast line won the
+ * search and was then refused, and the slow one that does arrive was never
+ * offered: no route at all. On the built box that was 192 of 1 519 pairs.
+ */
+describe("the last walk", () => {
+  const quiet: ReturnType<typeof vi.spyOn>[] = [];
+  beforeAll(() => {
+    quiet.push(vi.spyOn(console, "log").mockImplementation(() => {}));
+  });
+  afterAll(() => quiet.forEach((spy) => spy.mockRestore()));
+
+  // home 1 (a stop) — fast to 2, 2.5 km from work 4; slow to 3, 500 m from it.
+  const nodes = [at(1, 0, true), at(2, 1, true), at(3, 3, true), at(4, 3.5)];
+  const edges = [
+    ...street(10, 1, 2, 1_000),
+    ...street(20, 1, 3, 10_000),
+    ...street(30, 2, 4, 2_500),
+    ...street(40, 3, 4, 500),
+  ];
+  const fast = busLine(1, "1", [1, 2], [10]);
+  const slow = busLine(2, "2", [1, 3], [20], 15);
+
+  it("takes the slower line when the faster one ends too far away", async () => {
+    const result = await findPTRoute(toyGraph(nodes, edges, [fast, slow]), 1, 4, {
+      scale: 1000,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.ptSegments.map((s) => s.ptLineName)).toEqual(["2"]);
+    expect(result.walkFromStation.reduce((m, s) => m + s.distanceM, 0)).toBe(500);
+  });
+
+  it("rides: getting on and off at the same stop is no trip", async () => {
+    // Home 5 is 500 m from stop 1, work 6 is 1 km from it, and line 3 takes
+    // 24 minutes to stop 3, 500 m from work. Getting on and straight off at
+    // stop 1 and walking on was quicker, and the router answered a walk under
+    // the Bus & Bahn label — the walk a player did not pick.
+    const more = [...nodes, at(5, -0.5), at(6, 1)];
+    const roads = [...edges, ...street(50, 5, 1, 500), ...street(60, 1, 6, 1_000),
+      ...street(70, 3, 6, 500)];
+    const crawl = busLine(3, "3", [1, 3], [20], 25);
+    const result = await findPTRoute(toyGraph(more, roads, [crawl]), 5, 6, {
+      scale: 1000,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.ptSegments.map((s) => s.ptLineName)).toEqual(["3"]);
+  });
+
+  it("keeps the first walk within 2 km too", async () => {
+    // Stop 2 is 1 km from home 1, stop 3 is 3 km, and only line 4 from stop 3
+    // goes anywhere. Before the first ride the walk only reaches stops within
+    // 2 km, after one it may go on; on and straight off at stop 2 made the
+    // walk to stop 3 an after-a-ride one. On the built box 48 trips walked
+    // 2.7 to 5.5 km to their first train that way.
+    const ends = [at(1, 0), at(2, 1, true), at(3, 3, true), at(4, 8, true), at(5, 8.1)];
+    const roads = [
+      ...street(10, 1, 2, 1_000),
+      ...street(20, 2, 3, 2_000),
+      ...street(30, 3, 4, 5_000),
+      ...street(40, 4, 5, 100),
+    ];
+    const nowhere = busLine(1, "1", [2, 1], [11]);
+    const away = busLine(2, "4", [3, 4], [30]);
+    const result = await findPTRoute(toyGraph(ends, roads, [nowhere, away]), 1, 5, {
+      scale: 1000,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("still finds nothing when every stop is too far away", async () => {
+    const result = await findPTRoute(toyGraph(nodes, edges, [fast]), 1, 4, {
+      scale: 1000,
+    });
+
+    expect(result.success).toBe(false);
+  });
+});
+
+/**
+ * A bus is boarded at its stops, and at the junctions where it meets another
+ * line, so that a change there works. Its own way back is not another line.
+ *
+ * A line drawn both ways is two rows, `7` and `7 reverse`, and the router
+ * counted them as two lines: every junction between two stops became a place
+ * to get on and off, and a home beside one boarded at the door. Built maps
+ * have dozens (box 6, Bremen 101, Berlin 136); the shipped map none.
+ */
+describe("where a bus can be boarded", () => {
+  const quiet: ReturnType<typeof vi.spyOn>[] = [];
+  beforeAll(() => {
+    quiet.push(vi.spyOn(console, "log").mockImplementation(() => {}));
+  });
+  afterAll(() => quiet.forEach((spy) => spy.mockRestore()));
+
+  // stop 1 — junction 2 — stop 3 on the line, 1 km and 5 km apart; home 4 is
+  // 100 m from the junction, work 5 is 100 m from stop 3, too far to walk.
+  const nodes = [at(1, 0, true), at(2, 1), at(3, 6, true), at(4, 1.1), at(5, 6.1)];
+  const edges = [
+    ...street(10, 1, 2, 1_000),
+    ...street(20, 2, 3, 5_000),
+    ...street(30, 4, 2, 100),
+    ...street(40, 3, 5, 100),
+  ];
+
+  it.each(["7 reverse", "7 Reverse"])(
+    "not at a junction only the line's way back (%s) passes",
+    async (back) => {
+      const there = busLine(1, "7", [1, 2, 3], [10, 20]);
+      const home = busLine(2, back, [3, 2, 1], [21, 11]);
+      const result = await findPTRoute(toyGraph(nodes, edges, [there, home]), 4, 5, {
+        scale: 1000,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.ptSegments[0].startNode).toBe(1);
+    },
+  );
+
+  it("at a junction two lines share, both ways, so a change works", async () => {
+    // Line 8 runs from the junction to stop 6; work is beside 6, home beside
+    // stop 1. The only way is 7 to the junction and 8 from there.
+    const more = [...nodes, at(6, 1, true), at(7, 1.1)];
+    const roads = [...edges, ...street(50, 2, 6, 1_000), ...street(60, 6, 7, 100)];
+    const lines = [
+      busLine(1, "7", [1, 2, 3], [10, 20]),
+      busLine(2, "7 reverse", [3, 2, 1], [21, 11]),
+      busLine(3, "8", [2, 6], [50]),
+      busLine(4, "8 reverse", [6, 2], [51]),
+    ];
+    const result = await findPTRoute(toyGraph(more, roads, lines), 1, 7, {
+      scale: 1000,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.ptSegments.map((s) => s.ptLineName)).toEqual(["7", "8"]);
+  });
+});
