@@ -4,9 +4,9 @@
 research group plays: eight versions, a 24-row ballot between them, and the
 three interventions the thesis is about — `Busspuren` (a car lane given to
 100 and 101), `Buslinie` (147) and `Umgehungsstraßen` (four new streets).
-Until S16 it lived only in a pg dump of the live box, because the export could
-carry one flattened version and nothing else. S14 gave it a file; this module
-is what says the file is right.
+Until 2026-09-28 it lived only in a pg dump of the live box, because the
+export could carry one flattened version and nothing else. Now it is a file,
+and this module is what says the file is right.
 
 It gets a module of its own rather than a class in `test_portability.py`
 because the subject is the data, not the code: what is pinned here is what the
@@ -75,7 +75,7 @@ BALLOT_PAIR_COUNT = 12
 
 # The links drawn for bikes and pedestrians only. The first four came with the
 # map: three homes to the S-Bahn at Bellevue, and the Justizministerium to
-# Checkpoint Charlie. The other eight are F11's (drawn 2026-10-02): paths
+# Checkpoint Charlie. The other eight were drawn on 2026-10-02: paths
 # through the Tiergarten and round Potsdamer Platz, without which no commute on
 # this map could be walked (see `ShippedMapWalkingTests`). They carry no
 # `StreetEdge` row on purpose, which is how both sides already refuse a car on
@@ -134,7 +134,7 @@ def routes_by_version(graph, line):
     `chains` is the per-version form: a list of `{"versions": [...],
     "edges": [...]}` groups, so four versions running the same three links are
     one entry. A flat `edges` means "this route, in every version the line
-    belongs to" — which is what every file in `map_examples/` said before S14
+    belongs to" — which is what every file in `map_examples/` said before 2026-09-28
     and what a legacy file still says.
     """
     chains = line.get("chains")
@@ -192,7 +192,7 @@ class ShippedMapVersionTests(SimpleTestCase):
     def test_the_map_carries_all_of_its_versions(self):
         """A one-version file is the flattening that lost this map for a year.
 
-        Before S14 the export filtered to a single `MapVersion` and wrote no
+        Before 2026-09-28 the export filtered to a single `MapVersion` and wrote no
         version information at all, so the box's map could only be copied as
         eight unrelated maps with no vote between them.
         """
@@ -488,7 +488,7 @@ class ShippedMapEdgeTests(SimpleTestCase):
 class ShippedMapWalkingTests(SimpleTestCase):
     """Whether anybody can walk to work on this map.
 
-    Before F11 three of 36 home/workplace pairs fell inside the 5 km walk cap,
+    Before 2026-10-02 three of 36 home/workplace pairs fell inside the 5 km walk cap,
     the shortest at 4.84 km: walking was a mode the game offered and almost
     never allowed. The Tiergarten paths make it 14 in every version, the
     shortest 2.75 km (Wohnort 2 to Arbeit Brandenburger Tor). Measured here the
@@ -598,14 +598,14 @@ class ShippedMapImportsTests(ShippedUploadMixin, TestCase):
         self.assertEqual(game_map.district_commuters, 6800)
 
     def test_the_shipped_map_arrives_measured(self):
-        """F8 measured its commuters on this map, so the create form must not
+        """Its commuters were measured on this map, so the create form must not
         warn about it. Every other map starts unmeasured."""
         game_map = self.upload_shipped_map()
 
         self.assertTrue(game_map.calibrated)
 
     def test_the_file_carries_no_budget(self):
-        """The budget is kg per person, the same on every map (F8 step 2b);
+        """The budget is kg per person, the same on every map;
         a per-map figure left in the file would be read by nobody."""
         self.assertNotIn("co2_budget_kg_per_round", load_shipped_map()["map"])
 
@@ -629,7 +629,8 @@ class ShippedMapImportsTests(ShippedUploadMixin, TestCase):
         )
 
     def test_a_version_is_built_on_by_the_combinations_holding_it(self):
-        """F10's rule, read off the real eight versions.
+        """Drawn in a version is in every version built on it, read off the
+        real eight versions.
 
         Combinations record no members, so `versions_built_on` derives them
         from what each version holds. On this map that must come out as the
@@ -654,12 +655,12 @@ class ShippedMapImportsTests(ShippedUploadMixin, TestCase):
                 )
 
     def test_deleting_a_version_leaves_the_other_seven_whole(self):
-        """F14's rule on the real lattice: `Busspuren`, whose every row its
+        """Deleting a version, on the real lattice: `Busspuren`, whose every row its
         three combinations hold as well, takes nothing but itself and its
         three ballot pairs.
 
         No row of this map is in one version only — the triple combination
-        holds every change — so this was green before F14 too. It is here so
+        holds every change — so this was green before deleting existed. It is here so
         a cleanup that ever reads "only in this version" wrong shows up on the
         map that matters, not on a fixture.
         """
@@ -743,7 +744,7 @@ class ShippedMapImportsTests(ShippedUploadMixin, TestCase):
         Same walk as `node_chain`, one layer up and after a real import — so
         this is the check the pure-JSON tests cannot make: that the edges
         arrived in the order the file gave them, that the M2M kept it, and that
-        it kept it *per version*, which is the whole of S15.
+        it kept it *per version*, which is the whole point of the chain rows.
         """
         game_map = self.upload_shipped_map()
 
@@ -798,7 +799,7 @@ class ShippedMapBallotTests(ShippedUploadMixin, TestCase):
     Umgehungsstraßen« builds the bypasses and nothing else, and asking whether
     to build both "zusammen" asks about a bus line that already runs.
 
-    Until F16 a step *down* from a combination was not even seen as one. A
+    Until 2026-10-03 a step *down* from a combination was not even seen as one. A
     combination records no source version, so on »Buslinie +
     Umgehungsstraßen« the option back to »Buslinie« asked whether to build bus
     147 — nine of the 24 options asked the wrong question, and would have shown

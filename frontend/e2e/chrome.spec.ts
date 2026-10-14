@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { loginAsHost } from "./host";
 
 /**
- * One header and one footer, on both halves of the site (S20).
+ * One header and one footer, on both halves of the site.
  *
  * The list is the server's (`co2mmute/navigation.py`), and its contents are
  * pinned by `co2mmute/tests/test_navigation.py`. What only a browser can show
@@ -99,7 +99,7 @@ test("a player on the join screen sees no map menu and no way to sign out", asyn
   }
 });
 
-test("the docs menu leads to the three pages, in German (F13)", async ({ page }) => {
+test("the docs menu leads to the three pages, in German", async ({ page }) => {
   await page.goto("/app/join");
 
   const header = page.getByRole("banner");

@@ -11,7 +11,7 @@ import {
 } from "@/lib/map/palette";
 
 /**
- * The map's palette, which before S18 was two palettes and a legend that
+ * The map's palette, which once was two palettes and a legend that
  * restated a third.
  *
  * `MapViewer` and `EditorCanvas` each held a `getEdgeColorAndStyle` and a

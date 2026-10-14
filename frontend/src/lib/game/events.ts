@@ -4,8 +4,8 @@
  * This file is the contract, not a convenience. The old `types/wsTypes.ts` had
  * grown apart from the backend without anything noticing: it still declared
  * `lobby.roster`, which no consumer sends any more, and it was missing every
- * event phase 1 added — `game.paused`, `game.resumed`, `player.revoked`,
- * `player.left`, `player.taken_over`, `player.handed_over`,
+ * event the backend had added since — `game.paused`, `game.resumed`,
+ * `player.revoked`, `player.left`, `player.taken_over`, `player.handed_over`,
  * `simulation.progress`. A socket that silently drops an event it was never
  * told about is exactly how "daten im frontend nicht persistent" happens.
  *
@@ -37,12 +37,12 @@ export type RosterSeat = {
   name: string;
   /** The host's own row. The player list filters it out; the desk does not. */
   is_host: boolean;
-  /** Since 1.6 this means "played at the host machine", not "is the host". */
+  /** This means "played at the host machine", not "is the host". */
   controlled_by_host: boolean;
   online: boolean;
   status: SeatStatus;
   /**
-   * Muted in the chat by the host (S9). The socket owns it like every other
+   * Muted in the chat by the host. The socket owns it like every other
    * field on this row, and it is always present — a flag that appears only
    * when true is one a reducer cannot merge.
    */
@@ -136,8 +136,8 @@ export type GameEndReason = "co2_limit" | "max_rounds" | "host" | "idle";
  * Why this device lost its seat. `game/roster.py:revoke`.
  * - `removed` — the host removed the player
  * - `left`    — the player left
- * - `taken_over` — the host plays this seat now (1.6)
- * - `handed_over` — another device redeemed a code for it (1.7)
+ * - `taken_over` — the host plays this seat now
+ * - `handed_over` — another device redeemed a code for it
  */
 export type RevokeReason = "removed" | "left" | "taken_over" | "handed_over";
 
@@ -202,7 +202,7 @@ export type GameEvent =
     >
   | Envelope<"game.paused", { paused_at: string }>
   | Envelope<"game.resumed", Record<string, never>>
-  /** The host switched the chat on or off (F3). Sent on commit by the PATCH. */
+  /** The host switched the chat on or off. Sent on commit by the PATCH. */
   | Envelope<"game.chat", { chat_enabled: boolean }>
 
   // ── rounds ───────────────────────────────────────────────────────────────

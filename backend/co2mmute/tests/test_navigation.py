@@ -1,4 +1,4 @@
-"""The header and footer, for both halves of the site. S20.
+"""The header and footer, for both halves of the site.
 
 `co2mmute/navigation.py` builds one list; `base.html` renders it and
 `api/navigation/` serves it to the SPA. Before, each half kept its own list and
@@ -83,7 +83,7 @@ class NavigationListTests(TestCase):
         )
 
     def test_the_docs_menu_has_the_three_pages(self):
-        """F13. In German only since the English pages came off the site."""
+        """In German only since the English pages came off the site."""
         docs = _build()["header"][-1]
 
         self.assertEqual(docs["label"], "Docs")

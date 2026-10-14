@@ -4,7 +4,7 @@ import { CreateGameScreen } from "@/components/host/create-game-screen";
 import { RequireLogin } from "@/components/host/require-login";
 
 /**
- * `/app/game/create` — Spiel anlegen. S13.
+ * `/app/game/create` — Spiel anlegen.
  *
  * A static segment beside `game/$gameId`, so the router prefers it over the
  * dynamic one; a game whose id is literally "create" is not reachable and never

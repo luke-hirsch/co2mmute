@@ -70,7 +70,7 @@ def roster():
 
 
 def player_cookies(game_id, player_id):
-    """Both player cookies in the 1.2 format."""
+    """Both player cookies, the player id bound to its game."""
     return {
         f"{settings.COOKIE_GAME_PREFIX}{game_id}": sign_value(
             f"{game_id}:test-token", settings.COOKIE_GAME_SALT
@@ -239,7 +239,7 @@ class RosterContentTests(GameWithSeatsMixin, TestCase):
         self.assertFalse(entry(self.build(), self.anna)["online"])
 
     def test_presence_follows_the_row_not_the_player_id(self):
-        """1.7 gives a seat a new player_id. It stays online."""
+        """A moved seat gets a new player_id. It stays online."""
         self.connect(self.anna)
         Player.objects.filter(pk=self.anna.pk).update(player_id="P-NEU1")
         self.anna.refresh_from_db()
@@ -247,7 +247,7 @@ class RosterContentTests(GameWithSeatsMixin, TestCase):
         self.assertTrue(entry(self.build(), self.anna)["online"])
 
     def test_a_seat_at_the_host_machine_is_there_when_the_host_is(self):
-        """It has no socket of its own (1.6)."""
+        """It has no socket of its own."""
         with muted():
             seat = Player.objects.create(
                 game=self.game, name="Ohne Handy", controlled_by_host=True
@@ -1145,9 +1145,9 @@ class RefusalReachesTheBrowserTests(GameWithSeatsMixin, TransactionTestCase):
 
 @override_settings(**TEST_BACKENDS, **NO_REDIS)
 class MutedPlayerCannotChatTests(GameWithSeatsMixin, TransactionTestCase):
-    """`is_muted` finally means something — S9.
+    """`is_muted` finally means something.
 
-    The flag has existed since 1.x and was read by nothing: `ChatConsumer`
+    The flag existed from the start and was read by nothing: `ChatConsumer`
     never looked at it, so `MuteUnmutePlayerView` (itself routed nowhere) would
     have changed a field no code obeys.
 
@@ -1252,7 +1252,7 @@ class MutedPlayerCannotChatTests(GameWithSeatsMixin, TransactionTestCase):
 
 @override_settings(**TEST_BACKENDS)
 class ChatSwitchIsBroadcastTests(TempMediaRootMixin, TestCase):
-    """The host's chat switch reaches every screen in the room — F3.
+    """The host's chat switch reaches every screen in the room.
 
     The lobby has a switch for `chat_enabled` now. The PATCH already took the
     field and the chat consumer already re-reads it per message; what nothing did
@@ -1301,13 +1301,13 @@ class ChatSwitchIsBroadcastTests(TempMediaRootMixin, TestCase):
 
 @override_settings(**TEST_BACKENDS, **NO_REDIS)
 class ChatOffRefusesTheSocketTests(GameWithSeatsMixin, TransactionTestCase):
-    """`chat_enabled` is a rule the server keeps, not a hint to the client — S21.
+    """`chat_enabled` is a rule the server keeps, not a hint to the client.
 
-    The field has existed since 1.x and only the client read it: `use-chat.ts`
+    The field existed from the start and only the client read it: `use-chat.ts`
     opens no socket when it is false. `ChatConsumer` never looked, so a socket
     built by hand chatted in a game whose host had switched the chat off. That
-    did not matter while no screen could switch it off; S21 puts the switch on
-    the create form, and a rule only one of two doors enforces is not a rule.
+    did not matter while no screen could switch it off; the create form has
+    the switch now, and a rule only one of two doors enforces is not a rule.
 
     Refused at connect, with 4403 like every other permanent no, so the client
     does not retry it — and again per message, like mute, because the host may

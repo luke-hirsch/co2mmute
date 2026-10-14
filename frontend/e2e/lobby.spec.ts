@@ -4,7 +4,7 @@ import { createGame, joinAsPlayer } from "./game";
 import { loginAsHost } from "./host";
 
 /**
- * The host's lobby and the end card (F3): the password on the projector, an
+ * The host's lobby and the end card: the password on the projector, an
  * invitation to copy, the chat as a switch every screen follows, and a way back
  * to the host's games once a game is over.
  */

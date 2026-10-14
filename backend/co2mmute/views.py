@@ -79,7 +79,7 @@ class IndexView(TemplateView):
 
 @method_decorator(gzip_page, name="dispatch")
 class DocView(TemplateView):
-    """One page of the docs on the site (F13).
+    """One page of the docs on the site.
 
     Each page is a copy of one of the `docs/de-*.md` files, by hand: the
     backend image has no `docs/`, and the pages are designed rather than rendered markdown.
@@ -100,7 +100,7 @@ class SpaView(TemplateView):
 
 
 class LoginView(DjangoLoginView):
-    """`/accounts/login/` with a limit on wrong passwords — S9.
+    """`/accounts/login/` with a limit on wrong passwords.
 
     Declared above `django.contrib.auth.urls` in `co2mmute/urls.py`, which is
     the whole of the wiring: the first matching pattern wins, so this replaces
@@ -136,7 +136,7 @@ class LoginView(DjangoLoginView):
         machine stands in a room, often projected and often still logged in
         after the lesson, so an unticked box ends the session with the browser.
         Ticked, it lasts `SESSION_COOKIE_AGE` — which is what every login did
-        before S22, when the checkbox existed and nothing read it.
+        while the checkbox existed and nothing read it.
         `legal/cookies.html` §2.1 says both.
         """
         clear("login", client_key(self.request))
@@ -247,7 +247,7 @@ class CookiesView(TemplateView):
 
 
 class ProfileView(LoginRequiredMixin, RedirectView):
-    """`/accounts/profile/` is a doorway into the SPA now. S13.
+    """`/accounts/profile/` is a doorway into the SPA now.
 
     The page itself is `frontend/src/routes/host.tsx`: the host's games and
     their account details, both of them things that change while you look at
@@ -255,7 +255,7 @@ class ProfileView(LoginRequiredMixin, RedirectView):
     the reason Lukas gave on 2026-09-28, that the host's own pages belong
     together.
 
-    Since S22 a login no longer passes through here — `LOGIN_REDIRECT_URL` is
+    A login no longer passes through here — `LOGIN_REDIRECT_URL` is
     `/app/host` itself. The URL stays for the account-deletion page's way back,
     which was deliberately *not* ported (re-authentication and the goodbye page
     are credential flows, and those stay server-rendered), and for bookmarks.
@@ -267,7 +267,7 @@ class ProfileView(LoginRequiredMixin, RedirectView):
 
 
 class AccountView(APIView):
-    """`GET`/`PATCH api/account/` — the host edits their own account. S13.
+    """`GET`/`PATCH api/account/` — the host edits their own account.
 
     Only ever the requesting user: there is no pk in the path and none is
     accepted, so the endpoint cannot be pointed at somebody else's row. That is
@@ -420,7 +420,7 @@ class WhoAmIView(APIView):
 
 
 class NavigationView(APIView):
-    """`GET api/navigation/` — the header and footer for the SPA. S20.
+    """`GET api/navigation/` — the header and footer for the SPA.
 
     The same dictionary `base.html` renders, from `co2mmute.navigation.build`,
     so the two halves cannot offer different items. Open to anyone: an

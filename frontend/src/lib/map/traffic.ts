@@ -19,7 +19,7 @@
  *
  * The number that comes out is 0 (ran at the limit) to 1 (stopped), and the map
  * spends it on **stroke weight and a step from ink towards the accent**
- * (`jamTint`, S24). A two-colour palette has no hue ramp, and the old
+ * (`jamTint`). A two-colour palette has no hue ramp, and the old
  * `getCongestionColor` green→yellow→orange→red was in open violation of the
  * rulebook — unused, because nothing ever passed it.
  *
@@ -69,7 +69,7 @@ export function edgeLoads(
  * How much of the accent a street takes on, 0 (ink) to 1 (full accent).
  *
  * Weight alone was too quiet — the difference between a street at 0.2 and one at
- * 0.5 is a pixel on a phone, and nobody could tell (S24). So a loaded street
+ * 0.5 is a pixel on a phone, and nobody could tell. So a loaded street
  * also moves from ink towards the accent. **Not linear, on purpose**: a street
  * that lost a tenth of its speed is ordinary and stays ink, and by half its
  * speed the accent carries — the colour is for the streets worth looking at. The

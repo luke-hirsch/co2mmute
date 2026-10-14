@@ -88,7 +88,7 @@ class JoinSessionAPIView(APIView):
 
     It replaced a two-step template flow (JoinSessionView, then PlayerCreateView,
     with request.session["joined_game_ids"] carrying permission between them),
-    and since S22 it is the only one: the QR code and the landing page point at
+    and now it is the only one: the QR code and the landing page point at
     the SPA's join screen, and the template flow is deleted. Name and password
     arrive together, so the player row and both cookies are created in one
     request, under the lock that keeps two phones from taking the last seat.
@@ -240,9 +240,9 @@ class SeatCodeView(APIView):
     by the session, and a seat cookie in the host's browser would be lost there.
     A logged-in user then needs the CSRF token, which the SPA sends anyway.
 
-    **Rate limited on misses since S9.** The alphabet is 31 characters and the
+    **Rate limited on misses.** The alphabet is 31 characters and the
     code is six of them, so there are 887 million — a number that only means
-    anything while guessing costs something, and until S9 it cost nothing at
+    anything while guessing costs something, and at first it cost nothing at
     all. GET is the cheaper of the two vectors: it does not use a code up, so a
     sweep never disturbs a real seat and nothing in the game would show it
     happened.

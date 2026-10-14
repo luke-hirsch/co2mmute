@@ -4,7 +4,7 @@ import { expect, type Page } from "@playwright/test";
  * Making a game, for every spec that needs one to play in.
  *
  * It was copied into five spec files, which is how two of them ended up
- * carrying a comment about a limitation S13 has since removed. One copy, beside
+ * carrying a comment about a limitation long since removed. One copy, beside
  * `host.ts`, for the same reason: the create screen is a screen, it changes,
  * and a change to it should break one helper rather than five.
  *
@@ -28,12 +28,12 @@ export type CreateGameOptions = {
    * Type over the derived `people_per_agent`.
    *
    * Only for a spec that wants a deliberately lighter round than the map's
-   * calibration would give it. Leaving it out is the normal case and is what
-   * S13 is about: the screen derives it from the class size.
+   * calibration would give it. Leaving it out is the normal case and the
+   * point of the screen: it derives it from the class size.
    */
   peoplePerAgent?: number;
   /**
-   * Switch the chat off. It sits behind "Weitere Einstellungen" (S21), closed
+   * Switch the chat off. It sits behind "Weitere Einstellungen", closed
    * by default, so leaving this out never touches the disclosure at all.
    */
   chat?: boolean;
@@ -112,7 +112,7 @@ export async function createGame(
  *
  * Through the one door there is — `/app/join/<ID>`, where the QR code lands:
  * the lookup, then name (and password, when the game has one) in a single
- * form, ending on the game screen. Until S22 three specs each carried a copy
+ * form, ending on the game screen. Three specs once each carried a copy
  * of this that went through Django's two-page `/join/<id>/` funnel instead,
  * which the QR code pointed at and which is deleted now.
  */
@@ -137,7 +137,8 @@ export async function joinAsPlayer(
  * spec, it is a different turn, and the car takes over — a connected street
  * network always has one.
  *
- * **Bus & Bahn is the exception, and it is the whole point of the S5 data pass.**
+ * **Bus & Bahn is the exception, and it is the whole point of the map's data
+ * pass.**
  * Every one of the 36 home/workplace pairs on the seeded map has a public
  * transport route, so a refusal on this mode means the instance is holding the
  * old map: bus `100` with no edges at all, `101` breaking mid-chain. Pinned away
@@ -145,7 +146,8 @@ export async function joinAsPlayer(
  * `maps/tests/test_example_map.py`; this is the same guarantee through the whole
  * stack.
  *
- * Two copies of this lived in `replay` and `numbers` until F15 needed a third.
+ * Two copies of this lived in `replay` and `numbers` until `leitstelle` needed
+ * a third.
  */
 export async function pickMode(page: Page, index: number, wanted: string) {
   const row = page.locator("li").filter({ hasText: `Gruppe ${index + 1}` });

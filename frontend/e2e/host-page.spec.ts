@@ -4,7 +4,7 @@ import { createGame } from "./game";
 import { loginAsHost } from "./host";
 
 /**
- * `/app/host` — the host's own page. S13.
+ * `/app/host` — the host's own page.
  *
  * It replaces `/accounts/profile/`, a Django template with the game list and a
  * `ProfileForm` on it. Three things are worth a browser rather than a unit

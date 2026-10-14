@@ -4,7 +4,7 @@ import { createGame, joinAsPlayer } from "./game";
 import { loginAsHost } from "./host";
 
 /**
- * The map beside the turn, or above it (S24).
+ * The map beside the turn, or above it.
  *
  * The research group asked for beside on large screens; a beamer is a large
  * screen too and beside is wrong there, so it is a switch and the default is the

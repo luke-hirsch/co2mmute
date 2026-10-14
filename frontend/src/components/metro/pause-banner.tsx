@@ -3,7 +3,7 @@ import { de } from "@/lib/de";
 import { cn } from "@/lib/utils";
 
 /**
- * Shown on every screen while `paused_at` is set (1.6 — the bell rang).
+ * Shown on every screen while `paused_at` is set (the bell rang).
  *
  * Styled as a platform notice rather than an error: nothing has gone wrong, the
  * game is simply standing at a platform. Same amber as the landing page's

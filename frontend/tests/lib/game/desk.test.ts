@@ -22,7 +22,7 @@ import {
  * under the screen. Each of them must land back at the desk, and none of them
  * may leave the previous player's choices on a projector.
  *
- * Since F5 the desk also runs the map vote, so what counts as "this seat is
+ * The desk also runs the map vote, so what counts as "this seat is
  * through" is the caller's to decide: the roster answers it during a round
  * (`seatsDoneMoving`), and between rounds the caller keeps its own record,
  * because the roster reports `ready` for everybody once no round is open.
@@ -171,7 +171,7 @@ describe("deskReducer sync", () => {
   });
 
   it("closes the seat once it has submitted", () => {
-    // The roster is the one truth for "has this seat moved" (F3). When it says
+    // The roster is the one truth for "has this seat moved". When it says
     // waiting, the turn is over and the next student steps up.
     const seats = [host, { ...ben, status: "waiting" as const }, ana, phone];
     const state = deskReducer(playing("P-1"), {

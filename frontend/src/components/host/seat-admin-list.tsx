@@ -25,8 +25,8 @@ import type { RosterSeat } from "@/lib/game/events";
  * Which controls a row gets follows from one flag:
  *
  * - **on a phone** (`controlled_by_host: false`) — take it over, or remove it.
- *   Taking over is the one-way half of 1.7: the host decides, the student's
- *   device is out (`taken_over`).
+ *   Taking over is the one-way half of moving a seat: the host decides, the
+ *   student's device is out (`taken_over`).
  * - **at this machine** (`controlled_by_host: true`) — play it, hand it to a
  *   device by code, or remove it. Handing over is the other half, and it is
  *   not a button but a code, because a host cannot conjure up a phone: some

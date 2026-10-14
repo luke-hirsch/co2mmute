@@ -112,7 +112,7 @@ def announce_departure(seat: Player, kicked: bool) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Moving a seat to another device (1.7)
+# Moving a seat to another device
 # ─────────────────────────────────────────────────────────────────────────────
 
 # A code is a bearer token: whoever reads it off the projector can take the
@@ -278,7 +278,7 @@ def _rotate(seat: Player, reason: str) -> str:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Muting a seat (S9)
+# Muting a seat
 # ─────────────────────────────────────────────────────────────────────────────
 
 

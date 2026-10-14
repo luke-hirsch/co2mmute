@@ -22,7 +22,7 @@
  * token, so every shadcn primitive speaks this palette without being rewritten.
  *
  * `accent` and `muted` belong to shadcn here, so the brand amber and the muted
- * text colour keep the names they were given in 2.1: brandaccent, mutedtext.
+ * text colour keep the names they were given first: brandaccent, mutedtext.
  * That amber is the public-transport line and the one attention colour at the
  * same time — there is no separate warning or danger ramp.
  *
@@ -117,7 +117,7 @@
   /* <<< end shared tokens >>> */
 
   /* SPA-only aliases. shadcn owns `accent` and `muted` below, so these two keep
-     the names from 2.1 and the pre-rewrite screens keep working. */
+     their first names and the pre-rewrite screens keep working. */
   --color-brandaccent: #ffb300;
   --color-mutedtext: #6b7280;
 }

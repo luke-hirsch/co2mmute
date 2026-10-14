@@ -12,7 +12,7 @@ import type { VoteOption } from "@/lib/game/events";
  * Shared by the player's own vote and by the host casting one for a seat at the
  * machine — the ballot is the same piece of paper either way, only the seat it
  * is filed under differs. That is the same reason `RoundScreen` takes a seat
- * instead of reading "me" (F3).
+ * instead of reading "me".
  *
  * **"So lassen" is an option, not an abstention.** `submit_vote` takes
  * `version_id: null` as a vote for leaving the map as it is, and it counts
@@ -20,7 +20,7 @@ import type { VoteOption } from "@/lib/game/events";
  * therefore a button of equal standing, below the cards rather than beside
  * them, because it is the one choice that is always available.
  *
- * **It can be filled in from the keyboard** (S24): `1`, `2`, … for the cards,
+ * **It can be filled in from the keyboard**: `1`, `2`, … for the cards,
  * `0` for "so lassen". A mouse crossing a projected screen tells the room how
  * you are about to vote; a key press does not. The keys are printed on the
  * buttons so nobody has to be told.
@@ -41,7 +41,7 @@ export function Ballot({
   /** null is "so lassen". */
   onPick: (versionId: number | null) => void;
   disabled?: boolean;
-  /** One column from `lg` up — the ballot is half a screen wide (S24). */
+  /** One column from `lg` up — the ballot is half a screen wide. */
   stacked?: boolean;
   /** The option whose change the stage's map is showing, if any. */
   changeShownId?: number | null;

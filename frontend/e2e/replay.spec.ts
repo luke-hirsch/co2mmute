@@ -79,7 +79,7 @@ test("the round is watched before it is read", async ({ page, baseURL }) => {
     const map = page.getByRole("img", { name: /Karte mit den Fahrten/ });
     await expect(map).toBeVisible();
     await expect(page.getByText("Runde gesamt")).toHaveCount(0);
-    // A-13: 800 people to a Gruppe at a stride of ten — exactly ten to a dot (S25).
+    // A-13: 800 people to a Gruppe at a stride of ten — exactly ten to a dot.
     await expect(page.getByText(/Ein Punkt steht für 10 Menschen/)).toBeVisible();
 
     // A-05: the clock reads simulated time and runs forward.

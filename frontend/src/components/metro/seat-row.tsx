@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
  *
  * Two flags that look similar and are not: `isHost` is the host's own row,
  * which never counts as a player; `controlledByHost` is a seat played at the
- * host machine because its student has no device or is out of the room (1.6).
+ * host machine because its student has no device or is out of the room.
  * A seat can be the second without being the first, and the roster sends both.
  *
  * `muted` is the third and reads differently again: the first two describe
@@ -30,7 +30,7 @@ export function SeatRow({
   isHost?: boolean;
   controlledByHost?: boolean;
   isYou?: boolean;
-  /** Muted in the chat by the host (S9). */
+  /** Muted in the chat by the host. */
   muted?: boolean;
   action?: React.ReactNode;
   className?: string;

@@ -7,11 +7,11 @@
  * base map version. It is not a `/start/` endpoint, which is worth saying
  * because it does not look like one.
  *
- * **This is what went missing in F3.** `currentScreen()` sends a host who has
- * not started yet to the lobby, and since F3 the lobby is the player's lobby —
- * which has no start button, because players do not need one. The old screen
- * that had it only runs between rounds now. So for one chunk a game could not
- * be started from the browser at all.
+ * **This once went missing.** `currentScreen()` sends a host who has not
+ * started yet to the lobby, and the lobby became the player's lobby — which
+ * has no start button, because players do not need one. So for a while a game
+ * could not be started from the browser at all, until the host got a lobby of
+ * their own.
  *
  * Like everywhere else: no invalidation afterwards. `game.started`,
  * `game.paused`, `game.resumed` and `game.ended` all arrive over the socket and
@@ -95,7 +95,7 @@ export function useEndGame(gameId: string) {
 }
 
 /**
- * Switch the chat on or off (F3). Like the rest of this file it reports nothing
+ * Switch the chat on or off. Like the rest of this file it reports nothing
  * back: `game.chat` arrives over the socket, for this screen and every phone.
  */
 export function useSetChat(gameId: string) {
@@ -118,19 +118,19 @@ export function useResumeGame(gameId: string) {
 }
 
 /**
- * What `POST api/game/` takes. S13.
+ * What `POST api/game/` takes.
  *
  * Every field the Django form had, minus `lobby_open`: that one was collected,
  * validated and thrown away — `GameSession` has no such column and nothing
  * anywhere read it — so carrying it across would have been carrying a promise
  * the app does not keep. Plus `chat_enabled`, which the Django form never had:
- * the model defaulted it on and no screen could switch it off until S21.
+ * the model defaulted it on and no screen could switch it off.
  *
  * `people_per_agent` and `max_CO2_level` are derived by `lib/calibration.ts`
  * as the host changes the class size, the round count, the dial or the map.
  * The scale is an ordinary field from there on: the endpoint takes whatever it
  * is sent, so a host who types over it keeps their own number. The budget
- * follows `co2_kg_per_person`, the dial, which the game records (F8 step 2b).
+ * follows `co2_kg_per_person`, the dial, which the game records.
  */
 export type CreateGameBody = {
   game_name: string;

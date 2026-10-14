@@ -2848,7 +2848,7 @@ class PTFareAndOutOfPocketTests(PTScenarioMixin, TestCase):
         self.assertEqual(BIKE_COST_PER_KM, 0.03)
 
     def test_a_cyclist_pays_what_the_ride_costs(self):
-        """F12: the bike was free, which priced it wrong rather than cheap.
+        """The bike was free, which priced it wrong rather than cheap.
 
         Wear, repairs, depreciation and theft are all the rider's own, so the
         two columns agree — and both scale with the kilometres, not the trip.
@@ -4287,7 +4287,7 @@ class ReplaySamplingTests(TestCase):
         self.assertEqual(len(followed), 200 // REPLAY_PEOPLE_PER_DOT)
 
     def test_one_dot_is_ten_people(self):
-        """Lukas's pick in S25, on measured consequences.
+        """Lukas's pick, 2026-10-01, on measured consequences.
 
         At fifty, a jam of fifty cars drew as one or two dots, and a third of
         the jam moments on the shipped map showed one dot or none — "only one
@@ -4914,7 +4914,7 @@ class PTEmissionFactorTests(SimpleTestCase):
     not, so on a map with six train lines these two numbers set the floor
     under every round's CO2. On Berlin_Mitte-West that floor was 5 597 kg a
     round, 97 % of it trains, against a shipped budget of 500 kg — which is
-    how S2's calibration started.
+    how the calibration started.
     """
 
     def test_a_bus_is_a_diesel_city_bus(self):
@@ -5246,7 +5246,7 @@ class ReplayWayHomeTests(RoundTripTests):
 
 
 class EverybodyGetsHomeTests(TestCase):
-    """A pass runs until everybody is home; the clock is only a guard (F2d).
+    """A pass runs until everybody is home; the clock is only a guard.
 
     Lukas, 2026-10-02: "we should not strand people". A pass used to stop at
     max_ticks=200 whatever was still on the road, and since a forced release
@@ -5389,14 +5389,14 @@ class EveningStaysAtItsHourTests(RoundTripTests):
 class LinesDriveTheirOwnWayTests(PTBoardingScenarioMixin, TestCase):
     """A line drives the link that goes ITS way, whichever way the map drew it.
 
-    Each direction of a street is its own link with its own queue (F2a), and a
+    Each direction of a street is its own link with its own queue, and a
     line vehicle queues on the link its chain row names. The editor lets a line
     be drawn on either direction — node_chain reads the travel order from the
     nodes — and the shipped map's bus `100` eastbound named the westbound links
     for five of its seven streets. On the way home it waited among the cars
     going home, and at the front wanted the link those cars were coming from:
     two full links waiting on each other, which only the deadlock escape breaks.
-    With lines running past the timetable that never cleared (F2d).
+    With lines running past the timetable that never cleared.
 
     The fixture is a corridor N0 - N1 - N2, 1 km a link, drawn eastbound and
     the lines drawn on the westbound links.

@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
  * a screen still caps itself with `max-w-(--measure-body)`.
  *
  * `full` drops the cap and keeps only the gutter. It is for the game screens
- * with the map beside the list (F3): they have no header to line up with, and on
+ * with the map beside the list: they have no header to line up with, and on
  * a 1920px projector the half of a `wide` screen left the map a third of the
  * room's width. The rhythm and the text measure hold there too.
  *

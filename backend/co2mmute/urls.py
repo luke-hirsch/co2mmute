@@ -36,9 +36,9 @@ DOCS = (
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", IndexView.as_view(), name="index"),
-    # The docs on the site, F13, in German like the rest of it. /hintergrund/
+    # The docs on the site, in German like the rest of it. /hintergrund/
     # moved here and does not redirect — a link to the old address is a 404,
-    # like the old join (S22); so are the English pages under /docs/en/, which
+    # like the old join page; so are the English pages under /docs/en/, which
     # were taken off again: their text stays in docs/, for GitHub.
     *[
         path(route, DocView.as_view(template_name=template), name=name)
@@ -57,7 +57,7 @@ urlpatterns = [
         name="account-delete",
     ),
     path("accounts/deleted/", AccountDeletedView.as_view(), name="account-deleted"),
-    # The three password views that take a form, with German ones — S22. Same
+    # The three password views that take a form, with German ones. Same
     # trick as the login above: declared before the include, so they win.
     path(
         "accounts/password_change/",

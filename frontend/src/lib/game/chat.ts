@@ -78,8 +78,8 @@ export function asChatEvent(payload: unknown): ChatEvent | null {
  *
  * `ChatConsumer` answers a refused message with an English sentence — the five
  * literals below are the whole set (`_validate_message_content`,
- * `_check_rate_limits`, since S9 the mute check that runs before both, and
- * since S21 the chat-off check before that).
+ * `_check_rate_limits`, the mute check that runs before both, and the
+ * chat-off check before that).
  * They are written for a log and reach the player unchanged, so the
  * translation has to happen at this end.
  *

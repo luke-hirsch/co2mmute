@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 /**
  * A labelled control with its help text and the server's refusals under it.
  *
- * Out of the create form since S19, when the map upload became the second
+ * Out of the create form since the map upload became the second
  * form in the SPA that renders a Django form's errors field by field.
  */
 export function Field({
@@ -39,8 +39,8 @@ export function Field({
         // something a test can find without pinning the sentence.
         //
         // An amber rule beside ink text, not amber text: amber on the light
-        // ground is hard to read, which the map notes found first (S19). The
-        // Django pages' `field-error` is the same thing (S22).
+        // ground is hard to read, which the map notes found first. The
+        // Django pages' `field-error` is the same thing.
         <ul
           id={`${id}-error`}
           role="alert"

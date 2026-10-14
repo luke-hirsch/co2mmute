@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
  * The dark amber-on-black panel from the landing page, carried into the app.
  *
  * It is where codes live: the game id someone types after scanning a QR code,
- * and the six-character seat code from 1.7 that moves a player to another
+ * and the six-character seat code that moves a player to another
  * device. Both are read off a projector at the front of a room, which is why
  * they are set in mono at a size you can see from the back, and why this panel
  * stays dark in both themes — it is a display, not a surface.

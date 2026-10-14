@@ -16,7 +16,7 @@ BUS_EMISSIONS_G_PER_VEHICLE_KM = 1200.0  # g CO2e per bus-km
 # An electric U- or S-Bahn train: ~4 kWh per train-km including auxiliaries,
 # times the German grid mix of 363 g CO2/kWh (UBA, 2024). Not the operator's
 # own green tariff — the grid mix is the conservative figure and the one a
-# class can check. This was 3500 until the S2 calibration, which implied
+# class can check. This was 3500 until the first calibration, which implied
 # 9.6 kWh/train-km, a diesel mainline train. It matters more than it looks:
 # the timetable runs whether anyone rides it or not, so on a map with six
 # train lines this number alone sets the floor under every round.

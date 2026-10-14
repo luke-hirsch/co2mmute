@@ -21,7 +21,7 @@ import { seatsFull } from "@/lib/game/game-state";
  *   **playing**  the ordinary round screen, with somebody else's seat in it
  *
  * The turn is not reimplemented here. `RoundScreen` was built seat-parameterised
- * in F3 for exactly this, so the host plays a student's seat through the same
+ * for exactly this, so the host plays a student's seat through the same
  * screen the student would have used — same map, same pickers, same validation,
  * and one place to fix anything wrong with any of it.
  *

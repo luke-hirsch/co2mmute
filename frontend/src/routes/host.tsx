@@ -4,7 +4,7 @@ import { HostHomeScreen } from "@/components/host/host-home-screen";
 import { RequireLogin } from "@/components/host/require-login";
 
 /**
- * `/app/host` — the host's own page. S13.
+ * `/app/host` — the host's own page.
  *
  * `/accounts/profile/` redirects here, which matters more than it looks:
  * Django's `LOGIN_REDIRECT_URL` defaults to that path, so this is where a host

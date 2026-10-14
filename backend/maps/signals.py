@@ -91,8 +91,8 @@ def delete_change_image_file(sender, instance, **kwargs):
 
 # ── the cached graph ───────────────────────────────────────────────────────
 #
-# Every model a graph is built from, and every one's version membership. Until
-# F10 only `Node` and `Edge` were here, so a street or a railway laid under an
+# Every model a graph is built from, and every one's version membership. Once
+# only `Node` and `Edge` were here, so a street or a railway laid under an
 # edge — the editor's "+ Straße anlegen" — was saved and not drawn for up to an
 # hour. Membership is an m2m, and an m2m add saves no row, so it needs its own
 # receiver: every version write in this app is a `map_versions.add`.

@@ -13,17 +13,17 @@ import { useRemoveSeat } from "@/lib/queries/seats";
 /**
  * Waiting for the host to start.
  *
- * Not a route of its own since F3: `/app/game/<ID>` renders whichever screen
+ * Not a route of its own: `/app/game/<ID>` renders whichever screen
  * `currentScreen()` names, so the lobby turns into the round by itself when
  * `game.started` arrives — no link to press, and no way to sit in a lobby for
  * a game that is already running.
  *
- * Since F2 this screen holds no connection and no state of its own: it reads
+ * This screen holds no connection and no state of its own: it reads
  * the game from the provider in the layout above it. Everything it used to do
  * about loading, revocation and a dropped socket now happens once, in
  * `GameFrame`, for every screen in the game.
  *
- * The host does not see this screen — `HostLobbyScreen` takes its place (F4).
+ * The host does not see this screen — `HostLobbyScreen` takes its place.
  */
 export function LobbyScreen() {
   const navigate = useNavigate();

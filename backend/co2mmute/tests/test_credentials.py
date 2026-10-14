@@ -1,4 +1,4 @@
-"""The credential pages: log in, sign up, the two password flows, log out. S22.
+"""The credential pages: log in, sign up, the two password flows, log out.
 
 These stay server-rendered on purpose — anything that asks for a password is
 Django's, because the host machine stands in a room and is often still logged
@@ -47,7 +47,7 @@ CHANGE_DONE_URL = "/accounts/password_change/done/"
 
 GOOD_PASSWORD = "Fahrrad-2026!"
 
-# The login counts wrong passwords per address (S9); keep that counter out of
+# The login counts wrong passwords per address; keep that counter out of
 # Redis, which no test run has, and out of the next test.
 LOCAL_CACHE = {
     "default": {
@@ -168,9 +168,9 @@ class RememberMeTests(TestCase):
 class LoginLandsOnTheHostPageTests(TestCase):
     """One hop, not two.
 
-    `LOGIN_REDIRECT_URL` was Django's default `/accounts/profile/`, which since
-    S13 is itself a redirect into `/app/host` — so signing in was a chain, and
-    `e2e/host.ts` had to wait out both links. S22 owns that decision.
+    `LOGIN_REDIRECT_URL` was Django's default `/accounts/profile/`, which is
+    itself a redirect into `/app/host` — so signing in was a chain, and
+    `e2e/host.ts` had to wait out both links.
     """
 
     def setUp(self):
@@ -297,7 +297,7 @@ class SignupErrorTests(TestCase):
 class PasswordResetFlowTests(TestCase):
     """"Passwort vergessen?", end to end.
 
-    Three of these four pages did not compile until S22. Whether the box can
+    Three of these four pages once did not compile. Whether the box can
     actually send the mail is a question for its mail setup, not for this
     module — Django's test runner swaps in the in-memory backend.
     """
@@ -382,7 +382,7 @@ class PasswordResetFlowTests(TestCase):
 
 
 class PasswordChangeFlowTests(TestCase):
-    """"Passwort ändern" on the host page — a 500 until S22."""
+    """"Passwort ändern" on the host page — it used to answer a 500."""
 
     def setUp(self):
         self.user = create_host(username="host", password="Alt-Passwort-1!")
@@ -439,7 +439,7 @@ class LogoutPageTests(TestCase):
 class GeneratedImageIsGoneTests(TestCase):
     """The login and sign-up pages carried an AI-generated picture.
 
-    Lukas, S10: "both still use the ai generated image". The pages are text
+    Lukas, 2026-09-29: "both still use the ai generated image". The pages are text
     and a form now, and the file goes with them rather than lingering in
     `static/` for the next template to pick up again.
     """

@@ -29,12 +29,12 @@ import EdgePropertyPanel from "./EdgePropertyPanel";
 /**
  * Building an alternate version: the metadata, then the changes, then submit.
  *
- * ### S18: it was the most English screen left in the SPA
+ * ### It was the most English screen left in the SPA
  *
  * `Changes (n)`, `PT Line Changes (n)`, five `Undo` buttons, `(cascade)`,
  * `"Creating..."`, `Create Version (n changes)` — and a badge that rendered
  * `change.action` **raw**, so the class's own vocabulary for a pending change was
- * `add`, `modify`, `remove`. S17's detector saw none of it: `Undo` and
+ * `add`, `modify`, `remove`. The detector saw none of it: `Undo` and
  * `"Creating..."` are one word, and none of the rest carried a word from its
  * giveaway list. That list has grown and the detector reads two more shapes now
  * — see `tests/design/german.test.ts`.

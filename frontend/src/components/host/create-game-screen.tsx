@@ -21,12 +21,12 @@ import { useCreateGame } from "@/lib/queries/session";
 import { useGameMaps, type GameMapRow } from "@/lib/queries/maps";
 
 /**
- * Spiel anlegen. S13, and the reason the screen moved off Django at all.
+ * Spiel anlegen, and the reason the screen moved off Django at all.
  *
  * `people_per_agent` divides the map's commuter population between the
  * Gruppen, so it changes whenever the seats, the Gruppen per seat or the
  * map change; `max_CO2_level` is the dial's kg per person times the map's
- * commuters times the rounds (F8 step 2b). A server-rendered form derives both
+ * commuters times the rounds. A server-rendered form derives both
  * once per GET, which meant a host who changed the Platzzahl had to pull both
  * numbers across by hand (`docs/testfaelle.md` H-13). Here they follow.
  *
@@ -160,7 +160,7 @@ export function CreateGameScreen() {
       ) : null}
 
       {/*
-        S21's grouping, which is Lukas's: what the game is, then the numbers
+        The grouping is Lukas's: what the game is, then the numbers
         that decide how many people are on the map, then the two that decide
         when it ends, then what a first game never needs. Every group is the
         same two-column grid and nothing in it is wider than a column or the

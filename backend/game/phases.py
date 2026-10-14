@@ -258,8 +258,8 @@ def ack_stats(game_id: str, player_id: str) -> bool:
     """A player has read the round's stats. False if the ack was not taken.
 
     Stored as a row on the Player, not under the player_id: the Redis set this
-    replaces expired after an hour, and would count a player twice once 1.7
-    gives them a new id.
+    replaces expired after an hour, and would count a player twice once a
+    moved seat gives them a new id.
     """
     return _ack(game_id, player_id=player_id)
 

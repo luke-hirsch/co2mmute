@@ -1,7 +1,7 @@
 import { de } from "@/lib/de";
 
 /**
- * The invitation the lobby's share button copies (F3), for a class that is not
+ * The invitation the lobby's share button copies, for a class that is not
  * in front of the projector: a link straight to the join screen, the id for
  * whoever types it on the landing page instead, and the password when the game
  * has one — the three things the projector shows.

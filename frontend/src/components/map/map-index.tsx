@@ -16,8 +16,9 @@ import type { GameMap } from "@/types/mapTypes";
  * ### The three bugs this one screen closes
  *
  * `routes/maps/index.tsx` was a stub that threw `redirect({ to: "/join" })`,
- * under a comment promising "F7 gives the editor a real index". F7 never did,
- * and S10's click-through found the consequences separately without seeing that
+ * under a comment promising that the editor's port would give it a real index.
+ * It never did, and the ux pass's click-through found the consequences
+ * separately without seeing that
  * they were one cause:
  *
  * - "Alle Karten" on the detail page bounced a logged-in host onto a student's

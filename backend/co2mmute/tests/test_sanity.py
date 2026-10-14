@@ -124,7 +124,7 @@ class NoThirdPartyLoadsTests(SimpleTestCase):
     REMOTE_CSS_URL = re.compile(r"(?:@import|url\()\s*[\"']?(?:https?:)?//", re.IGNORECASE)
 
     # In an SVG every href fetches — <image>, <use> — except a link's, and
-    # the figures under template/ carry no links. S23 put the first ones there.
+    # the figures under template/ carry no links.
     SVG_FETCH = re.compile(r"\b(?:xlink:)?href\s*=\s*[\"']?(?:https?:)?//", re.IGNORECASE)
 
     def _html_sources(self):
@@ -186,7 +186,7 @@ class NoThirdPartyLoadsTests(SimpleTestCase):
 class EveryTemplateCompilesTests(SimpleTestCase):
     """Every Django template parses — all of them, not the ones a test renders.
 
-    S22 found three pages of the password-reset flow answering a 500 on every
+    Three pages of the password-reset flow once answered a 500 on every
     request: a formatter had wrapped `{% if not forloop.last %}` across two
     lines, and a template tag cannot span a line break. "Passwort vergessen?"
     on the login page led straight into it. No test had ever requested those
@@ -224,10 +224,10 @@ class EveryTemplateCompilesTests(SimpleTestCase):
         """`{# … #}` is a one-line comment. Across a line break it is no
         comment at all: the template compiles, and the page prints the text.
 
-        S23 put two on the landing page — "{# where it comes from …" stood
+        Two stood on the landing page once — "{# where it comes from …" stood
         under "Bereit für die erste Runde?" in English — and every test was
         green, because nothing is wrong with a template that prints a sentence.
-        It is the same rule S22 tripped over with `{% if %}`: a tag does not
+        It is the same rule the reset pages tripped over with `{% if %}`: a tag does not
         span a line. Longer comments are `{% comment %}`.
         """
         root = BACKEND_ROOT / "template"
@@ -321,12 +321,12 @@ class TemplatesStayOnThePaletteTests(SimpleTestCase):
 
 
 class RetiredWordsStayOutOfTheTemplatesTests(SimpleTestCase):
-    """The words S17 retired, on the Django half too.
+    """The words retired on 2026-09-29, on the Django half too.
 
     `frontend/tests/lib/de.test.ts` keeps them out of the SPA's dictionary, and
     nothing read the templates: the landing page still sent the commute to
     "Ziel: Schule", called the game "ein Planspiel für Schule und Uni", and
-    said "Figur" twice for a Gruppe — S17 had retired that word too. Lukas,
+    said "Figur" twice for a Gruppe, a retired word too. Lukas,
     2026-09-29: words that sound like school go everywhere, because students
     engage more with something that is not school.
 

@@ -300,7 +300,7 @@ class GamesDueTests(PlayedGameMixin, TestCase):
 
 @override_settings(**TEST_BACKENDS)
 class AnonymiseTaskTests(PlayedGameMixin, TestCase):
-    """The beat task. Hangs off 1.1 — the beat container is commented out until then."""
+    """The beat task."""
 
     @override_settings(ANONYMISE_GRACE_HOURS=24)
     def test_the_task_picks_up_exactly_the_due_games(self):
@@ -442,7 +442,7 @@ class ManagementCommandTests(PlayedGameMixin, TestCase):
 
 class ExpiredSessionTests(TestCase):
     """Django never deletes expired django_session rows by itself — the DB
-    backend needs clearsessions, and nothing ran it. Before 1.2 every join wrote
+    backend needs clearsessions, and nothing ran it. Every join once wrote
     the player id into the session, and for a logged-in user that row links the
     account to the player."""
 
@@ -951,7 +951,7 @@ class NamesStayOutOfTheLogTests(TempMediaRootMixin, TestCase):
 
     Binding since the start — the players are school students, some of them
     minors — and never tested, which is how `PlayerCreateView` came to log
-    `creating player: {'name': …}` on every Django join until S22 deleted it.
+    `creating player: {'name': …}` on every Django join until the page was deleted.
     This catches every record at DEBUG on the root logger, so a new
     `logger.info(f"… {player.name}")` anywhere on the path fails here, not in
     a log file on the box.

@@ -41,7 +41,7 @@ import type { Scale } from "@/lib/game/scale";
  * three lists are not extra: they are the only place the final round's numbers
  * and the last vote are ever read.
  *
- * The names on it are real until anonymisation runs, 24 h after the end (1.3) —
+ * The names on it are real until anonymisation runs, 24 h after the end —
  * deliberately, because the debrief happens in the lesson and the names go
  * after it. They stay on the screen: never a log, a toast or an error string.
  */
@@ -222,7 +222,7 @@ export function EndScreen() {
       <div className="mt-20">
         {isHost ? (
           // Back to the host's own games, or straight into the next one. Both
-          // are SPA screens since S13, so the router takes them (F3).
+          // are SPA screens, so the router takes them.
           <div className="flex flex-wrap items-center gap-3">
             <Button onClick={() => void navigate({ to: "/host" })}>
               {de.summary.hostGames}

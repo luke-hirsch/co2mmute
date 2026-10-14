@@ -98,7 +98,7 @@ const hostRefusal: Record<HostRefusal, string> = {
   not_paused: "Das Spiel läuft schon.",
 };
 
-/** The `reason` values `POST api/game/seat/<code>/` refuses with (1.7). */
+/** The `reason` values `POST api/game/seat/<code>/` refuses with. */
 export type RedeemRefusal = "host" | "seated" | "ended";
 
 const redeemRefusal: Record<RedeemRefusal, string> = {
@@ -159,10 +159,10 @@ export const de = {
     confirm: "Bestätigen",
     retry: "Nochmal versuchen",
     submit: "Absenden",
-    /** S17: the editor rendered a read-only boolean as "Yes" / "No". */
+    /** The editor once rendered a read-only boolean as "Yes" / "No". */
     yes: "ja",
     no: "nein",
-    /** S18: five `Undo` buttons on the version panel's change list. */
+    /** Five `Undo` buttons on the version panel's change list, once. */
     undo: "Zurücknehmen",
   },
 
@@ -236,7 +236,7 @@ export const de = {
     joinAgain: "Neu beitreten",
   },
 
-  /** 1.6 + 1.7: this device does not hold the seat any more. */
+  /** This device does not hold the seat any more. */
   revoked: {
     title: "Dein Platz ist weg",
     reason: revoked,
@@ -247,19 +247,19 @@ export const de = {
 
   seat: {
     status: seatStatus,
-    /** 1.6: the seat is played at the host machine, not on the student's phone. */
+    /** The seat is played at the host machine, not on the student's phone. */
     atHostMachine: "an der Leitstelle",
     offline: "nicht verbunden",
   },
 
-  /** 1.6: the bell rang, the host stopped the clock. */
+  /** The bell rang, the host stopped the clock. */
   pause: {
     title: "Pause",
     body: "Die Spielleitung hat das Spiel angehalten. Lass die Seite offen, es geht gleich weiter.",
     resumed: "Weiter geht's.",
   },
 
-  /** S8: the chat, rebuilt against `ChatConsumer` after F5 deleted the old one. */
+  /** The chat, rebuilt against `ChatConsumer` after the old one was deleted. */
   chat: {
     title: "Chat",
     /** On the button that opens the panel, and as the panel's own heading. */
@@ -284,7 +284,7 @@ export const de = {
       roomTooFast:
         "Gerade schreiben alle gleichzeitig. Versuch es gleich noch mal.",
       /**
-       * The host muted this seat (S9). Says so outright rather than falling
+       * The host muted this seat. Says so outright rather than falling
        * back on `unknown`: silence, or a vague "nicht angekommen", reads as a
        * broken chat and invites trying again all lesson.
        */
@@ -293,7 +293,7 @@ export const de = {
     },
   },
 
-  /** Game ids and the 1.7 seat-handover code. Both are read off a projector. */
+  /** Game ids and the seat-handover code. Both are read off a projector. */
   code: {
     boarding: "Einsteigen",
     gameId: "Spiel-ID",
@@ -325,7 +325,7 @@ export const de = {
     of: (n: number, total: number) => `Runde ${n} von ${total}`,
 
     /**
-     * An agent is a *Gruppe* to the player (S17, 2026-09-29).
+     * An agent is a *Gruppe* to the player (2026-09-29).
      *
      * It was the transit word for a passenger until the play-test, and that
      * made the create form read "Menschen pro <passenger>" — a ratio between
@@ -372,7 +372,7 @@ export const de = {
 
     /**
      * What you know before you choose anything: roughly how far away the place
-     * is. Until S6 the distance only appeared once a route had been found, so
+     * is. The distance used to appear only once a route had been found, so
      * the number that should inform the decision was a consequence of it.
      */
     airDistance: (distance: string) => `Luftlinie ${distance}`,
@@ -435,11 +435,12 @@ export const de = {
     mapLabel: "Karte mit den Fahrten dieser Runde",
 
     /**
-     * Elapsed time, not a time of day (decided S24). The model has no wall
-     * clock — the departure window simply starts at zero — so "7:48 Uhr" would
-     * put a number on screen that nothing in the simulation stands behind. It is
-     * written the way every other duration on screen is ("8 h 18 min"), because
-     * a bare "0:48" reads as a clock face and says nothing about what ran out.
+     * Elapsed time, not a time of day (decided 2026-10-01). The model has no
+     * wall clock — the departure window simply starts at zero — so "7:48 Uhr"
+     * would put a number on screen that nothing in the simulation stands
+     * behind. It is written the way every other duration on screen is ("8 h 18
+     * min"), because a bare "0:48" reads as a clock face and says nothing about
+     * what ran out.
      */
     clockLabel: "Vergangene Zeit",
     clock: (minute: number) => {
@@ -458,9 +459,10 @@ export const de = {
     skip: "Überspringen",
 
     /**
-     * One dot is about ten people (fifty until S25), and the screen says so. Every other figure on
-     * these screens is class-scale and nothing names it; a dot is the one place
-     * where the scale is attached to something you can point at.
+     * One dot is about ten people (fifty until 2026-10-01), and the screen says
+     * so. Every other figure on these screens is class-scale and nothing names
+     * it; a dot is the one place where the scale is attached to something you
+     * can point at.
      */
     scale: (people: string) => `Ein Punkt steht für ${people} Menschen.`,
     crowd: (people: number) => people.toLocaleString("de-DE"),
@@ -479,7 +481,7 @@ export const de = {
       fill: "wie voll die Straße ist",
     },
     /**
-     * The second sentence used to say "wartet als Gruppe", which under S17's
+     * The second sentence used to say "wartet als Gruppe", which since the
      * rename reads as a Gruppe waiting for itself. What it meant is where the
      * dots are: held vehicles sit in the simulator's waiting list, so they are
      * drawn on their origin rather than on the street.
@@ -557,8 +559,9 @@ export const de = {
       })} €`,
     /**
      * The fallback figures, when no routes reached the simulation. It has never
-     * happened since 1.1 fixed the ordering, but the flag is in the payload and
-     * silently showing made-up numbers as real ones would be the worse bug.
+     * happened since the round's ordering was fixed, but the flag is in the
+     * payload and silently showing made-up numbers as real ones would be the
+     * worse bug.
      */
     noSimulation: "Für diese Runde konnte die Simulation nicht rechnen.",
 
@@ -601,7 +604,7 @@ export const de = {
    * their own morning. Both are in the payload, and the reader switches between
    * them.
    *
-   * The label is **"alle Pendler"**, not "ganze Klasse" (S17): the sum over
+   * The label is **"alle Pendler"**, not "ganze Klasse": the sum over
    * every Gruppe is `GameMap.district_commuters`, a property of the map that
    * does not change when half the class is off sick. "Ganzer Bezirk" was on the
    * table and rejected — Bezirk is a Berlin word and the map will not always be
@@ -684,7 +687,7 @@ export const de = {
   },
 
   /** The map vote and the tie-break that can follow it. */
-  /** Where the map sits on a large screen (S24). */
+  /** Where the map sits on a large screen. */
   mapLayout: {
     label: "Karte",
     below: "Darüber",
@@ -736,7 +739,7 @@ export const de = {
     unchanged: "Die Karte bleibt, wie sie ist.",
   },
 
-  /** The end of the game (F6). */
+  /** The end of the game. */
   summary: {
     title: "Spiel zu Ende",
     reason: endReason,
@@ -810,7 +813,7 @@ export const de = {
       "Es ist keine Runde zu Ende gefahren, also gibt es auch nichts auszuwerten.",
     failed: "Die Auswertung lässt sich gerade nicht laden.",
     hostHome: "Neues Spiel anlegen",
-    /** Back to the host's own page, with every game they have run (F3). */
+    /** Back to the host's own page, with every game they have run. */
     hostGames: "Zu deinen Spielen",
     /**
      * Both headline figures in kilos, whatever their size. `between.grams`
@@ -833,9 +836,9 @@ export const de = {
   },
 
   /**
-   * 1.6 + 1.7: the host machine runs the game and the host does not play.
+   * The host machine runs the game and the host does not play.
    *
-   * **"Leitstelle"** (S17, 2026-09-29), not "Leitpult" and not the
+   * **"Leitstelle"** (2026-09-29), not "Leitpult" and not the
    * "Lehrerrechner" it said everywhere else: transit vocabulary like the rest of
    * the interface, and the Lehrerrechner was the one school word a student
    * actually read. Everything on this screen is something you do for somebody
@@ -845,13 +848,13 @@ export const de = {
     title: "Leitstelle",
     /**
      * Under the game's name, on the projector — so it talks to the class, not
-     * to the host (F3; a draft, Lukas rewrites it).
+     * to the host (a draft, Lukas rewrites it).
      */
     lobbyLead:
       "Scannt den Code mit dem Handy oder gebt die Spiel-ID auf der Startseite ein. Wer kein Handy hat, spielt an der Leitstelle mit.",
     password: "Passwort",
     qrAlt: "QR-Code, der zu diesem Spiel führt",
-    /** The lobby's share button and what it copies (F3). */
+    /** The lobby's share button and what it copies. */
     share: "Einladung kopieren",
     shared: "Kopiert",
     shareFailed:
@@ -922,14 +925,14 @@ export const de = {
     curtainGo: "Los",
 
     /**
-     * Between the rounds (F5). The stats ack goes out for every seat at this
+     * Between the rounds. The stats ack goes out for every seat at this
      * machine at once — they are all looking at the same screen — but a vote is
      * one per seat, so that one goes round the desk like a turn does.
      */
     ackAll: "Weiter für alle hier",
     ackedAll: "Für die Plätze hier ist gelesen.",
     /**
-     * The projector's line over the vote (F3). It used to say how the seats at
+     * The projector's line over the vote. It used to say how the seats at
      * this machine take turns, which says nothing to a class voting on phones;
      * that sentence now stands over the queue, and only when there is one.
      */
@@ -953,7 +956,7 @@ export const de = {
     failedUnknown: "Das hat nicht geklappt. Versuch es nochmal.",
   },
 
-  /** 1.7: a seat moves to another device, by a six-character code. */
+  /** A seat moves to another device, by a six-character code. */
   handover: {
     title: "Platz auf ein Gerät geben",
     /** On the host machine, for a student who turns up with a phone. */
@@ -993,7 +996,7 @@ export const de = {
   /**
    * The map itself — what its colours mean. Shared by the editor, the map
    * detail page and the in-game view; each one supplies its own colours, so
-   * these are only the words (F7).
+   * these are only the words.
    */
   map: {
     legend: {
@@ -1091,14 +1094,14 @@ export const de = {
     pickHint: "Klick einen Knoten oder eine Kante an, um Details zu sehen.",
 
     /**
-     * S17. The detail page had `← All maps` and a `confirm("Delete map …")` in
+     * The detail page had `← All maps` and a `confirm("Delete map …")` in
      * it, live on the site — a browser dialog is outside every German pass
      * because it is not a text node and not a component.
      */
     allMaps: "← Alle Karten",
 
     /**
-     * S19: a dialog rather than `window.confirm`. It says what goes and what
+     * A dialog rather than `window.confirm`. It says what goes and what
      * stays — the games do, because `GameSession.game_map` is `SET_NULL`, and a
      * researcher deleting a test map should know the thesis data is not in it.
      */
@@ -1110,14 +1113,14 @@ export const de = {
     deleteConfirm: "Endgültig löschen",
     deleting: "Wird gelöscht …",
 
-    /** S18: the two things the action bar can fail at, which it used to swallow
+    /** The two things the action bar can fail at, which it used to swallow
      * into `console.error` and leave the button looking like it had worked. */
     exporting: "Wird gesichert …",
     exportFailed: "Die Karte ließ sich nicht sichern.",
     deleteFailed: "Die Karte ließ sich nicht löschen.",
 
     /**
-     * `/app/maps` — the list, new in S18. It replaces the Django page at
+     * `/app/maps` — the list. It replaces the Django page at
      * `/map/list/`, which was still in English and printed a description field
      * the model does not have.
      */
@@ -1143,9 +1146,9 @@ export const de = {
     },
 
     /**
-     * `/app/maps/upload` — S19. It was the Django page at `/map/upload/`, the
+     * `/app/maps/upload`. It was the Django page at `/map/upload/`, the
      * last staff tool on the server side. The labels and help texts are the
-     * ones `MapUploadForm` carries (S17); the form now only validates.
+     * ones `MapUploadForm` carries; the form now only validates.
      */
     upload: {
       title: "Karte hochladen",
@@ -1302,7 +1305,7 @@ export const de = {
   },
 
   /**
-   * The map editor (F7).
+   * The map editor.
    *
    * The one part of the dictionary whose reader is a researcher rather than a
    * player, so it names things precisely instead of gently: Knoten, Kante,
@@ -1365,7 +1368,7 @@ export const de = {
     deleteMap: "Karte löschen",
     /**
      * The backup button. It writes the *whole* map — every version, the
-     * ballot between them and both poll texts — since S14, and it is the only
+     * ballot between them and both poll texts — and it is the only
      * way a map moves between boxes.
      */
     exportMap: "Karte sichern (JSON)",
@@ -1410,7 +1413,6 @@ export const de = {
       add: "Knoten anlegen",
       removeConfirm: "Der Knoten und alle Kanten daran werden gelöscht.",
       noTypes: "Es sind keine Knotenarten angelegt.",
-      /** S17. */
       numbered: (id: number) => `Knoten ${id}`,
     },
 
@@ -1438,7 +1440,7 @@ export const de = {
       accessibleBy: "Nutzbar für",
       distance: "Länge",
 
-      /** S17: these were English on both the detail page and the editor. */
+      /** These were English on both the detail page and the editor. */
       modifyTitle: "Kante ändern",
       numbered: (id: number) => `Kante ${id}`,
       /** A link with neither a street nor a railway under it — see `"path"`. */
@@ -1496,7 +1498,7 @@ export const de = {
         `${edges} Kanten, alle ${interval} min`,
 
       /**
-       * S17. The line editor refused a bad route in English, and the refusal is
+       * The line editor refused a bad route in English, and the refusal is
        * the one thing on this panel somebody has to read.
        *
        * A bus needs a street under the link and a train needs a railway, so the
@@ -1535,7 +1537,7 @@ export const de = {
         `Unter ${edges} ${edges === 1 ? "Kante" : "Kanten"} liegt keine Straße. Nimm sie aus der Route oder leg die Straße an.`,
       missingTrain: (edges: number) =>
         `Unter ${edges} ${edges === 1 ? "Kante" : "Kanten"} liegt keine Bahn. Nimm sie aus der Route oder leg die Bahn an.`,
-      /** S18: the create form's two placeholders were `"e.g. M1"` / `"e.g. S1"`. */
+      /** The create form's two placeholders were `"e.g. M1"` / `"e.g. S1"`. */
       namePlaceholder: (type: string) =>
         type === "bus" ? "z. B. M1" : "z. B. S1",
       noStreetHere: "Hier liegt keine Straße",
@@ -1598,7 +1600,7 @@ export const de = {
       diffHint:
         "Änder die Karte mit den Werkzeugen oben: Kanten anklicken, um ihre Eigenschaften zu ändern, Knoten und Kanten anlegen oder löschen, oder unten eine Linie ändern.",
 
-      /** S17: the change list and the combination hint were English. */
+      /** The change list and the combination hint were English. */
       edgeChanges: (n: number) => `Geänderte Kanten (${n})`,
       newNodes: (n: number) => `Neue Knoten (${n})`,
       newEdges: (n: number) => `Neue Kanten (${n})`,
@@ -1617,7 +1619,7 @@ export const de = {
       generateFailed: "Die Kombinationen ließen sich nicht erzeugen.",
 
       /**
-       * S18. Four English strings sat on the Versionen tab: `"Generating..."`,
+       * Four English strings sat on the Versionen tab: `"Generating..."`,
        * `Generate combinations (n selected)`, `Created n combination version(s).`
        * and an `alt="change preview"`. The first slipped the detector for being
        * one word; the others carried none of its giveaway words.
@@ -1625,7 +1627,7 @@ export const de = {
       generating: "Wird erzeugt …",
 
       /**
-       * S18. The change list was almost entirely English — `Changes (n)`,
+       * The change list was almost entirely English — `Changes (n)`,
        * `PT Line Changes (n)`, five `Undo`s, `(cascade)`, `"Creating..."` and
        * `Create Version (n changes)` — and it rendered the raw action value
        * ("add" / "modify" / "remove") straight onto the screen as a badge. A
@@ -1655,7 +1657,7 @@ export const de = {
         `${n} ${n === 1 ? "Kombination" : "Kombinationen"} angelegt.`,
 
       /**
-       * F14: deleting a version. The dialog asks the server what goes before it
+       * Deleting a version. The dialog asks the server what goes before it
        * offers the button, and names it — the admin's delete used to take the
        * bare version and leave its streets in no version, where nobody could
        * see them and the export still carried them. A refusal is the server's
@@ -1722,7 +1724,7 @@ export const de = {
   },
 
   /**
-   * Spiel anlegen. S13 — the last funnel screen that wanted JavaScript.
+   * Spiel anlegen — the last funnel screen that wanted JavaScript.
    *
    * It was a Django ModelForm, which derived the two calibrated numbers once
    * per page load: a host who changed the Platzzahl had to pull both across by
@@ -1755,7 +1757,7 @@ export const de = {
     mapNoChanges:
       "Diese Karte hat nur eine Version. Es gibt also nichts abzustimmen, und die Diskussion zwischen den Runden fällt weg.",
     /**
-     * S21. `GameMap.calibrated` is false: nobody replayed rounds on this map,
+     * `GameMap.calibrated` is false: nobody replayed rounds on this map,
      * so its commuter count is whatever it was given — as a rule the field
      * default, measured on Berlin Mitte-West, which is the bigger map. Says
      * which way it is likely wrong, because "may not fit" alone gives a host
@@ -1790,7 +1792,7 @@ export const de = {
     maxRounds: "Runden",
     maxRoundsHelp: "So viele Runden werden gefahren, wenn das Budget reicht.",
     /**
-     * F8 step 2b. The budget is kg per person per round, the same on every
+     * The budget is kg per person per round, the same on every
      * map; the total follows from the people and the rounds and is what the
      * game ends on. Normal is Berlin Mitte-West's half-driving round.
      */
@@ -1820,7 +1822,7 @@ export const de = {
   },
 
   /**
-   * `/app/host` — the host's own page. S13.
+   * `/app/host` — the host's own page.
    *
    * It replaces `/accounts/profile/`, which was a Django template: the game
    * list, the account form, and links to the two credential flows that stayed

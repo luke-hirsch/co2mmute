@@ -6,9 +6,9 @@
  * agent. The game row rides along, and from it we need `game_map` and
  * `active_map_version` to fetch the graph the routes are found on.
  *
- * Parameterised by the player_id in the URL, not by "me": since 1.6
- * `IsPlayerInGame` also lets the host through for a seat played at the host
- * machine. That is what makes this the same hook F4's desk will use.
+ * Parameterised by the player_id in the URL, not by "me": `IsPlayerInGame`
+ * also lets the host through for a seat played at the host machine. That is
+ * what makes this the same hook the host desk uses.
  *
  * Read once and left alone (`staleTime: Infinity`). The assignment does not
  * change during a game, and everything that does change arrives over the socket.

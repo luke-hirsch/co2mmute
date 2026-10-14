@@ -22,7 +22,7 @@ import { useGameMap, useMapGraph } from "@/lib/queries/map-graph";
 /**
  * `/app/maps/<id>` — one map, for whoever draws them.
  *
- * S18 made this the page and left `MapViewer` the graph. It used to be the
+ * This is the page and `MapViewer` the graph. It used to be the
  * other way round: the viewer rendered the heading, four stat panels, the SVG,
  * the detail panel and the legend, and this file bolted a bar of three coloured
  * buttons — indigo, emerald, red — on top of it. Those three were most of the
@@ -67,7 +67,7 @@ const MapDetail = () => {
     setBusy("export");
     setFailure(null);
     try {
-      // The whole map since S14 — every version, the ballot between them and
+      // The whole map — every version, the ballot between them and
       // both poll texts. It is the only way a map moves between boxes, which is
       // why it sits next to "bearbeiten" rather than behind anything.
       const data = await apiFetch(`/api/maps/${mapId}/export/`);
@@ -88,7 +88,7 @@ const MapDetail = () => {
   };
 
   /**
-   * Asked in a dialog since S19, not `window.confirm`: the browser's own box
+   * Asked in a dialog, not `window.confirm`: the browser's own box
    * cannot say what stays, and what stays is the point — the games played on
    * the map keep their results (`game_map` is `SET_NULL`).
    */

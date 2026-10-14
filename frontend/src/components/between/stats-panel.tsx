@@ -17,7 +17,7 @@ import type { RoundResult } from "@/lib/game/game-state";
  * than one being divided out of the other. A screen dividing a figure that has
  * already been rounded for display by a thousand is dividing noise.
  *
- * Three things on it were invisible before S4 and are the point of this table:
+ * Three things on it were invisible once and are the point of this table:
  *
  * - **which scale a row is on.** Every figure here used to be class scale with
  *   nothing saying so, so a 2 km drive read as 334 kg. The switch flips the two

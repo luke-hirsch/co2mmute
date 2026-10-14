@@ -8,22 +8,23 @@ import { describe, expect, it } from "vitest";
  *
  * ### Why it exists
  *
- * S10 counted the off-palette classes per component directory and got `map/`
- * 118, `map/editor/` 102 and **zero** everywhere else — eleven months of design
- * work on the game screens, and a staff area nobody had looked at painting
- * indigo, emerald, red, green, blue, violet, orange and eight PT-line hues. S18
- * brought it onto the design system. Nothing stops it going back.
+ * The ux pass counted the off-palette classes per component directory and got
+ * `map/` 118, `map/editor/` 102 and **zero** everywhere else — eleven months of
+ * design work on the game screens, and a staff area nobody had looked at
+ * painting indigo, emerald, red, green, blue, violet, orange and eight PT-line
+ * hues. Then the map area was brought onto the design system. Nothing stops it
+ * going back.
  *
  * The shape is `tokens.test.ts`'s and `german.test.ts`'s: read the source, name
  * the drifting file. A rendered check would need a map, a router and a query
  * client, and the class is in the file either way.
  *
- * **Scoped to all of `src/`, not to the map area.** That is the lesson S17 wrote
- * down: `english_in` covered two of nine German pages for months and `/map/upload/`
- * was English behind a green suite. A detector scoped to the screens that
- * prompted it is the failure mode these exist to prevent — so this one reads
- * every `.tsx` and `.ts` under `src/`, and a screen added tomorrow is covered
- * without anybody remembering to add it.
+ * **Scoped to all of `src/`, not to the map area.** That is the lesson the word
+ * pass wrote down: `english_in` covered two of nine German pages for months and
+ * `/map/upload/` was English behind a green suite. A detector scoped to the
+ * screens that prompted it is the failure mode these exist to prevent — so this
+ * one reads every `.tsx` and `.ts` under `src/`, and a screen added tomorrow is
+ * covered without anybody remembering to add it.
  */
 const SRC = fileURLToPath(new URL("../../src", import.meta.url));
 
@@ -117,10 +118,10 @@ function sources(dir: string): string[] {
 /**
  * Comments are not paint.
  *
- * They matter here more than usual: half of S18's files carry a note saying
- * which hex they used to be, because "it was `bg-indigo-600`" is the only way a
- * reader a year from now can tell a deliberate choice from a leftover. Stripping
- * them is what lets those notes exist.
+ * They matter here more than usual: half of the map area's files carry a note
+ * saying which hex they used to be, because "it was `bg-indigo-600`" is the
+ * only way a reader a year from now can tell a deliberate choice from a
+ * leftover. Stripping them is what lets those notes exist.
  */
 function code(source: string): string {
   return source

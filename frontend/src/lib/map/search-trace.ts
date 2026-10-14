@@ -1,7 +1,7 @@
 import type { PathfindingState } from "@/types/routeTypes";
 
 /**
- * What the router looked at, in the order it looked (S24).
+ * What the router looked at, in the order it looked.
  *
  * `dijkstra` already reports its progress through `onStateChange`. The route is
  * found at once — a 170-link map is a few milliseconds — and the *picture* of the
@@ -47,7 +47,7 @@ export const TRACE_DURATION_MS = 1400;
  * Never faster than a frame, never slower than a person can follow.
  *
  * The ceiling was 120 ms a step, so a commute of two or three links played in a
- * quarter of a second and read as no playback at all (F3). At 350 a search of
+ * quarter of a second and read as no playback at all. At 350 a search of
  * four steps or more still fills the whole replay, and a two-step one takes
  * half of it.
  */

@@ -1,7 +1,7 @@
 /**
  * Everything the map editor writes.
  *
- * Moved out of `hooks/mapEditorHooks.ts` (F7) with **every URL, method and
+ * Moved out of `hooks/mapEditorHooks.ts` with **every URL, method and
  * payload preserved exactly**. That is not politeness about a refactor: these
  * are the only calls in the app that change a real map, and maps take real work
  * to build (Lukas, 2026-09-18 — "creating those maps take time"). The port is
@@ -298,7 +298,7 @@ export function createVersionFromDiff(mapId: MapId, payload: VersionDiffPayload)
 }
 
 /**
- * Delete a version and what only it holds (F14). The server refuses the base
+ * Delete a version and what only it holds. The server refuses the base
  * version, a map with a game running on it and a version a game has seen, with
  * a 409 whose `detail` is the sentence to show.
  */
@@ -312,7 +312,7 @@ export function deleteVersion(mapId: MapId, versionId: number) {
 /**
  * The options every hook below hands to `useMutation`, testable without React.
  *
- * **`onSuccess` returns the refetch, it does not just start it** (F10). A
+ * **`onSuccess` returns the refetch, it does not just start it.** A
  * mutation stays pending until its `onSuccess` settles, so `isPending` now
  * covers the graph that shows the write, not only the write. That is the
  * whole of the editor's double-click guard: the write answered in ~20 ms, the

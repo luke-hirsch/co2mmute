@@ -10,7 +10,7 @@ import { useSetChat } from "@/lib/queries/session";
  * same reason the players do — it is the last chance to notice that the CO₂
  * budget is wrong before a round is played on it.
  *
- * The host's copy has one control in it, the chat (F3): the create form could
+ * The host's copy has one control in it, the chat: the create form could
  * switch it, the lobby could only say which way it was set.
  */
 export function GameSettings({ host = false }: { host?: boolean }) {
@@ -31,7 +31,7 @@ export function GameSettings({ host = false }: { host?: boolean }) {
         value={de.lobby.co2Kg(state.maxCo2LevelKg)}
       />
       {/*
-        Back as of S8. This row was removed in F5 because the chat had died
+        Back again. This row was removed once because the chat had died
         with the legacy screen and it went on promising "Chat — an" for a
         feature with no way to reach it. `ChatDock` is that way, so the promise
         is true again — and it has to be kept true: if the chat is ever

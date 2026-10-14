@@ -6,7 +6,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { loginAsHost } from "./host";
 
 /**
- * F14: deleting a version in the editor.
+ * Deleting a version in the editor.
  *
  * The website could not, and the admin's delete took the bare version and left
  * every street that was only in it in no version — invisible in the editor,
@@ -62,7 +62,7 @@ test.describe("deleting a map version", () => {
     const imported = await page.request.post("/api/maps/import/", {
       headers: await csrf(page),
       multipart: {
-        map_name: `F14 Versionen ${Date.now()}`,
+        map_name: `Versionen ${Date.now()}`,
         max_players: "6",
         json_file: {
           name: "map.json",
@@ -188,7 +188,7 @@ test.describe("deleting a map version", () => {
 
   test("a running game refuses it, in the server's words", async ({ page }) => {
     const id = mapId as number;
-    const name = `F14 läuft ${Date.now()}`;
+    const name = `Läuft ${Date.now()}`;
     const created = await page.request.post("/api/game/", {
       headers: await csrf(page),
       data: {

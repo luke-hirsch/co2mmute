@@ -400,7 +400,7 @@ class PlayerMoveOnCommitTests(RoundFixtureMixin, TestCase):
         self.client.cookies[game_name] = sign_value(
             f"{self.game.game_id}:test-token", settings.COOKIE_GAME_SALT
         )
-        # The 1.2 format: the player_id bound to its game inside the signature.
+        # The player_id bound to its game inside the signature.
         self.client.cookies[player_name] = sign_value(
             f"{self.game.game_id}:{player.player_id}", settings.COOKIE_PLAYER_SALT
         )
@@ -1710,7 +1710,7 @@ class CrashedSimulationIsNotAFreeRoundTests(SimulatedRoundMixin, TestCase):
 
 @override_settings(**TEST_BACKENDS)
 class TheRoundEndSetsNoClockTests(SimulatedRoundMixin, TestCase):
-    """F2d: the game runs each pass until everybody is home.
+    """The game runs each pass until everybody is home.
 
     `_run_simulation` used to pass max_ticks=200, and that number was the clock
     that could leave people on the road. It now leaves the limit to
@@ -1749,9 +1749,10 @@ class TheRoundEndSetsNoClockTests(SimulatedRoundMixin, TestCase):
 
 
 # ---------------------------------------------------------------------------
-# S4, the backend half: the payloads say what scale their numbers are on, and
-# name the two things a screen cannot derive — what a commuter actually paid,
-# and which part of the round total belongs to no player at all.
+# The numbers on screen, the backend half: the payloads say what scale their
+# numbers are on, and name the two things a screen cannot derive — what a
+# commuter actually paid, and which part of the round total belongs to no player
+# at all.
 # ---------------------------------------------------------------------------
 
 
@@ -1761,7 +1762,7 @@ class RoundCompletedScaleTests(SimulatedRoundMixin, TestCase):
 
     The round table reads `emissions_g` and `cost_eur` straight off this
     payload, so a 2 km drive shows up as 334 g x 1000 people. The summary
-    endpoint learned to carry both scales in 2.4; the socket did not, which is
+    endpoint learned to carry both scales first; the socket did not, which is
     why the table and the end screen disagree about what a row means.
 
     Two things only the server can answer: the cohort size (it reaches the SPA

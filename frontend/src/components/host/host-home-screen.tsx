@@ -28,7 +28,7 @@ import {
 } from "@/lib/queries/host-games";
 
 /**
- * `/app/host` — the host's own page. S13.
+ * `/app/host` — the host's own page.
  *
  * It replaces `/accounts/profile/`, a Django template that listed the games and
  * carried a `ProfileForm`. Both followed the create form across because the

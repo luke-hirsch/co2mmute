@@ -6,8 +6,8 @@
  * session, a player is two signed cookies and no account at all. The screens
  * never ask "am I logged in" — they ask this.
  *
- * Calling it also **renews both player cookies** (`WhoAmIView._renew_cookies`,
- * 1.6). That is why the lobby calls it on mount rather than reading the cookie
+ * Calling it also **renews both player cookies** (`WhoAmIView._renew_cookies`).
+ * That is why the lobby calls it on mount rather than reading the cookie
  * itself: a phone left lying around over a lesson break stays in the game
  * because someone asked this question.
  *

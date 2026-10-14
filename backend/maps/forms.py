@@ -8,7 +8,7 @@ from maps.portability import EDGE_TYPES, edge_type_error
 class MapUploadForm(forms.Form):
     """Form for uploading a JSON file containing a graph structure to create a map.
 
-    German since S17. It was the last form on the site with English labels,
+    German since 2026-09-29. It was the last form on the site with English labels,
     English help text and English refusals — staff-only, which is why nobody
     reported it, but `/map/upload/` is the door a map comes back through and the
     only German the file round trip has. `maps/tests/test_portability.py` pins it
@@ -17,7 +17,7 @@ class MapUploadForm(forms.Form):
     The JSON keys stay English: `nodes`, `start_node` and `speed_limit` are the
     file's field names, and renaming them would mean renaming the API.
 
-    Nothing renders it since S19: the SPA's upload screen draws its own fields
+    Nothing renders it any more: the SPA's upload screen draws its own fields
     and posts them to `api/maps/import/`, which runs this form for the
     validation. That is why it carries no widgets — the labels and help text
     stay, because `MapUploadIsGermanTests` holds them German.
@@ -129,7 +129,7 @@ class MapUploadForm(forms.Form):
     def _check_lines(self, data, key, label):
         """A line states its route, as one `edges` list or as `chains`.
 
-        Since S14 a whole-map file carries a line's route per version, because
+        A whole-map file carries a line's route per version, because
         a version that clones a street runs the line over the clone. The two
         keys are alternatives and either satisfies "this line says where it
         runs"; what is checked here is only the shape, the indices are

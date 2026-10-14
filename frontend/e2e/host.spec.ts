@@ -15,7 +15,7 @@ import { loginAsHost } from "./host";
 test("the host signs in and lands on their own page", async ({ page }) => {
   await loginAsHost(page);
 
-  // `LOGIN_REDIRECT_URL` defaults to `/accounts/profile/`, and since S13 that
+  // `LOGIN_REDIRECT_URL` defaults to `/accounts/profile/`, and that
   // is a redirect into the SPA — so signing in is a two-hop chain now, and
   // where it ends is worth pinning. `loginAsHost` waits for exactly this, so a
   // change here breaks one helper rather than every spec that uses it.
@@ -24,14 +24,14 @@ test("the host signs in and lands on their own page", async ({ page }) => {
 });
 
 /**
- * S2's calibration and S13's derivation, as the host actually meets them.
+ * The calibration and its derivation, as the host actually meets them.
  *
  * Two things at once, and they belong together: the numbers are the calibrated
  * ones (the shipped default was 1000 people per Gruppe against a 500 kg budget,
  * which ended every game in round one and nothing went red over it for months),
  * **and they follow the class size**. Changing the Platzzahl used to leave both
  * numbers where the page load had put them — H-13 — which is why this screen
- * was ported to React at all. Since F8 step 2b the budget is a dial in kg per
+ * was ported to React at all. The budget is a dial in kg per
  * person and round, and the total it makes is in the dial's help.
  *
  * It does not create a game: that would leave a row on whatever database the
@@ -51,7 +51,7 @@ test("the create form offers the calibrated numbers, and they follow the class s
 
   await page.locator("#game_map").selectOption({ label: MAP_NAME });
   // The seed uploads the shipped file, which says its count was measured
-  // (S21), so the form offers it without the warning a new map gets.
+  // so the form offers it without the warning a new map gets.
   await expect(page.getByText(/nicht gemessen/)).toHaveCount(0);
   await expect(page.locator("#max_players")).toHaveValue("16");
   await expect(page.locator("#max_rounds")).toHaveValue("6");

@@ -72,10 +72,10 @@ describe("chatErrorText", () => {
       "Message too long",
       "Slow down",
       "Chat is moving too fast",
-      // S9: `is_muted` finally means something, and a muted player has to be
+      // `is_muted` finally means something, and a muted player has to be
       // told *why* nothing they send arrives — silence reads as a broken chat.
       "You are muted",
-      // S21: the host switched the chat off while this socket was open.
+      // The host switched the chat off while this socket was open.
       "Chat is off",
     ];
     const texts = raw.map(chatErrorText);

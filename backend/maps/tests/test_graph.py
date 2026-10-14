@@ -1,7 +1,7 @@
 """The graph endpoint after a write: what the editor reads back.
 
 `GET graph/…` is cached for an hour under map + version, and the map editor
-reads its own writes back through it. Until F10 only a `Node` or `Edge` save
+reads its own writes back through it. Once only a `Node` or `Edge` save
 cleared that cache, so every other write the editor makes — a street or a
 railway under an edge, a change to a street — was saved and then not shown:
 "+ Straße anlegen" answered 201 twice and the panel still offered "+ Straße
@@ -166,7 +166,7 @@ class GraphAfterAWriteTests(VersionFixtureMixin, TestCase):
 
         Every node and edge serialises its whole version list, and each version
         its ballot neighbours. Harmless while the graph was read once an hour;
-        since F10 the editor waits for a fresh one after every write. Counted
+        now the editor waits for a fresh one after every write. Counted
         twice rather than pinned to a number: what must not happen is that the
         count grows with the map.
         """

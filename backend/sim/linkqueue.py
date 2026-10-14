@@ -61,7 +61,7 @@ FALLBACK_TRAIN_SPEED_KMH = 40
 # Departure window: matches the ±60 min clamp in generate_departure_minutes()
 DEPARTURE_WINDOW_MIN = 120
 
-# A pass runs until everybody is home (F2d, Lukas 2026-10-02: "we should not
+# A pass runs until everybody is home (Lukas 2026-10-02: "we should not
 # strand people"), so this is not a clock the round is played against. It is a
 # guard against a model or map bug running forever, and reaching it is logged
 # as one. Measured on the shipped map: the game as played needs at most 35
@@ -76,15 +76,15 @@ PASS_TICK_GUARD = 1000
 # start at minute 5000.
 HOME_PASS_EARLIEST_TICK = 200
 
-# One dot on the replay stands for about this many people (S25, Lukas's pick
-# on measured consequences). It was 50, calibrated for 1000 people per agent:
-# at the derived ~100, a jam of fifty cars drew as one or two dots, and a third
-# of the jam moments on the shipped map showed one dot or none — "only one car
-# on the edge, but it still got slower". At 10 a jam is seven to twelve dots,
-# the shipped map carries ~640 person dots (WebKit holds 60 fps at twice that
-# on a desktop), and the recording is ~240 KiB, ~40 KiB as the view sends it.
-# What the screen names is the real ratio, which only equals this when it
-# divides the Gruppe — see _people_per_dot.
+# One dot on the replay stands for about this many people (Lukas's pick,
+# 2026-10-01, on measured consequences). It was 50, calibrated for 1000 people
+# per agent: at the derived ~100, a jam of fifty cars drew as one or two dots,
+# and a third of the jam moments on the shipped map showed one dot or none —
+# "only one car on the edge, but it still got slower". At 10 a jam is seven to
+# twelve dots, the shipped map carries ~640 person dots (WebKit holds 60 fps at
+# twice that on a desktop), and the recording is ~240 KiB, ~40 KiB as the view
+# sends it. What the screen names is the real ratio, which only equals this when
+# it divides the Gruppe — see _people_per_dot.
 #
 # The sample is taken by PERSON INDEX and never by a draw. A draw here would
 # come from self.rng and re-roll every later driver, which is the exact failure
@@ -95,7 +95,7 @@ REPLAY_PEOPLE_PER_DOT = 10
 # Bumped when the wire format changes, so a stored replay from an older round
 # can be recognised and skipped rather than mis-drawn.
 #
-# 2: the way home is in it (F2). Dots carry `pass`, the payload `home_start_min`,
+# 2: the way home is in it. Dots carry `pass`, the payload `home_start_min`,
 # and the evening's minutes and ids are already moved onto the morning's clock.
 REPLAY_FORMAT_VERSION = 2
 
@@ -965,8 +965,8 @@ class LinkQueueEngine:
         The base timetable always goes: a line runs whether or not anybody
         rides it, which is what keeps its society emissions a property of the
         map rather than of the round. Past that, a run leaves while somebody
-        still needs the line, AND while anybody at all is still out (F2d,
-        Lukas 2026-10-02: PT keeps driving until the last car is home — "just
+        still needs the line, AND while anybody at all is still out (Lukas
+        2026-10-02: PT keeps driving until the last car is home — "just
         fair and truthful", buses run through the quiet hours too). A jammed
         round therefore pays society CO2 for the buses that ran through its
         car tail. A run emits only if it leaves.
@@ -1016,7 +1016,7 @@ class LinkQueueEngine:
                 # still in the future and stays exactly as it is. Copying it
                 # entry by entry cost the whole list on every call, several
                 # times a tick, and the list holds every run the clock allows —
-                # five times as many since the clock became a guard (F2d).
+                # five times as many since the clock became a guard.
                 still_waiting.extend(waiting[at:])
                 break
 

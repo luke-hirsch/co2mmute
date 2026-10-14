@@ -1,7 +1,7 @@
 /**
  * Where the map sits on a large screen: beside the controls, or above them.
  *
- * The research group asked for beside (S24). A projector is a large screen as far
+ * The research group asked for beside. A projector is a large screen as far
  * as Tailwind is concerned and beside is wrong there — a map half the width of a
  * beamer with a list the size of a book next to it — so it is a choice the person
  * at the screen makes, and the default is the layout that works everywhere. Below

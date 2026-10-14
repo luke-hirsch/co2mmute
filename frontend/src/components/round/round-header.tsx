@@ -13,8 +13,8 @@ import { moveProgress } from "@/lib/game/game-state";
  * again is how the backend ended up with the rule in nine places.
  *
  * The round number comes from the reducer, so it is whatever `round.started`
- * last said. That event never arrived before split part 1, which is the "runden
- * counter" bug (2.4 / R-09); there is nothing to fix here beyond reading the
+ * last said. That event once never arrived, which was the "runden counter"
+ * bug (R-09); there is nothing to fix here beyond reading the
  * right field.
  */
 export function RoundHeader() {

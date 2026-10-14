@@ -101,7 +101,7 @@ export function GameProvider({
       identity: identity.data,
       seatId: identity.data?.player?.playerId ?? null,
       isHost: identity.data?.kind === "host",
-      // Identity counts as loading, not just the snapshot (F4). `isHost` is
+      // Identity counts as loading, not just the snapshot. `isHost` is
       // false while `whoami` is in flight, and rendering on that would show a
       // host the player's lobby for a moment before swapping it — a screen that
       // says the wrong thing about who you are, on a projector.

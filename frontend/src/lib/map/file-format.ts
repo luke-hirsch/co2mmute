@@ -4,7 +4,7 @@
  * Data, not copy — which is why it is here and not in `de.ts`: the keys are the
  * importer's field names and stay English, and the German in it is two place
  * names. `maps/tests/test_portability.py` imports a file of this shape, and
- * the Django page carried the same one; it moved across with S19.
+ * the Django page carried the same one; it moved across with the page.
  */
 export const EXAMPLE_MAP_FILE = {
   scale: 1000,

@@ -4,12 +4,12 @@ import { createGame, joinAsPlayer } from "./game";
 import { loginAsHost } from "./host";
 
 /**
- * A locked phone must not cost the turn (S7, R-22).
+ * A locked phone must not cost the turn (R-22).
  *
  * The case is the ordinary one in a classroom rather than an edge case: a
  * student picks a mode for one Gruppe, the screen goes dark while they argue
- * with the next desk, and the phone discards the page. Before S7 the half-made
- * turn went with it.
+ * with the next desk, and the phone discards the page. The half-made turn used
+ * to go with it.
  *
  * Driven on a **player's own device**, not at the host desk, because that is
  * where it happens and because the desk deliberately forgets which seat it was

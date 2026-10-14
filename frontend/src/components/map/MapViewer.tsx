@@ -12,7 +12,7 @@ import type { Edge, GameMap, MapGraph, Node } from "@/types/mapTypes";
 /**
  * The graph on the map detail page: the network, and what you clicked on.
  *
- * ### What S18 changed
+ * ### What changed on 2026-09-30
  *
  * It used to be the whole page — heading, four stat cards, the SVG, the panel
  * and the legend — with `MapDetail` bolting an action bar on top of it. The
@@ -34,7 +34,7 @@ interface SelectedElement {
   id: number;
 }
 
-/** How far a mark is drawn from a node's centre. Unchanged from before S18. */
+/** How far a mark is drawn from a node's centre. Unchanged since 2026-09-30. */
 const NODE_RADIUS = 10;
 const NODE_RADIUS_SELECTED = 14;
 
@@ -80,7 +80,7 @@ const MapViewer = ({
             style={{ aspectRatio: `${width}/${height}`, minHeight: "500px" }}
           >
             {/* The background image, under everything. The detail page did not
-                render it before F7, so a map calibrated in the editor looked
+                render it once, so a map calibrated in the editor looked
                 different here than in the game. */}
             {bg && gameMap.background_image_url ? (
               <image

@@ -401,7 +401,7 @@
     left: calc(var(--lane-w) / 2 - var(--dot) / 2 - var(--col-pad));
   }
 
-  /* the docs under /docs/ (the background was the first, S23): one line, not
+  /* the docs under /docs/ (the background was the first): one line, not
      four. The background is the detour above, so the docs run on the
      public-transport line, centred where the bundle runs so the
      termini sit on it. Its chapters are stations, its sections stops. */
@@ -412,8 +412,8 @@
 }
 
 /*
- * The long-form text of the docs under /docs/ (F13; /hintergrund/ was the first,
- * S23) — a file in docs/ as a page.
+ * The long-form text of the docs under /docs/ (/hintergrund/ was the first) — a
+ * file in docs/ as a page.
  *
  * Styled by element rather than class by class, so the template reads like
  * the document it copies. `prose` is inert here (no typography plugin), which
@@ -692,7 +692,7 @@
 /*
  * Forms and buttons for the Django pages — the twins of the SPA's `Input`,
  * `Label`, `Button` and `Field` (frontend/src/components/ui/, layout/field.tsx),
- * value for value, so a Django form and a React one cannot be told apart. S22.
+ * value for value, so a Django form and a React one cannot be told apart.
  *
  * Classes rather than utility lists because a stock auth form renders its own
  * <input> from {{ field }}: co2mmute/forms.py hangs `field-input` on every
@@ -701,8 +701,8 @@
  *
  * shadcn's `rounded-md` over there is calc(0.625rem - 2px), which is 8px, and
  * that is `rounded-lg` here. Errors are an amber rule beside ink text, not
- * amber text: amber on the light ground is hard to read, which S19 found on the
- * map notes first.
+ * amber text: amber on the light ground is hard to read, which the map notes
+ * showed first.
  */
 @layer components {
   .field-label {

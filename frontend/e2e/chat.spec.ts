@@ -4,7 +4,7 @@ import { createGame, joinAsPlayer } from "./game";
 import { loginAsHost } from "./host";
 
 /**
- * The chat (S8 — C-01 to C-05, R-13).
+ * The chat (C-01 to C-05, R-13).
  *
  * Two browser contexts, because the headline case cannot be proved with one:
  * C-01 is "a message reaches everyone", and a seat played at the host machine
@@ -41,7 +41,7 @@ test("a message reaches the other device, and survives a reload", async ({
 
   try {
     // L-06: the lobby says the chat is on, which it only may while there is a
-    // way to reach it. The row was deleted in F5 for promising otherwise.
+    // way to reach it. The row was deleted once for promising otherwise.
     await expect(page.getByText("Chat", { exact: true }).first()).toBeVisible();
 
     // C-05 / R-13: reachable from the game screen at all.
@@ -178,7 +178,7 @@ test("no chat is offered when the chat is switched off", async ({
     // The dock renders nothing at all rather than a disabled button: the
     // server has wiped the history, so there is nothing behind it.
     await expect(page.getByRole("button", { name: "Chat" })).toHaveCount(0);
-    // The host's settings carry the switch itself since F3, not the word.
+    // The host's settings carry the switch itself, not the word.
     await expect(page.getByRole("checkbox", { name: "an" })).not.toBeChecked();
   } finally {
     await endAndDelete(page, gameId, baseURL!);
@@ -186,7 +186,7 @@ test("no chat is offered when the chat is switched off", async ({
 });
 
 /**
- * The same switch, thrown on the create form (S21) rather than by PATCH — the
+ * The same switch, thrown on the create form rather than by PATCH — the
  * form never offered it before, so the chat could only ever start on.
  */
 test("a game made with the chat off offers none", async ({ page, baseURL }) => {

@@ -22,7 +22,7 @@ export async function loginAsHost(page: Page): Promise<void> {
   await page.locator('input[name="password"]').fill(HOST_PASSWORD);
   await Promise.all([
     // Wait for where a host actually ends up, not for "off the login page".
-    // Until S22 that was a two-hop chain — `LOGIN_REDIRECT_URL` defaulted to
+    // That used to be a two-hop chain — `LOGIN_REDIRECT_URL` defaulted to
     // `/accounts/profile/`, itself a redirect into the SPA — and "not on
     // /accounts/login any more" was true while the browser was still moving,
     // so the next `page.goto` collided with it ("interrupted by another

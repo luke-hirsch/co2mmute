@@ -109,7 +109,7 @@ export function JoinForm({ gameId }: { gameId: string }) {
         name: trimmedName,
         ...(password ? { password } : {}),
       });
-      // Both cookies are set by the response. One route per game since F3 —
+      // Both cookies are set by the response. One route per game —
       // whether that shows the lobby or a running round is the game's call,
       // not the URL's.
       await navigate({

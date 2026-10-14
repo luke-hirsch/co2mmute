@@ -11,7 +11,7 @@ import { SeatCodePanel } from "@/components/host/seat-code-panel";
 import { de } from "@/lib/de";
 
 /**
- * "Auf anderes Gerät" on a player's own screen (1.7, 2.7).
+ * "Auf anderes Gerät" on a player's own screen.
  *
  * The case is a phone that is about to die, or a student moving to the
  * classroom machine. They ask for a code here and type it on the other device;

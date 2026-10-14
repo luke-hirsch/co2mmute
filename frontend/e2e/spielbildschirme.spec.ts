@@ -4,7 +4,7 @@ import { createGame, joinAsPlayer } from "./game";
 import { loginAsHost } from "./host";
 
 /**
- * The rest of S24: the seat limit warns before the field, and the router's
+ * The game screens: the seat limit warns before the field, and the router's
  * search is drawn when a route appears.
  *
  * Voting by keyboard needs a round simulated first and is held by the unit
@@ -62,9 +62,9 @@ test("the search the router made is drawn, then gone, and the route stays", asyn
     await row.getByRole("radio", { name: "Auto", exact: true }).click();
 
     await expect(search.locator("line").first()).toBeAttached({ timeout: 10_000 });
-    // In the primary since F3 — the accent is what a jammed street turns.
+    // In the primary — the accent is what a jammed street turns.
     await expect(search).toHaveAttribute("stroke", "var(--color-primary)");
-    // The route waits for its search (F3): while the search is still being
+    // The route waits for its search: while the search is still being
     // drawn, the answer is not on the map yet.
     await expect(route).toHaveCount(0);
     await expect(row.getByText("ändern")).toBeVisible({ timeout: 60_000 });

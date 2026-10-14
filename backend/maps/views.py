@@ -1,7 +1,7 @@
 """The Django pages the map area used to have, as doorways into the SPA.
 
-All three were templates once — the list (S18), a map's page (S18) and the
-upload form (S19). The URLs stay because `base.html` names them in its menus
+All three were templates once — the list, a map's page and the upload
+form. The URLs stay because `base.html` names them in its menus
 and a bookmark might; nothing is looked up, and the SPA does the staff gating.
 The import itself is `maps/importer.py`, behind `api/maps/import/`.
 """
@@ -11,7 +11,7 @@ from django.views.generic import RedirectView
 
 
 class MapUploadView(LoginRequiredMixin, RedirectView):
-    """`/map/upload/` — the upload screen, which `/app/maps/upload` is now. S19.
+    """`/map/upload/` — the upload screen, which `/app/maps/upload` is now.
 
     `RedirectView` answers every method with the redirect, so a POST here no
     longer imports anything: the endpoint is the one door, and a second one
@@ -24,7 +24,7 @@ class MapUploadView(LoginRequiredMixin, RedirectView):
 
 
 class MapListView(LoginRequiredMixin, RedirectView):
-    """`/map/list/` — the staff map list, which `/app/maps` is now. S18.
+    """`/map/list/` — the staff map list, which `/app/maps` is now.
 
     The template was English and printed a `description` `GameMap` has no
     column for. The URL stays because both menus in `base.html` name
@@ -37,7 +37,7 @@ class MapListView(LoginRequiredMixin, RedirectView):
 
 
 class MapDetailView(LoginRequiredMixin, RedirectView):
-    """`/map/<pk>/` — a map's page, which `/app/maps/<pk>/` is now. S18.
+    """`/map/<pk>/` — a map's page, which `/app/maps/<pk>/` is now.
 
     Nothing linked here any more: the old list already pointed at the SPA. Its
     version browser is the editor's version panel. Nothing is looked up, so an

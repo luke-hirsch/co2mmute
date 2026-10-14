@@ -11,11 +11,10 @@ import { GameProvider } from "@/components/game/game-provider";
  * four components each opening their own connection to the same channel.
  *
  * `GameFrame` sits inside it so that pause, a revoked seat and a dropped socket
- * are handled once for everything below. That includes the legacy screen at
- * `$gameId.index.tsx`, which keeps running until F3 replaces it — it still
- * opens its own sockets, so for one chunk there are more connections rather
- * than fewer. The trade is deliberate: the game stays playable in every single
- * branch, and no chunk is a "works with the next one".
+ * are handled once for everything below. During the rewrite that included the
+ * legacy screen, which opened its own sockets, so for a while there were more
+ * connections rather than fewer. The trade was deliberate: the game stayed
+ * playable in every single branch, and no step was a "works with the next one".
  */
 function GameRoute() {
   const { gameId } = useParams({ from: "/game/$gameId" });

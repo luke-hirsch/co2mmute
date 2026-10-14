@@ -110,13 +110,14 @@ export type Replay = {
   version: number;
   /**
    * How many real people one person-dot stands for, as sampled — about ten
-   * since S25 (fifty before), and a fraction when the stride does not divide a
-   * Gruppe. Printed rounded (`lib/replay/counts.ts:dotScale`).
+   * since 2026-10-01 (fifty before), and a fraction when the stride does not
+   * divide a Gruppe. Printed rounded (`lib/replay/counts.ts:dotScale`).
    */
   people_per_dot: number;
   /**
-   * The simulator's own count of who did not arrive. Added inside format 1 in
-   * S25, so a recording from before has none and the sample answers instead.
+   * The simulator's own count of who did not arrive. Added inside format 1 on
+   * 2026-10-01, so a recording from before has none and the sample answers
+   * instead.
    */
   endings?: ReplayEndings;
   tick_duration_min: number;

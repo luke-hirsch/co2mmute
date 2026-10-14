@@ -8,7 +8,7 @@ describe("routerPath", () => {
     expect(routerPath("/app/maps/upload")).toBe("/maps/upload");
     expect(routerPath("/app/game/create")).toBe("/game/create");
     expect(routerPath("/app/host")).toBe("/host");
-    // The header's "Beitreten" since S22, when Django's /join/ was deleted.
+    // The header's "Beitreten" since Django's /join/ was deleted.
     expect(routerPath("/app/join")).toBe("/join");
   });
 

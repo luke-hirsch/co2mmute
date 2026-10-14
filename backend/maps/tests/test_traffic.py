@@ -8,7 +8,7 @@ README describes as routing "unter der Auslastung der letzten Runde" did not
 exist end to end.
 
 `serialize_previous_round_traffic` is the join between the two halves, and
-until S6 **nothing tested it on either side**. These pin the contract the
+for a long time **nothing tested it on either side**. These pin the contract the
 frontend now reads: the shape of a row, which round it comes from, and the three
 ways it is legitimately empty — because an empty list is what round one looks
 like, and a bug that empties it looks exactly the same on screen.

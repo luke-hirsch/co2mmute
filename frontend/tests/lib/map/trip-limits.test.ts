@@ -67,9 +67,9 @@ describe("exceedsModeLimit", () => {
 
   it("refuses the shipped map's median walk, which is 5.4 km", () => {
     // Measured over all 36 home/workplace pairs since the Tiergarten paths
-    // (F11): shortest routed walk 2.75 km, median 5.4, longest 10.0. So the cap
-    // refuses walking on 22 of 36 pairs and allows 14. Before the paths it
-    // refused 33 — the map had no walkable commute at all.
+    // (2026-10-02): shortest routed walk 2.75 km, median 5.4, longest 10.0. So
+    // the cap refuses walking on 22 of 36 pairs and allows 14. Before the paths
+    // it refused 33 — the map had no walkable commute at all.
     expect(exceedsModeLimit("walk", 5378)).toBe(true);
     expect(exceedsModeLimit("walk", 2754)).toBe(false);
   });

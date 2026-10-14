@@ -155,8 +155,9 @@ export function buildGraph(raw: RawMap, version: number): ExtendedMapGraph {
    * The chain this version runs the line on, or none.
    *
    * A line can be in a version and still have no route in it — that is the
-   * shape of the damage S15 repaired, where a cloned street took a line's
-   * through-row with it and left the base version reaching none of its edges.
+   * shape of the damage the versioning fix repaired, where a cloned street took
+   * a line's through-row with it and left the base version reaching none of its
+   * edges.
    */
   const chainFor = (line: RawLine): number[] | null =>
     line.chains.find((chain) => chain.versions.includes(version))?.edges ?? null;

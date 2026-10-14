@@ -8,16 +8,16 @@
  * — a screen built for a student with a QR code — with no link back to the
  * landing page or their own profile, and nothing on it to press.
  *
- * So: a header on those screens, and on nothing else. Since S20 the footer
- * follows the same rule. A game screen needs neither, legal links included.
+ * So: a header on those screens, and on nothing else. The footer follows the
+ * same rule. A game screen needs neither, legal links included.
  *
- * **Since S22 the join screen is also the front door**, not only where a host
+ * **The join screen is also the front door**, not only where a host
  * lands by accident: the QR code and the landing page's "Los" both point at
  * `/app/join/<ID>`, and Django's own `/join/` is deleted. Nothing here changed
  * for it — a student arriving from the landing page wants the way back to it
  * just as much.
  *
- * **S18 moved the map area onto the chrome side.** `/maps` was listed as both
+ * **The map area is on the chrome side.** `/maps` was listed as both
  * full-bleed and redirect-only, which was true while it was a stub that threw a
  * redirect and a detail page that ran its own layout. It is an ordinary staff
  * screen now — a list, and a page with a graph on it — and the way back to the

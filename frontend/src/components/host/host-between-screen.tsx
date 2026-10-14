@@ -35,8 +35,9 @@ import { usePhase } from "@/hooks/use-phase";
  *   switch, and must not see the last person's ballot while the next one sits
  *   down.
  *
- * That carousel is F4's, not a second one: `use-desk.ts` takes the set of seats
- * that are finished, and here that set is "has voted" instead of "has moved".
+ * That carousel is the host desk's, not a second one: `use-desk.ts` takes the
+ * set of seats that are finished, and here that set is "has voted" instead of
+ * "has moved".
  *
  * **What the host cannot see is who is still missing.** No event names the seats
  * that have acked or voted, only how many — so when a phase hangs on one
@@ -230,7 +231,7 @@ function HostVote() {
 
       {/*
         The projector shows the map the class is deciding about, with the
-        round they just played on it (S24). Beside is the person's choice.
+        round they just played on it. Beside is the person's choice.
       */}
       <MapStage layout={layout} onLayoutChange={setLayout} map={<VoteMap />}>
         {desk.seats.length > 0 ? (
@@ -365,7 +366,7 @@ function HostTie() {
 }
 
 /**
- * The way out when a phase hangs on somebody who has gone (F3).
+ * The way out when a phase hangs on somebody who has gone.
  *
  * The hint used to stand here alone, telling the host to remove the seat, with
  * nothing on any between-round screen that could: the only list was the queue
@@ -404,7 +405,7 @@ function StuckSeats() {
 /**
  * The seats at this machine, as a queue of things still to do.
  *
- * Deliberately not `SeatAdminList` (F4): that one is about a seat's
+ * Deliberately not `SeatAdminList`: that one is about a seat's
  * administration — take over, remove, hand on a code — and between rounds the
  * only question is whether this seat has answered yet.
  */

@@ -29,7 +29,7 @@ import {
  * One link's properties — the densest panel in the editor, and the one that held
  * forty off-palette classes.
  *
- * ### What S18 changed, and what it did not
+ * ### What changed on 2026-09-30, and what did not
  *
  * Presentation only. Every handler, every mutation and the reverse-edge
  * bookkeeping are byte-for-byte what they were: this panel writes to the map, so
@@ -49,7 +49,7 @@ import {
  *   the link. Those are destructive and they are the accent now, which is the
  *   colour the palette has for that.
  * - **`"Yes"` / `"No"`**, rendered for `biking` and `walking` in the read-only
- *   branch. `de.actions.yes` / `.no` have existed since S17 and the bus-lane row
+ *   branch. `de.actions.yes` / `.no` existed already and the bus-lane row
  *   three lines below already used them; these two were missed because a
  *   one-word literal is invisible to `german.test.ts`.
  * - `"Saving..."`, for the same reason.

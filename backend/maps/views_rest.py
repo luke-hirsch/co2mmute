@@ -71,7 +71,7 @@ logger = logging.getLogger(__name__)
 # The four create endpoints below are the editor's: a node, an edge (and its
 # other direction), the street or the railway under an edge. Each names the
 # version it was drawn in; `spread_to_built_on` puts the row into every version
-# built on that one (F10). A row in no version is refused by the serializer
+# built on that one. A row in no version is refused by the serializer
 # (`MapVersionsMixin`); a second copy of what the drawn version already has is
 # refused here — Bellevue – Großer Stern sits twice in the box's base, and every
 # repeated click on "+ Straße anlegen" wrote another street row under one edge.
@@ -143,7 +143,7 @@ class MapVersionListView(MapScopedQuerysetMixin, ListCreateAPIView):
 class MapVersionDetailView(RetrieveUpdateDestroyAPIView):
     """Retrieve, update, or delete a specific map version.
 
-    Scoped to the map in the URL since F14: the lookup used to ignore it, so
+    Scoped to the map in the URL: the lookup used to ignore it, so
     any version answered under any map.
     """
 
@@ -160,7 +160,7 @@ class MapVersionDetailView(RetrieveUpdateDestroyAPIView):
     def destroy(self, request, *args, **kwargs):
         """Through `delete_version`, the one cleanup the admin runs too.
 
-        Nothing called this before F14, and it deleted the bare row: the base
+        Nothing called this at first, and it deleted the bare row: the base
         version (some other version was then promoted in its place), a version
         under a running game, and every row only it held left in no version.
         """
@@ -747,7 +747,7 @@ class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
             # Every node and edge carries its whole version list, each version
             # with its ballot neighbours: 1 811 of the 1 832 queries one graph
             # took on the shipped map, ~0.85 s of it. The editor waits for this
-            # graph after every write (F10), so it is prefetched.
+            # graph after every write, so it is prefetched.
             nodes = Node.objects.filter(
                 game_map=map_obj, map_versions=version
             ).prefetch_related("node_type", "map_versions__compatible_versions")
@@ -889,7 +889,7 @@ class MapExportView(MapScopedQuerysetMixin, GenericAPIView):
 
 
 class MapImportView(GenericAPIView):
-    """`POST api/maps/import/` — a map file in, a new map out. S19.
+    """`POST api/maps/import/` — a map file in, a new map out.
 
     The door the SPA's upload screen uses, and the only one: `/map/upload/`
     was a Django form page doing the same job, and it is a redirect now. The
@@ -1200,8 +1200,8 @@ class VersionDiffCreateView(GenericAPIView):
                         )
 
             elif action == "remove" and pt_change.get("id"):
-                # A row must never name a version its line has left: after S14
-                # that would be written into the file as a link of a line that
+                # A row must never name a version its line has left: the export
+                # would write that into the file as a link of a line that
                 # is not there.
                 if line_type == "bus":
                     bl = BusLine.objects.filter(pk=pt_change["id"]).first()

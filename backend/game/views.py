@@ -3,7 +3,7 @@
 Every page that used to live here is a React screen now, and what is left are
 the old URLs, kept as redirects because something still links them. The join
 funnel (`/join/`, `/join/<id>/`, `game/<id>/player/create/`) was the last page
-and went in S22 — deleted rather than redirected, see
+and went too — deleted rather than redirected, see
 `game/tests/test_join.py:OneJoinFunnelTests`.
 """
 
@@ -12,7 +12,7 @@ from django.views.generic import RedirectView
 
 
 class GameSessionCreateView(LoginRequiredMixin, RedirectView):
-    """`/game/create/` is now a doorway into the SPA. S13.
+    """`/game/create/` is now a doorway into the SPA.
 
     The form itself is `frontend/src/routes/game/create.tsx`, because the two
     calibrated numbers it offers have to follow the class size as the host
@@ -39,7 +39,7 @@ class ShareSessionView(LoginRequiredMixin, RedirectView):
     """`/game/<id>/share/` — the join QR, which the host lobby already shows.
 
     Not a port: a deletion. `HostLobbyScreen` puts the game id in a departure
-    board with the QR under it, sized for a projector, and has done since F4 —
+    board with the QR under it, sized for a projector —
     so this page was a second screen answering one question, which is the thing
     this project keeps having to undo. It redirects into the lobby.
 

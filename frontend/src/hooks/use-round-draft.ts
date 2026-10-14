@@ -5,8 +5,8 @@
  * replace is the pathfinding itself — `findPath` and `findBestPTRoute` are pure
  * logic and stay exactly as they are.
  *
- * Parameterised by seat: give it a `seatId` and it plays that seat. F4's desk
- * hands it someone else's, and nothing here has to change.
+ * Parameterised by seat: give it a `seatId` and it plays that seat. The host
+ * desk hands it someone else's, and nothing here has to change.
  */
 
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
@@ -61,7 +61,7 @@ export function useRoundDraft({
   seatId: string | null;
   roundNumber: number;
   /**
-   * The version the game is on *now*, from the reducer (F5).
+   * The version the game is on *now*, from the reducer.
    *
    * Not `seat.data.active_map_version`: that row is read once and kept
    * (`staleTime: Infinity`), and this screen does not remount between rounds —
@@ -72,7 +72,7 @@ export function useRoundDraft({
    */
   mapVersionId: number | null;
   /**
-   * Whether this seat's turn is already in (S7).
+   * Whether this seat's turn is already in.
    *
    * From the roster, which is the only thing that knows it — the same fact the
    * screen switches on. It is here so the stored draft *follows* that answer
@@ -135,7 +135,7 @@ export function useRoundDraft({
   }, [seatId, roundNumber, assignments, storage, gameId]);
 
   /**
-   * Keep the taps, so a locked phone does not cost the turn (S7).
+   * Keep the taps, so a locked phone does not cost the turn.
    *
    * Runs again on every status change too, which rewrites the same few hundred
    * bytes a dozen times a turn. Deliberately not de-duplicated: the write is
@@ -199,7 +199,7 @@ export function useRoundDraft({
   }, [draft.agents, draft.homeNode, extended]);
 
   /**
-   * What the last search looked at, for the map to play back (S24). Only the
+   * What the last search looked at, for the map to play back. Only the
    * latest: it is a flourish on the route that was just found, not state the
    * turn depends on, so it is neither stored nor sent. Public transport has none
    * — its router is a search over lines and stops, not over links.

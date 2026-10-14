@@ -12,7 +12,7 @@ import {
 } from "@/lib/queries/seats";
 
 /**
- * The seat endpoints from 1.6 and 1.7, without React.
+ * The seat endpoints, without React.
  *
  * Two things are worth pinning here. The URLs: `game/urls.py` ordering is
  * load-bearing on the backend, and a path typed one segment wrong does not 404
@@ -184,7 +184,7 @@ describe("redeemSeatCode", () => {
 
 describe("muteSeat", () => {
   it("posts to the seat's mute endpoint", async () => {
-    // S9. Four segments, so `<game_id>/<player_id>/` cannot swallow it — but
+    // Four segments, so `<game_id>/<player_id>/` cannot swallow it — but
     // the backend's URL ordering is load-bearing either way, and a path typed
     // one segment wrong comes back as a plausible 403 rather than a 404.
     const fetchSpy = stubFetch(

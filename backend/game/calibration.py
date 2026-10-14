@@ -1,12 +1,12 @@
 """The numbers a game is played against, and where they come from.
 
-S2. Two settings decide whether a round means anything: how many real people
+Two settings decide whether a round means anything: how many real people
 one Gruppe stands for, and how much CO2 the class may spend. Neither had ever
 been calibrated — the shipped pair was 1000 people per Gruppe against a
 500 kg budget, on a map whose public transport timetable alone emits 2 449 kg
 a round before anybody plays. Every game ended in round 1.
 
-**Since F8 step 2b (2026-10-07) one is the map's and one is the game's.**
+**Since 2026-10-07 one is the map's and one is the game's.**
 `GameMap.district_commuters` is a property of a particular graph: the car
 demand its corridors carry at the real city's rush hour. The budget is kg of
 CO2 per person per round, the same on every map — `CO2_KG_PER_PERSON_NORMAL`
@@ -44,17 +44,18 @@ graph abstracts a district to its main corridors, so the population it can
 carry is the population those corridors carry. At 6 400, everybody driving puts
 the busiest links (Hansaplatz — Großer Stern — Brandenburger Tor) at about
 115 % of their flow capacity and gives a 7.66 km commute 20.4 min against
-9.5 min free flow. S2 took inner Berlin's morning peak to be roughly 24 km/h,
-the same 11 minutes of delay — a figure with no source, replaced in F8 by
-TomTom's measured 19.0 km/h (below). Raise it and the model reports commutes no
-city has: 1 000 people per Gruppe at 64 Gruppen is 298 min, with no
+9.5 min free flow. The first calibration took inner Berlin's morning peak to
+be roughly 24 km/h, the same 11 minutes of delay — a figure with no source,
+replaced later by TomTom's measured 19.0 km/h (below). Raise it and the
+model reports commutes no city has: 1 000 people per Gruppe at 64 Gruppen is
+298 min, with no
 deadlock and no forced release — the model is fine, the demand is not, and
 64 000 cars would need about five times the lanes the map has.
 
 **The budget is per round, and carries no Gruppe term.**
 Because the district's population is constant, a round costs what it costs
 however many students play. On the shipped map, with the corrected train
-emission factor, measured before the S5 map data pass (see below):
+emission factor, measured before the map data pass (see below):
 
     car share   round total
          100 %    11 140 kg   (8 691 car + 2 449 timetable)
@@ -70,7 +71,8 @@ that improves finishes with room to spare. It is not the tightest budget that
 works; it is the roundest number inside the range, because the class has to be
 able to hold it in its head.
 
-**S5 fixed the map the calibration was measured on, and the floor moved.**
+**The map data pass fixed the map the calibration was measured on, and the
+floor moved.**
 `map_examples/Berlin_Mitte-West.json` carried a bus line with no edges, a `101`
 that broke mid-chain, a `U2` that served two stations in one direction only, and
 60 seats in every vehicle of both modes. With all ten lines connected and
@@ -104,9 +106,9 @@ over all 36 home/workplace pairs) and are **not** comparable with the tables
 above, whose assignment of Gruppen to pairs was a different one and whose network
 therefore jams a little less. Compare before against after within a row.
 
-**S23 measured the map S16 shipped — the eight-version one the box plays —**
-whose base version had never had a round simulated on it. Same harness as the
-S5 table above, 2026-10-01:
+**Then the map the box plays was measured — the eight-version one —** whose
+base version had never had a round simulated on it. Same harness as the
+table above, 2026-10-01:
 
     car share   round total     car   timetable   car trip / delay
          100 %    13 059 kg  10 194     2 864       22.5 / 12.5 min
@@ -115,7 +117,7 @@ S5 table above, 2026-10-01:
           25 %     5 345 kg   2 207     3 139       10.8 /  0.1 min
            0 %     3 194 kg       0     3 194            —
 
-Within a few per cent of S5's rows, and the floor is the same 2 864 kg. What
+Within a few per cent of the rows above, and the floor is the same 2 864 kg. What
 changed is the budget's margin: the improving class (100/75/50/50/25/25 %)
 spends 48 001 kg against 48 000, and all-car runs out in round 4, not 5.
 9 000 kg a round would restore the old story — all-car out in round 5, an
@@ -165,9 +167,9 @@ docs/kalibrierung.md §11.
 bottom of this module, run by `manage.py calibrate_map`). On Berlin Mitte-West,
 on Postgres, its half-driving round trip is 15 854 kg — 16 000, the map's
 number then — while its 6 400 commuters drive at 20.7 km/h when everybody
-drives, not the 24 S2 had assumed. docs/kalibrierung.md §12.
+drives, not the 24 first assumed. docs/kalibrierung.md §12.
 
-**Since 2026-10-07 the budget is per person (F8 step 2b).** The commuters are
+**Since 2026-10-07 the budget is per person.** The commuters are
 matched on the TomTom Traffic Index, 2025 data (15th edition, January 2026):
 Berlin's city area drives 19.0 km/h in the morning rush, congestion 58.7 %.
 An all-car morning on Berlin Mitte-West reaches that at 6 800 commuters. The

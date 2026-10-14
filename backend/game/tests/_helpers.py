@@ -95,7 +95,7 @@ def create_game_session(host, **overrides):
 
 
 def log_in_as_player(client, game_id, player_id):
-    """Give a test client both player cookies, in the 1.2 format."""
+    """Give a test client both player cookies, the player id bound to its game."""
     client.cookies[f"{settings.COOKIE_GAME_PREFIX}{game_id}"] = sign_value(
         f"{game_id}:test-token", settings.COOKIE_GAME_SALT
     )
@@ -123,8 +123,8 @@ def create_api_body(**overrides):
     include a map, or the game cannot be started. Pass `game_map=None`
     explicitly to build the invalid body on purpose.
 
-    It used to be `create_form_data`, a Django form POST. S13 put the screen in
-    React, so the body is JSON and the numbers are numbers.
+    It used to be `create_form_data`, a Django form POST. The screen is React
+    now, so the body is JSON and the numbers are numbers.
     """
     data = {
         "game_name": "Neues Spiel",
@@ -221,7 +221,7 @@ class GroupListener:
 # The German detector
 # ---------------------------------------------------------------------------
 #
-# Written for the join funnel (2.6) and kept there until S17, when it turned
+# Written for the join funnel and kept there until it turned
 # out to be covering two of nine German pages — `/map/upload/` had English
 # labels, English help text and English validation errors, live on the site,
 # with nothing watching. A detector that only reads the pages it was written
@@ -257,7 +257,7 @@ ENGLISH_GIVEAWAYS = (
     "maximum co",
     "agents per",
     "people per",
-    # S17, for `/map/upload/`. Not "Import", "Upload", "Format" or "Liste":
+    # For `/map/upload/`. Not "Import", "Upload", "Format" or "Liste":
     # German has all four, and the nav uses them.
     "background image",
     "blank",
@@ -271,9 +271,9 @@ ENGLISH_GIVEAWAYS = (
     "should",
     "start with",
     "your",
-    # S19, for the import's refusals, which S17 never saw because they only
-    # appear after a failed upload. "found" alone is the tell in "not found",
-    # "found 2"; none of these is a German word.
+    # For the import's refusals, which the upload page's pass never saw
+    # because they only appear after a failed upload. "found" alone is the tell
+    # in "not found", "found 2"; none of these is a German word.
     "found",
     "missing",
     "must",
@@ -283,12 +283,12 @@ ENGLISH_GIVEAWAYS = (
     "exactly",
     "required",
     "but",
-    # S21, for the create endpoint's range and type refusals: Django's and
+    # For the create endpoint's range and type refusals: Django's and
     # DRF's own defaults ("Ensure this value is less than or equal to 365.",
     # "A valid integer is required."), which no screen had provoked yet.
     "ensure",
     "valid",
-    # S22, for the credential pages: Django's own labels and refusals, which
+    # For the credential pages: Django's own labels and refusals, which
     # reach the page wherever a stock auth form is used unchanged. Not "Login"
     # or "Reset": German copy uses both.
     "username",
@@ -320,7 +320,7 @@ def visible_text(html):
     same way: the share page prints its join link for people to type, and
     `/join/<id>/` is a route, not a sentence. A path is never copy.
 
-    <code> and <pre> go with them, added in S17 for `/map/upload/`: that page
+    <code> and <pre> go with them, added for `/map/upload/`: that page
     documents the map file's schema, and `nodes`, `start_node` and
     `speed_limit` are field names. They stay English by the same rule the
     model fields do, so reading them as untranslated copy would make the

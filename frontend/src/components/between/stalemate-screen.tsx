@@ -27,7 +27,7 @@ export function StalemateScreen() {
   const blocked = !seatId || !!state.pausedAt;
 
   // The keys of the ballot, for the same reason: a mouse on a projector shows
-  // the room which way you are leaning (S24).
+  // the room which way you are leaning.
   useTieKeys((revote) => {
     if (seatId) phase.answerTie(seatId, revote);
   }, answered || blocked);

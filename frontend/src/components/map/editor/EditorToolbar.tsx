@@ -10,7 +10,7 @@ import { useUploadBackgroundImage } from "@/lib/queries/map-editor";
 /**
  * The bar above the canvas: which mode, which tool, and what to do next.
  *
- * ### What S18 changed
+ * ### What changed on 2026-09-30
  *
  * It had five colours doing four jobs. The selected mode tab was
  * `bg-indigo-600`; the selected *tool* was `bg-emerald-600`, except the delete
@@ -45,7 +45,7 @@ interface EditorToolbarProps {
   versionDiffEditingPtLine?: boolean;
   bidirectional: boolean;
   onBidirectionalChange: (value: boolean) => void;
-  /** A node or an edge drawn on the canvas is still on its way (F10). */
+  /** A node or an edge drawn on the canvas is still on its way. */
   saving?: boolean;
 }
 

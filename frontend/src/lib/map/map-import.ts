@@ -1,5 +1,5 @@
 /**
- * The two pure halves of the map upload screen (S19): the form it posts, and
+ * The two pure halves of the map upload screen: the form it posts, and
  * the refusal it reads back.
  *
  * `POST api/maps/import/` runs Django's `MapUploadForm` and then the importer,

@@ -215,7 +215,7 @@ class JoinSessionApiTests(TempMediaRootMixin, TestCase):
         player_value = signing.TimestampSigner(salt=settings.COOKIE_PLAYER_SALT).unsign(
             player_cookie.value
         )
-        # 1.2 binds the player cookie to its game; until then it is the bare id.
+        # The player cookie is bound to its game; it used to be the bare id.
         self.assertIn(player_id, player_value)
 
     def test_join_rejects_a_wrong_password(self):
@@ -491,7 +491,7 @@ class SessionsRouteRemovedTests(TempMediaRootMixin, TestCase):
 
 @override_settings(**TEST_BACKENDS)
 class OneJoinFunnelTests(TempMediaRootMixin, TestCase):
-    """There is one way into a game: `/app/join/<ID>`. S22.
+    """There is one way into a game: `/app/join/<ID>`.
 
     There used to be two. Django's `/join/<id>/` asked for the id and the
     password, then `game/<id>/player/create/` for the name, with
@@ -611,9 +611,9 @@ class LobbyHostRowTests(GameCookieMixin, TempMediaRootMixin, TestCase):
 
 
 # ---------------------------------------------------------------------------
-# The funnel is German (2.6)
+# The funnel is German
 #
-# The detector itself moved to `_helpers.py` in S17: it had been sitting in
+# The detector itself moved to `_helpers.py`: it had been sitting in
 # this file covering two pages while `/map/upload/` was English, and the maps
 # tests could not reach it from here.
 # ---------------------------------------------------------------------------
@@ -624,7 +624,7 @@ class GermanFunnelTests(TempMediaRootMixin, TestCase):
 
     It started as the three Django pages in front of the SPA — `/join/`,
     `player/create/` and `/share/` — which made the join flow the one place a
-    class met English. S13 and S22 deleted all three; the join screens are the
+    class met English. All three are deleted; the join screens are the
     SPA's now and `frontend/tests/design/german.test.ts` reads them. What is
     left here is what still comes off the server. The detector is the
     frontend's idea ported over: assert on the rendered text, because a label
@@ -646,7 +646,7 @@ class GermanFunnelTests(TempMediaRootMixin, TestCase):
 
         They used to be English and it did not show: the form had its own
         German wording and this serializer only ever answered the lobby's
-        PATCH, whose errors no screen displayed. S13 made them the sentence a
+        PATCH, whose errors no screen displayed. Now they are the sentence a
         host reads.
         """
         self.client.force_login(self.host)
@@ -677,7 +677,7 @@ class GermanFunnelTests(TempMediaRootMixin, TestCase):
         column's range — `idle_end_days` stops at 365 on the model, the small
         integers at 32 767 — and what is not a number at all were refused by
         Django's and DRF's defaults, in English, and went straight onto the
-        form. S21 found it by typing 99 999 into "Ende nach Tagen ohne Spiel".
+        form. It turned up by typing 99 999 into "Ende nach Tagen ohne Spiel".
         """
         self.client.force_login(self.host)
         numbers = (
@@ -861,7 +861,7 @@ class MapWithNothingToVoteOnTests(GameCookieMixin, TempMediaRootMixin, TestCase)
 
 @override_settings(**TEST_BACKENDS)
 class CreateGameEndpointTests(TempMediaRootMixin, TestCase):
-    """`POST api/game/` — what the Django `CreateView` used to do. S13.
+    """`POST api/game/` — what the Django `CreateView` used to do.
 
     The screen moved to React because the two calibrated numbers have to follow
     the class size as the host types it, and a server-rendered form derives
@@ -995,7 +995,7 @@ class CreateGameEndpointTests(TempMediaRootMixin, TestCase):
 
 @override_settings(**TEST_BACKENDS)
 class HostGameListTests(TempMediaRootMixin, TestCase):
-    """`GET api/game/` — the host's own games, for `/app/host`. S13.
+    """`GET api/game/` — the host's own games, for `/app/host`.
 
     It replaces the `game_sessions` context the profile template got. Two
     things it adds and the template did not have: the counts the delete dialog
@@ -1114,7 +1114,7 @@ class CreateFormRedirectTests(TempMediaRootMixin, TestCase):
         """A second create form is the two-sources-of-truth bug this project
         keeps having. The Django one is deleted, not left beside the React one.
 
-        Since S22 the module that held it is gone too — its last two forms were
+        The module that held it is gone too — its last two forms were
         the Django join's."""
         from importlib.util import find_spec
 
@@ -1122,7 +1122,7 @@ class CreateFormRedirectTests(TempMediaRootMixin, TestCase):
 
 
 class CalibratedCreateFormTests(TempMediaRootMixin, TestCase):
-    """S2: the two numbers a game is played against follow the class size.
+    """The two numbers a game is played against follow the class size.
 
     The scale is not a taste. Measured on Berlin_Mitte-West, a round is the
     same round for a full class and for a half-empty one only if the district's
@@ -1132,7 +1132,7 @@ class CalibratedCreateFormTests(TempMediaRootMixin, TestCase):
     instead and a half-full class sees 0.4 min of delay against 11.3, which is
     a different game depending on who turned up.
 
-    The budget is kg per person per round since F8 step 2b, the same on every
+    The budget is kg per person per round since 2026-10-07, the same on every
     map: the people on the map times the kg times the rounds.
     """
 
@@ -1142,7 +1142,7 @@ class CalibratedCreateFormTests(TempMediaRootMixin, TestCase):
     def test_the_shipped_defaults_are_the_calibrated_pair(self):
         """The class size the create screen opens on, and what it derives.
 
-        These were assertions about a Django form's `initial` until S13. The
+        These were assertions about a Django form's `initial` once. The
         screen is React now and `frontend/tests/lib/create-game.test.ts` pins
         what it offers; what stays here is the arithmetic underneath, which is
         the half that has to agree with the simulation.
@@ -1300,7 +1300,7 @@ class CalibratedCreateFormTests(TempMediaRootMixin, TestCase):
     def test_the_map_the_screen_derives_from_carries_the_pair(self):
         """What the host sees is derived in the browser, from these two fields.
 
-        The derivation moved to `frontend/src/lib/calibration.ts` with S13 —
+        The derivation moved to `frontend/src/lib/calibration.ts` —
         it has to follow the class size as the host types, which a
         server-rendered form could never do. Its inputs still come from here,
         over `GET api/maps/`, so this is the half the backend still owns: the
@@ -1324,7 +1324,7 @@ class MapCarriedCalibrationTests(TempMediaRootMixin, TestCase):
 
     It is a property of the graph: the car demand its corridors carry at the
     real city's rush hour. Another city is another count. The budget used to
-    be one too, until F8 step 2b: it is kg per person now, the same on every
+    be one too, until 2026-10-07: it is kg per person now, the same on every
     map, so a map with long commutes or a thin timetable is harder by itself.
     """
 
@@ -1434,7 +1434,7 @@ class MapCalibrationRoundTripTests(TempMediaRootMixin, TestCase):
 
     The JSON export is the only way a map moves between boxes, so a field the
     export drops is a field that does not exist off this machine. Every file
-    written before F8 step 2b also carries `co2_budget_kg_per_round`; it
+    written before 2026-10-07 also carries `co2_budget_kg_per_round`; it
     still imports, and the budget is left behind.
     """
 
@@ -1554,18 +1554,18 @@ class MapCalibrationRoundTripTests(TempMediaRootMixin, TestCase):
 
 
 class MapSaysWhetherItsCountWasMeasuredTests(TempMediaRootMixin, TestCase):
-    """S21: a map says whether its commuter count was measured on it.
+    """A map says whether its commuter count was measured on it.
 
     Every map starts at Berlin Mitte-West's 6 800 commuters, because that is
     the field default. On a smaller map it is too high, and the create form
     used to offer it without a word. Comparing a map's count against the
     default cannot tell the two cases apart — the one map where 6 800 *is*
     measured carries exactly that — so the map says it: `calibrated`, false
-    until somebody who measured it says otherwise. (It named a pair until F8
-    step 2b took the budget off the map.)
+    until somebody who measured it says otherwise. (It named a pair until the
+    budget came off the map on 2026-10-07.)
 
     It travels in the file, because the file is how a map moves between boxes.
-    The export has written the count on every map since S2, measured or not,
+    The export writes the count on every map, measured or not,
     so a file stating it is not a file stating it was measured; only the flag
     is.
     """
@@ -1665,7 +1665,7 @@ class MapSaysWhetherItsCountWasMeasuredTests(TempMediaRootMixin, TestCase):
         self.assertEqual(game_map.district_commuters, 6_400)
 
     def test_a_file_stating_the_count_without_the_flag_is_not_measured(self):
-        """The case the flag exists for: a map exported after S2 carries
+        """The case the flag exists for: a map exported since 2026-09-27 carries
         Berlin's default as plainly as Berlin itself does."""
         game_map = self._import({"district_commuters": 6_800})
 

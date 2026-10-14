@@ -53,7 +53,7 @@ class MapVersionSerializer(serializers.ModelSerializer):
 class MapVersionsMixin(serializers.Serializer):
     """`map_versions` in, the versions themselves out.
 
-    A `serializers.Serializer` on purpose. It was a plain class until F10, and
+    A `serializers.Serializer` on purpose. It was a plain class once, and
     DRF collects declared fields only from serializer bases — so the field
     below never applied, and every subclass ran on the one DRF builds from the
     model. The declaration now says what that field did (required, never an

@@ -2,7 +2,7 @@
  * The map on the round screen: the network, one passenger's route, and where it
  * jammed last time.
  *
- * ### What changed in S6, and why
+ * ### What changed on 2026-09-28, and why
  *
  * This was the last screen in the game still painting its own palette. Base
  * edges were four hardcoded hexes including a green (`#34d399`), nodes were
@@ -19,16 +19,16 @@
  * amber. That is the same language the legend, the agent row, the replay and the
  * landing page already speak, and it survives a colour-blind reader.
  *
- * ### The jam overlay is weight, and since S24 a step towards the accent
+ * ### The jam overlay is weight, and a step towards the accent
  *
  * `trafficHeatmap` used to take a congestion ratio and run it through a
  * green→yellow→orange→red ramp. A two-colour palette has no hue ramp, and weight
- * alone — S6's answer — turned out too quiet: the difference between two loaded
- * streets was a pixel on a phone. So a loaded street is drawn heavier **and**
- * moves from ink towards the accent (`jamTint`), slowly at first and mostly
- * accent by half speed. Amber is also the PT line's colour; that is accepted —
- * a route is a line from a home, and an amber street with nothing beginning on it
- * is a jam. Still one hue pair, no green, no red.
+ * alone — the first answer — turned out too quiet: the difference between two
+ * loaded streets was a pixel on a phone. So a loaded street is drawn heavier
+ * **and** moves from ink towards the accent (`jamTint`), slowly at first and
+ * mostly accent by half speed. Amber is also the PT line's colour; that is
+ * accepted — a route is a line from a home, and an amber street with nothing
+ * beginning on it is a jam. Still one hue pair, no green, no red.
  *
  * `previous_round_traffic` is what "schnellste" routes on, so the picture and the
  * router cannot disagree.
@@ -74,7 +74,7 @@ interface GameMapViewerProps {
   /**
    * What the router examined to find `routeSegments`, played back once as the
    * route appears. The only thing on screen that shows the routing doing
-   * anything (S24).
+   * anything.
    */
   search?: SearchTrace | null;
   /**
@@ -131,8 +131,8 @@ const SIZES = {
   route: 0.011,
   routeHalo: 0.02,
   /**
-   * Home and destination: big enough to find, no bigger. S24 took them from
-   * 0.032 to 0.024 and they still covered the streets around them (F3), so
+   * Home and destination: big enough to find, no bigger. They went from
+   * 0.032 to 0.024 and still covered the streets around them, so
    * another quarter off, dot and stroke with the ring.
    */
   markRing: 0.018,
@@ -179,7 +179,7 @@ const GameMapViewer = ({
   }, [mapGraph?.nodes]);
 
   /**
-   * How far each search's playback has got, by trace id (F3).
+   * How far each search's playback has got, by trace id.
    *
    * The route waits for its search. Drawn at once, it gave the answer away
    * before the picture of how it was found had played, which was confusing.
@@ -493,11 +493,11 @@ const SEARCH_HOLD_MS = 350;
 const SEARCH_FADE_MS = 600;
 
 /**
- * The router's search, drawn one step at a time and then let go (S24).
+ * The router's search, drawn one step at a time and then let go.
  *
  * Links appear as the search reaches them, so you watch it spread out from home
  * and favour the direction of the destination; then the route is drawn and the
- * search fades under it. **In the primary since F3**: it was in the accent, which
+ * search fades under it. **In the primary**: it was in the accent, which
  * is also the colour a jammed street turns, so on a map with traffic the search
  * and the jam could not be told apart. The route waits for the last step
  * (`onAdvance`), so the two never compete either.

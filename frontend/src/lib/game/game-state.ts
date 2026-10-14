@@ -11,11 +11,12 @@
  * The lobby reducer was allowed a quiet `default` — it genuinely has no opinion
  * on `vote.recorded`. This one is not: `default` calls `assertNever`, so adding
  * an event to `events.ts` breaks the build right where somebody has to decide
- * what it means. That is the guard against repeating the thing F1 found — seven
- * events (`game.paused`, `game.resumed`, `player.revoked`, `player.left`,
- * `player.taken_over`, `player.handed_over`, `simulation.progress`) arriving for
- * months with nothing listening. Events that deliberately change nothing are
- * still listed by name, with a comment saying why.
+ * what it means. That is the guard against repeating what the join's rewrite
+ * found — seven events (`game.paused`, `game.resumed`, `player.revoked`,
+ * `player.left`, `player.taken_over`, `player.handed_over`,
+ * `simulation.progress`) arriving for months with nothing listening. Events
+ * that deliberately change nothing are still listed by name, with a comment
+ * saying why.
  *
  * ### Who may write what
  *
@@ -239,8 +240,8 @@ function applySnapshot(state: GameState, snapshot: LobbySnapshot): GameState {
   // Everything below is also carried by the socket. Taking it after the socket
   // has spoken would move the game backwards: the snapshot was read once, at
   // mount, and says nothing about what happened since. This is the general form
-  // of the roster race F1 found, where a late snapshot blanked out presence
-  // that was already correct.
+  // of the roster race the lobby had, where a late snapshot blanked out
+  // presence that was already correct.
   if (!state.socketSpoke) {
     next.isActive = snapshot.is_active;
     next.startedAt = snapshot.started_at;
@@ -503,7 +504,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
  * Seats that count — `PlayerQuerySet.playing()` on the frontend side. The
  * host's own row is never one of them: the round does not wait for it and it
  * does not count against `max_players`. A seat played at the host machine does
- * count, which is the whole point of 1.6.
+ * count, which is the whole point of playing it there.
  */
 export function playingSeats(state: GameState): RosterSeat[] {
   return state.seats.filter((seat) => !seat.is_host);
@@ -529,8 +530,8 @@ export function seatById(
   return state.seats.find((seat) => seat.player_id === playerId) ?? null;
 }
 
-/** Seats played at the host machine — the carousel F4 steps through. */
-export function hostControlledSeats(state: GameState): RosterSeat[] {
+/** Seats played at the host machine — the carousel the host desk steps through.
+*/ export function hostControlledSeats(state: GameState): RosterSeat[] {
   return playingSeats(state).filter((seat) => seat.controlled_by_host);
 }
 

@@ -1,6 +1,6 @@
 """Rate limiting for the three doors that can be guessed at.
 
-There was none anywhere before S9: `/accounts/login/` took unlimited password
+There was none anywhere at first: `/accounts/login/` took unlimited password
 guesses, `/accounts/signup/` unlimited accounts, and `api/game/seat/<code>/`
 unlimited tries at a six-character code. `ChatConsumer` was the only
 rate-limited thing in the backend, and it limits its own traffic rather than an

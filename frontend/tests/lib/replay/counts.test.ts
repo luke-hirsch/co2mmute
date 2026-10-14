@@ -9,9 +9,9 @@ import type { Replay, ReplayDot, ReplayEnd } from "@/lib/replay/types";
  *
  * The closing sentence may only say everybody arrived when everybody did, and the
  * sample cannot know that — the people still at their front door when the clock
- * stops never became vehicles, so no dot exists for any of them. Since S25 the
- * recording carries the simulator's own count; a recording from before falls
- * back to the sample, which is the best that recording can say.
+ * stops never became vehicles, so no dot exists for any of them. Since
+ * 2026-10-01 the recording carries the simulator's own count; a recording from
+ * before falls back to the sample, which is the best that recording can say.
  */
 
 function person(id: number, end: ReplayEnd): ReplayDot {

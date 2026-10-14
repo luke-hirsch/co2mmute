@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { de } from "@/lib/de";
 
 /**
- * Copies the invitation to the clipboard (F3), for the part of a class that is
+ * Copies the invitation to the clipboard, for the part of a class that is
  * not in the room or not looking at the projector.
  *
  * The clipboard needs a secure context and may be refused, so a failure is not

@@ -4,8 +4,8 @@
  * The old screens opened four `useGameSocket`s on one page (GamePlay,
  * StatusBar, GameLayout, GameDetail) plus the chat socket, so every event was
  * handled four times by four pieces of state that could disagree. This is the
- * single connection they get replaced by: F1 mounts it once in the lobby hook,
- * F2 lifts the same class into a provider without changing it.
+ * single connection that replaced them: mounted once in the lobby hook first,
+ * then the same class lifted into `GameProvider` without changing it.
  *
  * Everything hard about the connection — the exponential reconnect, the 30 s
  * heartbeat, and the deliberate one-task delay before `new WebSocket` that

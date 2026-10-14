@@ -6,7 +6,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { loginAsHost } from "./host";
 
 /**
- * F10: the editor's street buttons, end to end.
+ * The editor's street buttons, end to end.
  *
  * "+ Straße anlegen" saved the street and showed nothing — the graph endpoint
  * kept serving its cached copy for an hour — and "+ Gegenrichtung anlegen"
@@ -85,7 +85,7 @@ test.describe("the map editor's street buttons", () => {
     const response = await page.request.post("/api/maps/import/", {
       headers: await csrf(page),
       multipart: {
-        map_name: `F10 Editor ${Date.now()}`,
+        map_name: `Editor ${Date.now()}`,
         max_players: "6",
         json_file: {
           name: "map.json",
@@ -186,7 +186,7 @@ test.describe("the map editor's street buttons", () => {
     await back.click();
     await expect(back).toBeDisabled();
     // Every frame from here until the new direction is drawn: the button must
-    // not come back. Before F10 it was disabled for the ~20 ms of the write
+    // not come back. It used to be disabled for the ~20 ms of the write
     // and enabled again for the ~1.8 s the graph took, over a panel still
     // saying "Einbahn" — which is how a second click wrote a second edge.
     const enabledAgain = await page.evaluate(

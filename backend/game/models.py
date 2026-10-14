@@ -41,7 +41,7 @@ class GameSession(models.Model):
     max_rounds = models.PositiveIntegerField()
     max_CO2_level = models.PositiveIntegerField()  # in kg
     # What the host set the budget at: kg per person per round, the create
-    # form's difficulty dial (F8 step 2b). `max_CO2_level` is what follows
+    # form's difficulty dial. `max_CO2_level` is what follows
     # from it — kg × people on the map × rounds — and what the game ends on;
     # this is the record of the choice, for the research data. Null on every
     # game before the dial and on one made over the API without it.
@@ -120,8 +120,8 @@ class GameSession(models.Model):
     def join_url(self):
         """Where the QR code sends a phone: the SPA's join screen for this game.
 
-        It pointed at Django's `/join/<id>/` until S22, which the React join
-        (F1) had been built to replace and never did, because this one line
+        It pointed at Django's `/join/<id>/` until 2026-09-30, which the React
+        join had been built to replace and never did, because this one line
         was not moved. No trailing slash: that is how the router spells it.
         """
         return f"{settings.BASE_URL}/app/join/{self.game_id}"
@@ -205,7 +205,7 @@ class Player(models.Model):
         ordering = ("game", "name", "joined_at")
         constraints = [
             # The cookie names the player by player_id, so it must point at one
-            # row. 1.7 hands out new ids and relies on this.
+            # row. Moving a seat hands out new ids and relies on this.
             models.UniqueConstraint(
                 fields=("game", "player_id"), name="unique_player_id_per_game"
             ),

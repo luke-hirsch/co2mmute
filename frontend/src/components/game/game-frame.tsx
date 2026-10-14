@@ -16,8 +16,7 @@ import { de } from "@/lib/de";
  * Three of these used to be nobody's job. A revoked seat kept rendering a game
  * it no longer had; a paused game looked exactly like a running one; a dropped
  * socket looked like a game where nothing was happening. Putting them in the
- * frame means they hold for the legacy screen too, which still sits under this
- * layout until F3 replaces it.
+ * frame means they hold for every screen in a game.
  *
  * The order matters: revoked beats everything, because once the seat is gone
  * nothing below it is true any more.

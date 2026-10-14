@@ -143,7 +143,7 @@ async function findMap(name) {
 }
 
 async function uploadMap() {
-  // The endpoint the upload screen posts to (S19). `/map/upload/` was a Django
+  // The endpoint the upload screen posts to. `/map/upload/` was a Django
   // form page and is a redirect now, so the token comes from the jar rather
   // than out of a rendered form.
   const json = await readFile(MAP_FILE);

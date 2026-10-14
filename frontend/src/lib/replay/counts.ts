@@ -9,9 +9,9 @@
  * became vehicles, so no dot exists for any of them. On the shipped map nobody
  * misses the morning at all — every measured round is over by minute ~135 of a
  * 1000-minute clock — but where somebody does, the closing sentence must not say
- * "Alle sind angekommen". So since S25 the simulator writes its own count into
- * the recording (`replay.endings`, people), and a recording from before falls
- * back to the sample.
+ * "Alle sind angekommen". So since 2026-10-01 the simulator writes its own
+ * count into the recording (`replay.endings`, people), and a recording from
+ * before falls back to the sample.
  *
  * ### A dot is a whole number of people
  *
