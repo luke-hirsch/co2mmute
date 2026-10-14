@@ -1,7 +1,6 @@
 """What the map models themselves have to refuse and to know.
 
-Two rules live here, both from
-`.claude/plans/to-do/[backend]-bike-lane-and-traffic.md`:
+Two rules live here:
 
 - **A bike lane implies bike access.** `bike_lane` without `biking` is a
   contradiction, and the model says so instead of quietly fixing it.

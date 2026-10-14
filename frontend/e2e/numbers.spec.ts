@@ -120,7 +120,7 @@ test("the numbers name their scale, and the summary names the vote", async ({
     await expect(page.getByText("alle Pendler").last()).toBeVisible();
 
     // ── Z-19: the explainer opens, and is not in the ballot ──
-    await page.getByRole("button", { name: "Wie wird gerechnet?" }).click();
+    await page.getByRole("button", { name: "Die Simulation erklärt" }).click();
     const overlay = page.getByRole("dialog");
     await expect(overlay.getByText("Hinter einer Gruppe stecken viele Menschen")).toBeVisible();
     await expect(overlay.getByText("Der Fahrplan fährt auch leer")).toBeVisible();

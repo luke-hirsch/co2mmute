@@ -1,7 +1,7 @@
 /**
  * The host desk, as state: which seat is being played at the host machine.
  *
- * The host does not play (Roadmap.md 2.7, decided 18.09.26). What the desk does
+ * The host does not play (decided 18.09.26). What the desk does
  * is hand the machine to one student at a time, and the awkward part is not the
  * handing over — it is everything that can happen to a seat while it is open.
  * It can submit, it can be given to a phone, it can be removed, and the round

@@ -6,7 +6,7 @@ import { GameProvider } from "@/components/game/game-provider";
 /**
  * Layout for everything under `/app/game/<ID>`.
  *
- * This is where Roadmap.md 2.2 actually lands: one `GameProvider` — one socket,
+ * This is where one source of truth lands: one `GameProvider` — one socket,
  * one reducer, one source of truth — above every screen in the game, instead of
  * four components each opening their own connection to the same channel.
  *

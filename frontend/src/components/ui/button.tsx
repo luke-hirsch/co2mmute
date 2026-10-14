@@ -23,8 +23,7 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
       },
       // One step roomier than shadcn's defaults throughout: this design leans on
-      // space rather than weight or rules to separate things. See
-      // .claude/design/rulebook.md.
+      // space rather than weight or rules to separate things.
       size: {
         default: "h-10 px-5 py-2 has-[>svg]:px-4",
         xs: "h-7 gap-1 rounded-md px-2.5 text-xs has-[>svg]:px-2 [&_svg:not([class*='size-'])]:size-3",

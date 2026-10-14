@@ -1,10 +1,9 @@
 """The bell: the host pauses a running game and resumes it later.
 
-Roadmap.md 1.6. While a game is paused nobody moves, acks or votes, and no
-round or phase ends (rounds.py, phases.py and PlayerMoveView check it). The
-seats can still be changed: adding, removing, and in 1.7 taking over and
-handing on are what the break is for. Resuming runs the checks such a change
-may have made due.
+While a game is paused nobody moves, acks or votes, and no round or phase
+ends (rounds.py, phases.py and PlayerMoveView check it). The seats can still
+be changed: adding, removing, taking over and handing on are what the break
+is for. Resuming runs the checks such a change may have made due.
 
 Both transitions are a conditional update(), so each one happens once however
 many requests arrive together.

@@ -9,7 +9,7 @@ import type { TransportMode } from "@/types/routeTypes";
  * Drawn as lines rather than buttons with icons: each option carries its mode's
  * stroke — car solid, bike dashed, walk dotted — which is the one thing that
  * tells them apart at a glance, and keeps telling them apart for a colour-blind
- * reader (`.claude/design/rulebook.md` §5).
+ * reader.
  *
  * A radiogroup, not four buttons: it is one choice out of four, and arrow keys
  * should move through it.

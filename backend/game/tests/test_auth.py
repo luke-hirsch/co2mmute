@@ -1,8 +1,8 @@
 """Player identity: the two signed cookies, and the one resolver behind them.
 
-Players have no account and never will (Roadmap.md, "grundsatz spielerdaten"). All
-the identity there is lives in `game_access_<game_id>` and `player_<game_id>`, so
-this file is where the hardening in Roadmap.md 1.2 is pinned down.
+Players have no account and never will (AGENTS.md, players are minors). All the
+identity there is lives in `game_access_<game_id>` and `player_<game_id>`, so
+this file is where their hardening is pinned down.
 """
 
 import time
@@ -513,7 +513,7 @@ class RestPermissionTests(TempMediaRootMixin, TestCase):
 
 @override_settings(**TEST_BACKENDS)
 class HostActsForSeatTests(TempMediaRootMixin, TestCase):
-    """IsPlayerInGame's second branch. Roadmap.md 1.6.
+    """IsPlayerInGame's second branch.
 
     The host plays seats at the host machine and sends their moves under the
     seat's player_id in the URL. The host is recognised by the session, not by
@@ -695,7 +695,7 @@ class WhoAmITests(TempMediaRootMixin, TestCase):
 
 @override_settings(**TEST_BACKENDS)
 class SlidingCookieTests(TempMediaRootMixin, TestCase):
-    """Every visit renews both cookies. Roadmap.md 1.6, the pause.
+    """Every visit renews both cookies.
 
     A class that stops at the bell and comes back next week must still hold
     its seats. The cookies used to live COOKIE_AGE from the join, however
@@ -922,7 +922,7 @@ class GameDeletionPermissionTests(TempMediaRootMixin, TestCase):
     inherited, so it was guarded only by `HasGameAccess, IsAuthenticated`.
     Those two are both true for **a logged-in researcher who joined someone
     else's game as a player**: the game cookie satisfies the first and their
-    own host session the second. CLAUDE.md names that exact combination as a
+    own host session the second. AGENTS.md names that exact combination as a
     normal thing to happen in this project.
 
     Deleting a game is CASCADE all the way down — every round, move, route and

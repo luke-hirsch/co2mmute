@@ -84,10 +84,10 @@ class ResolveSecretKeyTests(SimpleTestCase):
 
 
 # ---------------------------------------------------------------------------
-# Roadmap.md 1.5 — test settings and CI
+# Test settings and CI
 #
-# co2mmute.settings_test is imported inside the methods below: the module does not
-# exist yet, and a top-level import would take ResolveSecretKeyTests down with it.
+# co2mmute.settings_test is imported inside the methods below: a top-level
+# import that failed would take ResolveSecretKeyTests down with it.
 # ---------------------------------------------------------------------------
 
 

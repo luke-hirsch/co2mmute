@@ -257,7 +257,7 @@
   }
 
   /* Headings carry 600 at most. Weight is how this design separates levels
-     least — size and space do the work. See .claude/design/rulebook.md. */
+     least — size and space do the work. */
   h1,
   h2,
   h3,

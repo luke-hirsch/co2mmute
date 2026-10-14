@@ -1,12 +1,12 @@
 """Between-round phases: stats → discussion → voting → stalemate → next round.
 
-Roadmap.md 1.1, last bullet: the consumers.py split, part 1. game/phases.py owns
-the rules and is plain sync code, so nothing here needs a socket. That is the
-point of the split. test_socket.py checks that the consumer really hands over.
+game/phases.py owns the rules, split out of consumers.py, and is plain sync
+code, so nothing here needs a socket. That is the point of the split.
+test_socket.py checks that the consumer really hands over.
 
 game.phases and StatsAck are imported inside the tests rather than at module
-level. Neither exists before the guide is typed, and a top-level import would
-turn this file into one import error instead of a list of red tests.
+level: a top-level import that failed would turn this file into one import
+error instead of a list of red tests.
 """
 
 from unittest.mock import patch
@@ -707,7 +707,6 @@ class LeavingFinishesAPhaseTests(BetweenRoundsMixin, TestCase):
 @override_settings(**TEST_BACKENDS)
 class HostSeatsBetweenRoundsTests(BetweenRoundsMixin, TestCase):
     """The host acks and votes for the seats played at the host machine.
-    Roadmap.md 1.6.
 
     A host socket speaks for several seats. Acks cover all of them at once
     (they share one screen); votes name the seat. Only seats played at the
@@ -839,7 +838,7 @@ class HostSeatsBetweenRoundsTests(BetweenRoundsMixin, TestCase):
 
 @override_settings(**TEST_BACKENDS)
 class PausedPhaseTests(BetweenRoundsMixin, TestCase):
-    """While the game is paused nothing between rounds moves. Roadmap.md 1.6.
+    """While the game is paused nothing between rounds moves.
 
     One check in phases._load covers every entry point, including the recheck
     a leaving seat schedules. Resuming runs that recheck.
@@ -932,11 +931,11 @@ class PausedPhaseTests(BetweenRoundsMixin, TestCase):
 class VoteResultIsRecordedTests(BetweenRoundsMixin, TestCase):
     """What the class voted is written down when it happens.
 
-    `.claude/plans/to-do/[backend]-abstimmungen-im-summary.md`. The tally is
-    derivable from the MapVersionVote rows — and deriving it is the trap:
-    `_tally_if_complete` counts `player__in=_playing(game)`, so re-tallying at
-    the summary counts a smaller room than voted and can hand back a different
-    winner than the class saw. Same lesson as `GameSession.end_reason`.
+    The tally is derivable from the MapVersionVote rows — and deriving it is
+    the trap: `_tally_if_complete` counts `player__in=_playing(game)`, so
+    re-tallying at the summary counts a smaller room than voted and can hand
+    back a different winner than the class saw. Same lesson as
+    `GameSession.end_reason`.
     """
 
     phase = Phase.VOTING

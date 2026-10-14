@@ -25,8 +25,8 @@ export type MovePayload = RouteSubmissionPayload;
 /**
  * The request itself, without React.
  *
- * Split from the hook because vitest runs here without jsdom (CLAUDE.md,
- * frontend target conventions): a function with a stubbed `fetch` is testable,
+ * Split from the hook because vitest runs in node, without jsdom
+ * (`vitest.config.ts`): a function with a stubbed `fetch` is testable,
  * a `useMutation` is not. The hook below is then only wiring.
  */
 export function submitMove(

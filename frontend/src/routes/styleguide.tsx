@@ -60,7 +60,17 @@ import { cn } from "@/lib/utils";
  * therefore hardcoded rather than routed through de.ts — the rule is about
  * player-facing copy, and the components below do follow it.
  *
- * Rules this page is the evidence for: .claude/design/rulebook.md
+ * The rules this page is the evidence for:
+ * - the look comes from the game: a transit diagram of lines, stations and a
+ *   departure board, not blurred blobs, gradients or a card grid;
+ * - two colours and ink. The car line is the primary and the PT line the
+ *   accent, the same values; the bike (dashed) and walking (dotted) lines are
+ *   told apart by pattern, not hue. No green, no red: attention is the accent,
+ *   presence is filled against hollow;
+ * - nothing heavier than 600, no `font-bold`: size and space separate the
+ *   levels, and text columns are capped by the `--measure-*` tokens;
+ * - mono only for ids, codes and numerals;
+ * - both themes, every time.
  */
 export const Route = createFileRoute("/styleguide")({
   component: Styleguide,

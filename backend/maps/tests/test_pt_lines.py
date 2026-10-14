@@ -3,8 +3,7 @@
 `ptRouting.ts` boards and alights only at the node ids a line lists in `stops`,
 so a line that under-reports its stops is a line nobody can take. The shipped
 example maps store every edge of every line reversed relative to the direction
-of travel, which is the case the serializer used to give up on — see
-`.claude/plans/to-do/[backend]-pt-stops.md`.
+of travel, which is the case the serializer used to give up on.
 """
 
 from django.test import TestCase
@@ -196,10 +195,10 @@ class GraphSerializerPTTests(PTFixtureMixin, TestCase):
 class PTCapacityDefaultTests(PTFixtureMixin, TestCase):
     """A line drawn without a capacity gets a plausible vehicle, not 60 seats.
 
-    `[backend]-pt-timetable-and-society.md` §2.5. Five places disagreed about
-    what an unspecified PT vehicle holds, and the one a map author actually
-    meets — the editor's new-line panel — did not branch on mode at all. That
-    is how the shipped map came to carry a 60-seat U-Bahn.
+    Five places disagreed about what an unspecified PT vehicle holds, and the
+    one a map author actually meets — the editor's new-line panel — did not
+    branch on mode at all. That is how the shipped map came to carry a
+    60-seat U-Bahn.
 
     The numbers are game parameters with a real order of magnitude behind them:
     a 12 m city bus carries 70-100 including standing room, a Großprofil

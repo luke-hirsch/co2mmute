@@ -27,9 +27,8 @@ export type IssuedSeatCode = {
   /** Seconds. `game/seats.py:CODE_TTL` — 5 minutes today. */
   expires_in: number;
   /**
-   * Where a scannable version of the code lives, once the backend renders one
-   * (`[backend]-seat-code-qr.md`). Optional on purpose: this screen shipped
-   * before that guide, and a missing QR just means the six characters stand on
+   * Where a scannable version of the code lives, when the backend renders one.
+   * Optional on purpose: a missing QR just means the six characters stand on
    * their own — which is what the alphabet was chosen for.
    */
   qr_url?: string;

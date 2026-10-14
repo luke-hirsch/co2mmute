@@ -253,8 +253,7 @@ class TrafficSimulator(LinkQueueEngine):
         """Every PT line on the map version this round runs on, as it drives.
 
         Every line, not only the ridden ones: a timetable runs whether anyone
-        is aboard or not, and a line nobody rides emitting nothing was the
-        defect this guide exists to fix.
+        is aboard or not, so a line nobody rides emits too.
 
         `active_map_version` is set when the game starts (`GameSessionViewSet`
         writes the base version), so it is the right filter for a real round;

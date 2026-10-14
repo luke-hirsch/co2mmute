@@ -28,9 +28,9 @@ class RoundCompletionTests(TempMediaRootMixin, TestCase):
     That tail is the least-travelled path in the handler and the one that broke.
 
     The signal is sent explicitly rather than by letting a `PlayerMove` save
-    trigger it, so these stay valid after `Roadmap.md` 1.1 changes *who* calls the
-    handler. Two players with one move submitted keeps the `post_save` receiver
-    from firing on its own and running the handler twice.
+    trigger it, so these stay valid whoever calls the handler. Two players
+    with one move submitted keeps the `post_save` receiver from firing on
+    its own and running the handler twice.
     """
 
     def setUp(self):
@@ -114,12 +114,11 @@ class RoundCompletionTests(TempMediaRootMixin, TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Roadmap.md 1.1 — one round-completion path
+# One round-completion path
 #
-# game.rounds is imported inside the methods below, not at module level. The
-# module does not exist yet, and a top-level import would take RoundCompletionTests
-# above down with it — that class tests handle_round_completed, which this work
-# does not change, and it needs to stay visibly green throughout.
+# game.rounds is imported inside the methods below, not at module level: a
+# top-level import that failed would take RoundCompletionTests above down with
+# it.
 # ---------------------------------------------------------------------------
 
 
@@ -218,7 +217,7 @@ class CompleteRoundIfReadyTests(RoundFixtureMixin, TestCase):
             self.assertTrue(self.complete_round_if_ready())
 
     def test_a_seat_played_at_the_host_machine_is_waited_for(self):
-        """controlled_by_host no longer means "the host's row" (Roadmap.md 1.6).
+        """controlled_by_host no longer means "the host's row".
 
         A student playing at the host machine is a player like any other, and
         the round waits for their move too. Only the host's own row, found by
@@ -468,10 +467,9 @@ class PlayerMoveOnCommitTests(RoundFixtureMixin, TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Roadmap.md 1.6 — the pause
+# The pause
 #
-# game.pause is imported inside the tests: it doesn't exist before the pause
-# guide.
+# game.pause is imported inside the tests.
 # ---------------------------------------------------------------------------
 
 
@@ -736,7 +734,7 @@ class PausedRoundTests(PauseMixin, TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Cost units — see `.claude/plans/to-do/[backend]-cost-units.md`.
+# Cost units.
 #
 # AgentSimulationResult.mean_cost_eur is per person; SimulationResult
 # .total_cost_eur is the whole cohort. The round table sums the first into the
@@ -918,13 +916,11 @@ class CostUnitWithOnePersonPerAgentTests(SimulatedRoundMixin, TestCase):
 
 
 # ---------------------------------------------------------------------------
-# The end of a game — see `.claude/plans/to-do/[backend]-game-ending.md`.
+# The end of a game.
 #
-# GameSession.end_reason does not exist yet, so everything below that touches it
-# is red until the field and its migration are typed. The reason is stored once,
-# when the game ends, because it cannot be worked out afterwards: today
-# signals.py and views_rest.py both recompute it as
-# "co2_limit if over budget else max_rounds", which makes every ending that was
+# The reason is stored once, when the game ends, because it cannot be worked
+# out afterwards: signals.py and views_rest.py used to recompute it as
+# "co2_limit if over budget else max_rounds", which made every ending that was
 # neither claim that all rounds were played.
 # ---------------------------------------------------------------------------
 
@@ -1069,7 +1065,7 @@ class EndingAnUnstartedGameTests(TempMediaRootMixin, TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Bus gates — see `.claude/plans/to-do/[backend]-sim-link-model.md`.
+# Bus gates.
 #
 # `lanes` counts the whole street, the bus lane included, so ticking "Busspur"
 # on a one-lane street leaves no car lane at all: the street becomes a bus
@@ -1451,9 +1447,8 @@ class SummaryPayloadTests(SimulatedRoundMixin, TestCase):
 class SummaryVoteListTests(SimulatedRoundMixin, TestCase):
     """The summary can finally say what the class did between the rounds.
 
-    `.claude/plans/to-do/[backend]-abstimmungen-im-summary.md`. The end screen
-    already promises "Daran siehst du, was die Änderungen an der Karte gebracht
-    haben" over a list that has never named a single change.
+    The end screen already promises "Daran siehst du, was die Änderungen an der
+    Karte gebracht haben" over a list that has never named a single change.
     """
 
     def _summary(self):
@@ -1497,11 +1492,9 @@ class SummaryVoteListTests(SimulatedRoundMixin, TestCase):
 class SummaryNetworkFigureTests(SimulatedRoundMixin, TestCase):
     """The summary has to be able to say where the missing kilograms went.
 
-    `[backend]-pt-timetable-and-society.md`: a PT line emits because it runs,
-    so a round's total now carries emissions that belong to no player. Without
-    the network figure beside it, the screen shows rows that quietly fail to
-    add up to the headline — which is the class of bug the summary payload
-    guide just finished closing.
+    A PT line emits because it runs, so a round's total carries emissions
+    that belong to no player. Without the network figure beside it, the
+    screen shows rows that quietly fail to add up to the headline.
 
     The mixin's map has a single 2 km street. A bus line over it at a
     10-minute interval runs 12 vehicles in the 120-minute window:
@@ -1658,8 +1651,8 @@ class CrashedSimulationIsNotAFreeRoundTests(SimulatedRoundMixin, TestCase):
     `simulation_used: True`.
 
     That is what a play-test saw on 2026-09-25, and it is why the round-end
-    knot in `Roadmap.md` S1 was filed as a frontend bug: nothing on the wire
-    said the engine had crashed.
+    knot was first taken for a frontend bug: nothing on the wire said the
+    engine had crashed.
     """
 
     def setUp(self):

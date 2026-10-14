@@ -2,7 +2,7 @@
  * One game, one state, one reducer.
  *
  * This replaces `lobby-state.ts` and generalises it to the whole game. The rule
- * it enforces is Roadmap.md 2.2 in one sentence: **REST seeds, the socket owns,
+ * it enforces is the one from AGENTS.md: **REST seeds, the socket owns,
  * the reducer applies.** Nothing polls, and nothing refetches in response to an
  * event.
  *

@@ -114,8 +114,8 @@ class PlayerHostRowTests(TempMediaRootMixin, TestCase):
 
     GameSessionCreateView gives the host a Player row of their own. What marks it
     is the account link (user == game.game_host), not controlled_by_host:
-    Roadmap.md 1.6 gives controlled_by_host its literal meaning — a student
-    playing on the host machine — and those rows are players like any other.
+    controlled_by_host means what it says — a student playing on the host
+    machine — and those rows are players like any other.
     """
 
     def setUp(self):
@@ -200,7 +200,7 @@ def uuid_draws(*prefixes):
 @override_settings(**TEST_BACKENDS)
 class PlayerIdTests(TempMediaRootMixin, TestCase):
     """player_id is what the player cookie names, so it must name one row.
-    Roadmap.md 1.6; 1.7 hands out new ids and relies on it."""
+    Taking a seat over and handing it on give out new ids and rely on it."""
 
     def setUp(self):
         self.host = create_host()
@@ -324,7 +324,7 @@ class GameMapRequiredTests(TempMediaRootMixin, TestCase):
     started_at, creates round 1 — and GameSession.save() forces is_active back
     to False, so no game.started ever goes out and the screen never moves. The
     model stays nullable for the rows that already exist; the way in is where
-    it is refused. See `.claude/plans/to-do/[backend]-game-ending.md`.
+    it is refused.
 
     Since S13 that way in is `POST api/game/`, and the rule moved with it:
     `GameSessionCreateSerializer` makes `game_map` required while its parent

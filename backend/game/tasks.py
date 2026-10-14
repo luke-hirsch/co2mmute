@@ -84,7 +84,7 @@ def cleanup_old_simulations(days_old: int = 30):
 
 @shared_task
 def anonymise_finished_games():
-    """Sweep games whose grace period has run out. Roadmap.md 1.3.
+    """Sweep games whose grace period has run out.
 
     Runs on a schedule rather than on game end so the post-game summary still
     shows real names while the class is looking at it.
@@ -111,7 +111,7 @@ def anonymise_finished_games():
 
 @shared_task
 def end_idle_games():
-    """End games idle for longer than their idle_end_days. Roadmap.md 1.6.
+    """End games idle for longer than their idle_end_days.
 
     anonymise_finished_games picks them up after the grace period, like any
     other ended game.
@@ -134,10 +134,10 @@ def end_idle_games():
 
 @shared_task
 def clear_expired_sessions():
-    """Delete expired django_session rows. Roadmap.md 1.3.
+    """Delete expired django_session rows.
 
-    The DB session backend never does this on its own. Before 1.2 every join
-    wrote the player id into the session, and for a logged-in user that row
+    The DB session backend never does this on its own. Every join used to
+    write the player id into the session, and for a logged-in user that row
     links the account to the player.
     """
     from django.core.management import call_command

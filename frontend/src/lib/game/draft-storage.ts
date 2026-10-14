@@ -2,7 +2,7 @@
  * The unfinished turn, across a reload.
  *
  * A locked phone discards the page, and in a classroom that is the ordinary
- * case rather than the edge case (Roadmap.md S7). What survives is the **taps**
+ * case rather than the edge case. What survives is the **taps**
  * — which passenger travels how, and which of the two optimisations was picked
  * — and deliberately not the route.
  *

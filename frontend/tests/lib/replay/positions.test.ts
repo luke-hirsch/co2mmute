@@ -9,7 +9,7 @@ import type { ReplayDot } from "@/lib/replay/types";
  * The wire format is `[kind, ref, from, to, fromNode]` per leg, with one
  * timestamp per event on the backend — entering link N+1 *is* leaving link N —
  * so the legs join up exactly and there is never a gap to invent a position
- * for. See §6 of `[backend]-replay-aufzeichnung.md`.
+ * for.
  *
  * Two things here are not bookkeeping:
  *

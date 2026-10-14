@@ -1,4 +1,4 @@
-"""Games nobody plays any more end by themselves. Roadmap.md 1.6.
+"""Games nobody plays any more end by themselves.
 
 A paused game can wait a long time for a class that never comes back, and a
 lobby nobody starts waits forever. Each game ends after its own idle_end_days

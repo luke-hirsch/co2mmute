@@ -12,9 +12,8 @@ NO_REDIS points REDIS_URL at a port nothing listens on. CI has no Redis, and
 the game socket must not need one: presence goes through the Django cache,
 in-memory here. Only ChatConsumer still talks to Redis directly.
 
-game.roster is imported inside the tests. It doesn't exist before the
-roster-from-db guide, and a top-level import would turn the whole file into
-one import error.
+game.roster is imported inside the tests: a top-level import that failed
+would turn the whole file into one import error.
 """
 
 import asyncio
@@ -592,7 +591,7 @@ class SocketTests(GameWithSeatsMixin, TransactionTestCase):
             return async_to_sync(scenario)()
 
     def test_the_game_state_of_a_running_game_is_not_paused(self):
-        """Roadmap.md 1.6: a client that connects during the break must know."""
+        """A client that connects during the break must know."""
         self.assertIsNone(self.game_state()["pausedAt"])
 
     def test_the_game_state_says_the_game_is_paused(self):
@@ -686,7 +685,7 @@ class SocketTests(GameWithSeatsMixin, TransactionTestCase):
 @override_settings(**TEST_BACKENDS, **NO_REDIS)
 class HostSocketSpeaksForSeatsTests(GameWithSeatsMixin, TransactionTestCase):
     """A host socket acks and votes for the seats played at the host machine.
-    Roadmap.md 1.6. It used to drop every ack and vote the host sent.
+    It used to drop every ack and vote the host sent.
 
     A player's socket still only ever votes for its own seat, whatever
     player_id the message carries.
@@ -809,12 +808,11 @@ class HostSocketSpeaksForSeatsTests(GameWithSeatsMixin, TransactionTestCase):
 
 @override_settings(**TEST_BACKENDS, **NO_REDIS)
 class HandoverSocketTests(GameWithSeatsMixin, TransactionTestCase):
-    """Roadmap.md 1.7: when a seat moves, the old device's socket is told and
-    closed. Taking over and handing on both give the seat a new player_id,
-    so the old cookie can't come back either.
+    """When a seat moves, the old device's socket is told and closed. Taking
+    over and handing on both give the seat a new player_id, so the old
+    cookie can't come back either.
 
-    game.seats is imported inside the tests; the handover part of it doesn't
-    exist before the seat-handover guide.
+    game.seats is imported inside the tests.
     """
 
     def socket(self, cookies):
@@ -918,7 +916,7 @@ class HandoverSocketTests(GameWithSeatsMixin, TransactionTestCase):
 
 @override_settings(**TEST_BACKENDS, **NO_REDIS)
 class RoundStartedReachesTheSocketTests(TempMediaRootMixin, TransactionTestCase):
-    """round.started never reached the players (fixed by the phase-module guide).
+    """round.started never reached the players (fixed by game/phases.py).
 
     The consumer's _start_next_round called send_game_state_message, which
     uses async_to_sync, from inside the event loop. asgiref refuses that with

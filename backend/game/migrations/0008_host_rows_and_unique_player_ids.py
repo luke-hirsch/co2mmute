@@ -1,6 +1,6 @@
 """Two data fixes before 0009 adds the unique constraint on player_id.
 
-Roadmap.md 1.6. Written by hand (makemigrations --empty); the historical
+Written by hand (makemigrations --empty); the historical
 Player model has neither host_rows() nor generate_unique_player_id(), so both
 are spelled out here.
 """

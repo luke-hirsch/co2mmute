@@ -33,7 +33,7 @@ import type { RoundResult } from "@/lib/game/game-state";
  *
  * Names appear because the roster is the room: everybody can see everybody. The
  * line they must never cross is a log, a toast or an error string
- * (CLAUDE.md → players are minors).
+ * (AGENTS.md → players are minors).
  *
  * The table scrolls sideways in its own box rather than pushing the page — four
  * columns of numbers do not fit 390px, and the page body must never scroll

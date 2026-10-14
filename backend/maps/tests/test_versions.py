@@ -23,9 +23,8 @@ member *replaced* stays in the combination beside its replacement. Measured:
 `Busspuren + Umgehungsstraßen` carries 155 edges where 140 is the whole map,
 i.e. 15 streets twice over.
 
-Evidence and the per-version counts: `.claude/plans/diagnostics/[findings]-\
-kartenversionen-2026-09-27.md`. Neither version endpoint had a single test
-before this file, which is why the topic gets one of its own.
+Neither version endpoint had a single test before this file, which is why the
+topic gets one of its own.
 """
 
 import os
