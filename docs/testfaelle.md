@@ -127,6 +127,7 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | R-31 | Bus und Bahn: der Fußweg am Ende | hält die schnellste Linie mehr als 2 km zu Fuß vom Ziel, nimmt der Router die langsamere, die näher hält, statt gar keine Verbindung zu finden; auf der ausgelieferten Karte mit „wenigste Umstiege“ 12 der 72 Wege jeder Version, die vorher keine Verbindung hatten; mit „schnellste“ bleibt jeder Weg, wie er war      | geht | `pt-routing.test.ts` |
 | R-32 | Bus und Bahn: einsteigen an der Haltestelle | eine Kreuzung, an der nur die Hin- und die Rückrichtung derselben Linie vorbeifahren, ist keine Haltestelle („101“ und „101 reverse“ sind eine Linie, auch „U2 Reverse“); wo zwei Linien sich kreuzen, kann man weiter umsteigen      | geht | `pt-routing.test.ts` |
 | R-33 | Bus und Bahn heißt fahren | einsteigen und an derselben Haltestelle gleich wieder aussteigen ist keine Fahrt: wo sonst nur Laufen bliebe, heißt es „keine Verbindung“, und der Weg zur ersten Haltestelle bleibt unter 2 km — vorher verlängerte ein Ein- und Aussteigen ihn bis 5,5 km      | geht | `pt-routing.test.ts` |
+| R-34 | eine Station mit dem Zug, dann zu Fuß | kommt an, auch wenn Einsteigen und Aussteigen in denselben Takt fallen — vorher ging der Fußweg danach nie weiter, der Durchlauf lief bis an die Grenze von 1000 Ticks und jede Linie fuhr für ihn weiter (gebaute Box, 75 % Auto: 686 Menschen in einer Runde); auf der ausgelieferten Karte war es nie so, ihre Zahlen bleiben      | geht | `test_linkqueue` |
 
 ## A — die animation
 
