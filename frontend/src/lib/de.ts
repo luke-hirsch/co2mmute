@@ -633,7 +633,7 @@ export const de = {
       "Jede Zeile ist mit allen Menschen gerechnet, für die eine Gruppe steht.",
 
     /** The overlay. */
-    explain: "Die Simumation erklärt",
+    explain: "Die Simulation erklärt",
     explainTitle: "Gut zu wissen …",
     explainLead: "Was hinter den Zahlen auf dem Schirm steht.",
     close: "Verstanden",
