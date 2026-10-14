@@ -1,6 +1,6 @@
 """Anonymisation at game end.
 
-Roadmap.md 1.3, decided 2026-08-13. Players are school students, some of them
+Decided 2026-08-13. Players are school students, some of them
 minors, and the screen name is the only identifying thing this project collects.
 So the name goes and everything else stays: moves, routes, per-agent results all
 keep their foreign keys and stay linkable for the thesis.

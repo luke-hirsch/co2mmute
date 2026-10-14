@@ -3,7 +3,7 @@
  *
  * Replaces `useAgentRoutes` in `hooks/usePathfinding.ts`. What it does not
  * replace is the pathfinding itself — `findPath` and `findBestPTRoute` are pure
- * logic and stay exactly as they are (Roadmap.md F3).
+ * logic and stay exactly as they are.
  *
  * Parameterised by seat: give it a `seatId` and it plays that seat. F4's desk
  * hands it someone else's, and nothing here has to change.

@@ -540,9 +540,8 @@ class NonArrivalAccountingTests(TestCase):
         """
         simulator = TrafficSimulator(self.game_round, scale=100.0)
         simulator.current_tick = 200
-        # Every waiting entry is exactly one person since
-        # `[backend]-pt-boarding.md` deleted route_vehicle_scaling; this test
-        # used to have to say so.
+        # Every waiting entry is exactly one person since PT boarding deleted
+        # route_vehicle_scaling; this test used to have to say so.
         # (wanted departure, route, person, desired-speed factor) — the
         # factor is drawn with the departure now rather than at each spawn
         # attempt, so it rides along on the waiting list.
@@ -2573,7 +2572,7 @@ class PTSocietyFiguresTests(PTScenarioMixin, TestCase):
         change nothing on the emissions path reads bus_capacity at all, so a
         60-seat U-Bahn can be corrected to 1000 without moving a number.
 
-        Since `[backend]-pt-service-period.md` this is a statement about the
+        Since lines run until everybody is carried, this is a statement about the
         emissions ARITHMETIC, which still never reads bus_capacity — and it
         holds outright here, where nobody rides the line so no extra run is
         ever dispatched. On a line the peak overloads, capacity decides how
@@ -2991,9 +2990,9 @@ class PTBoardingScenarioMixin(PTScenarioMixin):
 class NodeChainTests(TestCase):
     """The walk that turns a bag of edges into a list of places.
 
-    It already exists once, in `maps/serializer._stops_in_travel_order`, and
-    the engine needs the identical answer to run a line stop by stop. Two
-    copies of a walk this subtle is the drift this guide collapses.
+    `maps/serializer._stops_in_travel_order` needs it, and the engine needs
+    the identical answer to run a line stop by stop, so both call this one:
+    two copies of a walk this subtle would drift.
     """
 
     def test_a_forward_chain_is_its_own_node_list(self):
@@ -3370,10 +3369,10 @@ class PTFullLineIsAWaitTests(PTBoardingScenarioMixin, TestCase):
     """Nobody is left behind for want of a seat; the shortfall is time.
 
     This class replaces PTStrandedTests, whose three tests asserted that
-    capacity strands the surplus. That is exactly what
-    `[backend]-pt-service-period.md` deletes (Lukas, 2026-09-25): students
-    already have CO2 and cost to argue about, and a count of people who did
-    not arrive is a third axis that ranks against neither.
+    capacity strands the surplus. That is exactly what running a line until
+    everybody is carried deletes (Lukas, 2026-09-25): students already have
+    CO2 and cost to argue about, and a count of people who did not arrive is
+    a third axis that ranks against neither.
     """
 
     def setUp(self):
@@ -3432,9 +3431,8 @@ class PTFullLineIsAWaitTests(PTBoardingScenarioMixin, TestCase):
 class PTRealisedShareTests(PTBoardingScenarioMixin, TestCase):
     """A line is divided among the people who got on it.
 
-    `[backend]-pt-timetable-and-society.md` divided it among the people who
-    SUBMITTED a route over it, because at the time there was no other number
-    to use. There is now.
+    It used to be divided among the people who SUBMITTED a route over it,
+    because at the time there was no other number to use. There is now.
     """
 
     def setUp(self):
@@ -3444,10 +3442,9 @@ class PTRealisedShareTests(PTBoardingScenarioMixin, TestCase):
         """A line carries what got on it, not what was submitted over it.
 
         This used to be shown with a 2-seat bus: 100 people submit, 24 places
-        exist, so person_km came out far under the submitted 200. Since
-        `[backend]-pt-service-period.md` a full bus is a WAIT — the line keeps
-        running until all 100 are carried — so capacity no longer separates
-        the two figures at all.
+        exist, so person_km came out far under the submitted 200. Now a full
+        bus is a WAIT — the line keeps running until all 100 are carried —
+        so capacity no longer separates the two figures at all.
 
         What still separates them is a line whose edges do not connect.
         _register_pt_line trims it to the part that forms a chain, the route's
@@ -3929,7 +3926,7 @@ class DriverSpeedIsDrawnOncePerPersonTests(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# The line runs as long as people need it — `[backend]-pt-service-period.md`
+# The line runs as long as people need it
 #
 # Same rule as the PT block above: every new symbol is imported inside the
 # test that needs it, so a missing name cannot raise at module level and

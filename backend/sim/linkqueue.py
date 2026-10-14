@@ -233,8 +233,8 @@ class LinkQueueEngine:
         self.route_pt_legs: dict[int, list[PTLeg]] = {}
 
         # Person-kilometres this route ACTUALLY rode on each line, accumulated
-        # as people alight. Replaces the timetable guide's assumption that
-        # everyone who submitted a PT route travelled on it.
+        # as people alight, rather than assuming that everyone who submitted
+        # a PT route travelled on it.
         self.route_pt_person_km: dict[int, dict[tuple[str, int], float]] = {}
 
         # People on this route who boarded at least once, i.e. bought a ticket.
@@ -1324,8 +1324,7 @@ class LinkQueueEngine:
 
         Dwell time is not modelled yet — the vehicle serves the stop in the
         instant it reaches it. It is the mechanism this design was chosen to
-        keep possible (see "the alternative that was rejected"), not something
-        this guide builds.
+        keep possible, not something it builds yet.
         """
         line = self.pt_lines.get(pt.line_key)
         if line is None or pt.finished:
@@ -1386,8 +1385,7 @@ class LinkQueueEngine:
         The person-kilometres it rode are booked to the line HERE rather than
         assumed from the submitted route: a line's personal shares are divided
         among the people who actually got on it, and the seats nobody filled
-        belong to nobody. That is the seam back into
-        `[backend]-pt-timetable-and-society.md`'s `share_of`.
+        belong to nobody. That is the seam back into `PTLineState.share_of`.
         """
         pt.riders.remove(rider_id)
         rider.aboard_of = None

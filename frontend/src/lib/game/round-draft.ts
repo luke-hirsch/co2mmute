@@ -9,7 +9,7 @@
  * says that (`seat.status === "waiting"`, `game/roster.py:build`), and it keeps
  * saying it after a reload, after a reconnect, and when another device
  * submitted the seat (F4). A local `isSubmitted` would be the second source of
- * truth that Roadmap.md 2.2 exists to remove.
+ * truth that the one-source rule (AGENTS.md → frontend) exists to remove.
  *
  * The draft *does* survive a reload since S7, and the rule above is what shapes
  * how. A locked phone discarding the page is the ordinary case in a classroom,

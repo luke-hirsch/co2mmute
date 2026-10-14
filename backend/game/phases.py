@@ -73,7 +73,7 @@ def _seat(game: GameSession, player_id: str, by_host: bool = False) -> Player | 
 
     None for the host's own row, for someone who left and for an id from another
     game. None of them take part in a phase. by_host: the host is asking, which
-    is only allowed for a seat played at the host machine (Roadmap.md 1.6).
+    is only allowed for a seat played at the host machine.
     """
     seats = _playing(game).filter(player_id=player_id)
     if by_host:

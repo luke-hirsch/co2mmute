@@ -2,7 +2,7 @@
 
 Kept out of views_rest.py on purpose: everything here runs *before* a player has
 a cookie, so it is the one part of the REST surface that cannot use
-HasGameAccess. Roadmap.md 1.4.
+HasGameAccess.
 """
 
 import logging
@@ -229,7 +229,7 @@ class LobbyStateView(APIView):
 
 
 class SeatCodeView(APIView):
-    """GET / POST /api/game/seat/<code>/ — take a seat over by code. Roadmap.md 1.7.
+    """GET / POST /api/game/seat/<code>/ — take a seat over by code.
 
     GET only looks, so the phone can ask "Du übernimmst Anna?" first. POST
     uses the code up and hands over the seat: a new player_id, both cookies,

@@ -170,9 +170,9 @@ class PlayerQuerySet(models.QuerySet):
     """Which Player row is the host's own.
 
     GameSessionCreateView gives the host a Player row linked to their account.
-    That link — not controlled_by_host — is what marks it: Roadmap.md 1.6 gives
-    controlled_by_host its literal meaning (a student playing at the host
-    machine), and those rows are players like any other.
+    That link — not controlled_by_host — is what marks it: controlled_by_host
+    means what it says (a student playing at the host machine), and those
+    rows are players like any other.
     """
 
     def host_rows(self):

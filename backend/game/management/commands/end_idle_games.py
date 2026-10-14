@@ -1,4 +1,4 @@
-"""End games nobody has played for their idle_end_days. Roadmap.md 1.6.
+"""End games nobody has played for their idle_end_days.
 
 ./manage.py end_idle_games            # what the daily beat job does
 ./manage.py end_idle_games --dry-run  # show what would happen

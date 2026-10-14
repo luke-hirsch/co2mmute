@@ -30,8 +30,8 @@ type HeldCode = {
  * client-side clock that disagrees with the server by a second is harmless,
  * whereas a request every second to ask is not.
  *
- * The QR is optional on purpose. `qr_url` only appears once the backend renders
- * one (`[backend]-seat-code-qr.md`); without it the six characters stand alone,
+ * The QR is optional on purpose. `qr_url` only appears when the backend renders
+ * one; without it the six characters stand alone,
  * which is what an alphabet with no 0/O and no 1/I/L was chosen for.
  */
 export function SeatCodePanel({

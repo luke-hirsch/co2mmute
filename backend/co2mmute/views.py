@@ -393,8 +393,7 @@ class WhoAmIView(APIView):
     def _renew_cookies(self, response, game_id, player):
         """Every visit re-issues both cookies with a fresh timestamp, so a
         class that comes back within COOKIE_AGE of its last visit finds its
-        seats again. Same format as before: nobody is logged out.
-        Roadmap.md 1.6."""
+        seats again. Same format as before: nobody is logged out."""
         if player is None:
             return response
         response = set_game_access_cookie(self.request, response, game_id)

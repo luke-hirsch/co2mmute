@@ -105,8 +105,7 @@ describe("issueSeatCode", () => {
   });
 
   it("carries a qr_url when the backend renders one", async () => {
-    // Optional on purpose: the QR is a small backend guide of its own
-    // (`[backend]-seat-code-qr.md`), and this screen ships before it.
+    // Optional on purpose: without it the six characters stand alone.
     stubFetch(
       jsonResponse(201, {
         code: "4F2A9C",

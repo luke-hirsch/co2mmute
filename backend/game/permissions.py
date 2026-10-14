@@ -46,7 +46,7 @@ class IsPlayerInGame(BasePermission):
 
         url_player_id = view.kwargs.get("player_id")
 
-        # Roadmap.md 1.6: the host acts for a seat played at the host machine.
+        # The host acts for a seat played at the host machine.
         # Only for such a seat. A student's own seat stays the student's.
         if (
             url_player_id

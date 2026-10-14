@@ -1,7 +1,7 @@
 /**
  * The three 1.4 endpoints, as React Query hooks.
  *
- * Toast-free by convention (Roadmap.md 2.1): these return state, the screens
+ * Toast-free by convention: these return state, the screens
  * decide what a failure looks like. That matters most for the join, where four
  * different statuses come back with deliberately similar prose and only the
  * screen knows which field to put the message next to.

@@ -29,7 +29,7 @@ def node_chain(ends: list[tuple[int, int]]) -> list[int]:
     The first edge is the one that needs care: on its own there is nothing to
     orient it against, so its direction is decided by whichever of its ends the
     *second* edge touches. Seeding it in stored order instead is what made every
-    line report its first two nodes and stop (2026-09-19, `[backend]-pt-stops`).
+    line report its first two nodes and stop (2026-09-19).
 
     Returns [] for nothing, and stops early where the chain breaks — so a caller
     can tell a whole chain from a truncated one by its length, which is

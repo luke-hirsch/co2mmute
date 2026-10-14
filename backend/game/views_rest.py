@@ -122,7 +122,7 @@ class PlayerListView(GameScopedQuerysetMixin, ListModelMixin, GenericAPIView):
         return self.list(request, *args, **kwargs)
 
     def post(self, request, game_id):
-        """The host adds a seat played at the host machine. Roadmap.md 1.6."""
+        """The host adds a seat played at the host machine."""
         body = SeatRequestSerializer(data=request.data)
         body.is_valid(raise_exception=True)
         game = get_object_or_404(GameSession, game_id=game_id)
@@ -431,7 +431,7 @@ class GameSessionDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIVie
 
 
 class SeatCodeIssueView(GenericAPIView):
-    """POST /api/game/<game_id>/player/<player_id>/code/ — Roadmap.md 1.7.
+    """POST /api/game/<game_id>/player/<player_id>/code/
 
     A code that hands the seat to another device. IsPlayerInGame lets in the
     seat's own player (moving to another device) and the host for a seat
@@ -460,7 +460,7 @@ class SeatCodeIssueView(GenericAPIView):
 
 
 class SeatTakeoverView(GenericAPIView):
-    """POST /api/game/<game_id>/player/<player_id>/takeover/ — Roadmap.md 1.7.
+    """POST /api/game/<game_id>/player/<player_id>/takeover/
 
     The host plays a student's seat from now on. The student's device is out.
     """
@@ -484,7 +484,7 @@ class SeatTakeoverView(GenericAPIView):
 
 
 class GamePauseView(GenericAPIView):
-    """POST /api/game/<game_id>/pause/ — the bell. Roadmap.md 1.6."""
+    """POST /api/game/<game_id>/pause/ — the bell."""
 
     authentication_classes = (SessionAuthentication,)
     permission_classes = (IsGameHost,)

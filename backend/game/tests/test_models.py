@@ -114,8 +114,8 @@ class PlayerHostRowTests(TempMediaRootMixin, TestCase):
 
     GameSessionCreateView gives the host a Player row of their own. What marks it
     is the account link (user == game.game_host), not controlled_by_host:
-    Roadmap.md 1.6 gives controlled_by_host its literal meaning — a student
-    playing on the host machine — and those rows are players like any other.
+    controlled_by_host means what it says — a student playing on the host
+    machine — and those rows are players like any other.
     """
 
     def setUp(self):
@@ -200,7 +200,7 @@ def uuid_draws(*prefixes):
 @override_settings(**TEST_BACKENDS)
 class PlayerIdTests(TempMediaRootMixin, TestCase):
     """player_id is what the player cookie names, so it must name one row.
-    Roadmap.md 1.6; 1.7 hands out new ids and relies on it."""
+    Taking a seat over and handing it on give out new ids and rely on it."""
 
     def setUp(self):
         self.host = create_host()

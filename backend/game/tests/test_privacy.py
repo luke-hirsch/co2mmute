@@ -1,4 +1,4 @@
-"""Anonymisation at game end. Roadmap.md 1.3.
+"""Anonymisation at game end.
 
 A new topic file. Anonymisation is not a model invariant (test_models) and it does
 not happen during a round (test_rounds) — it is a lifecycle rule of its own.
@@ -189,7 +189,7 @@ class HostRowAnonymisationTests(TempMediaRootMixin, TestCase):
     "Erika Muster (Host)". That full name has to go as well. The row is not a
     student, though, so it becomes "Host" and takes no "Spieler N" number.
 
-    Roadmap.md 1.6 lets the host add players who play on the host machine
+    The host can add players who play on the host machine
     (controlled_by_host=True, no account). Those are students and are numbered
     like everyone else, which is why the rule keys on the host account.
     """
@@ -244,7 +244,7 @@ class HostRowAnonymisationTests(TempMediaRootMixin, TestCase):
 
 @override_settings(**TEST_BACKENDS)
 class RemovedSeatAnonymisationTests(PlayedGameMixin, TestCase):
-    """A seat removed after the start keeps its row (Roadmap.md 1.6), and with
+    """A seat removed after the start keeps its row, and with
     it the name. At game end it is renamed like every other row."""
 
     def test_a_seat_removed_after_the_start_is_anonymised_too(self):
@@ -503,13 +503,12 @@ class RetentionSettingsTests(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Roadmap.md 1.6 — idle games end by themselves
+# Idle games end by themselves
 #
 # A paused game can wait for a class that never comes back, and a lobby nobody
 # starts waits forever. Both kept their names indefinitely. Each game now ends
 # after its own idle_end_days, and the normal anonymisation takes it from
-# there. game.idle is imported inside the tests; it doesn't exist before the
-# pause guide.
+# there. game.idle is imported inside the tests.
 # ---------------------------------------------------------------------------
 
 

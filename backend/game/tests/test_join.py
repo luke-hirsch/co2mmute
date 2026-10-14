@@ -1,9 +1,8 @@
 """The pre-join surface: session lookup, joining, lobby state.
 
 A new topic file. The convention is that a feature's tests go in the topic file
-that owns the code, and nothing owned this one — until Roadmap.md 1.4 there was
-no way to ask "does this game exist and can I join it?" without already holding a
-cookie.
+that owns the code, and nothing owned this one — there used to be no way to ask
+"does this game exist and can I join it?" without already holding a cookie.
 
 URLs are written out literally rather than reversed. These paths are the contract
 the SPA hardcodes, so a rename should fail here rather than be papered over by
@@ -154,7 +153,7 @@ class SessionLookupTests(TempMediaRootMixin, TestCase):
         self.assertTrue(payload["joinable"])
 
     def test_a_seat_played_at_the_host_machine_takes_a_place(self):
-        """A student at the host machine (Roadmap.md 1.6) is a player and
+        """A student at the host machine is a player and
         counts against max_players like everyone else."""
         with muted():
             game = create_game_session(self.host, game_name="Am Host", max_players=1)
@@ -369,7 +368,7 @@ class LobbyStateTests(GameCookieMixin, TempMediaRootMixin, TestCase):
         self.assertTrue(payload["joinable"])
 
     def test_lobby_reports_the_pause(self):
-        """Roadmap.md 1.6: the lobby payload is the REST snapshot the SPA
+        """The lobby payload is the REST snapshot the SPA
         seeds its state from."""
         self.give_game_access(self.game.game_id)
         before = self.client.get(lobby_url(self.game.game_id)).json()
@@ -427,7 +426,7 @@ class UrlRoutingTests(TestCase):
         self.assertEqual(match.kwargs["game_id"], "ABC123")
 
     def test_pause_and_resume_resolve_to_their_views(self):
-        """Roadmap.md 1.6. Two segments each: undeclared, they land in
+        """Two segments each: undeclared, they land in
         GetYourOwnGame with player_id="pause"."""
         pause = resolve("/api/game/ABC123/pause/")
         resume = resolve("/api/game/ABC123/resume/")
@@ -437,7 +436,7 @@ class UrlRoutingTests(TestCase):
         self.assertEqual(pause.kwargs["game_id"], "ABC123")
 
     def test_the_seat_code_resolves_to_its_view(self):
-        """Roadmap.md 1.7. Two segments: undeclared, `seat/<code>/` lands in
+        """Two segments: undeclared, `seat/<code>/` lands in
         GetYourOwnGame as game "seat", player <code>."""
         match = resolve("/api/game/seat/K7P2QX/")
 
@@ -465,7 +464,7 @@ class UrlRoutingTests(TestCase):
 
 @override_settings(**TEST_BACKENDS)
 class SessionsRouteRemovedTests(TempMediaRootMixin, TestCase):
-    """GameSessionListView is unreachable and 403s; the guide deletes it.
+    """GameSessionListView was unreachable and 403'd, and is gone.
 
     `api/game/sessions/` never reached it anyway — `<str:game_id>/` is declared
     first and swallows any single-segment path, so the request lands in
@@ -574,10 +573,10 @@ class OneJoinFunnelTests(TempMediaRootMixin, TestCase):
 
 @override_settings(**TEST_BACKENDS)
 class LobbyHostRowTests(GameCookieMixin, TempMediaRootMixin, TestCase):
-    """The lobby tells the host's own row apart. Roadmap.md 1.6.
+    """The lobby tells the host's own row apart.
 
-    controlled_by_host used to mark it. From 1.6 on that flag means "played
-    at the host machine", and the host row is found by its account.
+    controlled_by_host used to mark it. Now that flag means "played at the
+    host machine", and the host row is found by its account.
     """
 
     def setUp(self):
@@ -632,7 +631,7 @@ class GermanFunnelTests(TempMediaRootMixin, TestCase):
     built in `Meta.labels` is invisible to a grep of the template.
 
     Nothing in here asserts an exact sentence. The test is "this page is not
-    English", never "this page says what the guide said" — the wording stays
+    English", never "this page says this sentence" — the wording stays
     free to improve, and only a string nobody translated goes red.
     """
 

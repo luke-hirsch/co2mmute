@@ -1,9 +1,9 @@
-"""Seats: adding, removing, and (1.7) handing them over. game/seats.py.
+"""Seats: adding, removing, and handing them over. game/seats.py.
 
-A new topic file for a new module. Roadmap.md 1.6: the host adds seats that are
-played at the host machine, in the lobby and while the game runs, and removes
-seats. After the start a removed seat keeps its row (left_at), because its moves
-are research data.
+A new topic file for a new module. The host adds seats that are played at the
+host machine, in the lobby and while the game runs, and removes seats. After
+the start a removed seat keeps its row (left_at), because its moves are
+research data.
 
 Everything goes through the REST endpoints the SPA will call, so the
 permissions are part of what is tested. The routes themselves are pinned in
@@ -459,10 +459,9 @@ class RemoveSeatTests(SeatsMixin, TestCase):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Roadmap.md 1.7: a seat moves to another device
+# A seat moves to another device
 #
-# game.seats' new names are imported inside the tests: they don't exist before
-# the seat-handover guide.
+# game.seats' handover names are imported inside the tests.
 # ─────────────────────────────────────────────────────────────────────────────
 
 CODE_PATTERN = r"^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$"
@@ -942,8 +941,8 @@ class TakeoverTests(HandoverMixin, TestCase):
         self.assertEqual(response.json()["reason"], "ended")
 
     def test_a_removed_seat_is_a_404(self):
-        """Passes before the guide too, because the route is missing then;
-        test_join pins the route."""
+        """A seat that has left is not there to take over. test_join pins the
+        route."""
         Player.objects.filter(pk=self.anna.pk).update(left_at=timezone.now())
         self.as_host()
 
@@ -1007,7 +1006,7 @@ class ClassroomScenarioTests(HandoverMixin, TestCase):
 
 @override_settings(**TEST_BACKENDS)
 class SeatCodeQrTests(HandoverMixin, TestCase):
-    """The scannable half of a seat code. Roadmap.md 2.7, F4.
+    """The scannable half of a seat code.
 
     The six characters are readable off a projector, but a student with a phone
     in their hand would rather point it at something. The code endpoint

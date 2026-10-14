@@ -1,4 +1,4 @@
-"""Settings for test runs. Roadmap.md 1.5.
+"""Settings for test runs.
 
     ./manage.py test --settings=co2mmute.settings_test
 
