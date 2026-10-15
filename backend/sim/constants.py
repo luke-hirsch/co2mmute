@@ -29,6 +29,22 @@ TRAIN_EMISSIONS_G_PER_VEHICLE_KM = 1500.0  # g CO2e per train-km
 # heating and all); Berlin's Flexity is a 40 m car with 248 places.
 TRAM_EMISSIONS_G_PER_VEHICLE_KM = 1400.0  # g CO2e per tram-km
 
+# What a person-km by bus and train emits in Germany, at the occupancy the
+# country's buses and trains actually run at: Umweltbundesamt, TREMOD 6.71B
+# (10/2025), "Vergleich der durchschnittlichen Emissionen einzelner
+# Verkehrsmittel im Personenverkehr in Deutschland 2024", g CO2e per person-km
+# with the energy's upstream chain, electricity at the German grid mix. Bus:
+# "Linienbus, Nahverkehr", 90 g at 16 % occupancy. Tram: "Straßen-, Stadt- und
+# U-Bahn", 42 g at 19 %. Train: "Eisenbahn, Nahverkehr", 44 g at 30 % — the
+# S-Bahn and the regional train; a U-Bahn is in the tram's row, two grams
+# apart, and a train line here does not say which it is.
+# Not what a ride emits in the game: a line emits per vehicle-km above, however
+# full. These say how much of that the class pays, `GameMap.timetable_factor`,
+# which `calibrate_map` measures with them.
+BUS_EMISSIONS_G_PER_PERSON_KM = 90.0
+TRAM_EMISSIONS_G_PER_PERSON_KM = 42.0
+TRAIN_EMISSIONS_G_PER_PERSON_KM = 44.0
+
 # Speed-dependent CO2 for cars, COPERT/HBEFA-style: an emission factor as a
 # continuous function of the average speed on a link.
 CAR_EF_MIN_SPEED_KMH = 70.0
@@ -174,6 +190,21 @@ def pt_emissions_g_per_vehicle_km(vehicle: str) -> float:
     if vehicle == "tram":
         return TRAM_EMISSIONS_G_PER_VEHICLE_KM
     return BUS_EMISSIONS_G_PER_VEHICLE_KM
+
+
+def pt_emissions_g_per_person_km(vehicle: str) -> float:
+    """CO2 per person-km at the occupancy Germany's buses and trains run at.
+
+    Not what the game charges a rider — that is the line's own emissions per
+    vehicle-km, shared by person-km. What it is for: how full the class's
+    buses would be if the riders the game does not have were aboard, which is
+    the share of the timetable the class pays (`calibration.timetable_factor`).
+    """
+    if vehicle == "train":
+        return TRAIN_EMISSIONS_G_PER_PERSON_KM
+    if vehicle == "tram":
+        return TRAM_EMISSIONS_G_PER_PERSON_KM
+    return BUS_EMISSIONS_G_PER_PERSON_KM
 
 
 def pt_cost_eur_per_vehicle_km(vehicle: str) -> float:

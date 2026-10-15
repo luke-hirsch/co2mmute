@@ -108,26 +108,35 @@ an adapter method must never take an engine method's name.
 - **Nobody is stranded.** A pass runs until everyone has arrived, and every line keeps running while
   anybody is out. A non-arrival is a defect, never a third metric.
 - **Society pays for the timetable**: a line emits and costs per vehicle-km whether anyone rides or
-  not, and that counts against the budget.
+  not, and that counts against the budget. The class pays its share of it: every vehicle-km's CO₂ and
+  cost times `GameMap.timetable_factor`, the riders' shares, the empty lines and the runs past the
+  timetable alike — the lines run a city's timetable for a few thousand of its people. The share is
+  what the class's riders would emit in buses and trains as full as Germany's (the Umweltbundesamt's g
+  per person-km, `sim/constants.py`) over what the base timetable emits, on the map's round where half
+  drive, never more than 1; 1 until measured. It changes the bill, not the round, and never the
+  ticket. A game copies it when it starts (`GameSession.timetable_factor`), so a recalibrated map
+  never moves a running game.
 - **The round is seeded** from the round's pk. A test asserting an exact number passes `seed=`.
 - **Units:** `people_per_agent` is derived (`district_commuters / (seats × Gruppen per seat)`), never
   picked. `AgentSimulationResult.total_co2_g` is per person × `people_per_agent`; `mean_cost_eur` is
   per person; `GameSession.max_CO2_level` is in kg.
 - **The commuters are the map's, the budget is the game's.** `GameMap.district_commuters` and
   `calibrated` (true only for a count measured on that map) belong to the graph. The budget is kg of
-  CO₂ per person per round, the same on every map: the create form's dial (1.0–6.0 kg in 0.2 steps,
-  normal 2.4 — `CO2_KG_PER_PERSON_*` in `game/calibration.py`, mirrored in
+  CO₂ per person per round, the same on every map: the create form's dial (0.6–6.0 kg in 0.2 steps,
+  normal 2.4, a commute inside Germany's 2030 climate target — `CO2_KG_PER_PERSON_*` in
+  `game/calibration.py`, mirrored in
   `frontend/src/lib/calibration.ts`), recorded as `GameSession.co2_kg_per_person`. The game ends on
   `max_CO2_level` = kg × the map's commuters × rounds — the map's commuters, not the people the scale
   puts on it, because the timetable runs whether anybody rides. `docs/kalibrierung.md` says how the
-  shipped map's count and normal were found.
+  shipped map's count, its share of the timetable and normal were found.
 - **A new map is measured by one rule** (`game/calibration.py`): commuters are as many as make a
   morning where everybody drives as slow as the real city's rush hour, from a cited source (for
   Berlin the TomTom Traffic Index: 19.0 km/h in the morning rush, 2025 data). The count is car demand
   that reproduces the rush hour on that graph, not a headcount, and the model has no traffic lights,
   so the jam stands in for them — a design anchor, said so wherever it is quoted. `manage.py
   calibrate_map <file> --speed <km/h>` finds the count (`--commuters N` keeps one), then plays a
-  round at each car share and reports kg per person and the car share normal buys on that map,
+  round at each car share and reports the share of the timetable the class pays, kg per person with
+  it and the car share normal buys on that map (`--out` writes count and share into the file),
   playing real rounds in a throwaway database (`game/measure.py`) on the routes the game's own router
   finds. It needs Node and `npm ci` in `frontend/`. Run it on Postgres (`DJANGO_DB=postgres`): the
   simulation reads its links in name order, every database sorts names its own way, and a round with

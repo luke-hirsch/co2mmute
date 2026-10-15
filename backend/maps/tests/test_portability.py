@@ -729,6 +729,36 @@ class MapBlockPortabilityTests(MapUploadMixin, TestCase):
         self.assertEqual(game_map.bike_speed_kmh, 20)
         self.assertEqual(game_map.default_car_speed_kmh, 50)
 
+    def test_import_reads_the_share_of_the_timetable_the_class_pays(self):
+        payload = self.graph_payload(
+            map={"name": "Berlin 3", "x_dim": 7, "y_dim": 5, "timetable_factor": 0.48}
+        )
+
+        game_map = self.upload(payload)
+
+        self.assertAlmostEqual(game_map.timetable_factor, 0.48)
+
+    def test_a_file_without_a_factor_pays_the_whole_timetable(self):
+        """Every file before 2026-10-15, and every hand-drawn one."""
+        self.assertEqual(self.upload(self.graph_payload()).timetable_factor, 1.0)
+
+    def test_a_factor_that_is_no_share_is_left_behind(self):
+        for value in (-0.2, 1.5, "viel", None, True):
+            with self.subTest(value=value):
+                payload = self.graph_payload(
+                    map={
+                        "name": "Berlin 3",
+                        "x_dim": 7,
+                        "y_dim": 5,
+                        "timetable_factor": value,
+                    }
+                )
+
+                with muted():
+                    game_map = self.upload(payload, name=f"Faktor {value!r}")
+
+                self.assertEqual(game_map.timetable_factor, 1.0)
+
     def test_the_whole_block_survives_export_and_import(self):
         original = self.upload(
             self.graph_payload(
@@ -741,6 +771,7 @@ class MapBlockPortabilityTests(MapUploadMixin, TestCase):
                     "bike_speed_kmh": 18,
                     "default_car_speed_kmh": 45,
                     "district_commuters": 4200,
+                    "timetable_factor": 0.48,
                 }
             ),
             name="Vorher",
@@ -756,6 +787,7 @@ class MapBlockPortabilityTests(MapUploadMixin, TestCase):
         self.assertEqual(copy.bike_speed_kmh, 18)
         self.assertEqual(copy.default_car_speed_kmh, 45)
         self.assertEqual(copy.district_commuters, 4200)
+        self.assertAlmostEqual(copy.timetable_factor, 0.48)
         self.assertNotIn("co2_budget_kg_per_round", exported["map"])
         self.assertEqual(copy.x_dim, 7)
         self.assertEqual(copy.y_dim, 5)

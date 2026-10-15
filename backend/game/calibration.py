@@ -193,6 +193,25 @@ Normal is the 50 % row rounded to the dial's 0.2 kg step, 2.4 — a constant
 from here on, the same on every map. A class going 100/75/50/50/25/25 % spends
 16.09 kg a head over six rounds against 14.4. docs/kalibrierung.md §13.
 
+**Since 2026-10-15 the class pays its share of the timetable.** The lines run
+a city's timetable for a few thousand of its people, and alone in the buses
+the class paid for seats the city fills: a person-km by bus and train came to
+144 g on the shipped map where the Umweltbundesamt counts 42 to 90. Now it
+pays what its riders would emit in buses as full as Germany's, as a share of
+the base timetable — `timetable_factor` below, measured on the round where
+half drive and written on the map. On the shipped map 0.48:
+
+    car share   kg per person
+         100 %    3.62
+          75 %    2.65
+          50 %    1.86
+          25 %    1.28
+           0 %    0.73
+
+Normal stayed 2.4 and got a source (the constant's comment); it holds at
+67 % car, and the class going 100/75/50/50/25/25 % spends 12.54 kg against
+14.4. docs/kalibrierung.md §16.
+
 Re-deriving these after a model change means replaying rounds on the map in
 question (`calibrate_map`), not adjusting them until a play-test feels right.
 What each number is FOR is asserted in `game/tests/test_join.py`.
@@ -210,15 +229,22 @@ DEFAULT_AGENT_PER_PLAYER = 4
 DEFAULT_MAX_ROUNDS = 6
 
 # The budget: kg of CO2 per person per round, there and back, the same on
-# every map. Normal is what a round costs on Berlin Mitte-West when half the
-# Gruppen drive (2.41 at 6 800 commuters), rounded to the step — measured
-# once and kept, a design anchor. The step is 0.2 because on Berlin 0.5 kg is
-# about a quarter of the class switching mode. The range runs below a round
-# nobody drives (1.53) and above one everybody does (4.17), so a host can make
-# a game unwinnable or free. `frontend/src/lib/calibration.ts` mirrors all four.
+# every map. Normal is a commute inside Germany's 2030 climate target: a
+# commute trip emitted 2.42 kg in 2017 (Umweltbundesamt, Texte 224/2020,
+# Tab. 4, from MiD 2017 and TREMOD, upstream included), 4.84 there and back;
+# the climate law gives transport 85 Mt in 2030 (KSG, Anlage 2a) against 168
+# in 2017 (UBA), and cut by as much a commuter's day is 2.45 kg — 2.4 on the
+# step. It was Berlin Mitte-West's half-driving round (2.41) until the class
+# paid its share of the timetable (2026-10-15), which made that round 1.86;
+# the figure stayed and got a source. A national mean, long commutes
+# included, so a city is easier than the mean by itself. The step is 0.2
+# because on Berlin 0.5 kg is about a sixth of the class switching mode. The
+# range runs below a round nobody drives on Berlin (0.73) and above one
+# everybody does (3.62), so a host can make a game unwinnable or free.
+# `frontend/src/lib/calibration.ts` mirrors all four.
 CO2_KG_PER_PERSON_NORMAL = Decimal("2.4")
 CO2_KG_PER_PERSON_STEP = Decimal("0.2")
-CO2_KG_PER_PERSON_MIN = Decimal("1.0")
+CO2_KG_PER_PERSON_MIN = Decimal("0.6")
 CO2_KG_PER_PERSON_MAX = Decimal("6.0")
 
 
@@ -472,6 +498,35 @@ def car_share_at(kg_per_person, per_person) -> float | None:
     return lower + (upper - lower) * (kg - low_kg) / (high_kg - low_kg)
 
 
+# The round the share of the timetable is measured on: half the Gruppen
+# drive, the middle of the table.
+TIMETABLE_SHARE = 0.5
+
+
+def timetable_factor(rounds) -> float | None:
+    """The share of the timetable a class pays, read off rounds half drive.
+
+    A map's lines run its city's timetable, made for its millions, and the
+    class is a few thousand of them: alone in the buses, it would pay for the
+    seats the rest of the city fills. So it pays what its riders would emit if
+    the buses were as full as Germany's are — their person-km at the
+    Umweltbundesamt's g per person-km (`average_kg`) — as a share of what the
+    base timetable emits (`base_kg`), over every seed. The runs past the
+    timetable, which leave while somebody is still out, are not in the base:
+    they are charged at the same share on top, so a map that runs them stays a
+    map that runs them.
+
+    Never more than all of it: buses fuller than Germany's would charge more
+    than they emit. Two significant figures, like the commuters. None where
+    there is nothing to read off: no timetable, or nobody on it.
+    """
+    base = sum(r.base_kg for r in rounds)
+    average = sum(r.average_kg for r in rounds)
+    if base <= 0 or average <= 0:
+        return None
+    return float(f"{min(1.0, average / base):.2g}")
+
+
 @dataclass
 class Calibration:
     """What the rule says about one map, and the rounds it read that off."""
@@ -491,12 +546,27 @@ class Calibration:
 
         A head of the map's commuters, not of the people the rounds put on it
         (whole people per Gruppe, so 6 768 of Berlin's 6 800): the budget is
-        kg × commuters × rounds, and this is the figure it is held to.
+        kg × commuters × rounds, and this is the figure it is held to. The
+        rounds are played with the whole timetable and the class's share
+        taken after — the share changes the bill, not the round.
         """
+        factor = self.timetable_factor
+
+        def paid(r):
+            """The cars, and the class's share of the timetable as it ran."""
+            if factor is None:
+                return r.total_kg
+            return r.car_kg + factor * r.timetable_kg
+
         return {
-            share: statistics.mean(r.total_kg for r in rounds) / self.commuters
+            share: statistics.mean(paid(r) for r in rounds) / self.commuters
             for share, rounds in self.rows.items()
         }
+
+    @property
+    def timetable_factor(self) -> float | None:
+        """The share of the timetable the class pays here (`timetable_factor`)."""
+        return timetable_factor(self.rows.get(TIMETABLE_SHARE, []))
 
     @property
     def normal_share(self) -> float | None:

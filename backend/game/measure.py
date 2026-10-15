@@ -175,6 +175,11 @@ class RoundMeasure:
     not_home: int
     switched: int
     people: int
+    # The base timetable, whole, and the riders' person-km at Germany's
+    # occupancy: what the share of the timetable is read off
+    # (`calibration.timetable_factor`).
+    base_kg: float = 0.0
+    average_kg: float = 0.0
 
     @property
     def timetable_kg(self):
@@ -353,6 +358,9 @@ class MapRounds:
             people_per_agent=self.people_per_gruppe(commuters),
             max_rounds=calibration.DEFAULT_MAX_ROUNDS,
             max_CO2_level=10**9,
+            # The whole timetable: the class's share is measured on these
+            # rounds and taken after (`calibration.Calibration.per_person`).
+            timetable_factor=1.0,
         )
         game_round = GameRound.objects.create(game=session, round_number=1)
         gruppen = self.gruppen_at(share, seed)
@@ -431,6 +439,7 @@ class MapRounds:
             if r.agent_route.transport_mode == AgentRoute.TransportMode.PUBLIC
         ]
         passes = [simulator] + ([simulator.home_pass] if simulator.home_pass else [])
+        lines = [line for p in passes for line in p.pt_lines.values()]
 
         return RoundMeasure(
             total_kg=result.total_co2_g / 1000,
@@ -453,6 +462,8 @@ class MapRounds:
             ),
             switched=switched,
             people=self.gruppen * session.people_per_agent,
+            base_kg=sum(line.base_co2_g for line in lines) / 1000,
+            average_kg=sum(line.average_co2_g for line in lines) / 1000,
         )
 
     @staticmethod

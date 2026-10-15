@@ -166,6 +166,18 @@ kilometre. The personal shares add up to exactly the line's total: `Σ personal 
 
 So a round's total is the players' own rows **plus** the society cost of the lines nobody rode.
 
+Of that, the commuters pay a **share of the timetable**, CO₂ and cost. The lines run the real
+city's timetable, made for its millions, and the commuters on the map are a few thousand of them.
+Alone on the buses and trains they would pay for the seats others fill in the city: on Berlin
+Mitte-West a person-kilometre came to 144 g that way, where the Umweltbundesamt counts 90 g by bus,
+42 g by tram and U-Bahn and 44 g by S-Bahn and regional train for Germany. The share is what the
+map's riders would emit if the vehicles were as full as Germany's average, divided by what the base
+timetable emits, measured on the round where half the agents drive, and never more than all of it.
+On Berlin Mitte-West it is 0.48. It holds for every vehicle-kilometre, the runs past the timetable
+and the lines nobody rode included; it does not change the round, and the ticket stays the ticket.
+A map nobody measured pays the whole timetable, and whoever builds a map can set the share. A game
+keeps the share it started with.
+
 ## CO₂ and cost ride a speed curve
 
 Emissions are not a constant per kilometre. A car in stop-and-go traffic burns fuel it does not
@@ -285,6 +297,7 @@ Every map carries:
 ```
 district_commuters        commuters the map carries
 calibrated                whether the count was measured on this map
+timetable_factor          the share of the timetable the commuters pay
 ```
 
 The values are in the map's JSON file, can be changed in the admin, and travel with an export. A new
@@ -292,7 +305,7 @@ map takes Berlin Mitte-West's 6800 until somebody measures it. Only once `calibr
 notice on the create form go away.
 
 The budget is not the map's. It is a number per person and round, the same on every map, and the
-create form sets it: 1.0 to 6.0 kg in steps of 0.2, normal 2.4. Everything else is derived:
+create form sets it: 0.6 to 6.0 kg in steps of 0.2, normal 2.4. Everything else is derived:
 
 ```
 people_per_agent = district_commuters / (seats × agents per seat)
@@ -399,15 +412,15 @@ with fewer cars, say three quarters, half and a quarter:
 
 | car share | per person | round total |       car | timetable | car trip there / back |
 | --------: | ---------: | ----------: | --------: | --------: | --------------------: |
-|     100 % |    4.17 kg |   28 379 kg | 21 080 kg |  7 299 kg |       23.7 / 22.4 min |
-|      75 % |    3.16 kg |   21 498 kg | 14 773 kg |  6 725 kg |       16.8 / 15.4 min |
-|      50 % |    2.41 kg |   16 420 kg |  9 122 kg |  7 299 kg |       11.6 / 11.7 min |
-|      25 % |    1.96 kg |   13 340 kg |  4 449 kg |  8 890 kg |       10.2 / 10.3 min |
-|       0 % |    1.53 kg |   10 402 kg |         — | 10 402 kg |                     — |
+|     100 % |    3.62 kg |   24 584 kg | 21 080 kg |  3 503 kg |       23.7 / 22.4 min |
+|      75 % |    2.65 kg |   18 023 kg | 14 773 kg |  3 250 kg |       16.8 / 15.4 min |
+|      50 % |    1.86 kg |   12 625 kg |  9 122 kg |  3 503 kg |       11.6 / 11.7 min |
+|      25 % |    1.28 kg |    8 717 kg |  4 449 kg |  4 267 kg |       10.2 / 10.3 min |
+|       0 % |    0.73 kg |    4 993 kg |         — |  4 993 kg |                     — |
 
 ![What a round costs, by car share](../backend/template/hintergrund/runde.svg)
 
-_Each bar is a round there and back: the car in blue, the timetable in amber. The timetable runs
+_Each bar is a round there and back: the car in blue, the share of the timetable in amber. The timetable runs
 either way and gets dearer as more people board, because the lines run until the last person is
 home; the car decides how long the bar is. The line is a round's budget at normal, 2.4 kg × 6800
 commuters = 16 320 kg._
@@ -417,13 +430,14 @@ capacity: just below it traffic flows, just above it jams. If the jam stays at h
 the commuter count is too high. If there is hardly a jam even when everybody drives, it is too low.
 
 On public transport, too much demand shows up as waiting. On Berlin Mitte-West bus and train take 32
-to 43 minutes, and the wait at the stop grows from 21 to 44 minutes as more people switch, because
+to 43 minutes, and the wait at the stop grows from 20 to 45 minutes as more people switch, because
 the vehicles are full.
 
 Measured with `calibrate_map` on the base version of Berlin Mitte-West, on Postgres: 72 agents of 94
 people each, spread evenly over the 36 home-and-workplace pairs, every pair driving its share and
-the rest on public transport, averaged over six seeds. Per person means: the round divided by the
-6800 commuters, the way the budget counts them.
+the rest on public transport, averaged over six seeds, on 15 October 2026. Per person means: the
+round divided by the 6800 commuters, the way the budget counts them. The timetable is the share the
+commuters pay, 0.48 of the timetable as it ran.
 
 ### The budget
 
@@ -431,12 +445,20 @@ The budget is a number per person and round, the same on every map. A budget per
 the map itself, would make every city look equally hard; per person, a city with long commutes or
 thin public transport is harder by itself. That is the lesson, not a flaw.
 
-**Normal is 2.4 kg.** That is what a round costs on Berlin Mitte-West per person when half the
-agents drive (2.41 kg), rounded to the dial's step. It was measured once and stays, an anchor for
-every map. On Berlin Mitte-West normal lasts if 49 % of the agents drive; for a new map
-`calibrate_map` says which share it is there. The dial on the create form runs from 1.0 to 6.0 kg in
-steps of 0.2, because on Berlin 0.5 kg is about a quarter of the class switching. The game records
-how many kilograms it was played at.
+**Normal is 2.4 kg.** That is what Germany's 2030 climate target leaves a commute, there and back.
+A commute trip emitted 2.42 kg CO₂ on average in 2017 (Umweltbundesamt, Texte 224/2020, Tab. 4,
+from "Mobilität in Deutschland 2017", upstream included), 4.84 kg there and back. The climate law
+gives transport 85 Mt for 2030 (KSG, Anlage 2a); in 2017 it was 168. Cut by as much, a commuter's
+day is 2.45 kg, 2.4 on the dial's step. It is a mean over Germany, long commutes included: commutes
+over 50 km are 5 % of the trips and 30 % of their CO₂. A city is easier than the mean by itself.
+Until 15 October 2026 normal was the round on Berlin Mitte-West where half drive (2.41 kg); since
+the commuters pay their share of the timetable it costs 1.86 kg, and the 2.4 stayed and got a
+source.
+
+On Berlin Mitte-West normal lasts if 67 % of the agents drive; for a new map `calibrate_map` says
+which share it is there. The dial on the create form runs from 0.6 to 6.0 kg in steps of 0.2,
+because on Berlin 0.5 kg is about a sixth of the class switching. The game records how many
+kilograms it was played at.
 
 The budget counts the map's commuters, not the people the agents put on the map (106 × 64 = 6784).
 If someone types over the people per agent to make a round lighter, the budget does not shrink with
@@ -444,14 +466,13 @@ it: the timetable runs whether anybody boards or not.
 
 What the budget means in a game is shown by two games over six rounds: one in which nobody gets out
 of the car, and one that works its way down, at 100 / 75 / 50 / 50 / 25 / 25 % car share. The floor
-is the timetable, which runs without passengers too: 1.53 kg per person, and below that no round can
+is the timetable, which runs without passengers too: 0.73 kg per person, and below that no round can
 be won.
 
 At normal that is 97 920 kg for six rounds. Driving throughout runs out in round 4. Working down
-comes to 109 397 kg, 16.09 kg per person against 14.4, and goes over the budget in the last round.
-The timetable is why: the lines run until the last person is home, and the more people switch, the
-longer people are on the way. At 2.8 kg the second game would finish. To finish all six rounds at
-normal, a class has to switch sooner.
+comes to 85 291 kg, 12.54 kg per person against 14.4, and finishes. Until 15 October 2026, when the
+commuters still paid the whole timetable, it was 16.09 kg, and the second game failed in the last
+round.
 
 Until 2026-10-07 the budget was a number of the map, 16 000 kg a round on Berlin Mitte-West; how it
 got there is in `docs/kalibrierung.md`.
@@ -473,9 +494,26 @@ is how the train factor was caught, which at first stood at 3500 g/train-km. Tha
 9.6 kWh per train-kilometre, a diesel mainline train. A Berlin U- or S-Bahn needs about 4 kWh,
 which the German grid mix turns into 1450 g, rounded to 1500.
 
-A wrong public transport factor weighs heavily, because the timetable runs without passengers too.
+A wrong public transport factor weighed heavily, because the timetable runs without passengers too.
 At 3500 g the timetable was 39 % of a round in which everybody drives; at 1500 g it was 22 %, and
-since the lines run until everybody is home it is 25 %. Nobody playing can cancel the timetable.
+since the lines run until everybody is home, 25 %. Nobody playing can cancel the timetable. Since the
+commuters pay their share it is 14 %, and the share measures the factor along: on the round it is
+measured on, the base timetable costs what the riders emit by the Umweltbundesamt, whatever stands
+per vehicle-kilometre. A wrong factor still moves what a bus weighs against a train and what the
+runs past the timetable cost.
+
+`calibrate_map` measures the share with what a person-kilometre emits in Germany, as full as buses
+and trains really run (Umweltbundesamt, TREMOD 6.71B, 10/2025, reference year 2024, upstream
+included, electricity at the German mix):
+
+| mode  | per person-kilometre | the Umweltbundesamt's row, occupancy |
+| ----- | -------------------: | ------------------------------------ |
+| bus   | 90 g                 | Linienbus, Nahverkehr, 16 %          |
+| tram  | 42 g                 | Straßen-, Stadt- und U-Bahn, 19 %    |
+| train | 44 g                 | Eisenbahn, Nahverkehr, 30 %          |
+
+The Umweltbundesamt puts a U-Bahn in the tram's row, two grams apart; a train line in the game does
+not say which it is.
 
 Two rules:
 

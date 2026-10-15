@@ -561,7 +561,7 @@ Kalibriert mit sieben gezogenen Arbeitsorten und sechs Seeds (`--speed 19 --per-
 sucht der Befehl in Schritten von 217 Pendlern, 1,1 %, und findet den Rand: 18.662 Pendler fahren im
 Mittel der sechs Seeds 27,2 km/h, 19.096 nur noch 16,2. Auf zwei Stellen gerundet sind beide 19.000,
 und die Tabelle spielt 19.096 — jenseits des Randes. 19 km/h liegt auf dieser Karte genau dort, wo
-sie kippt (Abschnitt 16).
+sie kippt (Abschnitt 17).
 
 Ein Schritt der Suche ist ein Mensch pro Gruppe. Weniger Gruppen heißt also feinere Schritte, und
 mehr Gruppen heißt weniger Streuung durch das Ziehen.
@@ -575,7 +575,104 @@ alle 38,5 km/h fahren. Je Seed ist es auf Berlin nicht gemessen; auf dem Ausschn
 an denen alles stand. Bei 60.416 Pendlern kommen an zwei der sechs Seeds rund 2.750 Menschen nach
 1.000 Takten, 83 Stunden, nicht an, und die Sperre der Simulation bricht den Hinweg ab.
 
-## 16. Was offen bleibt
+## 16. Der Anteil am Fahrplan
+
+Seit dem 15. Oktober 2026 bezahlen die Pendler einen Anteil am Fahrplan, CO₂ und Kosten, nicht mehr
+den ganzen.
+
+**Warum.** Die Linien einer Karte fahren den Fahrplan ihrer Stadt, gemacht für deren Millionen. Die
+Pendler der Karte sind die Autonachfrage, die den Berufsverkehr ergibt (Abschnitt 13), ein paar
+Tausend: auf den aus OpenStreetMap gebauten Karten 1 bis 4 % der Einwohner, auf ganz Berlin 38.000
+von 3,6 Millionen. Allein in Bus und Bahn bezahlten sie die Plätze mit, auf denen in der Stadt andere
+sitzen. Der leere Fahrplan kostete auf ganz Berlin 2,02 kg pro Person und Runde, 84 % von normal, und
+keine Runde war zu schaffen. Auf Berlin Mitte-West kam ein Personenkilometer mit Bus und Bahn bei
+50 % Auto auf 144 g; das Umweltbundesamt rechnet für Deutschland 90 g im Bus, 42 g in Tram und
+U-Bahn, 44 g im Nahverkehrszug. Das Ticket von 1,30 € deckte 17 % dessen, was eine Fahrt kostete.
+
+**Die Regel.**
+
+```
+Anteil = Personenkilometer der Mitfahrenden × g pro Personenkilometer beim Umweltbundesamt
+         ÷ CO₂ des Grundfahrplans
+```
+
+gemessen in der Runde, in der die Hälfte der Gruppen Auto fährt, über alle Seeds, auf zwei Stellen,
+höchstens 1. Der Grundfahrplan ist der Fahrplan im Abfahrtsfenster, hin und zurück, ohne die Fahrten
+danach. Mit dem Anteil malgenommen wird jeder Fahrzeugkilometer, CO₂ und Kosten: die Anteile der
+Mitfahrenden, die Linien, die niemand benutzt hat, und die Fahrten nach dem Fahrplan. Eine Karte, deren
+Linien lange nach dem Fahrplan fahren, weil Leute an vollen Haltestellen warten, bleibt deshalb
+teuer. Die Runde ändert der Anteil nicht, nur die Rechnung, und das Ticket bleibt das Ticket.
+Höchstens 1, weil die Pendler sonst mehr bezahlten, als die Busse ausstoßen, wenn sie voller fahren
+als im deutschen Mittel.
+
+`calibrate_map` misst ihn, schreibt ihn mit `--out` in die Datei (`timetable_factor`), und er geht mit
+Export und Import mit. Eine Karte, die niemand gemessen hat, bezahlt den ganzen Fahrplan; wer eine
+Karte baut, kann den Anteil im Admin setzen. Ein Spiel übernimmt ihn, wenn es beginnt
+(`GameSession.timetable_factor`): Wird die Karte neu gemessen, während jemand auf ihr spielt, bleibt
+dessen Spiel, wie es war.
+
+**Die Quelle.** Umweltbundesamt, TREMOD 6.71B (10/2025), „Vergleich der durchschnittlichen Emissionen
+einzelner Verkehrsmittel im Personenverkehr in Deutschland 2024", mit der Vorkette, Strom im
+deutschen Mix:
+
+| Modus | pro Personenkilometer | Zeile beim Umweltbundesamt   | Auslastung |
+| ----- | --------------------: | ---------------------------- | ---------: |
+| Bus   |                  90 g | Linienbus, Nahverkehr        |       16 % |
+| Tram  |                  42 g | Straßen-, Stadt- und U-Bahn  |       19 % |
+| Zug   |                  44 g | Eisenbahn, Nahverkehr        |       30 % |
+
+Eine U-Bahn steht dort in der Zeile der Tram, zwei Gramm daneben; eine Zuglinie sagt im Spiel nicht,
+welche sie ist (`sim/constants.py`). Der Faktor pro Fahrzeugkilometer hebt sich in der gemessenen
+Runde heraus: Der Grundfahrplan kostet dort, was die Mitfahrenden beim Umweltbundesamt ausstoßen, was
+auch immer pro Zugkilometer dasteht.
+
+**Verworfen** wurde ein Anteil über die Einwohner: der Fahrplan der Karte × Pendler ÷ Einwohner ÷
+(Fahrplan der Karte ÷ Fahrplan des ganzen Gebiets), pro Person das, was Bus und Bahn im Gebiet pro
+Einwohner ausstoßen, 41 bis 53 g. Gegen das Umweltbundesamt kam ein Personenkilometer damit auf 7 g,
+und das Ticket bezahlte das Dreifache dessen, was die Fahrt kostete: Es verteilt den Fahrplan über
+alle Einwohner, als säßen alle in den zwei Stunden in Bus und Bahn. Es brauchte die Einwohner und den
+Fahrplan des ganzen Gebiets dazu, und für Callenberg gab es keine Fläche, auf der beides stand.
+
+**Auf Berlin Mitte-West: 0,48.** Bei 50 % Auto stoßen die Mitfahrenden, Bus und Bahn so voll wie in
+Deutschland, 2.725 kg aus, der Grundfahrplan 5.729 kg. Gemessen am 15. Oktober 2026 auf Postgres,
+sechs Seeds, 6.800 Pendler, Hin- und Rückweg (`calibrate_map --commuters 6800`); der Fahrplan ist der
+Anteil, den die Pendler bezahlen:
+
+| Autoanteil | pro Person | Runde gesamt |      Auto | Fahrplan | Fahrzeit Auto hin / zurück | Bus & Bahn |   Warten |
+| ---------: | ---------: | -----------: | --------: | -------: | -------------------------: | ---------: | -------: |
+|      100 % |    3,62 kg |    24.584 kg | 21.080 kg | 3.503 kg |            23,7 / 22,4 min |          — |        — |
+|       75 % |    2,65 kg |    18.023 kg | 14.773 kg | 3.250 kg |            16,8 / 15,4 min |   31,6 min | 19,9 min |
+|       50 % |    1,86 kg |    12.625 kg |  9.122 kg | 3.503 kg |            11,6 / 11,7 min |   33,4 min | 24,6 min |
+|       25 % |    1,28 kg |     8.717 kg |  4.449 kg | 4.267 kg |            10,2 / 10,3 min |   38,8 min | 35,7 min |
+|        0 % |    0,73 kg |     4.993 kg |         — | 4.993 kg |                          — |   43,4 min | 44,9 min |
+
+Mit dem Anteil kostet eine Fahrt mit Bus und Bahn rund 3,60 € statt 7,65 €, und das Ticket deckt
+36 % davon; die Landesgutachten des VDV kamen 2024 auf 21 bis 30 % (Rheinland-Pfalz,
+Schleswig-Holstein, Mecklenburg-Vorpommern). Gemessen an einem Seed unter SQLite, nachgerechnet,
+nicht gesucht.
+
+**Normal bleibt 2,4 kg und hat jetzt eine Quelle.** Es war die halbe Runde auf Berlin Mitte-West
+(2,41 kg, Abschnitt 13); die kostet jetzt 1,86. Statt einer neuen Messung eine Zahl von außen: was
+Deutschlands Klimaziel für 2030 einem Arbeitsweg lässt. Ein Arbeitsweg stieß 2017 im Mittel 2,42 kg
+CO₂ aus (Umweltbundesamt, Texte 224/2020, „CO₂-Fußabdrücke im Alltagsverkehr", Tab. 4, aus
+„Mobilität in Deutschland 2017" und TREMOD, mit der Vorkette), hin und zurück 4,84 kg. Das
+Klimaschutzgesetz gibt dem Verkehr für 2030 85 Mio. t (Anlage 2a, Fassung vom 15. Juli 2024; die
+Sektoren sind seitdem nicht mehr einzeln verbindlich, die Mengen stehen noch da); 2017 stieß er
+168 Mio. t aus (Umweltbundesamt). Um so viel gekürzt, bleiben einem Pendler am Tag 2,45 kg, auf den
+Schritt des Reglers 2,4. Es ist ein Mittel über Deutschland, lange Wege eingeschlossen — Arbeitswege
+über 50 km sind 5 % der Wege und 30 % ihres CO₂ (ebd., Tab. 11) —, eine Stadt ist deshalb von selbst
+leichter als das Mittel.
+
+Auf Berlin Mitte-West reicht normal jetzt, wenn 67 % der Gruppen Auto fahren. Wer durchgehend fährt,
+ist in Runde 4 raus (4 × 24.584 kg = 98.336 kg gegen 97.920). Wer sich herunterarbeitet
+(100 / 75 / 50 / 50 / 25 / 25 %), kommt auf 85.291 kg, 12,54 kg pro Person gegen 14,4, und kommt
+durch.
+
+**Der Regler** geht jetzt von 0,6 bis 6,0 kg. Er soll unter die Runde reichen, in der niemand Auto
+fährt, damit sich ein Spiel unschaffbar stellen lässt, und die kostet auf Berlin Mitte-West jetzt
+0,73 kg; mit 1,0 als unterstem Wert ging das nicht mehr.
+
+## 17. Was offen bleibt
 
 - **Die Abfahrten liegen sehr eng beieinander.** `departure_std_dev_min = 10` heißt, dass praktisch
   alle innerhalb von 20 Minuten losfahren; real verteilt sich ein Berufsverkehr über eine Stunde und
@@ -584,8 +681,14 @@ an denen alles stand. Bei 60.416 Pendlern kommen an zwei der sechs Seeds rund 2.
 - **Der Abend ist ein Abbild des Morgens.** Dieselbe Streuung der Abfahrten, dieselbe Spitze:
   `evening_departure_hour` verschiebt in der Simulation nichts, weil die Zeit ab Fensterbeginn läuft.
   Eine eigene Abendspitze wäre eine Modellfrage.
-- **Normal reicht dem zweiten Spiel nicht.** Eine Klasse, die sich herunterarbeitet, überschreitet
-  2,4 kg pro Person in der letzten Runde; mit 2,8 käme sie durch (Abschnitt 13).
+- **Der Anteil am Fahrplan steht für Mitfahrende, die es nicht gibt.** Er rechnet, als säßen in Bus und
+  Bahn so viele, wie in Deutschland im Mittel mitfahren; in der Simulation sitzen dort nur die
+  Pendler der Karte, die Busse sind nicht voller (Abschnitt 16). Gemessen ist er an der Runde, in der
+  die Hälfte Auto fährt, mit den Zahlen des Umweltbundesamts für Deutschland; eine Karte im Ausland
+  bekommt dieselben.
+- **Die gebauten Karten haben ihren Anteil noch nicht.** Gemessen ist er auf Berlin Mitte-West
+  (Abschnitt 16); der Ausschnitt aus OpenStreetMap, Bremen, Callenberg und ganz Berlin bekommen ihn
+  mit dem nächsten Lauf von `calibrate_map`.
 - **Keine Ampeln.** Die Pendlerzahl trifft das Tempo des Berufsverkehrs, und der Stau steht dabei
   für die Ampeln mit, die das Modell nicht hat (Abschnitt 13).
 - **Die Vorgabe anderer Karten ist ungeprüft.** Jede neue Karte startet mit 6.800 Pendlern, der Zahl
@@ -602,7 +705,7 @@ an denen alles stand. Bei 60.416 Pendlern kommen an zwei der sechs Seeds rund 2.
   kommt unter SQLite um gut 1 % anders heraus als unter Postgres, weil die Strecken nach Namen
   sortiert gelesen werden.
 
-## 17. Nachrechnen
+## 18. Nachrechnen
 
 Die Zahlen oben stammen nicht aus einem Play-Test, sondern aus wiederholten Läufen mit festem Seed
 auf der ausgelieferten Karte. Wer sie nach einer Modelländerung neu braucht, spielt Runden auf der

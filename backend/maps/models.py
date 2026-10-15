@@ -4,7 +4,7 @@ import math
 
 from co2mmute.utils import game_map_clean
 from django.core.exceptions import ValidationError
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from game.models import GameRound
 
@@ -64,6 +64,28 @@ class GameMap(models.Model):
             "Ob die Pendlerzahl für diese Karte gemessen ist. Solange nicht, "
             "warnt das Formular „Spiel anlegen“, dass die Menschen pro Gruppe "
             "nicht zur Karte passen müssen."
+        ),
+    )
+
+    # How much of the timetable a class pays, CO2 and cost. The lines run the
+    # real city's timetable, made for its millions, and the class is a few
+    # thousand of them: alone in the buses it would pay for seats the city
+    # fills. So it pays what its riders would emit at the occupancy Germany's
+    # buses and trains run at (the Umweltbundesamt's g per person-km), as a
+    # share of what the base timetable emits — measured by `calibrate_map` on
+    # the map's round where half the Gruppen drive, never more than all of
+    # it. 1, the whole timetable, until measured; the author can set it. A
+    # game keeps what its map said when it started
+    # (`GameSession.timetable_factor`).
+    timetable_factor = models.FloatField(
+        default=1.0,
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+        help_text=(
+            "Welchen Teil des Fahrplans die Pendler dieser Karte bezahlen, "
+            "CO₂ und Kosten, von 0 bis 1. Die Linien fahren den Fahrplan der "
+            "ganzen Stadt; die Kalibrierung misst den Teil, der auf die "
+            "Mitfahrenden der Karte fällt, wenn Bus und Bahn so voll sind wie im "
+            "deutschen Mittel. 1 heißt: alles."
         ),
     )
 

@@ -64,6 +64,11 @@ class GameSession(models.Model):
     # put 64 000 cars on a 90-edge map and reported a 298-minute commute for
     # 7.66 km.
     people_per_agent = models.PositiveIntegerField(default=106)
+    # The share of the timetable this game's class pays, taken off the map
+    # when the game starts (`GameMap.timetable_factor`): a map recalibrated
+    # while a game runs must not move the game, and the research data has to
+    # say what the class paid. 1, the whole timetable, on every game before.
+    timetable_factor = models.FloatField(default=1.0)
     tick_duration_min = models.PositiveSmallIntegerField(default=5)
     morning_departure_hour = models.PositiveSmallIntegerField(default=9)  # 9:00 AM
     evening_departure_hour = models.PositiveSmallIntegerField(default=17)  # 5:00 PM

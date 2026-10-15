@@ -1794,7 +1794,7 @@ export const de = {
     /**
      * The budget is kg per person per round, the same on every
      * map; the total follows from the people and the rounds and is what the
-     * game ends on. Normal is Berlin Mitte-West's half-driving round.
+     * game ends on. Normal is a commute inside Germany's 2030 climate target.
      */
     co2PerPerson: "CO₂ pro Person und Runde",
     co2PerPersonOption: (kg: string, normal: boolean) =>
@@ -1802,7 +1802,7 @@ export const de = {
     co2PerPersonHelp: (total: number, rounds: number) =>
       `Zusammen ${total.toLocaleString("de-DE")} kg für ${rounds} ${
         rounds === 1 ? "Runde" : "Runden"
-      }, hin und zurück. Ist das aufgebraucht, ist das Spiel vorbei. Normal reicht auf Berlin Mitte-West, wenn die Hälfte der Gruppen Auto fährt – weniger ist schwerer.`,
+      }, hin und zurück. Ist das aufgebraucht, ist das Spiel vorbei. Normal reicht auf Berlin Mitte-West, wenn zwei Drittel der Gruppen Auto fahren – weniger ist schwerer.`,
     /** Shown once the scale no longer matches what the map would suggest. */
     overridden: "Von dir überschrieben.",
     reset: "Vorschlag übernehmen",

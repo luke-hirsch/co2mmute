@@ -118,18 +118,18 @@ describe("the CO₂ budget is kg per person × commuters × rounds", () => {
 
 describe("the dial", () => {
   /**
-   * Berlin Mitte-West's half-driving round, 2.41 kg a head, rounded to the
-   * step: a design anchor, the same on every map.
+   * A commute inside Germany's 2030 climate target, 2.45 kg a day, rounded to
+   * the step: the same on every map.
    */
   it("opens on normal", () => {
     expect(CO2_KG_PER_PERSON_NORMAL).toBe("2.4");
   });
 
-  it("goes from 1.0 to 6.0 kg in steps of 0.2", () => {
+  it("goes from 0.6 to 6.0 kg in steps of 0.2", () => {
     const choices = co2KgPerPersonChoices();
-    expect(choices[0]).toBe("1.0");
+    expect(choices[0]).toBe("0.6");
     expect(choices.at(-1)).toBe("6.0");
-    expect(choices).toHaveLength(26);
+    expect(choices).toHaveLength(28);
     expect(choices).toContain(CO2_KG_PER_PERSON_NORMAL);
     const tenths = choices.map((value) => Math.round(Number(value) * 10));
     expect(new Set(tenths.slice(1).map((t, i) => t - tenths[i]))).toEqual(

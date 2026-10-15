@@ -183,6 +183,7 @@ class LinkQueueEngine:
         self.walk_speed_kmh = params.walk_speed_kmh
         self.bike_speed_kmh = params.bike_speed_kmh
         self.default_car_speed_kmh = params.default_car_speed_kmh
+        self.timetable_factor = params.timetable_factor
 
         # Edge states indexed by edge_id
         self.edge_states: dict[int, EdgeState] = {}
@@ -552,6 +553,7 @@ class LinkQueueEngine:
             edge_ids=edge_ids,
             stops=stops,
             kind=kind,
+            timetable_factor=self.timetable_factor,
         )
         if line_km <= 0:
             logger.warning(
@@ -2536,6 +2538,11 @@ class LinkQueueEngine:
             f"€{network_cost:.2f} over {len(self.pt_lines)} lines "
             f"({unridden_co2 / 1000:.2f}kg of it on lines nobody rode)"
         )
+        if self.timetable_factor != 1.0:
+            self.sim_log.write(
+                f"  the class's share of what the lines emit and cost: "
+                f"{self.timetable_factor:g}"
+            )
         self.sim_log.write(f"Routes processed: {len(self.agent_results)}")
         if self.pt_lines:
             self.sim_log.header("PUBLIC TRANSPORT")

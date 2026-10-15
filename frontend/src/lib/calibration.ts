@@ -34,16 +34,17 @@ export const DEFAULT_AGENT_PER_PLAYER = 4;
 export const DEFAULT_MAX_ROUNDS = 6;
 
 /**
- * The dial: kg of CO₂ per person per round, there and back. Normal is Berlin
- * Mitte-West's half-driving round, 2.41 kg a head, rounded to the step — a
- * design anchor, the same on every map. Strings, because they are what the
- * select holds and what the endpoint's decimal field reads; the arithmetic
- * below works in tenths so no float ever reaches a budget.
+ * The dial: kg of CO₂ per person per round, there and back. Normal is a
+ * commute inside Germany's 2030 climate target, 2.45 kg a day, rounded to the
+ * step — the same on every map; where the figure comes from is in the Python
+ * module. Strings, because they are what the select holds and what the
+ * endpoint's decimal field reads; the arithmetic below works in tenths so no
+ * float ever reaches a budget.
  */
 export const CO2_KG_PER_PERSON_NORMAL = "2.4";
-const KG_TENTHS = { min: 10, max: 60, step: 2 } as const;
+const KG_TENTHS = { min: 6, max: 60, step: 2 } as const;
 
-/** Every value the dial offers, smallest first: "1.0" … "6.0". */
+/** Every value the dial offers, smallest first: "0.6" … "6.0". */
 export function co2KgPerPersonChoices(): string[] {
   const choices: string[] = [];
   for (let t = KG_TENTHS.min; t <= KG_TENTHS.max; t += KG_TENTHS.step) {

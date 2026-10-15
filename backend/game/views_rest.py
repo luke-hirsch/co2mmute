@@ -402,6 +402,9 @@ class GameSessionDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIVie
             with transaction.atomic():
                 game.is_active = True
                 game.started_at = timezone.now()
+                # The share of the timetable the class pays, as the map says
+                # it now: the game keeps it, whatever the map says later.
+                game.timetable_factor = game.game_map.timetable_factor
                 game.save()
 
                 game.refresh_from_db()
