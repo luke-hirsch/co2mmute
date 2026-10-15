@@ -512,6 +512,7 @@ def calibrate(
     target_kmh=None,
     commuters=None,
     seeds=SEEDS,
+    play_many=None,
 ):
     """Apply the rule on the map `play` plays.
 
@@ -519,7 +520,17 @@ def calibrate(
     one — the table is measured at it either way. `start` is where the search
     begins (the map's current figure), `smallest` the fewest commuters a round
     can have (one person per Gruppe).
+
+    The rounds of one step don't depend on each other: every seed of a count
+    the search tries, every share and seed of the table. `play_many` plays
+    such a list of `play`'s arguments and answers in the same order (side by
+    side, `game.measure_workers`); without it they are played one by one.
     """
+    if play_many is None:
+
+        def play_many(jobs):
+            return [play(**job) for job in jobs]
+
     searched = {}
     if commuters is None:
         if target_kmh is None:
@@ -527,20 +538,28 @@ def calibrate(
 
         def speed_at(population):
             return car_speed(
-                [
-                    play(commuters=population, share=1.0, seed=seed, way_home=False)
-                    for seed in seeds
-                ]
+                play_many(
+                    [
+                        dict(commuters=population, share=1.0, seed=seed, way_home=False)
+                        for seed in seeds
+                    ]
+                )
             )
 
         commuters, searched = find_commuters(
             speed_at, target_kmh=target_kmh, start=start, smallest=smallest
         )
 
-    rows = {
-        level: [play(commuters=commuters, share=level, seed=seed) for seed in seeds]
-        for level in TABLE_SHARES
-    }
+    played = iter(
+        play_many(
+            [
+                dict(commuters=commuters, share=level, seed=seed)
+                for level in TABLE_SHARES
+                for seed in seeds
+            ]
+        )
+    )
+    rows = {level: [next(played) for _ in seeds] for level in TABLE_SHARES}
     return Calibration(
         commuters=commuters,
         target_kmh=target_kmh,

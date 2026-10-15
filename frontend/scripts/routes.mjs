@@ -2,13 +2,15 @@
 /**
  * Every commute on a map, found by the game's own router.
  *
- *   node scripts/routes.mjs graph.json > routes.json     (from frontend/)
+ *   node scripts/routes.mjs graph.json [ask.json] > routes.json     (from frontend/)
  *
  * `graph.json` is what `MapVersionGraphView` serves for one version — the
  * graph the round screen routes on. The answer is every home to every
  * workplace and back, car, public transport, bike and walk, each leg in the
  * shape `POST .../move/` takes, or `{ "error": … }` where the router finds no
  * way. Car and public transport ask for what the round screen offers first.
+ * `ask.json`, `{ "pairs": [[home, workplace], …], "modes": ["car", …] }`,
+ * narrows that to the pairs and modes a calibration plays.
  *
  * There is no second router in Python on purpose: one router, so two cannot
  * disagree about which way a class goes. This script runs the TypeScript one
@@ -24,12 +26,13 @@ import { createServer } from "vite";
 
 const frontend = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-const source = process.argv[2];
+const [source, asked] = process.argv.slice(2);
 if (!source) {
-  console.error("usage: node scripts/routes.mjs graph.json > routes.json");
+  console.error("usage: node scripts/routes.mjs graph.json [ask.json] > routes.json");
   process.exit(2);
 }
 const graph = JSON.parse(readFileSync(source, "utf-8"));
+const ask = asked ? JSON.parse(readFileSync(asked, "utf-8")) : {};
 
 // No config file: the app's plugins (router codegen, Tailwind, React) have
 // nothing to do with routing, and the code generator writes into src/.
@@ -44,7 +47,7 @@ const vite = await createServer({
 });
 
 try {
-  const { routeCommutes } = await vite.ssrLoadModule("/src/lib/map/trip-search.ts");
+  const { ALL_MODES, routeCommutes } = await vite.ssrLoadModule("/src/lib/map/trip-search.ts");
   const { DEFAULT_CAR_OPTIMIZATION, DEFAULT_PT_OPTIMIZATION } = await vite.ssrLoadModule(
     "/src/lib/game/round-draft.ts",
   );
@@ -58,7 +61,7 @@ try {
   const log = console.log;
   console.log = () => {};
   console.warn = () => {};
-  const commutes = await routeCommutes(graph, choice);
+  const commutes = await routeCommutes(graph, choice, ask.modes ?? ALL_MODES, ask.pairs);
   console.log = log;
 
   process.stdout.write(

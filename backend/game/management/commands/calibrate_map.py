@@ -17,12 +17,17 @@ its links in name order, which every database sorts its own way, so a round
 with riders comes out about 1.5 % apart on sqlite and on the box. Its graph goes through the
 game's own router (`frontend/scripts/routes.mjs`, so Node and `npm ci` in
 frontend/ are needed) and its rounds through the simulation, every one rolled
-back. Prints the answer and the table it came from; `--out` writes a copy of
-the file carrying the count and `calibrated: true`.
+back. Only the pairs the seeds deal are routed, in the car and by public
+transport. On Postgres the rounds of a step play side by side, one process
+each (`--workers`, as many as the seeds unless the machine has fewer cores):
+all of Berlin took four and a half hours one by one. Prints the answer and the
+table it came from; `--out` writes a copy of the file carrying the count and
+`calibrated: true`.
 """
 
 import json
 import logging
+import os
 import statistics
 import tempfile
 from pathlib import Path
@@ -97,6 +102,15 @@ class Command(BaseCommand):
             help="Name der Version (Vorgabe: die Basisversion, auf der ein Spiel beginnt).",
         )
         parser.add_argument(
+            "--workers",
+            type=int,
+            help=(
+                "Prozesse, die die Runden eines Schritts nebeneinander spielen "
+                "(Vorgabe: so viele wie Seeds, höchstens so viele wie Kerne; "
+                "unter sqlite einer)."
+            ),
+        )
+        parser.add_argument(
             "--out", help="Kopie der Datei mit der Pendlerzahl und calibrated: true."
         )
 
@@ -109,6 +123,7 @@ class Command(BaseCommand):
         seeds,
         per_home,
         version_name,
+        workers,
         out,
         **options,
     ):
@@ -133,6 +148,8 @@ class Command(BaseCommand):
             raise CommandError("--speed ist ein Tempo in km/h, größer als null.")
         if per_home is not None and per_home < 1:
             raise CommandError("--per-home ist mindestens 1.")
+        if workers is not None and workers < 1:
+            raise CommandError("--workers ist mindestens 1.")
 
         self.verbose = options["verbosity"] >= 1
         old_name = connection.settings_dict["NAME"]
@@ -164,6 +181,7 @@ class Command(BaseCommand):
                     seeds=calibration.SEEDS[:seeds],
                     per_home=per_home,
                     version_name=version_name,
+                    workers=workers,
                 )
             finally:
                 connection.creation.destroy_test_db(old_name, verbosity=0)
@@ -182,16 +200,19 @@ class Command(BaseCommand):
             self.stdout.write(f"Geschrieben: {out}")
 
     def _calibrate(
-        self, graph, path, *, speed, commuters, seeds, per_home, version_name
+        self, graph, path, *, speed, commuters, seeds, per_home, version_name, workers
     ):
         """Import, route and play — inside the throwaway database."""
         from game.measure import (
+            PLAYED_MODES,
             MapRounds,
             RoutesRefused,
             RoutesUnavailable,
             client_routes,
+            every_pair,
             version_graph,
         )
+        from game.measure_workers import Workers
         from maps.importer import ImportRefused, MapImporter
         from maps.models import MapVersion
 
@@ -222,27 +243,47 @@ class Command(BaseCommand):
             raise CommandError(f"Keine Version „{version_name}“. Es gibt: {names}")
 
         try:
-            routes = client_routes(version_graph(game_map, version))
-            rounds = MapRounds(game_map, version, routes, host, per_home)
+            served = version_graph(game_map, version)
+            rounds = MapRounds(game_map, version, every_pair(served), host, per_home)
+            played = rounds.played(seeds)
+            rounds.route(client_routes(served, played, PLAYED_MODES))
         except RoutesUnavailable as exc:
             raise CommandError(f"Keine Routen: {exc}")
 
+        # Workers open the throwaway database; under sqlite it is in memory.
+        if connection.vendor == "sqlite":
+            workers = 1
+        elif workers is None:
+            workers = min(len(seeds), os.cpu_count() or 1)
         if self.verbose:
             dealt = f"je Wohnort {rounds.per_seat} gezogen, " if rounds.dealt else ""
+            side = "einem Prozess" if workers == 1 else f"{workers} Prozessen"
             self.stdout.write(
                 f"{game_map.name} — {version.name}: {len(rounds.commutes)} Wege, "
-                f"{dealt}{rounds.gruppen} Gruppen, {len(seeds)} Seeds, "
-                f"gemessen auf {connection.vendor}"
+                f"{len(played)} davon gespielt, {dealt}{rounds.gruppen} Gruppen, "
+                f"{len(seeds)} Seeds in {side}, gemessen auf {connection.vendor}"
             )
         try:
-            result = calibration.calibrate(
-                self._shown(rounds.play),
-                start=commuters or game_map.district_commuters,
-                smallest=rounds.gruppen,
-                target_kmh=speed,
-                commuters=commuters,
-                seeds=seeds,
-            )
+            if workers > 1:
+                with Workers(rounds, workers) as pool:
+                    result = calibration.calibrate(
+                        self._shown(rounds.play),
+                        play_many=self._shown_many(pool.play),
+                        start=commuters or game_map.district_commuters,
+                        smallest=rounds.gruppen,
+                        target_kmh=speed,
+                        commuters=commuters,
+                        seeds=seeds,
+                    )
+            else:
+                result = calibration.calibrate(
+                    self._shown(rounds.play),
+                    start=commuters or game_map.district_commuters,
+                    smallest=rounds.gruppen,
+                    target_kmh=speed,
+                    commuters=commuters,
+                    seeds=seeds,
+                )
         except calibration.CalibrationRefused as exc:
             raise CommandError(str(exc))
         except RoutesRefused as exc:
@@ -252,19 +293,33 @@ class Command(BaseCommand):
             )
         return result, rounds
 
+    def _say(self, commuters, share, way_home):
+        """Which measurement it is on, once — a calibration takes minutes."""
+        key = (commuters, share, way_home)
+        if self.verbose and key not in self._started:
+            self._started.add(key)
+            trip = "hin und zurück" if way_home else "Hinweg"
+            self.stdout.write(
+                f"  … {de(commuters)} Pendler, {round(share * 100)} % Auto, {trip}"
+            )
+
     def _shown(self, play):
-        """`play`, saying which measurement it is on — a calibration takes minutes."""
-        started = set()
+        """`play`, saying which measurement it is on."""
+        self._started = set()
 
         def shown(*, commuters, share, seed, way_home=True):
-            key = (commuters, share, way_home)
-            if self.verbose and key not in started:
-                started.add(key)
-                trip = "hin und zurück" if way_home else "Hinweg"
-                self.stdout.write(
-                    f"  … {de(commuters)} Pendler, {round(share * 100)} % Auto, {trip}"
-                )
+            self._say(commuters, share, way_home)
             return play(commuters=commuters, share=share, seed=seed, way_home=way_home)
+
+        return shown
+
+    def _shown_many(self, play_many):
+        """`play_many`, saying which measurements its rounds are on."""
+
+        def shown(jobs):
+            for job in jobs:
+                self._say(job["commuters"], job["share"], job.get("way_home", True))
+            return play_many(jobs)
 
         return shown
 

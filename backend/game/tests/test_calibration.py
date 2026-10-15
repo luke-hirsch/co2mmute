@@ -19,11 +19,12 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from django.core.files.base import ContentFile
-from django.test import SimpleTestCase, TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, TransactionTestCase, override_settings
 
 from game import calibration
 from game.management.commands.calibrate_map import Command
-from game.measure import MapRounds, RoutesRefused
+from game.measure import MapRounds, RoutesRefused, every_pair, version_graph
+from game.measure_workers import Workers
 from game.models import GameSession, Player
 from game.tests._helpers import TEST_BACKENDS, TempMediaRootMixin, create_host, muted
 from maps.importer import MapImporter
@@ -254,6 +255,35 @@ class CalibrateTests(SimpleTestCase):
         self.assertTrue(all(len(rounds) == 2 for rounds in result.rows.values()))
         self.assertAlmostEqual(result.speed_kmh, 20.0)
 
+    def test_the_rounds_of_a_step_are_played_together(self):
+        """Every seed of a count the search tries, every share and seed of the
+        table: nothing in a step waits for another of its rounds."""
+        fake = FakeMap()
+        steps = []
+
+        def play_many(jobs):
+            steps.append(jobs)
+            return [fake.play(**job) for job in jobs]
+
+        result = calibration.calibrate(
+            fake.play,
+            play_many=play_many,
+            target_kmh=20,
+            start=6400,
+            smallest=64,
+            seeds=(1, 2, 3),
+        )
+        *search, table = steps
+        self.assertTrue(search)
+        for jobs in search:
+            self.assertEqual([job["seed"] for job in jobs], [1, 2, 3])
+            self.assertEqual(len({job["commuters"] for job in jobs}), 1)
+        self.assertEqual(len(table), 15)
+        alone = calibration.calibrate(
+            FakeMap().play, target_kmh=20, start=6400, smallest=64, seeds=(1, 2, 3)
+        )
+        self.assertEqual(result, alone)
+
 
 def map_file():
     """The six-node map, with its one home and one workplace an hour's queue apart."""
@@ -335,6 +365,23 @@ class DealTests(SimpleTestCase):
         for count in played.values():
             self.assertAlmostEqual(count, 240, delta=40)
 
+    def test_only_the_pairs_the_seeds_deal_are_routed(self):
+        rounds = self.rounds(32, 9, per_home=2)
+        dealt = {
+            (home, workplace)
+            for seed in (1, 2)
+            for home, workplaces in self.dealt(rounds, seed).items()
+            for workplace in workplaces
+        }
+        played = rounds.played((1, 2))
+        self.assertEqual({tuple(pair) for pair in played}, dealt)
+        self.assertEqual(played, sorted(played))
+        self.assertLess(len(played), 32 * 9)
+
+    def test_a_map_played_pair_by_pair_routes_every_pair(self):
+        rounds = self.rounds(3, 5, per_home=5)
+        self.assertEqual(len(rounds.played((1, 2, 3))), 15)
+
     def test_the_commuters_are_spread_over_the_dealt_gruppen(self):
         rounds = self.rounds(32, 5, per_home=2)
         self.assertEqual(rounds.people_per_gruppe(6400), 100)
@@ -344,6 +391,31 @@ class DealTests(SimpleTestCase):
         for seed in range(1, 6):
             for gruppen in rounds.gruppen_at(0.5, seed).values():
                 self.assertEqual(sum(mode == "car" for _, mode in gruppen), 2)
+
+
+class EveryPairTests(SimpleTestCase):
+    def test_in_the_routers_order_homes_outer_both_by_id(self):
+        """As `routeCommutes` lists them, so a deal drawn over this list is the
+        deal drawn over the router's."""
+
+        def node(pk, *types):
+            return {"id": pk, "node_type": [{"id": 1, "name": t} for t in types]}
+
+        graph = {
+            "nodes": [
+                node(9, "workplace"),
+                node(4, "home"),
+                node(7),
+                node(2, "home"),
+                node(5, "workplace"),
+            ]
+        }
+        commutes = every_pair(graph)["commutes"]
+        self.assertEqual(
+            [(c["home"], c["workplace"]) for c in commutes],
+            [(2, 5), (2, 9), (4, 5), (4, 9)],
+        )
+        self.assertTrue(all(c["there"] == c["back"] == {} for c in commutes))
 
 
 class DealtUnlessToldTests(SimpleTestCase):
@@ -371,8 +443,8 @@ class DealtUnlessToldTests(SimpleTestCase):
         self.assertFalse(rounds.dealt)
 
 
-class MapRoundsTests(TempMediaRootMixin, TestCase):
-    """Rounds played for real on a small map, through the move endpoint's writer."""
+class SmallMapRounds:
+    """The six-node map imported, and its one commute written by hand."""
 
     def setUp(self):
         self.host = create_host(is_staff=True)
@@ -459,6 +531,24 @@ class MapRoundsTests(TempMediaRootMixin, TestCase):
         with muted():
             return rounds.play(**kwargs)
 
+
+class MapRoundsTests(SmallMapRounds, TempMediaRootMixin, TestCase):
+    """Rounds played for real on a small map, through the move endpoint's writer."""
+
+    def test_routed_after_the_deal_it_plays_as_routed_whole(self):
+        rounds = MapRounds(
+            self.game_map,
+            self.base,
+            every_pair(version_graph(self.game_map, self.base)),
+            self.host,
+        )
+        pair = [self.node["Wohnort"], self.node["Arbeit"]]
+        self.assertEqual(rounds.played(calibration.SEEDS), [pair])
+        rounds.route(self.routes())
+        self.assertEqual(
+            self.play(rounds, share=0.5), self.play(self.rounds(), share=0.5)
+        )
+
     def test_one_pair_carries_a_full_class_of_gruppen(self):
         rounds = self.rounds()
         self.assertEqual(rounds.gruppen, 64)
@@ -520,3 +610,17 @@ class MapRoundsTests(TempMediaRootMixin, TestCase):
         with self.assertRaises(RoutesRefused) as caught:
             self.play(rounds, share=1.0)
         self.assertIn("destination", str(caught.exception))
+
+
+class SideBySideTests(SmallMapRounds, TempMediaRootMixin, TransactionTestCase):
+    """Rounds played by worker processes, as `calibrate_map --workers` does."""
+
+    def test_workers_play_the_rounds_one_process_plays(self):
+        rounds = self.rounds()
+        jobs = [
+            dict(commuters=640, share=0.5, seed=1),
+            dict(commuters=640, share=1.0, seed=2, way_home=False),
+        ]
+        with muted(), Workers(rounds, 2) as workers:
+            together = workers.play(jobs)
+        self.assertEqual(together, [self.play(rounds, **job) for job in jobs])
