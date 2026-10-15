@@ -271,6 +271,13 @@ lists the stages in the order they run, each module's docstring its rules.
 - Frontend: `npx vitest run`, `npx tsc -b` (the `tests/` and `e2e/` folders have their own tsconfig),
   `npm run e2e` against a running stack.
 
+## skills
+
+`.agents/skills/<name>/SKILL.md`, one folder per task. Read the skill before the task it names:
+
+- `map-create`: a real area, from its name to a map on an instance — build, check, calibrate,
+  upload, and what to tell the human.
+
 ## repo conventions
 
 - Branch `<area>/<slug>` off `main`, merge back with `--no-ff`. `prod` is a deploy pointer, not a
