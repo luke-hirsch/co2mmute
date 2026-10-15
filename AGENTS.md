@@ -169,7 +169,8 @@ versions it belongs to, so a version is a filter over one graph. `compatible_ver
 versions *is* the ballot. A row naming no version is in no version.
 
 - `maps/versions.py` answers "what is in this version": `put_rows_in` / `drop_rows_from` to write it,
-  `delete_version` to delete one. Nothing else writes membership.
+  `delete_version` to delete one, `delete_map` a whole map — refused, like a version, once a game
+  was on it. Nothing else writes membership.
 - A changed street is a clone: the original stays in the versions without the change, the clone is
   in the versions with it. Compare versions by node pair, never by id.
 - **The JSON file is the backup and the only way a map moves.** `GET api/maps/<pk>/export/` writes

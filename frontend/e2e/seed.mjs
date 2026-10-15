@@ -27,8 +27,10 @@
  *   E2E_MAP        default map_examples/Berlin_Mitte-West.json
  *   E2E_MAP_NAME   default "E2E Berlin"
  *
- * Pass --recreate to delete an existing map of that name first, which is how
- * you reset test data after changing the fixture.
+ * Pass --recreate to put a fresh copy in place of an existing map of that name,
+ * which is how you reset test data after changing the fixture. The old one is
+ * renamed rather than deleted: the server refuses to delete a map a game was
+ * on, and every e2e run plays games on it.
  */
 
 import { readFile } from "node:fs/promises";
@@ -192,14 +194,19 @@ async function main() {
   console.log(`  logged in as ${USER}`);
 
   if (existing) {
-    const gone = await request(`${BASE}/api/maps/${existing.id}/`, {
-      method: "DELETE",
-      headers: { "X-CSRFToken": jar.get("csrftoken") ?? "" },
+    const retired = `${MAP_NAME} (bis ${new Date().toISOString().slice(0, 16)})`;
+    const renamed = await request(`${BASE}/api/maps/${existing.id}/`, {
+      method: "PATCH",
+      headers: {
+        "X-CSRFToken": jar.get("csrftoken") ?? "",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ name: retired }),
     });
-    if (gone.status !== 204 && gone.status !== 200) {
-      throw new Error(`could not delete map ${existing.id} (HTTP ${gone.status})`);
+    if (!renamed.ok) {
+      throw new Error(`could not rename map ${existing.id} (HTTP ${renamed.status})`);
     }
-    console.log(`  deleted the old "${MAP_NAME}" (id ${existing.id})`);
+    console.log(`  renamed the old "${MAP_NAME}" (id ${existing.id}) to "${retired}"`);
   }
 
   await uploadMap();

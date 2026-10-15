@@ -1454,3 +1454,122 @@ class DeletingAVersionInTheAdminTests(DeletingAVersionMixin, TestCase):
 
         self.assertTrue(MapVersion.objects.filter(pk=self.base.pk).exists())
         self.assertTrue(MapVersion.objects.filter(pk=self.neubau.pk).exists())
+
+
+class DeletingAMapMixin(DeletingAVersionMixin):
+    def map_rows(self):
+        return {
+            model.__name__: model.objects.filter(game_map=self.game_map).count()
+            for model in (Node, Edge, BusLine, TrainLine, MapVersion)
+        }
+
+
+@override_settings(**TEST_BACKENDS)
+class DeletingAMapTests(DeletingAMapMixin, TestCase):
+    """Deleting a whole map, the way a version is refused.
+
+    `GameSession.game_map` is SET_NULL, so the games stayed — but every edge
+    went, and with it every `RouteSegment` and `EdgeTrafficSnapshot` on it, and
+    every version with every vote cast for it. The dialog said the games keep
+    their results. Built maps are rebuilt and replaced, so deleting one is
+    routine, and the games are research data: a map a game was on stays.
+    """
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="staff", password="password123", is_staff=True
+        )
+        self.client.force_login(self.user)
+        self.build_lattice()
+
+    def delete(self):
+        return self.client.delete(
+            reverse("maps:gamemap-detail", kwargs={"pk": self.game_map.pk})
+        )
+
+    def assertRefused(self, response, reason, *words):
+        self.assertEqual(response.status_code, 409, response.content)
+        body = response.json()
+        self.assertEqual(body["reason"], reason)
+        for word in words:
+            self.assertIn(word, body["detail"])
+        self.assertTrue(GameMap.objects.filter(pk=self.game_map.pk).exists())
+
+    def test_a_map_no_game_was_on_goes_with_everything_on_it(self):
+        response = self.delete()
+
+        self.assertEqual(response.status_code, 204, response.content)
+        self.assertFalse(GameMap.objects.filter(pk=self.game_map.pk).exists())
+        self.assertEqual(set(self.map_rows().values()), {0})
+
+    def test_a_running_game_refuses_it(self):
+        self.game("Dienstag", is_active=True)
+
+        self.assertRefused(self.delete(), "running", "»Dienstag«")
+
+    def test_a_game_played_on_it_refuses_it(self):
+        game = self.ended_game("Dienstag")
+        rows = self.map_rows()
+
+        self.assertRefused(self.delete(), "played", "»Dienstag«")
+        self.assertEqual(self.map_rows(), rows)
+        game.refresh_from_db()
+        self.assertEqual(game.game_map_id, self.game_map.pk)
+
+    def test_a_game_not_started_refuses_it_too(self):
+        self.game("Mittwoch")
+
+        self.assertRefused(self.delete(), "played", "»Mittwoch«")
+
+    def test_another_map_s_game_does_not(self):
+        other = GameMap.objects.create(name="Andere Karte")
+        host = get_user_model().objects.get_or_create(username="gastgeber")[0]
+        create_game_session(host, game_name="Woanders", game_map=other)
+
+        self.assertEqual(self.delete().status_code, 204)
+
+
+@override_settings(**TEST_BACKENDS)
+class DeletingAMapInTheAdminTests(DeletingAMapMixin, TestCase):
+    """The admin's two doors refuse the same maps."""
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_superuser(
+            username="admin", password="password123"
+        )
+        self.client.force_login(self.user)
+        self.build_lattice()
+
+    def delete_page(self):
+        return reverse("admin:maps_gamemap_delete", args=[self.game_map.pk])
+
+    def test_its_delete_takes_a_map_no_game_was_on(self):
+        response = self.client.post(self.delete_page(), {"post": "yes"})
+
+        self.assertEqual(response.status_code, 302, response.content)
+        self.assertFalse(GameMap.objects.filter(pk=self.game_map.pk).exists())
+
+    def test_its_delete_refuses_a_map_a_game_was_played_on(self):
+        self.ended_game("Dienstag")
+
+        page = self.client.get(self.delete_page()).content.decode()
+        self.assertIn("»Dienstag«", page)
+        self.client.post(self.delete_page(), {"post": "yes"})
+
+        self.assertTrue(GameMap.objects.filter(pk=self.game_map.pk).exists())
+
+    def test_its_bulk_delete_refuses_too(self):
+        self.ended_game("Dienstag")
+        other = GameMap.objects.create(name="Andere Karte")
+
+        self.client.post(
+            reverse("admin:maps_gamemap_changelist"),
+            {
+                "action": "delete_selected",
+                "_selected_action": [self.game_map.pk, other.pk],
+                "post": "yes",
+            },
+        )
+
+        self.assertTrue(GameMap.objects.filter(pk=self.game_map.pk).exists())
+        self.assertTrue(GameMap.objects.filter(pk=other.pk).exists())

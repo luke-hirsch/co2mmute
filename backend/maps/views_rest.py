@@ -51,10 +51,12 @@ from maps.serializer import (
 )
 from maps.portability import build_export
 from maps.versions import (
+    MapDeleteRefused,
     VersionDeleteRefused,
     bus_chain_rows,
     combination_members,
     combination_poll_texts,
+    delete_map,
     delete_version,
     deletion_preview,
     drop_rows_from,
@@ -124,6 +126,17 @@ class GameMapDetailView(RetrieveUpdateDestroyAPIView):
         """Set updated_by when updating a map."""
         serializer.save(updated_by=self.request.user)
         _invalidate_map_cache(self.kwargs["pk"])
+
+    def destroy(self, request, *args, **kwargs):
+        """Through `delete_map`: a map a game was on is refused with a 409."""
+        try:
+            delete_map(self.get_object())
+        except MapDeleteRefused as refusal:
+            return Response(
+                {"detail": refusal.detail, "reason": refusal.reason},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # MapVersion Views

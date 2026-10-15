@@ -543,6 +543,63 @@ def delete_version(version):
     return goes
 
 
+class MapDeleteRefused(VersionDeleteRefused):
+    """The same refusal, for a whole map."""
+
+
+def map_deletion_refusal(game_map):
+    """A `MapDeleteRefused` if a game was ever on `game_map`, else `None`.
+
+    The version rule for the whole map, and simpler: every game on a map has
+    seen it. `GameSession.game_map` is SET_NULL, so the games themselves stay,
+    but every edge goes and with it every `RouteSegment` and
+    `EdgeTrafficSnapshot` on it, and every version with every vote cast for it.
+    A game not yet started counts too — it has nothing to lose yet, but its
+    lobby would open onto no map.
+    """
+    from game.models import GameSession
+
+    on_map = GameSession.objects.filter(game_map=game_map)
+    running = on_map.filter(is_active=True, ended_at__isnull=True)
+    if running.exists():
+        one = running.count() == 1
+        return MapDeleteRefused(
+            "running",
+            f"Auf dieser Karte {'läuft' if one else 'laufen'} gerade "
+            f"{_named_games(running)}. Beende {'es' if one else 'sie'} erst.",
+        )
+    if on_map.exists():
+        one = on_map.count() == 1
+        return MapDeleteRefused(
+            "played",
+            f"Auf dieser Karte gibt es schon {_named_games(on_map)}. Mit der Karte "
+            f"gingen dort die gefahrenen Wege und die Abstimmungen verloren. Lösch "
+            f"erst {'das Spiel' if one else 'die Spiele'}.",
+        )
+    return None
+
+
+def delete_map(game_map):
+    """Delete `game_map` with everything on it, or raise `MapDeleteRefused`.
+
+    For both doors, the map page's `DELETE` and the admin's. Checked under the
+    transaction, so a game created between the dialog and the click still
+    refuses it.
+    """
+    from django.db import transaction
+
+    from maps.models import GameMap
+
+    with transaction.atomic():
+        game_map = GameMap.objects.select_for_update().get(pk=game_map.pk)
+        refusal = map_deletion_refusal(game_map)
+        if refusal is not None:
+            raise refusal
+        pk = game_map.pk
+        game_map.delete()
+    logger.info("[maps] map %s deleted", pk)
+
+
 def _named_games(games, article=True):
     """`das Spiel »Dienstag« (A1B2C3)`, or a list of them, five at most."""
     named = [f"»{g.game_name}« ({g.game_id})" for g in games.order_by("pk")[:6]]

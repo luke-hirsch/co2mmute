@@ -1101,15 +1101,15 @@ export const de = {
     allMaps: "← Alle Karten",
 
     /**
-     * A dialog rather than `window.confirm`. It says what goes and what
-     * stays — the games do, because `GameSession.game_map` is `SET_NULL`, and a
-     * researcher deleting a test map should know the thesis data is not in it.
+     * A dialog rather than `window.confirm`. It says what goes, and which maps
+     * the server refuses: one a game was on, because the games' routes and
+     * votes would go with it. The refusal itself is the server's sentence.
      */
     deleteTitle: "Karte löschen?",
     deleteBody: (name: string) =>
       `„${name}“ mit allen Versionen, Linien und dem Hintergrundbild. Das lässt sich nicht zurücknehmen.`,
     deleteKeeps:
-      "Spiele auf dieser Karte bleiben mit ihren Ergebnissen erhalten, nur ohne Karte. Sichere sie vorher als JSON, wenn du sie noch brauchst.",
+      "Eine Karte, auf der schon gespielt wurde, bleibt: Mit ihr gingen die Wege und Abstimmungen der Spiele verloren. Sichere die Karte vorher als JSON, wenn du sie noch brauchst.",
     deleteConfirm: "Endgültig löschen",
     deleting: "Wird gelöscht …",
 
