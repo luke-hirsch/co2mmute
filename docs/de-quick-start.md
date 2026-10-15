@@ -210,7 +210,7 @@ Schaust du dir eine Karte an, siehst du ein paar Grunddaten wie Abmessungen, Pl�
 
 In der Kartenansicht kannst du eine Karte als JSON sichern („Karte sichern (JSON)“). Darin stecken alle Versionen der Karte, die Abstimmung zwischen ihnen und das Hintergrundbild. Die Datei für Berlin Mitte-West hat etwa 1 MB; mit großen Bildern kann eine Karte bis zu 10 MB haben. Heutzutage klingt das nach wenig, ist es aber. Glaub mir. Diese Datei ist die einzige Sicherung, die eine Karte hat, also lad sie runter, bevor du irgendwas änderst.
 
-Neben dem JSON-Download ist der Knopf zum Löschen. Vorsicht damit. Spiele auf der Karte behalten ihre Ergebnisse, aber die Karte ist weg. Und lösch keine Karte, während ein Spiel auf ihr läuft — nichts hält dich davon ab.
+Neben dem JSON-Download ist der Knopf zum Löschen. Vorsicht damit. Eine Karte, auf der schon ein Spiel war, lässt sich nicht löschen: Mit ihr gingen die gefahrenen Wege und die Abstimmungen dieser Spiele verloren. Die Seite sagt dir, welche Spiele es sind.
 
 Auf der anderen Seite findest du den Knopf, um die Karte zu bearbeiten. Dazu gleich mehr.
 

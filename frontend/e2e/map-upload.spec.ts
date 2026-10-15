@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
 
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import { loginAsHost } from "./host";
 
@@ -21,6 +21,23 @@ import { loginAsHost } from "./host";
 const SHIPPED_MAP = fileURLToPath(
   new URL("../../map_examples/Berlin_Mitte-West.json", import.meta.url),
 );
+
+async function csrf(page: Page) {
+  const cookies = await page.context().cookies();
+  return {
+    "X-CSRFToken": cookies.find((c) => c.name === "csrftoken")?.value ?? "",
+    Referer: page.url(),
+  };
+}
+
+async function upload(page: Page, name: string) {
+  await page.goto("/app/maps/upload");
+  await page.getByLabel("Name der Karte").fill(name);
+  await page.getByLabel("Kartendatei (JSON)").setInputFiles(SHIPPED_MAP);
+  await page.getByRole("button", { name: "Karte anlegen" }).click();
+  await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
+  return Number(new URL(page.url()).pathname.match(/\/maps\/(\d+)/)?.[1]);
+}
 
 test("the old upload page leads to the new one", async ({ page }) => {
   await loginAsHost(page);
@@ -83,7 +100,7 @@ test("a map uploaded here opens, and deleting it asks first", async ({ page }) =
   await page.getByRole("button", { name: "Karte löschen" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toContainText(name);
-  await expect(dialog).toContainText("Spiele auf dieser Karte bleiben");
+  await expect(dialog).toContainText("auf der schon gespielt wurde, bleibt");
 
   // Cancelling keeps it.
   await dialog.getByRole("button", { name: "Abbrechen" }).click();
@@ -94,5 +111,45 @@ test("a map uploaded here opens, and deleting it asks first", async ({ page }) =
 
   await expect(page).toHaveURL(/\/app\/maps\/?$/);
   await expect(page.getByRole("heading", { level: 1, name: "Karten" })).toBeVisible();
+  await expect(page.getByText(name)).toHaveCount(0);
+});
+
+test("a map a game was on stays, in the server's words", async ({ page }) => {
+  const name = `Gespielt ${Date.now()}`;
+  const game = `Auf der Karte ${Date.now()}`;
+
+  await loginAsHost(page);
+  const mapId = await upload(page, name);
+  const created = await page.request.post("/api/game/", {
+    headers: await csrf(page),
+    data: {
+      game_name: game,
+      game_password: "",
+      game_map: mapId,
+      map_updates: true,
+      max_players: 2,
+      agent_per_player: 1,
+      max_rounds: 2,
+      max_CO2_level: 32000,
+      people_per_agent: 100,
+      idle_end_days: 1,
+      chat_enabled: false,
+    },
+  });
+  expect(created.status()).toBe(201);
+  const gameId = (await created.json()).game_id as string;
+
+  await page.getByRole("button", { name: "Karte löschen" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Endgültig löschen" }).click();
+
+  await expect(page.getByRole("alert")).toContainText(`»${game}«`);
+  await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
+
+  // Once the game is gone, so can the map be.
+  const headers = await csrf(page);
+  expect((await page.request.delete(`/api/game/${gameId}/`, { headers })).status()).toBe(204);
+  await page.getByRole("button", { name: "Karte löschen" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Endgültig löschen" }).click();
+  await expect(page).toHaveURL(/\/app\/maps\/?$/);
   await expect(page.getByText(name)).toHaveCount(0);
 });

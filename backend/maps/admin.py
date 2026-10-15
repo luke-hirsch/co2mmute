@@ -15,10 +15,13 @@ from .models import (
     TrainLine,
 )
 from .versions import (
+    MapDeleteRefused,
     VersionDeleteRefused,
+    delete_map,
     delete_version,
     deletion_preview,
     describe_goes,
+    map_deletion_refusal,
 )
 
 
@@ -37,6 +40,38 @@ class GameMapAdmin(admin.ModelAdmin):
     search_fields = ("name", "author__username", "author__email")
     list_filter = ("created", "author")
     ordering = ("name",)
+
+    # Deleting goes through `maps.versions.delete_map`, like the map page's
+    # delete: a map a game was on stays, both from its delete page and from the
+    # list's "delete selected".
+
+    def get_deleted_objects(self, objs, request):
+        """A refusal is "protected", so Django deletes nothing."""
+        deleted, counts, perms_needed, protected = super().get_deleted_objects(
+            objs, request
+        )
+        protected = list(protected)
+        for game_map in objs:
+            refusal = map_deletion_refusal(game_map)
+            if refusal is not None:
+                protected.append(f"{game_map.name}: {refusal.detail}")
+        return deleted, counts, perms_needed, protected
+
+    def delete_model(self, request, obj):
+        self._delete(request, [obj])
+
+    def delete_queryset(self, request, queryset):
+        self._delete(request, queryset)
+
+    def _delete(self, request, game_maps):
+        for game_map in game_maps:
+            try:
+                delete_map(game_map)
+            except MapDeleteRefused as refusal:
+                # Refused between the confirmation page and the click.
+                self.message_user(
+                    request, f"{game_map.name}: {refusal.detail}", messages.ERROR
+                )
 
 
 def _generate_combination_versions(modeladmin, request, queryset):

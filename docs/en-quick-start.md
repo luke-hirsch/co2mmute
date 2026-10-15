@@ -212,7 +212,7 @@ If you look at a map, you can see some basic information, like dimensions, seats
 
 In the detail view, you can store a map as JSON ("Karte sichern (JSON)"). This will store all versions of the map, the vote between them, and the background image. The file for Berlin Mitte-West is about 1 MB; with big images, a map can get up to 10 MB. In this day and age, that might not sound like much, but it is. Trust me. This file is the only backup a map has, so download it before you change anything.
 
-Next to the JSON download is the delete button. Be careful with this one. Games played on the map keep their results, but the map is gone. And don't delete a map while a game is running on it — nothing stops you.
+Next to the JSON download is the delete button. Be careful with this one. A map a game was on can't be deleted: the routes driven and the votes cast in those games would go with it. The page tells you which games they are.
 
 On the other side, you will find the button to edit the map. More on that later.
 

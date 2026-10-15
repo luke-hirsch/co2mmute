@@ -15,7 +15,7 @@ import {
 import { Screen, ScreenHeading } from "@/components/layout/screen";
 import MapViewer from "@/components/map/MapViewer";
 import Loading from "@/components/Loading";
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 import { de } from "@/lib/de";
 import { useGameMap, useMapGraph } from "@/lib/queries/map-graph";
 
@@ -89,8 +89,8 @@ const MapDetail = () => {
 
   /**
    * Asked in a dialog, not `window.confirm`: the browser's own box
-   * cannot say what stays, and what stays is the point — the games played on
-   * the map keep their results (`game_map` is `SET_NULL`).
+   * cannot say which maps stay. A map a game was on is refused with a 409,
+   * and the page shows the server's sentence, which names the games.
    */
   const handleDelete = async () => {
     if (!gameMap) return;
@@ -101,8 +101,12 @@ const MapDetail = () => {
       await apiFetch(`/api/maps/${mapId}/`, { method: "DELETE" });
       queryClient.invalidateQueries({ queryKey: ["maps"] });
       navigate({ to: "/maps" });
-    } catch {
-      setFailure(de.map.deleteFailed);
+    } catch (error) {
+      setFailure(
+        error instanceof ApiError && error.status === 409
+          ? error.message
+          : de.map.deleteFailed,
+      );
       setBusy(null);
     }
   };
