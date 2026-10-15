@@ -372,6 +372,76 @@ class ALineThatPassesAStopTwiceTests(SimpleTestCase):
         self.assertGreaterEqual(min(trips), 4.8 + 12 + 4.8 - 1e-6)
 
 
+class FirstComeFirstServedTests(SimpleTestCase):
+    """Off a bus lane, the bus that got there first goes on first.
+
+    Berlin's X83 leaves its bus lane at Egestorffstraße onto a 45 m street
+    with room for one bus, and comes every five minutes, once a tick. Cars
+    had filled the street, a bus or two waited at the end of the lane, and
+    from then on one bus a tick went on and one came. The engine took the
+    buses on lanes and rails in the order of a set, so which one went on was
+    arbitrary: one with riders was passed by a later, empty run every tick for
+    ~30 h, and every line ran on for its riders (2026-10-15).
+    """
+
+    def _round(self, seed):
+        lane = Link(1, 1, 2, 1000.0, True, 50, has_dedicated_bus_lane=True)
+        short = Link(2, 2, 3, 45.0, True, 50)
+        on = Link(3, 3, 4, 1000.0, True, 50)
+        feeder = Link(4, 5, 2, 600.0, True, 50)
+        walk_in, walk_out = _footpath(80, 6, 1), _footpath(81, 4, 7)
+        line = Line(
+            mode="bus",
+            line_id=7,
+            name="X83",
+            edge_ids=(1, 2, 3),
+            interval_min=5,
+            capacity=85,
+        )
+        rider = Route(
+            pk=1,
+            agent_id=1,
+            transport_mode="public",
+            segments=(
+                Segment(edge_id=80, order=1, mode="walk"),
+                *(
+                    Segment(edge_id=edge_id, order=order, mode="bus", pt_line_id=7)
+                    for order, edge_id in enumerate((1, 2, 3), start=2)
+                ),
+                Segment(edge_id=81, order=5, mode="walk"),
+            ),
+            label="Gruppe 1",
+            total_distance_m=2845.0,
+            estimated_time_min=20.0,
+        )
+        drivers = [_route(pk, (feeder, short, on)) for pk in range(10, 16)]
+        return _run(
+            _scenario(
+                [rider, *drivers],
+                (lane, short, on, feeder, walk_in, walk_out),
+                lines=[line],
+                people=40,
+            ),
+            seed=seed,
+        )
+
+    def test_runs_of_a_line_get_to_its_end_in_the_order_they_left(self):
+        for seed in range(1, 9):
+            with self.subTest(seed=seed):
+                engine = self._round(seed)
+
+                runs = sorted(
+                    (pt.departure_min, engine.vehicles[vehicle_id].arrived_min)
+                    for vehicle_id, pt in engine.pt_by_vehicle.items()
+                    if pt.finished
+                )
+                arrivals = [arrived for _, arrived in runs]
+                self.assertEqual(arrivals, sorted(arrivals))
+                # Five minutes' walk each way and three of riding: a rider
+                # waits for a bus and the street, not for hours.
+                self.assertLess(max(engine.agent_results[1]["trip_times"]), 60)
+
+
 def _with_rails(links, track, lanes=1):
     """The corridor with rails along it, `track` saying where they lie."""
     return tuple(replace(link, tram_track=track, lanes=lanes) for link in links)
