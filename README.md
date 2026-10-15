@@ -29,6 +29,7 @@ Vite + TypeScript als SPA. Wie gespielt wird: [`docs/de-quick-start.md`](docs/de
 | `backend/game/`     | Sitzungen, Spieler, Runden, Spielzüge, Abstimmungen, Websockets    |
 | `backend/sim/`      | die Verkehrssimulation als reines Python-Paket, ohne Django        |
 | `backend/maps/`     | Kartengraph, Versionierung, REST-API des Karteneditors             |
+| `backend/mapbuild/` | eine Karte aus OpenStreetMap bauen (`manage.py build_map`), ohne Django; was es herunterlädt, bleibt in `mapbuild/cache/`, für Berlin etwa 750 MB |
 | `backend/content/`  | kleines CMS für die öffentlichen Seiten                            |
 | `backend/template/` | Django-Templates — Landing, Hintergrund, Rechtstexte, Login        |
 | `frontend/`         | die SPA — Beitritt, Spielbildschirm, Hostseiten, Karteneditor      |
@@ -211,6 +212,7 @@ family as MATSim.
 | `backend/game/`     | sessions, players, rounds, moves, votes, the websocket layer       |
 | `backend/sim/`      | the traffic engine as a plain Python package — no Django           |
 | `backend/maps/`     | map graph, versioning, the map editor's REST API                   |
+| `backend/mapbuild/` | builds a map from OpenStreetMap (`manage.py build_map`), no Django; what it downloads stays in `mapbuild/cache/`, about 750 MB for Berlin |
 | `backend/content/`  | a small CMS for the public pages                                   |
 | `backend/template/` | Django templates — landing, background, legal, auth                |
 | `frontend/`         | the SPA — join, game screen, host pages, map editor                |

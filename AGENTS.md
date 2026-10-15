@@ -188,6 +188,27 @@ versions *is* the ballot. A row naming no version is in no version.
 - `map_examples/` is production data, not a fixture: the map that is played, tested by
   `maps/tests/test_example_map.py`.
 
+## the map builder
+
+`backend/mapbuild/` builds a map file from OpenStreetMap — plain Python, standard library only, no
+Django, like `sim/`. `manage.py build_map <place>` (or `--bbox s,w,n,e --name …`) is the door; the
+file then goes through `check_map`, `calibrate_map --out` and the import. The package docstring
+lists the stages in the order they run, each module's docstring its rules.
+
+- **One path for every area.** A place name is its administrative boundary (Nominatim, the most
+  local whole municipality), roads kept 1 km past it; a box is built as it is. Secondary and up, a
+  place still more than 500 m off gets one class down. No city or rural fork, no caps, no number
+  per city — a rule that only fits some areas is not a rule; what a rule can't fix is a line in the
+  build report, never a question and never a special case in the code.
+- **Downloads happen on first use and stay** in `mapbuild/cache/` (`CO2MMUTE_MAP_CACHE` moves it):
+  OSM over Overpass (`OVERPASS_API_URL`; the public instance often 504s — the download waits, then
+  splits the box), Nominatim, the Zensus grid, GHSL tiles, DELFI's timetables. A second build of an
+  area is offline. Zensus is Germany only: abroad the build stops at the homes and says so.
+- **The same inputs, the same file**, under any hash seed (`tests/test_build.py` checks it). Sort
+  before iterating a set that reaches the file.
+- Tests: one per rule on hand-made inputs, and one whole build of `tests/data/bremen-mitte/` (a
+  real cut, ~1 MB), offline — a test that tries to download fails.
+
 ## frontend
 
 - Every user-facing string goes through `src/lib/de.ts`. `tests/design/german.test.ts` reads every
@@ -219,12 +240,14 @@ versions *is* the ballot. A row naming no version is in no version.
   files (`backend/template/docs/`); a change to one is a change to the other. The flowcharts on the
   site are drawn from `docs/de-flowcharts.md` by `npm run flowcharts` in `frontend/`.
 - **What is stored → the legal pages.**
-- **A map field** → the export and the importer (`maps/portability.py`, `maps/importer.py`) and
-  `maps/tests/test_portability.py`.
+- **A map field** → the export and the importer (`maps/portability.py`, `maps/importer.py`),
+  `maps/tests/test_portability.py`, and the builder if a built map should carry it
+  (`mapbuild/mapfile.py`, `mapbuild/transit.py`).
 - **A simulation constant** → both golden masters, `docs/kalibrierung.md`, the figures in the
   background doc.
 - **A new line's seats and speed**: `BusLine`'s defaults and `TrainLine.DEFAULTS` in
-  `maps/models.py`, and `frontend/src/lib/map/pt-defaults.ts`, per bus, train and tram.
+  `maps/models.py`, `frontend/src/lib/map/pt-defaults.ts` and `BUS` / `TRAIN` in
+  `mapbuild/transit.py`, per bus, train and tram.
 - **The budget dial**: `game/calibration.py` and `frontend/src/lib/calibration.ts` carry the same
   normal, step and range; `game/tests/test_join.py` and `tests/lib/calibration.test.ts` assert the
   same cases.
