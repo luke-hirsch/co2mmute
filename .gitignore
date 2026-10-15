@@ -14,6 +14,9 @@ db.sqlite3
 media/
 staticfiles/
 
+# the map builder's downloads
+backend/mapbuild/cache/
+
 # Node / Frontend
 node_modules/
 dist/
