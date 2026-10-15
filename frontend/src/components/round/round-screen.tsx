@@ -148,7 +148,6 @@ export function RoundScreen({
           <div className="lg:mt-3">
             <RouteMap
               graph={draft.graph}
-              homeNode={draft.draft.homeNode}
               agent={selected}
               jam={jam}
               search={

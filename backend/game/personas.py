@@ -51,9 +51,10 @@ def changes(segments) -> int:
 def group_summary(player, completed_rounds, people_per_agent: int) -> list[dict]:
     """Each Gruppe of one seat over the whole game, a day at a time.
 
-    One entry per Gruppe the seat was dealt, with its Pendlertyp: how often it
-    took each mode, and the mean of a day there and back — time, distance,
-    speed door to door, what one commuter paid, their CO₂, their changes.
+    One entry per Gruppe the seat was dealt, with where it lived and worked
+    and its Pendlertyp: how often it took each mode, and the mean of a day
+    there and back — time, distance, speed door to door, what one commuter
+    paid, their CO₂, their changes.
     Only rounds the simulation ran count, since those are the ones with a
     result; a Gruppe with none has zeros and no modes.
     """
@@ -65,9 +66,11 @@ def group_summary(player, completed_rounds, people_per_agent: int) -> list[dict]
         return []
 
     personas = {p.pk: p for p in player.game.personas.all()}
-    destinations = dict(
+    names = dict(
         Node.objects.filter(
-            pk__in=[a.get("destination_node") for a in agents]
+            pk__in=[
+                a.get(key) for a in agents for key in ("home_node", "destination_node")
+            ]
         ).values_list("pk", "name")
     )
 
@@ -117,7 +120,8 @@ def group_summary(player, completed_rounds, people_per_agent: int) -> list[dict]
         groups.append(
             {
                 "agent_id": agent_id,
-                "destination": destinations.get(agent.get("destination_node")),
+                "home": names.get(agent.get("home_node")),
+                "destination": names.get(agent.get("destination_node")),
                 "persona": (
                     {"name": persona.name, "description": persona.description}
                     if persona

@@ -83,6 +83,14 @@ one, seeded by a migration and edited in the admin. A game copies the ones its h
 is created and deals them at join, one per Gruppe, as `persona` in `agent_assignments`. Never point
 a Gruppe at a standard row: editing it would change the debrief of every game it was played in.
 
+**A Gruppe's home is its own** (`game/deal.py`). Each entry of `agent_assignments` carries its
+`home_node` and `destination_node`, dealt at join. Off, the default, a seat's Gruppen share one
+home. "ausbalanciert" (`GameSession.balanced_deal`, set at creation and never after) gives every
+home and workplace the same number of Gruppen, give or take one, over the seats still playing, and
+spreads a seat's Gruppen over the map in the game's halves order. The route check, the round screen
+and the debrief read the Gruppe's home, never the seat's. The calibration plays every home with
+every workplace either way.
+
 **`game/urls.py` order is load-bearing.** `<game_id>/` and `<game_id>/<player_id>/` swallow any one-
 and two-segment path, so literal prefixes go first. A route in the wrong place answers a plausible
 403, not a 404 — pin routes with `resolve()` in tests.

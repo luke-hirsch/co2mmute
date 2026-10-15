@@ -90,6 +90,7 @@ const payload = {
       groups: [
         {
           agent_id: 1,
+          home: "Wohnort Moabit",
           destination: "Arbeit",
           persona: { name: "Sportskanone", description: "Rad und Füße sind Training." },
           rounds: 1,

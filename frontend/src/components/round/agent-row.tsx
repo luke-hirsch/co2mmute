@@ -55,6 +55,9 @@ export function AgentRow({
   onRetry: () => void;
   disabled?: boolean;
 }) {
+  // Named, home and destination: in a balanced game each Gruppe lives
+  // somewhere else, and on a built map the name says where.
+  const home = nodes.get(agent.homeNode)?.name;
   const destination = nodes.get(agent.destinationNode)?.name;
   const done = agent.status === "ready" && agent.route;
 
@@ -86,7 +89,7 @@ export function AgentRow({
           >
             <p className="font-medium">{de.round.agent(index + 1)}</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {de.round.home} → {destination ?? `#${agent.destinationNode}`}
+              {home ?? de.round.home} → {destination ?? `#${agent.destinationNode}`}
             </p>
             {/* Under the destination, before any figure: it is what the
                 choice below is meant to be made as. An accent rule, the way a

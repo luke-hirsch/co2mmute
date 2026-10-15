@@ -139,7 +139,8 @@ export type SummaryRoundTotals = {
  */
 export type SummaryGroup = {
   agent_id: number;
-  /** The destination's name, as the round screen showed it. */
+  /** Where it lived and worked, named as the round screen named them. */
+  home: string | null;
   destination: string | null;
   /** The game's copy, so a standard one edited since still reads as played. */
   persona: { name: string; description: string } | null;

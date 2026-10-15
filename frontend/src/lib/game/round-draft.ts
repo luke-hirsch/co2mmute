@@ -40,6 +40,11 @@ export type AgentDraftStatus = "empty" | "routing" | "ready" | "failed";
 
 export type AgentDraft = {
   agentId: number;
+  /**
+   * Where this Gruppe lives. A seat's Gruppen share one unless the game is
+   * "ausbalanciert".
+   */
+  homeNode: number;
   destinationNode: number;
   mode: TransportMode | null;
   /**
@@ -73,7 +78,6 @@ export type RoundDraft = {
   same screen. */ seatId: string | null; /** Which round. A new round drops the
   choices, not the assignment. */
   roundNumber: number;
-  homeNode: number | null;
   agents: AgentDraft[];
 };
 
@@ -82,8 +86,7 @@ export type RoundDraftAction =
       kind: "assign";
       seatId: string;
       roundNumber: number;
-      homeNode: number;
-      agents: { id: number; destination_node: number }[];
+      agents: { id: number; home_node: number; destination_node: number }[];
       /**
        * A turn this seat had begun in this round before the page went away.
        * Applied only when the draft is actually built fresh — see below.
@@ -102,12 +105,17 @@ export const DEFAULT_CAR_OPTIMIZATION: CarOptimization = "time";
 export const DEFAULT_PT_OPTIMIZATION: PTOptimization = "fastest";
 
 export function initialRoundDraft(): RoundDraft {
-  return { seatId: null, roundNumber: 0, homeNode: null, agents: [] };
+  return { seatId: null, roundNumber: 0, agents: [] };
 }
 
-function freshAgent(agentId: number, destinationNode: number): AgentDraft {
+function freshAgent(
+  agentId: number,
+  homeNode: number,
+  destinationNode: number,
+): AgentDraft {
   return {
     agentId,
+    homeNode,
     destinationNode,
     mode: null,
     carOptimization: DEFAULT_CAR_OPTIMIZATION,
@@ -151,11 +159,11 @@ export function roundDraftReducer(
       const sameShape =
         draft.seatId === action.seatId &&
         draft.roundNumber === action.roundNumber &&
-        draft.homeNode === action.homeNode &&
         draft.agents.length === action.agents.length &&
         draft.agents.every(
           (agent, i) =>
             agent.agentId === action.agents[i].id &&
+            agent.homeNode === action.agents[i].home_node &&
             agent.destinationNode === action.agents[i].destination_node,
         );
       if (sameShape) return draft;
@@ -177,9 +185,8 @@ export function roundDraftReducer(
       return {
         seatId: action.seatId,
         roundNumber: action.roundNumber,
-        homeNode: action.homeNode,
         agents: action.agents.map((a) => {
-          const agent = freshAgent(a.id, a.destination_node);
+          const agent = freshAgent(a.id, a.home_node, a.destination_node);
           const choice = stored.get(a.id);
           if (!choice) return agent;
           return {
@@ -247,7 +254,7 @@ export function roundDraftReducer(
 
     case "clear":
       return mapAgent(draft, action.agentId, (agent) =>
-        freshAgent(agent.agentId, agent.destinationNode),
+        freshAgent(agent.agentId, agent.homeNode, agent.destinationNode),
       );
   }
 }

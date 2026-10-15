@@ -308,10 +308,14 @@ class GameBindingTests(TempMediaRootMixin, TransactionTestCase):
         """GetYourOwnGame looked the player up by player_id alone. Both games here
         hold the same id, so that lookup raised MultipleObjectsReturned -> 500."""
         Player.objects.filter(pk=self.player_a.pk).update(
-            agent_assignments={"home_node": 1, "agents": []}
+            agent_assignments={
+                "agents": [{"id": 1, "home_node": 1, "destination_node": 9}]
+            }
         )
         Player.objects.filter(pk=self.player_b.pk).update(
-            agent_assignments={"home_node": 2, "agents": []}
+            agent_assignments={
+                "agents": [{"id": 1, "home_node": 2, "destination_node": 9}]
+            }
         )
         self.client.cookies[
             f"{settings.COOKIE_GAME_PREFIX}{self.game_a.game_id}"
@@ -326,7 +330,9 @@ class GameBindingTests(TempMediaRootMixin, TransactionTestCase):
             )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["agent_assignments"]["home_node"], 1)
+        self.assertEqual(
+            response.json()["agent_assignments"]["agents"][0]["home_node"], 1
+        )
 
 
 @override_settings(**TEST_BACKENDS)
@@ -576,7 +582,9 @@ class HostActsForSeatTests(TempMediaRootMixin, TestCase):
     def test_the_host_may_read_the_seats_game_view(self):
         """GetYourOwnGame hands out the seat's agent assignments."""
         Player.objects.filter(pk=self.seat.pk).update(
-            agent_assignments={"home_node": 7, "agents": []}
+            agent_assignments={
+                "agents": [{"id": 1, "home_node": 7, "destination_node": 9}]
+            }
         )
         self.client.force_login(self.user)
 
@@ -586,7 +594,9 @@ class HostActsForSeatTests(TempMediaRootMixin, TestCase):
             )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["agent_assignments"]["home_node"], 7)
+        self.assertEqual(
+            response.json()["agent_assignments"]["agents"][0]["home_node"], 7
+        )
 
     def test_the_host_may_not_move_for_a_students_seat(self):
         self.as_host_with_own_cookies()

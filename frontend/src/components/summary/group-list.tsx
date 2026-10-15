@@ -33,7 +33,7 @@ export function GroupList({ groups }: { groups: readonly SummaryGroup[] }) {
                 {group.destination ? (
                   <span className="font-normal text-muted-foreground">
                     {" "}
-                    → {group.destination}
+                    {group.home ?? de.round.home} → {group.destination}
                   </span>
                 ) : null}
               </h3>

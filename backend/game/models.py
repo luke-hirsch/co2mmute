@@ -38,6 +38,11 @@ class GameSession(models.Model):
     )
     max_players = models.PositiveIntegerField()
     agent_per_player = models.PositiveIntegerField()
+    # "ausbalanciert": every home and workplace the same number of Gruppen, a
+    # seat's Gruppen at homes spread over the map (`game/deal.py`). Off, a
+    # seat's Gruppen share one home. Set at creation and never after: seats
+    # already dealt would keep the other deal.
+    balanced_deal = models.BooleanField(default=False)
     max_rounds = models.PositiveIntegerField()
     max_CO2_level = models.PositiveIntegerField()  # in kg
     # What the host set the budget at: kg per person per round, the create
@@ -201,8 +206,9 @@ class Player(models.Model):
     joined_at = models.DateTimeField(auto_now_add=True)
     left_at = models.DateTimeField(null=True, blank=True)
     controlled_by_host = models.BooleanField(default=False)
-    # Agent assignments: {"home_node": int, "agents": [{"id": 1, "destination_node": int}, ...]}
+    # Agent assignments: {"agents": [{"id": 1, "home_node": int, "destination_node": int}, ...]}
     # Each agent also carries "persona": a Persona pk, when the game deals them.
+    # `game/deal.py` deals them at join.
     agent_assignments = models.JSONField(blank=True, null=True)
 
     objects = PlayerQuerySet.as_manager()

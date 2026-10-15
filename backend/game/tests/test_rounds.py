@@ -1120,8 +1120,9 @@ class GateFixtureMixin(TempMediaRootMixin):
             )
             self.player = Player.objects.create(game=self.game, name="Fahrerin")
         self.player.agent_assignments = {
-            "home_node": self.home.pk,
-            "agents": [{"id": 1, "destination_node": self.work.pk}],
+            "agents": [
+                {"id": 1, "home_node": self.home.pk, "destination_node": self.work.pk}
+            ],
         }
         self.player.save()
 
@@ -1209,6 +1210,28 @@ class BusGateSubmitTests(GateFixtureMixin, TestCase):
         self.assertTrue(
             any("cars not allowed" in error for error in errors),
             msg=f"expected a no-street refusal, got {errors}",
+        )
+
+
+class OwnHomeSubmitTests(GateFixtureMixin, TestCase):
+    """Each Gruppe leaves from its own home: in a balanced game they differ."""
+
+    def test_a_route_from_the_gruppes_home_is_taken(self):
+        self.assertIsNone(self._validate())
+
+    def test_a_route_from_another_home_is_refused(self):
+        self.player.agent_assignments = {
+            "agents": [
+                {"id": 1, "home_node": self.work.pk, "destination_node": self.home.pk}
+            ],
+        }
+        self.player.save()
+
+        errors = self._validate()
+
+        self.assertIsNotNone(errors)
+        self.assertIn(
+            f"Agent 1 route must start from home node {self.work.pk}", errors
         )
 
 
@@ -2070,10 +2093,10 @@ class SummaryGroupTests(SimulatedRoundMixin, TestCase):
     def _deal(self, persona):
         Player.objects.filter(pk=self.player.pk).update(
             agent_assignments={
-                "home_node": self.edge.start_node_id,
                 "agents": [
                     {
                         "id": 1,
+                        "home_node": self.edge.start_node_id,
                         "destination_node": self.edge.end_node_id,
                         "persona": persona.pk,
                     }
@@ -2092,6 +2115,7 @@ class SummaryGroupTests(SimulatedRoundMixin, TestCase):
         group = anna["groups"][0]
 
         self.assertEqual(group["agent_id"], 1)
+        self.assertEqual(group.get("home"), "Zuhause")
         self.assertEqual(group["destination"], "Arbeit")
         self.assertEqual(
             group["persona"], {"name": "Sparfuchs", "description": "Jeder Euro zählt."}
@@ -2230,8 +2254,9 @@ class WayHomeSubmitTests(RoundFixtureMixin, TestCase):
         self.there = street(self.home, self.work)
         self.back = street(self.work, self.home)
         self.player.agent_assignments = {
-            "home_node": self.home.pk,
-            "agents": [{"id": 1, "destination_node": self.work.pk}],
+            "agents": [
+                {"id": 1, "home_node": self.home.pk, "destination_node": self.work.pk}
+            ],
         }
         self.player.save()
 
