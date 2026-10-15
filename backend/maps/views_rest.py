@@ -54,12 +54,11 @@ from maps.versions import (
     MapDeleteRefused,
     VersionDeleteRefused,
     bus_chain_rows,
-    combination_members,
-    combination_poll_texts,
     delete_map,
     delete_version,
     deletion_preview,
     drop_rows_from,
+    generate_combinations,
     put_rows_in,
     spread_to_built_on,
     train_chain_rows,
@@ -211,8 +210,6 @@ class GenerateCombinationsView(GenericAPIView):
 
     @transaction.atomic
     def post(self, request, pk):
-        from itertools import combinations as _combinations
-
         game_map = get_object_or_404(GameMap, pk=pk)
         version_ids = request.data.get("version_ids", [])
         if len(version_ids) < 2:
@@ -235,87 +232,7 @@ class GenerateCombinationsView(GenericAPIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        base_version = MapVersion.objects.filter(
-            game_map=game_map, base_version=True
-        ).first()
-
-        existing: dict = {}
-        for v in atomic_versions:
-            existing[frozenset([v.pk])] = v
-
-        n = len(atomic_versions)
-        all_subsets = []
-        for size in range(2, n + 1):
-            for combo in _combinations(atomic_versions, size):
-                all_subsets.append(frozenset(v.pk for v in combo))
-
-        created_count = 0
-        for subset in all_subsets:
-            if subset in existing:
-                continue
-            members = sorted(
-                [v for v in atomic_versions if v.pk in subset], key=lambda v: v.name
-            )
-            combo_name = " + ".join(v.name for v in members)
-            combo_poll_text, combo_revert_text = combination_poll_texts(
-                [v.name for v in members]
-            )
-            combo_version = MapVersion.objects.create(
-                game_map=game_map,
-                name=combo_name,
-                poll_text=combo_poll_text,
-                revert_poll_text=combo_revert_text,
-                base_version=False,
-            )
-            existing[subset] = combo_version
-            created_count += 1
-
-            member_versions = [existing[frozenset([p])] for p in subset]
-            # "Apply both changes" is base minus what each member removed plus
-            # what each member added (`maps/versions.py`), not the union of the
-            # members. The union kept a street a member had *replaced* beside its
-            # replacement: on the live box every combination containing
-            # `Busspuren` carries 15 corridors twice over, 155 edges where the
-            # whole map has 140, so the router saw two parallel roads and the bus
-            # chain had two candidates per link.
-            #
-            # `TrainLine` and the two chain models were simply missing. That is
-            # why all four combinations on the box hold no rail at all, and why
-            # three play-tested games ran on a map with no U-Bahn and no S-Bahn.
-            for model in (
-                Node,
-                Edge,
-                StreetEdge,
-                TrainEdge,
-                BusLine,
-                TrainLine,
-                BusLineEdge,
-                TrainLineEdge,
-            ):
-                members = combination_members(model, base_version, member_versions)
-                for element in model.objects.filter(pk__in=members):
-                    element.map_versions.add(combo_version)
-
-        all_entries = {**existing}
-        for subset, version in all_entries.items():
-            neighbours = []
-            size = len(subset)
-            for other_subset, other_version in all_entries.items():
-                if len(other_subset) == size + 1 and subset.issubset(other_subset):
-                    neighbours.append(other_version)
-            for other_subset, other_version in all_entries.items():
-                if len(other_subset) == size - 1 and other_subset.issubset(subset):
-                    neighbours.append(other_version)
-            if size == 1 and base_version:
-                neighbours.append(base_version)
-            version.compatible_versions.set(neighbours)
-
-        if base_version:
-            existing_base_compat = list(base_version.compatible_versions.all())
-            new_atomics = [v for v in atomic_versions if v not in existing_base_compat]
-            if new_atomics:
-                base_version.compatible_versions.add(*new_atomics)
-
+        created_count = generate_combinations(game_map, atomic_versions)
         return Response({"created": created_count}, status=status.HTTP_201_CREATED)
 
 

@@ -1,5 +1,3 @@
-from itertools import combinations
-
 from django.contrib import admin, messages
 from django.db import transaction
 
@@ -21,6 +19,7 @@ from .versions import (
     delete_version,
     deletion_preview,
     describe_goes,
+    generate_combinations,
     map_deletion_refusal,
 )
 
@@ -75,12 +74,8 @@ class GameMapAdmin(admin.ModelAdmin):
 
 
 def _generate_combination_versions(modeladmin, request, queryset):
-    """
-    Auto-generate combination MapVersions for the selected atomic (non-base) versions.
-
-    For N selected versions (A, B, C, …) this creates all 2-element and larger
-    subsets (AB, AC, BC, ABC, …), wires up their compatible_versions to form
-    the correct lattice, and copies node/edge map_versions memberships.
+    """The editor's combinations (`maps.versions.generate_combinations`) for the
+    selected changes: every combination of two or more, wired into the ballot.
     """
     atomic_versions = list(queryset)
 
@@ -102,100 +97,10 @@ def _generate_combination_versions(modeladmin, request, queryset):
         )
         return
 
-    game_map = atomic_versions[0].game_map
-    base_version = MapVersion.objects.filter(
-        game_map=game_map, base_version=True
-    ).first()
-
     with transaction.atomic():
-        # Build a dict: frozenset(version_ids) → MapVersion for all existing + new versions
-        existing: dict[frozenset, MapVersion] = {}
-        for v in atomic_versions:
-            existing[frozenset([v.pk])] = v
-
-        # All combination subsets of size >= 2
-        n = len(atomic_versions)
-        all_subsets: list[frozenset] = []
-        for size in range(2, n + 1):
-            for combo in combinations(atomic_versions, size):
-                all_subsets.append(frozenset(v.pk for v in combo))
-
-        # Create combination MapVersion objects
-        created_count = 0
-        for subset in all_subsets:
-            if subset in existing:
-                continue
-            members = [v for v in atomic_versions if v.pk in subset]
-            members.sort(key=lambda v: v.name)
-            combo_name = " + ".join(v.name for v in members)
-            combo_poll_text = "Apply changes: " + ", ".join(v.name for v in members)
-            combo_version = MapVersion.objects.create(
-                game_map=game_map,
-                name=combo_name,
-                poll_text=combo_poll_text,
-                revert_poll_text=f"Revert changes: {combo_name}",
-                base_version=False,
-            )
-            existing[subset] = combo_version
-            created_count += 1
-
-            # Copy map_versions memberships: include any element whose version
-            # belongs to any member of this subset
-            member_versions = [existing[frozenset([pk])] for pk in subset]
-            for node in Node.objects.filter(
-                map_versions__in=member_versions
-            ).distinct():
-                node.map_versions.add(combo_version)
-            for edge in Edge.objects.filter(
-                map_versions__in=member_versions
-            ).distinct():
-                edge.map_versions.add(combo_version)
-            for street_edge in StreetEdge.objects.filter(
-                map_versions__in=member_versions
-            ).distinct():
-                street_edge.map_versions.add(combo_version)
-            for train_edge in TrainEdge.objects.filter(
-                map_versions__in=member_versions
-            ).distinct():
-                train_edge.map_versions.add(combo_version)
-            for bus_line in BusLine.objects.filter(
-                map_versions__in=member_versions
-            ).distinct():
-                bus_line.map_versions.add(combo_version)
-
-        # Set compatible_versions for all versions in the lattice
-        # A version with subset S is compatible with:
-        #   - All subsets of size |S|+1 that are supersets of S (forward moves)
-        #   - All subsets of size |S|-1 that are subsets of S (rollback moves)
-        #   - For size-1 subsets (atomic), also the base version (ultimate rollback)
-        all_entries = {**existing}  # frozenset(pks) → MapVersion
-
-        for subset, version in all_entries.items():
-            neighbours: list[MapVersion] = []
-            size = len(subset)
-
-            # Forward: supersets of size+1
-            for other_subset, other_version in all_entries.items():
-                if len(other_subset) == size + 1 and subset.issubset(other_subset):
-                    neighbours.append(other_version)
-
-            # Backward: subsets of size-1
-            for other_subset, other_version in all_entries.items():
-                if len(other_subset) == size - 1 and other_subset.issubset(subset):
-                    neighbours.append(other_version)
-
-            # Atomic versions can roll back to base
-            if size == 1 and base_version:
-                neighbours.append(base_version)
-
-            version.compatible_versions.set(neighbours)
-
-        # Also update the base version's compatible_versions to include atomic versions
-        if base_version:
-            existing_base_compat = list(base_version.compatible_versions.all())
-            new_atomics = [v for v in atomic_versions if v not in existing_base_compat]
-            if new_atomics:
-                base_version.compatible_versions.add(*new_atomics)
+        created_count = generate_combinations(
+            atomic_versions[0].game_map, atomic_versions
+        )
 
     modeladmin.message_user(
         request,

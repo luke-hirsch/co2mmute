@@ -551,6 +551,41 @@ class GeneratedCombinationTests(VersionFixtureMixin, TestCase):
         self.assertEqual(len(self.bus_chain(self.base)), 3)
 
 
+class GeneratedCombinationInTheAdminTests(GeneratedCombinationTests):
+    """The admin's "generate combination versions" is the editor's code.
+
+    It was the builder from before the editor's was fixed: it unioned the
+    members, copied no train line and no chain row, and wrote English poll
+    texts. Every test above, through the admin's action instead of the
+    endpoint.
+    """
+
+    def _combine(self, *versions):
+        admin = get_user_model().objects.create_superuser(
+            username="admin", password="password123"
+        )
+        self.client.force_login(admin)
+        response = self.client.post(
+            reverse("admin:maps_mapversion_changelist"),
+            {
+                "action": "_generate_combination_versions",
+                "_selected_action": [v.pk for v in versions],
+            },
+        )
+        self.assertEqual(response.status_code, 302, response.content)
+        return MapVersion.objects.exclude(
+            pk__in=[self.base.pk, *[v.pk for v in versions]]
+        ).get(game_map=self.game_map)
+
+    def test_the_ballot_is_the_editor_s(self):
+        self.assertEqual(
+            set(self.combination.compatible_versions.all()),
+            {self.busspuren, self.umweg},
+        )
+        self.assertEqual(
+            set(self.base.compatible_versions.all()), {self.busspuren, self.umweg}
+        )
+
 class ChainBackfillTests(VersionFixtureMixin, TestCase):
     """What `maps/0009` does to the chains already in a database.
 
