@@ -21,6 +21,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { apiFetch } from "@/lib/api";
+import type { PersonaDraft } from "@/lib/game/personas";
 
 /**
  * The slice of `GameSessionSerializer` the host screens use. The whole row is
@@ -145,6 +146,11 @@ export type CreateGameBody = {
   people_per_agent: number;
   idle_end_days: number;
   chat_enabled: boolean;
+  /**
+   * The game's Pendlertypen, left out when the switch is off. An empty list is
+   * refused: see `pickedPersonas`.
+   */
+  personas?: PersonaDraft[];
 };
 
 /**

@@ -44,6 +44,7 @@ function player(
     paid_eur_per_person: 0,
     modes_used: [],
     rounds: [],
+    groups: [],
     ...overrides,
   };
 }

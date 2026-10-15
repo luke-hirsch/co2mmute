@@ -19,10 +19,12 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { apiFetch } from "@/lib/api";
+import type { Persona } from "@/lib/game/personas";
 
 export type AgentAssignments = {
   home_node: number;
-  agents: { id: number; destination_node: number }[];
+  /** `persona` is the id of one of the game's `personas`, when it deals them. */
+  agents: { id: number; destination_node: number; persona?: number }[];
 };
 
 /** The slice of `GameSessionSerializer` the turn actually needs. */
@@ -32,6 +34,8 @@ export type SeatGame = {
   active_map_version: number | null;
   people_per_agent: number;
   agent_assignments: AgentAssignments | null;
+  /** The game's own Pendlertypen; empty when it plays free. */
+  personas: Persona[];
 };
 
 export const seatKeys = {

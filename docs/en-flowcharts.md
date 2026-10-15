@@ -91,7 +91,7 @@ stateDiagram-v2
 | step                                  | where to read                                                  |
 | ------------------------------------- | -------------------------------------------------------------- |
 | create                                | `GameSessionListCreateView` in `game/views_rest.py`            |
-| join, home and destinations           | `JoinSessionAPIView` in `game/views_join.py`, `set_up_player` and `assign_agent_nodes` in `game/signals.py` |
+| join, home and destinations           | `JoinSessionAPIView` in `game/views_join.py`, `set_up_player` and `assign_agent_nodes` in `game/signals.py`, the commuter types `game/personas.py` |
 | start                                 | `GameSessionDetailView.update` in `game/views_rest.py`         |
 | round complete, simulate, end         | `game/rounds.py`, then `handle_round_completed` in `game/signals.py` |
 | pause, idle end, anonymise            | `game/pause.py`, `game/idle.py`, `game/anon.py`                |

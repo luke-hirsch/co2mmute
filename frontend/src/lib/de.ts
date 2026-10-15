@@ -339,6 +339,8 @@ export const de = {
      * `AgentSimulationResult` keep their names.
      */
     agent: (n: number) => `Gruppe ${n}`,
+    /** Read before the Pendlertyp's name under a Gruppe, for a screen reader. */
+    persona: "Pendlertyp:",
     destination: "Ziel",
     home: "zu Hause",
 
@@ -774,6 +776,28 @@ export const de = {
       "Drei Listen, drei Reihenfolgen. Wenig CO₂, wenig Geld und wenig Zeit sind selten dasselbe. Wer also hat am besten gespielt? Das entscheidet ihr.",
     perRound: "Pro Runde",
     modes: "Womit",
+
+    /**
+     * "Meine Gruppen": the switch's third option, only in a game that dealt
+     * Pendlertypen and only for a seat. One block per Gruppe, so a player can
+     * hold what each did against what it was meant to be.
+     */
+    groupsView: "Meine Gruppen",
+    groupsLead:
+      "Hat jede Gruppe gespielt, was ihr Pendlertyp verlangt? Jede Zahl ist ein Tag, hin und zurück, für einen Menschen – im Schnitt über die Runden.",
+    groupNoPersona: "ohne Pendlertyp",
+    groupRounds: (n: number) => (n === 1 ? "1 Runde" : `${n} Runden`),
+    groupNone: "Für diese Gruppe wurde keine Runde gerechnet.",
+    groupModeCount: (count: number, mode: string) => `${count}× ${mode}`,
+    groupTime: "Zeit",
+    groupDistance: "Strecke",
+    groupSpeed: "Tempo",
+    groupPaid: "Selbst bezahlt",
+    groupCo2: "CO₂",
+    groupChanges: "Umstiege",
+    /** One decimal at most, the German way: 12,4 km, 17 km/h, 0,5. */
+    decimal: (value: number) =>
+      value.toLocaleString("de-DE", { maximumFractionDigits: 1 }),
     /**
      * They left before the end and their rounds still count. Marked because the
      * list is ordered per commute for exactly this reason: on the sums, whoever
@@ -1786,6 +1810,29 @@ export const de = {
       `${commuters.toLocaleString("de-DE")} Pendler auf ${agents} ${
         agents === 1 ? "Gruppe" : "Gruppen"
       } verteilt. Bei weniger Plätzen steht eine Gruppe für mehr Menschen, damit auf der Karte gleich viel Verkehr ist.`,
+
+    /**
+     * Pendlertypen: each Gruppe is dealt one, and its person plays it rather
+     * than themselves. Named like the Leitstelle, from the commuting world;
+     * the group's wish was "personas" or "missions".
+     */
+    personas: "Pendlertypen",
+    personasHelp:
+      "Jede Gruppe bekommt einen Pendlertyp zugelost, und ihre Person spielt ihn statt sich selbst.",
+    personasSwitch: "verteilen",
+    personasLegend: "Welche Pendlertypen ausgelost werden",
+    personasLoading: "Pendlertypen werden geladen …",
+    personasFailed:
+      "Die Pendlertypen ließen sich nicht laden. Eigene kannst du trotzdem anlegen.",
+    personasOwn: "Eigener Pendlertyp",
+    personasOwnName: "Name",
+    personasOwnNamePlaceholder: "z. B. Nachteule",
+    personasOwnDescription: "Was ihn ausmacht",
+    personasOwnDescriptionPlaceholder: "z. B. Vor zehn geht gar nichts.",
+    personasAdd: "Hinzufügen",
+    personasRemove: "entfernen",
+    /** For a screen reader: which one the button takes out. */
+    personasRemoveLabel: (name: string) => `${name} entfernen`,
 
     /** The two that decide when it ends. */
     groupEnd: "Wann das Spiel endet",

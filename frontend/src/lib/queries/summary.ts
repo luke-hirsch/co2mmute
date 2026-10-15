@@ -130,6 +130,35 @@ export type SummaryRoundTotals = {
   vote: SummaryVote | null;
 };
 
+/**
+ * One Gruppe of a seat over the whole game, for "Meine Gruppen": what it was
+ * dealt to be, and how it commuted. Every figure is one day there and back for
+ * one commuter, the mean over the rounds the simulation ran — so a player can
+ * hold the Sparfuchs's euros against the Sportskanone's.
+ * `game/personas.py:group_summary`.
+ */
+export type SummaryGroup = {
+  agent_id: number;
+  /** The destination's name, as the round screen showed it. */
+  destination: string | null;
+  /** The game's copy, so a standard one edited since still reads as played. */
+  persona: { name: string; description: string } | null;
+  /** How many rounds the figures below are the mean of. */
+  rounds: number;
+  /** How often it took each mode; a mode never taken is not a key. */
+  modes: Partial<Record<TransportMode, number>>;
+  time_min: number;
+  distance_km: number;
+  /** Door to door: the distance over the time, waits and jams included. */
+  speed_kmh: number;
+  /** What one commuter handed over, like `paid_eur_per_person`. */
+  paid_eur: number;
+  /** Grams, for the same reason as `co2_g_per_person`. */
+  co2_g: number;
+  /** Changes from one ride to the next, there and back together. */
+  changes: number;
+};
+
 export type SummaryPlayer = {
   player_id: string;
   /**
@@ -165,6 +194,11 @@ export type SummaryPlayer = {
    * on `round_number`, never on the position in the array.
    */
   rounds: SummaryRound[];
+  /**
+   * Each Gruppe of this seat, in the order dealt. Empty unless the game dealt
+   * Pendlertypen: there is nothing to hold a Gruppe against without one.
+   */
+  groups: SummaryGroup[];
 };
 
 export type GameSummary = {

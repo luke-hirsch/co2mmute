@@ -22,30 +22,43 @@ import { scales, type Scale } from "@/lib/game/scale";
  * out of two, and a keyboard and a screen reader already know how to work it.
  * The chrome is drawn on the labels, so nothing is reimplemented.
  */
-export function ScaleSwitch({
+export function ScaleSwitch<Extra extends string = never>({
   value,
   onChange,
   /** Unique per instance: two switches on one screen must not share a name. */
   name,
   className,
+  extra,
 }: {
-  value: Scale;
-  onChange: (scale: Scale) => void;
+  // Inferred from `extra` alone, so a two-way switch stays a `Scale` one.
+  value: Scale | NoInfer<Extra>;
+  onChange: (value: Scale | NoInfer<Extra>) => void;
   name: string;
   className?: string;
+  /**
+   * A third option after the two scales, where a screen has one: "Meine
+   * Gruppen" on the end screen of a game that dealt Pendlertypen. Not a scale
+   * but another reading of the same game, and the group asked for it here,
+   * on the switch the debrief already uses.
+   */
+  extra?: { value: Extra; label: string };
 }) {
+  const options: { value: Scale | Extra; label: string }[] = [
+    ...scales.map((scale) => ({ value: scale, label: de.numbers[scale] })),
+    ...(extra ? [extra] : []),
+  ];
   return (
     <fieldset className={cn("inline-block", className)}>
       <legend className="sr-only">{de.numbers.scaleLegend}</legend>
       <div className="flex rounded-full border border-border p-0.5">
-        {scales.map((scale) => (
+        {options.map((option) => (
           <label
-            key={scale}
+            key={option.value}
             className={cn(
               "cursor-pointer rounded-full px-3 py-1 text-sm transition-colors",
               "focus-within:outline focus-within:outline-2 focus-within:outline-offset-2",
               "focus-within:outline-primary",
-              scale === value
+              option.value === value
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:text-foreground",
             )}
@@ -53,12 +66,12 @@ export function ScaleSwitch({
             <input
               type="radio"
               name={name}
-              value={scale}
-              checked={scale === value}
-              onChange={() => onChange(scale)}
+              value={option.value}
+              checked={option.value === value}
+              onChange={() => onChange(option.value)}
               className="sr-only"
             />
-            {de.numbers[scale]}
+            {option.label}
           </label>
         ))}
       </div>

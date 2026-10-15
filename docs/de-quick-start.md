@@ -36,6 +36,7 @@ Jetzt, wo du ein Konto hast, kannst du Spiele anlegen. Super. Gehen wir die Feld
 - „Plätze insgesamt“ (Vorgabe: 16): Wie viele Leute sollen mitspielen dürfen? Egal ob an der Leitstelle oder übers Internet, mehr als das geht nicht. Du als Spielleitung zählst nicht mit.
 - „Gruppen pro Person“ (Vorgabe: 4): Wie viele Gruppen jede Person steuern muss. Jede Gruppe bekommt ihr eigenes Zuhause und ihren eigenen Arbeitsplatz auf der Karte und braucht jede Runde ein Verkehrsmittel und eine Route.
 - „Menschen pro Gruppe“: Das suchst du dir nicht aus. Die Karte weiß, wie viele Menschen durch sie pendeln — 6.800 auf Berlin Mitte-West — und das Formular verteilt sie auf Plätze × Gruppen. 16 Plätze mit je 4 Gruppen macht 106 Menschen pro Gruppe. Weniger Plätze, mehr Menschen pro Gruppe, damit auf den Straßen gleich viel los ist, ob nun 16 oder 6 spielen. Du kannst die Zahl überschreiben, und „Vorschlag übernehmen“ holt die gerechnete zurück. Lass es, außer du weißt, warum.
+- „Pendlertypen“ (Vorgabe: aus): Jede Gruppe bekommt einen Pendlertyp zugelost, der Sparfuchs, die Sportskanone, „Bloß kein Stress“ und so weiter, und wer sie steuert, spielt den Typ statt sich selbst. Das schubst die Leute zu Verkehrsmitteln, die sie sonst nie nehmen würden. Hakst du es an, kommt die Liste: Nimm raus, was du nicht willst, und schreib eigene dazu. Die eigenen gibt es nur in diesem Spiel. „Einfach du“ ist auch einer, ohne Mission. Die Gruppen einer Person bekommen verschiedene, solange die Liste reicht.
 
 Stell die Plätze also auf die Zahl der Leute, die wirklich mitspielen. Wie viele Menschen in einer Gruppe stecken, steht fest, sobald das Spiel angelegt ist: Machst du 16 Plätze auf und es kommen 8, ist auf den Straßen nur halb so viel los, und es staut sich nie.
 
@@ -171,6 +172,8 @@ Ein Spiel endet, wenn
 - es so viele Tage niemand gespielt hat, wie du eingestellt hast.
 
 Dann bekommen alle die Auswertung („Spiel zu Ende“). Die letzte Runde hat keinen eigenen Auswertungsbildschirm; ihre Zahlen stehen hier. CO₂ insgesamt gegen das Budget, Runde für Runde, und wofür ihr gestimmt habt. Dann drei Listen nebeneinander: am wenigsten CO₂, am günstigsten, am schnellsten. Die sind sich nie einig, und genau darum geht es. Das Spiel kürt keinen Sieger. Wer am besten gespielt hat, darüber dürft ihr streiten.
+
+Habt ihr mit Pendlertypen gespielt, hat der Schalter über den Listen auf jedem Handy eine dritte Stellung, „Meine Gruppen“: jede eigene Gruppe mit ihrem Pendlertyp, womit sie gefahren ist, wie lange, wie weit, wie schnell, was sie bezahlt hat, ihr CO₂ und ihre Umstiege, ein Tag hin und zurück im Schnitt über die Runden. Ist die Sportskanone Rad gefahren? Hat der Sparfuchs am wenigsten bezahlt, oder hatte er einfach den längsten Weg? Darüber lässt sich reden. An der Leitstelle gibt es die Stellung nicht, sie hat keine eigenen Gruppen.
 
 Die Namen bleiben einen Tag stehen, damit ihr darüber reden könnt. Danach wird aus allen „Spieler 1“, „Spieler 2“ und so weiter, und die Ergebnisse bleiben für die Forschung.
 

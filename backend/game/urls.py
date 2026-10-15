@@ -21,6 +21,7 @@ from game.views_rest import (
     RoundTrafficHeatmapView,
     SeatCodeIssueView,
     SeatTakeoverView,
+    StandardPersonasView,
 )
 
 app_name = "game"
@@ -28,6 +29,8 @@ app_name = "game"
 urlpatterns = [
     # Literal prefixes first — the dynamic patterns below would swallow them.
     path("", GameSessionListCreateView.as_view(), name="session-list-create"),
+    # A literal, so above every "<game_id>/…": one dynamic segment takes any word.
+    path("personas/", StandardPersonasView.as_view(), name="standard-personas"),
     path("lookup/<str:game_id>/", SessionLookupView.as_view(), name="session-lookup"),
     path("join/<str:game_id>/", JoinSessionAPIView.as_view(), name="session-join-api"),
     path("seat/<str:code>/", SeatCodeView.as_view(), name="seat-code"),

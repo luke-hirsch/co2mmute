@@ -32,6 +32,7 @@ import { airDistanceM, exceedsModeLimit } from "@/lib/map/trip-limits";
 import { searchTrip, toLeg, withLines } from "@/lib/map/trip-search";
 import { useMapGraph } from "@/lib/queries/map-graph";
 import { useSeatGame } from "@/lib/queries/seat";
+import { personasByAgent } from "@/lib/game/personas";
 import { NO_WAY_HOME } from "@/utils/pathfinding";
 import type {
   AgentRoute,
@@ -104,6 +105,12 @@ export function useRoundDraft({
   const runs = useRef(new Map<number, number>());
 
   const assignments = seat.data?.agent_assignments ?? null;
+
+  /** Each Gruppe's Pendlertyp, by agent id; empty in a game that plays free. */
+  const personas = useMemo(
+    () => personasByAgent(assignments?.agents ?? [], seat.data?.personas ?? []),
+    [assignments, seat.data?.personas],
+  );
 
   /** Null in private mode or with site data blocked; every call below takes it. */
   const storage = useMemo(() => browserStorage(), []);
@@ -314,6 +321,7 @@ export function useRoundDraft({
     trace,
     /** Straight-line distance per passenger, and what it already rules out. */
     distances,
+    personas,
     /** The assignment or the map is still in flight; the turn cannot be drawn yet. */
     isLoading: seat.isLoading || graph.isLoading,
     error: seat.error ?? graph.error ?? null,

@@ -38,6 +38,7 @@ Now that you have an account you can create games. Super. Let's go through each 
 - seats ("Plätze insgesamt", 16 by default): how many players do you want to allow? It doesn't matter if they play locally or over the internet, you can't have more players than this. You, the host, don't count.
 - groups per person ("Gruppen pro Person", 4 by default): the number of groups each player has to manage. Every group gets its own home and its own workplace on the map, and needs a means of transportation and a route every round.
 - people per group ("Menschen pro Gruppe"): you don't pick this one. The map knows how many people commute through it — 6,800 on Berlin Mitte-West — and the form divides them over seats × groups. 16 seats with 4 groups each makes 106 people per group. Fewer seats, more people per group, so the streets carry the same traffic whether 16 or 6 people play. You can type over it, and "Vorschlag übernehmen" puts the computed number back. Don't, unless you know why.
+- commuter types ("Pendlertypen", off by default): every group is dealt a commuter type, the bargain hunter, the sports nut, "no stress please" and so on, and whoever steers it plays the type instead of themselves. That nudges people towards modes they would never pick on their own. Tick it and the list appears: untick what you don't want and write your own. Your own exist only in this game. "Einfach du" (just you) is one too, with no mission. A person's groups get different ones as long as the list lasts.
 
 So set the seats to the number of people who will actually play. The number of people per group is fixed when you create the game: if you open 16 seats and 8 people show up, the streets carry half the traffic and the jams never happen.
 
@@ -173,6 +174,8 @@ A game ends when
 - nobody played it for as many days as you set
 
 Then everybody gets the summary ("Spiel zu Ende"). The last round has no evaluation screen of its own; its numbers are in here. Total CO2 against the budget, round by round, and what the class voted for. Then three lists side by side: least CO2, cheapest, fastest. They never agree, and that is the point. The game does not crown a winner. Who played best is for the class to fight about.
+
+If you played with commuter types, the switch above the lists has a third position on every phone, "Meine Gruppen" (my groups): each of your own groups with its type, which modes it took, how long, how far, how fast, what it paid, its CO2 and its changes, one day there and back averaged over the rounds. Did the sports nut cycle? Did the bargain hunter pay the least, or did it just have the longest way to work? That is something to talk about. The host machine does not get the position, it has no groups of its own.
 
 The names stay for a day, so you can talk it through. Then every player becomes "Spieler 1", "Spieler 2" and so on, and the results stay for research.
 

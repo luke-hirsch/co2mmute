@@ -3,6 +3,7 @@ from django.contrib import admin
 from .models import (
     GameRound,
     GameSession,
+    Persona,
     Player,
     PlayerMove,
 )
@@ -51,3 +52,15 @@ class PlayerMoveAdmin(admin.ModelAdmin):
         "action",
     )
     ordering = ("session_round", "moved_at")
+
+
+@admin.register(Persona)
+class PersonaAdmin(admin.ModelAdmin):
+    """The standard Pendlertypen are the rows with no game: filter on "Spiel"
+    being empty to edit what every create form offers. A game's own are its
+    copies, and editing one changes that game's debrief."""
+
+    list_display = ("name", "description", "game", "order")
+    list_filter = (("game", admin.EmptyFieldListFilter),)
+    search_fields = ("name", "description", "game__game_name", "game__game_id")
+    ordering = ("game", "order", "pk")

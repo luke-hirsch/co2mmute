@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Co2Bar } from "@/components/metro/co2-bar";
+import { GroupList } from "@/components/summary/group-list";
 import { MetricList } from "@/components/summary/metric-list";
 import { NumbersExplainerDialog } from "@/components/numbers/numbers-explainer";
 import { RoundArc } from "@/components/summary/round-arc";
@@ -11,6 +12,7 @@ import { Screen, ScreenHeading } from "@/components/layout/screen";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VoteList } from "@/components/summary/vote-list";
 import { classArc, summaryMetrics } from "@/lib/game/summary";
+import { ownGroups } from "@/lib/game/groups";
 import { de } from "@/lib/de";
 import { displayKg, kgToGrams } from "@/lib/co2";
 import { useGame } from "@/components/game/game-context";
@@ -54,10 +56,17 @@ export function EndScreen() {
    * and the totals are sums over agent-trips — a player who left after round 1
    * heads all three of them for having played less.
    */
-  const [scale, setScale] = useState<Scale>("person");
+  const [view, setView] = useState<Scale | "groups">("person");
+  const scale: Scale = view === "groups" ? "person" : view;
 
   const players = summary.data?.players ?? [];
   const rounds = summary.data?.rounds ?? [];
+  /**
+   * This seat's Gruppen, when the game dealt Pendlertypen. Empty otherwise,
+   * and for the host, who has no seat in the list — and then the switch has
+   * two options, as it always had.
+   */
+  const groups = ownGroups(summary.data, seatId);
 
   /**
    * The totals come from the payload once it lands, and only fall back to the
@@ -187,31 +196,42 @@ export function EndScreen() {
               </div>
 
               <ScaleSwitch
-                value={scale}
-                onChange={setScale}
+                value={view}
+                onChange={setView}
                 name="summary-scale"
                 className="mt-6"
+                extra={
+                  groups.length > 0
+                    ? { value: "groups" as const, label: de.summary.groupsView }
+                    : undefined
+                }
               />
 
-              {/* Three orders of the same people, side by side on a wide
-                  screen and stacked on a phone. Side by side is what makes
-                  the point readable: one name near the top of one list and
-                  the bottom of another, without a word being said about it. */}
-              <div className="mt-8 grid gap-x-10 gap-y-10 lg:grid-cols-3">
-                {summaryMetrics.map((metric) => (
-                  <MetricList
-                    key={metric}
-                    players={players}
-                    metric={metric}
-                    scale={scale}
-                    seatId={seatId}
-                  />
-                ))}
-              </div>
+              {view === "groups" ? (
+                <GroupList groups={groups} />
+              ) : (
+                <>
+                  {/* Three orders of the same people, side by side on a wide
+                      screen and stacked on a phone. Side by side is what makes
+                      the point readable: one name near the top of one list and
+                      the bottom of another, without a word being said about it. */}
+                  <div className="mt-8 grid gap-x-10 gap-y-10 lg:grid-cols-3">
+                    {summaryMetrics.map((metric) => (
+                      <MetricList
+                        key={metric}
+                        players={players}
+                        metric={metric}
+                        scale={scale}
+                        seatId={seatId}
+                      />
+                    ))}
+                  </div>
 
-              <p className="mt-10 max-w-(--measure-body) text-muted-foreground">
-                {de.summary.noWinner}
-              </p>
+                  <p className="mt-10 max-w-(--measure-body) text-muted-foreground">
+                    {de.summary.noWinner}
+                  </p>
+                </>
+              )}
             </section>
 
             <VoteList entries={voteHistory(rounds)} />
