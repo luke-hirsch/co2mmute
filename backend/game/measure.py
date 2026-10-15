@@ -87,20 +87,30 @@ def version_graph(game_map, version):
     return json.loads(json.dumps(response.data))
 
 
-def client_routes(graph):
-    """Every commute on `graph`, found by `frontend/scripts/routes.mjs`."""
+# The modes a calibration plays: a Gruppe is given the car or public transport.
+PLAYED_MODES = ("car", "public")
+
+
+def client_routes(graph, pairs=None, modes=None):
+    """Every commute on `graph`, found by `frontend/scripts/routes.mjs`.
+
+    `pairs` ([home, workplace], …) and `modes` narrow it to what is asked.
+    """
     script = FRONTEND / "scripts" / "routes.mjs"
     if not (FRONTEND / "node_modules").is_dir():
         raise RoutesUnavailable(
             f"{FRONTEND / 'node_modules'} fehlt — erst `npm ci` in frontend/."
         )
-    with tempfile.NamedTemporaryFile(
-        "w", suffix=".json", delete=False, encoding="utf-8"
-    ) as handle:
-        json.dump(graph, handle)
+    files = []
+    for content in (graph, {"pairs": pairs, "modes": modes}):
+        with tempfile.NamedTemporaryFile(
+            "w", suffix=".json", delete=False, encoding="utf-8"
+        ) as handle:
+            json.dump({k: v for k, v in content.items() if v is not None}, handle)
+        files.append(handle.name)
     try:
         done = subprocess.run(
-            ["node", str(script), handle.name],
+            ["node", str(script), *files],
             cwd=FRONTEND,
             capture_output=True,
             text=True,
@@ -109,10 +119,38 @@ def client_routes(graph):
     except FileNotFoundError as exc:
         raise RoutesUnavailable("node ist nicht installiert.") from exc
     finally:
-        os.unlink(handle.name)
+        for name in files:
+            os.unlink(name)
     if done.returncode != 0:
         raise RoutesUnavailable(done.stderr.strip() or f"exit {done.returncode}")
     return json.loads(done.stdout)
+
+
+def every_pair(graph):
+    """Every home to every workplace on `graph`, with no legs yet.
+
+    In the router's order (`routeCommutes`): homes outer, both by id. The
+    order is what a deal is drawn over, so `MapRounds` deals from this list
+    the same as from the router's whole answer, and only the pairs it deals
+    have to be routed (`MapRounds.played`, `MapRounds.route`).
+    """
+
+    def of_type(name):
+        return sorted(
+            node["id"]
+            for node in graph["nodes"]
+            if any(kind["name"] == name for kind in node["node_type"])
+        )
+
+    workplaces = of_type("workplace")
+    return {
+        "choice": None,
+        "commutes": [
+            {"home": home, "workplace": workplace, "there": {}, "back": {}}
+            for home in of_type("home")
+            for workplace in workplaces
+        ],
+    }
 
 
 @dataclass(frozen=True)
@@ -170,8 +208,9 @@ class MapRounds:
         self.game_map = game_map
         self.version = version
         self.host = host
+        self.per_home = per_home
         self.commutes = routes["commutes"]
-        self.car_optimization = routes["choice"]["carOptimization"]
+        self.car_optimization = (routes["choice"] or {}).get("carOptimization")
         if not self.commutes:
             raise RoutesUnavailable(
                 "Die Karte hat kein Paar aus Wohnort und Arbeitsplatz."
@@ -200,6 +239,31 @@ class MapRounds:
         if self.dealt:
             return len(self.seats) * self.per_seat
         return len(self.commutes) * self.per_pair
+
+    def played(self, seeds):
+        """The pairs the rounds of these seeds play, [home, workplace] in list
+        order: on a dealt map the router need not find the others."""
+        indexes = sorted(
+            {
+                index
+                for seed in seeds
+                for stratum in self.strata(seed)
+                for index in stratum
+            }
+        )
+        return [
+            [self.commutes[index]["home"], self.commutes[index]["workplace"]]
+            for index in indexes
+        ]
+
+    def route(self, routes):
+        """Take the legs the router found (`client_routes`) for the pairs it
+        was asked."""
+        self.car_optimization = routes["choice"]["carOptimization"]
+        for commute in routes["commutes"]:
+            self.commutes[self.pair[commute["home"], commute["workplace"]]].update(
+                there=commute["there"], back=commute["back"]
+            )
 
     def people_per_gruppe(self, commuters):
         return calibration.people_per_agent(

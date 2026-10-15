@@ -21,6 +21,8 @@ import logging
 import random
 from collections.abc import Callable
 
+from django.db.models import Prefetch
+
 from maps.models import BusLine, Edge, StreetPerRound, TrainLine
 
 # The engine itself lives in `sim/`; these are re-exported because tests and
@@ -78,6 +80,7 @@ from game.models import (
     AgentSimulationResult,
     EdgeTrafficSnapshot,
     GameRound,
+    RouteSegment,
     SimulationResult,
 )
 
@@ -190,9 +193,17 @@ class TrafficSimulator(LinkQueueEngine):
         routes = []
         for move in player_moves:
             player_name = move.player.name or f"Player {move.player.player_id}"
+            # Ordered by "order" alone: the model's own ordering runs through
+            # the route, the move and the round to the game's start, a join
+            # of five tables a move. Rolled back, a calibration's rounds look
+            # empty to the planner, which then looped over every move and
+            # route for each of them — minutes a query with six seeds side by
+            # side on all of Berlin (2026-10-15).
             rows = AgentRoute.objects.filter(
                 player_move=move, direction=direction
-            ).prefetch_related("segments", "segments__edge")
+            ).prefetch_related(
+                Prefetch("segments", queryset=RouteSegment.objects.order_by("order"))
+            )
             for route in rows:
                 self.route_rows[route.pk] = route
                 routes.append(
@@ -207,7 +218,7 @@ class TrafficSimulator(LinkQueueEngine):
                                 mode=row.mode,
                                 pt_line_id=row.pt_line_id,  # type: ignore
                             )
-                            for row in route.segments.order_by("order")  # type: ignore
+                            for row in route.segments.all()  # type: ignore
                         ),
                         # The report the host downloads names the player. It
                         # never reaches the server log.

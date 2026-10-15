@@ -357,6 +357,7 @@ nicht gemessen.
 | K-69 | Editor: Straßenlänge | „Länge“ an einer Kante ist die Straße; einen Knoten verschieben streckt die Straße mit; „+ Gegenrichtung anlegen“ und eine Änderung an der Straße in einer Version behalten die Länge; weniger als 1 lehnt der Server ab      | geht | `test_graph`, `test_versions`, `map-editor.test.ts` |
 | K-70 | Kartendatei prüfen: Straßenlänge | `check_map` meldet eine Kante mit `circuity` unter 1 — kürzer als die Luftlinie      | geht | `test_checks` |
 | K-71 | Karte kalibrieren: Paare ziehen | `calibrate_map datei.json --speed 19 --per-home 7` auf einer Karte mit mehr Arbeitsorten als 7: „je Wohnort 7 gezogen“, jeder Wohnort spielt jede Runde, jeder Arbeitsort gleich oft (± 1), kein Wohnort einen doppelt, jeder Seed neu gezogen; ohne `--per-home` „je Wohnort 4 gezogen“, auf der ausgelieferten Karte (sechs Arbeitsorte) jedes Paar wie bisher; `--per-home 0` lehnt der Befehl ab      | geht | `test_calibration` |
+| K-72 | Karte kalibrieren: schneller | `calibrate_map` routet nur die Paare, die die Seeds ziehen, im Auto und mit Bus und Bahn („1519 Wege, 616 davon gespielt“ auf der gebauten Box), und spielt auf Postgres die Runden eines Schritts nebeneinander („6 Seeds in 6 Prozessen“, `--workers`); die Tabelle ist Byte für Byte dieselbe wie eine nach der anderen (Callenberg, Box); unter sqlite „in einem Prozess“; `--workers 0` lehnt der Befehl ab      | geht | `test_calibration`, `trip-search.test.ts` |
 
 ## S — sonstiges
 

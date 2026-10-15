@@ -118,11 +118,17 @@ function nodesOfType(graph: ExtendedMapGraph, type: string): number[] {
  * same every run. A mode with no route — a walk over the cap, PT where no line
  * goes — is an `{ error }` in its place rather than a missing pair: the
  * caller decides what a class with no way to work does, not this.
+ *
+ * `pairs` (home, workplace) routes only those, in that order: a calibration
+ * plays the workplaces dealt to each home, on all of Berlin 5 362 of 51 920
+ * pairs over its six seeds, and every other pair was two hours of routing
+ * nobody read.
  */
 export async function routeCommutes(
   graph: ExtendedMapGraph,
   choice: TripChoice,
   modes: TransportMode[] = ALL_MODES,
+  pairs?: [number, number][],
 ): Promise<Commute[]> {
   const full = withLines(graph);
   const leg = async (from: number, to: number, mode: TransportMode) => {
@@ -132,16 +138,21 @@ export async function routeCommutes(
       : { error: result.error ?? "no-route" };
   };
 
+  const workplaces = nodesOfType(full, "workplace");
+  const wanted =
+    pairs ??
+    nodesOfType(full, "home").flatMap((home) =>
+      workplaces.map((workplace): [number, number] => [home, workplace]),
+    );
+
   const commutes: Commute[] = [];
-  for (const home of nodesOfType(full, "home")) {
-    for (const workplace of nodesOfType(full, "workplace")) {
-      const commute: Commute = { home, workplace, there: {}, back: {} };
-      for (const mode of modes) {
-        commute.there[mode] = await leg(home, workplace, mode);
-        commute.back[mode] = await leg(workplace, home, mode);
-      }
-      commutes.push(commute);
+  for (const [home, workplace] of wanted) {
+    const commute: Commute = { home, workplace, there: {}, back: {} };
+    for (const mode of modes) {
+      commute.there[mode] = await leg(home, workplace, mode);
+      commute.back[mode] = await leg(workplace, home, mode);
     }
+    commutes.push(commute);
   }
   return commutes;
 }

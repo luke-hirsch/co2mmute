@@ -84,6 +84,28 @@ describe("every commute on the shipped map", () => {
       expect(commute.there.walk).toEqual({ error: expect.any(String) });
     }
   });
+
+  it("routes only the pairs a calibration plays, in the modes it plays, when asked", async () => {
+    const asked = [commutes.at(-1)!, commutes[0]];
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const some = await routeCommutes(
+      graph,
+      CHOICE,
+      ["car", "public"],
+      asked.map((c): [number, number] => [c.home, c.workplace]),
+    );
+    vi.restoreAllMocks();
+
+    expect(some).toEqual(
+      asked.map((c) => ({
+        home: c.home,
+        workplace: c.workplace,
+        there: { car: c.there.car, public: c.there.public },
+        back: { car: c.back.car, public: c.back.public },
+      })),
+    );
+  });
 });
 
 describe("one trip", () => {
