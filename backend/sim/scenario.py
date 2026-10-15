@@ -128,6 +128,10 @@ class Params:
     morning_departure_hour: int = 9
     evening_departure_hour: int = 17
     departure_std_dev_min: float = 10
+    # The share of the timetable the class pays, CO2 and cost: every
+    # vehicle-km times this. The game's (`GameSession.timetable_factor`), 1 —
+    # all of it — unless told.
+    timetable_factor: float = 1.0
 
 
 @dataclass(frozen=True)

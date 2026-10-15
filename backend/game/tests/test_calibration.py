@@ -22,7 +22,7 @@ from django.core.files.base import ContentFile
 from django.test import SimpleTestCase, TestCase, TransactionTestCase, override_settings
 
 from game import calibration
-from game.management.commands.calibrate_map import Command
+from game.management.commands.calibrate_map import Command, calibrated_file
 from game.measure import MapRounds, RoutesRefused, every_pair, version_graph
 from game.measure_workers import Workers
 from game.models import GameSession, Player
@@ -121,6 +121,13 @@ class FakeRound:
     car_km: float = 10.0
     car_hours: float = 0.5
     not_home: int = 0
+    car_kg: float = 0.0
+    base_kg: float = 0.0
+    average_kg: float = 0.0
+
+    @property
+    def timetable_kg(self):
+        return self.total_kg - self.car_kg
 
 
 class FakeMap:
@@ -138,22 +145,24 @@ class FakeMap:
 
 
 # Berlin Mitte-West at 6 800 commuters, kg per person per round, there and
-# back (docs/kalibrierung.md §13).
-BERLIN = {1.0: 4.17, 0.75: 3.16, 0.5: 2.41, 0.25: 1.96, 0.0: 1.53}
+# back, the class paying its share of the timetable (docs/kalibrierung.md §16).
+BERLIN = {1.0: 3.62, 0.75: 2.65, 0.5: 1.86, 0.25: 1.28, 0.0: 0.73}
 
 
 class NormalTests(SimpleTestCase):
     """What a game is played against: kg per person per round, one dial."""
 
-    def test_normal_is_berlins_half_driving_round_rounded_to_the_step(self):
-        """2.41 kg a head is what a round costs on Berlin Mitte-West when half
-        the Gruppen drive. Rounded to the dial's step, that is normal."""
-        half = Decimal(str(BERLIN[0.5]))
+    def test_normal_is_a_commute_inside_germanys_2030_target(self):
+        """A commute trip emitted 2.42 kg in 2017 (UBA, Texte 224/2020,
+        Tab. 4), so 4.84 there and back. The climate law gives transport 85 Mt
+        in 2030 (KSG, Anlage 2a) against 168 in 2017 (UBA). Cut by as much, a
+        commuter's day is 2.45 kg; on the dial's step, 2.4."""
+        day = Decimal("2.42") * 2 * Decimal(85) / Decimal(168)
         step = calibration.CO2_KG_PER_PERSON_STEP
 
         self.assertEqual(
             calibration.CO2_KG_PER_PERSON_NORMAL,
-            (half / step).quantize(Decimal(1)) * step,
+            (day / step).quantize(Decimal(1)) * step,
         )
         self.assertEqual(calibration.CO2_KG_PER_PERSON_NORMAL, Decimal("2.4"))
 
@@ -177,21 +186,21 @@ class NormalTests(SimpleTestCase):
 class CarShareTests(SimpleTestCase):
     """Which car share a kg per person buys on a map, read off its table."""
 
-    def test_normal_buys_half_the_cars_on_berlin(self):
+    def test_normal_buys_two_thirds_of_the_cars_on_berlin(self):
         share = calibration.car_share_at(Decimal("2.4"), BERLIN)
-        # Between 25 % (1.96) and 50 % (2.41), just short of the half.
-        self.assertAlmostEqual(share, 0.25 + 0.25 * (2.4 - 1.96) / (2.41 - 1.96))
-        self.assertAlmostEqual(share, 0.494, places=3)
+        # Between 50 % (1.86) and 75 % (2.65).
+        self.assertAlmostEqual(share, 0.5 + 0.25 * (2.4 - 1.86) / (2.65 - 1.86))
+        self.assertAlmostEqual(share, 0.671, places=3)
 
     def test_a_row_of_the_table_is_its_share(self):
-        self.assertAlmostEqual(calibration.car_share_at(Decimal("3.16"), BERLIN), 0.75)
+        self.assertAlmostEqual(calibration.car_share_at(Decimal("2.65"), BERLIN), 0.75)
 
     def test_more_than_everybody_driving_is_everybody(self):
         self.assertEqual(calibration.car_share_at(Decimal("5.0"), BERLIN), 1.0)
 
     def test_less_than_nobody_driving_buys_nothing(self):
         """The timetable runs whether anybody rides or not."""
-        self.assertIsNone(calibration.car_share_at(Decimal("1.4"), BERLIN))
+        self.assertIsNone(calibration.car_share_at(Decimal("0.6"), BERLIN))
 
 
 class CalibrateTests(SimpleTestCase):
@@ -283,6 +292,116 @@ class CalibrateTests(SimpleTestCase):
             FakeMap().play, target_kmh=20, start=6400, smallest=64, seeds=(1, 2, 3)
         )
         self.assertEqual(result, alone)
+
+
+class TimetableMap:
+    """Rounds with a timetable: the base one emits 1 000 kg, the riders' km
+    at Germany's occupancy 400 kg when half drive, the cars 2 kg a head."""
+
+    def play(self, *, commuters, share, seed, way_home=True):
+        car = 2.0 * commuters * share
+        return FakeRound(
+            total_kg=car + 1200.0,
+            car_kg=car,
+            base_kg=1000.0,
+            average_kg=400.0 + seed if share == 0.5 else 0.0,
+        )
+
+
+class TimetableFactorTests(SimpleTestCase):
+    """The share of the timetable the class pays (`GameMap.timetable_factor`).
+
+    What the class's riders would emit at the occupancy Germany's buses and
+    trains really run at, over what the map's base timetable emits, on the
+    map's round where half the Gruppen drive. The riders the game does not
+    have fill the seats it does.
+    """
+
+    def test_it_is_the_riders_at_germanys_occupancy_over_the_base_timetable(self):
+        rounds = [FakeRound(total_kg=0, base_kg=5729.0, average_kg=2725.0)]
+
+        self.assertEqual(calibration.timetable_factor(rounds), 0.48)
+
+    def test_over_seeds_it_is_the_sums(self):
+        rounds = [
+            FakeRound(total_kg=0, base_kg=1000.0, average_kg=300.0),
+            FakeRound(total_kg=0, base_kg=1000.0, average_kg=500.0),
+        ]
+
+        self.assertEqual(calibration.timetable_factor(rounds), 0.4)
+
+    def test_two_figures_like_the_commuters(self):
+        rounds = [FakeRound(total_kg=0, base_kg=76729.0, average_kg=1565.0)]
+
+        self.assertEqual(calibration.timetable_factor(rounds), 0.02)
+
+    def test_never_more_than_the_whole_timetable(self):
+        """Buses fuller than Germany's would charge more than they emit."""
+        rounds = [FakeRound(total_kg=0, base_kg=100.0, average_kg=150.0)]
+
+        self.assertEqual(calibration.timetable_factor(rounds), 1.0)
+
+    def test_nothing_to_measure_says_so(self):
+        """No timetable, or nobody on it: there is no share to read off."""
+        for base, average in ((0.0, 0.0), (100.0, 0.0)):
+            with self.subTest(base=base, average=average):
+                rounds = [FakeRound(total_kg=0, base_kg=base, average_kg=average)]
+                self.assertIsNone(calibration.timetable_factor(rounds))
+
+    def test_calibrate_measures_it_where_half_the_gruppen_drive(self):
+        result = calibration.calibrate(
+            TimetableMap().play, commuters=1000, start=1000, smallest=64, seeds=(1, 2)
+        )
+
+        # (401 + 402) / (1 000 + 1 000)
+        self.assertEqual(result.timetable_factor, 0.4)
+
+    def test_the_table_is_what_the_class_pays(self):
+        """The cars, and the factor's share of the timetable as it ran."""
+        result = calibration.calibrate(
+            TimetableMap().play, commuters=1000, start=1000, smallest=64, seeds=(1,)
+        )
+
+        self.assertEqual(result.timetable_factor, 0.4)
+        self.assertAlmostEqual(result.per_person[1.0], (2000 + 0.4 * 1200) / 1000)
+        self.assertAlmostEqual(result.per_person[0.0], 0.4 * 1200 / 1000)
+
+    def test_without_a_share_the_table_is_the_rounds_as_played(self):
+        result = calibration.calibrate(
+            FakeMap().play, commuters=4000, start=4000, smallest=64, seeds=(1,)
+        )
+
+        self.assertIsNone(result.timetable_factor)
+        self.assertAlmostEqual(result.per_person[1.0], 2.5 + 1 / 4000)
+
+
+class CalibratedFileTests(SimpleTestCase):
+    """What `calibrate_map --out` writes into its copy of the file."""
+
+    def result(self, factor_kg):
+        return calibration.Calibration(
+            commuters=6800,
+            target_kmh=19.0,
+            speed_kmh=19.1,
+            rows={0.5: [FakeRound(total_kg=0, base_kg=5729.0, average_kg=factor_kg)]},
+        )
+
+    def test_the_count_the_flag_and_the_share(self):
+        graph = {"map": {"name": "Karte", "co2_budget_kg_per_round": 16000}}
+
+        written = calibrated_file(graph, self.result(2725.0))
+
+        self.assertEqual(written["map"]["district_commuters"], 6800)
+        self.assertIs(written["map"]["calibrated"], True)
+        self.assertEqual(written["map"]["timetable_factor"], 0.48)
+        self.assertNotIn("co2_budget_kg_per_round", written["map"])
+
+    def test_a_share_it_could_not_measure_leaves_the_files_own(self):
+        graph = {"map": {"name": "Karte", "timetable_factor": 0.3}}
+
+        written = calibrated_file(graph, self.result(0.0))
+
+        self.assertEqual(written["map"]["timetable_factor"], 0.3)
 
 
 def map_file():
@@ -571,6 +690,32 @@ class MapRoundsTests(SmallMapRounds, TempMediaRootMixin, TestCase):
         self.assertIsNone(measure.car_trip_min)
         self.assertGreater(measure.pt_trip_min, 0)
         self.assertAlmostEqual(measure.timetable_kg, measure.total_kg)
+
+    def test_a_round_says_what_its_riders_emit_at_germanys_occupancy(self):
+        """Read off the lines as they ran, there and back: the riders'
+        person-km at UBA's g per person-km, and the base timetable, whole."""
+        nobody = self.play(self.rounds(), share=0.0)
+        everybody = self.play(self.rounds(), share=1.0)
+
+        there = Edge.objects.get(
+            game_map=self.game_map,
+            start_node_id=self.node["A"],
+            end_node_id=self.node["B"],
+            map_versions=self.base,
+        )
+        back = Edge.objects.get(
+            game_map=self.game_map,
+            start_node_id=self.node["B"],
+            end_node_id=self.node["A"],
+            map_versions=self.base,
+        )
+        scale = self.game_map.scale
+        person_km = 640 * (there.length_m(scale) + back.length_m(scale)) / 1000
+        self.assertAlmostEqual(nobody.average_kg, 90.0 * person_km / 1000)
+        self.assertEqual(everybody.average_kg, 0)
+        self.assertGreater(nobody.base_kg, 0)
+        self.assertAlmostEqual(everybody.base_kg, nobody.base_kg)
+        self.assertLessEqual(nobody.base_kg, nobody.timetable_kg)
 
     def test_half_the_gruppen_drive_at_half(self):
         rounds = self.rounds()

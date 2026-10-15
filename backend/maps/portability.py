@@ -214,6 +214,7 @@ def build_export(game_map, version=None):
             "default_car_speed_kmh": game_map.default_car_speed_kmh,
             "district_commuters": game_map.district_commuters,
             "calibrated": game_map.calibrated,
+            "timetable_factor": game_map.timetable_factor,
         },
     }
     if whole:

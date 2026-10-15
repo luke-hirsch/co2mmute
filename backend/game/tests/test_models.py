@@ -454,6 +454,51 @@ class GameMapRequiredTests(TempMediaRootMixin, TestCase):
         self.assertTrue(game.is_active)
 
 
+class TimetableFactorAtStartTests(TempMediaRootMixin, TestCase):
+    """A game pays the share of the timetable its map said when it started.
+
+    The map's factor is measured by the calibration and its author can set
+    it, so it moves. A running game must not move with it, and its research
+    data has to say what share the class paid.
+    """
+
+    def setUp(self):
+        self.host = create_host()
+        self.client.force_login(self.host)
+        self.game_map = create_game_map()
+        self.game_map.timetable_factor = 0.4
+        self.game_map.save(update_fields=["timetable_factor"])
+        with muted():
+            self.game = create_game_session(
+                self.host, game_name="Faktor", game_map=self.game_map
+            )
+
+    def _start(self):
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            response = self.client.patch(
+                f"/api/game/{self.game.game_id}/",
+                {"is_active": True},
+                content_type="application/json",
+            )
+        self.assertEqual(response.status_code, 200)
+        self.game.refresh_from_db()
+
+    def test_starting_takes_the_maps_factor(self):
+        self.assertEqual(self.game.timetable_factor, 1.0)
+
+        self._start()
+
+        self.assertAlmostEqual(self.game.timetable_factor, 0.4)
+
+    def test_a_running_game_keeps_it_when_the_map_changes(self):
+        self._start()
+        self.game_map.timetable_factor = 0.9
+        self.game_map.save(update_fields=["timetable_factor"])
+
+        self.game.refresh_from_db()
+        self.assertAlmostEqual(self.game.timetable_factor, 0.4)
+
+
 class CalibratedModelDefaultsTests(TestCase):
     """The API and the admin get the same scale the form hands a host.
 

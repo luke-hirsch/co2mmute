@@ -157,6 +157,7 @@ class TrafficSimulator(LinkQueueEngine):
                 morning_departure_hour=game_session.morning_departure_hour,
                 evening_departure_hour=game_session.evening_departure_hour,
                 departure_std_dev_min=game_session.departure_std_dev_min,
+                timetable_factor=game_session.timetable_factor,
                 walk_speed_kmh=(
                     game_map.walk_speed_kmh if game_map else FALLBACK_WALK_SPEED_KMH
                 ),

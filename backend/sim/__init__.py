@@ -24,6 +24,7 @@ from sim.constants import (
     BIKE_PCU,
     BIKE_SATURATION_FLOW_VEH_PER_H_LANE,
     BUS_COST_PER_VEHICLE_KM,
+    BUS_EMISSIONS_G_PER_PERSON_KM,
     BUS_EMISSIONS_G_PER_VEHICLE_KM,
     BUS_PCU,
     CAPACITY_FACTOR_CLAMP,
@@ -43,8 +44,10 @@ from sim.constants import (
     PT_FARE_EUR,
     SATURATION_FLOW_VEH_PER_H_LANE,
     TRAIN_COST_PER_VEHICLE_KM,
+    TRAIN_EMISSIONS_G_PER_PERSON_KM,
     TRAIN_EMISSIONS_G_PER_VEHICLE_KM,
     TRAM_COST_PER_VEHICLE_KM,
+    TRAM_EMISSIONS_G_PER_PERSON_KM,
     TRAM_EMISSIONS_G_PER_VEHICLE_KM,
     TRAM_PCU,
     car_cost_eur_per_km,
@@ -53,6 +56,7 @@ from sim.constants import (
     draw_capacity_factor,
     draw_driver_speed_factor,
     generate_departure_minutes,
+    pt_emissions_g_per_person_km,
 )
 from sim.engine import Engine
 from sim.linkqueue import LinkQueueEngine
@@ -73,6 +77,7 @@ __all__ = [
     "BIKE_PCU",
     "BIKE_SATURATION_FLOW_VEH_PER_H_LANE",
     "BUS_COST_PER_VEHICLE_KM",
+    "BUS_EMISSIONS_G_PER_PERSON_KM",
     "BUS_EMISSIONS_G_PER_VEHICLE_KM",
     "BUS_PCU",
     "CAPACITY_FACTOR_CLAMP",
@@ -92,8 +97,10 @@ __all__ = [
     "PT_FARE_EUR",
     "SATURATION_FLOW_VEH_PER_H_LANE",
     "TRAIN_COST_PER_VEHICLE_KM",
+    "TRAIN_EMISSIONS_G_PER_PERSON_KM",
     "TRAIN_EMISSIONS_G_PER_VEHICLE_KM",
     "TRAM_COST_PER_VEHICLE_KM",
+    "TRAM_EMISSIONS_G_PER_PERSON_KM",
     "TRAM_EMISSIONS_G_PER_VEHICLE_KM",
     "TRAM_PCU",
     "EdgeState",
@@ -119,4 +126,5 @@ __all__ = [
     "draw_driver_speed_factor",
     "generate_departure_minutes",
     "node_chain",
+    "pt_emissions_g_per_person_km",
 ]

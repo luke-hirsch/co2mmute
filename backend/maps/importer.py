@@ -202,6 +202,26 @@ class MapImporter:
                                 "commuter count, keeping it unmeasured",
                                 game_map.pk,
                             )
+                    # The share of the timetable the class pays. Absent on
+                    # every file before 2026-10-15 and on a hand-drawn one,
+                    # and then the field default, the whole timetable,
+                    # stands; so does it for anything that is no share.
+                    if "timetable_factor" in map_meta:
+                        factor = map_meta["timetable_factor"]
+                        if (
+                            isinstance(factor, (int, float))
+                            and not isinstance(factor, bool)
+                            and 0 <= factor <= 1
+                        ):
+                            game_map.timetable_factor = float(factor)
+                            changed.append("timetable_factor")
+                        else:
+                            logger.warning(
+                                "Map %s: timetable_factor is no share between "
+                                "0 and 1 (%r), keeping the whole timetable",
+                                game_map.pk,
+                                factor,
+                            )
                     if changed:
                         game_map.save(update_fields=changed)
                     logger.info(f"Created {len(node_mapping)} nodes")

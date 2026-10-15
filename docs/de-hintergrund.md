@@ -180,6 +180,19 @@ genau die Summe der Linie: `Σ persönlich = Gesellschaft`.
 Die Summe einer Runde sind deshalb die Zeilen der Spieler **plus** die Gesellschaftskosten der
 Linien, die niemand benutzt hat.
 
+Bezahlt wird davon ein **Anteil am Fahrplan**, CO₂ und Kosten. Die Linien fahren den Fahrplan der
+echten Stadt, gemacht für ihre Millionen, und die Pendler auf der Karte sind ein paar Tausend davon.
+Allein in Bus und Bahn bezahlten sie die Plätze mit, auf denen in der Stadt andere sitzen: Auf
+Berlin Mitte-West kam ein Personenkilometer so auf 144 g, wo das Umweltbundesamt für Deutschland
+90 g im Bus rechnet, 42 g in Tram und U-Bahn, 44 g in S-Bahn und Regionalzug. Der Anteil ist, was
+die Mitfahrenden der Karte ausstoßen würden, wenn Bus und Bahn so voll wären wie im deutschen Mittel,
+geteilt durch das, was der Grundfahrplan ausstößt, gemessen in der Runde, in der die Hälfte der
+Gruppen Auto fährt, und nie mehr als alles. Auf Berlin Mitte-West sind es 0,48. Er gilt für jeden
+Fahrzeugkilometer, auch für die Fahrten nach dem Fahrplan und für Linien, die niemand benutzt hat;
+die Runde selbst ändert er nicht, und das Ticket bleibt das Ticket. Eine Karte ohne Messung bezahlt
+den ganzen Fahrplan, und wer eine Karte baut, kann den Anteil selbst setzen. Ein Spiel behält den
+Anteil, mit dem es angefangen hat.
+
 ## CO₂ und Kosten hängen an einer Geschwindigkeitskurve
 
 Emissionen sind kein fester Wert pro Kilometer. Ein Auto im Stop-and-go verbrennt Kraftstoff, den es
@@ -304,6 +317,7 @@ Jede Karte trägt:
 ```
 district_commuters        Pendler, die die Karte trägt
 calibrated                ob die Zahl für diese Karte gemessen ist
+timetable_factor          welchen Anteil am Fahrplan die Pendler bezahlen
 ```
 
 Die Werte stehen in der JSON-Datei der Karte, lassen sich im Admin ändern und gehen beim Export mit.
@@ -311,7 +325,7 @@ Eine neue Karte übernimmt die 6.800 von Berlin Mitte-West, bis jemand für sie 
 `calibrated` gesetzt ist, verschwindet der Hinweis bei „Spiel anlegen“.
 
 Das Budget gehört nicht zur Karte. Es ist eine Zahl pro Person und Runde, auf jeder Karte dieselbe,
-und „Spiel anlegen“ stellt sie ein: 1,0 bis 6,0 kg in Schritten von 0,2, normal 2,4. Alles andere
+und „Spiel anlegen“ stellt sie ein: 0,6 bis 6,0 kg in Schritten von 0,2, normal 2,4. Alles andere
 wird abgeleitet:
 
 ```
@@ -421,18 +435,18 @@ weniger Autos spielen, etwa mit drei Vierteln, der Hälfte und einem Viertel:
 
 | Autoanteil | pro Person | Runde gesamt |      Auto |  Fahrplan | Fahrzeit Auto hin / zurück |
 | ---------: | ---------: | -----------: | --------: | --------: | -------------------------: |
-|      100 % |    4,17 kg |    28.379 kg | 21.080 kg |  7.299 kg |            23,7 / 22,4 min |
-|       75 % |    3,16 kg |    21.498 kg | 14.773 kg |  6.725 kg |            16,8 / 15,4 min |
-|       50 % |    2,41 kg |    16.420 kg |  9.122 kg |  7.299 kg |            11,6 / 11,7 min |
-|       25 % |    1,96 kg |    13.340 kg |  4.449 kg |  8.890 kg |            10,2 / 10,3 min |
-|        0 % |    1,53 kg |    10.402 kg |         — | 10.402 kg |                          — |
+|      100 % |    3,62 kg |    24.584 kg | 21.080 kg |  3.503 kg |            23,7 / 22,4 min |
+|       75 % |    2,65 kg |    18.023 kg | 14.773 kg |  3.250 kg |            16,8 / 15,4 min |
+|       50 % |    1,86 kg |    12.625 kg |  9.122 kg |  3.503 kg |            11,6 / 11,7 min |
+|       25 % |    1,28 kg |     8.717 kg |  4.449 kg |  4.267 kg |            10,2 / 10,3 min |
+|        0 % |    0,73 kg |     4.993 kg |         — |  4.993 kg |                          — |
 
 ![Was eine Runde kostet, nach Autoanteil](../backend/template/hintergrund/runde.svg)
 
-_Jeder Balken ist eine Runde mit Hin- und Rückweg: Auto in Blau, der Fahrplan in Gelb. Der Fahrplan
-fährt so oder so und wird teurer, je mehr Leute einsteigen, weil die Linien fahren, bis der Letzte
-zu Hause ist; das Auto bestimmt, wie lang der Balken wird. Die Linie ist das Budget einer Runde bei
-normal, 2,4 kg × 6.800 Pendler = 16.320 kg._
+_Jeder Balken ist eine Runde mit Hin- und Rückweg: Auto in Blau, der Anteil am Fahrplan in Gelb.
+Der Fahrplan fährt so oder so und wird teurer, je mehr Leute einsteigen, weil die Linien fahren, bis
+der Letzte zu Hause ist; das Auto bestimmt, wie lang der Balken wird. Die Linie ist das Budget einer
+Runde bei normal, 2,4 kg × 6.800 Pendler = 16.320 kg._
 
 Auf Berlin Mitte-West ist der Stau weg, wenn die Hälfte umsteigt. Stau ist ein Schwellenphänomen
 dicht an der Kapazität: Knapp darunter fließt der Verkehr, knapp darüber staut er. Bleibt der Stau
@@ -440,13 +454,14 @@ auch bei halbem Autoanteil, ist die Pendlerzahl zu hoch. Staut es schon dann kau
 fahren, ist sie zu niedrig.
 
 Beim ÖPNV zeigt sich zu viel Nachfrage als Wartezeit. Auf Berlin Mitte-West brauchen Bus und Bahn 32
-bis 43 Minuten, und die Wartezeit an der Haltestelle wächst von 21 auf 44 Minuten, je mehr Leute
+bis 43 Minuten, und die Wartezeit an der Haltestelle wächst von 20 auf 45 Minuten, je mehr Leute
 umsteigen, weil die Fahrzeuge voll sind.
 
 Gemessen mit `calibrate_map` auf der Basisversion von Berlin Mitte-West, auf Postgres: 72 Gruppen zu
 je 94 Menschen, gleichmäßig über die 36 Paare aus Wohnort und Arbeitsplatz verteilt, jedes Paar
-fährt seinen Anteil Auto und der Rest Bus und Bahn, gemittelt über sechs Seeds. Pro Person heißt: die
-Runde geteilt durch die 6.800 Pendler, so wie das Budget sie zählt.
+fährt seinen Anteil Auto und der Rest Bus und Bahn, gemittelt über sechs Seeds, am 15. Oktober 2026.
+Pro Person heißt: die Runde geteilt durch die 6.800 Pendler, so wie das Budget sie zählt. Der
+Fahrplan ist der Anteil, den die Pendler bezahlen, 0,48 des Fahrplans, wie er gefahren ist.
 
 ### Das Budget
 
@@ -454,12 +469,20 @@ Das Budget ist eine Zahl pro Person und Runde, auf jeder Karte dieselbe. Ein Bud
 ihr selbst gemessen, ließe jede Stadt gleich schwer aussehen; pro Person ist eine Stadt mit langen
 Wegen oder wenig Bus und Bahn von selbst schwerer. Das ist die Lektion, kein Fehler.
 
-**Normal sind 2,4 kg.** So viel kostet eine Runde auf Berlin Mitte-West pro Person, wenn die Hälfte
-der Gruppen Auto fährt (2,41 kg), auf den Schritt des Reglers gerundet. Die Zahl ist einmal gemessen
-und bleibt, ein Anker für alle Karten. Auf Berlin Mitte-West reicht normal, wenn 49 % der Gruppen
-Auto fahren; für eine neue Karte sagt `calibrate_map`, welcher Anteil es dort ist. Der Regler bei
-„Spiel anlegen“ geht von 1,0 bis 6,0 kg in Schritten von 0,2, weil auf Berlin 0,5 kg etwa ein Viertel
-der Klasse ist, das umsteigt. Das Spiel speichert, mit wie viel Kilo es gespielt wurde.
+**Normal sind 2,4 kg.** So viel lässt Deutschlands Klimaziel für 2030 einem Arbeitsweg, hin und
+zurück. Ein Arbeitsweg stieß 2017 im Mittel 2,42 kg CO₂ aus (Umweltbundesamt, Texte 224/2020,
+Tab. 4, aus „Mobilität in Deutschland 2017“, mit der Vorkette), hin und zurück 4,84 kg. Das
+Klimaschutzgesetz gibt dem Verkehr für 2030 85 Mio. t (Anlage 2a), 2017 waren es 168. Um so viel
+gekürzt, bleiben einem Pendler am Tag 2,45 kg, auf den Schritt des Reglers 2,4. Es ist ein Mittel
+über Deutschland, lange Wege eingeschlossen: Arbeitswege über 50 km sind 5 % der Wege und 30 % ihres
+CO₂. Eine Stadt ist deshalb von selbst leichter als das Mittel. Bis zum 15. Oktober 2026 war normal
+die Runde auf Berlin Mitte-West, in der die Hälfte Auto fährt (2,41 kg); seit die Pendler ihren
+Anteil am Fahrplan bezahlen, kostet sie 1,86 kg, und die 2,4 blieben und haben eine Quelle.
+
+Auf Berlin Mitte-West reicht normal, wenn 67 % der Gruppen Auto fahren; für eine neue Karte sagt
+`calibrate_map`, welcher Anteil es dort ist. Der Regler bei „Spiel anlegen“ geht von 0,6 bis 6,0 kg
+in Schritten von 0,2, weil auf Berlin 0,5 kg etwa ein Sechstel der Klasse ist, das umsteigt. Das
+Spiel speichert, mit wie viel Kilo es gespielt wurde.
 
 Gerechnet wird mit den Pendlern der Karte, nicht mit den Menschen, die die Gruppen auf die Karte
 bringen (106 × 64 = 6.784). Überschreibt jemand die Menschen pro Gruppe, um eine Runde leichter zu
@@ -467,14 +490,13 @@ machen, schrumpft das Budget nicht mit: Der Fahrplan fährt, ob jemand einsteigt
 
 Was das Budget im Spiel bedeutet, zeigen zwei Spiele über sechs Runden: eines, in dem niemand aus dem
 Auto steigt, und eines, das sich herunterarbeitet, mit 100 / 75 / 50 / 50 / 25 / 25 % Autoanteil.
-Nach unten begrenzt es der Fahrplan, der auch fährt, wenn niemand einsteigt: 1,53 kg pro Person, und
+Nach unten begrenzt es der Fahrplan, der auch fährt, wenn niemand einsteigt: 0,73 kg pro Person, und
 darunter ist keine Runde zu schaffen.
 
 Bei normal sind das 97.920 kg für sechs Runden. Wer durchgehend fährt, ist in Runde 4 raus. Wer sich
-herunterarbeitet, kommt auf 109.397 kg, 16,09 kg pro Person gegen 14,4, und überschreitet das Budget
-in der letzten Runde. Das liegt am Fahrplan: Die Linien fahren, bis der Letzte zu Hause ist, und je
-mehr umsteigen, desto länger sind Leute unterwegs. Mit 2,8 kg käme das zweite Spiel durch. Wer alle
-sechs Runden schaffen will, muss bei normal früher umsteigen.
+herunterarbeitet, kommt auf 85.291 kg, 12,54 kg pro Person gegen 14,4, und kommt durch. Bis zum
+15. Oktober 2026, als die Pendler noch den ganzen Fahrplan bezahlten, waren es 16,09 kg, und das
+zweite Spiel scheiterte in der letzten Runde.
 
 Bis zum 7. Oktober 2026 war das Budget eine Zahl der Karte, auf Berlin Mitte-West 16.000 kg pro
 Runde; wie es dahin kam, steht in `docs/kalibrierung.md`.
@@ -496,10 +518,26 @@ fiel der Zugfaktor auf, der anfangs bei 3.500 g/Zug-km stand. Das entspricht run
 Zugkilometer, also einem dieselgeführten Fernzug. Eine Berliner U- oder S-Bahn braucht etwa 4 kWh,
 mit dem deutschen Strommix sind das 1.450 g, gerundet 1.500.
 
-Ein falscher ÖPNV-Faktor wiegt schwer, weil der Fahrplan auch fährt, wenn niemand einsteigt. Bei 3.500 g
+Ein falscher ÖPNV-Faktor wog schwer, weil der Fahrplan auch fährt, wenn niemand einsteigt. Bei 3.500 g
 machte der Fahrplan 39 % einer Runde aus, in der alle Auto fahren; bei 1.500 g waren es 22 %, und
-seit die Linien fahren, bis alle zu Hause sind, sind es 25 %. Den Fahrplan kann beim Spielen niemand
-abbestellen.
+seit die Linien fahren, bis alle zu Hause sind, 25 %. Den Fahrplan kann beim Spielen niemand
+abbestellen. Seit die Pendler ihren Anteil bezahlen, sind es 14 %, und der Anteil misst den Faktor
+mit: In der Runde, an der er gemessen wird, kostet der Grundfahrplan, was die Mitfahrenden beim
+Umweltbundesamt ausstoßen, was auch immer pro Fahrzeugkilometer dasteht. Ein falscher Faktor
+verschiebt noch, was ein Bus gegen einen Zug wiegt und was die Fahrten nach dem Fahrplan kosten.
+
+Den Anteil misst `calibrate_map` mit dem, was ein Personenkilometer in Deutschland ausstößt, so voll,
+wie Bus und Bahn wirklich fahren (Umweltbundesamt, TREMOD 6.71B, 10/2025, Bezugsjahr 2024, mit der
+Vorkette, Strom im deutschen Mix):
+
+| Modus | pro Personenkilometer | Zeile beim Umweltbundesamt, Auslastung   |
+| ----- | --------------------: | ---------------------------------------- |
+| Bus   | 90 g                  | Linienbus, Nahverkehr, 16 %              |
+| Tram  | 42 g                  | Straßen-, Stadt- und U-Bahn, 19 %        |
+| Zug   | 44 g                  | Eisenbahn, Nahverkehr, 30 %              |
+
+Eine U-Bahn steht beim Umweltbundesamt in der Zeile der Tram, zwei Gramm daneben; eine Zuglinie sagt
+im Spiel nicht, welche sie ist.
 
 Zwei Regeln:
 

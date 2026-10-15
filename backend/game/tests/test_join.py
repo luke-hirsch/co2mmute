@@ -1241,18 +1241,18 @@ class CalibratedCreateFormTests(TempMediaRootMixin, TestCase):
     def test_the_budget_is_beatable_and_losable(self):
         """What the normal kg is FOR, in one assertion.
 
-        Measured on the shipped map at 6 800 commuters, there and back
-        (`calibrate_map`, six seeds, Postgres): a round where everybody drives
-        is 4.17 kg a head, a round nobody drives 1.53 kg, the timetables' own
-        floor. Normal has to sit between them or it is not a budget. A class
-        that goes 100/75/50/50/25/25 % spends 16.09 kg a head over six rounds
-        against 14.4 — over, as it has been since every line runs until
-        everybody is home (docs/kalibrierung.md §11, §13).
+        Measured on the shipped map at 6 800 commuters, there and back, the
+        class paying its share of the timetable (`calibrate_map`, six seeds,
+        Postgres): a round where everybody drives is 3.62 kg a head, a round
+        nobody drives 0.73 kg. Normal has to sit between them or it is not a
+        budget. A class that goes 100/75/50/50/25/25 % spends 12.54 kg a head
+        over six rounds against 14.4 and gets through; one that keeps driving
+        is out in round 4 (docs/kalibrierung.md §16).
         """
         from game.calibration import CO2_KG_PER_PERSON_NORMAL
 
-        self.assertLess(CO2_KG_PER_PERSON_NORMAL, Decimal("4.17"))
-        self.assertGreater(CO2_KG_PER_PERSON_NORMAL, Decimal("1.53"))
+        self.assertLess(CO2_KG_PER_PERSON_NORMAL, Decimal("3.62"))
+        self.assertGreater(CO2_KG_PER_PERSON_NORMAL, Decimal("0.73"))
 
     def test_the_game_records_the_kg_it_was_played_at(self):
         """The dial is what the host chose; `max_CO2_level` is what follows
@@ -1285,7 +1285,7 @@ class CalibratedCreateFormTests(TempMediaRootMixin, TestCase):
         """Refused in German, beside the field: the screen renders it."""
         self.client.force_login(self.host)
 
-        for value in ("2.5", "0.8", "6.2", "2.45", "zwei", "-2.4"):
+        for value in ("2.5", "0.4", "6.2", "2.45", "zwei", "-2.4"):
             with self.subTest(value=value):
                 with muted():
                     response = post_create(

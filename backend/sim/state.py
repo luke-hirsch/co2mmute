@@ -12,9 +12,9 @@ from sim.constants import (
     JAM_DENSITY_VEH_PER_KM_LANE,
     SATURATION_FLOW_VEH_PER_H_LANE,
     pt_cost_eur_per_vehicle_km,
+    pt_emissions_g_per_person_km,
     pt_emissions_g_per_vehicle_km,
 )
-
 
 def node_chain(ends: list[tuple[int, int]]) -> list[int]:
     """Node ids a run of edges visits, in travel order.
@@ -130,6 +130,8 @@ class PTLineState:
     # What runs the line where that is not the mode's own vehicle — "tram"
     # for a train line run by trams. See `sim.scenario.Line`.
     kind: str = ""
+    # The share of it the class pays (`sim.scenario.Params`).
+    timetable_factor: float = 1.0
 
     edge_ids: list[int] = field(default_factory=list)
     stops: list[int] = field(default_factory=list)
@@ -166,13 +168,44 @@ class PTLineState:
 
     @property
     def society_co2_g(self) -> float:
-        """What the line emits this round. Not a function of its riders."""
-        return pt_emissions_g_per_vehicle_km(self.vehicle) * self.vehicle_km
+        """What the class pays for the line's emissions this round.
+
+        The class's share of every vehicle-km it ran, whoever rode it: the
+        lines run a city's timetable, and the class is a few thousand of its
+        people. Not a function of its riders.
+        """
+        return (
+            pt_emissions_g_per_vehicle_km(self.vehicle)
+            * self.vehicle_km
+            * self.timetable_factor
+        )
 
     @property
     def society_cost_eur(self) -> float:
-        """What running the line costs this round. Not a function of riders."""
-        return pt_cost_eur_per_vehicle_km(self.vehicle) * self.vehicle_km
+        """What the class pays for running the line this round, the same share."""
+        return (
+            pt_cost_eur_per_vehicle_km(self.vehicle)
+            * self.vehicle_km
+            * self.timetable_factor
+        )
+
+    @property
+    def base_co2_g(self) -> float:
+        """What the base timetable emits, whole: no share, no runs past it."""
+        return (
+            pt_emissions_g_per_vehicle_km(self.vehicle)
+            * self.base_vehicles
+            * self.line_km
+        )
+
+    @property
+    def average_co2_g(self) -> float:
+        """What this round's riders would emit at Germany's occupancy.
+
+        Their person-km at the Umweltbundesamt's g per person-km: the buses as
+        full as the country's are, with the riders the game does not have.
+        """
+        return pt_emissions_g_per_person_km(self.vehicle) * self.person_km
 
     def share_of(self, society_total: float, person_km: float) -> float:
         """This many person-kilometres' slice of a society total.

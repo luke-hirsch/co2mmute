@@ -44,7 +44,7 @@ So set the seats to the number of people who will actually play. The number of p
 #### When It Ends ("Wann das Spiel endet")
 
 - rounds ("Runden", 6 by default): how many rounds are played, if the budget lasts that long.
-- CO2 per person and round ("CO₂ pro Person und Runde", 2.4 kg by default, "normal"): the difficulty dial. How much CO2 every person on the map may emit per round, there and back, from 1.0 to 6.0 kg in steps of 0.2. Below it the form says what that means for the whole game: 2.4 kg × 6,800 commuters × 6 rounds = 97,920 kg on Berlin Mitte-West. Once it is used up, the game is over. Normal lasts on that map if half the groups drive. A class that keeps driving is out in round 4; a class that switches step by step makes it to the last round. The kilograms are the same on every map, so a map with long commutes or thin public transport is harder by itself.
+- CO2 per person and round ("CO₂ pro Person und Runde", 2.4 kg by default, "normal"): the difficulty dial. How much CO2 every person on the map may emit per round, there and back, from 0.6 to 6.0 kg in steps of 0.2. Below it the form says what that means for the whole game: 2.4 kg × 6,800 commuters × 6 rounds = 97,920 kg on Berlin Mitte-West. Once it is used up, the game is over. Normal lasts on that map if two thirds of the groups drive. A class that keeps driving is out in round 4; a class that switches step by step gets through every round. The kilograms are the same on every map, so a map with long commutes or thin public transport is harder by itself.
 
 #### More Settings ("Weitere Einstellungen")
 

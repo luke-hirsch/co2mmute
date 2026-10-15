@@ -8,7 +8,11 @@ morning where everybody drives as slow as the city's rush hour (`--speed`, in
 km/h — the figure and its source come from whoever runs this; for Berlin, the
 TomTom Traffic Index's 19.0). The budget is kg per person per round, the same
 on every map, so what is measured about it is what it buys here: a round at
-each car share, per person, and the share the normal kg stays inside.
+each car share, per person, and the share the normal kg stays inside. And the
+share of the timetable the class pays (`GameMap.timetable_factor`): what its
+riders would emit in buses as full as Germany's, over the base timetable, on
+the round where half drive (`calibration.timetable_factor`). The table is that
+bill — the rounds run the whole timetable, and the share is taken after.
 
 The file is imported into a throwaway database, never the one the app runs
 on: a test database of its own, in memory under sqlite. Measure on Postgres
@@ -21,8 +25,8 @@ back. Only the pairs the seeds deal are routed, in the car and by public
 transport. On Postgres the rounds of a step play side by side, one process
 each (`--workers`, as many as the seeds unless the machine has fewer cores):
 all of Berlin took four and a half hours one by one. Prints the answer and the
-table it came from; `--out` writes a copy of the file carrying the count and
-`calibrated: true`.
+table it came from; `--out` writes a copy of the file carrying the count,
+`calibrated: true` and the share.
 """
 
 import json
@@ -59,6 +63,22 @@ def de(value, digits=0):
 
 def minutes(value):
     return "—" if value is None else f"{de(value, 1)} min"
+
+
+def calibrated_file(graph, result):
+    """The file with what the calibration measured on it, for `--out`.
+
+    The count and `calibrated: true`, and the share of the timetable the class
+    pays where there was one to measure; where not, the file keeps its own.
+    """
+    meta = graph.setdefault("map", {})
+    meta["district_commuters"] = result.commuters
+    # A file from before the budget was per person (2026-10-07).
+    meta.pop("co2_budget_kg_per_round", None)
+    meta["calibrated"] = True
+    if result.timetable_factor is not None:
+        meta["timetable_factor"] = result.timetable_factor
+    return graph
 
 
 class Command(BaseCommand):
@@ -111,7 +131,11 @@ class Command(BaseCommand):
             ),
         )
         parser.add_argument(
-            "--out", help="Kopie der Datei mit der Pendlerzahl und calibrated: true."
+            "--out",
+            help=(
+                "Kopie der Datei mit der Pendlerzahl, calibrated: true und dem "
+                "Anteil am Fahrplan."
+            ),
         )
 
     def handle(
@@ -189,13 +213,10 @@ class Command(BaseCommand):
 
         self._report(graph, rounds, result)
         if out:
-            meta = graph.setdefault("map", {})
-            meta["district_commuters"] = result.commuters
-            # A file from before the budget was per person (2026-10-07).
-            meta.pop("co2_budget_kg_per_round", None)
-            meta["calibrated"] = True
             Path(out).write_text(
-                json.dumps(graph, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+                json.dumps(calibrated_file(graph, result), indent=2, ensure_ascii=False)
+                + "\n",
+                encoding="utf-8",
             )
             self.stdout.write(f"Geschrieben: {out}")
 
@@ -358,13 +379,34 @@ class Command(BaseCommand):
                 f"Normal, {normal} kg pro Person und Runde, reicht hier, wenn "
                 f"{de(share * 100)} % der Gruppen Auto fahren."
             )
+        factor = result.timetable_factor
+        half = result.rows.get(calibration.TIMETABLE_SHARE, [])
+        if factor is None:
+            kept = graph.get("map", {}).get("timetable_factor", 1.0)
+            write(
+                "Anteil am Fahrplan: nicht messbar — bei "
+                f"{round(calibration.TIMETABLE_SHARE * 100)} % Auto fährt niemand "
+                "Bus oder Bahn, oder die Karte hat keine Linien. Die Tabelle rechnet "
+                f"mit dem ganzen Fahrplan, die Datei behält ihren Anteil ({de(kept, 2)})."
+            )
+        else:
+            average = statistics.mean(r.average_kg for r in half)
+            base = statistics.mean(r.base_kg for r in half)
+            whole = " — mehr als der Fahrplan, also ganz" if average >= base else ""
+            write(
+                f"Anteil am Fahrplan: {de(factor, 2)}. Bei "
+                f"{round(calibration.TIMETABLE_SHARE * 100)} % Auto stoßen die "
+                "Mitfahrenden, Bus und Bahn so voll wie in Deutschland (Umweltbundesamt: "
+                "Bus 90, Tram 42, Bahn 44 g pro Personen-km), "
+                f"{de(average)} kg aus, der Grundfahrplan {de(base)} kg{whole}."
+            )
         people = rounds.gruppen * rounds.people_per_gruppe(result.commuters)
         write(
             f"  {de(rounds.people_per_gruppe(result.commuters))} Menschen pro Gruppe, "
             f"{de(people)} auf der Karte, Mittel über "
             f"{len(next(iter(result.rows.values())))} Seeds, hin und zurück; "
             f"pro Person heißt: die Runde durch {de(result.commuters)} Pendler, "
-            "wie das Budget"
+            "wie das Budget; Runde und Fahrplan mit dem Anteil"
         )
         write("")
         write(
@@ -382,10 +424,11 @@ class Command(BaseCommand):
             car = mean("car_trip_min")
             back = mean("car_return_min")
             trip = "—" if car is None else f"{de(car, 1)} / {de(back or 0, 1)} min"
+            timetable = mean("timetable_kg") * (1.0 if factor is None else factor)
             write(
                 f"{round(share * 100):>8} % {de(per_person[share], 2):>9} kg "
-                f"{de(mean('total_kg')):>8} kg "
-                f"{de(mean('car_kg')):>8} kg {de(mean('timetable_kg')):>8} kg "
+                f"{de(per_person[share] * result.commuters):>8} kg "
+                f"{de(mean('car_kg')):>8} kg {de(timetable):>8} kg "
                 f"{trip:>19} {minutes(mean('pt_trip_min')):>12} "
                 f"{minutes(mean('pt_wait_min')):>8} {max(r.not_home for r in played):>10}"
             )
@@ -410,9 +453,7 @@ class Command(BaseCommand):
                 "Nicht alle sind angekommen: ein Durchlauf hat seine Grenze erreicht. "
                 "Das ist ein Fehler der Karte oder des Modells, kein Ergebnis."
             )
-        none = statistics.mean(r.total_kg for r in result.rows[0.0])
-        everyone = statistics.mean(r.total_kg for r in result.rows[1.0])
-        if none > everyone:
+        if per_person[0.0] > per_person[1.0]:
             notes.append(
                 "Eine Runde ohne Auto kostet hier mehr als eine, in der alle fahren: "
                 "der Fahrplan fährt, ob jemand mitfährt oder nicht."

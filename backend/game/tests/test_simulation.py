@@ -97,6 +97,11 @@ class SimulationParameterLoadingTests(TestCase):
         self.assertEqual(simulator.evening_departure_hour, 18)
         self.assertEqual(simulator.departure_std_dev_min, 15)
 
+    def test_a_game_pays_the_whole_timetable_unless_told(self):
+        simulator = TrafficSimulator(self.game_round, scale=100.0)
+
+        self.assertEqual(simulator.scenario.params.timetable_factor, 1.0)
+
     def test_loads_speed_parameters(self):
         """Test that speed parameters are loaded from GameMap."""
         simulator = TrafficSimulator(self.game_round, scale=100.0)
@@ -2617,6 +2622,26 @@ class PTSocietyFiguresTests(PTScenarioMixin, TestCase):
         result = SimulationResult.objects.get(game_round=game_round)
         self.assertAlmostEqual(result.network_co2_g, 100_800.0, places=2)
         self.assertAlmostEqual(result.network_cost_eur, 108.0 + 576.0, places=2)
+
+    def test_the_game_pays_the_share_it_started_with(self):
+        """The game's factor, not the map's as it is now: a map recalibrated
+        while a game runs must not move the game."""
+        from game.models import SimulationResult
+
+        game_map, _, _, _, _, game_round = self._round_with(mode="car")
+        game_map.timetable_factor = 0.5
+        game_map.save(update_fields=["timetable_factor"])
+        session = game_round.game
+        session.timetable_factor = 0.25
+        session.save(update_fields=["timetable_factor"])
+
+        self._run(game_round)
+
+        result = SimulationResult.objects.get(game_round=game_round)
+        self.assertAlmostEqual(result.network_co2_g, 0.25 * 100_800.0, places=2)
+        self.assertAlmostEqual(
+            result.network_cost_eur, 0.25 * (108.0 + 576.0), places=2
+        )
 
     def test_the_total_is_the_routes_plus_the_lines_nobody_rode(self):
         """The identity the screen has to explain: rows + network = headline."""

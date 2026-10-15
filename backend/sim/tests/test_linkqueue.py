@@ -16,10 +16,15 @@ from unittest.mock import patch
 from django.test import SimpleTestCase
 
 from sim import (
+    BUS_COST_PER_VEHICLE_KM,
+    BUS_EMISSIONS_G_PER_PERSON_KM,
+    BUS_EMISSIONS_G_PER_VEHICLE_KM,
     PT_FARE_EUR,
     TRAIN_COST_PER_VEHICLE_KM,
+    TRAIN_EMISSIONS_G_PER_PERSON_KM,
     TRAIN_EMISSIONS_G_PER_VEHICLE_KM,
     TRAM_COST_PER_VEHICLE_KM,
+    TRAM_EMISSIONS_G_PER_PERSON_KM,
     TRAM_EMISSIONS_G_PER_VEHICLE_KM,
     TRAM_PCU,
     Engine,
@@ -30,6 +35,7 @@ from sim import (
     Route,
     Scenario,
     Segment,
+    pt_emissions_g_per_person_km,
 )
 from sim.linkqueue import HOME_PASS_EARLIEST_TICK
 
@@ -605,3 +611,99 @@ class TramTests(SimpleTestCase):
         self.assertAlmostEqual(
             line.society_cost_eur, TRAIN_COST_PER_VEHICLE_KM * line.vehicle_km
         )
+
+
+class TimetableFactorTests(SimpleTestCase):
+    """The class pays its share of the timetable, not all of it.
+
+    The lines run the real city's timetable, made for its millions; the class
+    is a few thousand of them. `Params.timetable_factor` is the share it pays:
+    every vehicle-km's CO2 and cost times the factor, the riders' shares, the
+    lines nobody rode and the runs past the timetable alike. The round itself
+    does not change, and nor does the ticket.
+    """
+
+    def _round(self, factor, mode="bus"):
+        links = _corridor()
+        bus = Line(
+            mode="bus",
+            line_id=7,
+            name="M7",
+            edge_ids=tuple(link.edge_id for link in links),
+            interval_min=10,
+            capacity=85,
+        )
+        if mode == "bus":
+            gruppe = _route(1, links, mode="bus", line_id=7, transport_mode="public")
+        else:
+            gruppe = _route(1, links)
+        scenario = _scenario([gruppe], links, lines=[bus])
+        params = replace(scenario.params, timetable_factor=factor)
+        return _run(replace(scenario, params=params))
+
+    def test_the_class_pays_its_share_of_every_vehicle_km(self):
+        whole, share = self._round(1.0), self._round(0.25)
+        line = share.pt_lines[("bus", 7)]
+
+        self.assertEqual(line.vehicles, whole.pt_lines[("bus", 7)].vehicles)
+        self.assertEqual(line.boarded, whole.pt_lines[("bus", 7)].boarded)
+        self.assertAlmostEqual(
+            line.society_co2_g,
+            0.25 * BUS_EMISSIONS_G_PER_VEHICLE_KM * line.vehicle_km,
+        )
+        self.assertAlmostEqual(
+            line.society_cost_eur, 0.25 * BUS_COST_PER_VEHICLE_KM * line.vehicle_km
+        )
+        self.assertAlmostEqual(share.outcomes[1].co2_g, 0.25 * whole.outcomes[1].co2_g)
+        self.assertAlmostEqual(
+            share.outcomes[1].cost_eur, 0.25 * whole.outcomes[1].cost_eur
+        )
+        self.assertAlmostEqual(
+            share.pass_network_co2_g, 0.25 * whole.pass_network_co2_g
+        )
+
+    def test_the_ticket_is_the_riders_own(self):
+        share = self._round(0.25)
+
+        self.assertEqual(share.outcomes[1].paid_eur, PT_FARE_EUR * PEOPLE)
+
+    def test_a_line_nobody_rides_is_shared_too(self):
+        whole, share = self._round(1.0, mode="car"), self._round(0.25, mode="car")
+
+        self.assertEqual(share.pt_lines[("bus", 7)].person_km, 0)
+        self.assertAlmostEqual(
+            share.pass_network_co2_g, 0.25 * whole.pass_network_co2_g
+        )
+        self.assertAlmostEqual(
+            share.pass_total_co2_g - share.outcomes[1].co2_g,
+            0.25 * (whole.pass_total_co2_g - whole.outcomes[1].co2_g),
+        )
+
+    def test_unless_told_the_class_pays_all_of_it(self):
+        links = _corridor()
+
+        self.assertEqual(_scenario([], links).params.timetable_factor, 1.0)
+
+    def test_a_line_says_what_its_riders_emit_at_germanys_occupancy(self):
+        """What the factor is measured from: the riders' person-km at UBA's
+        g per person-km, against the base timetable as it runs, whole."""
+        line = self._round(0.25).pt_lines[("bus", 7)]
+
+        self.assertGreater(line.person_km, 0)
+        self.assertAlmostEqual(
+            line.average_co2_g, BUS_EMISSIONS_G_PER_PERSON_KM * line.person_km
+        )
+        self.assertAlmostEqual(
+            line.base_co2_g,
+            BUS_EMISSIONS_G_PER_VEHICLE_KM * line.base_vehicles * line.line_km,
+        )
+
+    def test_germanys_occupancy_by_what_runs_the_line(self):
+        """UBA, TREMOD 6.71B, 2024: Linienbus Nahverkehr, Straßen-, Stadt- und
+        U-Bahn, Eisenbahn Nahverkehr."""
+        self.assertEqual(pt_emissions_g_per_person_km("bus"), 90.0)
+        self.assertEqual(pt_emissions_g_per_person_km("tram"), 42.0)
+        self.assertEqual(pt_emissions_g_per_person_km("train"), 44.0)
+        self.assertEqual(BUS_EMISSIONS_G_PER_PERSON_KM, 90.0)
+        self.assertEqual(TRAM_EMISSIONS_G_PER_PERSON_KM, 42.0)
+        self.assertEqual(TRAIN_EMISSIONS_G_PER_PERSON_KM, 44.0)
