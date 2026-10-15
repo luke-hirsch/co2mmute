@@ -701,10 +701,9 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
 
         # Get player's agent assignments to validate agent IDs and nodes
         agent_assignments = player.agent_assignments or {}
-        home_node = agent_assignments.get("home_node")
         assigned_agents = {a["id"]: a for a in agent_assignments.get("agents", [])}
 
-        if not home_node or not assigned_agents:
+        if not assigned_agents:
             return ["Player has no agent assignments"]
 
         for agent_data in agents_data:
@@ -713,6 +712,8 @@ class PlayerMoveView(GameScopedQuerysetMixin, GenericAPIView):
                 errors.append(f"Invalid agent ID: {agent_id}")
                 continue
 
+            # Each Gruppe its own home: in a balanced game they differ.
+            home_node = assigned_agents[agent_id].get("home_node")
             destination = assigned_agents[agent_id]["destination_node"]
             self._check_route(
                 f"Agent {agent_id}",

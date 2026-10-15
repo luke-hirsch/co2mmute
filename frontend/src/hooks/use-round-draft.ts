@@ -130,7 +130,6 @@ export function useRoundDraft({
       kind: "assign",
       seatId,
       roundNumber,
-      homeNode: assignments.home_node,
       agents: assignments.agents,
       // Read on every delivery rather than once: the reducer is what decides
       // whether a restore may happen, and it only lets one through when it
@@ -184,15 +183,14 @@ export function useRoundDraft({
    */
   const distances = useMemo(() => {
     const byAgent = new Map<number, AgentDistance>();
-    if (!extended || draft.homeNode === null) return byAgent;
+    if (!extended) return byAgent;
 
     const nodes = new Map(extended.nodes.map((node) => [node.id, node]));
-    const home = nodes.get(draft.homeNode);
-    if (!home) return byAgent;
 
     for (const agent of draft.agents) {
+      const home = nodes.get(agent.homeNode);
       const destination = nodes.get(agent.destinationNode);
-      if (!destination) continue;
+      if (!home || !destination) continue;
       const airM = airDistanceM(home, destination, extended.scale);
       byAgent.set(agent.agentId, {
         agentId: agent.agentId,
@@ -203,7 +201,7 @@ export function useRoundDraft({
       });
     }
     return byAgent;
-  }, [draft.agents, draft.homeNode, extended]);
+  }, [draft.agents, extended]);
 
   /**
    * What the last search looked at, for the map to play back. Only the
@@ -219,8 +217,8 @@ export function useRoundDraft({
   const findRoute = useCallback(
     async (agentId: number) => {
       const agent = draft.agents.find((a) => a.agentId === agentId);
-      const home = draft.homeNode;
-      if (!agent || !agent.mode || home === null || !extended) return;
+      if (!agent || !agent.mode || !extended) return;
+      const home = agent.homeNode;
 
       const token = (runs.current.get(agentId) ?? 0) + 1;
       runs.current.set(agentId, token);
@@ -278,7 +276,7 @@ export function useRoundDraft({
         });
       }
     },
-    [draft.agents, draft.homeNode, extended],
+    [draft.agents, extended],
   );
 
   /**

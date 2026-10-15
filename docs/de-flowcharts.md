@@ -99,7 +99,7 @@ stateDiagram-v2
 | Schritt                                 | wo man liest                                                   |
 | --------------------------------------- | -------------------------------------------------------------- |
 | anlegen                                 | `GameSessionListCreateView` in `game/views_rest.py`            |
-| beitreten, Zuhause und Ziele            | `JoinSessionAPIView` in `game/views_join.py`, `set_up_player` und `assign_agent_nodes` in `game/signals.py`, die Pendlertypen `game/personas.py` |
+| beitreten, Zuhause und Ziele            | `JoinSessionAPIView` in `game/views_join.py`, `set_up_player` in `game/signals.py`, `assign_agent_nodes` in `game/deal.py`, die Pendlertypen `game/personas.py` |
 | starten                                 | `GameSessionDetailView.update` in `game/views_rest.py`         |
 | Runde komplett, simulieren, beenden     | `game/rounds.py`, dann `handle_round_completed` in `game/signals.py` |
 | pausieren, Ende nach Ruhe, anonymisieren | `game/pause.py`, `game/idle.py`, `game/anon.py`               |
@@ -219,7 +219,7 @@ Dijkstra.
 
 ```mermaid
 flowchart TD
-    seat["der Platz: Zuhause + ein Ziel je Gruppe<br>useSeatGame"] --> draft
+    seat["der Platz: Zuhause und Ziel je Gruppe<br>useSeatGame"] --> draft
     mapgraph["Graph der aktiven Kartenversion<br>+ Geschwindigkeiten der letzten Runde, previous_round_traffic<br>useMapGraph — lib/queries/map-graph.ts"] --> draft
     draft["useRoundDraft<br>hooks/use-round-draft.ts"] --> air{"Luftlinie über dem<br>Limit des Verkehrsmittels?"}
     air -->|"ja"| greyed["das Verkehrsmittel ist ausgegraut"]

@@ -1,5 +1,4 @@
 import logging
-import random
 
 from co2mmute.utils import (
     clear_chat_messages,
@@ -13,8 +12,8 @@ from django.utils import timezone
 
 from game.cache import cache_game_session, invalidate_game_session
 from game.calibration import per_person
+from game.deal import assign_agent_nodes
 from game.models import GameRound, GameSession, Player, PlayerMove
-from game.personas import deal as deal_personas
 from game.phases import vote_options
 from game.roster import broadcast, schedule_broadcast
 from game.seats import announce_departure
@@ -97,9 +96,8 @@ def set_up_player(sender, instance: Player, created: bool, **kwargs):
                     agent_assignments=agent_assignments
                 )
                 logger.info(
-                    f"Assigned home node {agent_assignments.get('home_node')} "
-                    f"with {len(agent_assignments.get('agents', []))} destinations "
-                    f"to player {instance.player_id}"
+                    f"Assigned {len(agent_assignments['agents'])} homes and "
+                    f"destinations to player {instance.player_id}"
                 )
 
         # Notify game consumer about new player
@@ -114,101 +112,6 @@ def set_up_player(sender, instance: Player, created: bool, **kwargs):
             },
         )
         schedule_broadcast(game_session.game_id)
-
-
-def assign_agent_nodes(game_session: GameSession, player: Player) -> dict | None:
-    """
-    Assign a home node and destination nodes for each agent.
-    Each player gets a unique home node (all their agents share it).
-    Returns dict with home_node and agents list, or None if map not available.
-    """
-    from maps.models import MapVersion, Node
-
-    game_map = game_session.game_map
-    if not game_map:
-        return None
-
-    # Get base version of the map
-    base_version = MapVersion.objects.filter(
-        game_map=game_map, base_version=True
-    ).first()
-    if not base_version:
-        logger.warning(f"No base version found for map {game_map.pk}")
-        return None
-
-    # Get all home nodes in this map version
-    home_nodes = set(
-        Node.objects.filter(
-            game_map=game_map,
-            map_versions=base_version,
-            node_type__name="home",
-        ).values_list("id", flat=True)
-    )
-
-    # Get all destination nodes (workplace, school, etc.)
-    destination_nodes = list(
-        Node.objects.filter(
-            game_map=game_map,
-            map_versions=base_version,
-            node_type__name__in=["workplace"],
-        ).values_list("id", flat=True)
-    )
-
-    if not home_nodes:
-        logger.warning(f"No home nodes found for map {game_map.pk}")
-        return None
-
-    if not destination_nodes:
-        logger.warning(f"No destination nodes found for map {game_map.pk}")
-        return None
-
-    # Get home nodes already assigned to other players in this game
-    other_players = Player.objects.filter(game=game_session).exclude(pk=player.pk)
-    used_home_nodes = set()
-    for other_player in other_players:
-        if (
-            other_player.agent_assignments
-            and "home_node" in other_player.agent_assignments
-        ):
-            used_home_nodes.add(other_player.agent_assignments["home_node"])
-
-    # Pick from available (unused) home nodes
-    available_home_nodes = list(home_nodes - used_home_nodes)
-    if not available_home_nodes:
-        # Fall back to any home node if all are taken (more players than home nodes)
-        logger.warning(f"All home nodes taken for game {game_session.game_id}, reusing")
-        available_home_nodes = list(home_nodes)
-
-    home_node_id = random.choice(available_home_nodes)
-
-    # Pick destination nodes for each agent (with replacement if not enough unique nodes)
-    agent_count = game_session.agent_per_player
-    agents = []
-
-    # Shuffle destinations for variety
-    shuffled_destinations = destination_nodes.copy()
-    random.shuffle(shuffled_destinations)
-
-    # One Pendlertyp per Gruppe, when the game has them; none, and it plays free.
-    personas = deal_personas(
-        list(game_session.personas.values_list("pk", flat=True)), agent_count
-    )
-
-    for i in range(agent_count):
-        # Cycle through destinations if we have fewer than agent_count
-        dest_node_id = shuffled_destinations[i % len(shuffled_destinations)]
-        agent = {
-            "id": i + 1,
-            "destination_node": dest_node_id,
-        }
-        if personas:
-            agent["persona"] = personas[i]
-        agents.append(agent)
-
-    return {
-        "home_node": home_node_id,
-        "agents": agents,
-    }
 
 
 @receiver(post_delete, sender=Player)

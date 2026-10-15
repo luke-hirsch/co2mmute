@@ -69,6 +69,8 @@ export function CreateGameScreen() {
    * late the list lands.
    */
   const [personasOn, setPersonasOn] = useState(false);
+  /** The deal. Off by default: a person's Gruppen live together. */
+  const [balancedDeal, setBalancedDeal] = useState(false);
   const [unticked, setUnticked] = useState<ReadonlySet<number>>(new Set());
   const [ownPersonas, setOwnPersonas] = useState<PersonaDraft[]>([]);
   const standardPersonas = useStandardPersonas(personasOn);
@@ -139,6 +141,7 @@ export function CreateGameScreen() {
         map_updates: mapUpdates,
         max_players: Number(maxPlayers),
         agent_per_player: Number(agentPerPlayer),
+        balanced_deal: balancedDeal,
         max_rounds: Number(maxRounds),
         max_CO2_level: co2Total,
         co2_kg_per_person: kgPerPerson,
@@ -364,6 +367,15 @@ export function CreateGameScreen() {
                 errors={errors.personas}
               />
             ) : null}
+            <CheckField
+              id="balanced_deal"
+              label={de.create.balancedDeal}
+              help={de.create.balancedDealHelp}
+              box={de.create.balancedDealSwitch}
+              checked={balancedDeal}
+              onChange={setBalancedDeal}
+              errors={errors.balanced_deal}
+            />
           </div>
         </section>
 

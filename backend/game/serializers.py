@@ -88,6 +88,9 @@ class GameSessionSerializer(serializers.ModelSerializer):
     # Gruppe's dealt id has a name. Read-only here: they are written once, at
     # creation, by the subclass below, and never changed under a running game.
     personas = PersonaSerializer(many=True, read_only=True)
+    # Picked when the game is made, never after: the lobby's PATCH comes
+    # through here, and seats already dealt would keep the other deal.
+    balanced_deal = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = gm.GameSession
@@ -103,6 +106,7 @@ class GameSessionSerializer(serializers.ModelSerializer):
             "active_map_version",
             "max_players",
             "agent_per_player",
+            "balanced_deal",
             "max_rounds",
             "max_CO2_level",
             "co2_kg_per_person",
@@ -212,6 +216,8 @@ class GameSessionCreateSerializer(GameSessionSerializer):
     name and a line, standard or their own alike. They become rows of this
     game in the same transaction, before the view seats the host — whose row
     is dealt from them. Empty or left out, the game plays free.
+
+    **And the deal**, `balanced_deal`, which the parent only reads.
     """
 
     # Left out, the game plays free; sent empty, the host switched them on and
@@ -223,6 +229,7 @@ class GameSessionCreateSerializer(GameSessionSerializer):
         allow_empty=False,
         error_messages={"empty": "Wähle mindestens einen Pendlertyp."},
     )
+    balanced_deal = serializers.BooleanField(required=False)
 
     class Meta(GameSessionSerializer.Meta):
         extra_kwargs = {

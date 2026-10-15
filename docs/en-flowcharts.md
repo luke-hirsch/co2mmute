@@ -91,7 +91,7 @@ stateDiagram-v2
 | step                                  | where to read                                                  |
 | ------------------------------------- | -------------------------------------------------------------- |
 | create                                | `GameSessionListCreateView` in `game/views_rest.py`            |
-| join, home and destinations           | `JoinSessionAPIView` in `game/views_join.py`, `set_up_player` and `assign_agent_nodes` in `game/signals.py`, the commuter types `game/personas.py` |
+| join, home and destinations           | `JoinSessionAPIView` in `game/views_join.py`, `set_up_player` in `game/signals.py`, `assign_agent_nodes` in `game/deal.py`, the commuter types `game/personas.py` |
 | start                                 | `GameSessionDetailView.update` in `game/views_rest.py`         |
 | round complete, simulate, end         | `game/rounds.py`, then `handle_round_completed` in `game/signals.py` |
 | pause, idle end, anonymise            | `game/pause.py`, `game/idle.py`, `game/anon.py`                |
@@ -208,7 +208,7 @@ Dijkstra.
 
 ```mermaid
 flowchart TD
-    seat["the seat: home + one destination per Gruppe<br>useSeatGame"] --> draft
+    seat["the seat: a home and a destination per Gruppe<br>useSeatGame"] --> draft
     mapgraph["graph of the active map version<br>+ last round's speeds, previous_round_traffic<br>useMapGraph — lib/queries/map-graph.ts"] --> draft
     draft["useRoundDraft<br>hooks/use-round-draft.ts"] --> air{"straight line past<br>the mode's limit?"}
     air -->|"yes"| greyed["that mode is greyed out"]

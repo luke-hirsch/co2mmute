@@ -14,6 +14,7 @@ import type { GameSummary, SummaryGroup, SummaryPlayer } from "@/lib/queries/sum
 function group(overrides: Partial<SummaryGroup> = {}): SummaryGroup {
   return {
     agent_id: 1,
+    home: "Wohnort Moabit",
     destination: "Arbeit",
     persona: { name: "Sparfuchs", description: "Jeder Euro zählt." },
     rounds: 3,

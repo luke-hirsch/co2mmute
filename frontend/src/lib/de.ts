@@ -1833,6 +1833,15 @@ export const de = {
     personasRemove: "entfernen",
     /** For a screen reader: which one the button takes out. */
     personasRemoveLabel: (name: string) => `${name} entfernen`,
+    /**
+     * The deal: off, a person's Gruppen live together, one home each person,
+     * and a class plays as districts; on, every home and workplace gets the
+     * same number of Gruppen and a person's are spread over the map.
+     */
+    balancedDeal: "Wohnorte",
+    balancedDealHelp:
+      "Jeder Wohnort und jeder Arbeitsplatz bekommt gleich viele Gruppen, und die Gruppen einer Person wohnen über die Karte verteilt. Sonst wohnen sie zusammen, an einem Ort pro Person.",
+    balancedDealSwitch: "ausbalanciert",
 
     /** The two that decide when it ends. */
     groupEnd: "Wann das Spiel endet",

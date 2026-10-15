@@ -70,7 +70,7 @@ Jedes Ende schreibt <code>end_reason</code> in dem Moment, in dem es passiert:
   <thead><tr><th scope="col">Schritt</th><th scope="col">wo man liest</th></tr></thead>
   <tbody>
   <tr><td>anlegen</td><td><code>GameSessionListCreateView</code> in <code>game/views_rest.py</code></td></tr>
-  <tr><td>beitreten, Zuhause und Ziele</td><td><code>JoinSessionAPIView</code> in <code>game/views_join.py</code>, <code>set_up_player</code> und <code>assign_agent_nodes</code> in <code>game/signals.py</code>, die Pendlertypen <code>game/personas.py</code></td></tr>
+  <tr><td>beitreten, Zuhause und Ziele</td><td><code>JoinSessionAPIView</code> in <code>game/views_join.py</code>, <code>set_up_player</code> in <code>game/signals.py</code>, <code>assign_agent_nodes</code> in <code>game/deal.py</code>, die Pendlertypen <code>game/personas.py</code></td></tr>
   <tr><td>starten</td><td><code>GameSessionDetailView.update</code> in <code>game/views_rest.py</code></td></tr>
   <tr><td>Runde komplett, simulieren, beenden</td><td><code>game/rounds.py</code>, dann <code>handle_round_completed</code> in <code>game/signals.py</code></td></tr>
   <tr><td>pausieren, Ende nach Ruhe, anonymisieren</td><td><code>game/pause.py</code>, <code>game/idle.py</code>, <code>game/anon.py</code></td></tr>

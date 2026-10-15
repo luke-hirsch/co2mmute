@@ -15,7 +15,6 @@ import type { ExtendedMapGraph } from "@/types/routeTypes";
  */
 export function RouteMap({
   graph,
-  homeNode,
   agent,
   jam,
   search,
@@ -23,7 +22,7 @@ export function RouteMap({
   hint = true,
 }: {
   graph: ExtendedMapGraph | null;
-  homeNode: number | null;
+  /** The Gruppe on the map; its own home and destination are marked. */
   agent: AgentDraft | null;
   /** Where it stopped last round, drawn as stroke weight. */
   jam?: EdgeLoad[];
@@ -39,7 +38,7 @@ export function RouteMap({
         mapGraph={graph}
         isLoading={isLoading}
         compact
-        homeNodeId={homeNode ?? undefined}
+        homeNodeId={agent?.homeNode}
         destinationNodeId={agent?.destinationNode}
         routeSegments={agent?.route?.segments}
         jam={jam}

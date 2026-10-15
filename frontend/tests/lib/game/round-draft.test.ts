@@ -33,10 +33,9 @@ const ASSIGN: RoundDraftAction = {
   kind: "assign",
   seatId: "P-1",
   roundNumber: 1,
-  homeNode: 10,
   agents: [
-    { id: 1, destination_node: 20 },
-    { id: 2, destination_node: 30 },
+    { id: 1, home_node: 10, destination_node: 20 },
+    { id: 2, home_node: 11, destination_node: 30 },
   ],
 };
 
@@ -153,8 +152,9 @@ describe("roundDraftReducer — assignment", () => {
 
     expect(draft.seatId).toBe("P-1");
     expect(draft.roundNumber).toBe(1);
-    expect(draft.homeNode).toBe(10);
     expect(draft.agents.map((a) => a.agentId)).toEqual([1, 2]);
+    // Each Gruppe its own home: in a balanced game they differ.
+    expect(draft.agents.map((a) => a.homeNode)).toEqual([10, 11]);
     expect(draft.agents.map((a) => a.destinationNode)).toEqual([20, 30]);
     expect(draft.agents.every((a) => a.mode === null)).toBe(true);
     expect(draft.agents.every((a) => a.status === "empty")).toBe(true);
@@ -178,6 +178,25 @@ describe("roundDraftReducer — assignment", () => {
     expect(again.agents[0].mode).toBe("walk");
   });
 
+  it("starts over when a Gruppe's home is another", () => {
+    const chosen = apply(initialRoundDraft(), ASSIGN, {
+      kind: "mode",
+      agentId: 1,
+      mode: "walk",
+    });
+
+    const moved = roundDraftReducer(chosen, {
+      ...ASSIGN,
+      agents: [
+        { id: 1, home_node: 10, destination_node: 20 },
+        { id: 2, home_node: 12, destination_node: 30 },
+      ],
+    });
+
+    expect(moved).not.toBe(chosen);
+    expect(moved.agents.map((a) => a.homeNode)).toEqual([10, 12]);
+  });
+
   it("starts over when the round advances", () => {
     const chosen = apply(initialRoundDraft(), ASSIGN, {
       kind: "mode",
@@ -191,7 +210,7 @@ describe("roundDraftReducer — assignment", () => {
     expect(nextRound.agents.every((a) => a.mode === null)).toBe(true);
     // The assignment itself does not change between rounds — home and
     // destinations belong to the player, not to the round.
-    expect(nextRound.homeNode).toBe(10);
+    expect(nextRound.agents.map((a) => a.homeNode)).toEqual([10, 11]);
     expect(nextRound.agents.map((a) => a.destinationNode)).toEqual([20, 30]);
   });
 

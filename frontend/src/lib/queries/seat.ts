@@ -2,8 +2,8 @@
  * What a seat has been dealt.
  *
  * `GET api/game/<game_id>/<player_id>/` (`GetYourOwnGame`) is the only endpoint
- * that hands out `agent_assignments`: one home node plus a destination per
- * agent. The game row rides along, and from it we need `game_map` and
+ * that hands out `agent_assignments`: a home and a destination per agent. The
+ * game row rides along, and from it we need `game_map` and
  * `active_map_version` to fetch the graph the routes are found on.
  *
  * Parameterised by the player_id in the URL, not by "me": `IsPlayerInGame`
@@ -22,9 +22,16 @@ import { apiFetch } from "@/lib/api";
 import type { Persona } from "@/lib/game/personas";
 
 export type AgentAssignments = {
-  home_node: number;
-  /** `persona` is the id of one of the game's `personas`, when it deals them. */
-  agents: { id: number; destination_node: number; persona?: number }[];
+  /**
+   * A seat's Gruppen share one `home_node` unless the game is "ausbalanciert".
+   * `persona` is the id of one of the game's `personas`, when it deals them.
+   */
+  agents: {
+    id: number;
+    home_node: number;
+    destination_node: number;
+    persona?: number;
+  }[];
 };
 
 /** The slice of `GameSessionSerializer` the turn actually needs. */

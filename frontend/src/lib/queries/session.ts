@@ -140,6 +140,8 @@ export type CreateGameBody = {
   map_updates: boolean;
   max_players: number;
   agent_per_player: number;
+  /** "ausbalanciert": taken at creation only, the lobby cannot change it. */
+  balanced_deal: boolean;
   max_rounds: number;
   max_CO2_level: number;
   co2_kg_per_person: string;

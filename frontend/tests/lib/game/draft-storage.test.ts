@@ -79,7 +79,6 @@ function draft(overrides: Partial<RoundDraft> = {}): RoundDraft {
   return {
     seatId: "P-1",
     roundNumber: 2,
-    homeNode: 10,
     agents: [],
     ...overrides,
   };
