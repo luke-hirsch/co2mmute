@@ -191,7 +191,7 @@ Für die offizielle Seite musst du dich an die aktuelle Administration wenden, u
 ### Django-Admin
 
 Als Staff oder Superuser kommst du unter `/admin/` auf die Admin-Seite. Das Gute: Django bringt eine eingebaute Admin-Seite mit, auf der du direkt an die Datenbankmodelle und Einträge kommst. In der Oberfläche kannst du Daten bearbeiten, anlegen oder löschen. Das heißt aber auch: Das muss sorgfältig und verantwortungsvoll passieren. Der häufigste Fall dürfte sein, anderen Konten den Staff-Status zu geben. Denn nur mit Staff-Status kannst du im Karteneditor an den Karten des Spiels arbeiten.
-Du könntest die Karten auch direkt in der Datenbank über die Admin-Seite ändern, aber das wäre sehr verantwortungslos und dumm. Also lass es. Lösch dort vor allem keine Kartenversion: Die Zeilen, die nur in dieser Version waren, bleiben dann in gar keiner Version zurück.
+Du könntest die Karten auch direkt in der Datenbank über die Admin-Seite ändern, aber das wäre sehr verantwortungslos und dumm. Also lass es. Löschst du dort doch eine Kartenversion oder eine Karte, gilt dasselbe wie im Editor: Was nur in dieser Version war, geht mit ihr, und was schon in einem Spiel vorkam, bleibt.
 Außerdem kommst du hier an die anonymisierten Spieldaten. Also alle Forschenden, Hände zusammen für frische Daten.
 
 ### Karteneditor
@@ -242,7 +242,7 @@ Jetzt, wo wir alles über die Karte wissen, können wir sie bearbeiten. Der Edit
   - Unter „Versionen verwalten“ kannst du vorhandene Versionen ändern: die Texte und „Verträglich mit“. Das Letzte ist der Stimmzettel. Nach einer Runde können die Spielenden nur für Versionen stimmen, die mit der verträglich sind, auf der sie gerade spielen.
   - „Ansehen“ legt eine Version auf die Karte und zeigt, was sie gegenüber der Version ändert, aus der sie gemacht ist — farbig auf der Karte und daneben in Worten. Unter „Verglichen mit“ kannst du sie mit jeder anderen vergleichen. So sieht auch die Abstimmung eine Änderung.
   - „Kombinationen erzeugen“ nimmt zwei oder mehr Versionen und legt jede Kombination aus ihnen an. Aus einer Busspur und einer Umgehungsstraße wird so auch „Busspur + Umgehungsstraße“.
-  - Löschen kannst du eine Version hier nicht.
+  - „Version löschen“ fragt vorher, was mitgeht: was nur in dieser Version steht, aus welcher Abstimmung sie fällt und welche Kombinationen ihre Änderung behalten. Die Grundversion, jede Version, solange auf der Karte ein Spiel läuft, und eine Version, die in einem Spiel schon vorkam, lassen sich nicht löschen.
 
 ## Selbst betreiben
 

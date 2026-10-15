@@ -193,7 +193,7 @@ For the official release you will have to contact the current admin for staff ac
 ### Django Admin
 
 As a staff member or superuser you can access the admin page at `/admin/`. The good thing is, Django ships a built-in admin page, where you have direct access to the database models and entries. You can use the GUI to edit, create or delete certain data points. Now, that being said, this needs to be done carefully and responsibly. The most common use case would be to grant other users staff status. Because only with staff status can you work with the maps of the game in the map editor.
-You could also change the maps directly in the database via the admin panel, but that would be very irresponsible and stupid. So don't do it. Especially don't delete a map version there: the rows that were only in that version stay behind in no version at all.
+You could also change the maps directly in the database via the admin panel, but that would be very irresponsible and stupid. So don't do it. If you do delete a map version or a map there, the same rules apply as in the editor: what was only in that version goes with it, and whatever a game has already seen stays.
 Also the anonymised game data can be accessed here. So all the scientists, put your hands together for fresh research data.
 
 ### Map Editor
@@ -244,7 +244,7 @@ Now that we learned all there is about the map, we can edit it. The editor needs
   - under "Versionen verwalten" you can update existing versions: the texts and "Verträglich mit" (compatible with). That last one is the ballot. After a round, the players can only vote for versions that are compatible with the one they are playing on.
   - "Ansehen" (view) puts a version on the map and shows what it changes against the version it was made from — in colour on the map and in words beside it. "Verglichen mit" (compared with) compares it with any other. This is also how the vote shows a change.
   - "Kombinationen erzeugen" takes two or more versions and creates every combination of them. A bus lane and a bypass give you "bus lane + bypass" as well.
-  - you can't delete a version here.
+  - "Version löschen" asks first what goes with it: what is only in this version, which vote it drops out of, and which combinations keep its change. The base version, any version while a game is running on the map, and a version a game has already seen can't be deleted.
 
 ## Running It Yourself
 
