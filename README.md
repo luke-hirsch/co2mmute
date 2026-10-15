@@ -36,6 +36,7 @@ Vite + TypeScript als SPA. Wie gespielt wird: [`docs/de-quick-start.md`](docs/de
 | `devops/`           | `dev.sh`, docker-compose, nginx                                    |
 | `map_examples/`     | die gespielte Karte als JSON — Berlin Mitte-West, acht Versionen   |
 | `docs/`             | Dokumentation                                                      |
+| `AGENTS.md`, `.agents/skills/` | für Coding-Agenten: was die Docs nicht sagen, und Skills für ganze Aufgaben, etwa eine Karte bauen und messen |
 | `.github/`          | CI und das Deployment                                              |
 
 Es ist ein Hybrid, kein reines SPA: Landing Page, Hintergrund, Rechtstexte, Login und Admin sind
@@ -219,6 +220,7 @@ family as MATSim.
 | `devops/`           | `dev.sh`, docker-compose, nginx                                    |
 | `map_examples/`     | the map the group plays — Berlin Mitte-West, eight versions        |
 | `docs/`             | documentation                                                      |
+| `AGENTS.md`, `.agents/skills/` | for coding agents: what the docs don't say, and skills for whole tasks, such as building and measuring a map |
 | `.github/`          | CI and the deployment                                              |
 
 It is a hybrid, not a pure SPA: the landing page, the background page, the legal pages, login and
