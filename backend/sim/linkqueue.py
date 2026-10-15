@@ -1346,8 +1346,18 @@ class LinkQueueEngine:
         later in the same snapshot and set down again, which puts it back in
         for its walk — and a removal saved for the end took it out again, so
         nobody ever moved it.
+
+        In the order they reach the end of their link, first come, first
+        served. Where a bus lane meets a street with room for one bus, the
+        first to go takes the room and the rest retry next tick; in the set's
+        own order a bus with riders was passed by a later, empty run every
+        tick for ~30 h (Berlin's X83 at Egestorffstraße, 2026-10-15).
         """
-        for vehicle_id in list(self.free_running):
+        order = sorted(
+            self.free_running,
+            key=lambda vehicle_id: (self.vehicles[vehicle_id].ready_at_min, vehicle_id),
+        )
+        for vehicle_id in order:
             vehicle = self.vehicles[vehicle_id]
             while not vehicle.arrived and vehicle.ready_at_min <= tick_end:
                 left_at = vehicle.ready_at_min
