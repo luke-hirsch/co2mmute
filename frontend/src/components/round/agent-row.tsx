@@ -7,6 +7,7 @@ import { NO_WAY_HOME, TOO_FAR } from "@/utils/pathfinding";
 import { de } from "@/lib/de";
 import { cn } from "@/lib/utils";
 import type { AgentDistance } from "@/hooks/use-round-draft";
+import type { Persona } from "@/lib/game/personas";
 import type { AgentDraft } from "@/lib/game/round-draft";
 import type { Node } from "@/types/mapTypes";
 import type { CarOptimization, PTOptimization, TransportMode } from "@/types/routeTypes";
@@ -27,6 +28,7 @@ export function AgentRow({
   index,
   agent,
   distance,
+  persona,
   nodes,
   selected,
   onSelect,
@@ -41,6 +43,8 @@ export function AgentRow({
   agent: AgentDraft;
   /** The straight line to the destination, and what it rules out. */
   distance: AgentDistance | undefined;
+  /** Who this Gruppe is played as, when the game deals Pendlertypen. */
+  persona?: Persona;
   nodes: Map<number, Node>;
   selected: boolean;
   onSelect: () => void;
@@ -84,6 +88,18 @@ export function AgentRow({
             <p className="mt-1 text-sm text-muted-foreground">
               {de.round.home} → {destination ?? `#${agent.destinationNode}`}
             </p>
+            {/* Under the destination, before any figure: it is what the
+                choice below is meant to be made as. An accent rule, the way a
+                note is marked everywhere else, never a coloured text. */}
+            {persona ? (
+              <p className="mt-2 max-w-(--measure-body) border-l-[3px] border-brandaccent pl-3 text-sm">
+                <span className="sr-only">{de.round.persona} </span>
+                <span className="font-medium">{persona.name}</span>
+                {persona.description ? (
+                  <span className="text-muted-foreground"> – {persona.description}</span>
+                ) : null}
+              </p>
+            ) : null}
             {/* Before any mode is picked, and it stays: it is the one figure
                 that does not depend on the choice. */}
             {distance ? (

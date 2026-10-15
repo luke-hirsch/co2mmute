@@ -202,6 +202,7 @@ class Player(models.Model):
     left_at = models.DateTimeField(null=True, blank=True)
     controlled_by_host = models.BooleanField(default=False)
     # Agent assignments: {"home_node": int, "agents": [{"id": 1, "destination_node": int}, ...]}
+    # Each agent also carries "persona": a Persona pk, when the game deals them.
     agent_assignments = models.JSONField(blank=True, null=True)
 
     objects = PlayerQuerySet.as_manager()
@@ -241,6 +242,38 @@ class Player(models.Model):
             f"Failed to generate unique player_id for game {self.game} after {max_retries} attempts."
         )
         raise RuntimeError("Could not assign a unique 6-char player ID.")
+
+
+class Persona(models.Model):
+    """A Pendlertyp: who a Gruppe is played as ("Sparfuchs — jeder Euro zählt").
+
+    A row with no game is a standard one, offered by every create form; a
+    migration seeds them and the admin edits them. A game's own Pendlertypen are
+    rows of that game, written when it is created: the standard ones the host
+    picked are copied, and one the host wrote is offered nowhere else. Copied,
+    not pointed at, so editing a standard one never changes the debrief of a
+    game already played. A game without any plays free.
+
+    Each Gruppe is dealt one at join, as the `persona` of its entry in
+    `Player.agent_assignments` (`game/personas.py`).
+    """
+
+    game = models.ForeignKey(
+        GameSession,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="personas",
+    )
+    name = models.CharField(max_length=40)
+    description = models.CharField(max_length=200, blank=True)
+    order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ("order", "pk")
+
+    def __str__(self):
+        return self.name
 
 
 class GameRound(models.Model):

@@ -78,6 +78,11 @@ code — never call `async_to_sync` from a consumer.
 **An outcome is recorded when it happens**, never derived later: `GameSession.end_reason`,
 `GameRound.vote_result`.
 
+**Pendlertypen belong to their game** (`game/personas.py`). A `Persona` with no game is a standard
+one, seeded by a migration and edited in the admin. A game copies the ones its host picked when it
+is created and deals them at join, one per Gruppe, as `persona` in `agent_assignments`. Never point
+a Gruppe at a standard row: editing it would change the debrief of every game it was played in.
+
 **`game/urls.py` order is load-bearing.** `<game_id>/` and `<game_id>/<player_id>/` swallow any one-
 and two-segment path, so literal prefixes go first. A route in the wrong place answers a plausible
 403, not a 404 — pin routes with `resolve()` in tests.

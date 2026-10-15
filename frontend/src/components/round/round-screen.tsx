@@ -180,6 +180,7 @@ export function RoundScreen({
                       index={index}
                       agent={agent}
                       distance={draft.distances.get(agent.agentId)}
+                      persona={draft.personas.get(agent.agentId)}
                       nodes={nodes}
                       selected={selected?.agentId === agent.agentId}
                       onSelect={() => setSelectedAgentId(agent.agentId)}

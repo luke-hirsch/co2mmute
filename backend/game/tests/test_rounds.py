@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
 from co2mmute.utils import sign_value
-from game.models import GameRound, GameSession, Player, PlayerMove
+from game.models import GameRound, GameSession, Persona, Player, PlayerMove
 from game.signals import round_completed
 
 from ._helpers import (
@@ -2050,6 +2050,73 @@ class SummaryPaidFigureTests(SimulatedRoundMixin, TestCase):
             self.assertLess(
                 player["paid_eur_per_person"], player["cost_eur_per_person"]
             )
+
+
+@override_settings(**TEST_BACKENDS)
+class SummaryGroupTests(SimulatedRoundMixin, TestCase):
+    """"Meine Gruppen": each Gruppe of a seat over the game, with its
+    Pendlertyp, so a player can hold what it did against what it was meant to
+    be. A day there and back, per commuter, like the per-person lists."""
+
+    def _summary(self):
+        self.client.force_login(self.host)
+        with muted():
+            response = self.client.get(f"/api/game/{self.game.game_id}/summary/")
+        return response.json()
+
+    def _player(self, summary, player):
+        return next(p for p in summary["players"] if p["player_id"] == player.player_id)
+
+    def _deal(self, persona):
+        Player.objects.filter(pk=self.player.pk).update(
+            agent_assignments={
+                "home_node": self.edge.start_node_id,
+                "agents": [
+                    {
+                        "id": 1,
+                        "destination_node": self.edge.end_node_id,
+                        "persona": persona.pk,
+                    }
+                ],
+            }
+        )
+
+    def test_a_gruppe_says_who_it_was_and_how_it_went(self):
+        persona = Persona.objects.create(
+            game=self.game, name="Sparfuchs", description="Jeder Euro zählt."
+        )
+        self._deal(persona)
+        self.complete_round()
+
+        anna = self._player(self._summary(), self.player)
+        group = anna["groups"][0]
+
+        self.assertEqual(group["agent_id"], 1)
+        self.assertEqual(group["destination"], "Arbeit")
+        self.assertEqual(
+            group["persona"], {"name": "Sparfuchs", "description": "Jeder Euro zählt."}
+        )
+        self.assertEqual(group["rounds"], 1)
+        self.assertEqual(group["modes"], {"car": 1})
+        self.assertEqual(group["distance_km"], 2.0)
+        self.assertEqual(group["changes"], 0.0)
+        # One Gruppe, one round: the seat's own per-person figures are its.
+        self.assertAlmostEqual(group["co2_g"], anna["co2_g_per_person"], delta=0.1)
+        self.assertAlmostEqual(
+            group["paid_eur"], anna["paid_eur_per_person"], delta=0.01
+        )
+        self.assertAlmostEqual(group["time_min"], anna["time_min_per_agent"], delta=0.1)
+        # Door to door: the distance over the time. Checked that way round,
+        # since a two-minute trip rounded to 0,1 min moves km/h by a whole one.
+        self.assertAlmostEqual(
+            group["speed_kmh"] * group["time_min"] / 60, 2.0, delta=0.05
+        )
+
+    def test_a_game_without_pendlertypen_has_no_groups(self):
+        self.complete_round()
+
+        for player in self._summary()["players"]:
+            self.assertEqual(player["groups"], [])
 
 
 @override_settings(**TEST_BACKENDS)

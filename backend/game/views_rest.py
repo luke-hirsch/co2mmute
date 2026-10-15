@@ -31,12 +31,14 @@ from game.models import (
     EdgeTrafficSnapshot,
     GameRound,
     GameSession,
+    Persona,
     Player,
     PlayerMove,
     RouteSegment,
     SimulationResult,
 )
 from game.pause import PauseRefused, pause_game, resume_game
+from game.personas import group_summary
 from game.permissions import (
     CanDeleteOwnPlayer,
     HasGameAccess,
@@ -59,6 +61,7 @@ from game.serializers import (
     GameSessionCreateSerializer,
     GameSessionSerializer,
     HostGameListSerializer,
+    PersonaSerializer,
     PlayerMoveWithRoutesInputSerializer,
     PlayerSerializer,
     SeatRequestSerializer,
@@ -276,6 +279,25 @@ class GameSessionListCreateView(
         if not host_player.player_id:
             host_player.refresh_from_db()
         return host_player
+
+
+class StandardPersonasView(ListModelMixin, GenericAPIView):
+    """`GET api/game/personas/` — the standard Pendlertypen, for the create form.
+
+    The rows without a game. A host's own Pendlertyp belongs to the game it was
+    written for and is not offered again.
+    """
+
+    serializer_class = PersonaSerializer
+    authentication_classes = (SessionAuthentication,)
+    permission_classes = (IsAuthenticated,)
+    pagination_class = None
+
+    def get_queryset(self):
+        return Persona.objects.filter(game__isnull=True)
+
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
 
 
 class GameSessionDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIView):
@@ -1157,6 +1179,10 @@ class GameSummaryView(GenericAPIView):
                 }
             )
 
+        # "Meine Gruppen" on the end screen, only for a game that dealt
+        # Pendlertypen: without one there is nothing to hold a Gruppe against.
+        has_personas = game.personas.exists()
+
         # Build per-player, per-round stats from AgentSimulationResult
         players_data = []
         for player in players:
@@ -1310,6 +1336,11 @@ class GameSummaryView(GenericAPIView):
                     ),
                     "modes_used": sorted(modes_used),
                     "rounds": rounds_data,
+                    "groups": (
+                        group_summary(player, completed_rounds, people_per_agent)
+                        if has_personas
+                        else []
+                    ),
                 }
             )
 

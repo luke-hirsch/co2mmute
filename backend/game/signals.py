@@ -14,6 +14,7 @@ from django.utils import timezone
 from game.cache import cache_game_session, invalidate_game_session
 from game.calibration import per_person
 from game.models import GameRound, GameSession, Player, PlayerMove
+from game.personas import deal as deal_personas
 from game.phases import vote_options
 from game.roster import broadcast, schedule_broadcast
 from game.seats import announce_departure
@@ -188,15 +189,21 @@ def assign_agent_nodes(game_session: GameSession, player: Player) -> dict | None
     shuffled_destinations = destination_nodes.copy()
     random.shuffle(shuffled_destinations)
 
+    # One Pendlertyp per Gruppe, when the game has them; none, and it plays free.
+    personas = deal_personas(
+        list(game_session.personas.values_list("pk", flat=True)), agent_count
+    )
+
     for i in range(agent_count):
         # Cycle through destinations if we have fewer than agent_count
         dest_node_id = shuffled_destinations[i % len(shuffled_destinations)]
-        agents.append(
-            {
-                "id": i + 1,
-                "destination_node": dest_node_id,
-            }
-        )
+        agent = {
+            "id": i + 1,
+            "destination_node": dest_node_id,
+        }
+        if personas:
+            agent["persona"] = personas[i]
+        agents.append(agent)
 
     return {
         "home_node": home_node_id,

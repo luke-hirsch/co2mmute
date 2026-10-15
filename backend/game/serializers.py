@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import serializers
 
 import game.models as gm
@@ -52,6 +53,21 @@ KG_PER_PERSON_ERRORS = {
 }
 
 
+class PersonaSerializer(serializers.ModelSerializer):
+    """A Pendlertyp as the screens show it: the standard list in the create
+    form, a game's own on the round screen."""
+
+    class Meta:
+        model = gm.Persona
+        fields = ("id", "name", "description")
+        read_only_fields = fields
+
+
+PERSONA_NAME_MAX = gm.Persona._meta.get_field("name").max_length
+PERSONA_DESCRIPTION_MAX = gm.Persona._meta.get_field("description").max_length
+PERSONAS_MAX = 20
+
+
 class GameSessionSerializer(serializers.ModelSerializer):
     """The game row, read and written by the SPA and by nothing else.
 
@@ -67,6 +83,11 @@ class GameSessionSerializer(serializers.ModelSerializer):
     with its own wording; a rule that needs the database is checked here and
     the screen renders what comes back. Nothing is worded twice.
     """
+
+    # The game's own, which the seat payload hands the round screen so each
+    # Gruppe's dealt id has a name. Read-only here: they are written once, at
+    # creation, by the subclass below, and never changed under a running game.
+    personas = PersonaSerializer(many=True, read_only=True)
 
     class Meta:
         model = gm.GameSession
@@ -94,6 +115,7 @@ class GameSessionSerializer(serializers.ModelSerializer):
             "started_at",
             "paused_at",
             "ended_at",
+            "personas",
         )
         # `game_host` is read-only because it is not the client's to state:
         # the create endpoint takes it off the session. Writable, a POST could
@@ -185,7 +207,22 @@ class GameSessionCreateSerializer(GameSessionSerializer):
     It is a subclass rather than a flag on the parent because the lobby's PATCH
     goes through the parent and must be free to leave `game_map` out of a body
     that only changes `is_active`.
+
+    **And it takes the game's Pendlertypen**: the list the host picked, each a
+    name and a line, standard or their own alike. They become rows of this
+    game in the same transaction, before the view seats the host — whose row
+    is dealt from them. Empty or left out, the game plays free.
     """
+
+    # Left out, the game plays free; sent empty, the host switched them on and
+    # unticked every one, and a game without them would ignore the switch.
+    personas = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+        write_only=True,
+        allow_empty=False,
+        error_messages={"empty": "Wähle mindestens einen Pendlertyp."},
+    )
 
     class Meta(GameSessionSerializer.Meta):
         extra_kwargs = {
@@ -206,6 +243,42 @@ class GameSessionCreateSerializer(GameSessionSerializer):
                 },
             },
         }
+
+    def validate_personas(self, value):
+        """One sentence for the whole list, which the form shows under it."""
+        if len(value) > PERSONAS_MAX:
+            raise serializers.ValidationError(
+                f"Höchstens {PERSONAS_MAX} Pendlertypen in einem Spiel."
+            )
+        cleaned = []
+        for entry in value:
+            name = str(entry.get("name") or "").strip()
+            description = str(entry.get("description") or "").strip()
+            if not name:
+                raise serializers.ValidationError(
+                    "Jeder Pendlertyp braucht einen Namen."
+                )
+            if len(name) > PERSONA_NAME_MAX:
+                raise serializers.ValidationError(
+                    f"Ein Name hat höchstens {PERSONA_NAME_MAX} Zeichen."
+                )
+            if len(description) > PERSONA_DESCRIPTION_MAX:
+                raise serializers.ValidationError(
+                    "Eine Beschreibung hat höchstens "
+                    f"{PERSONA_DESCRIPTION_MAX} Zeichen."
+                )
+            cleaned.append({"name": name, "description": description})
+        return cleaned
+
+    def create(self, validated_data):
+        personas = validated_data.pop("personas", [])
+        with transaction.atomic():
+            game = super().create(validated_data)
+            gm.Persona.objects.bulk_create(
+                gm.Persona(game=game, order=order, **persona)
+                for order, persona in enumerate(personas)
+            )
+        return game
 
 
 class HostGameListSerializer(serializers.ModelSerializer):

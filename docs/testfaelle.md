@@ -132,6 +132,7 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | R-36 | Bus und Bahn: ein Ring fährt im Kreis | eine Linie, die endet, wo sie anfängt (S41, die 58 in Bremen), fährt weiter: wer über den Anfang hinaus will, bleibt sitzen und fährt mit der nächsten Abfahrt weiter, die Zeit bis dahin ist Wartezeit, im Router wie in der Simulation — vorher wurde er am Ende abgesetzt und lief vom Halt hinter dem Anfang weiter      | geht | `test_linkqueue`, `pt-routing.test.ts` |
 | R-37 | Bus: von der Busspur auf eine kurze Straße | wo nur ein Bus Platz hat, fährt der zuerst angekommene zuerst weiter — vorher war die Reihenfolge beliebig, und ein Bus mit Fahrgästen ließ jeden Takt einen späteren, leeren vor (gebautes Berlin, X83 an der Egestorffstraße: ~30 h, und jede Linie fuhr für seine Fahrgäste weiter); auf der ausgelieferten Karte bleibt jede Runde bis aufs Gramm      | geht | `test_linkqueue` |
 | R-38 | Bus und Bahn: der Anteil am Fahrplan | eine Runde rechnet jeden Fahrzeugkilometer, CO₂ und Kosten, mit dem Anteil des Spiels: die Anteile der Mitfahrenden, die Linien, die niemand benutzt hat, die Fahrten nach dem Fahrplan; die Runde selbst bleibt dieselbe, das Ticket auch; ein Spiel übernimmt den Anteil seiner Karte, wenn es beginnt, und behält ihn, wenn die Karte danach neu gemessen wird; eine Karte ohne Anteil bezahlt den ganzen Fahrplan      | geht | `test_linkqueue`, `test_simulation`, `test_models` |
+| R-39 | Pendlertypen in der Runde | jede Gruppe zeigt unter ihrem Ziel ihren Pendlertyp, Name und Satz; die Gruppen eines Platzes bekommen verschiedene, solange die Liste reicht, danach geht es von vorn los; ein Spiel ohne Pendlertypen zeigt keinen | geht | `test_personas` |
 
 ## A — die animation
 
@@ -220,6 +221,7 @@ nicht gemessen.
 | E-15 | Auswertung mit Abstimmungen      | Karte mit mehreren Versionen: Gewinner, Stimmen, Patt und „von der Spielleitung beendet" stehen da | ungeprüft | -               |
 | E-16 | Leitstelle am Spielende                    | „Zu deinen Spielen" führt nach `/app/host`                                                    | geht      | lobby          |
 | E-17 | „Neues Spiel anlegen" am Spielende         | führt ins Formular, in der SPA statt über Django                                              | ungeprüft | -              |
+| E-18 | „Meine Gruppen“ | nur in einem Spiel mit Pendlertypen und nur mit eigenem Platz, also nicht an der Leitstelle; pro Gruppe Ziel, Pendlertyp, wie oft womit, Zeit, Strecke, Tempo, selbst bezahlt, CO₂, Umstiege, ein Tag hin und zurück im Schnitt über die Runden; zurück auf „pro Person“ stehen die drei Listen wieder da | geht | `test_rounds`, `tests/lib/game/groups.test.ts` |
 
 ## H — die leitstelle (host)
 
@@ -245,6 +247,7 @@ nicht gemessen.
 | H-18 | „Weitere Einstellungen"                                  | zu, bis man es aufmacht; lehnt der Server ein Feld darin ab, geht es von selbst auf                              | geht      | -                  |
 | H-19 | Platz übernehmen, nachdem die Leitstelle „Weiter für alle hier" gedrückt hat | der Knopf kommt wieder (der Platz hat nichts gelesen); ein Druck, und es geht weiter                             | geht      | zwischen-den-runden    |
 | H-20 | Spiel anlegen: CO₂ pro Person und Runde                  | Auswahl 0,6 bis 6,0 kg in Schritten von 0,2, „normal“ bei 2,4; 2,0 kg bei 3 Runden → 40.800 kg; das Spiel speichert die Kilo; der Server lehnt alles außerhalb der Auswahl auf Deutsch ab | geht      | `e2e/host.spec.ts`, `test_join` |
+| H-21 | Spiel anlegen: Pendlertypen | Schalter „verteilen“ unter „Gruppen pro Person“, aus als Vorgabe; an: die sieben Standardtypen, alle angehakt, eigene dazu (Enter fügt hinzu, schickt das Formular nicht ab), eigene wieder entfernen; alle abgehakt: „Wähle mindestens einen Pendlertyp.“ unter der Liste, kein Spiel; das Spiel bekommt Kopien, ein eigener taucht im nächsten Formular nicht auf, ein später geänderter Standardtyp ändert kein Spiel | geht | `test_personas`, `tests/lib/game/personas.test.ts` |
 
 ## C — chat
 

@@ -99,7 +99,7 @@ stateDiagram-v2
 | Schritt                                 | wo man liest                                                   |
 | --------------------------------------- | -------------------------------------------------------------- |
 | anlegen                                 | `GameSessionListCreateView` in `game/views_rest.py`            |
-| beitreten, Zuhause und Ziele            | `JoinSessionAPIView` in `game/views_join.py`, `set_up_player` und `assign_agent_nodes` in `game/signals.py` |
+| beitreten, Zuhause und Ziele            | `JoinSessionAPIView` in `game/views_join.py`, `set_up_player` und `assign_agent_nodes` in `game/signals.py`, die Pendlertypen `game/personas.py` |
 | starten                                 | `GameSessionDetailView.update` in `game/views_rest.py`         |
 | Runde komplett, simulieren, beenden     | `game/rounds.py`, dann `handle_round_completed` in `game/signals.py` |
 | pausieren, Ende nach Ruhe, anonymisieren | `game/pause.py`, `game/idle.py`, `game/anon.py`               |

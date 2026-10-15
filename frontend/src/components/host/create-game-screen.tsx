@@ -5,6 +5,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/layout/field";
+import { PersonaPicker } from "@/components/host/persona-picker";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
 import { apiErrorMessage, ApiError } from "@/lib/api";
 import {
@@ -17,8 +18,10 @@ import {
   peoplePerAgent,
 } from "@/lib/calibration";
 import { de } from "@/lib/de";
+import { pickedPersonas, type PersonaDraft } from "@/lib/game/personas";
 import { useCreateGame } from "@/lib/queries/session";
 import { useGameMaps, type GameMapRow } from "@/lib/queries/maps";
+import { useStandardPersonas } from "@/lib/queries/personas";
 
 /**
  * Spiel anlegen, and the reason the screen moved off Django at all.
@@ -59,6 +62,16 @@ export function CreateGameScreen() {
   const [maxRounds, setMaxRounds] = useState(String(DEFAULT_MAX_ROUNDS));
   const [idleEndDays, setIdleEndDays] = useState("30");
   const [chatEnabled, setChatEnabled] = useState(true);
+  /**
+   * Pendlertypen. Off by default: a class plays as itself unless the host asks
+   * for missions. The standard list is fetched once the switch is on; a box
+   * unticked is remembered by id, so every one is ticked by default however
+   * late the list lands.
+   */
+  const [personasOn, setPersonasOn] = useState(false);
+  const [unticked, setUnticked] = useState<ReadonlySet<number>>(new Set());
+  const [ownPersonas, setOwnPersonas] = useState<PersonaDraft[]>([]);
+  const standardPersonas = useStandardPersonas(personasOn);
   /**
    * "Weitere Einstellungen" is closed until the host opens it — or until the
    * server refuses a field inside it, which a closed disclosure would hide.
@@ -132,6 +145,12 @@ export function CreateGameScreen() {
         people_per_agent: Number(peopleValue),
         idle_end_days: Number(idleEndDays),
         chat_enabled: chatEnabled,
+        personas: pickedPersonas(
+          personasOn,
+          standardPersonas.data ?? [],
+          unticked,
+          ownPersonas,
+        ),
       });
       // A full navigation rather than a router one: the response set both
       // signed cookies, and the game screen's very first request has to carry
@@ -305,6 +324,46 @@ export function CreateGameScreen() {
                 onReset={() => setPeopleOverride(null)}
               />
             </Field>
+            {/*
+              In the Gruppen's own group, and in the cell under "Gruppen pro
+              Person": it is about the Gruppen, and placed after the derived
+              number it leaves the rule above intact — a number after the
+              numbers it comes from.
+            */}
+            <CheckField
+              id="personas"
+              label={de.create.personas}
+              help={de.create.personasHelp}
+              box={de.create.personasSwitch}
+              checked={personasOn}
+              onChange={setPersonasOn}
+            />
+            {personasOn ? (
+              <PersonaPicker
+                standard={standardPersonas.data ?? []}
+                loading={standardPersonas.isPending}
+                failed={standardPersonas.isError}
+                unticked={unticked}
+                onToggle={(id) =>
+                  setUnticked((current) => {
+                    const next = new Set(current);
+                    if (next.has(id)) next.delete(id);
+                    else next.add(id);
+                    return next;
+                  })
+                }
+                own={ownPersonas}
+                onAdd={(persona) =>
+                  setOwnPersonas((current) => [...current, persona])
+                }
+                onRemove={(index) =>
+                  setOwnPersonas((current) =>
+                    current.filter((_, at) => at !== index),
+                  )
+                }
+                errors={errors.personas}
+              />
+            ) : null}
           </div>
         </section>
 
@@ -489,6 +548,7 @@ function CheckField({
   id,
   label,
   help,
+  box = de.create.allow,
   checked,
   onChange,
   errors,
@@ -496,6 +556,8 @@ function CheckField({
   id: string;
   label: string;
   help: string;
+  /** The word beside the box: "zulassen" unless the switch is not a permission. */
+  box?: string;
   checked: boolean;
   onChange: (next: boolean) => void;
   errors?: string[];
@@ -513,7 +575,7 @@ function CheckField({
           className="size-4 accent-primary"
         />
         <label htmlFor={id} className="text-sm">
-          {de.create.allow}
+          {box}
         </label>
       </div>
     </Field>

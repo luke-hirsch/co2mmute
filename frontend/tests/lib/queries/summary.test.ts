@@ -87,6 +87,21 @@ const payload = {
           paid_eur_per_person: 0,
         },
       ],
+      groups: [
+        {
+          agent_id: 1,
+          destination: "Arbeit",
+          persona: { name: "Sportskanone", description: "Rad und Füße sind Training." },
+          rounds: 1,
+          modes: { bike: 1 },
+          time_min: 50,
+          distance_km: 11.2,
+          speed_kmh: 13.4,
+          paid_eur: 0,
+          co2_g: 0,
+          changes: 0,
+        },
+      ],
     },
   ],
 };
