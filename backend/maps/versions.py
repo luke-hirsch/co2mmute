@@ -292,6 +292,113 @@ def combination_members(model, base_version, member_versions):
     return (base_pks - removed) | added
 
 
+
+def generate_combinations(game_map, atomic_versions):
+    """Every combination of two or more of `atomic_versions`, on the ballot.
+
+    For both doors, the editor's `generate-combinations` and the admin's
+    action, which had a builder of its own from before this one was fixed: it
+    unioned the members, copied no train line and no chain row, and wrote
+    English poll texts. Returns how many versions were made; a combination that
+    exists already is left as it is and only wired in again.
+
+    The ballot is the lattice: a combination is paired with every combination
+    one change larger that holds it and every one one change smaller it holds,
+    and each single change with the base.
+    """
+    from itertools import combinations
+
+    from maps.models import (
+        BusLine,
+        BusLineEdge,
+        Edge,
+        MapVersion,
+        Node,
+        StreetEdge,
+        TrainEdge,
+        TrainLine,
+        TrainLineEdge,
+    )
+
+    base_version = MapVersion.objects.filter(
+        game_map=game_map, base_version=True
+    ).first()
+
+    existing = {frozenset([v.pk]): v for v in atomic_versions}
+    all_subsets = [
+        frozenset(v.pk for v in combo)
+        for size in range(2, len(atomic_versions) + 1)
+        for combo in combinations(atomic_versions, size)
+    ]
+
+    created_count = 0
+    for subset in all_subsets:
+        if subset in existing:
+            continue
+        members = sorted(
+            [v for v in atomic_versions if v.pk in subset], key=lambda v: v.name
+        )
+        combo_name = " + ".join(v.name for v in members)
+        combo_poll_text, combo_revert_text = combination_poll_texts(
+            [v.name for v in members]
+        )
+        combo_version = MapVersion.objects.create(
+            game_map=game_map,
+            name=combo_name,
+            poll_text=combo_poll_text,
+            revert_poll_text=combo_revert_text,
+            base_version=False,
+        )
+        existing[subset] = combo_version
+        created_count += 1
+
+        member_versions = [existing[frozenset([p])] for p in subset]
+        # "Apply both changes" is base minus what each member removed plus
+        # what each member added (`combination_members`), not the union of the
+        # members. The union kept a street a member had *replaced* beside its
+        # replacement: on the live box every combination containing
+        # `Busspuren` carries 15 corridors twice over, 155 edges where the
+        # whole map has 140, so the router saw two parallel roads and the bus
+        # chain had two candidates per link.
+        #
+        # `TrainLine` and the two chain models were simply missing. That is
+        # why all four combinations on the box hold no rail at all, and why
+        # three play-tested games ran on a map with no U-Bahn and no S-Bahn.
+        for model in (
+            Node,
+            Edge,
+            StreetEdge,
+            TrainEdge,
+            BusLine,
+            TrainLine,
+            BusLineEdge,
+            TrainLineEdge,
+        ):
+            held = combination_members(model, base_version, member_versions)
+            for element in model.objects.filter(pk__in=held):
+                element.map_versions.add(combo_version)
+
+    for subset, version in existing.items():
+        neighbours = []
+        size = len(subset)
+        for other_subset, other_version in existing.items():
+            if len(other_subset) == size + 1 and subset.issubset(other_subset):
+                neighbours.append(other_version)
+        for other_subset, other_version in existing.items():
+            if len(other_subset) == size - 1 and other_subset.issubset(subset):
+                neighbours.append(other_version)
+        if size == 1 and base_version:
+            neighbours.append(base_version)
+        version.compatible_versions.set(neighbours)
+
+    if base_version:
+        existing_base_compat = list(base_version.compatible_versions.all())
+        new_atomics = [v for v in atomic_versions if v not in existing_base_compat]
+        if new_atomics:
+            base_version.compatible_versions.add(*new_atomics)
+
+    return created_count
+
 # ── deleting a version ────────────────────────────────────────────────────
 
 
