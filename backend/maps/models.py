@@ -89,6 +89,12 @@ class GameMap(models.Model):
         ),
     )
 
+    # What the budget means here: car share in whole percent (a string) → kg
+    # per person per round, measured by `calibrate_map`, e.g. {"100": 3.62,
+    # "50": 1.86, "0": 0.73}. The create form reads "bei 2,4 kg bis 47 %
+    # Auto" off it. None until measured.
+    co2_table = models.JSONField(null=True, blank=True)
+
     # Whose data the map is drawn from, as the licences ask it to be said:
     # a list of {"text", "url"?}. A map built from OpenStreetMap names its
     # sources here and the viewers print them small in a corner; a hand-drawn

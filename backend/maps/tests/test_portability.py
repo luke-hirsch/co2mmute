@@ -776,6 +776,54 @@ class MapBlockPortabilityTests(MapUploadMixin, TestCase):
 
                 self.assertEqual(game_map.timetable_factor, 1.0)
 
+    def test_import_reads_the_table_of_kg_per_car_share(self):
+        table = {"100": 3.62, "50": 1.86, "0": 0.73}
+        payload = self.graph_payload(
+            map={"name": "Berlin 3", "x_dim": 7, "y_dim": 5, "co2_table": table}
+        )
+
+        self.assertEqual(self.upload(payload).co2_table, table)
+
+    def test_a_file_without_a_table_is_unmeasured(self):
+        self.assertIsNone(self.upload(self.graph_payload()).co2_table)
+
+    def test_a_table_that_is_none_is_left_behind(self):
+        for value in ({"101": 1.0}, {"50": -1}, {"50": "viel"}, [1], "x", {}):
+            with self.subTest(value=value):
+                payload = self.graph_payload(
+                    map={
+                        "name": "Berlin 3",
+                        "x_dim": 7,
+                        "y_dim": 5,
+                        "co2_table": value,
+                    }
+                )
+
+                with muted():
+                    game_map = self.upload(payload, name=f"Tabelle {value!r}")
+
+                self.assertIsNone(game_map.co2_table)
+
+    def test_the_table_survives_export_and_import_and_is_in_the_list(self):
+        table = {"100": 3.62, "0": 0.73}
+        original = self.upload(
+            self.graph_payload(
+                map={"name": "Berlin 3", "x_dim": 7, "y_dim": 5, "co2_table": table}
+            ),
+            name="Vorher",
+        )
+
+        exported = self.client.get(
+            reverse("maps:map-export", kwargs={"pk": original.pk})
+        ).json()
+        copy = self.upload(exported, name="Nachher")
+        rows = self.client.get(reverse("maps:gamemap-list")).json()
+
+        self.assertEqual(exported["map"]["co2_table"], table)
+        self.assertEqual(copy.co2_table, table)
+        row = next(r for r in rows if r["id"] == original.pk)
+        self.assertEqual(row["co2_table"], table)
+
     def test_import_reads_the_credits(self):
         credits = [
             {

@@ -161,7 +161,10 @@ Read its report:
 - `Normal, 2,4 kg pro Person und Runde, reicht hier, wenn N % der Gruppen Auto fahren` (or `auch,
   wenn alle …`, or `nicht einmal für eine Runde ohne Auto`): how hard the map is at the normal
   budget. Report it as it is; the map keeps its difficulty, and a host moves the budget when
-  creating a game.
+  creating a game. Followed by `Nicht spielbar` (nicht zu gewinnen / nicht zu verlieren): the
+  normal budget leaves no game on this map. Tell the human which, with the tip the report gives —
+  can't be won: more kg on the dial, or thin out the timetable (fewer lines, a longer interval;
+  buses and trains run whether anybody rides or not); can't be lost: fewer kg.
 - `Anteil am Fahrplan: F`: the share of the timetable's CO₂ and cost the class pays, written into
   the file. `nicht messbar`: no lines, or nobody rides at 50 % car.
 - the table: **`nicht da` is 0 in every row.** Anything else is a defect of the map or the model,
@@ -171,7 +174,9 @@ Read its report:
 - `Eine Runde ohne Auto kostet hier mehr als eine, in der alle fahren …`: the timetable runs whether
   anybody rides. On a sparse map that is what the map teaches; say it.
 
-`--out` writes a copy with the commuters, `calibrated: true` and the share. That copy is the map.
+`--out` writes a copy with the commuters, `calibrated: true`, the share and the table (`co2_table`:
+kg per person per round at each car share, which the create form reads to say "bei 2,4 kg bis N %
+Auto" and "nicht spielbar" at both ends). That copy is the map.
 
 ## 5. upload
 

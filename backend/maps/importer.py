@@ -18,6 +18,7 @@ import logging
 from django.core.files.base import ContentFile
 from django.db import transaction
 
+from game.calibration import clean_co2_table
 from maps.models import (
     BusLine,
     BusLineEdge,
@@ -247,6 +248,20 @@ class MapImporter:
                                 "0 and 1 (%r), keeping the whole timetable",
                                 game_map.pk,
                                 factor,
+                            )
+                    # What the budget means on this map. Absent on every file
+                    # before 2026-10-16 and on a hand-drawn one: unmeasured.
+                    if "co2_table" in map_meta and map_meta["co2_table"] is not None:
+                        table = clean_co2_table(map_meta["co2_table"])
+                        if table is not None:
+                            game_map.co2_table = table
+                            changed.append("co2_table")
+                        else:
+                            logger.warning(
+                                "Map %s: co2_table is no table of kg per car "
+                                "share (%r), keeping it unmeasured",
+                                game_map.pk,
+                                map_meta["co2_table"],
                             )
                     # Whose data the map is drawn from. Absent on every
                     # file before 2026-10-16 and on a hand-drawn one: none.
