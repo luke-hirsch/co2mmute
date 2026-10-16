@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 
+import { lastRoundLine } from "@/lib/game/last-round";
 import { AgentRow } from "@/components/round/agent-row";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -86,7 +87,8 @@ export function RoundScreen({
   // Where it stopped last round, from the same speeds "schnellste" routes on.
   // Empty in round one, which is correct: nothing has been driven yet.
   const jam = useMemo(
-    () => edgeLoads(draft.graph?.edges ?? [], draft.graph?.previous_round_traffic),
+    () =>
+      edgeLoads(draft.graph?.edges ?? [], draft.graph?.previous_round_traffic),
     [draft.graph],
   );
 
@@ -126,7 +128,11 @@ export function RoundScreen({
       <RoundHeader />
 
       {desk ? (
-        <SeatBar seatName={desk.name} onLeave={desk.onLeave} className="mb-10" />
+        <SeatBar
+          seatName={desk.name}
+          onLeave={desk.onLeave}
+          className="mb-10"
+        />
       ) : seatId ? (
         <div className="mb-10 flex justify-end">
           <HandOverPanel gameId={state.gameId} seatId={seatId} />
@@ -168,7 +174,10 @@ export function RoundScreen({
                 <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
                   <h2 className="text-2xl font-semibold">{de.round.agents}</h2>
                   <p className="font-mono text-sm tabular-nums text-muted-foreground">
-                    {de.round.chosenOf(draft.progress.done, draft.progress.total)}
+                    {de.round.chosenOf(
+                      draft.progress.done,
+                      draft.progress.total,
+                    )}
                   </p>
                 </div>
 
@@ -180,6 +189,11 @@ export function RoundScreen({
                       agent={agent}
                       distance={draft.distances.get(agent.agentId)}
                       persona={draft.personas.get(agent.agentId)}
+                      lastRound={lastRoundLine(
+                        state.lastRound,
+                        seatId,
+                        agent.agentId,
+                      )}
                       nodes={nodes}
                       selected={selected?.agentId === agent.agentId}
                       onSelect={() => setSelectedAgentId(agent.agentId)}
@@ -203,7 +217,9 @@ export function RoundScreen({
 
               {submit.error ? (
                 <Alert variant="destructive" className="mt-8">
-                  <AlertDescription>{submitFailure(submit.error)}</AlertDescription>
+                  <AlertDescription>
+                    {submitFailure(submit.error)}
+                  </AlertDescription>
                 </Alert>
               ) : null}
 

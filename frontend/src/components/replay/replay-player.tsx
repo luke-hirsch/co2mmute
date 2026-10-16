@@ -34,6 +34,7 @@ import { modeOrder, modeStyle } from "@/components/metro/mode";
 import { useGame } from "@/components/game/game-context";
 import { useHostGame } from "@/lib/queries/session";
 import { useMapGraph } from "@/lib/queries/map-graph";
+import { replayClockOfDay } from "@/lib/replay/clock-of-day";
 import { useReplayClock } from "@/components/replay/use-replay-clock";
 import { useRoundReplay } from "@/lib/queries/replay";
 import { useSeatGame } from "@/lib/queries/seat";
@@ -108,6 +109,8 @@ export function ReplayPlayer({
       graph={graph.data}
       ticks={payload.data!.ticks}
       tickDurationMin={payload.data!.tick_duration_min}
+      morningHour={payload.data!.morning_departure_hour}
+      eveningHour={payload.data!.evening_departure_hour}
       onWatched={announce}
     />
   );
@@ -127,12 +130,16 @@ function Stage({
   graph,
   ticks,
   tickDurationMin,
+  morningHour,
+  eveningHour,
   onWatched,
 }: {
   replay: Replay;
   graph: ExtendedMapGraph;
   ticks: NonNullable<ReturnType<typeof useRoundReplay>["data"]>["ticks"];
   tickDurationMin: number;
+  morningHour: number;
+  eveningHour: number;
   onWatched: () => void;
 }) {
   const canvas = useRef<ReplayCanvasHandle>(null);
@@ -180,7 +187,11 @@ function Stage({
       <div className="mt-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
         <p className="font-mono text-sm tabular-nums text-muted-foreground">
           <span className="sr-only">{de.replay.clockLabel} </span>
-          {clock.midday ? de.replay.midday : de.replay.clock(clock.minute)}
+          {clock.midday ? de.replay.midday : replayClockOfDay(clock.minute, {
+                morningHour,
+                eveningHour,
+                homeStartMin: replay.home_start_min,
+              })}
         </p>
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" size="sm" onClick={clock.toggle}>

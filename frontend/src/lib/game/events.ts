@@ -92,7 +92,14 @@ export type RoundPlayerStats = {
    */
   paid_eur_per_person: number;
   /** Only present when the simulation ran; the legacy fallback omits it. */
-  agents?: { mode: TransportMode; [key: string]: unknown }[];
+  agents?: {
+    agent_id: number;
+    mode: TransportMode;
+    /** Way there and back, in minutes, for one commuter of this Gruppe. */
+    trip_time_min: number;
+    co2_g_per_person: number;
+    [key: string]: unknown;
+  }[];
 };
 
 /**

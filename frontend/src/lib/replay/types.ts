@@ -152,6 +152,9 @@ export type ReplayPayload = {
   round_number: number;
   tick_duration_min: number;
   people_per_agent: number;
+  /** The hours the departures are drawn around; the clock starts an hour before. */
+  morning_departure_hour: number;
+  evening_departure_hour: number;
   replay: Replay | null;
   ticks: ReplayTick[];
 };

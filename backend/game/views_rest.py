@@ -1042,6 +1042,10 @@ class RoundReplayView(GenericAPIView):
                 "round_number": round_number,
                 "tick_duration_min": game.tick_duration_min,
                 "people_per_agent": game.people_per_agent,
+                # The hours the two passes' departures are drawn around; the
+                # screen's clock starts an hour before each.
+                "morning_departure_hour": game.morning_departure_hour,
+                "evening_departure_hour": game.evening_departure_hour,
                 # Null for a round simulated before the recorder existed. The
                 # screen falls back to the street fill alone rather than 404 —
                 # an old round still has everything else it ever had.
