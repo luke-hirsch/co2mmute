@@ -561,6 +561,78 @@ class GeneratedCombinationTests(VersionFixtureMixin, TestCase):
         self.assertEqual(len(self.bus_chain(self.base)), 3)
 
 
+class CombiningALineChangeWithAStreetChangeTests(VersionFixtureMixin, TestCase):
+    """A bus lane on B and a new interval for both lines, on one ballot.
+
+    The bus lane clones B, street and rail, and runs both lines over the clone;
+    the interval clones each line with its chain over the streets of base. The
+    combination took the line clones and the street clone, and the lines ran
+    over the B the bus lane had taken out: on a built map every combination of
+    a bus lane and a line change failed `check_map`.
+    """
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="staff", password="password123", is_staff=True
+        )
+        self.client.force_login(self.user)
+        self.build_map()
+        self.busspur = self._diff(
+            "Busspur",
+            edge_changes=[{"edge_id": self.edge_b.pk, "dedicated_bus_lane": True}],
+        )
+        self.takt = self._diff(
+            "Takt",
+            pt_line_changes=[
+                {
+                    "action": "modify",
+                    "line_type": "bus",
+                    "id": self.bus.pk,
+                    "interval": 3,
+                },
+                {
+                    "action": "modify",
+                    "line_type": "train",
+                    "id": self.train.pk,
+                    "interval": 4,
+                },
+            ],
+        )
+        self.combination = self._combine(self.busspur, self.takt)
+
+    def _line(self, model):
+        return model.objects.get(game_map=self.game_map, map_versions=self.combination)
+
+    def test_the_changed_bus_runs_over_the_bus_lane(self):
+        bus = self._line(BusLine)
+        chain = serialize_bus_line_for_graph(bus, self.combination)["edges"]
+
+        self.assertEqual(bus.intervall, 3)
+        self.assertEqual(len(chain), 3)
+        (clone,) = self.edges_in(self.busspur) - self.edges_in(self.base)
+        self.assertEqual(chain[1], clone)
+
+    def test_the_changed_train_runs_over_the_clone_too(self):
+        train = self._line(TrainLine)
+        chain = serialize_train_line_for_graph(train, self.combination)["edges"]
+
+        self.assertEqual(train.intervall, 4)
+        self.assertEqual(len(chain), 2)
+        self.assertNotIn(self.edge_b.pk, chain)
+        self.assertIn(chain[0], self.edges_in(self.combination))
+
+    def test_no_chain_row_is_left_for_a_line_the_combination_lacks(self):
+        lines = set(
+            BusLine.objects.filter(map_versions=self.combination).values_list(
+                "pk", flat=True
+            )
+        )
+        rows = BusLineEdge.objects.filter(map_versions=self.combination)
+
+        self.assertEqual({row.bus_line_id for row in rows}, lines)
+        self.assertEqual(rows.count(), 3)
+
+
 class GeneratedCombinationInTheAdminTests(GeneratedCombinationTests):
     """The admin's "generate combination versions" is the editor's code.
 
