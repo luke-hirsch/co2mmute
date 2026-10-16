@@ -763,6 +763,9 @@ class NewNodeSerializer(serializers.Serializer):
     """A new node to add to a version."""
 
     temp_id = serializers.CharField()
+    name = serializers.CharField(
+        max_length=100, required=False, allow_null=True, allow_blank=True
+    )
     x_position = serializers.FloatField()
     y_position = serializers.FloatField()
 
@@ -772,6 +775,9 @@ class NewEdgeSerializer(serializers.Serializer):
 
     temp_start_node = serializers.CharField()
     temp_end_node = serializers.CharField()
+    name = serializers.CharField(
+        max_length=100, required=False, allow_null=True, allow_blank=True
+    )
     bidirectional = serializers.BooleanField(default=False)
     biking = serializers.BooleanField(default=False)
     bike_lane = serializers.BooleanField(default=False)

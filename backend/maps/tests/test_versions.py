@@ -669,6 +669,50 @@ class GeneratedCombinationInTheAdminTests(GeneratedCombinationTests):
         )
 
 @override_settings(**TEST_BACKENDS)
+class RowsDrawnIntoAVersionTests(VersionFixtureMixin, TestCase):
+    """`create-from-diff` keeps the name the editor sends for a new node or edge."""
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="staff", password="password123", is_staff=True
+        )
+        self.client.force_login(self.user)
+        self.build_map()
+
+    def _draw(self, **rows):
+        self._diff("Neu", **rows)
+
+    def test_a_sent_name_is_kept(self):
+        self._draw(
+            new_nodes=[
+                {
+                    "temp_id": "n1",
+                    "name": "Karte Knoten 1",
+                    "x_position": 1,
+                    "y_position": 1,
+                }
+            ],
+            new_edges=[
+                {
+                    "temp_start_node": "n1",
+                    "temp_end_node": str(self.nodes[0].pk),
+                    "name": "Karte Kante 1",
+                    "bidirectional": True,
+                    "walking": True,
+                    "max_lanes": 1,
+                }
+            ],
+        )
+
+        self.assertTrue(Node.objects.filter(name="Karte Knoten 1").exists())
+        self.assertEqual(Edge.objects.filter(name="Karte Kante 1").count(), 2)
+
+    def test_no_name_stays_as_it_was(self):
+        self._draw(new_nodes=[{"temp_id": "n1", "x_position": 1, "y_position": 1}])
+
+        self.assertTrue(Node.objects.filter(name__isnull=True, x_position=1).exists())
+
+@override_settings(**TEST_BACKENDS)
 class GeneratingCombinationsAgainTests(VersionFixtureMixin, TestCase):
     """A second run with one change more wires the first run's combinations in.
 
