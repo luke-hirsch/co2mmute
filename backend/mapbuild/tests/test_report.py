@@ -41,7 +41,7 @@ class SnappedAwayTests(SimpleTestCase):
 
         self.assertIn("Rand 1050 m", line)
         self.assertNotIn("Mitte", line)
-        self.assertIn("Vorschlag: eine Version", line)
+        self.assertIn("Vorschlag: den Halt näher an den Ort rücken", line)
 
     def test_a_place_no_stop_ever_served_is_not_this_lines_business(self):
         self.assertIsNone(
@@ -69,7 +69,7 @@ class FarOnFootTests(SimpleTestCase):
         self.assertIsNotNone(line)
         self.assertIn("1 Orte", line)
         self.assertIn("Zuhause", line)
-        self.assertIn("Vorschlag: eine Version", line)
+        self.assertIn("Vorschlag: ein Fußweg oder ein Halt dort", line)
 
     def test_a_short_walk_says_nothing(self):
         nodes, edges = self.graph(circuity=1.2)

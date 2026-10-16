@@ -19,9 +19,11 @@ was answered**. Never pick a town, a count or a place from the map alone.
 - A staff account on the instance the map is on, and `python3` (standard library only).
 - `CO2MMUTE_URL` (the instance; default `http://127.0.0.1:8000`, Django itself), `CO2MMUTE_USER`
   and `CO2MMUTE_PASSWORD`.
+- **Whether any game ever ran on the map.** `modify.py` edits the map in place, so ask the human, and
+  see "after every change" if one did.
 - A clone with `npm ci` done in `frontend/`, for the re-measuring at the end (see `map-create`).
-- To look a name up on the map, `map-versions`' `versions.py find <map> <text>` prints streets,
-  nodes and lines with their ids.
+- To look a name up on the map, `python3 .agents/skills/map-versions/versions.py find <map> <text>`
+  prints streets, nodes and lines with their ids.
 
 `modify.py` makes the calls the map editor makes (`frontend/src/lib/queries/map-editor.ts`), one
 command per case, each printing what it did. Every command that writes first saves the map's export
@@ -56,15 +58,17 @@ python3 .agents/skills/map-modify/modify.py place <map> <node> workplace "Arbeit
 ```
 
 The name follows the builder's: `Arbeit <Ort> Zentrum`, `Wohnort <Ort>`. A node that is already a
-place is refused. The place now counts: people are dealt to every workplace.
+place is refused. The place now counts: people are dealt to every workplace. `place` only **adds**.
+Moving a place means adding the new one here; taking the old one away is the map editor's.
 
 ### how many commute
 
 **Lay out:** the map's count and whether it was measured (`places`).
 
 **Ask:** the number and its source, with year (for Callenberg 1 800, from the Land's statistic of
-out-commuters). A count of the people of a village, not of a city: it is what the roads should
-carry in the morning, not a headcount.
+out-commuters). A statistic gives a headcount. The game's count is car demand, calibrated so that
+everybody driving matches the city's rush-hour speed (`map-create`, step 4); a headcount stands in
+for it only where no speed source exists, as for a village TomTom doesn't list. Say so.
 
 **Write:**
 
@@ -78,7 +82,7 @@ human to keep it, and name it in your answer.
 
 ### a footpath
 
-**Lay out:** the two nodes (look them up with `versions.py find`), and the streets at each.
+**Lay out:** the two nodes (look them up with `python3 .agents/skills/map-versions/versions.py find <map> <text>`), and the streets at each.
 
 **Ask:** which two places, a name for it, and whether bikes may use it.
 
@@ -93,11 +97,15 @@ direction already: the server says so and nothing is written.
 
 ### a moved station or stop
 
-**Lay out:** the node and where it is (x, y in map units; one unit is the scale in metres), the
-lines that call there.
+**Lay out:** the node and where it is (x, y in map units; one unit is the scale in metres), and the
+lines on the edges at that node (`python3 .agents/skills/map-versions/versions.py find <map> <text>`
+prints the lines per edge).
 
-**Ask:** where it belongs, as a node it should be (then it is a change of the line's stops, in the
-editor) or as a position.
+**Ask:** where the stop belongs. `move` takes x and y, so it can only be done mechanically when the
+target is a home or workplace, whose x and y `places` prints (or an outermost node, `edge`): ask the
+human for that place and move the node onto it. For any other target (a street, a corner, "a bit
+further north") there is no x and y to read: ask the human to drag the node in the map editor. The
+stop on a *different* node is the map editor's as well.
 
 **Write:**
 
@@ -105,12 +113,12 @@ editor) or as a position.
 python3 .agents/skills/map-modify/modify.py move <map> <node> <x> <y>
 ```
 
-The edges at the node follow with their bend; lines stay on it. It prints the metres moved. A stop
-that must be a *different* node is the map editor's, or a version.
+The edges at the node follow with their bend; lines stay on it. It prints the metres moved, and it
+moves the node, junction or not. A stop on a different node is the map editor's, never a version.
 
 ### a street the rules left out
 
-**Lay out:** the two nodes it joins and what the map has between them (`versions.py route <map>
+**Lay out:** the two nodes it joins and what the map has between them (`python3 .agents/skills/map-versions/versions.py route <map>
 <from> <to>` prints the way a bus would take today).
 
 **Ask:** the street's name, its lanes and its speed, and one way or two.
@@ -135,14 +143,17 @@ DJANGO_DB=postgres devops/dev.sh manage calibrate_map /abs/map.json --commuters 
 ```
 
 `check_map` says `in Ordnung`, or lists what broke: then stop and give the human the lines. A change
-of **people or places** (the first two cases) wants the calibration too, with the count the human
-gave (`--commuters N`); read its report as in `map-create`: `nicht da` is 0 in every row, the speed
-reached, the car share normal allows. A footpath, a moved stop or a street changes the roads
-slightly: re-measure when the map is to be played, and say it was not if it isn't.
+of **places or the count** (the first two cases) wants `calibrate_map --commuters N` now, with the
+count the human gave; read its report as in `map-create`: `nicht da` is 0 in every row, the speed
+reached, the car share normal allows. A footpath, a street or a moved stop wants `check_map` now,
+and `calibrate_map --commuters <the map's count>` before the map is played; say which of the two
+was done.
 
-An import always makes a **new** map, so the calibrated file is uploaded beside the old one
-(`/app/maps/upload`), and the edited original stays as it is with its games. A map a game is running
-on is never edited in place without the host's word.
+`modify.py` edits the map **in place**. Before the first write, check that no game ever ran on it
+(the same check as `map-versions`: none running, none played). If one did, export the map, import the
+export as a new map (`/app/maps/upload`) and edit that one; the original stays as it is with its
+games. A map no game has seen can be edited where it is, and the calibrated file is uploaded as a
+new map beside it.
 
 ## tell the human
 

@@ -56,7 +56,7 @@ def snapped_away(places, raw_stops, final_stops, reach):
     return (
         f"{len(out)} Orte, die der Halt erst bediente, bevor er auf seinen Knoten rückte, "
         f"jetzt weiter als {reach} m: {_name_list(out)}. "
-        "Vorschlag: eine Version mit einem Halt näher dran"
+        "Vorschlag: den Halt näher an den Ort rücken"
     )
 
 
@@ -88,7 +88,7 @@ def far_on_foot(nodes, edges, stop_ids, places, reach):
     return (
         f"{len(out)} Orte, deren Halt zu Fuß weiter als {reach} m entfernt ist, obwohl er in "
         f"der Luftlinie näher liegt: {', '.join(name for name, _ in out)}. "
-        "Vorschlag: eine Version mit einem Fußweg oder einem Halt dort"
+        "Vorschlag: ein Fußweg oder ein Halt dort"
     )
 
 

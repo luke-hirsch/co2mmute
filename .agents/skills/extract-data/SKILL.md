@@ -10,24 +10,27 @@ skill is how to run it, what is in it, and what you may and may not say from it.
 
 ## before you start
 
-- A clone set up natively as in `README.md`, pointed at the instance's database. On the box that is
-  `sudo docker compose exec` into the backend container; there the path you pass is inside the
+- A clone set up natively as in `README.md`, pointed at the instance's database. On a server that
+  runs compose, the command runs in the backend container (below); the path you pass is inside the
   container, and you copy the file out.
 - Nothing else. The file is read with any sqlite client; Python's `sqlite3` is enough.
 
-`devops/dev.sh manage <command>` runs `manage.py` in `backend/`, so **the path you pass is
-absolute**.
+Locally, `devops/dev.sh manage <command>` runs `manage.py` in `backend/`, so **the path you pass is
+absolute**. On a server with compose, the same command is
+`docker compose -f devops/docker-compose.yaml exec backend ./manage.py <command>`.
 
 ## 1. export
 
 ```bash
 devops/dev.sh manage export_research_data /abs/path/research.sqlite
+docker compose -f devops/docker-compose.yaml exec backend ./manage.py export_research_data /tmp/research.sqlite
 ```
 
 It prints the rows per table. A file that is already there is replaced. Only games that are **over
-and anonymised** leave: a game inside the 24 hours after its end is still being debriefed, and a
-running game is not data yet. A game missing from the file is one of those; wait, or run
-`manage.py anonymise_games`, and export again.
+and anonymised** leave. A game that ended less than 24 hours ago is still in its grace period (it is
+being debriefed) and stays out until the grace ends and the hourly job anonymises it. A running game
+is not data yet. `manage.py anonymise_games --all` anonymises every ended game at once, grace period
+or not: run it only when the host is done with the debrief.
 
 ## 2. what is in it
 
