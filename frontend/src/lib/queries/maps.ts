@@ -28,12 +28,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { apiFetch } from "@/lib/api";
+import type { Co2Table } from "@/lib/calibration";
 
 export type GameMapRow = {
   id: number;
   name: string;
   district_commuters: number;
   calibrated: boolean;
+  /** kg per person per round at each car share; null until measured. */
+  co2_table: Co2Table | null;
   offers_map_changes: boolean;
 };
 

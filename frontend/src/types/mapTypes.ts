@@ -84,6 +84,8 @@ export interface GameMap {
   district_commuters: number;
   /** Whether that count was measured on this map, or is still the default. */
   calibrated: boolean;
+  /** kg per person per round at each car share, by percent; null until measured. */
+  co2_table?: Record<string, number> | null;
   /** Whose data the map is drawn from; none on a hand-drawn map. */
   credits?: MapCredit[];
   /** Whether a game on this map can ever reach a ballot. */

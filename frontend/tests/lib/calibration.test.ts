@@ -5,6 +5,7 @@ import {
   DEFAULT_AGENT_PER_PLAYER,
   DEFAULT_MAX_PLAYERS,
   DEFAULT_MAX_ROUNDS,
+  carShareAt,
   co2BudgetKg,
   co2KgPerPersonChoices,
   peoplePerAgent,
@@ -142,5 +143,29 @@ describe("the dial", () => {
     for (const value of co2KgPerPersonChoices()) {
       expect(value).toMatch(/^\d\.\d$/);
     }
+  });
+});
+
+/** Berlin Mitte-West's table, kg per person per round at each car share. */
+const TABLE = { "100": 3.62, "75": 2.65, "50": 1.86, "25": 1.28, "0": 0.73 };
+
+describe("the car share a budget buys", () => {
+  it("is two thirds of the cars at normal", () => {
+    const share = carShareAt("2.4", TABLE);
+    // Between 50 % (1.86) and 75 % (2.65).
+    expect(share).toBeCloseTo(0.5 + (0.25 * (2.4 - 1.86)) / (2.65 - 1.86), 10);
+    expect(share).toBeCloseTo(0.671, 3);
+  });
+
+  it("is a row's own share on a row", () => {
+    expect(carShareAt("2.65", TABLE)).toBeCloseTo(0.75, 10);
+  });
+
+  it("is everybody when even everybody driving fits", () => {
+    expect(carShareAt("5.0", TABLE)).toBe(1);
+  });
+
+  it("is nothing when not even nobody driving fits", () => {
+    expect(carShareAt("0.6", TABLE)).toBeNull();
   });
 });

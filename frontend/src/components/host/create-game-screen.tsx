@@ -5,6 +5,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/layout/field";
+import { BudgetNote } from "@/components/host/budget-note";
 import { PersonaPicker } from "@/components/host/persona-picker";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
 import { apiErrorMessage, ApiError } from "@/lib/api";
@@ -434,6 +435,10 @@ export function CreateGameScreen() {
                 ))}
               </select>
             </Field>
+            <BudgetNote
+              table={selected?.co2_table}
+              kgPerPerson={kgPerPerson}
+            />
           </div>
         </section>
 

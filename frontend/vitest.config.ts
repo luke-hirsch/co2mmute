@@ -12,7 +12,7 @@ export default defineConfig({
   },
   test: {
     // Tests mirror src/ in their own tree rather than sitting next to it.
-    include: ["tests/**/*.test.ts"],
+    include: ["tests/**/*.test.{ts,tsx}"],
     // Node, not jsdom. The target is the pure lib/ layer; anything that needs a
     // browser global gets it from vi.stubGlobal in the test that needs it.
     environment: "node",
