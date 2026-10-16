@@ -11,16 +11,29 @@ import random
 
 # Emission factors. These are the only ones: the game's database carries none.
 CAR_EMISSIONS_G_PER_KM = 166.8  # g CO2e per vehicle-km (1 person = 1 vehicle)
-# A 12 m diesel city bus: ~40 l/100 km x 2.64 kg CO2/l.
+# A city bus: ~45 l/100 km x 2.64 kg CO2/l = 1188 g, rounded to 1200. Berlin's
+# fleet is 55 % articulated or 15 m (838 of 1532, BVG in Zahlen 2025). The
+# Standardisierte Bewertung 2016+ has 0.32 l/km for a 12 m solo bus and 0.44 for
+# an articulated one; Karlsruhe's VBK reports 111 and 138 kg CO2 per 100 km
+# (42 and 52 l/100 km at 2.64 kg/l, 2012).
 BUS_EMISSIONS_G_PER_VEHICLE_KM = 1200.0  # g CO2e per bus-km
-# An electric U- or S-Bahn train: ~4 kWh per train-km including auxiliaries,
-# times the German grid mix of 363 g CO2/kWh (UBA, 2024). Not the operator's
-# own green tariff — the grid mix is the conservative figure and the one a
-# class can check. This was 3500 until the first calibration, which implied
-# 9.6 kWh/train-km, a diesel mainline train. It matters more than it looks:
-# the timetable runs whether anyone rides it or not, so on a map with six
-# train lines this number alone sets the floor under every round.
-TRAIN_EMISSIONS_G_PER_VEHICLE_KM = 1500.0  # g CO2e per train-km
+# An electric U-, S- or regional train as it runs at rush hour: 10 kWh per
+# train-km times the German grid mix of 363 g CO2/kWh (UBA, 2024) = 3630 g. Not
+# the operator's own green tariff: the grid mix is the conservative figure and
+# the one a class can check. One constant for all three kinds, the middle of:
+#   - a regional set of one motor coach and four coaches, 9.04 kWh/km
+#     (Standardisierte Bewertung 2016+, Blatt 7-4, "DoSto ETZ", 2030 forecast);
+#   - S-Bahn Berlin, about 14 kWh per train-km: ~390 GWh a year over 27.9 M
+#     train-km in 2024 (derived; heating and auxiliaries included);
+#   - BVG, at most 10.9 kWh per U-Bahn or tram train-km: 454.6 GWh bought in
+#     2025 over 20.3 + 21.5 M train-km (an upper bound, the GWh also feed
+#     e-buses, stations and depots).
+# The 4 kWh this used to carry was one unit, 40 m of tram, not a train. It was
+# 3500 before the first calibration and 1500 afterwards; neither was sourced.
+# It matters more than it looks: the timetable runs whether anyone rides it or
+# not, so on a map with six train lines this number alone sets the floor under
+# every round.
+TRAIN_EMISSIONS_G_PER_VEHICLE_KM = 3630.0  # g CO2e per train-km
 # A low-floor tram of 30 to 40 m: 3.9 kWh per tram-km, the figure Bremen's
 # 240-place trams drew in 2010 (Deiters 2009, Tab. 5, with the Standardisierte
 # Bewertung's own rates beside it), times the same 363 g CO2/kWh as the train.
@@ -59,13 +72,23 @@ MAX_CAR_EMISSION_FACTOR = 2.0
 
 # Cost factors, likewise the only ones.
 CAR_COST_PER_KM = 0.32  # € per vehicle-km
-BUS_COST_PER_VEHICLE_KM = 4.5  # € per bus-km
-TRAIN_COST_PER_VEHICLE_KM = 12.0  # € per train-km
-# Deiters 2009, Tab. 5, on the Standardisierte Bewertung's rates: a low-floor
-# tram costs 4.47 € per vehicle-km where a 12 m solo bus costs 2.82, 1.59
-# times as much. Applied to the bus above rather than taken in 2009 euros, so
-# the two keep the ratio the source measured.
-TRAM_COST_PER_VEHICLE_KM = 7.10  # € per tram-km
+# Deiters 2009, Tab. 5, on the Standardisierte Bewertung's rates: a 12 m solo
+# bus costs 2.82 € per vehicle-km and a low-floor tram 4.47. Both brought to
+# 2025 prices with the consumer price index (Destatis, annual average): 2009 is
+# 92.2 on the 2015 base (Lange Reihen ab 1948, Dec 2022), 2025 is 121.9 on the
+# 2020 base, and 2020 is 105.8 on the old base, so the factor is
+# 121.9 x 105.8 / 100 / 92.2 = 1.399. Bus 2.82 x 1.399 = 3.94, tram
+# 4.47 x 1.399 = 6.25. An index of all prices, not of transport wages and
+# energy: it is a bridge over sixteen years, not a measured 2025 cost.
+BUS_COST_PER_VEHICLE_KM = 3.94  # € per bus-km
+TRAM_COST_PER_VEHICLE_KM = 6.25  # € per tram-km
+# A train without the track charge: Ramboll (Ermittlung des Finanzbedarfs fuer
+# den OEPNV bis 2031, 2023) puts regional rail at nearly 20 € production cost
+# per train-km, a third of it (33 %, Tabelle 5) infrastructure charges. 20 x
+# 0.67 = 13.40. The car carries no infrastructure cost in this game, so the
+# train does not either. Berlin's S-Bahn subsidy alone is at least 17 € per
+# train-km (Senat, 2024), so this is the low side.
+TRAIN_COST_PER_VEHICLE_KM = 13.40  # € per train-km
 
 # known estimate
 CAR_COST_TRAFFIC_SHARE = 0.5

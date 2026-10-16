@@ -2569,8 +2569,8 @@ class PTSocietyFiguresTests(PTScenarioMixin, TestCase):
 
         # 12 vehicles x 2 km x 1200 g/vehicle-km
         self.assertAlmostEqual(line.society_co2_g, 28_800.0, places=3)
-        # 12 vehicles x 2 km x 4.50 €/vehicle-km
-        self.assertAlmostEqual(line.society_cost_eur, 108.0, places=3)
+        # 12 vehicles x 2 km x 3.94 €/vehicle-km
+        self.assertAlmostEqual(line.society_cost_eur, 94.56, places=3)
 
     def test_capacity_does_not_touch_the_society_figure(self):
         """The seats are not what burns the diesel.
@@ -2611,8 +2611,8 @@ class PTSocietyFiguresTests(PTScenarioMixin, TestCase):
         self._run(game_round)
 
         result = SimulationResult.objects.get(game_round=game_round)
-        # 28 800 g of bus + 72 000 g of train, plus whatever the car did.
-        self.assertGreater(result.total_co2_g, 100_800.0)
+        # 28 800 g of bus + 174 240 g of train, plus whatever the car did.
+        self.assertGreater(result.total_co2_g, 203_040.0)
 
     def test_network_co2_is_the_whole_timetable(self):
         from game.models import SimulationResult
@@ -2622,8 +2622,8 @@ class PTSocietyFiguresTests(PTScenarioMixin, TestCase):
         self._run(game_round)
 
         result = SimulationResult.objects.get(game_round=game_round)
-        self.assertAlmostEqual(result.network_co2_g, 100_800.0, places=2)
-        self.assertAlmostEqual(result.network_cost_eur, 108.0 + 576.0, places=2)
+        self.assertAlmostEqual(result.network_co2_g, 203_040.0, places=2)
+        self.assertAlmostEqual(result.network_cost_eur, 94.56 + 643.2, places=2)
 
     def test_the_game_pays_the_share_it_started_with(self):
         """The game's factor, not the map's as it is now: a map recalibrated
@@ -2640,9 +2640,9 @@ class PTSocietyFiguresTests(PTScenarioMixin, TestCase):
         self._run(game_round)
 
         result = SimulationResult.objects.get(game_round=game_round)
-        self.assertAlmostEqual(result.network_co2_g, 0.25 * 100_800.0, places=2)
+        self.assertAlmostEqual(result.network_co2_g, 0.25 * 203_040.0, places=2)
         self.assertAlmostEqual(
-            result.network_cost_eur, 0.25 * (108.0 + 576.0), places=2
+            result.network_cost_eur, 0.25 * (94.56 + 643.2), places=2
         )
 
     def test_the_total_is_the_routes_plus_the_lines_nobody_rode(self):
@@ -4957,30 +4957,30 @@ class PTEmissionFactorTests(SimpleTestCase):
     """
 
     def test_a_bus_is_a_diesel_city_bus(self):
-        """~40 l/100 km diesel x 2.64 kg CO2/l, the figure that was right."""
+        """~45 l/100 km diesel x 2.64 kg CO2/l: Berlin's fleet is 55 % articulated."""
         from sim.constants import BUS_EMISSIONS_G_PER_VEHICLE_KM
 
         self.assertAlmostEqual(BUS_EMISSIONS_G_PER_VEHICLE_KM, 1200.0, places=6)
 
-    def test_a_train_is_an_electric_metro_on_the_grid_mix(self):
-        """3500 g/train-km implied 9.6 kWh/train-km — a diesel mainline train.
+    def test_a_train_is_an_electric_train_on_the_grid_mix(self):
+        """10 kWh per train-km x 363 g CO2/kWh (UBA 2024) = 3630 g.
 
-        A Berlin U- or S-Bahn train draws about 4 kWh per train-km including
-        auxiliaries, and the German grid mix was 363 g CO2/kWh in 2024 (UBA).
-        4 x 0.363 = 1.45 kg, so 1500 g/train-km. Not the operator's own green
-        tariff, deliberately: the grid mix is the conservative figure and it is
-        the one a class can check.
+        A whole U-, S- or regional train at rush hour: a regional set of five
+        units 9.04 kWh/km (Standardisierte Bewertung 2016+), S-Bahn Berlin
+        about 14, BVG at most 10.9. The 4 kWh the figure carried before was one
+        tram-sized unit. Not the operator's own green tariff, deliberately: the
+        grid mix is the one a class can check.
         """
         from sim.constants import TRAIN_EMISSIONS_G_PER_VEHICLE_KM
 
-        self.assertAlmostEqual(TRAIN_EMISSIONS_G_PER_VEHICLE_KM, 1500.0, places=6)
+        self.assertAlmostEqual(TRAIN_EMISSIONS_G_PER_VEHICLE_KM, 3630.0, places=6)
 
     def test_a_tram_is_a_low_floor_tram_on_the_grid_mix(self):
         """3.9 kWh per tram-km, Bremen's 240-place trams (Deiters 2009, Tab. 5).
 
         Times the same 363 g/kWh as the train: 1416 g, rounded down to 1400.
         Its cost keeps the ratio the same table measured to a 12 m solo bus,
-        4.47 against 2.82 € per vehicle-km, on the bus's 4.50.
+        4.47 against 2.82 € per vehicle-km, both in 2025 prices.
         """
         from sim.constants import (
             BUS_COST_PER_VEHICLE_KM,
@@ -4989,25 +4989,25 @@ class PTEmissionFactorTests(SimpleTestCase):
         )
 
         self.assertAlmostEqual(TRAM_EMISSIONS_G_PER_VEHICLE_KM, 1400.0, places=6)
-        self.assertAlmostEqual(TRAM_COST_PER_VEHICLE_KM, 7.10, places=6)
+        self.assertAlmostEqual(TRAM_COST_PER_VEHICLE_KM, 6.25, places=6)
         self.assertAlmostEqual(
             TRAM_COST_PER_VEHICLE_KM, BUS_COST_PER_VEHICLE_KM * 4.47 / 2.82, places=1
         )
 
     def test_a_train_still_costs_more_per_vehicle_km_than_a_bus(self):
-        """The cost side is untouched — only the emission factor moved.
+        """Bus 2.82 €, train 20 € less its 33 % track charge, both per Deiters
+        and Ramboll; the price index carries the bus from 2009 to 2025.
 
-        Worth pinning together: correcting CO2 without cost is exactly what
-        makes the two disagree about which mode is expensive, and the fare-vs-
-        Vollkosten contrast rests on the cost side being left alone.
+        Pinned together: a train that costs less than a bus per vehicle-km
+        would turn the fare-vs-Vollkosten contrast upside down.
         """
         from sim.constants import (
             BUS_COST_PER_VEHICLE_KM,
             TRAIN_COST_PER_VEHICLE_KM,
         )
 
-        self.assertAlmostEqual(BUS_COST_PER_VEHICLE_KM, 4.5, places=6)
-        self.assertAlmostEqual(TRAIN_COST_PER_VEHICLE_KM, 12.0, places=6)
+        self.assertAlmostEqual(BUS_COST_PER_VEHICLE_KM, 3.94, places=6)
+        self.assertAlmostEqual(TRAIN_COST_PER_VEHICLE_KM, 13.40, places=6)
 
 
 class RoundTripTests(TestCase):

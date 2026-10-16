@@ -263,7 +263,7 @@ Daraus folgt:
   deshalb bei 1,50× gedeckelt, CO₂ bei 2,00×.
 
 Beim ÖPNV gilt ein fester Wert pro Fahrzeugkilometer: 1.200 g für einen Bus, 1.400 g für eine Tram,
-1.500 g für einen Zug.
+3.630 g für einen Zug.
 Eine Geschwindigkeitskurve gibt es hier nicht, weil die Fahrzeuge nach Fahrplan fahren und nicht
 nach Verkehrslage.
 
@@ -532,14 +532,29 @@ pro Fahrzeugkilometer und muss sich nachrechnen lassen:
 | Modus | Faktor         | woher er kommt                                                   |
 | ----- | -------------- | ---------------------------------------------------------------- |
 | Auto  | 166,8 g/km     | Flottendurchschnitt, eine Person pro Fahrzeug                    |
-| Bus   | 1.200 g/Bus-km | ein 12-m-Stadtbus mit ~45 l/100 km Diesel × 2,64 kg CO₂ je Liter |
+| Bus   | 1.200 g/Bus-km | ein Stadtbus mit ~45 l/100 km Diesel × 2,64 kg CO₂ je Liter; 55 % der BVG-Busse sind Gelenk- oder 15-m-Busse |
 | Tram  | 1.400 g/Tram-km | 3,9 kWh/Tram-km einer 240-Platz-Niederflurtram (Deiters 2009) × 363 g CO₂/kWh |
-| Zug   | 1.500 g/Zug-km | ~4 kWh/Zug-km mit Nebenverbrauchern × 363 g CO₂/kWh (UBA 2024)   |
+| Zug   | 3.630 g/Zug-km | 10 kWh/Zug-km × 363 g CO₂/kWh (UBA 2024) |
 
-Nachgerechnet wird über den Verbrauch: Energie pro Fahrzeugkilometer mal CO₂ pro Energieeinheit. So
-fiel der Zugfaktor auf, der anfangs bei 3.500 g/Zug-km stand. Das entspricht rund 9,6 kWh pro
-Zugkilometer, also einem dieselgeführten Fernzug. Eine Berliner U- oder S-Bahn braucht etwa 4 kWh,
-mit dem deutschen Strommix sind das 1.450 g, gerundet 1.500.
+Nachgerechnet wird über den Verbrauch: Energie pro Fahrzeugkilometer mal CO₂ pro Energieeinheit. Der
+Zugfaktor wurde dreimal gerechnet. Er stand anfangs bei 3.500 g, das waren rund 9,6 kWh pro
+Zugkilometer. Wir hielten das für einen dieselgeführten Fernzug und setzten ihn auf 1.500 g, weil eine
+Berliner U- oder S-Bahn „etwa 4 kWh" brauche. Die 4 kWh hatten keine Quelle, und sie sind etwa eine
+Einheit, so viel wie eine 40-m-Tram. Ein ganzer Zug braucht mehr: ein Regionalzug aus Triebwagen und
+vier Wagen 9,04 kWh/km (Standardisierte Bewertung 2016+, Blatt 7-4), die Berliner S-Bahn rund 14 kWh
+(390 GWh im Jahr durch 27,9 Mio. Zugkilometer, 2024), die BVG höchstens 10,9 (454,6 GWh Strom 2025
+durch 20,3 + 21,5 Mio. Zugkilometer; der Strom speist auch E-Busse, Bahnhöfe und Höfe). Wir rechnen
+mit 10 kWh, mit dem deutschen Strommix 3.630 g.
+
+Die Kosten pro Fahrzeugkilometer stehen ebenfalls in `backend/sim/constants.py`: Bus 3,94 €, Tram
+6,25 €, Zug 13,40 €. Bus und Tram sind Deiters' Werte von 2009 (Bus 2,82 €, Tram 4,47 €), mit dem
+Verbraucherpreisindex auf 2025 gerechnet: 2009 steht bei 92,2 (Basis 2015), 2025 bei 121,9 (Basis
+2020), und 2020 bei 105,8 (Basis 2015), das macht 1,399. Der Index gilt für alle Preise, nicht für
+Löhne und Energie im Nahverkehr. Das ist eine Brücke über sechzehn Jahre und keine gemessene Zahl. Der
+Zug kostet knapp 20 € je Zugkilometer an Produktionskosten (Ramboll 2023), ein Drittel davon sind
+Trassenentgelte. Ohne sie bleiben 13,40 €. Das Auto trägt in diesem Spiel keine Infrastruktur, der
+Zug deshalb auch nicht. Der Zuschuss allein liegt bei der Berliner S-Bahn schon bei mindestens 17 €
+(Senat, 2024); 13,40 € ist die niedrige Seite.
 
 Ein falscher ÖPNV-Faktor wog schwer, weil der Fahrplan auch fährt, wenn niemand einsteigt. Bei 3.500 g
 machte der Fahrplan 39 % einer Runde aus, in der alle Auto fahren; bei 1.500 g waren es 22 %, und

@@ -483,7 +483,7 @@ Ihre Zahlen, jede mit Quelle:
 | Plätze       | 248              | Flexity Berlin, 40 m: 84 Sitz- und 164 Stehplätze bei 4 Personen/m² (Bombardier)           |
 | Tempo        | 30 km/h          | wie der Bus; BVG 2025: Tram 17,1, Bus 17,9 km/h, beide mit Halten und Verkehr (BVG in Zahlen) |
 | CO₂          | 1.400 g/Tram-km  | 3,9 kWh/km einer 240-Platz-Niederflurtram (Bremen 2010, Deiters 2009, Tab. 5) × 363 g/kWh  |
-| Kosten       | 7,10 €/Tram-km   | Tram 4,47 €, Solobus 2,82 € je Fahrzeug-km (Deiters 2009, Tab. 5): 1,59 × die 4,50 € des Busses |
+| Kosten       | 6,25 €/Tram-km   | Tram 4,47 € je Fahrzeug-km (Deiters 2009, Tab. 5) × 1,399 Preisindex 2009 → 2025 (Abschnitt 17); war 7,10 € |
 | Pkw-Einheiten | 5,3             | 40 m Tram ÷ 7,5 m je Auto im Stau (133 Fz/km und Spur)                                     |
 
 Die Quellen für den Strom reichen von 2,76 kWh/km (Standardisierte Bewertung 2016, eine 30-m-Tram)
@@ -562,7 +562,7 @@ Kalibriert mit sieben gezogenen Arbeitsorten und sechs Seeds (`--speed 19 --per-
 sucht der Befehl in Schritten von 217 Pendlern, 1,1 %, und findet den Rand: 18.662 Pendler fahren im
 Mittel der sechs Seeds 27,2 km/h, 19.096 nur noch 16,2. Auf zwei Stellen gerundet sind beide 19.000,
 und die Tabelle spielt 19.096 — jenseits des Randes. 19 km/h liegt auf dieser Karte genau dort, wo
-sie kippt (Abschnitt 17).
+sie kippt (Abschnitt 18).
 
 Ein Schritt der Suche ist ein Mensch pro Gruppe. Weniger Gruppen heißt also feinere Schritte, und
 mehr Gruppen heißt weniger Streuung durch das Ziehen.
@@ -686,7 +686,41 @@ durch.
 fährt, damit sich ein Spiel unschaffbar stellen lässt, und die kostet auf Berlin Mitte-West jetzt
 0,73 kg; mit 1,0 als unterstem Wert ging das nicht mehr.
 
-## 17. Was offen bleibt
+## 17. Der Zug, noch einmal
+
+Abschnitt 6 setzte den Zug von 3.500 g auf 1.500 g. Die Begründung, eine Berliner U- oder S-Bahn
+brauche „etwa 4 kWh" pro Zugkilometer, hatte keine Quelle. Gemessen an Quellen ist sie zu niedrig:
+4 kWh braucht eine einzelne Einheit, so viel wie eine 40-m-Tram. Ein ganzer Zug in der Spitze braucht
+mehr:
+
+| Quelle | kWh je Zugkilometer |
+| --- | ---: |
+| Regionalzug, Triebwagen und vier Wagen (Standardisierte Bewertung 2016+, Blatt 7-4, Prognose 2030) | 9,04 |
+| S-Bahn Berlin, 390 GWh im Jahr durch 27,9 Mio. Zugkm 2024 (abgeleitet, mit Heizung und Nebenverbrauchern) | rund 14 |
+| BVG, 454,6 GWh Strom 2025 durch 20,3 + 21,5 Mio. Zugkm (Obergrenze: der Strom speist auch E-Busse, Bahnhöfe, Höfe) | höchstens 10,9 |
+
+Jetzt gilt **ein Wert für U-, S- und Regionalbahn: 10 kWh × 363 g/kWh = 3.630 g/Zug-km.** Auch der
+frühere Wert von 3.500 g war also nicht der dieselgeführte Fernzug, für den wir ihn hielten.
+
+Mit dem Zug ändern sich zwei Kosten, beide mit Quelle:
+
+- **Zug 13,40 € je Zugkilometer** (vorher 12 €): knapp 20 € Produktionskosten (Ramboll 2023) ohne
+  das Drittel Trassenentgelt (33 %, Tabelle 5). Das Auto trägt in diesem Spiel keine Infrastruktur,
+  der Zug deshalb auch nicht. Der Zuschuss der Berliner S-Bahn allein liegt bei mindestens 17 €.
+- **Bus 3,94 €, Tram 6,25 €** (vorher 4,50 € und 7,10 €): Deiters' 2,82 € und 4,47 € von 2009, mal
+  dem Verbraucherpreisindex 2025 durch 2009. 2009 steht bei 92,2 (Basis 2015), 2025 bei 121,9
+  (Basis 2020), 2020 bei 105,8 (Basis 2015): 121,9 × 105,8 / 100 / 92,2 = 1,399. Der Index misst alle
+  Preise, nicht Löhne und Energie im Nahverkehr.
+
+Der Bus bleibt bei 1.200 g. Das sind rund 45 l auf 100 km, nicht 40: 55 % der BVG-Busse sind
+Gelenk- oder 15-m-Busse, die Standardisierte Bewertung rechnet 0,32 l/km für einen Solobus und
+0,44 l/km für einen Gelenkbus.
+
+Die Zahlen aus den Abschnitten 9 bis 16 (Fahrplan pro Runde, Anteil am Fahrplan, die Tabelle der
+Budgets) sind mit 1.500 g gemessen. Mit 3.630 g steigt der Fahrplan jeder Karte mit Zuglinien, und
+`timetable_factor` und `co2_table` sind neu zu messen.
+
+## 18. Was offen bleibt
 
 - **Die Abfahrten liegen sehr eng beieinander.** `departure_std_dev_min = 10` heißt, dass praktisch
   alle innerhalb von 20 Minuten losfahren; real verteilt sich ein Berufsverkehr über eine Stunde und
@@ -718,7 +752,7 @@ fährt, damit sich ein Spiel unschaffbar stellen lässt, und die kostet auf Berl
   breiter streut (16. Oktober 2026), ist jeder der sechs Heimwege nach höchstens 155 Minuten zu Ende;
   eine der beiden Regeln allein ließ die Schleife (870 Minuten) oder eine andere (640) stehen.
 
-## 18. Nachrechnen
+## 19. Nachrechnen
 
 Die Zahlen oben stammen nicht aus einem Play-Test, sondern aus wiederholten Läufen mit festem Seed
 auf der ausgelieferten Karte. Wer sie nach einer Modelländerung neu braucht, spielt Runden auf der
