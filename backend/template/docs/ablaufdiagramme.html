@@ -202,6 +202,9 @@ je Richtung.</p>
   Ernst-Reuter-Platz, fährt ein Auto von außen erst, wenn auf dem Ring keins durch ist, das auf
   dieselbe Kante will: Der Ring hat Vorfahrt (<code>_ring_goes_first</code>). Das ist Warten,
   kein Feststecken, und zählt nicht für <code>DEADLOCK_TICKS</code>.</li>
+  <li><strong>Wer losfährt,</strong> wartet an seiner Tür, solange auf einer Straße in diesen Knoten
+  ein Auto durch ist, das auf dieselbe Kante will: Der Verkehr auf der Straße geht vor
+  (<code>_street_goes_first</code>). Ein Bus fährt an seiner Endhaltestelle pünktlich ab.</li>
   <li><strong>Geschwindigkeit ist ein Ergebnis.</strong> Die Geschwindigkeit einer Kante ist ihre
   Länge durch die Zeit, die Autos wirklich gebraucht haben (<code>EdgeState.mean_speed_kmh</code>).
   Sie bestimmt CO2 und Kosten eines Autos auf dieser Kante, und die nächste Runde routet darauf.</li>
