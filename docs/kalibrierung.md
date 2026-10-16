@@ -798,7 +798,11 @@ Berlin bei 38.000 29,4. Jetzt ist die Kurve stetig, und die Zahl trifft das Temp
 75 % Auto bildet sich an keinem Seed ein Ring, der längste Durchlauf dauert 210 Minuten. Bei 100 %
 Auto steht an einem Seed (102) der Heimweg 475 Minuten auf einer Schleife aus 13 Straßen in Mitte,
 vorher waren es an diesem Seed 2.935; an drei weiteren bildet sie sich und löst sich nach 175 bis
-235 Minuten. Alle kommen nach Hause.
+235 Minuten. Alle kommen nach Hause. Auf ganz Berlin bei 68.000 bildet sich bei 25 und 50 % Auto an
+keinem Seed ein Ring: Seed 104 bei 25 %, vorher ein Durchlauf von 1.960 Minuten mit 644 Freigaben
+der Sperre, fährt jetzt 375 Minuten hin und 355 zurück ohne eine. Die Durchläufe dauern fünf bis
+sieben Stunden, weil der Fahrplan so lange fährt, bis die langsamste Gruppe mit Bus und Bahn zu
+Hause ist, nicht wegen eines Staus.
 
 ## 19. Was offen bleibt
 
