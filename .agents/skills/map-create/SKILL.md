@@ -95,27 +95,27 @@ The report comes in sections. Most lines say what a rule did and need nothing. T
   - `kein Fahrplan für dieses Gebiet …`: all intervals from OSM or the defaults.
   - `N Orte ohne Halt im Umkreis von 1000 m (…): …`: no stop of a kept line within 1 km of these
     places — OSM has no line there and the timetable had none to stand in (or there is no
-    timetable). Fix: a version with a line there (`map-versions`), or move the place in
-    the map editor.
+    timetable). Fix: a version with a line there (`map-versions`), or move the place
+    (`map-modify`).
   - `N Orte, die der Halt erst bediente, bevor er auf seinen Knoten rückte, jetzt weiter als 1000 m`:
-    the stop was within 1 km in OSM and took a node up to 100 m away. Fix: a version with a stop
-    closer to the place.
+    the stop was within 1 km in OSM and took a node up to 100 m away. Fix: move the stop closer
+    (`map-modify`).
   - `N Orte, deren Halt zu Fuß weiter als 1000 m entfernt ist, obwohl er in der Luftlinie näher
-    liegt`: the cover counts the crow, the walk follows the map's links. Fix: a version with a
-    footpath, or a stop there.
+    liegt`: the cover counts the crow, the walk follows the map's links. Fix: a footpath, in the map
+    itself (`map-modify`) or as a version (`map-versions`).
   - `N Linien ohne Fahrt zwischen 8 und 10 Uhr im Fahrplan (…): …`: the timetable knows the line
     but has no trip in the morning window; the game then runs it once a pass. See below. Fix: a
     version with an interval for the line (`map-versions`).
   - `Arbeitsorte, zu denen nur ein Bus fährt: <Linie> für k von n …`: for k workplaces that bus is
     the only line. See below. Fix: a version with a second line or a shorter interval, or move
-    the workplaces in the map editor.
+    the workplaces (`map-modify`).
 
 **A line with no morning trip, or workplaces with only one bus.** Say it plainly: the people who
 work there ride a bus that hardly runs in the morning, so they wait, and every line keeps running
 until the last of them is home — the timetable runs long because of it. Bremen's 80 at the
 steelworks is the case: a shift bus with no trip between 8 and 10, the only line for 26 of 164
 workplaces, and most of Bremen's waiting. Suggest a version that gives the line a morning interval
-(`map-versions`, `interval`), or move the workplaces in the map editor. Don't touch the builder for
+(`map-versions`, `interval`), or move the workplaces (`map-modify`). Don't touch the builder for
 it, and don't edit the file.
 
 **The credits** (`Quellen`) are written into the file by the build, for the sources it used:
