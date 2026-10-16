@@ -1305,6 +1305,7 @@ class VersionDiffCreateView(GenericAPIView):
         for node_data in data.get("new_nodes", []):
             new_node = Node.objects.create(
                 game_map=game_map,
+                name=node_data.get("name"),
                 x_position=node_data["x_position"],
                 y_position=node_data["y_position"],
             )
@@ -1341,6 +1342,7 @@ class VersionDiffCreateView(GenericAPIView):
             def _create_directed_edge(s_node, e_node):
                 new_edge = Edge.objects.create(
                     game_map=game_map,
+                    name=edge_data.get("name"),
                     start_node=s_node,
                     end_node=e_node,
                     biking=edge_data.get("biking", False),

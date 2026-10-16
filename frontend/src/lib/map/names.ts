@@ -7,6 +7,8 @@
  * gave on this map, so a row keeps its number when an earlier one is deleted.
  */
 
+import { de } from "@/lib/de";
+
 /** A name holds 100 characters (`Node.name`, `Edge.name`); the count needs room. */
 const MAP_PART = 80;
 
@@ -22,6 +24,36 @@ export function defaultName(
     if (n > highest && name === nameOf(map, n)) highest = n;
   }
   return nameOf(map, highest + 1);
+}
+
+/**
+ * The names for what a version's diff draws, keyed by the temp ids, counted on
+ * from the map's own the way a click in the base version does.
+ */
+export function nameNewRows(
+  mapName: string,
+  nodeNames: Iterable<string | null | undefined>,
+  edgeNames: Iterable<string | null | undefined>,
+  newNodeIds: string[],
+  newEdgeIds: string[],
+): { nodes: Record<string, string>; edges: Record<string, string> } {
+  const give = (
+    taken: Iterable<string | null | undefined>,
+    ids: string[],
+    nameOf: (map: string, n: number) => string,
+  ) => {
+    const names = [...taken];
+    const out: Record<string, string> = {};
+    for (const id of ids) {
+      out[id] = defaultName(mapName, names, nameOf);
+      names.push(out[id]);
+    }
+    return out;
+  };
+  return {
+    nodes: give(nodeNames, newNodeIds, de.editor.node.defaultName),
+    edges: give(edgeNames, newEdgeIds, de.editor.edge.defaultName),
+  };
 }
 
 /** "Knoten 4587", "Callenberg Kante 3": a number where a name should be. */

@@ -182,6 +182,7 @@ const EditorSidebar = ({
           {versionTab === "create" && (
             <VersionDiffPanel
               mapId={mapId}
+              mapName={gameMap.name}
               mapGraph={mapGraph}
               versions={versions}
               selectedVersionId={selectedVersionId}

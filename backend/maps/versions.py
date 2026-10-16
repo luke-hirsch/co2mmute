@@ -359,7 +359,10 @@ def generate_combinations(game_map, atomic_versions):
     action, which had a builder of its own from before this one was fixed: it
     unioned the members, copied no train line and no chain row, and wrote
     English poll texts. Returns how many versions were made; a combination that
-    exists already is left as it is and only wired in again.
+    exists already is left as it is and only wired in again. A combination is
+    known by the name this function gives it (its members' names sorted and
+    joined with " + "), so one the author renamed is not recognised and is made
+    again beside the renamed one.
 
     The ballot is the lattice: a combination is paired with every combination
     one change larger that holds it and every one one change smaller it holds,
@@ -390,6 +393,13 @@ def generate_combinations(game_map, atomic_versions):
         for combo in combinations(atomic_versions, size)
     ]
 
+    taken = {v.pk for v in atomic_versions}
+    named = {
+        v.name: v
+        for v in MapVersion.objects.filter(game_map=game_map, base_version=False)
+        if v.pk not in taken
+    }
+
     created_count = 0
     for subset in all_subsets:
         if subset in existing:
@@ -398,6 +408,9 @@ def generate_combinations(game_map, atomic_versions):
             [v for v in atomic_versions if v.pk in subset], key=lambda v: v.name
         )
         combo_name = " + ".join(v.name for v in members)
+        if combo_name in named:
+            existing[subset] = named[combo_name]
+            continue
         combo_poll_text, combo_revert_text = combination_poll_texts(
             [v.name for v in members]
         )

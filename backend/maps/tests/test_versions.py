@@ -668,6 +668,139 @@ class GeneratedCombinationInTheAdminTests(GeneratedCombinationTests):
             set(self.base.compatible_versions.all()), {self.busspuren, self.umweg}
         )
 
+@override_settings(**TEST_BACKENDS)
+class RowsDrawnIntoAVersionTests(VersionFixtureMixin, TestCase):
+    """`create-from-diff` keeps the name the editor sends for a new node or edge."""
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="staff", password="password123", is_staff=True
+        )
+        self.client.force_login(self.user)
+        self.build_map()
+
+    def _draw(self, **rows):
+        self._diff("Neu", **rows)
+
+    def test_a_sent_name_is_kept(self):
+        self._draw(
+            new_nodes=[
+                {
+                    "temp_id": "n1",
+                    "name": "Karte Knoten 1",
+                    "x_position": 1,
+                    "y_position": 1,
+                }
+            ],
+            new_edges=[
+                {
+                    "temp_start_node": "n1",
+                    "temp_end_node": str(self.nodes[0].pk),
+                    "name": "Karte Kante 1",
+                    "bidirectional": True,
+                    "walking": True,
+                    "max_lanes": 1,
+                }
+            ],
+        )
+
+        self.assertTrue(Node.objects.filter(name="Karte Knoten 1").exists())
+        self.assertEqual(Edge.objects.filter(name="Karte Kante 1").count(), 2)
+
+    def test_no_name_stays_as_it_was(self):
+        self._draw(new_nodes=[{"temp_id": "n1", "x_position": 1, "y_position": 1}])
+
+        self.assertTrue(Node.objects.filter(name__isnull=True, x_position=1).exists())
+
+@override_settings(**TEST_BACKENDS)
+class GeneratingCombinationsAgainTests(VersionFixtureMixin, TestCase):
+    """A second run with one change more wires the first run's combinations in.
+
+    Both doors, the editor's endpoint and the admin's action, call
+    `generate_combinations`; the docstring says an existing combination is only
+    wired in again, and it made a second "A + B" with no partners instead.
+    """
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="staff", password="password123", is_staff=True
+        )
+        self.client.force_login(self.user)
+        self.build_map()
+        self.a = self._diff(
+            "Busspuren",
+            edge_changes=[
+                {"edge_id": self.edge_b.pk, "dedicated_bus_lane": True, "lanes": 2}
+            ],
+        )
+        self.b = self._diff(
+            "Umgehungsstraße",
+            new_edges=[
+                {
+                    "temp_start_node": str(self.nodes[0].pk),
+                    "temp_end_node": str(self.nodes[3].pk),
+                    "walking": True,
+                    "max_lanes": 1,
+                    "speed_limit": 50,
+                    "lanes": 1,
+                }
+            ],
+        )
+        self.c = self._diff(
+            "Zweite Busspur",
+            edge_changes=[
+                {"edge_id": self.edge_a.pk, "dedicated_bus_lane": True, "lanes": 2}
+            ],
+        )
+
+    def _run(self, *versions):
+        response = self.client.post(
+            reverse(
+                "maps:version-generate-combinations", kwargs={"pk": self.game_map.pk}
+            ),
+            data={"version_ids": [v.pk for v in versions]},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+
+    def _named(self, name):
+        return MapVersion.objects.get(game_map=self.game_map, name=name)
+
+    def test_one_change_more_makes_no_second_combination(self):
+        self._run(self.a, self.b)
+        first = self._named("Busspuren + Umgehungsstraße")
+
+        self._run(self.a, self.b, self.c)
+
+        self.assertEqual(
+            MapVersion.objects.filter(
+                game_map=self.game_map, name="Busspuren + Umgehungsstraße"
+            ).count(),
+            1,
+        )
+        self.assertEqual(self._named(first.name).pk, first.pk)
+        # 3 changes + base + 4 combinations
+        self.assertEqual(MapVersion.objects.filter(game_map=self.game_map).count(), 8)
+
+    def test_the_old_combination_is_paired_as_the_lattice_says(self):
+        self._run(self.a, self.b)
+        self._run(self.a, self.b, self.c)
+
+        pair = self._named("Busspuren + Umgehungsstraße")
+        triple = self._named("Busspuren + Umgehungsstraße + Zweite Busspur")
+        self.assertEqual(
+            set(pair.compatible_versions.all()), {self.a, self.b, triple}
+        )
+        self.assertEqual(
+            set(triple.compatible_versions.all()),
+            {
+                pair,
+                self._named("Busspuren + Zweite Busspur"),
+                self._named("Umgehungsstraße + Zweite Busspur"),
+            },
+        )
+
+
 class ChainBackfillTests(VersionFixtureMixin, TestCase):
     """What `maps/0009` does to the chains already in a database.
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { de } from "@/lib/de";
 import { diffGraphs, linkEntries } from "@/lib/map/version-diff";
 import type { Edge, Node } from "@/types/mapTypes";
 import type { ExtendedMapGraph, PTLine } from "@/types/routeTypes";
@@ -172,6 +173,30 @@ describe("diffGraphs on a toy map", () => {
       sense: "added",
       aspects: [{ kind: "busLane" }],
     });
+  });
+
+  it("says a bus lane that takes a street's only car lane closes it to cars", () => {
+    const before = graph(NODES, [street(1, 1, 2, { lanes: 1 })]);
+    const after = graph(NODES, [
+      street(9, 1, 2, { lanes: 1, dedicated_bus_lane: true }),
+    ]);
+
+    const [link] = diffGraphs(before, after).links;
+
+    expect(link.aspects).toEqual([{ kind: "busLane", closesCars: true }]);
+    expect(de.map.diff.busLane(true, true)).toBe(
+      "eine Autospur wird Busspur, damit ist die Straße für Autos gesperrt",
+    );
+    expect(de.map.diff.busLane(true, false)).toBe("eine Autospur wird Busspur");
+  });
+
+  it("leaves a bus lane on a two-lane street at one lane taken", () => {
+    const before = graph(NODES, [street(1, 1, 2, { lanes: 2 })]);
+    const after = graph(NODES, [
+      street(9, 1, 2, { lanes: 2, dedicated_bus_lane: true }),
+    ]);
+
+    expect(diffGraphs(before, after).links[0].aspects).toEqual([{ kind: "busLane" }]);
   });
 
   it("calls a bus lane going away a removal, in the PT colour", () => {
