@@ -189,7 +189,10 @@ class Node(models.Model):
         return f"Node {self.pk} in Map {self.game_map}"
 
     def clean(self) -> None:
-        game_map_clean(self.map_versions.all(), self.game_map)
+        # A new row has no versions to read yet: the admin's add page
+        # validates before the first save.
+        if self.pk is not None:
+            game_map_clean(self.map_versions.all(), self.game_map)
         return super().clean()
 
     def save(self, *args, **kwargs):
@@ -271,7 +274,10 @@ class Edge(models.Model):
                     )
                 }
             )
-        game_map_clean(self.map_versions.all(), self.game_map)
+        # A new row has no versions to read yet: the admin's add page
+        # validates before the first save.
+        if self.pk is not None:
+            game_map_clean(self.map_versions.all(), self.game_map)
         return super().clean()
 
 
@@ -318,7 +324,10 @@ class StreetEdge(models.Model):
     )
 
     def clean(self) -> None:
-        game_map_clean(self.map_versions.all(), self.edge.game_map)
+        # A new row has no versions to read yet: the admin's add page
+        # validates before the first save.
+        if self.pk is not None:
+            game_map_clean(self.map_versions.all(), self.edge.game_map)
         return super().clean()
 
     class Meta:
@@ -346,7 +355,10 @@ class BusLine(models.Model):
     edges = models.ManyToManyField(StreetEdge, through="BusLineEdge")
 
     def clean(self) -> None:
-        game_map_clean(self.map_versions.all(), self.game_map)
+        # A new row has no versions to read yet: the admin's add page
+        # validates before the first save.
+        if self.pk is not None:
+            game_map_clean(self.map_versions.all(), self.game_map)
         return super().clean()
 
     class Meta:
@@ -382,7 +394,10 @@ class TrainEdge(models.Model):
     map_versions = models.ManyToManyField(MapVersion)
 
     def clean(self) -> None:
-        game_map_clean(self.map_versions.all(), self.edge.game_map)
+        # A new row has no versions to read yet: the admin's add page
+        # validates before the first save.
+        if self.pk is not None:
+            game_map_clean(self.map_versions.all(), self.edge.game_map)
         return super().clean()
 
     class Meta:
@@ -422,7 +437,10 @@ class TrainLine(models.Model):
     edges = models.ManyToManyField(TrainEdge, through="TrainLineEdge")
 
     def clean(self) -> None:
-        game_map_clean(self.map_versions.all(), self.game_map)
+        # A new row has no versions to read yet: the admin's add page
+        # validates before the first save.
+        if self.pk is not None:
+            game_map_clean(self.map_versions.all(), self.game_map)
         return super().clean()
 
     class Meta:
