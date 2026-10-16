@@ -296,6 +296,8 @@ lists the stages in the order they run, each module's docstring its rules.
 
 - `map-create`: a real area, from its name to a map on an instance — build, check, calibrate,
   upload, and what to tell the human.
+- `extract-data`: the research data of finished games as one sqlite file — export, what is in it,
+  and what may be said from it.
 
 ## repo conventions
 
