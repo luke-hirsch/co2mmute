@@ -6,6 +6,7 @@ import { Co2Bar } from "@/components/metro/co2-bar";
 import { GroupList } from "@/components/summary/group-list";
 import { MetricList } from "@/components/summary/metric-list";
 import { NumbersExplainerDialog } from "@/components/numbers/numbers-explainer";
+import { ReplayPlayer } from "@/components/replay/replay-player";
 import { RoundArc } from "@/components/summary/round-arc";
 import { ScaleSwitch } from "@/components/numbers/scale-switch";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
@@ -61,6 +62,7 @@ export function EndScreen() {
 
   const players = summary.data?.players ?? [];
   const rounds = summary.data?.rounds ?? [];
+  const lastRound = rounds.reduce((max, r) => Math.max(max, r.round_number), 0);
   /**
    * This seat's Gruppen, when the game dealt Pendlertypen. Empty otherwise,
    * and for the host, who has no seat in the list — and then the switch has
@@ -147,6 +149,12 @@ export function EndScreen() {
           </p>
         ) : (
           <>
+            {/* The round that ended the game gets no stats phase, so its replay
+                sits here. The numbers are already on the page: nothing waits
+                on it. */}
+            {lastRound > 0 ? (
+              <ReplayPlayer roundNumber={lastRound} onWatched={() => {}} />
+            ) : null}
             <RoundArc stops={classArc(rounds)} />
 
             {/*
