@@ -1379,6 +1379,8 @@ export const de = {
     save: "Speichern",
     saving: "Wird gespeichert …",
     saved: "Gespeichert.",
+    /** Under a node's or an edge's name while it is empty or still the one the editor gave. */
+    betterName: "Gib einen besseren Namen.",
     cancel: "Abbrechen",
     delete: "Löschen",
     deleting: "Wird gelöscht …",
@@ -1438,6 +1440,8 @@ export const de = {
       removeConfirm: "Der Knoten und alle Kanten daran werden gelöscht.",
       noTypes: "Es sind keine Knotenarten angelegt.",
       numbered: (id: number) => `Knoten ${id}`,
+      /** What a click calls a new node: the map's own count, from 1. */
+      defaultName: (map: string, n: number) => `${map} Knoten ${n}`,
     },
 
     /** An edge, and the two kinds that hang off it. */
@@ -1467,6 +1471,8 @@ export const de = {
       /** These were English on both the detail page and the editor. */
       modifyTitle: "Kante ändern",
       numbered: (id: number) => `Kante ${id}`,
+      /** What a drawn edge is called, both directions: the map's own count, from 1. */
+      defaultName: (map: string, n: number) => `${map} Kante ${n}`,
       /** A link with neither a street nor a railway under it — see `"path"`. */
       path: "Weg",
       streetSummary: (speed: number, lanes: number) =>

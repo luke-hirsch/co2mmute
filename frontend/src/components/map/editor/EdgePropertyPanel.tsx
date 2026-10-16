@@ -11,6 +11,7 @@ import {
   editorControlNarrow,
 } from "@/components/map/editor/editor-panel";
 import { de } from "@/lib/de";
+import { isPlaceholderName } from "@/lib/map/names";
 import { cn } from "@/lib/utils";
 import type { Edge, Node } from "../../../types/mapTypes";
 import {
@@ -148,6 +149,8 @@ const EdgePropertyPanel = ({
     setBusLane(edge.street_edge?.dedicated_bus_lane ?? false);
     setTramTrack(edge.street_edge?.tram_track ?? "");
   }, [edge.id, edge.name, edge.biking, edge.walking, edge.max_lanes, edge.street_edge]);
+
+  const unnamed = isPlaceholderName(edgeName);
 
   const handleSave = () => {
     if (!mapId) return;
@@ -415,6 +418,7 @@ const EdgePropertyPanel = ({
             placeholder={de.editor.edge.numbered(edge.id)}
             className={editorControl}
           />
+          {unnamed && <EditorNote tone="attention">{de.editor.betterName}</EditorNote>}
         </EditorField>
       ) : (
         <EditorFact label={de.editor.edge.name}>
@@ -670,7 +674,7 @@ const EdgePropertyPanel = ({
             size="sm"
             className="flex-1"
             onClick={handleSave}
-            disabled={isPending}
+            disabled={isPending || unnamed}
           >
             {updateEdgeMutation.isPending ? de.editor.saving : de.editor.save}
           </Button>

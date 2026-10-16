@@ -235,6 +235,7 @@ Jetzt, wo wir alles über die Karte wissen, können wir sie bearbeiten. Der Edit
   - Wählst du einen Knoten aus, kannst du ihn über die Karte ziehen, wie du willst.
   - Im Knoten-Modus legst du Knoten an, indem du auf die Karte klickst.
   - Kanten legst du im Kanten-Modus an. Klick zwei Knoten an. Das legt die Kante an. Denk dran, Kanten haben eine Richtung. Mit „Einbahn“ hängt die Richtung davon ab, in welcher Reihenfolge du die Knoten angeklickt hast. Oder du wählst „beide Richtungen“, dann werden automatisch beide angelegt.
+  - Ein neuer Knoten heißt erst nach der Karte, „Berlin Knoten 1“, eine neue Kante „Berlin Kante 1“. Speichern kannst du im Feld erst, wenn du einen echten Namen eingetragen hast.
   - Klick eine Kante an, um sie zu ändern: ob sie eine Straße ist (Spuren, Tempolimit, eigene Busspur), eine Bahn, oder offen für Räder und Fußgänger. Eine Kante ohne Straße und ohne Bahn ist ein Weg, nur für Räder und Fußgänger.
   - Was du in der Grundversion zeichnest, landet in jeder Version der Karte. Was du in einer anderen Version zeichnest, landet in dieser Version und in jeder Kombination, die auf ihr aufbaut.
 - „Linien“

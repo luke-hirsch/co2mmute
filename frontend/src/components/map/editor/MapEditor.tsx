@@ -17,6 +17,7 @@ import {
   useDeleteEdge,
 } from "@/lib/queries/map-editor";
 import { diffGraphs } from "@/lib/map/version-diff";
+import { defaultName } from "@/lib/map/names";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import Loading from "../../Loading";
@@ -286,14 +287,19 @@ const MapEditor = () => {
         setNewNodes((prev) => [...prev, { tempId, x_position: x, y_position: y }]);
         return;
       }
-      if (canvasSaving) return;
+      if (canvasSaving || !gameMap) return;
       createNodeMutation.mutate({
+        name: defaultName(
+          gameMap.name,
+          (mapGraph?.nodes ?? []).map((n) => n.name),
+          de.editor.node.defaultName,
+        ),
         x_position: x,
         y_position: y,
         map_versions: versionId ? [versionId] : [],
       });
     },
-    [createNodeMutation, versionId, state.mode, canvasSaving],
+    [createNodeMutation, versionId, state.mode, canvasSaving, gameMap, mapGraph],
   );
 
   const handleCreateEdge = useCallback(
@@ -314,15 +320,28 @@ const MapEditor = () => {
         ]);
         return;
       }
-      if (canvasSaving) return;
+      if (canvasSaving || !gameMap) return;
       createEdgeMutation.mutate({
+        name: defaultName(
+          gameMap.name,
+          (mapGraph?.edges ?? []).map((e) => e.name),
+          de.editor.edge.defaultName,
+        ),
         start_node: startNodeId as number,
         end_node: endNodeId as number,
         map_versions: versionId ? [versionId] : [],
         bidirectional: state.bidirectional,
       });
     },
-    [createEdgeMutation, versionId, state.bidirectional, state.mode, canvasSaving],
+    [
+      createEdgeMutation,
+      versionId,
+      state.bidirectional,
+      state.mode,
+      canvasSaving,
+      gameMap,
+      mapGraph,
+    ],
   );
 
   const handleEdgeClick = useCallback(

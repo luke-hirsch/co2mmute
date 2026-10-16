@@ -237,6 +237,7 @@ Now that we learned all there is about the map, we can edit it. The editor needs
   - When you select a node you can drag it over the map like you want.
   - in node mode you can add nodes by clicking on the map
   - edges are created in edge mode. Click on two nodes. This will create the edge. Keep in mind, edges are directional. With "Einbahn" (one way), the direction depends on the order in which you clicked the nodes. Or you select "beide Richtungen" (both directions) and it will automatically create both directions.
+  - a new node is named after the map at first, "Berlin Knoten 1", a new edge "Berlin Kante 1". The panel only saves once you give it a real name.
   - click on an edge to change it: whether it is a street (lanes, speed limit, its own bus lane), a railway, or open to bikes and pedestrians. An edge with neither street nor railway is a path, for bikes and pedestrians only.
   - what you draw in the base version ends up in every version of the map. What you draw in another version ends up in that version and in every combination built on it.
 - lines ("Linien")
