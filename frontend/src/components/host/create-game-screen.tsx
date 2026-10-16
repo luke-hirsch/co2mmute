@@ -139,7 +139,7 @@ export function CreateGameScreen() {
         game_name: gameName.trim(),
         game_password: gamePassword.trim(),
         game_map: selected.id,
-        map_updates: mapUpdates,
+        map_updates: mapUpdatesSent(selected, mapUpdates),
         max_players: Number(maxPlayers),
         agent_per_player: Number(agentPerPlayer),
         balanced_deal: balancedDeal,
@@ -269,8 +269,9 @@ export function CreateGameScreen() {
             id="map_updates"
             label={de.create.mapUpdates}
             help={de.create.mapUpdatesHelp}
-            checked={mapUpdates}
+            checked={mapUpdatesSent(selected, mapUpdates)}
             onChange={setMapUpdates}
+            disabled={selected !== null && !selected.offers_map_changes}
             errors={errors.map_updates}
           />
         </section>
@@ -561,6 +562,18 @@ function NumberInput({
  *
  * Both labels point at the box, so a tap on the word beside it toggles it.
  */
+/**
+ * What the map-changes switch says and sends. A map with nothing to vote on
+ * can never reach a ballot, so the switch is off there whatever the host left
+ * it at; their choice comes back when they pick a map that has one.
+ */
+export function mapUpdatesSent(
+  map: Pick<GameMapRow, "offers_map_changes"> | null,
+  wanted: boolean,
+): boolean {
+  return wanted && (map === null || map.offers_map_changes);
+}
+
 function CheckField({
   id,
   label,
@@ -568,6 +581,7 @@ function CheckField({
   box = de.create.allow,
   checked,
   onChange,
+  disabled = false,
   errors,
 }: {
   id: string;
@@ -577,6 +591,8 @@ function CheckField({
   box?: string;
   checked: boolean;
   onChange: (next: boolean) => void;
+  /** Greyed out and unticked: the map has nothing this switch could turn on. */
+  disabled?: boolean;
   errors?: string[];
 }) {
   return (
@@ -587,9 +603,10 @@ function CheckField({
           name={id}
           type="checkbox"
           checked={checked}
+          disabled={disabled}
           onChange={(event) => onChange(event.target.checked)}
           aria-describedby={errors?.length ? `${id}-error` : `${id}-help`}
-          className="size-4 accent-primary"
+          className="size-4 accent-primary disabled:opacity-50"
         />
         <label htmlFor={id} className="text-sm">
           {box}
