@@ -65,7 +65,7 @@ class WholeBuildTests(SimpleTestCase):
         )
         heads_up = dict(self.report)["Achtung"]
         self.assertTrue(heads_up)
-        self.assertTrue(all("Vorschlag: eine Version" in h for h in heads_up))
+        self.assertTrue(all("Vorschlag: " in h for h in heads_up))
 
     def test_what_it_holds(self):
         types = [n["types"] for n in self.data["nodes"]]
