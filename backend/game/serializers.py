@@ -156,10 +156,6 @@ class GameSessionSerializer(serializers.ModelSerializer):
         if max_players is not None:
             if max_players < 1:
                 errors["max_players"] = "Es muss mindestens einen Platz geben."
-            if agent_per_player is not None and agent_per_player > max_players:
-                errors["agent_per_player"] = (
-                    "Mehr Gruppen pro Person als Plätze im Spiel geht nicht."
-                )
 
         if agent_per_player is not None and agent_per_player < 1:
             errors["agent_per_player"] = (
