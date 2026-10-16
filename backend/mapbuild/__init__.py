@@ -15,6 +15,8 @@ The stages, in the order they run:
 6. `mapfile`   the graph as a game map file
 7. `lines` → `timetable` → `rail`, `buses` → `transit`: the lines that cover the places, their
    stops and edges, their intervals, on the map
+8. `backdrop`  the map's own background, an SVG drawn from the land, water, local streets and rails
+   the build holds, in the plane of the nodes
 
 Every stage prints what it did into the build report; what a rule could not fix is a line there,
 never a question.

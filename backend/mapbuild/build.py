@@ -1,6 +1,6 @@
 """The whole build: an area → a game map file and its report."""
 
-from . import connect, mapfile, people, roads, streets, timetable, transit
+from . import backdrop, connect, mapfile, people, roads, streets, timetable, transit
 
 AUTO = object()
 
@@ -59,5 +59,8 @@ def build(area, name=None, builtup=AUTO, places=None, extract=AUTO):
         credits.append(DELFI)
     data["map"]["credits"] = [dict(c) for c in credits]
     report.append(("Bus und Bahn", say))
+    svg, say = backdrop.draw(area, data["map"]["x_dim"], data["map"]["y_dim"])
+    data["background_image"] = backdrop.block(svg)
+    report.append(("Hintergrund", say))
     report.append(("Achtung", heads_up))
     return data, report
