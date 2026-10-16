@@ -298,6 +298,8 @@ lists the stages in the order they run, each module's docstring its rules.
   upload, and what to tell the human.
 - `extract-data`: the research data of finished games as one sqlite file — export, what is in it,
   and what may be said from it.
+- `co2mmute-docs`: what changes together — a map field, a constant, a string, a socket event,
+  something stored, the dial, a CI job, a doc page — and how to check each.
 
 ## repo conventions
 
