@@ -271,6 +271,10 @@ class EdgeState:
     # way (StVO §8 1a).
     ring: bool = False
     ring_feeders: list["EdgeState"] = field(default_factory=list)
+    # Every link that leads into this one's start. A car pulling out onto
+    # this link from a door at that node goes only while none of them has a
+    # car through and bound here: the street's traffic goes first (StVO §10).
+    feeders: list["EdgeState"] = field(default_factory=list)
 
     # Whether a bike shares this link with cars. Both default to the values
     # that leave an EdgeState built by hand in a test behaving exactly as it

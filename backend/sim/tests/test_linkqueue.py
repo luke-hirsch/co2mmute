@@ -794,6 +794,123 @@ class RingHasRightOfWayTests(SimpleTestCase):
                 self.assertLess(worst(ring), 15)
 
 
+class PullingOutGivesWayTests(SimpleTestCase):
+    """Whoever pulls out onto a street gives way to the traffic on it.
+
+    A Gruppe's car starts at its door, a node of the map: out of a car park,
+    a side street, a driveway, onto a street the map draws. It goes only while
+    no car on a street into that node is through and bound for the same link
+    (StVO §10). Without it, cars pulling out took the room on a jammed street
+    first, every tick, and refilled whatever the deadlock escape freed: on the
+    box at 23 000 the way home stood on a loop of sixteen streets in Mitte for
+    4 070 minutes (2026-10-16).
+
+    The street: 1 → 2 → 3 → 4, the door at 2, a street out at 2 to 6.
+    """
+
+    def _engine(self):
+        links = [
+            Link(41, 1, 2, 100.0, True, 50),
+            Link(21, 2, 3, 5000.0, True, 50),  # six minutes: still on it at the tick's end
+            Link(31, 3, 4, 100.0, True, 50),
+            Link(61, 2, 6, 100.0, True, 50),
+        ]
+        by_id = {link.edge_id: link for link in links}
+        chains = {
+            1: (41, 21, 31),  # on the street, bound past the door
+            2: (21, 31),  # pulls out at 2
+            3: (41, 61),  # on the street, turns off at 2
+        }
+        routes = [
+            _route(pk, tuple(by_id[edge_id] for edge_id in chain))
+            for pk, chain in chains.items()
+        ]
+        engine = LinkQueueEngine(_scenario(routes, links), random.Random(1))
+        for state in engine.edge_states.values():
+            state.release_budget = 10.0
+        engine.waiting = [(0.0, 2, 0, 1.0)]
+        return engine
+
+    def _place(self, engine, route_pk, ready_at_min=0.0):
+        """A car of route `route_pk` at the end of its first link."""
+        vehicle_id = 1000 + route_pk
+        engine.vehicles[vehicle_id] = Vehicle(
+            route_pk=route_pk, person_index=0, mode="car", segment_index=0
+        )
+        state = engine._state_for_segment(route_pk, 0)
+        state.queue.append(QueuedVehicle(vehicle_id, ready_at_min, 1.0, 0.0))
+        state.occupancy_pcu += 1.0
+        return state
+
+    def _pulled_out(self, engine):
+        engine._spawn_vehicles(0.0, 5.0)
+        return not engine.waiting and len(engine.edge_states[21].queue) == 1
+
+    def test_a_car_pulling_out_waits_for_a_car_on_the_street_bound_the_same_way(
+        self,
+    ):
+        engine = self._engine()
+        self._place(engine, 1)
+
+        self.assertFalse(self._pulled_out(engine))
+        self.assertEqual(engine.waiting, [(0.0, 2, 0, 1.0)])
+
+    def test_it_pulls_out_when_the_car_on_the_street_turns_off_here(self):
+        engine = self._engine()
+        self._place(engine, 3)
+
+        self.assertTrue(self._pulled_out(engine))
+
+    def test_it_pulls_out_when_the_car_on_the_street_is_not_through_yet(self):
+        engine = self._engine()
+        self._place(engine, 1, ready_at_min=7.0)
+
+        self.assertTrue(self._pulled_out(engine))
+
+    def test_it_pulls_out_when_the_street_has_sent_all_it_can_this_tick(self):
+        engine = self._engine()
+        self._place(engine, 1).release_budget = 0.5
+
+        self.assertTrue(self._pulled_out(engine))
+
+    def test_the_car_on_the_street_goes_and_then_the_one_pulling_out(self):
+        """Within one tick: the discharge lets the street's car through, and
+        the door's car follows into the room behind it."""
+        engine = self._engine()
+        self._place(engine, 1)
+        with _quietly():
+            engine._advance_traffic()
+
+        self.assertEqual(engine.waiting, [])
+        self.assertEqual(
+            [q.vehicle_id for q in engine.edge_states[21].queue],
+            [1001, engine.next_vehicle_id - 1],
+        )
+
+    def test_a_bus_leaving_its_terminus_does_not_wait(self):
+        """A line's run sets off on time (StVO §20 5): the stop is its own."""
+        links = [
+            Link(41, 1, 2, 100.0, True, 50),
+            Link(21, 2, 3, 100.0, True, 50),
+            Link(31, 3, 4, 100.0, True, 50),
+        ]
+        bus = Line("bus", 7, "M7", (21, 31), 10, 85)
+        routes = [_route(1, links)]
+        engine = LinkQueueEngine(
+            _scenario(routes, links, lines=[bus]), random.Random(1)
+        )
+        for state in engine.edge_states.values():
+            state.release_budget = 10.0
+        self._place(engine, 1)
+        (bus_key,) = [k for k, v in engine.line_by_route_key.items() if v == ("bus", 7)]
+        engine.waiting = [(0.0, bus_key, 0, 1.0)]
+        with _quietly():
+            engine._spawn_vehicles(0.0, 5.0)
+
+        self.assertEqual(engine.waiting, [])
+        self.assertEqual(engine.pt_lines[("bus", 7)].vehicles, 1)
+
+
 class TimetableFactorTests(SimpleTestCase):
     """The class pays its share of the timetable, not all of it.
 
