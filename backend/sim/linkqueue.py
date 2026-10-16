@@ -32,6 +32,7 @@ from sim.constants import (
     TRAM_PCU,
     CAR_EMISSIONS_G_PER_KM,
     DEADLOCK_TICKS,
+    EVENING_DEPARTURE_SPREAD,
     PT_FARE_EUR,
     car_cost_eur_per_km,
     car_emissions_g_per_km,
@@ -741,6 +742,11 @@ class LinkQueueEngine:
         base_hour = (
             self.morning_departure_hour if is_morning else self.evening_departure_hour
         )
+        # The evening leaves over a longer stretch than the morning: work ends
+        # at more different times than it starts.
+        std_dev_min = self.departure_std_dev_min * (
+            1.0 if is_morning else EVENING_DEPARTURE_SPREAD
+        )
         # Everything here is in minutes from the start of the departure window,
         # which opens at (base_hour - 1) * 60.
 
@@ -748,7 +754,7 @@ class LinkQueueEngine:
             departures = generate_departure_minutes(
                 self.people_per_agent,
                 base_hour,
-                self.departure_std_dev_min,
+                std_dev_min,
                 rng=self.rng,
             )
             self.departure_schedule[route_pk] = list(enumerate(departures))

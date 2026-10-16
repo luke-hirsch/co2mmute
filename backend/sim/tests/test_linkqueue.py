@@ -911,6 +911,35 @@ class PullingOutGivesWayTests(SimpleTestCase):
         self.assertEqual(engine.pt_lines[("bus", 7)].vehicles, 1)
 
 
+class EveningSpreadTests(SimpleTestCase):
+    """The way home leaves over a longer stretch than the way there.
+
+    SrV 2018, Berlin, a mean weekday: of the car trips from home to work,
+    33,5 % start in the busiest hour; of those from work home, 20,8 %. Fitted
+    to the hourly shares, the evening's spread is 1,6 times the morning's
+    (TU Dresden, Tabellenbericht Berlin, Tab. 8.2 and 8.2.1). One σ for both
+    made the evening the morning again, and the way home jammed exactly like
+    the way there.
+    """
+
+    def _spread(self, direction):
+        links = _corridor()
+        engine = LinkQueueEngine(
+            _scenario([_route(1, links)], links, direction=direction, people=4000),
+            random.Random(3),
+        )
+        engine._generate_departures(is_morning=direction == "out")
+        minutes = [at for _i, at in engine.departure_schedule[1]]
+        mean = sum(minutes) / len(minutes)
+        return (sum((m - mean) ** 2 for m in minutes) / len(minutes)) ** 0.5
+
+    def test_the_evening_leaves_over_1_6_times_the_mornings_stretch(self):
+        morning, evening = self._spread("out"), self._spread("home")
+
+        self.assertAlmostEqual(morning, 5, delta=0.3)
+        self.assertAlmostEqual(evening / morning, 1.6, delta=0.08)
+
+
 class TimetableFactorTests(SimpleTestCase):
     """The class pays its share of the timetable, not all of it.
 
