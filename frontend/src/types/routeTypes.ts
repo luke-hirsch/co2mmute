@@ -121,6 +121,8 @@ export interface ExtendedMapGraph {
   x_dim?: number;
   y_dim?: number;
   background_image_url?: string | null;
+  /** Whose data the map is drawn from; none on a hand-drawn map. */
+  credits?: import("./mapTypes").MapCredit[];
   image_offset_x?: number;
   image_offset_y?: number;
   image_scale?: number;

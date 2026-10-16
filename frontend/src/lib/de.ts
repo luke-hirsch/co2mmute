@@ -1023,6 +1023,8 @@ export const de = {
    * these are only the words.
    */
   map: {
+    /** Whose data a generated map is drawn from, in the corner of the map. */
+    credits: { label: "Quellen:" },
     legend: {
       title: "Legende",
       edges: "Kanten",
