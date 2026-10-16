@@ -224,6 +224,7 @@ def build_export(game_map, version=None):
             "district_commuters": game_map.district_commuters,
             "calibrated": game_map.calibrated,
             "timetable_factor": game_map.timetable_factor,
+            "credits": game_map.credits,
         },
     }
     if whole:

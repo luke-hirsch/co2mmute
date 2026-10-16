@@ -31,6 +31,30 @@ class WholeBuildTests(SimpleTestCase):
     def test_the_file_passes_check_map(self):
         self.assertEqual(check_map(self.data), [])
 
+    def test_the_map_names_the_data_it_was_built_from(self):
+        self.assertEqual(
+            [c["text"] for c in self.data["map"]["credits"]],
+            [
+                "© OpenStreetMap contributors",
+                "© Statistisches Bundesamt (Destatis), Zensus 2022",
+                "© European Union, CC BY 4.0 (EC JRC, GHS-BUILT-V R2023A)",
+                "© DELFI e.V., CC BY 4.0, via gtfs.de",
+            ],
+        )
+        self.assertEqual(
+            self.data["map"]["credits"][0]["url"],
+            "https://www.openstreetmap.org/copyright",
+        )
+
+    def test_a_source_that_was_not_used_is_not_named(self):
+        with offline():
+            data, _ = build.build(area.load(fixture_dir()), extract=None)
+
+        self.assertNotIn(
+            "© DELFI e.V., CC BY 4.0, via gtfs.de",
+            [c["text"] for c in data["map"]["credits"]],
+        )
+
     def test_what_it_holds(self):
         types = [n["types"] for n in self.data["nodes"]]
         self.assertEqual(

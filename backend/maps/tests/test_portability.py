@@ -759,6 +759,72 @@ class MapBlockPortabilityTests(MapUploadMixin, TestCase):
 
                 self.assertEqual(game_map.timetable_factor, 1.0)
 
+    def test_import_reads_the_credits(self):
+        credits = [
+            {
+                "text": "© OpenStreetMap contributors",
+                "url": "https://www.openstreetmap.org/copyright",
+            },
+            {"text": "© Statistisches Bundesamt (Destatis), Zensus 2022"},
+        ]
+        payload = self.graph_payload(
+            map={"name": "Berlin 3", "x_dim": 7, "y_dim": 5, "credits": credits}
+        )
+
+        self.assertEqual(self.upload(payload).credits, credits)
+
+    def test_a_file_without_credits_shows_none(self):
+        """The hand-drawn map has no sources to name."""
+        self.assertEqual(self.upload(self.graph_payload()).credits, [])
+
+    def test_credits_that_are_no_list_of_texts_are_left_behind(self):
+        for value in ("OSM", {"text": "x"}, [{"url": "https://a.b"}], [3], [{"text": ""}]):
+            with self.subTest(value=value):
+                payload = self.graph_payload(
+                    map={"name": "Berlin 3", "x_dim": 7, "y_dim": 5, "credits": value}
+                )
+
+                with muted():
+                    game_map = self.upload(payload, name=f"Quellen {value!r}")
+
+                self.assertEqual(game_map.credits, [])
+
+    def test_a_link_that_is_no_web_address_is_dropped_not_the_credit(self):
+        payload = self.graph_payload(
+            map={
+                "name": "Berlin 3",
+                "x_dim": 7,
+                "y_dim": 5,
+                "credits": [{"text": "© A", "url": "javascript:alert(1)"}],
+            }
+        )
+
+        with muted():
+            game_map = self.upload(payload)
+
+        self.assertEqual(game_map.credits, [{"text": "© A"}])
+
+    def test_the_credits_survive_export_and_import_and_reach_the_graph(self):
+        credits = [{"text": "© A", "url": "https://a.example/"}]
+        original = self.upload(
+            self.graph_payload(
+                map={"name": "Berlin 3", "x_dim": 7, "y_dim": 5, "credits": credits}
+            ),
+            name="Vorher",
+        )
+
+        exported = self.client.get(
+            reverse("maps:map-export", kwargs={"pk": original.pk})
+        ).json()
+        copy = self.upload(exported, name="Nachher")
+
+        self.assertEqual(exported["map"]["credits"], credits)
+        self.assertEqual(copy.credits, credits)
+        graph = self.client.get(
+            reverse("maps:mapversion-graph", kwargs={"pk": copy.pk})
+        ).json()
+        self.assertEqual(graph["credits"], credits)
+
     def test_the_whole_block_survives_export_and_import(self):
         original = self.upload(
             self.graph_payload(

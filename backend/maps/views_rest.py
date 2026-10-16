@@ -735,6 +735,7 @@ class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
                     if map_obj.background_image
                     else None
                 ),
+                "credits": map_obj.credits,
                 "image_offset_x": map_obj.image_offset_x,
                 "image_offset_y": map_obj.image_offset_y,
                 "image_scale": map_obj.image_scale,

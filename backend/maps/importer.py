@@ -50,6 +50,31 @@ from maps.versions import put_rows_in
 logger = logging.getLogger(__name__)
 
 
+def clean_credits(value):
+    """The credits a file names: `[{"text", "url"?}]`, whatever else is dropped.
+
+    A credit is a line of text and, if it has one, a web address. The viewers
+    link the address, so anything but http(s) is left out and the text stays.
+    """
+    if not isinstance(value, list):
+        logger.warning("Credits are no list (%r), keeping none", value)
+        return []
+    credits = []
+    for entry in value:
+        text = entry.get("text") if isinstance(entry, dict) else None
+        if not isinstance(text, str) or not text.strip():
+            logger.warning("Credit without a text (%r), left out", entry)
+            continue
+        credit = {"text": text.strip()}
+        url = entry.get("url")
+        if isinstance(url, str) and url.startswith(("https://", "http://")):
+            credit["url"] = url
+        elif url is not None:
+            logger.warning("Credit link is no web address (%r), left out", url)
+        credits.append(credit)
+    return credits
+
+
 class ImportRefused(Exception):
     """The file cannot become a map. `errors` is what to tell the uploader."""
 
@@ -223,6 +248,13 @@ class MapImporter:
                                 game_map.pk,
                                 factor,
                             )
+                    # Whose data the map is drawn from. Absent on every
+                    # file before 2026-10-16 and on a hand-drawn one: none.
+                    if "credits" in map_meta:
+                        credits = clean_credits(map_meta["credits"])
+                        if credits:
+                            game_map.credits = credits
+                            changed.append("credits")
                     if changed:
                         game_map.save(update_fields=changed)
                     logger.info(f"Created {len(node_mapping)} nodes")

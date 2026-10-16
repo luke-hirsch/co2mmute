@@ -89,6 +89,12 @@ class GameMap(models.Model):
         ),
     )
 
+    # Whose data the map is drawn from, as the licences ask it to be said:
+    # a list of {"text", "url"?}. A map built from OpenStreetMap names its
+    # sources here and the viewers print them small in a corner; a hand-drawn
+    # map has none. Travels in the file (`maps/importer.py`).
+    credits = models.JSONField(default=list, blank=True)
+
     created = models.DateTimeField(auto_now_add=True)
     author = models.ForeignKey(
         "auth.User",
