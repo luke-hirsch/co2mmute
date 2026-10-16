@@ -206,7 +206,10 @@ class TrafficSimulator(LinkQueueEngine):
             rows = AgentRoute.objects.filter(
                 player_move=move, direction=direction
             ).order_by("agent_id", "pk").prefetch_related(
-                Prefetch("segments", queryset=RouteSegment.objects.order_by("order", "pk"))
+                Prefetch(
+                    "segments",
+                    queryset=RouteSegment.objects.order_by("order", "pk"),
+                )
             )
             for route in rows:
                 self.route_rows[route.pk] = route

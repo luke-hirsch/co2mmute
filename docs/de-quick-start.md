@@ -44,7 +44,7 @@ Stell die Plätze also auf die Zahl der Leute, die wirklich mitspielen. Wie viel
 #### Wann das Spiel endet
 
 - „Runden“ (Vorgabe: 6): So viele Runden werden gefahren, wenn das Budget so lange reicht.
-- „CO₂ pro Person und Runde“ (Vorgabe: 2,4 kg, „normal“): Der Schwierigkeitsregler. So viel CO₂ darf jeder Mensch auf der Karte pro Runde ausstoßen, hin und zurück, von 0,6 bis 6,0 kg in Schritten von 0,2. Darunter steht, was das fürs ganze Spiel heißt: 2,4 kg × 6.800 Pendler × 6 Runden = 97.920 kg auf Berlin Mitte-West. Ist es aufgebraucht, ist das Spiel vorbei. Normal reicht auf dieser Karte, wenn zwei Drittel der Gruppen Auto fahren. Fahren alle weiter Auto, ist in Runde 4 Schluss; steigen sie nach und nach um, kommen sie durch alle Runden. Die Kilos gelten auf jeder Karte gleich, eine Karte mit langen Wegen oder wenig Bus und Bahn ist also von selbst schwerer.
+- „CO₂ pro Person und Runde“ (Vorgabe: 2,4 kg, „normal“): Der Schwierigkeitsregler. So viel CO₂ darf jeder Mensch auf der Karte pro Runde ausstoßen, hin und zurück, von 0,6 bis 6,0 kg in Schritten von 0,2. Darunter steht, was das fürs ganze Spiel heißt: 2,4 kg × 6.800 Pendler × 6 Runden = 97.920 kg auf Berlin Mitte-West. Ist es aufgebraucht, ist das Spiel vorbei. Normal reicht auf dieser Karte, wenn zwei Drittel der Gruppen Auto fahren. Fahren alle weiter Auto, ist in Runde 5 Schluss; steigen sie nach und nach um, kommen sie durch alle Runden. Die Kilos gelten auf jeder Karte gleich, eine Karte mit langen Wegen oder wenig Bus und Bahn ist also von selbst schwerer.
 
 #### Weitere Einstellungen
 

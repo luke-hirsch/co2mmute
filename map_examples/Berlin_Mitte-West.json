@@ -10,13 +10,13 @@
     "default_car_speed_kmh": 50,
     "district_commuters": 6800,
     "calibrated": true,
-    "timetable_factor": 0.48,
+    "timetable_factor": 0.22,
     "co2_table": {
-      "100": 3.62,
-      "75": 2.65,
-      "50": 1.86,
-      "25": 1.28,
-      "0": 0.73
+      "100": 3.53,
+      "75": 2.63,
+      "50": 1.87,
+      "25": 1.27,
+      "0": 0.72
     }
   },
   "versions": [

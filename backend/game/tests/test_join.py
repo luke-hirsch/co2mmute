@@ -1242,16 +1242,16 @@ class CalibratedCreateFormTests(TempMediaRootMixin, TestCase):
 
         Measured on the shipped map at 6 800 commuters, there and back, the
         class paying its share of the timetable (`calibrate_map`, six seeds,
-        Postgres): a round where everybody drives is 3.62 kg a head, a round
-        nobody drives 0.73 kg. Normal has to sit between them or it is not a
-        budget. A class that goes 100/75/50/50/25/25 % spends 12.54 kg a head
+        Postgres): a round where everybody drives is 3.53 kg a head, a round
+        nobody drives 0.72 kg. Normal has to sit between them or it is not a
+        budget. A class that goes 100/75/50/50/25/25 % spends 12.43 kg a head
         over six rounds against 14.4 and gets through; one that keeps driving
-        is out in round 4 (docs/kalibrierung.md §16).
+        is out in round 5 (docs/kalibrierung.md §18).
         """
         from game.calibration import CO2_KG_PER_PERSON_NORMAL
 
-        self.assertLess(CO2_KG_PER_PERSON_NORMAL, Decimal("3.62"))
-        self.assertGreater(CO2_KG_PER_PERSON_NORMAL, Decimal("0.73"))
+        self.assertLess(CO2_KG_PER_PERSON_NORMAL, Decimal("3.53"))
+        self.assertGreater(CO2_KG_PER_PERSON_NORMAL, Decimal("0.72"))
 
     def test_the_game_records_the_kg_it_was_played_at(self):
         """The dial is what the host chose; `max_CO2_level` is what follows
