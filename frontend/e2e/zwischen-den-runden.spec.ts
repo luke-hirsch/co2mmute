@@ -12,8 +12,8 @@ import { loginAsHost } from "./host";
 
 test.use({ actionTimeout: 20_000 });
 
-/** The line under a map that draws last round's traffic, and only then. */
-const JAM_HINT = /desto langsamer war sie in der letzten Runde/;
+/** The line under a map that draws the traffic of the rounds so far, and only then. */
+const JAM_HINT = /desto langsamer war sie im Mittel der Runden bisher/;
 
 /** Send one Gruppe off by car. */
 async function driveByCar(player: Page) {
