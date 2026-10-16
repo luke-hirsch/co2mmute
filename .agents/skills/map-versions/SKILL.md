@@ -113,9 +113,9 @@ python3 versions.py ballot <map> <version> [<version> ...]
 
 One change: the base and the change are on the ballot together. Two to four: every combination is
 made, with its own questions ("Sollen die Änderungen »A« und »B« zusammen umgesetzt werden?"), and
-each version is paired with the ones one change more or less. Run it once with every change: a
-second run with one more change would make the first run's combinations again. If you have to,
-`delete` the combinations it names first.
+each version is paired with the ones one change more or less. A second run with one more change
+keeps the combinations of the first and pairs them with the new ones. A combination someone renamed
+is not recognised: it stays, and a new one with the generated name is made beside it.
 
 Then export and check:
 

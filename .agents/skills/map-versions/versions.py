@@ -521,16 +521,6 @@ def cmd_ballot(api, map_id, *version_ids):
         )
         print(f"Stimmzettel: Basis ↔ „{by_id[ids[0]]['name']}“.")
         return
-    # The combinations are built once, from the whole list: a second run with
-    # one change more makes the pairs of the first run again, unwired.
-    combos = [v for v in by_id.values() if not v["base_version"] and v["id"] not in ids]
-    combos = [v for v in combos if " + " in v["name"]]
-    if combos:
-        sys.exit(
-            "Es gibt schon Kombinationen ("
-            + ", ".join(f"{v['id']} „{v['name']}“" for v in combos)
-            + "): erst mit `delete` löschen, dann alle Änderungen in einem Aufruf."
-        )
     answer = api.call(
         "POST",
         f"/api/maps/{map_id}/versions/generate-combinations/",
