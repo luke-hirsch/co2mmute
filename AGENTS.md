@@ -296,6 +296,8 @@ lists the stages in the order they run, each module's docstring its rules.
 
 - `map-create`: a real area, from its name to a map on an instance — build, check, calibrate,
   upload, and what to tell the human.
+- `co2mmute-docs`: what changes together — a map field, a constant, a string, a socket event,
+  something stored, the dial, a CI job, a doc page — and how to check each.
 
 ## repo conventions
 
