@@ -1244,7 +1244,7 @@ class CalibratedCreateFormTests(TempMediaRootMixin, TestCase):
         class paying its share of the timetable (`calibrate_map`, six seeds,
         Postgres): a round where everybody drives is 3.53 kg a head, a round
         nobody drives 0.72 kg. Normal has to sit between them or it is not a
-        budget. A class that goes 100/75/50/50/25/25 % spends 12.44 kg a head
+        budget. A class that goes 100/75/50/50/25/25 % spends 12.43 kg a head
         over six rounds against 14.4 and gets through; one that keeps driving
         is out in round 5 (docs/kalibrierung.md §18).
         """

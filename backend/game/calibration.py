@@ -212,7 +212,7 @@ moved by a hundredth of a kilo, which is what the share is for), measured
            0 %    0.72
 
 Normal stayed 2.4 and got a source (the constant's comment); it holds at
-67 % car, and the class going 100/75/50/50/25/25 % spends 12.44 kg against
+67 % car, and the class going 100/75/50/50/25/25 % spends 12.43 kg against
 14.4. docs/kalibrierung.md §16 and §18.
 
 Re-deriving these after a model change means replaying rounds on the map in
