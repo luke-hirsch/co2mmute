@@ -14,7 +14,8 @@ The stages, in the order they run:
 5. `connect`   each place pins its own node; a place still far off gets a street one class down
 6. `mapfile`   the graph as a game map file
 7. `lines` → `timetable` → `rail`, `buses` → `transit`: the lines that cover the places, their
-   stops and edges, their intervals, on the map
+   stops and edges, their intervals, on the map; `footpaths` then lays a path to the stop for a place
+   the kept streets walk far from one and the side streets don't
 8. `backdrop`  the map's own background, an SVG drawn from the land, water, local streets and rails
    the build holds, in the plane of the nodes
 

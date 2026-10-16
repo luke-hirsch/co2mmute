@@ -7,7 +7,8 @@ Places are `[(name, (x, y))]` in metres, stops `[(x, y)]`. A line is told by its
   timetable had none to stand in (or there is no timetable).
 - snapped away: a place a kept line's stop served until the stop took its node, up to 100 m off.
 - far on foot: a place a stop reaches as the crow flies, but the walk along the map's links is
-  longer than the reach (cover measures the crow, the walker follows the graph).
+  longer than the reach (cover measures the crow, the walker follows the graph), even after
+  `footpaths` laid the paths the side streets allow.
 - no morning trip: a kept line the timetable has no trip for between 8 and 10; the game plays it
   as one run a pass.
 - one bus: workplaces whose only line is one bus.
@@ -60,8 +61,9 @@ def snapped_away(places, raw_stops, final_stops, reach):
     )
 
 
-def far_on_foot(nodes, edges, stop_ids, places, reach):
-    """places: [(name, node id)]. The walk is along the walkable links, in their direction."""
+def walked(nodes, edges, stop_ids, reach):
+    """{node id: m on foot to the nearest stop} for the nodes within the reach of one, along the
+    walkable links in their direction."""
     xy = {n["id"]: (n["x"] * 1000, n["y"] * 1000) for n in nodes}
     back = {}
     for e in edges:
@@ -82,12 +84,18 @@ def far_on_foot(nodes, edges, stop_ids, places, reach):
             if nd <= reach and nd < dist.get(m, math.inf):
                 dist[m] = nd
                 heapq.heappush(heap, (nd, m))
+    return dist
+
+
+def far_on_foot(nodes, edges, stop_ids, places, reach):
+    """places: [(name, node id)]. The walk is along the walkable links, in their direction."""
+    dist = walked(nodes, edges, stop_ids, reach)
     out = [(name, n) for name, n in places if n not in dist]
     if not out:
         return None
     return (
         f"{len(out)} Orte, deren Halt zu Fuß weiter als {reach} m entfernt ist, obwohl er in "
-        f"der Luftlinie näher liegt: {', '.join(name for name, _ in out)}. "
+        f"der Luftlinie näher liegt, auch über die Nebenstraßen: {', '.join(name for name, _ in out)}. "
         "Vorschlag: ein Fußweg oder ein Halt dort"
     )
 

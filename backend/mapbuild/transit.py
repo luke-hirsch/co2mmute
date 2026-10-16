@@ -19,13 +19,16 @@
   walkable link with no way back (a one-way street), where the way back is not a link nobody walks.
   Seats and speed are the kind's defaults (`BusLine`, `TrainLine.DEFAULTS`). A bus-only link's speed
   limit is read by nothing (closed to cars; a bus runs at its line's speed), so 50.
+- footpaths (`footpaths.lay`): a place a stop is within 1 km of as the crow flies, but not along
+  the map's links, gets a path to the stop the side streets walk it to within 1 km, as long as
+  that walk.
 """
 
 import collections
 import heapq
 import math
 
-from . import buses, rail, report, timetable
+from . import buses, footpaths, rail, report, timetable
 from .lines import RAIL, REACH, collect, cover
 
 BRIDGE = (
@@ -771,6 +774,11 @@ def add(area, graph, shapes, extract):
         + ", ".join(f"{s} {c}" for s, c in sources.items())
         + (" — aus einem Ersatz: " + ", ".join(defaults) if defaults else "")
     )
+    laid, still_far = footpaths.lay(
+        out_nodes, out_edges, footpaths.side_streets(area), REACH
+    )
+    out_edges.extend(laid)
+    say.append(footpaths.say(laid, still_far))
     # heads-up
     homes = [(n["name"], (n["x"] * 1000, n["y"] * 1000)) for n in out_nodes if "home" in n["types"]]
     works = [

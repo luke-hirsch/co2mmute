@@ -82,7 +82,7 @@ class WholeBuildTests(SimpleTestCase):
             ),
             dict(
                 nodes=139,
-                edges=377,
+                edges=391,
                 homes=20,
                 workplaces=21,
                 stops=48,
@@ -140,6 +140,12 @@ class WholeBuildTests(SimpleTestCase):
             sorted((edge["name"], edge["junction"]) for edge in rings),
             [("Rembertiring", "circular"), ("Rembertiring", "circular")],
         )
+
+    def test_a_place_far_on_foot_gets_its_path_over_the_side_streets(self):
+        lines = [line for _, ls in self.report for line in ls]
+
+        self.assertIn("Fußwege zum Halt über die Nebenstraßen: 7 gelegt", lines)
+        self.assertEqual([line for line in lines if "zu Fuß weiter als" in line], [])
 
     def test_a_one_way_street_walks_back_on_a_path(self):
         pairs = {(e["start_node"], e["end_node"]): e for e in self.data["edges"]}
