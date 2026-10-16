@@ -420,6 +420,10 @@ export const de = {
       "Je dicker und gelber die Straße, desto langsamer war sie in der letzten Runde. „Schnellste“ rechnet damit.",
     noAssignment:
       "Für diesen Platz sind keine Gruppen hinterlegt. Die Spielleitung muss das Spiel neu anlegen.",
+
+    /** One line per Gruppe from round 2 on; nothing is preselected from it. */
+    lastRoundLine: (mode: TransportMode, minutes: number, kg: number) =>
+      `Letzte Runde: ${modeLabels[mode]} · ${Math.round(minutes)} min · ${kg.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg`,
   },
 
   /**
@@ -444,7 +448,7 @@ export const de = {
      * min"), because a bare "0:48" reads as a clock face and says nothing about
      * what ran out.
      */
-    clockLabel: "Vergangene Zeit",
+    clockLabel: "Uhrzeit",
     clock: (minute: number) => {
       const whole = Math.floor(minute);
       return whole < 60

@@ -4741,6 +4741,18 @@ class ReplayEndpointTests(TestCase):
         self.assertTrue(payload["replay"]["dots"])
         self.assertTrue(payload["ticks"])
 
+    def test_the_payload_carries_the_hours_the_clock_starts_from(self):
+        session, _ = self._played_round()
+        session.morning_departure_hour = 8
+        session.evening_departure_hour = 18
+        session.save()
+        self.client.force_login(self.user)
+
+        payload = self.client.get(self._url(session)).json()
+
+        self.assertEqual(payload["morning_departure_hour"], 8)
+        self.assertEqual(payload["evening_departure_hour"], 18)
+
     def test_the_recording_is_compressed_for_a_browser_that_accepts_it(self):
         """The biggest payload in the game, over school wifi, and nginx does not gzip.
 

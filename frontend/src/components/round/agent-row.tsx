@@ -29,6 +29,7 @@ export function AgentRow({
   agent,
   distance,
   persona,
+  lastRound,
   nodes,
   selected,
   onSelect,
@@ -45,6 +46,8 @@ export function AgentRow({
   distance: AgentDistance | undefined;
   /** Who this Gruppe is played as, when the game deals Pendlertypen. */
   persona?: Persona;
+  /** What this Gruppe lived last round, one line; null in round 1. */
+  lastRound?: string | null;
   nodes: Map<number, Node>;
   selected: boolean;
   onSelect: () => void;
@@ -101,6 +104,11 @@ export function AgentRow({
                 {persona.description ? (
                   <span className="text-muted-foreground"> – {persona.description}</span>
                 ) : null}
+              </p>
+            ) : null}
+            {lastRound ? (
+              <p className="mt-1 font-mono text-xs tabular-nums text-muted-foreground">
+                {lastRound}
               </p>
             ) : null}
             {/* Before any mode is picked, and it stays: it is the one figure
