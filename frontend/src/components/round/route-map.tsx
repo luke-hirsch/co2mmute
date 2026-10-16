@@ -6,7 +6,7 @@ import type { AgentDraft } from "@/lib/game/round-draft";
 import type { ExtendedMapGraph } from "@/types/routeTypes";
 
 /**
- * The map, with one passenger's route drawn on it and last round's traffic
+ * The map, with one passenger's route drawn on it and the traffic of the rounds so far
  * under it.
  *
  * A thin wrapper on purpose: the round screen talks to a small surface — graph,
@@ -24,7 +24,7 @@ export function RouteMap({
   graph: ExtendedMapGraph | null;
   /** The Gruppe on the map; its own home and destination are marked. */
   agent: AgentDraft | null;
-  /** Where it stopped last round, drawn as stroke weight. */
+  /** Where it stopped on average over the rounds so far, as stroke weight. */
   jam?: EdgeLoad[];
   /** What the router looked at for this route; played once, then gone. */
   search?: SearchTrace | null;

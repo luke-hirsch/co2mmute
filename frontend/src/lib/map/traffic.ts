@@ -1,12 +1,13 @@
 /**
- * Last round's traffic, turned into something the map can draw.
+ * The traffic of the rounds so far, turned into something the map can draw.
  *
  * ### One source, not two
  *
  * `previous_round_traffic` rides along with the graph and is what "schnellste"
- * routes on: `StreetPerRound.speed_under_load`, which is the speed the run
- * actually measured (`EdgeState.mean_speed_kmh`, over cars only). The overlay is
- * computed from exactly those numbers, so what a player sees drawn and what the
+ * routes on: `StreetPerRound.speed_under_load`, the speed a run actually
+ * measured (`EdgeState.mean_speed_kmh`, over cars only), averaged per street
+ * over the rounds so far (last round alone made the class swing). The overlay
+ * is computed from exactly those numbers, so what a player sees drawn and what the
  * router routed around cannot disagree.
  *
  * The alternative was `RoundTrafficHeatmapView`, which aggregates
@@ -33,7 +34,7 @@
 import type { Edge } from "@/types/mapTypes";
 import type { EdgeTrafficData } from "@/types/routeTypes";
 
-/** How full a link ran last round: 0 free-flowing, 1 stopped. */
+/** How full a link ran on average over the rounds so far: 0 free-flowing, 1 stopped. */
 export type EdgeLoad = { edgeId: number; congestionRatio: number };
 
 export function edgeLoads(

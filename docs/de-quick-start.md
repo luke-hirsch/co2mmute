@@ -118,14 +118,14 @@ Die Lobby ist dafür gebaut, am Beamer gezeigt zu werden.
 
 Alle sehen ihre Gruppen, jede mit „zu Hause“ und „Ziel“, und die Karte. Für jede Gruppe gibt es vier Wege hin:
 
-- „Auto“: „schnellste“, „kürzeste“ oder „sparsamste“ Route. Die schnellste und die sparsamste kennen die Staus der letzten Runde.
+- „Auto“: „schnellste“, „kürzeste“ oder „sparsamste“ Route. Die schnellste und die sparsamste kennen die Staus im Mittel der Runden bisher.
 - „Bus & Bahn“: „schnellste“, „wenig umsteigen“ oder „ohne Bus“.
 - „Fahrrad“: bis 15 km.
 - „zu Fuß“: bis 5 km. Das ist jeweils etwa eine Stunde. Alles darüber ist Wahnsinn.
 
 Den Rückweg findet das Spiel selbst, mit demselben Verkehrsmittel. Kommt eine Gruppe zur Arbeit, aber nicht wieder nach Hause, muss etwas anderes her.
 
-Auf der Karte gilt: Je dicker und gelber eine Straße, desto langsamer war sie in der letzten Runde. Sobald jede Gruppe eine Route hat, schickt „Losfahren“ sie ab.
+Auf der Karte gilt: Je dicker und gelber eine Straße, desto langsamer war sie im Mittel der Runden bisher. Sobald jede Gruppe eine Route hat, schickt „Losfahren“ sie ab.
 
 Es gibt keinen Timer. Die Runde wird gefahren, sobald alle abgeschickt haben, also bestimmt der oder die Langsamste, wie lange eine Runde dauert. Ist jemand endgültig weg, entfern den Platz, dann geht die Runde ohne diesen Platz weiter.
 
@@ -157,7 +157,7 @@ Die Mehrheit gewinnt und steht ab der nächsten Runde auf der Karte. Ein Gleichs
 
 #### Nochmal
 
-Die nächste Runde startet auf der Karte, für die ihr gestimmt habt. Dieselben Gruppen, dasselbe Zuhause, neue Entscheidungen — und die Staus der letzten Runde stecken jetzt in der Routensuche.
+Die nächste Runde startet auf der Karte, für die ihr gestimmt habt. Dieselben Gruppen, dasselbe Zuhause, neue Entscheidungen — und die Staus aller Runden bisher stecken jetzt in der Routensuche, im Mittel.
 
 #### Pause
 

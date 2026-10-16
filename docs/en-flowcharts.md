@@ -203,20 +203,20 @@ moves arriving at the same instant start one simulation, not two.
 ## Finding a route in the browser
 
 Everything here runs on the phone (`hooks/use-round-draft.ts`). The graph comes from the server once
-per round and version, with last round's measured street speeds attached; the search itself is
+per round and version, with the mean measured street speeds of the rounds so far attached; the search itself is
 Dijkstra.
 
 ```mermaid
 flowchart TD
     seat["the seat: a home and a destination per Gruppe<br>useSeatGame"] --> draft
-    mapgraph["graph of the active map version<br>+ last round's speeds, previous_round_traffic<br>useMapGraph — lib/queries/map-graph.ts"] --> draft
+    mapgraph["graph of the active map version<br>+ mean speeds of the rounds so far, previous_round_traffic<br>useMapGraph — lib/queries/map-graph.ts"] --> draft
     draft["useRoundDraft<br>hooks/use-round-draft.ts"] --> air{"straight line past<br>the mode's limit?"}
     air -->|"yes"| greyed["that mode is greyed out"]
     air -->|"no"| pick["player picks a mode and an option"]
     pick --> isPt{"public transport?"}
 
     isPt -->|"no"| dijkstra["findPath, dijkstra<br>utils/pathfinding.ts"]
-    dijkstra --> weight["calculateEdgeWeight per link<br>canUseEdge: may this mode use it at all?<br>walk, bike: minutes<br>car schnellste: minutes at last round's speed<br>car kürzeste: metres<br>car sparsamste: metres × CO2 factor at that speed"]
+    dijkstra --> weight["calculateEdgeWeight per link<br>canUseEdge: may this mode use it at all?<br>walk, bike: minutes<br>car schnellste: minutes at the mean speed of the rounds so far<br>car kürzeste: metres<br>car sparsamste: metres × CO2 factor at that speed"]
     weight --> limit{"route past<br>the mode's limit?"}
     limit -->|"yes"| tooFar["too-far"]
     limit -->|"no"| there
@@ -434,7 +434,7 @@ flowchart TD
     active --> filter["what is in this version<br>nodes and edges: their map_versions<br>line chains: maps/versions.py"]
     filter --> graphApi["MapVersionGraphView<br>api/maps/ID/graph/version/V/?game=…"]
     filter --> simRead["TrafficSimulator<br>_read_lines, _read_links"]
-    lastRound["StreetPerRound<br>last round's speeds"] --> graphApi
+    lastRound["StreetPerRound<br>mean speeds of the rounds so far"] --> graphApi
     graphApi --> router["the router in the browser"]
 ```
 

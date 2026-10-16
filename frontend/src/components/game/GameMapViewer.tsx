@@ -68,7 +68,7 @@ interface GameMapViewerProps {
   destinationNodeId?: number;
   routeSegments?: RouteSegment[];
   /**
-   * Last round's measured load per link. Drawn as weight and a step towards the
+   * The measured load per link, averaged over the rounds so far. Drawn as weight and a step towards the
    * accent — see the note above about why this is not a heatmap.
    */
   jam?: EdgeLoad[];
@@ -329,7 +329,7 @@ const GameMapViewer = ({
           </g>
 
           {/*
-            Where it stopped last round: heavier, and from ink towards the accent.
+            Where it stopped on average over the rounds so far: heavier, and from ink towards the accent.
 
             Never the car's blue: congestion is a property of the street and
             reads the same under a route of any mode, and in the car's colour it

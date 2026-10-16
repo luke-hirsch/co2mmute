@@ -86,7 +86,7 @@ export function useRoundDraft({
   const graph = useMapGraph(
     seat.data?.game_map,
     mapVersionId ?? seat.data?.active_map_version,
-    // Last round's observed speeds ride along with the graph, so "schnellste"
+    // The rounds' mean observed speeds ride along with the graph, so "schnellste"
     // is computed on a network that has already been driven. The round is in
     // the key, not the URL — see `map-graph.ts`.
     { gameId, roundNumber },

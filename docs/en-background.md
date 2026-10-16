@@ -118,6 +118,12 @@ free-flow speed gets multiplied by.
 So the speed shown on the map, the CO₂ factor applied to a trip and the route preview a player gets
 next round all rest on the same measured number.
 
+The next round routes on the mean of all rounds so far, not on the last one alone. When everybody
+routed on the last, everybody dodged onto its free streets at once and jammed them: on Berlin
+Mitte-West the speed swung by 8 to 10 km/h from round to round, and on a built map it fell from 26
+to 1 km/h in round 2. With the mean, hardly a Gruppe on Berlin Mitte-West changes its route from
+round 4 on, and the built map stays at 23 to 27 km/h.
+
 ### Who adds to congestion?
 
 - **Cars** always.

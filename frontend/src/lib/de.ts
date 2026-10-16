@@ -415,9 +415,9 @@ export const de = {
 
     mapTitle: "Karte",
     mapHint: "Tippe eine Gruppe an, um ihre Route zu sehen.",
-    /** The overlay drawn from the last round's measured speeds. */
+    /** The overlay drawn from the mean of the rounds' measured speeds so far. */
     jamHint:
-      "Je dicker und gelber die Straße, desto langsamer war sie in der letzten Runde. „Schnellste“ rechnet damit.",
+      "Je dicker und gelber die Straße, desto langsamer war sie im Mittel der Runden bisher. „Schnellste“ rechnet damit.",
     noAssignment:
       "Für diesen Platz sind keine Gruppen hinterlegt. Die Spielleitung muss das Spiel neu anlegen.",
 

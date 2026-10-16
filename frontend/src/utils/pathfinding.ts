@@ -101,7 +101,7 @@ export function calculateEdgeWeight(
     case "car": {
       const speedLimit = edge.street_edge?.speed_limit ?? DEFAULT_CAR_SPEED_KMH;
 
-      // The speed the link actually ran at last round. Time and CO2 both
+      // The speed the link ran at, on average over the rounds so far. Time and CO2 both
       // depend on it — the simulation's CO2 is a curve over the link's
       // observed speed — so both read it; only the shortest route does not.
       let actualSpeed = speedLimit;
