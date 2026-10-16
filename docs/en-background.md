@@ -194,7 +194,7 @@ Mitte-West a person-kilometre came to 144 g that way, where the Umweltbundesamt 
 42 g by tram and U-Bahn and 44 g by S-Bahn and regional train for Germany. The share is what the
 map's riders would emit if the vehicles were as full as Germany's average, divided by what the base
 timetable emits, measured on the round where half the agents drive, and never more than all of it.
-On Berlin Mitte-West it is 0.48. It holds for every vehicle-kilometre, the runs past the timetable
+On Berlin Mitte-West it is 0.22. It holds for every vehicle-kilometre, the runs past the timetable
 and the lines nobody rode included; it does not change the round, and the ticket stays the ticket.
 A map nobody measured pays the whole timetable, and whoever builds a map can set the share. A game
 keeps the share it started with.
@@ -433,11 +433,11 @@ with fewer cars, say three quarters, half and a quarter:
 
 | car share | per person | round total |       car | timetable | car trip there / back |
 | --------: | ---------: | ----------: | --------: | --------: | --------------------: |
-|     100 % |    3.62 kg |   24 584 kg | 21 080 kg |  3 503 kg |       23.7 / 22.4 min |
-|      75 % |    2.65 kg |   18 023 kg | 14 773 kg |  3 250 kg |       16.8 / 15.4 min |
-|      50 % |    1.86 kg |   12 625 kg |  9 122 kg |  3 503 kg |       11.6 / 11.7 min |
-|      25 % |    1.28 kg |    8 717 kg |  4 449 kg |  4 267 kg |       10.2 / 10.3 min |
-|       0 % |    0.73 kg |    4 993 kg |         — |  4 993 kg |                     — |
+|     100 % |    3.53 kg |   23 976 kg | 20 563 kg |  3 413 kg |       23.7 / 16.5 min |
+|      75 % |    2.63 kg |   17 898 kg | 14 436 kg |  3 462 kg |       16.8 / 12.0 min |
+|      50 % |    1.87 kg |   12 704 kg |  9 001 kg |  3 703 kg |       11.6 / 10.5 min |
+|      25 % |    1.27 kg |    8 630 kg |  4 447 kg |  4 183 kg |       10.2 / 10.3 min |
+|       0 % |    0.72 kg |    4 896 kg |         — |  4 896 kg |                     — |
 
 ![What a round costs, by car share](../backend/template/hintergrund/runde.svg)
 
@@ -451,14 +451,14 @@ capacity: just below it traffic flows, just above it jams. If the jam stays at h
 the commuter count is too high. If there is hardly a jam even when everybody drives, it is too low.
 
 On public transport, too much demand shows up as waiting. On Berlin Mitte-West bus and train take 32
-to 43 minutes, and the wait at the stop grows from 20 to 45 minutes as more people switch, because
+to 43 minutes, and the wait at the stop grows from 19 to 41 minutes as more people switch, because
 the vehicles are full.
 
 Measured with `calibrate_map` on the base version of Berlin Mitte-West, on Postgres: 72 agents of 94
 people each, spread evenly over the 36 home-and-workplace pairs, every pair driving its share and
-the rest on public transport, averaged over six seeds, on 15 October 2026. Per person means: the
+the rest on public transport, averaged over six seeds, on 16 October 2026. Per person means: the
 round divided by the 6800 commuters, the way the budget counts them. The timetable is the share the
-commuters pay, 0.48 of the timetable as it ran.
+commuters pay, 0.22 of the timetable as it ran.
 
 ### The budget
 
@@ -473,7 +473,7 @@ gives transport 85 Mt for 2030 (KSG, Anlage 2a); in 2017 it was 168. Cut by as m
 day is 2.45 kg, 2.4 on the dial's step. It is a mean over Germany, long commutes included: commutes
 over 50 km are 5 % of the trips and 30 % of their CO₂. A city is easier than the mean by itself.
 Until 15 October 2026 normal was the round on Berlin Mitte-West where half drive (2.41 kg); since
-the commuters pay their share of the timetable it costs 1.86 kg, and the 2.4 stayed and got a
+the commuters pay their share of the timetable it costs 1.87 kg, and the 2.4 stayed and got a
 source.
 
 On Berlin Mitte-West normal lasts if 67 % of the agents drive; for a new map `calibrate_map` says
@@ -487,11 +487,11 @@ it: the timetable runs whether anybody boards or not.
 
 What the budget means in a game is shown by two games over six rounds: one in which nobody gets out
 of the car, and one that works its way down, at 100 / 75 / 50 / 50 / 25 / 25 % car share. The floor
-is the timetable, which runs without passengers too: 0.73 kg per person, and below that no round can
+is the timetable, which runs without passengers too: 0.72 kg per person, and below that no round can
 be won.
 
-At normal that is 97 920 kg for six rounds. Driving throughout runs out in round 4. Working down
-comes to 85 291 kg, 12.54 kg per person against 14.4, and finishes. Until 15 October 2026, when the
+At normal that is 97 920 kg for six rounds. Driving throughout runs out in round 5. Working down
+comes to 84 542 kg, 12.43 kg per person against 14.4, and finishes. Until 15 October 2026, when the
 commuters still paid the whole timetable, it was 16.09 kg, and the second game failed in the last
 round.
 

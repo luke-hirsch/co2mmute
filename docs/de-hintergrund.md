@@ -210,7 +210,7 @@ Berlin Mitte-West kam ein Personenkilometer so auf 144 g, wo das Umweltbundesamt
 90 g im Bus rechnet, 42 g in Tram und U-Bahn, 44 g in S-Bahn und Regionalzug. Der Anteil ist, was
 die Mitfahrenden der Karte ausstoßen würden, wenn Bus und Bahn so voll wären wie im deutschen Mittel,
 geteilt durch das, was der Grundfahrplan ausstößt, gemessen in der Runde, in der die Hälfte der
-Gruppen Auto fährt, und nie mehr als alles. Auf Berlin Mitte-West sind es 0,48. Er gilt für jeden
+Gruppen Auto fährt, und nie mehr als alles. Auf Berlin Mitte-West sind es 0,22. Er gilt für jeden
 Fahrzeugkilometer, auch für die Fahrten nach dem Fahrplan und für Linien, die niemand benutzt hat;
 die Runde selbst ändert er nicht, und das Ticket bleibt das Ticket. Eine Karte ohne Messung bezahlt
 den ganzen Fahrplan, und wer eine Karte baut, kann den Anteil selbst setzen. Ein Spiel behält den
@@ -458,11 +458,11 @@ weniger Autos spielen, etwa mit drei Vierteln, der Hälfte und einem Viertel:
 
 | Autoanteil | pro Person | Runde gesamt |      Auto |  Fahrplan | Fahrzeit Auto hin / zurück |
 | ---------: | ---------: | -----------: | --------: | --------: | -------------------------: |
-|      100 % |    3,62 kg |    24.584 kg | 21.080 kg |  3.503 kg |            23,7 / 22,4 min |
-|       75 % |    2,65 kg |    18.023 kg | 14.773 kg |  3.250 kg |            16,8 / 15,4 min |
-|       50 % |    1,86 kg |    12.625 kg |  9.122 kg |  3.503 kg |            11,6 / 11,7 min |
-|       25 % |    1,28 kg |     8.717 kg |  4.449 kg |  4.267 kg |            10,2 / 10,3 min |
-|        0 % |    0,73 kg |     4.993 kg |         — |  4.993 kg |                          — |
+|      100 % |    3,53 kg |    23.976 kg | 20.563 kg |  3.413 kg |            23,7 / 16,5 min |
+|       75 % |    2,63 kg |    17.898 kg | 14.436 kg |  3.462 kg |            16,8 / 12,0 min |
+|       50 % |    1,87 kg |    12.704 kg |  9.001 kg |  3.703 kg |            11,6 / 10,5 min |
+|       25 % |    1,27 kg |     8.630 kg |  4.447 kg |  4.183 kg |            10,2 / 10,3 min |
+|        0 % |    0,72 kg |     4.896 kg |         — |  4.896 kg |                          — |
 
 ![Was eine Runde kostet, nach Autoanteil](../backend/template/hintergrund/runde.svg)
 
@@ -477,14 +477,14 @@ auch bei halbem Autoanteil, ist die Pendlerzahl zu hoch. Staut es schon dann kau
 fahren, ist sie zu niedrig.
 
 Beim ÖPNV zeigt sich zu viel Nachfrage als Wartezeit. Auf Berlin Mitte-West brauchen Bus und Bahn 32
-bis 43 Minuten, und die Wartezeit an der Haltestelle wächst von 20 auf 45 Minuten, je mehr Leute
+bis 43 Minuten, und die Wartezeit an der Haltestelle wächst von 19 auf 41 Minuten, je mehr Leute
 umsteigen, weil die Fahrzeuge voll sind.
 
 Gemessen mit `calibrate_map` auf der Basisversion von Berlin Mitte-West, auf Postgres: 72 Gruppen zu
 je 94 Menschen, gleichmäßig über die 36 Paare aus Wohnort und Arbeitsplatz verteilt, jedes Paar
-fährt seinen Anteil Auto und der Rest Bus und Bahn, gemittelt über sechs Seeds, am 15. Oktober 2026.
+fährt seinen Anteil Auto und der Rest Bus und Bahn, gemittelt über sechs Seeds, am 16. Oktober 2026.
 Pro Person heißt: die Runde geteilt durch die 6.800 Pendler, so wie das Budget sie zählt. Der
-Fahrplan ist der Anteil, den die Pendler bezahlen, 0,48 des Fahrplans, wie er gefahren ist.
+Fahrplan ist der Anteil, den die Pendler bezahlen, 0,22 des Fahrplans, wie er gefahren ist.
 
 ### Das Budget
 
@@ -500,7 +500,7 @@ gekürzt, bleiben einem Pendler am Tag 2,45 kg, auf den Schritt des Reglers 2,4.
 über Deutschland, lange Wege eingeschlossen: Arbeitswege über 50 km sind 5 % der Wege und 30 % ihres
 CO₂. Eine Stadt ist deshalb von selbst leichter als das Mittel. Bis zum 15. Oktober 2026 war normal
 die Runde auf Berlin Mitte-West, in der die Hälfte Auto fährt (2,41 kg); seit die Pendler ihren
-Anteil am Fahrplan bezahlen, kostet sie 1,86 kg, und die 2,4 blieben und haben eine Quelle.
+Anteil am Fahrplan bezahlen, kostet sie 1,87 kg, und die 2,4 blieben und haben eine Quelle.
 
 Auf Berlin Mitte-West reicht normal, wenn 67 % der Gruppen Auto fahren; für eine neue Karte sagt
 `calibrate_map`, welcher Anteil es dort ist. Der Regler bei „Spiel anlegen“ geht von 0,6 bis 6,0 kg
@@ -513,11 +513,11 @@ machen, schrumpft das Budget nicht mit: Der Fahrplan fährt, ob jemand einsteigt
 
 Was das Budget im Spiel bedeutet, zeigen zwei Spiele über sechs Runden: eines, in dem niemand aus dem
 Auto steigt, und eines, das sich herunterarbeitet, mit 100 / 75 / 50 / 50 / 25 / 25 % Autoanteil.
-Nach unten begrenzt es der Fahrplan, der auch fährt, wenn niemand einsteigt: 0,73 kg pro Person, und
+Nach unten begrenzt es der Fahrplan, der auch fährt, wenn niemand einsteigt: 0,72 kg pro Person, und
 darunter ist keine Runde zu schaffen.
 
-Bei normal sind das 97.920 kg für sechs Runden. Wer durchgehend fährt, ist in Runde 4 raus. Wer sich
-herunterarbeitet, kommt auf 85.291 kg, 12,54 kg pro Person gegen 14,4, und kommt durch. Bis zum
+Bei normal sind das 97.920 kg für sechs Runden. Wer durchgehend fährt, ist in Runde 5 raus. Wer sich
+herunterarbeitet, kommt auf 84.542 kg, 12,43 kg pro Person gegen 14,4, und kommt durch. Bis zum
 15. Oktober 2026, als die Pendler noch den ganzen Fahrplan bezahlten, waren es 16,09 kg, und das
 zweite Spiel scheiterte in der letzten Runde.
 
