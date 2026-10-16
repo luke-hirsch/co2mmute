@@ -127,3 +127,39 @@ export function co2BudgetKg(
     tenths * map.district_commuters * Math.max(1, Math.trunc(maxRounds) || 0);
   return roundHalfToEven(total / 10);
 }
+
+/**
+ * A map's table: kg per person per round at each car share, keyed by the
+ * share in whole percent (`"100"` … `"0"`), as `GET api/maps/` sends it.
+ */
+export type Co2Table = Record<string, number>;
+
+/**
+ * The car share a budget of `kgPerPerson` buys, read off a map's table.
+ *
+ * Mirrors `car_share_at` in `backend/game/calibration.py`: the largest share
+ * whose round stays inside the budget, interpolated linearly towards the next
+ * row up. 1 if even everybody driving fits, null if not even a round nobody
+ * drives does — the timetable runs either way.
+ */
+export function carShareAt(
+  kgPerPerson: string,
+  table: Co2Table,
+): number | null {
+  const kg = Number(kgPerPerson);
+  const rows = Object.entries(table)
+    .map(([percent, perPerson]) => ({
+      share: Number(percent) / 100,
+      kg: perPerson,
+    }))
+    .sort((a, b) => a.share - b.share);
+  const fits = rows.filter((row) => row.kg <= kg);
+  if (fits.length === 0) return null;
+  const lower = fits[fits.length - 1];
+  const upper = rows.find((row) => row.share > lower.share);
+  if (!upper || upper.kg <= lower.kg) return lower.share;
+  return (
+    lower.share +
+    ((upper.share - lower.share) * (kg - lower.kg)) / (upper.kg - lower.kg)
+  );
+}

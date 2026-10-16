@@ -1867,6 +1867,24 @@ export const de = {
       `Zusammen ${total.toLocaleString("de-DE")} kg für ${rounds} ${
         rounds === 1 ? "Runde" : "Runden"
       }, hin und zurück. Ist das aufgebraucht, ist das Spiel vorbei. Normal reicht auf Berlin Mitte-West, wenn zwei Drittel der Gruppen Auto fahren – weniger ist schwerer.`,
+    /**
+     * Under the dial, what the chosen kg buys on the chosen map: the car share
+     * the budget reaches (`GameMap.co2_table`, read like `car_share_at`). Only
+     * numbers, no verdict word.
+     */
+    co2Reaches: (kg: string, percent: number) =>
+      `Auf dieser Karte reichen ${kg.replace(".", ",")} kg, wenn bis zu ${percent} % der Gruppen Auto fahren.`,
+    /** Lead of the two refusals below; they are the map's warning note. */
+    co2Unplayable: "Nicht spielbar:",
+    /** Even everybody driving fits, so the budget cannot be lost. */
+    co2NeverLost: (kg: string) =>
+      `${kg.replace(".", ",")} kg reichen auf dieser Karte auch, wenn alle Auto fahren – das Budget ist nicht zu verlieren.`,
+    co2NeverLostTip: "Stell weniger kg ein.",
+    /** Not even nobody driving fits: the timetable alone eats the budget. */
+    co2NeverMade: (kg: string) =>
+      `${kg.replace(".", ",")} kg reichen auf dieser Karte nicht einmal, wenn niemand Auto fährt – das Budget ist nicht zu schaffen.`,
+    co2NeverMadeTip:
+      "Stell mehr kg ein, oder dünn im Karteneditor den Fahrplan aus: weniger Linien, ein längerer Takt. Bus und Bahn fahren, ob jemand mitfährt oder nicht.",
     /** Shown once the scale no longer matches what the map would suggest. */
     overridden: "Von dir überschrieben.",
     reset: "Vorschlag übernehmen",
