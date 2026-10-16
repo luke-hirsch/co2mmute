@@ -1,8 +1,8 @@
 {
  "total": {
   "status": "completed",
-  "total_co2_g": 428103.078099,
-  "total_cost_eur": 1976.797197,
+  "total_co2_g": 428105.822363,
+  "total_cost_eur": 1976.79983,
   "network_co2_g": 303840.0,
   "network_cost_eur": 1720.8
  },
@@ -11,45 +11,45 @@
    "route": "Anna/out",
    "mode": "car",
    "mean_trip_time_min": 3.388962,
-   "mean_return_time_min": 3.408012,
-   "mean_cost_eur": 1.562648,
-   "mean_paid_eur": 0.794648,
-   "total_co2_g": 124263.078099,
-   "congestion_delay_min": 0.00772,
+   "mean_return_time_min": 3.408481,
+   "mean_cost_eur": 1.562666,
+   "mean_paid_eur": 0.794666,
+   "total_co2_g": 124265.822363,
+   "congestion_delay_min": 0.008189,
    "wait_time_min": 0.0
   },
   {
    "route": "Ben/out",
    "mode": "public",
    "mean_trip_time_min": 25.852704,
-   "mean_return_time_min": 14.267887,
+   "mean_return_time_min": 11.108619,
    "mean_cost_eur": 1.392,
    "mean_paid_eur": 2.6,
    "total_co2_g": 55680.0,
-   "congestion_delay_min": 30.52059,
-   "wait_time_min": 28.92059
+   "congestion_delay_min": 27.361322,
+   "wait_time_min": 25.761322
   },
   {
    "route": "Cleo/out",
    "mode": "public",
    "mean_trip_time_min": 35.757107,
-   "mean_return_time_min": 49.038174,
+   "mean_return_time_min": 35.154411,
    "mean_cost_eur": 1.912,
    "mean_paid_eur": 2.6,
    "total_co2_g": 50640.0,
-   "congestion_delay_min": 76.395281,
-   "wait_time_min": 74.995281
+   "congestion_delay_min": 62.511518,
+   "wait_time_min": 61.111518
   },
   {
    "route": "Dara/out",
    "mode": "public",
    "mean_trip_time_min": 10.439845,
-   "mean_return_time_min": 10.696244,
+   "mean_return_time_min": 10.75399,
    "mean_cost_eur": 2.432,
    "mean_paid_eur": 2.6,
    "total_co2_g": 45600.0,
-   "congestion_delay_min": 13.936089,
-   "wait_time_min": 13.936089
+   "congestion_delay_min": 13.993835,
+   "wait_time_min": 13.993835
   },
   {
    "route": "Emil/out",
@@ -234,262 +234,304 @@
   },
   {
    "edge": "a>w",
-   "tick": 207,
+   "tick": 204,
    "vehicle_count": 0,
    "waiting_count": 0,
    "speed_kmh": 46.421134
   },
   {
    "edge": "a>w",
+   "tick": 205,
+   "vehicle_count": 2,
+   "waiting_count": 0,
+   "speed_kmh": 46.421134
+  },
+  {
+   "edge": "a>w",
+   "tick": 206,
+   "vehicle_count": 0,
+   "waiting_count": 0,
+   "speed_kmh": 49.414959
+  },
+  {
+   "edge": "a>w",
+   "tick": 207,
+   "vehicle_count": 3,
+   "waiting_count": 0,
+   "speed_kmh": 50.349587
+  },
+  {
+   "edge": "a>w",
    "tick": 208,
    "vehicle_count": 2,
    "waiting_count": 0,
-   "speed_kmh": 50.330776
+   "speed_kmh": 51.990751
   },
   {
    "edge": "a>w",
    "tick": 209,
-   "vehicle_count": 0,
+   "vehicle_count": 3,
    "waiting_count": 0,
-   "speed_kmh": 51.252302
+   "speed_kmh": 50.382584
   },
   {
    "edge": "a>w",
    "tick": 210,
-   "vehicle_count": 5,
+   "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 50.689713
+   "speed_kmh": 50.020773
   },
   {
    "edge": "a>w",
    "tick": 211,
-   "vehicle_count": 2,
+   "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 50.186047
+   "speed_kmh": 50.176121
   },
   {
    "edge": "a>w",
    "tick": 212,
-   "vehicle_count": 7,
+   "vehicle_count": 4,
    "waiting_count": 0,
-   "speed_kmh": 49.883781
+   "speed_kmh": 49.760009
   },
   {
    "edge": "a>w",
    "tick": 213,
    "vehicle_count": 3,
    "waiting_count": 0,
-   "speed_kmh": 49.844166
+   "speed_kmh": 49.995587
   },
   {
    "edge": "a>w",
    "tick": 214,
-   "vehicle_count": 0,
+   "vehicle_count": 2,
    "waiting_count": 0,
-   "speed_kmh": 49.754991
+   "speed_kmh": 49.803939
   },
   {
    "edge": "a>w",
    "tick": 215,
    "vehicle_count": 2,
    "waiting_count": 0,
-   "speed_kmh": 49.571316
+   "speed_kmh": 49.809219
   },
   {
    "edge": "a>w",
    "tick": 216,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.436088
+   "speed_kmh": 49.702405
   },
   {
    "edge": "a>w",
    "tick": 217,
-   "vehicle_count": 0,
+   "vehicle_count": 2,
    "waiting_count": 0,
-   "speed_kmh": 49.377706
+   "speed_kmh": 49.604089
   },
   {
    "edge": "a>w",
    "tick": 218,
-   "vehicle_count": 0,
+   "vehicle_count": 1,
    "waiting_count": 0,
-   "speed_kmh": 49.377706
+   "speed_kmh": 49.490801
   },
   {
    "edge": "a>w",
    "tick": 219,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.330506
+   "speed_kmh": 49.429859
   },
   {
    "edge": "a>w",
    "tick": 220,
-   "vehicle_count": 0,
+   "vehicle_count": 1,
    "waiting_count": 0,
-   "speed_kmh": 49.330506
+   "speed_kmh": 49.434461
   },
   {
    "edge": "a>w",
    "tick": 221,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.330506
+   "speed_kmh": 49.407821
   },
   {
    "edge": "a>w",
    "tick": 222,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.330506
+   "speed_kmh": 49.407821
   },
   {
    "edge": "a>w",
    "tick": 223,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.330506
+   "speed_kmh": 49.360363
   },
   {
    "edge": "a>w",
    "tick": 224,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.330506
+   "speed_kmh": 49.360363
   },
   {
    "edge": "a>w",
    "tick": 225,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.330506
+   "speed_kmh": 49.360363
   },
   {
    "edge": "a>w",
    "tick": 226,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.330506
+   "speed_kmh": 49.360363
   },
   {
    "edge": "a>w",
    "tick": 227,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.330506
+   "speed_kmh": 49.360363
   },
   {
    "edge": "b>a",
-   "tick": 207,
+   "tick": 204,
    "vehicle_count": 0,
    "waiting_count": 0,
    "speed_kmh": 46.421134
   },
   {
    "edge": "b>a",
-   "tick": 208,
+   "tick": 205,
    "vehicle_count": 0,
+   "waiting_count": 0,
+   "speed_kmh": 48.477164
+  },
+  {
+   "edge": "b>a",
+   "tick": 206,
+   "vehicle_count": 2,
    "waiting_count": 0,
    "speed_kmh": 49.414959
   },
   {
    "edge": "b>a",
-   "tick": 209,
-   "vehicle_count": 3,
+   "tick": 207,
+   "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 51.252302
+   "speed_kmh": 51.237183
+  },
+  {
+   "edge": "b>a",
+   "tick": 208,
+   "vehicle_count": 2,
+   "waiting_count": 0,
+   "speed_kmh": 51.477205
+  },
+  {
+   "edge": "b>a",
+   "tick": 209,
+   "vehicle_count": 1,
+   "waiting_count": 0,
+   "speed_kmh": 50.096855
   },
   {
    "edge": "b>a",
    "tick": 210,
    "vehicle_count": 1,
    "waiting_count": 0,
-   "speed_kmh": 50.044797
+   "speed_kmh": 50.020773
   },
   {
    "edge": "b>a",
    "tick": 211,
-   "vehicle_count": 1,
+   "vehicle_count": 3,
    "waiting_count": 0,
-   "speed_kmh": 50.231865
+   "speed_kmh": 50.176121
   },
   {
    "edge": "b>a",
    "tick": 212,
-   "vehicle_count": 4,
+   "vehicle_count": 3,
    "waiting_count": 0,
-   "speed_kmh": 49.775168
+   "speed_kmh": 49.676187
   },
   {
    "edge": "b>a",
    "tick": 213,
-   "vehicle_count": 2,
+   "vehicle_count": 1,
    "waiting_count": 0,
-   "speed_kmh": 49.803939
+   "speed_kmh": 49.868786
   },
   {
    "edge": "b>a",
    "tick": 214,
-   "vehicle_count": 2,
+   "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.790312
+   "speed_kmh": 49.767904
   },
   {
    "edge": "b>a",
    "tick": 215,
-   "vehicle_count": 1,
+   "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.598685
+   "speed_kmh": 49.751672
   },
   {
    "edge": "b>a",
    "tick": 216,
-   "vehicle_count": 2,
+   "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.467542
+   "speed_kmh": 49.702405
   },
   {
    "edge": "b>a",
    "tick": 217,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.407821
+   "speed_kmh": 49.598685
   },
   {
    "edge": "b>a",
    "tick": 218,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.407821
+   "speed_kmh": 49.467542
   },
   {
    "edge": "b>a",
    "tick": 219,
-   "vehicle_count": 0,
+   "vehicle_count": 1,
    "waiting_count": 0,
-   "speed_kmh": 49.360363
+   "speed_kmh": 49.429859
   },
   {
    "edge": "b>a",
    "tick": 220,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.360363
+   "speed_kmh": 49.407821
   },
   {
    "edge": "b>a",
    "tick": 221,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.360363
+   "speed_kmh": 49.407821
   },
   {
    "edge": "b>a",
    "tick": 222,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.360363
+   "speed_kmh": 49.407821
   },
   {
    "edge": "b>a",
@@ -696,150 +738,171 @@
   },
   {
    "edge": "c>b",
-   "tick": 207,
+   "tick": 204,
    "vehicle_count": 0,
    "waiting_count": 0,
    "speed_kmh": 46.421134
   },
   {
    "edge": "c>b",
-   "tick": 208,
-   "vehicle_count": 2,
+   "tick": 205,
+   "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.414959
+   "speed_kmh": 48.477164
+  },
+  {
+   "edge": "c>b",
+   "tick": 206,
+   "vehicle_count": 0,
+   "waiting_count": 0,
+   "speed_kmh": 49.640442
+  },
+  {
+   "edge": "c>b",
+   "tick": 207,
+   "vehicle_count": 1,
+   "waiting_count": 0,
+   "speed_kmh": 51.237183
+  },
+  {
+   "edge": "c>b",
+   "tick": 208,
+   "vehicle_count": 0,
+   "waiting_count": 0,
+   "speed_kmh": 51.28837
   },
   {
    "edge": "c>b",
    "tick": 209,
-   "vehicle_count": 2,
+   "vehicle_count": 1,
    "waiting_count": 0,
-   "speed_kmh": 51.857996
+   "speed_kmh": 50.044797
   },
   {
    "edge": "c>b",
    "tick": 210,
-   "vehicle_count": 4,
+   "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.992146
+   "speed_kmh": 50.004818
   },
   {
    "edge": "c>b",
    "tick": 211,
    "vehicle_count": 3,
    "waiting_count": 0,
-   "speed_kmh": 49.708547
+   "speed_kmh": 49.672171
   },
   {
    "edge": "c>b",
    "tick": 212,
-   "vehicle_count": 2,
+   "vehicle_count": 5,
    "waiting_count": 0,
-   "speed_kmh": 49.375097
+   "speed_kmh": 49.670131
   },
   {
    "edge": "c>b",
    "tick": 213,
-   "vehicle_count": 3,
+   "vehicle_count": 5,
    "waiting_count": 0,
-   "speed_kmh": 49.55809
+   "speed_kmh": 49.757697
   },
   {
    "edge": "c>b",
    "tick": 214,
-   "vehicle_count": 0,
+   "vehicle_count": 2,
    "waiting_count": 0,
-   "speed_kmh": 49.512238
+   "speed_kmh": 49.655818
   },
   {
    "edge": "c>b",
    "tick": 215,
-   "vehicle_count": 0,
+   "vehicle_count": 1,
    "waiting_count": 0,
-   "speed_kmh": 49.36118
+   "speed_kmh": 49.647519
   },
   {
    "edge": "c>b",
    "tick": 216,
-   "vehicle_count": 1,
+   "vehicle_count": 4,
    "waiting_count": 0,
-   "speed_kmh": 49.259866
+   "speed_kmh": 49.600833
   },
   {
    "edge": "c>b",
    "tick": 217,
-   "vehicle_count": 0,
+   "vehicle_count": 1,
    "waiting_count": 0,
-   "speed_kmh": 49.242524
+   "speed_kmh": 49.422678
   },
   {
    "edge": "c>b",
    "tick": 218,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.242524
+   "speed_kmh": 49.296122
   },
   {
    "edge": "c>b",
    "tick": 219,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.196479
+   "speed_kmh": 49.216589
   },
   {
    "edge": "c>b",
    "tick": 220,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.196479
+   "speed_kmh": 49.243678
   },
   {
    "edge": "c>b",
    "tick": 221,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.196479
+   "speed_kmh": 49.243678
   },
   {
    "edge": "c>b",
    "tick": 222,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.196479
+   "speed_kmh": 49.243678
   },
   {
    "edge": "c>b",
    "tick": 223,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.196479
+   "speed_kmh": 49.197623
   },
   {
    "edge": "c>b",
    "tick": 224,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.196479
+   "speed_kmh": 49.197623
   },
   {
    "edge": "c>b",
    "tick": 225,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.196479
+   "speed_kmh": 49.197623
   },
   {
    "edge": "c>b",
    "tick": 226,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.196479
+   "speed_kmh": 49.197623
   },
   {
    "edge": "c>b",
    "tick": 227,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 49.196479
+   "speed_kmh": 49.197623
   },
   {
    "edge": "c>e",
@@ -1123,157 +1186,171 @@
   },
   {
    "edge": "e>c",
-   "tick": 205,
-   "vehicle_count": 1,
-   "waiting_count": 0,
-   "speed_kmh": 30.0
-  },
-  {
-   "edge": "e>c",
-   "tick": 207,
-   "vehicle_count": 3,
+   "tick": 204,
+   "vehicle_count": 0,
    "waiting_count": 0,
    "speed_kmh": 27.85268
   },
   {
    "edge": "e>c",
-   "tick": 208,
+   "tick": 205,
+   "vehicle_count": 2,
+   "waiting_count": 0,
+   "speed_kmh": 29.086298
+  },
+  {
+   "edge": "e>c",
+   "tick": 206,
    "vehicle_count": 0,
    "waiting_count": 0,
    "speed_kmh": 29.784265
   },
   {
    "edge": "e>c",
+   "tick": 207,
+   "vehicle_count": 2,
+   "waiting_count": 0,
+   "speed_kmh": 30.751381
+  },
+  {
+   "edge": "e>c",
+   "tick": 208,
+   "vehicle_count": 5,
+   "waiting_count": 0,
+   "speed_kmh": 30.773022
+  },
+  {
+   "edge": "e>c",
    "tick": 209,
    "vehicle_count": 5,
    "waiting_count": 0,
-   "speed_kmh": 30.886323
+   "speed_kmh": 29.895208
   },
   {
    "edge": "e>c",
    "tick": 210,
-   "vehicle_count": 2,
+   "vehicle_count": 9,
    "waiting_count": 0,
-   "speed_kmh": 30.074665
+   "speed_kmh": 29.887952
   },
   {
    "edge": "e>c",
    "tick": 211,
-   "vehicle_count": 12,
+   "vehicle_count": 9,
    "waiting_count": 0,
-   "speed_kmh": 29.803303
+   "speed_kmh": 29.655415
   },
   {
    "edge": "e>c",
    "tick": 212,
-   "vehicle_count": 10,
+   "vehicle_count": 2,
    "waiting_count": 0,
-   "speed_kmh": 29.867597
+   "speed_kmh": 29.619915
   },
   {
    "edge": "e>c",
    "tick": 213,
-   "vehicle_count": 5,
+   "vehicle_count": 6,
    "waiting_count": 0,
-   "speed_kmh": 29.793255
+   "speed_kmh": 29.75873
   },
   {
    "edge": "e>c",
    "tick": 214,
-   "vehicle_count": 4,
+   "vehicle_count": 2,
    "waiting_count": 0,
-   "speed_kmh": 29.776232
+   "speed_kmh": 29.77474
   },
   {
    "edge": "e>c",
    "tick": 215,
-   "vehicle_count": 3,
+   "vehicle_count": 1,
    "waiting_count": 0,
-   "speed_kmh": 29.68031
+   "speed_kmh": 29.801493
   },
   {
    "edge": "e>c",
    "tick": 216,
-   "vehicle_count": 1,
+   "vehicle_count": 2,
    "waiting_count": 0,
-   "speed_kmh": 29.590305
+   "speed_kmh": 29.666248
   },
   {
    "edge": "e>c",
    "tick": 217,
    "vehicle_count": 1,
    "waiting_count": 0,
-   "speed_kmh": 29.605406
+   "speed_kmh": 29.656194
   },
   {
    "edge": "e>c",
    "tick": 218,
-   "vehicle_count": 1,
+   "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 29.605406
+   "speed_kmh": 29.615779
   },
   {
    "edge": "e>c",
    "tick": 219,
-   "vehicle_count": 1,
+   "vehicle_count": 2,
    "waiting_count": 0,
-   "speed_kmh": 29.577267
+   "speed_kmh": 29.567155
   },
   {
    "edge": "e>c",
    "tick": 220,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 29.577267
+   "speed_kmh": 29.582698
   },
   {
    "edge": "e>c",
    "tick": 221,
    "vehicle_count": 1,
    "waiting_count": 0,
-   "speed_kmh": 29.577267
+   "speed_kmh": 29.582698
   },
   {
    "edge": "e>c",
    "tick": 222,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 29.577267
+   "speed_kmh": 29.582698
   },
   {
    "edge": "e>c",
    "tick": 223,
    "vehicle_count": 1,
    "waiting_count": 0,
-   "speed_kmh": 29.577267
+   "speed_kmh": 29.554754
   },
   {
    "edge": "e>c",
    "tick": 224,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 29.577267
+   "speed_kmh": 29.554754
   },
   {
    "edge": "e>c",
    "tick": 225,
    "vehicle_count": 1,
    "waiting_count": 0,
-   "speed_kmh": 29.577267
+   "speed_kmh": 29.554754
   },
   {
    "edge": "e>c",
    "tick": 226,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 29.577267
+   "speed_kmh": 29.554754
   },
   {
    "edge": "e>c",
    "tick": 227,
    "vehicle_count": 0,
    "waiting_count": 0,
-   "speed_kmh": 29.577267
+   "speed_kmh": 29.554754
   },
   {
    "edge": "w>a",
@@ -6025,7 +6102,7 @@
     "wants": 1000.0
    },
    {
-    "id": 804,
+    "id": 805,
     "end": "arrived",
     "legs": [
      [
@@ -6065,7 +6142,7 @@
     "wants": 1010.0
    },
    {
-    "id": 805,
+    "id": 806,
     "end": "arrived",
     "legs": [
      [
@@ -6105,7 +6182,7 @@
     "wants": 1010.0
    },
    {
-    "id": 806,
+    "id": 809,
     "end": "arrived",
     "legs": [
      [
@@ -6131,7 +6208,7 @@
     "wants": 1015.0
    },
    {
-    "id": 807,
+    "id": 810,
     "end": "arrived",
     "legs": [
      [
@@ -6157,7 +6234,7 @@
     "wants": 1015.0
    },
    {
-    "id": 808,
+    "id": 815,
     "end": "arrived",
     "legs": [
      [
@@ -6197,7 +6274,7 @@
     "wants": 1020.0
    },
    {
-    "id": 809,
+    "id": 816,
     "end": "arrived",
     "legs": [
      [
@@ -6237,7 +6314,87 @@
     "wants": 1020.0
    },
    {
-    "id": 812,
+    "id": 823,
+    "end": "arrived",
+    "legs": [
+     [
+      "e",
+      "e>c",
+      1025.18,
+      1026.98,
+      "e"
+     ],
+     [
+      "e",
+      "c>b",
+      1026.98,
+      1028.78,
+      "c"
+     ],
+     [
+      "e",
+      "b>a",
+      1028.78,
+      1030.58,
+      "b"
+     ],
+     [
+      "e",
+      "a>w",
+      1030.58,
+      1032.38,
+      "a"
+     ]
+    ],
+    "line": null,
+    "mode": "bike",
+    "pass": "home",
+    "agent": 5,
+    "route": "Emil/home",
+    "wants": 1025.18
+   },
+   {
+    "id": 828,
+    "end": "arrived",
+    "legs": [
+     [
+      "e",
+      "e>c",
+      1027.99,
+      1029.79,
+      "e"
+     ],
+     [
+      "e",
+      "c>b",
+      1029.79,
+      1031.59,
+      "c"
+     ],
+     [
+      "e",
+      "b>a",
+      1031.59,
+      1033.39,
+      "b"
+     ],
+     [
+      "e",
+      "a>w",
+      1033.39,
+      1035.19,
+      "a"
+     ]
+    ],
+    "line": null,
+    "mode": "bike",
+    "pass": "home",
+    "agent": 5,
+    "route": "Emil/home",
+    "wants": 1027.99
+   },
+   {
+    "id": 833,
     "end": "arrived",
     "legs": [
      [
@@ -6263,7 +6420,7 @@
     "wants": 1030.0
    },
    {
-    "id": 813,
+    "id": 834,
     "end": "arrived",
     "legs": [
      [
@@ -6289,7 +6446,7 @@
     "wants": 1030.0
    },
    {
-    "id": 814,
+    "id": 835,
     "end": "arrived",
     "legs": [
      [
@@ -6329,7 +6486,7 @@
     "wants": 1030.0
    },
    {
-    "id": 815,
+    "id": 836,
     "end": "arrived",
     "legs": [
      [
@@ -6369,87 +6526,73 @@
     "wants": 1030.0
    },
    {
-    "id": 827,
+    "id": 848,
+    "end": "arrived",
+    "legs": [
+     [
+      "s",
+      "e",
+      1034.1,
+      1045.0,
+      null
+     ],
+     [
+      "r",
+      934,
+      1045.0,
+      1048.6,
+      null
+     ]
+    ],
+    "line": null,
+    "mode": "public",
+    "pass": "home",
+    "agent": 4,
+    "route": "Dara/home",
+    "wants": 1034.1
+   },
+   {
+    "id": 857,
     "end": "arrived",
     "legs": [
      [
       "e",
       "e>c",
-      1038.24,
-      1040.04,
+      1036.26,
+      1037.22,
       "e"
      ],
      [
       "e",
       "c>b",
-      1040.04,
-      1041.84,
+      1037.22,
+      1037.8,
       "c"
      ],
      [
       "e",
       "b>a",
-      1041.84,
-      1043.64,
+      1037.8,
+      1038.38,
       "b"
      ],
      [
       "e",
       "a>w",
-      1043.64,
-      1045.44,
+      1038.38,
+      1038.96,
       "a"
      ]
     ],
     "line": null,
-    "mode": "bike",
+    "mode": "car",
     "pass": "home",
-    "agent": 5,
-    "route": "Emil/home",
-    "wants": 1038.24
+    "agent": 1,
+    "route": "Anna/home",
+    "wants": 1036.26
    },
    {
-    "id": 832,
-    "end": "arrived",
-    "legs": [
-     [
-      "e",
-      "e>c",
-      1039.99,
-      1041.79,
-      "e"
-     ],
-     [
-      "e",
-      "c>b",
-      1041.79,
-      1043.59,
-      "c"
-     ],
-     [
-      "e",
-      "b>a",
-      1043.59,
-      1045.39,
-      "b"
-     ],
-     [
-      "e",
-      "a>w",
-      1045.39,
-      1047.19,
-      "a"
-     ]
-    ],
-    "line": null,
-    "mode": "bike",
-    "pass": "home",
-    "agent": 5,
-    "route": "Emil/home",
-    "wants": 1039.99
-   },
-   {
-    "id": 833,
+    "id": 883,
     "end": "arrived",
     "legs": [
      [
@@ -6489,7 +6632,7 @@
     "wants": 1040.0
    },
    {
-    "id": 834,
+    "id": 884,
     "end": "arrived",
     "legs": [
      [
@@ -6529,33 +6672,33 @@
     "wants": 1040.0
    },
    {
-    "id": 850,
+    "id": 896,
     "end": "arrived",
     "legs": [
      [
       "s",
       "e",
-      1043.81,
-      1045.0,
+      1041.45,
+      1050.0,
       null
      ],
      [
       "r",
-      857,
-      1045.0,
-      1048.6,
+      1007,
+      1050.0,
+      1056.2,
       null
      ]
     ],
     "line": null,
     "mode": "public",
     "pass": "home",
-    "agent": 4,
-    "route": "Dara/home",
-    "wants": 1043.81
+    "agent": 2,
+    "route": "Ben/home",
+    "wants": 1041.45
    },
    {
-    "id": 857,
+    "id": 934,
     "end": "arrived",
     "legs": [
      [
@@ -6581,7 +6724,7 @@
     "wants": 1045.0
    },
    {
-    "id": 858,
+    "id": 935,
     "end": "arrived",
     "legs": [
      [
@@ -6607,59 +6750,177 @@
     "wants": 1045.0
    },
    {
-    "id": 861,
-    "end": "arrived",
-    "legs": [
-     [
-      "e",
-      "e>c",
-      1045.16,
-      1046.13,
-      "e"
-     ],
-     [
-      "e",
-      "c>b",
-      1046.13,
-      1046.7,
-      "c"
-     ],
-     [
-      "e",
-      "b>a",
-      1046.7,
-      1047.28,
-      "b"
-     ],
-     [
-      "e",
-      "a>w",
-      1047.28,
-      1047.86,
-      "a"
-     ]
-    ],
-    "line": null,
-    "mode": "car",
-    "pass": "home",
-    "agent": 1,
-    "route": "Anna/home",
-    "wants": 1045.16
-   },
-   {
-    "id": 898,
+    "id": 943,
     "end": "arrived",
     "legs": [
      [
       "s",
       "e",
-      1048.4,
+      1045.93,
+      1060.0,
+      null
+     ],
+     [
+      "r",
+      1177,
+      1060.0,
+      1063.6,
+      null
+     ]
+    ],
+    "line": null,
+    "mode": "public",
+    "pass": "home",
+    "agent": 4,
+    "route": "Dara/home",
+    "wants": 1045.93
+   },
+   {
+    "id": 947,
+    "end": "arrived",
+    "legs": [
+     [
+      "s",
+      "e",
+      1046.1,
+      1060.0,
+      null
+     ],
+     [
+      "r",
+      1177,
+      1060.0,
+      1063.6,
+      null
+     ]
+    ],
+    "line": null,
+    "mode": "public",
+    "pass": "home",
+    "agent": 4,
+    "route": "Dara/home",
+    "wants": 1046.1
+   },
+   {
+    "id": 957,
+    "end": "arrived",
+    "legs": [
+     [
+      "s",
+      "e",
+      1046.66,
+      1060.0,
+      null
+     ],
+     [
+      "r",
+      1177,
+      1060.0,
+      1063.6,
+      null
+     ]
+    ],
+    "line": null,
+    "mode": "public",
+    "pass": "home",
+    "agent": 4,
+    "route": "Dara/home",
+    "wants": 1046.66
+   },
+   {
+    "id": 963,
+    "end": "arrived",
+    "legs": [
+     [
+      "s",
+      "e",
+      1046.84,
+      1060.0,
+      null
+     ],
+     [
+      "r",
+      1177,
+      1060.0,
+      1061.8,
+      null
+     ],
+     [
+      "s",
+      "b",
+      1061.8,
+      1062.4,
+      null
+     ],
+     [
+      "r",
+      1179,
+      1062.4,
+      1066.2,
+      null
+     ]
+    ],
+    "line": null,
+    "mode": "public",
+    "pass": "home",
+    "agent": 3,
+    "route": "Cleo/home",
+    "wants": 1046.84
+   },
+   {
+    "id": 966,
+    "end": "arrived",
+    "legs": [
+     [
+      "s",
+      "e",
+      1046.93,
+      1060.0,
+      null
+     ],
+     [
+      "r",
+      1177,
+      1060.0,
+      1061.8,
+      null
+     ],
+     [
+      "s",
+      "b",
+      1061.8,
+      1062.4,
+      null
+     ],
+     [
+      "r",
+      1179,
+      1062.4,
+      1066.2,
+      null
+     ]
+    ],
+    "line": null,
+    "mode": "public",
+    "pass": "home",
+    "agent": 3,
+    "route": "Cleo/home",
+    "wants": 1046.93
+   },
+   {
+    "id": 980,
+    "end": "arrived",
+    "legs": [
+     [
+      "s",
+      "e",
+      1048.42,
       1050.0,
       null
      ],
      [
       "r",
-      924,
+      1007,
       1050.0,
       1056.2,
       null
@@ -6670,10 +6931,50 @@
     "pass": "home",
     "agent": 2,
     "route": "Ben/home",
-    "wants": 1048.4
+    "wants": 1048.42
    },
    {
-    "id": 924,
+    "id": 985,
+    "end": "arrived",
+    "legs": [
+     [
+      "s",
+      "e",
+      1048.89,
+      1060.0,
+      null
+     ],
+     [
+      "r",
+      1177,
+      1060.0,
+      1061.8,
+      null
+     ],
+     [
+      "s",
+      "b",
+      1061.8,
+      1082.4,
+      null
+     ],
+     [
+      "r",
+      1501,
+      1082.4,
+      1086.2,
+      null
+     ]
+    ],
+    "line": null,
+    "mode": "public",
+    "pass": "home",
+    "agent": 3,
+    "route": "Cleo/home",
+    "wants": 1048.89
+   },
+   {
+    "id": 1007,
     "end": "arrived",
     "legs": [
      [
@@ -6713,7 +7014,7 @@
     "wants": 1050.0
    },
    {
-    "id": 925,
+    "id": 1008,
     "end": "arrived",
     "legs": [
      [
@@ -6753,237 +7054,13 @@
     "wants": 1050.0
    },
    {
-    "id": 945,
-    "end": "arrived",
-    "legs": [
-     [
-      "s",
-      "e",
-      1051.2,
-      1060.0,
-      null
-     ],
-     [
-      "r",
-      1177,
-      1060.0,
-      1063.6,
-      null
-     ]
-    ],
-    "line": null,
-    "mode": "public",
-    "pass": "home",
-    "agent": 4,
-    "route": "Dara/home",
-    "wants": 1051.2
-   },
-   {
-    "id": 949,
-    "end": "arrived",
-    "legs": [
-     [
-      "s",
-      "e",
-      1051.31,
-      1060.0,
-      null
-     ],
-     [
-      "r",
-      1177,
-      1060.0,
-      1063.6,
-      null
-     ]
-    ],
-    "line": null,
-    "mode": "public",
-    "pass": "home",
-    "agent": 4,
-    "route": "Dara/home",
-    "wants": 1051.31
-   },
-   {
-    "id": 959,
-    "end": "arrived",
-    "legs": [
-     [
-      "s",
-      "e",
-      1051.66,
-      1060.0,
-      null
-     ],
-     [
-      "r",
-      1177,
-      1060.0,
-      1063.6,
-      null
-     ]
-    ],
-    "line": null,
-    "mode": "public",
-    "pass": "home",
-    "agent": 4,
-    "route": "Dara/home",
-    "wants": 1051.66
-   },
-   {
-    "id": 965,
-    "end": "arrived",
-    "legs": [
-     [
-      "s",
-      "e",
-      1051.78,
-      1060.0,
-      null
-     ],
-     [
-      "r",
-      1177,
-      1060.0,
-      1061.8,
-      null
-     ],
-     [
-      "s",
-      "b",
-      1061.8,
-      1092.4,
-      null
-     ],
-     [
-      "r",
-      1580,
-      1092.4,
-      1096.2,
-      null
-     ]
-    ],
-    "line": null,
-    "mode": "public",
-    "pass": "home",
-    "agent": 3,
-    "route": "Cleo/home",
-    "wants": 1051.78
-   },
-   {
-    "id": 968,
-    "end": "arrived",
-    "legs": [
-     [
-      "s",
-      "e",
-      1051.83,
-      1060.0,
-      null
-     ],
-     [
-      "r",
-      1177,
-      1060.0,
-      1061.8,
-      null
-     ],
-     [
-      "s",
-      "b",
-      1061.8,
-      1092.4,
-      null
-     ],
-     [
-      "r",
-      1580,
-      1092.4,
-      1096.2,
-      null
-     ]
-    ],
-    "line": null,
-    "mode": "public",
-    "pass": "home",
-    "agent": 3,
-    "route": "Cleo/home",
-    "wants": 1051.83
-   },
-   {
-    "id": 982,
-    "end": "arrived",
-    "legs": [
-     [
-      "s",
-      "e",
-      1052.76,
-      1060.0,
-      null
-     ],
-     [
-      "r",
-      1179,
-      1060.0,
-      1066.2,
-      null
-     ]
-    ],
-    "line": null,
-    "mode": "public",
-    "pass": "home",
-    "agent": 2,
-    "route": "Ben/home",
-    "wants": 1052.76
-   },
-   {
-    "id": 987,
-    "end": "arrived",
-    "legs": [
-     [
-      "s",
-      "e",
-      1053.06,
-      1060.0,
-      null
-     ],
-     [
-      "r",
-      1177,
-      1060.0,
-      1061.8,
-      null
-     ],
-     [
-      "s",
-      "b",
-      1061.8,
-      1092.4,
-      null
-     ],
-     [
-      "r",
-      1580,
-      1092.4,
-      1096.2,
-      null
-     ]
-    ],
-    "line": null,
-    "mode": "public",
-    "pass": "home",
-    "agent": 3,
-    "route": "Cleo/home",
-    "wants": 1053.06
-   },
-   {
     "id": 1018,
     "end": "arrived",
     "legs": [
      [
       "s",
       "e",
-      1054.44,
+      1051.1,
       1060.0,
       null
      ],
@@ -7000,7 +7077,7 @@
     "pass": "home",
     "agent": 2,
     "route": "Ben/home",
-    "wants": 1054.44
+    "wants": 1051.1
    },
    {
     "id": 1025,
@@ -7009,29 +7086,29 @@
      [
       "e",
       "e>c",
-      1055.03,
-      1056.83,
+      1052.05,
+      1053.85,
       "e"
      ],
      [
       "e",
       "c>b",
-      1056.83,
-      1058.63,
+      1053.85,
+      1055.65,
       "c"
      ],
      [
       "e",
       "b>a",
-      1058.63,
-      1060.43,
+      1055.65,
+      1057.45,
       "b"
      ],
      [
       "e",
       "a>w",
-      1060.43,
-      1062.23,
+      1057.45,
+      1059.25,
       "a"
      ]
     ],
@@ -7040,7 +7117,7 @@
     "pass": "home",
     "agent": 5,
     "route": "Emil/home",
-    "wants": 1055.03
+    "wants": 1052.05
    },
    {
     "id": 1059,
@@ -7049,7 +7126,7 @@
      [
       "s",
       "e",
-      1056.27,
+      1054.03,
       1060.0,
       null
      ],
@@ -7066,7 +7143,7 @@
     "pass": "home",
     "agent": 2,
     "route": "Ben/home",
-    "wants": 1056.27
+    "wants": 1054.03
    },
    {
     "id": 1087,
@@ -7075,29 +7152,29 @@
      [
       "e",
       "e>c",
-      1057.07,
-      1058.87,
+      1055.31,
+      1057.11,
       "e"
      ],
      [
       "e",
       "c>b",
-      1058.87,
-      1060.67,
+      1057.11,
+      1058.91,
       "c"
      ],
      [
       "e",
       "b>a",
-      1060.67,
-      1062.47,
+      1058.91,
+      1060.71,
       "b"
      ],
      [
       "e",
       "a>w",
-      1062.47,
-      1064.27,
+      1060.71,
+      1062.51,
       "a"
      ]
     ],
@@ -7106,7 +7183,7 @@
     "pass": "home",
     "agent": 5,
     "route": "Emil/home",
-    "wants": 1057.07
+    "wants": 1055.31
    },
    {
     "id": 1099,
@@ -7115,7 +7192,7 @@
      [
       "s",
       "e",
-      1057.43,
+      1055.89,
       1060.0,
       null
      ],
@@ -7132,7 +7209,7 @@
     "pass": "home",
     "agent": 2,
     "route": "Ben/home",
-    "wants": 1057.43
+    "wants": 1055.89
    },
    {
     "id": 1103,
@@ -7141,29 +7218,29 @@
      [
       "e",
       "e>c",
-      1057.51,
-      1059.31,
+      1056.02,
+      1057.82,
       "e"
      ],
      [
       "e",
       "c>b",
-      1059.31,
-      1061.11,
+      1057.82,
+      1059.62,
       "c"
      ],
      [
       "e",
       "b>a",
-      1061.11,
-      1062.91,
+      1059.62,
+      1061.42,
       "b"
      ],
      [
       "e",
       "a>w",
-      1062.91,
-      1064.71,
+      1061.42,
+      1063.22,
       "a"
      ]
     ],
@@ -7172,7 +7249,7 @@
     "pass": "home",
     "agent": 5,
     "route": "Emil/home",
-    "wants": 1057.51
+    "wants": 1056.02
    },
    {
     "id": 1108,
@@ -7181,7 +7258,7 @@
      [
       "s",
       "e",
-      1057.71,
+      1056.33,
       1060.0,
       null
      ],
@@ -7196,14 +7273,14 @@
       "s",
       "b",
       1061.8,
-      1102.4,
+      1092.4,
       null
      ],
      [
       "r",
-      1584,
-      1102.4,
-      1106.2,
+      1555,
+      1092.4,
+      1096.2,
       null
      ]
     ],
@@ -7212,7 +7289,7 @@
     "pass": "home",
     "agent": 3,
     "route": "Cleo/home",
-    "wants": 1057.71
+    "wants": 1056.33
    },
    {
     "id": 1113,
@@ -7221,15 +7298,15 @@
      [
       "s",
       "e",
-      1057.89,
-      1070.0,
+      1056.62,
+      1060.0,
       null
      ],
      [
       "r",
-      1454,
-      1070.0,
-      1076.2,
+      1179,
+      1060.0,
+      1066.2,
       null
      ]
     ],
@@ -7238,7 +7315,7 @@
     "pass": "home",
     "agent": 2,
     "route": "Ben/home",
-    "wants": 1057.89
+    "wants": 1056.62
    },
    {
     "id": 1124,
@@ -7247,29 +7324,29 @@
      [
       "e",
       "e>c",
-      1058.45,
-      1060.25,
+      1057.52,
+      1059.32,
       "e"
      ],
      [
       "e",
       "c>b",
-      1060.25,
-      1062.05,
+      1059.32,
+      1061.12,
       "c"
      ],
      [
       "e",
       "b>a",
-      1062.05,
-      1063.85,
+      1061.12,
+      1062.92,
       "b"
      ],
      [
       "e",
       "a>w",
-      1063.85,
-      1065.65,
+      1062.92,
+      1064.72,
       "a"
      ]
     ],
@@ -7278,7 +7355,7 @@
     "pass": "home",
     "agent": 5,
     "route": "Emil/home",
-    "wants": 1058.45
+    "wants": 1057.52
    },
    {
     "id": 1126,
@@ -7287,15 +7364,15 @@
      [
       "s",
       "e",
-      1058.51,
-      1070.0,
+      1057.61,
+      1060.0,
       null
      ],
      [
       "r",
-      1454,
-      1070.0,
-      1076.2,
+      1179,
+      1060.0,
+      1066.2,
       null
      ]
     ],
@@ -7304,7 +7381,7 @@
     "pass": "home",
     "agent": 2,
     "route": "Ben/home",
-    "wants": 1058.51
+    "wants": 1057.61
    },
    {
     "id": 1132,
@@ -7313,7 +7390,7 @@
      [
       "s",
       "e",
-      1058.78,
+      1058.05,
       1060.0,
       null
      ],
@@ -7328,14 +7405,14 @@
       "s",
       "b",
       1061.8,
-      1102.4,
+      1092.4,
       null
      ],
      [
       "r",
-      1584,
-      1102.4,
-      1106.2,
+      1555,
+      1092.4,
+      1096.2,
       null
      ]
     ],
@@ -7344,7 +7421,7 @@
     "pass": "home",
     "agent": 3,
     "route": "Cleo/home",
-    "wants": 1058.78
+    "wants": 1058.05
    },
    {
     "id": 1134,
@@ -7353,7 +7430,7 @@
      [
       "s",
       "e",
-      1058.82,
+      1058.11,
       1060.0,
       null
      ],
@@ -7368,14 +7445,14 @@
       "s",
       "b",
       1061.8,
-      1102.4,
+      1092.4,
       null
      ],
      [
       "r",
-      1584,
-      1102.4,
-      1106.2,
+      1555,
+      1092.4,
+      1096.2,
       null
      ]
     ],
@@ -7384,7 +7461,7 @@
     "pass": "home",
     "agent": 3,
     "route": "Cleo/home",
-    "wants": 1058.82
+    "wants": 1058.11
    },
    {
     "id": 1146,
@@ -7393,29 +7470,29 @@
      [
       "e",
       "e>c",
-      1058.98,
-      1060.78,
+      1058.36,
+      1060.16,
       "e"
      ],
      [
       "e",
       "c>b",
-      1060.78,
-      1062.58,
+      1060.16,
+      1061.96,
       "c"
      ],
      [
       "e",
       "b>a",
-      1062.58,
-      1064.38,
+      1061.96,
+      1063.76,
       "b"
      ],
      [
       "e",
       "a>w",
-      1064.38,
-      1066.18,
+      1063.76,
+      1065.56,
       "a"
      ]
     ],
@@ -7424,7 +7501,7 @@
     "pass": "home",
     "agent": 5,
     "route": "Emil/home",
-    "wants": 1058.98
+    "wants": 1058.36
    },
    {
     "id": 1160,
@@ -7433,7 +7510,7 @@
      [
       "s",
       "e",
-      1059.47,
+      1059.15,
       1060.0,
       null
      ],
@@ -7450,7 +7527,7 @@
     "pass": "home",
     "agent": 4,
     "route": "Dara/home",
-    "wants": 1059.47
+    "wants": 1059.15
    },
    {
     "id": 1165,
@@ -7459,7 +7536,7 @@
      [
       "s",
       "e",
-      1059.61,
+      1059.38,
       1060.0,
       null
      ],
@@ -7476,7 +7553,7 @@
     "pass": "home",
     "agent": 4,
     "route": "Dara/home",
-    "wants": 1059.61
+    "wants": 1059.38
    },
    {
     "id": 1168,
@@ -7485,7 +7562,7 @@
      [
       "s",
       "e",
-      1059.64,
+      1059.43,
       1060.0,
       null
      ],
@@ -7502,7 +7579,7 @@
     "pass": "home",
     "agent": 4,
     "route": "Dara/home",
-    "wants": 1059.64
+    "wants": 1059.43
    },
    {
     "id": 1177,
@@ -7643,13 +7720,13 @@
      [
       "s",
       "e",
-      1060.15,
+      1060.24,
       1070.0,
       null
      ],
      [
       "r",
-      1454,
+      1384,
       1070.0,
       1076.2,
       null
@@ -7660,7 +7737,7 @@
     "pass": "home",
     "agent": 2,
     "route": "Ben/home",
-    "wants": 1060.15
+    "wants": 1060.24
    },
    {
     "id": 1200,
@@ -7669,13 +7746,13 @@
      [
       "s",
       "e",
-      1060.57,
+      1060.92,
       1075.0,
       null
      ],
      [
       "r",
-      1527,
+      1444,
       1075.0,
       1076.8,
       null
@@ -7684,14 +7761,14 @@
       "s",
       "b",
       1076.8,
-      1112.4,
+      1102.4,
       null
      ],
      [
       "r",
-      1588,
-      1112.4,
-      1116.2,
+      1575,
+      1102.4,
+      1106.2,
       null
      ]
     ],
@@ -7700,7 +7777,7 @@
     "pass": "home",
     "agent": 3,
     "route": "Cleo/home",
-    "wants": 1060.57
+    "wants": 1060.92
    },
    {
     "id": 1204,
@@ -7709,29 +7786,29 @@
      [
       "e",
       "e>c",
-      1060.69,
-      1062.49,
+      1061.1,
+      1062.9,
       "e"
      ],
      [
       "e",
       "c>b",
-      1062.49,
-      1064.29,
+      1062.9,
+      1064.7,
       "c"
      ],
      [
       "e",
       "b>a",
-      1064.29,
-      1066.09,
+      1064.7,
+      1066.5,
       "b"
      ],
      [
       "e",
       "a>w",
-      1066.09,
-      1067.89,
+      1066.5,
+      1068.3,
       "a"
      ]
     ],
@@ -7740,7 +7817,7 @@
     "pass": "home",
     "agent": 5,
     "route": "Emil/home",
-    "wants": 1060.69
+    "wants": 1061.1
    },
    {
     "id": 1209,
@@ -7749,13 +7826,13 @@
      [
       "s",
       "e",
-      1060.88,
+      1061.4,
       1070.0,
       null
      ],
      [
       "r",
-      1454,
+      1384,
       1070.0,
       1076.2,
       null
@@ -7766,7 +7843,7 @@
     "pass": "home",
     "agent": 2,
     "route": "Ben/home",
-    "wants": 1060.88
+    "wants": 1061.4
    },
    {
     "id": 1223,
@@ -7775,13 +7852,13 @@
      [
       "s",
       "e",
-      1061.36,
+      1062.18,
       1075.0,
       null
      ],
      [
       "r",
-      1527,
+      1444,
       1075.0,
       1076.8,
       null
@@ -7790,14 +7867,14 @@
       "s",
       "b",
       1076.8,
-      1112.4,
+      1102.4,
       null
      ],
      [
       "r",
-      1588,
-      1112.4,
-      1116.2,
+      1575,
+      1102.4,
+      1106.2,
       null
      ]
     ],
@@ -7806,7 +7883,7 @@
     "pass": "home",
     "agent": 3,
     "route": "Cleo/home",
-    "wants": 1061.36
+    "wants": 1062.18
    },
    {
     "id": 1228,
@@ -7815,29 +7892,29 @@
      [
       "e",
       "e>c",
-      1061.51,
-      1062.6,
+      1062.41,
+      1063.51,
       "e"
      ],
      [
       "e",
       "c>b",
-      1062.6,
-      1063.26,
+      1063.51,
+      1064.16,
       "c"
      ],
      [
       "e",
       "b>a",
-      1063.26,
-      1063.92,
+      1064.16,
+      1064.82,
       "b"
      ],
      [
       "e",
       "a>w",
-      1063.92,
-      1064.57,
+      1064.82,
+      1065.48,
       "a"
      ]
     ],
@@ -7846,7 +7923,7 @@
     "pass": "home",
     "agent": 1,
     "route": "Anna/home",
-    "wants": 1061.51
+    "wants": 1062.41
    },
    {
     "id": 1235,
@@ -7855,13 +7932,13 @@
      [
       "s",
       "e",
-      1061.64,
+      1062.63,
       1070.0,
       null
      ],
      [
       "r",
-      1454,
+      1384,
       1070.0,
       1076.2,
       null
@@ -7872,7 +7949,7 @@
     "pass": "home",
     "agent": 2,
     "route": "Ben/home",
-    "wants": 1061.64
+    "wants": 1062.63
    },
    {
     "id": 1247,
@@ -7881,13 +7958,13 @@
      [
       "s",
       "e",
-      1062.02,
+      1063.23,
       1075.0,
       null
      ],
      [
       "r",
-      1527,
+      1444,
       1075.0,
       1078.6,
       null
@@ -7898,7 +7975,7 @@
     "pass": "home",
     "agent": 4,
     "route": "Dara/home",
-    "wants": 1062.02
+    "wants": 1063.23
    },
    {
     "id": 1252,
@@ -7907,13 +7984,13 @@
      [
       "s",
       "e",
-      1062.24,
+      1063.59,
       1075.0,
       null
      ],
      [
       "r",
-      1527,
+      1444,
       1075.0,
       1076.8,
       null
@@ -7922,14 +7999,14 @@
       "s",
       "b",
       1076.8,
-      1112.4,
+      1102.4,
       null
      ],
      [
       "r",
-      1588,
-      1112.4,
-      1116.2,
+      1575,
+      1102.4,
+      1106.2,
       null
      ]
     ],
@@ -7938,288 +8015,10 @@
     "pass": "home",
     "agent": 3,
     "route": "Cleo/home",
-    "wants": 1062.24
+    "wants": 1063.59
    },
    {
     "id": 1255,
-    "end": "arrived",
-    "legs": [
-     [
-      "s",
-      "e",
-      1062.29,
-      1075.0,
-      null
-     ],
-     [
-      "r",
-      1527,
-      1075.0,
-      1078.6,
-      null
-     ]
-    ],
-    "line": null,
-    "mode": "public",
-    "pass": "home",
-    "agent": 4,
-    "route": "Dara/home",
-    "wants": 1062.29
-   },
-   {
-    "id": 1261,
-    "end": "arrived",
-    "legs": [
-     [
-      "e",
-      "e>c",
-      1062.46,
-      1064.26,
-      "e"
-     ],
-     [
-      "e",
-      "c>b",
-      1064.26,
-      1066.06,
-      "c"
-     ],
-     [
-      "e",
-      "b>a",
-      1066.06,
-      1067.86,
-      "b"
-     ],
-     [
-      "e",
-      "a>w",
-      1067.86,
-      1069.66,
-      "a"
-     ]
-    ],
-    "line": null,
-    "mode": "bike",
-    "pass": "home",
-    "agent": 5,
-    "route": "Emil/home",
-    "wants": 1062.46
-   },
-   {
-    "id": 1272,
-    "end": "arrived",
-    "legs": [
-     [
-      "e",
-      "e>c",
-      1062.85,
-      1064.65,
-      "e"
-     ],
-     [
-      "e",
-      "c>b",
-      1064.65,
-      1066.45,
-      "c"
-     ],
-     [
-      "e",
-      "b>a",
-      1066.45,
-      1068.25,
-      "b"
-     ],
-     [
-      "e",
-      "a>w",
-      1068.25,
-      1070.05,
-      "a"
-     ]
-    ],
-    "line": null,
-    "mode": "bike",
-    "pass": "home",
-    "agent": 5,
-    "route": "Emil/home",
-    "wants": 1062.85
-   },
-   {
-    "id": 1281,
-    "end": "arrived",
-    "legs": [
-     [
-      "s",
-      "e",
-      1063.04,
-      1070.0,
-      null
-     ],
-     [
-      "r",
-      1454,
-      1070.0,
-      1076.2,
-      null
-     ]
-    ],
-    "line": null,
-    "mode": "public",
-    "pass": "home",
-    "agent": 2,
-    "route": "Ben/home",
-    "wants": 1063.04
-   },
-   {
-    "id": 1288,
-    "end": "arrived",
-    "legs": [
-     [
-      "s",
-      "e",
-      1063.12,
-      1075.0,
-      null
-     ],
-     [
-      "r",
-      1527,
-      1075.0,
-      1076.8,
-      null
-     ],
-     [
-      "s",
-      "b",
-      1076.8,
-      1112.4,
-      null
-     ],
-     [
-      "r",
-      1588,
-      1112.4,
-      1116.2,
-      null
-     ]
-    ],
-    "line": null,
-    "mode": "public",
-    "pass": "home",
-    "agent": 3,
-    "route": "Cleo/home",
-    "wants": 1063.12
-   },
-   {
-    "id": 1291,
-    "end": "arrived",
-    "legs": [
-     [
-      "e",
-      "e>c",
-      1063.25,
-      1065.05,
-      "e"
-     ],
-     [
-      "e",
-      "c>b",
-      1065.05,
-      1066.85,
-      "c"
-     ],
-     [
-      "e",
-      "b>a",
-      1066.85,
-      1068.65,
-      "b"
-     ],
-     [
-      "e",
-      "a>w",
-      1068.65,
-      1070.45,
-      "a"
-     ]
-    ],
-    "line": null,
-    "mode": "bike",
-    "pass": "home",
-    "agent": 5,
-    "route": "Emil/home",
-    "wants": 1063.25
-   },
-   {
-    "id": 1296,
-    "end": "arrived",
-    "legs": [
-     [
-      "e",
-      "e>c",
-      1063.47,
-      1064.48,
-      "e"
-     ],
-     [
-      "e",
-      "c>b",
-      1064.48,
-      1065.08,
-      "c"
-     ],
-     [
-      "e",
-      "b>a",
-      1065.08,
-      1065.69,
-      "b"
-     ],
-     [
-      "e",
-      "a>w",
-      1065.69,
-      1066.3,
-      "a"
-     ]
-    ],
-    "line": null,
-    "mode": "car",
-    "pass": "home",
-    "agent": 1,
-    "route": "Anna/home",
-    "wants": 1063.47
-   },
-   {
-    "id": 1298,
-    "end": "arrived",
-    "legs": [
-     [
-      "s",
-      "e",
-      1063.54,
-      1075.0,
-      null
-     ],
-     [
-      "r",
-      1527,
-      1075.0,
-      1078.6,
-      null
-     ]
-    ],
-    "line": null,
-    "mode": "public",
-    "pass": "home",
-    "agent": 4,
-    "route": "Dara/home",
-    "wants": 1063.54
-   },
-   {
-    "id": 1301,
     "end": "arrived",
     "legs": [
      [
@@ -8231,7 +8030,139 @@
      ],
      [
       "r",
-      1527,
+      1444,
+      1075.0,
+      1078.6,
+      null
+     ]
+    ],
+    "line": null,
+    "mode": "public",
+    "pass": "home",
+    "agent": 4,
+    "route": "Dara/home",
+    "wants": 1063.67
+   },
+   {
+    "id": 1261,
+    "end": "arrived",
+    "legs": [
+     [
+      "e",
+      "e>c",
+      1063.94,
+      1065.74,
+      "e"
+     ],
+     [
+      "e",
+      "c>b",
+      1065.74,
+      1067.54,
+      "c"
+     ],
+     [
+      "e",
+      "b>a",
+      1067.54,
+      1069.34,
+      "b"
+     ],
+     [
+      "e",
+      "a>w",
+      1069.34,
+      1071.14,
+      "a"
+     ]
+    ],
+    "line": null,
+    "mode": "bike",
+    "pass": "home",
+    "agent": 5,
+    "route": "Emil/home",
+    "wants": 1063.94
+   },
+   {
+    "id": 1272,
+    "end": "arrived",
+    "legs": [
+     [
+      "e",
+      "e>c",
+      1064.56,
+      1066.36,
+      "e"
+     ],
+     [
+      "e",
+      "c>b",
+      1066.36,
+      1068.16,
+      "c"
+     ],
+     [
+      "e",
+      "b>a",
+      1068.16,
+      1069.96,
+      "b"
+     ],
+     [
+      "e",
+      "a>w",
+      1069.96,
+      1071.76,
+      "a"
+     ]
+    ],
+    "line": null,
+    "mode": "bike",
+    "pass": "home",
+    "agent": 5,
+    "route": "Emil/home",
+    "wants": 1064.56
+   },
+   {
+    "id": 1281,
+    "end": "arrived",
+    "legs": [
+     [
+      "s",
+      "e",
+      1064.86,
+      1070.0,
+      null
+     ],
+     [
+      "r",
+      1384,
+      1070.0,
+      1076.2,
+      null
+     ]
+    ],
+    "line": null,
+    "mode": "public",
+    "pass": "home",
+    "agent": 2,
+    "route": "Ben/home",
+    "wants": 1064.86
+   },
+   {
+    "id": 1288,
+    "end": "arrived",
+    "legs": [
+     [
+      "s",
+      "e",
+      1064.99,
+      1075.0,
+      null
+     ],
+     [
+      "r",
+      1444,
       1075.0,
       1076.8,
       null
@@ -8240,14 +8171,14 @@
       "s",
       "b",
       1076.8,
-      1112.4,
+      1102.4,
       null
      ],
      [
       "r",
-      1588,
-      1112.4,
-      1116.2,
+      1575,
+      1102.4,
+      1106.2,
       null
      ]
     ],
@@ -8256,7 +8187,153 @@
     "pass": "home",
     "agent": 3,
     "route": "Cleo/home",
-    "wants": 1063.67
+    "wants": 1064.99
+   },
+   {
+    "id": 1291,
+    "end": "arrived",
+    "legs": [
+     [
+      "e",
+      "e>c",
+      1065.2,
+      1067.0,
+      "e"
+     ],
+     [
+      "e",
+      "c>b",
+      1067.0,
+      1068.8,
+      "c"
+     ],
+     [
+      "e",
+      "b>a",
+      1068.8,
+      1070.6,
+      "b"
+     ],
+     [
+      "e",
+      "a>w",
+      1070.6,
+      1072.4,
+      "a"
+     ]
+    ],
+    "line": null,
+    "mode": "bike",
+    "pass": "home",
+    "agent": 5,
+    "route": "Emil/home",
+    "wants": 1065.2
+   },
+   {
+    "id": 1296,
+    "end": "arrived",
+    "legs": [
+     [
+      "e",
+      "e>c",
+      1065.55,
+      1066.56,
+      "e"
+     ],
+     [
+      "e",
+      "c>b",
+      1066.56,
+      1067.16,
+      "c"
+     ],
+     [
+      "e",
+      "b>a",
+      1067.16,
+      1067.77,
+      "b"
+     ],
+     [
+      "e",
+      "a>w",
+      1067.77,
+      1068.38,
+      "a"
+     ]
+    ],
+    "line": null,
+    "mode": "car",
+    "pass": "home",
+    "agent": 1,
+    "route": "Anna/home",
+    "wants": 1065.55
+   },
+   {
+    "id": 1298,
+    "end": "arrived",
+    "legs": [
+     [
+      "s",
+      "e",
+      1065.66,
+      1075.0,
+      null
+     ],
+     [
+      "r",
+      1444,
+      1075.0,
+      1078.6,
+      null
+     ]
+    ],
+    "line": null,
+    "mode": "public",
+    "pass": "home",
+    "agent": 4,
+    "route": "Dara/home",
+    "wants": 1065.66
+   },
+   {
+    "id": 1301,
+    "end": "arrived",
+    "legs": [
+     [
+      "s",
+      "e",
+      1065.88,
+      1075.0,
+      null
+     ],
+     [
+      "r",
+      1444,
+      1075.0,
+      1076.8,
+      null
+     ],
+     [
+      "s",
+      "b",
+      1076.8,
+      1102.4,
+      null
+     ],
+     [
+      "r",
+      1575,
+      1102.4,
+      1106.2,
+      null
+     ]
+    ],
+    "line": null,
+    "mode": "public",
+    "pass": "home",
+    "agent": 3,
+    "route": "Cleo/home",
+    "wants": 1065.88
    },
    {
     "id": 1305,
@@ -8265,29 +8342,29 @@
      [
       "e",
       "e>c",
-      1063.76,
-      1065,
+      1066.01,
+      1067.01,
       "e"
      ],
      [
       "e",
       "c>b",
-      1065,
-      1065.6,
+      1067.01,
+      1067.62,
       "c"
      ],
      [
       "e",
       "b>a",
-      1065.6,
-      1066.2,
+      1067.62,
+      1068.22,
       "b"
      ],
      [
       "e",
       "a>w",
-      1066.2,
-      1066.81,
+      1068.22,
+      1068.82,
       "a"
      ]
     ],
@@ -8296,7 +8373,7 @@
     "pass": "home",
     "agent": 1,
     "route": "Anna/home",
-    "wants": 1063.76
+    "wants": 1066.01
    },
    {
     "id": 1308,
@@ -8305,29 +8382,29 @@
      [
       "e",
       "e>c",
-      1063.91,
-      1065.39,
+      1066.26,
+      1067.73,
       "e"
      ],
      [
       "e",
       "c>b",
-      1065.39,
-      1066.27,
+      1067.73,
+      1068.62,
       "c"
      ],
      [
       "e",
       "b>a",
-      1066.27,
-      1067.15,
+      1068.62,
+      1069.5,
       "b"
      ],
      [
       "e",
       "a>w",
-      1067.15,
-      1068.03,
+      1069.5,
+      1070.38,
       "a"
      ]
     ],
@@ -8336,7 +8413,7 @@
     "pass": "home",
     "agent": 1,
     "route": "Anna/home",
-    "wants": 1063.91
+    "wants": 1066.26
    },
    {
     "id": 1313,
@@ -8345,29 +8422,29 @@
      [
       "e",
       "e>c",
-      1064.14,
-      1065.32,
+      1066.62,
+      1067.81,
       "e"
      ],
      [
       "e",
       "c>b",
-      1065.32,
-      1066.04,
+      1067.81,
+      1068.52,
       "c"
      ],
      [
       "e",
       "b>a",
-      1066.04,
-      1066.75,
+      1068.52,
+      1069.23,
       "b"
      ],
      [
       "e",
       "a>w",
-      1066.75,
-      1067.46,
+      1069.23,
+      1069.94,
       "a"
      ]
     ],
@@ -8376,7 +8453,7 @@
     "pass": "home",
     "agent": 1,
     "route": "Anna/home",
-    "wants": 1064.14
+    "wants": 1066.62
    },
    {
     "id": 1326,
@@ -8385,15 +8462,15 @@
      [
       "s",
       "e",
-      1064.42,
-      1080.0,
+      1067.07,
+      1070.0,
       null
      ],
      [
       "r",
-      1559,
-      1080.0,
-      1086.2,
+      1384,
+      1070.0,
+      1076.2,
       null
      ]
     ],
@@ -8402,7 +8479,7 @@
     "pass": "home",
     "agent": 2,
     "route": "Ben/home",
-    "wants": 1064.42
+    "wants": 1067.07
    },
    {
     "id": 1329,
@@ -8411,29 +8488,29 @@
      [
       "e",
       "e>c",
-      1064.45,
-      1066.25,
+      1067.12,
+      1068.92,
       "e"
      ],
      [
       "e",
       "c>b",
-      1066.25,
-      1068.05,
+      1068.92,
+      1070.72,
       "c"
      ],
      [
       "e",
       "b>a",
-      1068.05,
-      1069.85,
+      1070.72,
+      1072.52,
       "b"
      ],
      [
       "e",
       "a>w",
-      1069.85,
-      1071.65,
+      1072.52,
+      1074.32,
       "a"
      ]
     ],
@@ -8442,7 +8519,7 @@
     "pass": "home",
     "agent": 5,
     "route": "Emil/home",
-    "wants": 1064.45
+    "wants": 1067.12
    },
    {
     "id": 1339,
@@ -8451,13 +8528,13 @@
      [
       "s",
       "e",
-      1064.71,
+      1067.54,
       1075.0,
       null
      ],
      [
       "r",
-      1527,
+      1444,
       1075.0,
       1078.6,
       null
@@ -8468,7 +8545,7 @@
     "pass": "home",
     "agent": 4,
     "route": "Dara/home",
-    "wants": 1064.71
+    "wants": 1067.54
    },
    {
     "id": 1348,
@@ -8477,13 +8554,13 @@
      [
       "s",
       "e",
-      1065.11,
+      1068.17,
       1075.0,
       null
      ],
      [
       "r",
-      1527,
+      1444,
       1075.0,
       1078.6,
       null
@@ -8494,7 +8571,7 @@
     "pass": "home",
     "agent": 4,
     "route": "Dara/home",
-    "wants": 1065.11
+    "wants": 1068.17
    },
    {
     "id": 1351,
@@ -8503,29 +8580,29 @@
      [
       "e",
       "e>c",
-      1065.22,
-      1066.29,
+      1068.35,
+      1069.42,
       "e"
      ],
      [
       "e",
       "c>b",
-      1066.29,
-      1066.94,
+      1069.42,
+      1070.07,
       "c"
      ],
      [
       "e",
       "b>a",
-      1066.94,
-      1067.58,
+      1070.07,
+      1070.71,
       "b"
      ],
      [
       "e",
       "a>w",
-      1067.58,
-      1068.23,
+      1070.71,
+      1071.36,
       "a"
      ]
     ],
@@ -8534,7 +8611,7 @@
     "pass": "home",
     "agent": 1,
     "route": "Anna/home",
-    "wants": 1065.22
+    "wants": 1068.35
    },
    {
     "id": 1369,
@@ -8543,13 +8620,13 @@
      [
       "s",
       "e",
-      1065.7,
+      1069.13,
       1080.0,
       null
      ],
      [
       "r",
-      1559,
+      1501,
       1080.0,
       1086.2,
       null
@@ -8560,382 +8637,10 @@
     "pass": "home",
     "agent": 2,
     "route": "Ben/home",
-    "wants": 1065.7
+    "wants": 1069.13
    },
    {
-    "id": 1388,
-    "end": "arrived",
-    "legs": [
-     [
-      "s",
-      "e",
-      1066.35,
-      1075.0,
-      null
-     ],
-     [
-      "r",
-      1527,
-      1075.0,
-      1076.8,
-      null
-     ],
-     [
-      "s",
-      "b",
-      1076.8,
-      1112.4,
-      null
-     ],
-     [
-      "r",
-      1588,
-      1112.4,
-      1116.2,
-      null
-     ]
-    ],
-    "line": null,
-    "mode": "public",
-    "pass": "home",
-    "agent": 3,
-    "route": "Cleo/home",
-    "wants": 1066.35
-   },
-   {
-    "id": 1391,
-    "end": "arrived",
-    "legs": [
-     [
-      "e",
-      "e>c",
-      1066.98,
-      1068.12,
-      "e"
-     ],
-     [
-      "e",
-      "c>b",
-      1068.12,
-      1068.8,
-      "c"
-     ],
-     [
-      "e",
-      "b>a",
-      1068.8,
-      1069.49,
-      "b"
-     ],
-     [
-      "e",
-      "a>w",
-      1069.49,
-      1070.17,
-      "a"
-     ]
-    ],
-    "line": null,
-    "mode": "car",
-    "pass": "home",
-    "agent": 1,
-    "route": "Anna/home",
-    "wants": 1066.98
-   },
-   {
-    "id": 1394,
-    "end": "arrived",
-    "legs": [
-     [
-      "s",
-      "e",
-      1067.12,
-      1075.0,
-      null
-     ],
-     [
-      "r",
-      1527,
-      1075.0,
-      1078.6,
-      null
-     ]
-    ],
-    "line": null,
-    "mode": "public",
-    "pass": "home",
-    "agent": 4,
-    "route": "Dara/home",
-    "wants": 1067.12
-   },
-   {
-    "id": 1404,
-    "end": "arrived",
-    "legs": [
-     [
-      "e",
-      "e>c",
-      1067.64,
-      1069.44,
-      "e"
-     ],
-     [
-      "e",
-      "c>b",
-      1069.44,
-      1071.24,
-      "c"
-     ],
-     [
-      "e",
-      "b>a",
-      1071.24,
-      1073.04,
-      "b"
-     ],
-     [
-      "e",
-      "a>w",
-      1073.04,
-      1074.84,
-      "a"
-     ]
-    ],
-    "line": null,
-    "mode": "bike",
-    "pass": "home",
-    "agent": 5,
-    "route": "Emil/home",
-    "wants": 1067.64
-   },
-   {
-    "id": 1426,
-    "end": "arrived",
-    "legs": [
-     [
-      "e",
-      "e>c",
-      1068.66,
-      1069.91,
-      "e"
-     ],
-     [
-      "e",
-      "c>b",
-      1069.91,
-      1070.67,
-      "c"
-     ],
-     [
-      "e",
-      "b>a",
-      1070.67,
-      1071.42,
-      "b"
-     ],
-     [
-      "e",
-      "a>w",
-      1071.42,
-      1072.18,
-      "a"
-     ]
-    ],
-    "line": null,
-    "mode": "car",
-    "pass": "home",
-    "agent": 1,
-    "route": "Anna/home",
-    "wants": 1068.66
-   },
-   {
-    "id": 1431,
-    "end": "arrived",
-    "legs": [
-     [
-      "s",
-      "e",
-      1068.81,
-      1075.0,
-      null
-     ],
-     [
-      "r",
-      1527,
-      1075.0,
-      1078.6,
-      null
-     ]
-    ],
-    "line": null,
-    "mode": "public",
-    "pass": "home",
-    "agent": 4,
-    "route": "Dara/home",
-    "wants": 1068.81
-   },
-   {
-    "id": 1434,
-    "end": "arrived",
-    "legs": [
-     [
-      "e",
-      "e>c",
-      1068.85,
-      1070.65,
-      "e"
-     ],
-     [
-      "e",
-      "c>b",
-      1070.65,
-      1072.45,
-      "c"
-     ],
-     [
-      "e",
-      "b>a",
-      1072.45,
-      1074.25,
-      "b"
-     ],
-     [
-      "e",
-      "a>w",
-      1074.25,
-      1076.05,
-      "a"
-     ]
-    ],
-    "line": null,
-    "mode": "bike",
-    "pass": "home",
-    "agent": 5,
-    "route": "Emil/home",
-    "wants": 1068.85
-   },
-   {
-    "id": 1437,
-    "end": "arrived",
-    "legs": [
-     [
-      "e",
-      "e>c",
-      1069.07,
-      1070.16,
-      "e"
-     ],
-     [
-      "e",
-      "c>b",
-      1070.16,
-      1070.82,
-      "c"
-     ],
-     [
-      "e",
-      "b>a",
-      1070.82,
-      1071.47,
-      "b"
-     ],
-     [
-      "e",
-      "a>w",
-      1071.47,
-      1072.13,
-      "a"
-     ]
-    ],
-    "line": null,
-    "mode": "car",
-    "pass": "home",
-    "agent": 1,
-    "route": "Anna/home",
-    "wants": 1069.07
-   },
-   {
-    "id": 1443,
-    "end": "arrived",
-    "legs": [
-     [
-      "e",
-      "e>c",
-      1069.41,
-      1070.57,
-      "e"
-     ],
-     [
-      "e",
-      "c>b",
-      1070.57,
-      1071.27,
-      "c"
-     ],
-     [
-      "e",
-      "b>a",
-      1071.27,
-      1071.98,
-      "b"
-     ],
-     [
-      "e",
-      "a>w",
-      1071.98,
-      1072.68,
-      "a"
-     ]
-    ],
-    "line": null,
-    "mode": "car",
-    "pass": "home",
-    "agent": 1,
-    "route": "Anna/home",
-    "wants": 1069.41
-   },
-   {
-    "id": 1447,
-    "end": "arrived",
-    "legs": [
-     [
-      "s",
-      "e",
-      1069.7,
-      1075.0,
-      null
-     ],
-     [
-      "r",
-      1527,
-      1075.0,
-      1076.8,
-      null
-     ],
-     [
-      "s",
-      "b",
-      1076.8,
-      1122.4,
-      null
-     ],
-     [
-      "r",
-      1592,
-      1122.4,
-      1126.2,
-      null
-     ]
-    ],
-    "line": null,
-    "mode": "public",
-    "pass": "home",
-    "agent": 3,
-    "route": "Cleo/home",
-    "wants": 1069.7
-   },
-   {
-    "id": 1454,
+    "id": 1384,
     "end": "arrived",
     "legs": [
      [
@@ -8975,7 +8680,7 @@
     "wants": 1070.0
    },
    {
-    "id": 1455,
+    "id": 1385,
     "end": "arrived",
     "legs": [
      [
@@ -9015,59 +8720,99 @@
     "wants": 1070.0
    },
    {
-    "id": 1469,
-    "end": "arrived",
-    "legs": [
-     [
-      "e",
-      "e>c",
-      1070.38,
-      1072.18,
-      "e"
-     ],
-     [
-      "e",
-      "c>b",
-      1072.18,
-      1073.98,
-      "c"
-     ],
-     [
-      "e",
-      "b>a",
-      1073.98,
-      1075.78,
-      "b"
-     ],
-     [
-      "e",
-      "a>w",
-      1075.78,
-      1077.58,
-      "a"
-     ]
-    ],
-    "line": null,
-    "mode": "bike",
-    "pass": "home",
-    "agent": 5,
-    "route": "Emil/home",
-    "wants": 1070.38
-   },
-   {
-    "id": 1487,
+    "id": 1390,
     "end": "arrived",
     "legs": [
      [
       "s",
       "e",
-      1071.76,
+      1070.16,
       1075.0,
       null
      ],
      [
       "r",
-      1527,
+      1444,
+      1075.0,
+      1076.8,
+      null
+     ],
+     [
+      "s",
+      "b",
+      1076.8,
+      1102.4,
+      null
+     ],
+     [
+      "r",
+      1575,
+      1102.4,
+      1106.2,
+      null
+     ]
+    ],
+    "line": null,
+    "mode": "public",
+    "pass": "home",
+    "agent": 3,
+    "route": "Cleo/home",
+    "wants": 1070.16
+   },
+   {
+    "id": 1393,
+    "end": "arrived",
+    "legs": [
+     [
+      "e",
+      "e>c",
+      1071.17,
+      1072.31,
+      "e"
+     ],
+     [
+      "e",
+      "c>b",
+      1072.31,
+      1073.0,
+      "c"
+     ],
+     [
+      "e",
+      "b>a",
+      1073.0,
+      1073.68,
+      "b"
+     ],
+     [
+      "e",
+      "a>w",
+      1073.68,
+      1074.36,
+      "a"
+     ]
+    ],
+    "line": null,
+    "mode": "car",
+    "pass": "home",
+    "agent": 1,
+    "route": "Anna/home",
+    "wants": 1071.17
+   },
+   {
+    "id": 1396,
+    "end": "arrived",
+    "legs": [
+     [
+      "s",
+      "e",
+      1071.39,
+      1075.0,
+      null
+     ],
+     [
+      "r",
+      1444,
       1075.0,
       1078.6,
       null
@@ -9078,22 +8823,406 @@
     "pass": "home",
     "agent": 4,
     "route": "Dara/home",
-    "wants": 1071.76
+    "wants": 1071.39
    },
    {
-    "id": 1496,
+    "id": 1406,
+    "end": "arrived",
+    "legs": [
+     [
+      "e",
+      "e>c",
+      1072.22,
+      1074.02,
+      "e"
+     ],
+     [
+      "e",
+      "c>b",
+      1074.02,
+      1075.82,
+      "c"
+     ],
+     [
+      "e",
+      "b>a",
+      1075.82,
+      1077.62,
+      "b"
+     ],
+     [
+      "e",
+      "a>w",
+      1077.62,
+      1079.42,
+      "a"
+     ]
+    ],
+    "line": null,
+    "mode": "bike",
+    "pass": "home",
+    "agent": 5,
+    "route": "Emil/home",
+    "wants": 1072.22
+   },
+   {
+    "id": 1428,
+    "end": "arrived",
+    "legs": [
+     [
+      "e",
+      "e>c",
+      1073.85,
+      1075.11,
+      "e"
+     ],
+     [
+      "e",
+      "c>b",
+      1075.11,
+      1075.86,
+      "c"
+     ],
+     [
+      "e",
+      "b>a",
+      1075.86,
+      1076.62,
+      "b"
+     ],
+     [
+      "e",
+      "a>w",
+      1076.62,
+      1077.37,
+      "a"
+     ]
+    ],
+    "line": null,
+    "mode": "car",
+    "pass": "home",
+    "agent": 1,
+    "route": "Anna/home",
+    "wants": 1073.85
+   },
+   {
+    "id": 1433,
     "end": "arrived",
     "legs": [
      [
       "s",
       "e",
-      1072.27,
+      1074.09,
+      1075.0,
+      null
+     ],
+     [
+      "r",
+      1444,
+      1075.0,
+      1078.6,
+      null
+     ]
+    ],
+    "line": null,
+    "mode": "public",
+    "pass": "home",
+    "agent": 4,
+    "route": "Dara/home",
+    "wants": 1074.09
+   },
+   {
+    "id": 1436,
+    "end": "arrived",
+    "legs": [
+     [
+      "e",
+      "e>c",
+      1074.15,
+      1075.95,
+      "e"
+     ],
+     [
+      "e",
+      "c>b",
+      1075.95,
+      1077.75,
+      "c"
+     ],
+     [
+      "e",
+      "b>a",
+      1077.75,
+      1079.55,
+      "b"
+     ],
+     [
+      "e",
+      "a>w",
+      1079.55,
+      1081.35,
+      "a"
+     ]
+    ],
+    "line": null,
+    "mode": "bike",
+    "pass": "home",
+    "agent": 5,
+    "route": "Emil/home",
+    "wants": 1074.15
+   },
+   {
+    "id": 1439,
+    "end": "arrived",
+    "legs": [
+     [
+      "e",
+      "e>c",
+      1074.52,
+      1075.61,
+      "e"
+     ],
+     [
+      "e",
+      "c>b",
+      1075.61,
+      1076.26,
+      "c"
+     ],
+     [
+      "e",
+      "b>a",
+      1076.26,
+      1076.92,
+      "b"
+     ],
+     [
+      "e",
+      "a>w",
+      1076.92,
+      1077.57,
+      "a"
+     ]
+    ],
+    "line": null,
+    "mode": "car",
+    "pass": "home",
+    "agent": 1,
+    "route": "Anna/home",
+    "wants": 1074.52
+   },
+   {
+    "id": 1444,
+    "end": "arrived",
+    "legs": [
+     [
+      "e",
+      "e=b",
+      1075.0,
+      1076.8,
+      "e"
+     ],
+     [
+      "e",
+      "b=w",
+      1076.8,
+      1078.6,
+      "b"
+     ]
+    ],
+    "line": "S2",
+    "mode": "train",
+    "pass": "home",
+    "agent": null,
+    "route": null,
+    "wants": 1075.0
+   },
+   {
+    "id": 1445,
+    "end": "arrived",
+    "legs": [
+     [
+      "e",
+      "w=b",
+      1075.0,
+      1076.8,
+      "w"
+     ],
+     [
+      "e",
+      "b=e",
+      1076.8,
+      1078.6,
+      "b"
+     ]
+    ],
+    "line": "S1",
+    "mode": "train",
+    "pass": "home",
+    "agent": null,
+    "route": null,
+    "wants": 1075.0
+   },
+   {
+    "id": 1447,
+    "end": "arrived",
+    "legs": [
+     [
+      "e",
+      "e>c",
+      1075.05,
+      1076.22,
+      "e"
+     ],
+     [
+      "e",
+      "c>b",
+      1076.22,
+      1076.92,
+      "c"
+     ],
+     [
+      "e",
+      "b>a",
+      1076.92,
+      1077.62,
+      "b"
+     ],
+     [
+      "e",
+      "a>w",
+      1077.62,
+      1078.32,
+      "a"
+     ]
+    ],
+    "line": null,
+    "mode": "car",
+    "pass": "home",
+    "agent": 1,
+    "route": "Anna/home",
+    "wants": 1075.05
+   },
+   {
+    "id": 1451,
+    "end": "arrived",
+    "legs": [
+     [
+      "s",
+      "e",
+      1075.52,
+      1090.0,
+      null
+     ],
+     [
+      "r",
+      1553,
+      1090.0,
+      1091.8,
+      null
+     ],
+     [
+      "s",
+      "b",
+      1091.8,
+      1112.4,
+      null
+     ],
+     [
+      "r",
+      1587,
+      1112.4,
+      1116.2,
+      null
+     ]
+    ],
+    "line": null,
+    "mode": "public",
+    "pass": "home",
+    "agent": 3,
+    "route": "Cleo/home",
+    "wants": 1075.52
+   },
+   {
+    "id": 1471,
+    "end": "arrived",
+    "legs": [
+     [
+      "e",
+      "e>c",
+      1076.61,
+      1078.41,
+      "e"
+     ],
+     [
+      "e",
+      "c>b",
+      1078.41,
+      1080.21,
+      "c"
+     ],
+     [
+      "e",
+      "b>a",
+      1080.21,
+      1082.01,
+      "b"
+     ],
+     [
+      "e",
+      "a>w",
+      1082.01,
+      1083.81,
+      "a"
+     ]
+    ],
+    "line": null,
+    "mode": "bike",
+    "pass": "home",
+    "agent": 5,
+    "route": "Emil/home",
+    "wants": 1076.61
+   },
+   {
+    "id": 1489,
+    "end": "arrived",
+    "legs": [
+     [
+      "s",
+      "e",
+      1078.81,
+      1090.0,
+      null
+     ],
+     [
+      "r",
+      1553,
+      1090.0,
+      1093.6,
+      null
+     ]
+    ],
+    "line": null,
+    "mode": "public",
+    "pass": "home",
+    "agent": 4,
+    "route": "Dara/home",
+    "wants": 1078.81
+   },
+   {
+    "id": 1498,
+    "end": "arrived",
+    "legs": [
+     [
+      "s",
+      "e",
+      1079.63,
       1080.0,
       null
      ],
      [
       "r",
-      1559,
+      1501,
       1080.0,
       1086.2,
       null
@@ -9104,78 +9233,158 @@
     "pass": "home",
     "agent": 2,
     "route": "Ben/home",
-    "wants": 1072.27
+    "wants": 1079.63
    },
    {
-    "id": 1499,
+    "id": 1501,
     "end": "arrived",
     "legs": [
      [
       "e",
       "e>c",
-      1072.63,
-      1074.11,
+      1080.0,
+      1081.2,
       "e"
      ],
      [
       "e",
       "c>b",
-      1074.11,
-      1075.0,
+      1081.2,
+      1082.4,
       "c"
      ],
      [
       "e",
       "b>a",
-      1075.0,
-      1075.89,
+      1082.4,
+      1085,
       "b"
      ],
      [
       "e",
       "a>w",
-      1075.89,
-      1076.78,
+      1085,
+      1086.2,
       "a"
      ]
     ],
-    "line": null,
-    "mode": "car",
+    "line": "M2",
+    "mode": "bus",
     "pass": "home",
-    "agent": 1,
-    "route": "Anna/home",
-    "wants": 1072.63
+    "agent": null,
+    "route": null,
+    "wants": 1080.0
+   },
+   {
+    "id": 1502,
+    "end": "arrived",
+    "legs": [
+     [
+      "e",
+      "w>a",
+      1080.0,
+      1081.2,
+      "w"
+     ],
+     [
+      "e",
+      "a>b",
+      1081.2,
+      1082.4,
+      "a"
+     ],
+     [
+      "e",
+      "b>c",
+      1082.4,
+      1083.6,
+      "b"
+     ],
+     [
+      "e",
+      "c>e",
+      1083.6,
+      1085,
+      "c"
+     ]
+    ],
+    "line": "M1",
+    "mode": "bus",
+    "pass": "home",
+    "agent": null,
+    "route": null,
+    "wants": 1080.0
    },
    {
     "id": 1503,
     "end": "arrived",
     "legs": [
      [
+      "e",
+      "e>c",
+      1080.21,
+      1081.69,
+      "e"
+     ],
+     [
+      "e",
+      "c>b",
+      1081.69,
+      1082.58,
+      "c"
+     ],
+     [
+      "e",
+      "b>a",
+      1082.58,
+      1083.46,
+      "b"
+     ],
+     [
+      "e",
+      "a>w",
+      1083.46,
+      1084.35,
+      "a"
+     ]
+    ],
+    "line": null,
+    "mode": "car",
+    "pass": "home",
+    "agent": 1,
+    "route": "Anna/home",
+    "wants": 1080.21
+   },
+   {
+    "id": 1507,
+    "end": "arrived",
+    "legs": [
+     [
       "s",
       "e",
-      1072.91,
-      1075.0,
+      1080.66,
+      1090.0,
       null
      ],
      [
       "r",
-      1527,
-      1075.0,
-      1076.8,
+      1553,
+      1090.0,
+      1091.8,
       null
      ],
      [
       "s",
       "b",
-      1076.8,
-      1122.4,
+      1091.8,
+      1112.4,
       null
      ],
      [
       "r",
-      1592,
-      1122.4,
-      1126.2,
+      1587,
+      1112.4,
+      1116.2,
       null
      ]
     ],
@@ -9184,74 +9393,22 @@
     "pass": "home",
     "agent": 3,
     "route": "Cleo/home",
-    "wants": 1072.91
+    "wants": 1080.66
    },
    {
-    "id": 1527,
-    "end": "arrived",
-    "legs": [
-     [
-      "e",
-      "e=b",
-      1075.0,
-      1076.8,
-      "e"
-     ],
-     [
-      "e",
-      "b=w",
-      1076.8,
-      1078.6,
-      "b"
-     ]
-    ],
-    "line": "S2",
-    "mode": "train",
-    "pass": "home",
-    "agent": null,
-    "route": null,
-    "wants": 1075.0
-   },
-   {
-    "id": 1528,
-    "end": "arrived",
-    "legs": [
-     [
-      "e",
-      "w=b",
-      1075.0,
-      1076.8,
-      "w"
-     ],
-     [
-      "e",
-      "b=e",
-      1076.8,
-      1078.6,
-      "b"
-     ]
-    ],
-    "line": "S1",
-    "mode": "train",
-    "pass": "home",
-    "agent": null,
-    "route": null,
-    "wants": 1075.0
-   },
-   {
-    "id": 1542,
+    "id": 1544,
     "end": "arrived",
     "legs": [
      [
       "s",
       "e",
-      1076.73,
+      1086.77,
       1090.0,
       null
      ],
      [
       "r",
-      1580,
+      1555,
       1090.0,
       1096.2,
       null
@@ -9262,250 +9419,10 @@
     "pass": "home",
     "agent": 2,
     "route": "Ben/home",
-    "wants": 1076.73
+    "wants": 1086.77
    },
    {
-    "id": 1559,
-    "end": "arrived",
-    "legs": [
-     [
-      "e",
-      "e>c",
-      1080.0,
-      1081.2,
-      "e"
-     ],
-     [
-      "e",
-      "c>b",
-      1081.2,
-      1082.4,
-      "c"
-     ],
-     [
-      "e",
-      "b>a",
-      1082.4,
-      1085,
-      "b"
-     ],
-     [
-      "e",
-      "a>w",
-      1085,
-      1086.2,
-      "a"
-     ]
-    ],
-    "line": "M2",
-    "mode": "bus",
-    "pass": "home",
-    "agent": null,
-    "route": null,
-    "wants": 1080.0
-   },
-   {
-    "id": 1560,
-    "end": "arrived",
-    "legs": [
-     [
-      "e",
-      "w>a",
-      1080.0,
-      1081.2,
-      "w"
-     ],
-     [
-      "e",
-      "a>b",
-      1081.2,
-      1082.4,
-      "a"
-     ],
-     [
-      "e",
-      "b>c",
-      1082.4,
-      1083.6,
-      "b"
-     ],
-     [
-      "e",
-      "c>e",
-      1083.6,
-      1085,
-      "c"
-     ]
-    ],
-    "line": "M1",
-    "mode": "bus",
-    "pass": "home",
-    "agent": null,
-    "route": null,
-    "wants": 1080.0
-   },
-   {
-    "id": 1561,
-    "end": "arrived",
-    "legs": [
-     [
-      "s",
-      "e",
-      1080.35,
-      1090.0,
-      null
-     ],
-     [
-      "r",
-      1578,
-      1090.0,
-      1091.8,
-      null
-     ],
-     [
-      "s",
-      "b",
-      1091.8,
-      1122.4,
-      null
-     ],
-     [
-      "r",
-      1592,
-      1122.4,
-      1126.2,
-      null
-     ]
-    ],
-    "line": null,
-    "mode": "public",
-    "pass": "home",
-    "agent": 3,
-    "route": "Cleo/home",
-    "wants": 1080.35
-   },
-   {
-    "id": 1564,
-    "end": "arrived",
-    "legs": [
-     [
-      "e",
-      "e>c",
-      1082.62,
-      1083.93,
-      "e"
-     ],
-     [
-      "e",
-      "c>b",
-      1083.93,
-      1084.71,
-      "c"
-     ],
-     [
-      "e",
-      "b>a",
-      1084.71,
-      1085.5,
-      "b"
-     ],
-     [
-      "e",
-      "a>w",
-      1085.5,
-      1086.28,
-      "a"
-     ]
-    ],
-    "line": null,
-    "mode": "car",
-    "pass": "home",
-    "agent": 1,
-    "route": "Anna/home",
-    "wants": 1082.62
-   },
-   {
-    "id": 1567,
-    "end": "arrived",
-    "legs": [
-     [
-      "e",
-      "e>c",
-      1083.5,
-      1084.88,
-      "e"
-     ],
-     [
-      "e",
-      "c>b",
-      1084.88,
-      1085.7,
-      "c"
-     ],
-     [
-      "e",
-      "b>a",
-      1085.7,
-      1086.53,
-      "b"
-     ],
-     [
-      "e",
-      "a>w",
-      1086.53,
-      1087.36,
-      "a"
-     ]
-    ],
-    "line": null,
-    "mode": "car",
-    "pass": "home",
-    "agent": 1,
-    "route": "Anna/home",
-    "wants": 1083.5
-   },
-   {
-    "id": 1573,
-    "end": "arrived",
-    "legs": [
-     [
-      "e",
-      "e>c",
-      1085.65,
-      1086.66,
-      "e"
-     ],
-     [
-      "e",
-      "c>b",
-      1086.66,
-      1087.26,
-      "c"
-     ],
-     [
-      "e",
-      "b>a",
-      1087.26,
-      1087.86,
-      "b"
-     ],
-     [
-      "e",
-      "a>w",
-      1087.86,
-      1088.47,
-      "a"
-     ]
-    ],
-    "line": null,
-    "mode": "car",
-    "pass": "home",
-    "agent": 1,
-    "route": "Anna/home",
-    "wants": 1085.65
-   },
-   {
-    "id": 1578,
+    "id": 1553,
     "end": "arrived",
     "legs": [
      [
@@ -9531,7 +9448,7 @@
     "wants": 1090.0
    },
    {
-    "id": 1579,
+    "id": 1554,
     "end": "arrived",
     "legs": [
      [
@@ -9557,7 +9474,7 @@
     "wants": 1090.0
    },
    {
-    "id": 1580,
+    "id": 1555,
     "end": "arrived",
     "legs": [
      [
@@ -9597,7 +9514,7 @@
     "wants": 1090.0
    },
    {
-    "id": 1581,
+    "id": 1556,
     "end": "arrived",
     "legs": [
      [
@@ -9637,7 +9554,127 @@
     "wants": 1090.0
    },
    {
-    "id": 1584,
+    "id": 1565,
+    "end": "arrived",
+    "legs": [
+     [
+      "s",
+      "e",
+      1092.56,
+      1105.0,
+      null
+     ],
+     [
+      "r",
+      1584,
+      1105.0,
+      1106.8,
+      null
+     ],
+     [
+      "s",
+      "b",
+      1106.8,
+      1122.4,
+      null
+     ],
+     [
+      "r",
+      1592,
+      1122.4,
+      1126.2,
+      null
+     ]
+    ],
+    "line": null,
+    "mode": "public",
+    "pass": "home",
+    "agent": 3,
+    "route": "Cleo/home",
+    "wants": 1092.56
+   },
+   {
+    "id": 1568,
+    "end": "arrived",
+    "legs": [
+     [
+      "e",
+      "e>c",
+      1096.19,
+      1097.5,
+      "e"
+     ],
+     [
+      "e",
+      "c>b",
+      1097.5,
+      1098.28,
+      "c"
+     ],
+     [
+      "e",
+      "b>a",
+      1098.28,
+      1099.07,
+      "b"
+     ],
+     [
+      "e",
+      "a>w",
+      1099.07,
+      1099.85,
+      "a"
+     ]
+    ],
+    "line": null,
+    "mode": "car",
+    "pass": "home",
+    "agent": 1,
+    "route": "Anna/home",
+    "wants": 1096.19
+   },
+   {
+    "id": 1571,
+    "end": "arrived",
+    "legs": [
+     [
+      "e",
+      "e>c",
+      1097.6,
+      1098.97,
+      "e"
+     ],
+     [
+      "e",
+      "c>b",
+      1098.97,
+      1099.8,
+      "c"
+     ],
+     [
+      "e",
+      "b>a",
+      1099.8,
+      1100.63,
+      "b"
+     ],
+     [
+      "e",
+      "a>w",
+      1100.63,
+      1101.46,
+      "a"
+     ]
+    ],
+    "line": null,
+    "mode": "car",
+    "pass": "home",
+    "agent": 1,
+    "route": "Anna/home",
+    "wants": 1097.6
+   },
+   {
+    "id": 1575,
     "end": "arrived",
     "legs": [
      [
@@ -9677,7 +9714,7 @@
     "wants": 1100.0
    },
    {
-    "id": 1585,
+    "id": 1576,
     "end": "arrived",
     "legs": [
      [
@@ -9717,7 +9754,47 @@
     "wants": 1100.0
    },
    {
-    "id": 1586,
+    "id": 1579,
+    "end": "arrived",
+    "legs": [
+     [
+      "e",
+      "e>c",
+      1101.05,
+      1102.05,
+      "e"
+     ],
+     [
+      "e",
+      "c>b",
+      1102.05,
+      1102.65,
+      "c"
+     ],
+     [
+      "e",
+      "b>a",
+      1102.65,
+      1103.26,
+      "b"
+     ],
+     [
+      "e",
+      "a>w",
+      1103.26,
+      1103.86,
+      "a"
+     ]
+    ],
+    "line": null,
+    "mode": "car",
+    "pass": "home",
+    "agent": 1,
+    "route": "Anna/home",
+    "wants": 1101.05
+   },
+   {
+    "id": 1584,
     "end": "arrived",
     "legs": [
      [
@@ -9743,7 +9820,7 @@
     "wants": 1105.0
    },
    {
-    "id": 1587,
+    "id": 1585,
     "end": "arrived",
     "legs": [
      [
@@ -9769,7 +9846,7 @@
     "wants": 1105.0
    },
    {
-    "id": 1588,
+    "id": 1587,
     "end": "arrived",
     "legs": [
      [
@@ -9809,7 +9886,7 @@
     "wants": 1110.0
    },
    {
-    "id": 1589,
+    "id": 1588,
     "end": "arrived",
     "legs": [
      [
@@ -10255,20 +10332,20 @@
   "SIMULATION TICK LOG (sample vehicle per route)",
   "======================================================================",
   "Total vehicles to spawn: 750 people (5 routes x 150), plus 40 timetabled PT runs from 4 lines and as many more as the demand asks for",
-  "[tick   0] waiting_to_depart=2416, active=2, arrived=2/4, queued_edges=0, held_at_door=0, forced=0",
-  "[tick  10] waiting_to_depart=2195, active=145, arrived=80/225, queued_edges=0, held_at_door=0, forced=0",
-  "[tick  20] waiting_to_depart=1632, active=119, arrived=669/788, queued_edges=0, held_at_door=0, forced=0",
+  "[tick   0] waiting_to_depart=2415, active=3, arrived=2/5, queued_edges=0, held_at_door=0, forced=0",
+  "[tick  10] waiting_to_depart=2136, active=156, arrived=128/284, queued_edges=0, held_at_door=0, forced=0",
+  "[tick  20] waiting_to_depart=1634, active=96, arrived=690/786, queued_edges=0, held_at_door=0, forced=0",
   "",
   ">>> All 796 vehicles arrived at tick 27",
   "",
   "======================================================================",
   "SAMPLE VEHICLE TRIP SUMMARIES",
   "======================================================================",
-  "  Dara/Agent#4 (public): wanted_to_leave=51.3min, total_time=12.3min, free_flow=3.6min, congestion_delay=8.69min, arrived=YES",
-  "  Ben/Agent#2 (public): wanted_to_leave=54.4min, total_time=11.8min, free_flow=4.8min, congestion_delay=6.96min, arrived=YES",
-  "  Emil/Agent#5 (bike): wanted_to_leave=58.5min, total_time=7.2min, free_flow=7.2min, congestion_delay=0.00min, arrived=YES",
-  "  Cleo/Agent#3 (public): wanted_to_leave=63.1min, total_time=53.1min, free_flow=4.2min, congestion_delay=48.88min, arrived=YES",
-  "  Anna/Agent#1 (car): wanted_to_leave=69.1min, total_time=3.1min, free_flow=3.4min, congestion_delay=0.00min, arrived=YES",
+  "  Dara/Agent#4 (public): wanted_to_leave=46.1min, total_time=17.5min, free_flow=3.6min, congestion_delay=13.90min, arrived=YES",
+  "  Ben/Agent#2 (public): wanted_to_leave=51.1min, total_time=15.1min, free_flow=4.8min, congestion_delay=10.30min, arrived=YES",
+  "  Emil/Agent#5 (bike): wanted_to_leave=57.5min, total_time=7.2min, free_flow=7.2min, congestion_delay=0.00min, arrived=YES",
+  "  Cleo/Agent#3 (public): wanted_to_leave=65.0min, total_time=41.2min, free_flow=4.2min, congestion_delay=37.01min, arrived=YES",
+  "  Anna/Agent#1 (car): wanted_to_leave=74.5min, total_time=3.1min, free_flow=3.4min, congestion_delay=0.00min, arrived=YES",
   "",
   "======================================================================",
   "RESULTS — PER ROUTE",
@@ -10277,21 +10354,21 @@
   "--- Anna/Agent#1 (car) ---",
   "  Distance: 2400m",
   "  Estimated time (pathfinding): 4.0min",
-  "  Simulated trip time: mean=3.4min, min=2.6min, max=4.8min",
+  "  Simulated trip time: mean=3.4min, min=2.5min, max=4.8min",
   "  Mean congestion delay: 0.00min",
   "  Travellers recorded: 150/150",
-  "  CO2: 62166g total (414.4g per person, 62.17kg total)",
-  "  Cost: €117.23 total (€0.7815 per person)",
-  "    seg 1 (car): 600m at 29.6km/h → 113.6g/person (1.13× the 50km/h rate, €0.205/person) × 150 = 17033g",
+  "  CO2: 62169g total (414.5g per person, 62.17kg total)",
+  "  Cost: €117.23 total (€0.7816 per person)",
+  "    seg 1 (car): 600m at 29.6km/h → 113.6g/person (1.13× the 50km/h rate, €0.205/person) × 150 = 17037g",
   "    seg 2 (car): 600m at 49.2km/h → 100.3g/person (1.00× the 50km/h rate, €0.192/person) × 150 = 15049g",
   "    seg 3 (car): 600m at 49.4km/h → 100.3g/person (1.00× the 50km/h rate, €0.192/person) × 150 = 15041g",
-  "    seg 4 (car): 600m at 49.3km/h → 100.3g/person (1.00× the 50km/h rate, €0.192/person) × 150 = 15043g",
+  "    seg 4 (car): 600m at 49.4km/h → 100.3g/person (1.00× the 50km/h rate, €0.192/person) × 150 = 15041g",
   "",
   "--- Ben/Agent#2 (public) ---",
   "  Distance: 2400m",
   "  Estimated time (pathfinding): 4.0min",
-  "  Simulated trip time: mean=14.3min, min=6.6min, max=21.8min",
-  "  Mean congestion delay: 9.47min",
+  "  Simulated trip time: mean=11.1min, min=6.2min, max=17.1min",
+  "  Mean congestion delay: 6.31min",
   "  Travellers recorded: 150/150",
   "  CO2: 26880g total (179.2g per person, 26.88kg total)",
   "  Cost: €100.80 total (€0.6720 per person)",
@@ -10303,8 +10380,8 @@
   "--- Dara/Agent#4 (public) ---",
   "  Distance: 1200m",
   "  Estimated time (pathfinding): 4.0min",
-  "  Simulated trip time: mean=10.7min, min=3.6min, max=18.4min",
-  "  Mean congestion delay: 7.10min",
+  "  Simulated trip time: mean=10.8min, min=3.7min, max=18.4min",
+  "  Mean congestion delay: 7.15min",
   "  Travellers recorded: 150/150",
   "  CO2: 21600g total (144.0g per person, 21.60kg total)",
   "  Cost: €172.80 total (€1.1520 per person)",
@@ -10327,8 +10404,8 @@
   "--- Cleo/Agent#3 (public) ---",
   "  Distance: 1800m",
   "  Estimated time (pathfinding): 4.0min",
-  "  Simulated trip time: mean=49.0min, min=11.4min, max=58.2min",
-  "  Mean congestion delay: 44.84min",
+  "  Simulated trip time: mean=35.2min, min=6.8min, max=46.1min",
+  "  Mean congestion delay: 30.95min",
   "  Travellers recorded: 150/150",
   "  CO2: 24240g total (161.6g per person, 24.24kg total)",
   "  Cost: €136.80 total (€0.9120 per person)",
@@ -10339,7 +10416,7 @@
   "======================================================================",
   "TOTALS",
   "======================================================================",
-  "Total CO2: 207606g (207.61kg)",
+  "Total CO2: 207609g (207.61kg)",
   "Total cost: €948.83",
   "  of which the network's own timetable: 145.44kg, €820.80 over 4 lines (72.72kg of it on lines nobody rode)",
   "Routes processed: 5",
@@ -10348,7 +10425,7 @@
   "PUBLIC TRANSPORT",
   "======================================================================",
   "  M1 (bus): 14 runs (12 timetabled + 2 extra) x 2.40km every 10min, 40 seats — 0 boarded, 0 refusals at the stop, 0 waiting at a stop it does not serve, 0 Personen-km carried",
-  "  M2 (bus): 14 runs (12 timetabled + 2 extra) x 2.40km every 10min, 40 seats — 300 boarded, 532 refusals at the stop, 0 waiting at a stop it does not serve, 540 Personen-km carried",
+  "  M2 (bus): 14 runs (12 timetabled + 2 extra) x 2.40km every 10min, 40 seats — 300 boarded, 283 refusals at the stop, 0 waiting at a stop it does not serve, 540 Personen-km carried",
   "  S1 (train): 9 runs (8 timetabled + 1 extra) x 2.40km every 15min, 200 seats — 0 boarded, 0 refusals at the stop, 0 waiting at a stop it does not serve, 0 Personen-km carried",
   "  S2 (train): 9 runs (8 timetabled + 1 extra) x 2.40km every 15min, 200 seats — 300 boarded, 0 refusals at the stop, 0 waiting at a stop it does not serve, 540 Personen-km carried",
   ""

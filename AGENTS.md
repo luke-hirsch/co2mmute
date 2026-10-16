@@ -124,6 +124,13 @@ an adapter method must never take an engine method's name.
   (`_ring_goes_first`). That is giving way, not being stuck: the deadlock escape never counts it.
   On a square with signals the right of way stands in for them, as the jam stands in for traffic
   lights. The builder writes `junction`; a ring drawn by hand has none until the admin sets it.
+- **Whoever sets off lets the street's traffic go first** (`_street_goes_first`, StVO §10): a car
+  pulling out at its door waits while a link into that node has a car through and bound for the
+  same link. Without it the cars pulling out took every place a jam freed and kept a loop of
+  streets locked. A line's run leaves its terminus on time.
+- **The way home spreads wider than the way there**: the evening's σ is the morning's times
+  `EVENING_DEPARTURE_SPREAD` (1.6, SrV 2018 Berlin, in `sim/constants.py`). Only the ratio is
+  sourced; the morning's σ is the game's.
 - **Nobody is stranded.** A pass runs until everyone has arrived, and every line keeps running while
   anybody is out. A non-arrival is a defect, never a third metric.
 - **Society pays for the timetable**: a line emits and costs per vehicle-km whether anyone rides or

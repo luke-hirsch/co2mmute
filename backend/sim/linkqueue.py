@@ -32,6 +32,7 @@ from sim.constants import (
     TRAM_PCU,
     CAR_EMISSIONS_G_PER_KM,
     DEADLOCK_TICKS,
+    EVENING_DEPARTURE_SPREAD,
     PT_FARE_EUR,
     car_cost_eur_per_km,
     car_emissions_g_per_km,
@@ -709,13 +710,17 @@ class LinkQueueEngine:
                 edge_names[link.edge_id] = link.label
 
         self.sim_log.set_edge_names(edge_names)
-        # Each ring link learns the ring links that lead into it, the ones
-        # whose cars a car driving in has to let go first.
+        # Each link learns the links that lead into it, whose cars a car
+        # pulling out at its start lets go first; a ring link also the ring
+        # links among them, whose cars a car driving in lets go first.
+        into: dict[int, list[EdgeState]] = {}
         ring_into: dict[int, list[EdgeState]] = {}
         for state in self.edge_states.values():
+            into.setdefault(state.end_node_id, []).append(state)
             if state.ring:
                 ring_into.setdefault(state.end_node_id, []).append(state)
         for state in self.edge_states.values():
+            state.feeders = into.get(state.start_node_id, [])
             if state.ring:
                 state.ring_feeders = ring_into.get(state.start_node_id, [])
         logger.info(f"[SIM] Initialized {len(self.edge_states)} edge states")
@@ -737,6 +742,11 @@ class LinkQueueEngine:
         base_hour = (
             self.morning_departure_hour if is_morning else self.evening_departure_hour
         )
+        # The evening leaves over a longer stretch than the morning: work ends
+        # at more different times than it starts.
+        std_dev_min = self.departure_std_dev_min * (
+            1.0 if is_morning else EVENING_DEPARTURE_SPREAD
+        )
         # Everything here is in minutes from the start of the departure window,
         # which opens at (base_hour - 1) * 60.
 
@@ -744,7 +754,7 @@ class LinkQueueEngine:
             departures = generate_departure_minutes(
                 self.people_per_agent,
                 base_hour,
-                self.departure_std_dev_min,
+                std_dev_min,
                 rng=self.rng,
             )
             self.departure_schedule[route_pk] = list(enumerate(departures))
@@ -1141,6 +1151,17 @@ class LinkQueueEngine:
                 self._serve_stop(pt, max(depart_min, now))
                 continue
 
+            if vehicle.mode == "car":
+                # Out of a car park or a side street onto a street the map
+                # draws: the traffic on it goes first (StVO §10). A line's run
+                # above sets off from its stop on time (§20 5).
+                first = self._state_for_segment(route_pk, 0)
+                if first is not None and self._street_goes_first(first, tick_end):
+                    still_waiting.append(
+                        (depart_min, route_pk, person_index, speed_factor)
+                    )
+                    continue
+
             if self._begin_segment(vehicle_id, vehicle, max(depart_min, now)):
                 self.next_vehicle_id += 1
                 self.vehicles[vehicle_id] = vehicle
@@ -1224,12 +1245,25 @@ class LinkQueueEngine:
 
     def _ring_goes_first(self, ring_state: "EdgeState", tick_end: float) -> bool:
         """Whether a ring link leading into `ring_state` has a car through and
-        bound for it, with the budget to send it this tick.
+        bound for it, with the budget to send it this tick."""
+        return self._one_bound_for(ring_state, ring_state.ring_feeders, tick_end)
+
+    def _street_goes_first(self, state: "EdgeState", tick_end: float) -> bool:
+        """Whether a link leading into `state` has a car through and bound for
+        it, with the budget to send it this tick: then a car pulling out onto
+        `state` waits at its door."""
+        return self._one_bound_for(state, state.feeders, tick_end)
+
+    def _one_bound_for(
+        self, target: "EdgeState", feeders: list["EdgeState"], tick_end: float
+    ) -> bool:
+        """Whether one of `feeders` has a car through and bound for `target`,
+        with the budget to send it this tick.
 
         Read the way `_pick_head` reads a queue: on one lane only its head
         can go, on several the first car bound for each next street.
         """
-        for feeder in ring_state.ring_feeders:
+        for feeder in feeders:
             multi_lane = feeder.car_lanes > 1
             for queued in feeder.queue:
                 if queued.ready_at_min > tick_end:
@@ -1240,7 +1274,7 @@ class LinkQueueEngine:
                 bound = self._state_for_segment(
                     vehicle.route_pk, vehicle.segment_index + 1
                 )
-                if bound is ring_state:
+                if bound is target:
                     if queued.pcu <= feeder.release_budget:
                         return True
                     break

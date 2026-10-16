@@ -96,6 +96,13 @@ lights; there the right of way stands in for the lights the model does not have.
 ring, the map says (`junction`). A map built from OpenStreetMap carries it; the shipped map has no
 ring: Großer Stern and Ernst-Reuter-Platz are one node each there.
 
+Whoever sets off lets the traffic on the street go first. A Gruppe starts at a node, out of a car
+park, a driveway, a side street the map does not draw, and waits there while a car on a street into
+that node is through and bound for the same link (StVO §10). Without the rule, whoever set off took
+every place a full street freed first, the one the escape had just freed included, and a loop of
+streets with many starting on it never got going again. The wait at the door counts as travel time,
+like any. A bus sets off from its terminus on time: it has to be let go (StVO §20 5).
+
 A pass runs until everybody has arrived. There is no clock after which whoever is still out simply
 stops counting. The limit of 1000 ticks per way only catches a bug in the model, and reaching it is
 logged as one. On Berlin Mitte-West a way as played needs at most 35 ticks, at four times the demand
@@ -143,8 +150,12 @@ board. So the timetable runs twice, and both timetables count. A Gruppe's CO₂ 
 both ways, its travel time is there and back together, averaged over the Gruppen. Since everything
 in a round now happens twice, the budget per round is twice what it is for one way.
 
-Today the evening is a copy of the morning, with the same spread of departures. The replay shows both
-ways, with a short midday in between.
+The way home spreads wider than the way there, 1.6 times as far: work ends at more different times
+than it starts. The figure is Berlin's own, from SrV 2018 (TU Dresden, Tabellenbericht Berlin, Tab.
+8.2 and 8.2.1): of the car trips from home to work, 33.5 % start in the busiest hour, of those from
+work home 20.8 %, and fitted to the hourly shares the evening spreads 1.61 times as far as the
+morning. Only the ratio is taken; how narrow the morning is, is the game's round (σ = 10 minutes).
+The replay shows both ways, with a short midday in between.
 
 ## Public transport runs a timetable
 
@@ -555,8 +566,8 @@ Measure again when
 - demand in the model changes. Departures are spread σ = 10 minutes around the departure hour today,
   far tighter than a real morning peak. Spread them wider and the same corridors carry more
   commuters;
-- the evening gets a peak of its own. Today it is a copy of the morning, with the same spread of
-  departures; a different peak would have the same network carry more or fewer commuters;
+- the evening peak changes. Today the evening spreads 1.6 times as wide as the morning; a different
+  peak would have the same network carry more or fewer commuters;
 - an emission factor changes, or how long the lines run. That moves what normal buys on the map —
   and on Berlin perhaps normal itself.
 

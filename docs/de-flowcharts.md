@@ -355,6 +355,9 @@ flowchart TD
   von außen erst, wenn auf dem Ring keins durch ist, das auf dieselbe Kante will: Der Ring hat
   Vorfahrt (`_ring_goes_first`). Das ist Warten, kein Feststecken, und zählt nicht für
   `DEADLOCK_TICKS`.
+- **Wer losfährt,** wartet an seiner Tür, solange auf einer Straße in diesen Knoten ein Auto durch
+  ist, das auf dieselbe Kante will: Der Verkehr auf der Straße geht vor (`_street_goes_first`). Ein
+  Bus fährt an seiner Endhaltestelle pünktlich ab.
 - **Geschwindigkeit ist ein Ergebnis.** Die Geschwindigkeit einer Kante ist ihre Länge durch die
   Zeit, die Autos wirklich gebraucht haben (`EdgeState.mean_speed_kmh`). Sie bestimmt CO2 und Kosten
   eines Autos auf dieser Kante, und die nächste Runde routet darauf.

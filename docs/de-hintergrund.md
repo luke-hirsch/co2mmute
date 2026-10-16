@@ -101,6 +101,14 @@ der Ampeln hat; dort steht die Vorfahrt für die Ampeln, die das Modell nicht ha
 Ring sind, sagt die Karte (`junction`). Eine aus OpenStreetMap gebaute Karte trägt es mit, die
 mitgelieferte hat keinen Ring: Großer Stern und Ernst-Reuter-Platz sind dort je ein Knoten.
 
+Wer losfährt, lässt den Verkehr auf der Straße zuerst. Eine Gruppe fährt an einem Knoten los, aus
+einem Parkhaus, einer Einfahrt, einer Nebenstraße, die die Karte nicht zeichnet, und wartet dort,
+solange auf einer Straße in diesen Knoten ein Auto durch ist, das auf dieselbe Kante will (StVO
+§10). Ohne die Regel nahmen die Losfahrenden jeden Platz zuerst, den eine volle Straße frei machte,
+auch den, den die Sperre gerade frei gegeben hatte, und eine Schleife aus Straßen, an der viele
+losfahren, kam nie wieder in Gang. Die Wartezeit an der Tür zählt zur Fahrzeit, wie jede. Ein Bus
+fährt an seiner Endhaltestelle pünktlich ab: Ihm muss man das Abfahren ermöglichen (StVO §20 5).
+
 Ein Durchlauf läuft, bis alle angekommen sind. Eine Uhr, nach der der Rest einfach nicht mehr
 mitzählt, gibt es nicht. Die Grenze von 1000 Ticks pro Weg fängt nur einen Fehler im Modell ab und
 wird als Fehler geloggt. Auf Berlin Mitte-West braucht ein gespielter Weg höchstens 35 Ticks, bei
@@ -152,8 +160,13 @@ zählen. CO₂ und Kosten einer Gruppe sind die Summe beider Wege, ihre Fahrzeit
 Rückweg zusammen, gemittelt über die Gruppen. Weil in einer Runde damit alles zweimal anfällt, ist
 das Budget pro Runde doppelt so groß wie für einen Weg.
 
-Der Abend ist heute ein Abbild des Morgens, mit derselben Streuung der Abfahrten. Die Wiedergabe
-zeigt beide Wege, dazwischen eine kurze Mittagspause.
+Der Heimweg streut breiter als der Hinweg, 1,6-mal so weit: Feierabend ist zu mehr verschiedenen
+Zeiten als Arbeitsbeginn. Die Zahl ist Berlins eigene, aus dem SrV 2018 (TU Dresden, Tabellenbericht
+Berlin, Tab. 8.2 und 8.2.1): Von den Autofahrten von zu Hause zur Arbeit beginnen 33,5 % in der
+vollsten Stunde, von denen von der Arbeit nach Hause 20,8 %, und über die Stundenanteile gelegt
+streut der Abend 1,61-mal so weit wie der Morgen. Genommen ist nur das Verhältnis; wie eng der Morgen
+streut, ist die Runde des Spiels (σ = 10 Minuten). Die Wiedergabe zeigt beide Wege, dazwischen eine
+kurze Mittagspause.
 
 ## Der ÖPNV fährt einen Fahrplan
 
@@ -580,8 +593,8 @@ Neu messen, wenn
 - sich die Nachfrage im Modell ändert. Die Abfahrten streuen heute mit σ = 10 Minuten um die
   Abfahrtsstunde, viel enger als echter Berufsverkehr. Verteilen sie sich breiter, tragen dieselben
   Achsen mehr Pendler;
-- der Abend eine eigene Spitze bekommt. Heute ist er ein Abbild des Morgens, mit derselben Streuung
-  der Abfahrten; eine andere Spitze trägt dasselbe Netz mit mehr oder weniger Pendlern;
+- sich die Abendspitze ändert. Heute streut der Abend 1,6-mal so breit wie der Morgen; eine andere
+  Spitze trägt dasselbe Netz mit mehr oder weniger Pendlern;
 - sich ein Emissionsfaktor ändert oder wie lange die Linien fahren. Dann verschiebt sich, was normal
   auf der Karte kauft — und auf Berlin vielleicht normal selbst.
 

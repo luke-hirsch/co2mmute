@@ -216,6 +216,17 @@ def pt_cost_eur_per_vehicle_km(vehicle: str) -> float:
     return BUS_COST_PER_VEHICLE_KM
 
 
+# The way home leaves over a longer stretch than the way there: the evening's
+# σ is the morning's times this. SrV 2018, Berlin, a mean weekday, car trips:
+# 33,5 % of those from home to work start in the busiest hour, 20,8 % of those
+# from work home; fitted to the hourly shares, the evening's spread is 1,61
+# times the morning's (SD, interquartile range and central 68 % alike; the 16
+# big cities of the same survey 1,74). TU Dresden, "Mobilität in Städten — SrV
+# 2018", Tabellenbericht Berlin, Tab. 8.2 and 8.2.1. Only the ratio is taken:
+# the round's σ is the game's, and the calibration's count goes with it.
+EVENING_DEPARTURE_SPREAD = 1.6
+
+
 def generate_departure_minutes(
     num_people: int,
     base_hour: int,
