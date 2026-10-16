@@ -4,6 +4,7 @@ import type { ExtendedMapGraph } from "../../../types/routeTypes";
 import type { EditorState, EdgeChange, VirtualNode, VirtualEdge } from "../../../types/editorTypes";
 import { imageRect, viewBox, type ImageFields } from "@/lib/map/view-box";
 import { EdgeHitArea } from "@/components/map/edge-hit-area";
+import { MapCredits } from "@/components/map/map-credits";
 import { MapLegend } from "@/components/map/map-legend";
 import {
   VersionDiffLayer,
@@ -260,7 +261,7 @@ const EditorCanvas = ({
     const h = gameMap.y_dim * 100;
     const img = mapGraph ? getImageGeometry(mapGraph) : null;
     return (
-      <div className="overflow-hidden rounded-xl border bg-card">
+      <div className="relative overflow-hidden rounded-xl border bg-card">
         <svg
           ref={svgRef}
           viewBox={`-60 -60 ${w + 120} ${h + 120}`}
@@ -315,6 +316,7 @@ const EditorCanvas = ({
             {de.editor.emptyMap}
           </text>
         </svg>
+        <MapCredits credits={gameMap.credits} />
       </div>
     );
   }
@@ -346,6 +348,7 @@ const EditorCanvas = ({
 
   return (
     <div className="overflow-hidden rounded-xl border bg-card">
+      <div className="relative">
       <svg
         ref={svgRef}
         viewBox={`${minX} ${minY} ${width} ${height}`}
@@ -764,6 +767,8 @@ const EditorCanvas = ({
           </>
         )}
       </svg>
+      <MapCredits credits={gameMap.credits} />
+      </div>
 
       {diff && !diff.empty && (
         <VersionDiffLegend diff={diff} className="border-t px-5 py-3" />

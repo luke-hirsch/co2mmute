@@ -25,7 +25,7 @@ import collections
 import heapq
 import math
 
-from . import buses, rail, timetable
+from . import buses, rail, report, timetable
 from .lines import RAIL, REACH, collect, cover
 
 BRIDGE = (
@@ -69,7 +69,8 @@ def add(area, graph, shapes, extract):
     data = collect(area, graph, extract)
     kept = cover(data["lines"], data["stops_of"], data["places"], REACH)
     R = rail.build(data, kept)
-    ruled = timetable.rule(extract, data, kept)
+    found = timetable.match(extract, data, kept)
+    ruled = timetable.rule(extract, data, kept, found)
     inside = data["inside"]
     lines = data["lines"]
     say, heads_up = [], []
@@ -771,27 +772,47 @@ def add(area, graph, shapes, extract):
         + (" — aus einem Ersatz: " + ", ".join(defaults) if defaults else "")
     )
     # heads-up
-    pts = data["places"]["home"] + data["places"]["workplace"]
-    pnames = [n["name"] for n in graph["nodes"] if "home" in n["types"]] + [
-        n["name"] for n in graph["nodes"] if "workplace" in n["types"]
+    homes = [(n["name"], (n["x"] * 1000, n["y"] * 1000)) for n in out_nodes if "home" in n["types"]]
+    works = [
+        (n["name"], (n["x"] * 1000, n["y"] * 1000))
+        for n in out_nodes
+        if "workplace" in n["types"]
     ]
+    places = homes + works
     stop_pts = [
-        pos[n] for n, t in types.items() if t & {"bus_stop", "station"} and n in pos
+        (n["x"] * 1000, n["y"] * 1000)
+        for n in out_nodes
+        if set(n["types"]) & {"bus_stop", "station"}
     ]
-    far = [
-        (nm, min((math.dist(q, p) for p in stop_pts), default=math.inf))
-        for nm, q in zip(pnames, pts)
-    ]
-    far = [(nm, d) for nm, d in far if d > REACH]
+    line_stops = {
+        k: [p for r in lines[k] for _, p in data["stops_of"][r["id"]]] for k in kept
+    }
+    raw_stops = [p for st in line_stops.values() for p in st]
     if not game_lines:
         heads_up.append("auf dieser Karte fährt kein Bus und keine Bahn")
     if not data["timetable_report"]["feed"]:
         heads_up.append(
             "kein Fahrplan für dieses Gebiet: Takte aus OSM, sonst die Vorgaben"
         )
-    if far:
-        heads_up.append(
-            f"{len(far)} Orte ohne Halt im Umkreis von {REACH} m: "
-            + ", ".join(f"{nm} {d:.0f} m" for nm, d in far)
-        )
+    stop_ids = {
+        n["id"] for n in out_nodes if set(n["types"]) & {"bus_stop", "station"}
+    }
+    walkers = [
+        (n["name"], n["id"])
+        for n in out_nodes
+        if {"home", "workplace"} & set(n["types"])
+        and report.nearest((n["x"] * 1000, n["y"] * 1000), stop_pts) <= REACH
+    ]
+    for line in (
+        report.no_transport(
+            places, raw_stops, REACH, bool(data["timetable_report"]["feed"])
+        ),
+        report.snapped_away(places, raw_stops, stop_pts, REACH),
+        report.far_on_foot(out_nodes, out_edges, stop_ids, walkers, REACH),
+        report.no_morning_trip(found),
+        report.one_bus(works, line_stops, found, REACH),
+    ):
+        if line:
+            heads_up.append(line)
+    say.append(report.numbers(data_out))
     return data_out, say, heads_up

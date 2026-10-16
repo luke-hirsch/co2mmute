@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EdgeHitArea } from "@/components/map/edge-hit-area";
+import { MapCredits } from "@/components/map/map-credits";
 import { MapLegend } from "@/components/map/map-legend";
 import { de } from "@/lib/de";
 import { edgeLayers, editorPaint, nodeMark } from "@/lib/map/palette";
@@ -74,6 +75,7 @@ const MapViewer = ({
     <div className="grid gap-8 lg:grid-cols-4 lg:items-start">
       <div className="lg:col-span-3">
         <div className="overflow-hidden rounded-xl border bg-card">
+          <div className="relative">
           <svg
             viewBox={`${minX} ${minY} ${width} ${height}`}
             className="w-full"
@@ -206,6 +208,8 @@ const MapViewer = ({
               );
             })}
           </svg>
+          <MapCredits credits={gameMap.credits} />
+          </div>
 
           <MapLegend className="border-t px-5 py-4" />
         </div>

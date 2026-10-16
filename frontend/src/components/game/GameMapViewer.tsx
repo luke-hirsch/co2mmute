@@ -51,6 +51,7 @@ import { modeStyle } from "@/components/metro/mode";
 import { jamTint, type EdgeLoad } from "@/lib/map/traffic";
 import { traceStepMs, type SearchTrace } from "@/lib/map/search-trace";
 import type { VersionDiff } from "@/lib/map/version-diff";
+import { MapCredits } from "@/components/map/map-credits";
 import { VersionDiffLayer } from "@/components/map/version-diff-layer";
 import type { Edge, MapGraph, Node } from "@/types/mapTypes";
 import type {
@@ -264,7 +265,7 @@ const GameMapViewer = ({
 
   return (
     <div className="w-full">
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <div className="relative overflow-hidden rounded-lg border border-border bg-card">
         <svg
           viewBox={`${minX} ${minY} ${width} ${height}`}
           className="w-full"
@@ -471,6 +472,7 @@ const GameMapViewer = ({
             below
           />
         </svg>
+        <MapCredits credits={mapGraph.credits} />
       </div>
 
       {selectedNode && (

@@ -317,9 +317,11 @@ def match(extract, d, kept):
     return found
 
 
-def rule(extract, d, kept):
-    """{(mode, ref): (minutes, source)} for the kept lines: the timetable, else OSM, else default."""
-    found = match(extract, d, kept)
+def rule(extract, d, kept, found=None):
+    """{(mode, ref): (minutes, source)} for the kept lines: the timetable, else OSM, else default.
+    found: `match`'s answer, when the caller has it already."""
+    if found is None:
+        found = match(extract, d, kept)
     out = {}
     for k in kept:
         f = found.get(k)

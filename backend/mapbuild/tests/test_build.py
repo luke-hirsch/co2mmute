@@ -31,6 +31,41 @@ class WholeBuildTests(SimpleTestCase):
     def test_the_file_passes_check_map(self):
         self.assertEqual(check_map(self.data), [])
 
+    def test_the_map_names_the_data_it_was_built_from(self):
+        self.assertEqual(
+            [c["text"] for c in self.data["map"]["credits"]],
+            [
+                "© OpenStreetMap contributors",
+                "© Statistisches Bundesamt (Destatis), Zensus 2022",
+                "© European Union, CC BY 4.0 (EC JRC, GHS-BUILT-V R2023A)",
+                "© DELFI e.V., CC BY 4.0, via gtfs.de",
+            ],
+        )
+        self.assertEqual(
+            self.data["map"]["credits"][0]["url"],
+            "https://www.openstreetmap.org/copyright",
+        )
+
+    def test_a_source_that_was_not_used_is_not_named(self):
+        with offline():
+            data, _ = build.build(area.load(fixture_dir()), extract=None)
+
+        self.assertNotIn(
+            "© DELFI e.V., CC BY 4.0, via gtfs.de",
+            [c["text"] for c in data["map"]["credits"]],
+        )
+
+    def test_the_report_carries_the_numbers_and_a_version_to_suggest(self):
+        lines = [line for _, ls in self.report for line in ls]
+
+        self.assertIn(
+            "Pendler 6800 (ein Platzhalter bis zur Kalibrierung), Haltestellen 48, Bahnhöfe 2",
+            lines,
+        )
+        heads_up = dict(self.report)["Achtung"]
+        self.assertTrue(heads_up)
+        self.assertTrue(all("Vorschlag: eine Version" in h for h in heads_up))
+
     def test_what_it_holds(self):
         types = [n["types"] for n in self.data["nodes"]]
         self.assertEqual(

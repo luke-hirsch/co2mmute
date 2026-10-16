@@ -84,6 +84,8 @@ export interface GameMap {
   district_commuters: number;
   /** Whether that count was measured on this map, or is still the default. */
   calibrated: boolean;
+  /** Whose data the map is drawn from; none on a hand-drawn map. */
+  credits?: MapCredit[];
   /** Whether a game on this map can ever reach a ballot. */
   offers_map_changes: boolean;
   created: string;
@@ -98,6 +100,12 @@ export interface GameMap {
   image_crop_right?: number;
   image_crop_bottom?: number;
   image_crop_left?: number;
+}
+
+/** One source a generated map names: its text and, if it has one, a link. */
+export interface MapCredit {
+  text: string;
+  url?: string;
 }
 
 export interface MapVersion {
@@ -149,6 +157,7 @@ export interface MapGraph {
   edges: Edge[];
   node_count: number;
   edge_count: number;
+  credits?: MapCredit[];
 }
 
 /**
