@@ -147,7 +147,9 @@ an adapter method must never take an engine method's name.
   `frontend/src/lib/calibration.ts`), recorded as `GameSession.co2_kg_per_person`. The game ends on
   `max_CO2_level` = kg × the map's commuters × rounds — the map's commuters, not the people the scale
   puts on it, because the timetable runs whether anybody rides. `docs/kalibrierung.md` says how the
-  shipped map's count, its share of the timetable and normal were found.
+  shipped map's count, its share of the timetable and normal were found. `GameMap.co2_table`
+  (car share in whole percent → kg per person per round, written by `calibrate_map --out`) is what
+  that budget means on the map; the create form reads it.
 - **A new map is measured by one rule** (`game/calibration.py`): commuters are as many as make a
   morning where everybody drives as slow as the real city's rush hour, from a cited source (for
   Berlin the TomTom Traffic Index: 19.0 km/h in the morning rush, 2025 data). The count is car demand

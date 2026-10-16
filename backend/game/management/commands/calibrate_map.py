@@ -69,7 +69,8 @@ def calibrated_file(graph, result):
     """The file with what the calibration measured on it, for `--out`.
 
     The count and `calibrated: true`, and the share of the timetable the class
-    pays where there was one to measure; where not, the file keeps its own.
+    pays where there was one to measure; where not, the file keeps its own. And
+    the table of kg a head per car share, which the create form reads.
     """
     meta = graph.setdefault("map", {})
     meta["district_commuters"] = result.commuters
@@ -78,6 +79,7 @@ def calibrated_file(graph, result):
     meta["calibrated"] = True
     if result.timetable_factor is not None:
         meta["timetable_factor"] = result.timetable_factor
+    meta["co2_table"] = result.co2_table
     return graph
 
 
@@ -367,12 +369,15 @@ class Command(BaseCommand):
         if share is None:
             write(
                 f"Normal, {normal} kg pro Person und Runde, reicht hier nicht einmal "
-                "für eine Runde ohne Auto."
+                "für eine Runde ohne Auto. Nicht spielbar: nicht zu gewinnen. Mehr kg "
+                "auf den Regler, oder den Fahrplan ausdünnen (weniger Linien, längerer "
+                "Takt; Bus und Bahn fahren, ob jemand mitfährt oder nicht)."
             )
         elif share >= 1.0:
             write(
                 f"Normal, {normal} kg pro Person und Runde, reicht hier auch, "
-                "wenn alle Gruppen Auto fahren."
+                "wenn alle Gruppen Auto fahren. Nicht spielbar: nicht zu verlieren. "
+                "Weniger kg auf den Regler."
             )
         else:
             write(

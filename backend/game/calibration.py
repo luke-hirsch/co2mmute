@@ -498,6 +498,51 @@ def car_share_at(kg_per_person, per_person) -> float | None:
     return lower + (upper - lower) * (kg - low_kg) / (high_kg - low_kg)
 
 
+def co2_table(per_person) -> dict:
+    """The table as the map carries it (`GameMap.co2_table`).
+
+    Share → kg a head becomes whole percent as a string → kg to two decimals,
+    which is what the create form reads and the file stores.
+    """
+    return {
+        str(round(share * 100)): round(float(kg), 2)
+        for share, kg in per_person.items()
+    }
+
+
+def clean_co2_table(value) -> dict | None:
+    """A table a file brings, or None where it is no table.
+
+    Keys are whole percent from "0" to "100", values numbers of at least 0.
+    One row that is none spoils the table: half of one would tell a host
+    what the budget means on a map where it doesn't.
+    """
+    if not isinstance(value, dict) or not value:
+        return None
+    for key, kg in value.items():
+        if not (isinstance(key, str) and key.isdigit() and 0 <= int(key) <= 100):
+            return None
+        if isinstance(kg, bool) or not isinstance(kg, (int, float)):
+            return None
+        if not math.isfinite(kg) or kg < 0:
+            return None
+    return {key: float(kg) for key, kg in value.items()}
+
+
+def playable(kg_per_person, per_person) -> str | None:
+    """Whether a budget leaves a game on this map: None, or why it doesn't.
+
+    "unwinnable" when not even a round nobody drives fits (the timetable runs
+    either way), "unlosable" when a round where everybody drives fits.
+    """
+    share = car_share_at(kg_per_person, per_person)
+    if share is None:
+        return "unwinnable"
+    if share >= 1.0:
+        return "unlosable"
+    return None
+
+
 # The round the share of the timetable is measured on: half the Gruppen
 # drive, the middle of the table.
 TIMETABLE_SHARE = 0.5
@@ -562,6 +607,11 @@ class Calibration:
             share: statistics.mean(paid(r) for r in rounds) / self.commuters
             for share, rounds in self.rows.items()
         }
+
+    @property
+    def co2_table(self) -> dict:
+        """`per_person` as the map carries it (`co2_table`)."""
+        return co2_table(self.per_person)
 
     @property
     def timetable_factor(self) -> float | None:

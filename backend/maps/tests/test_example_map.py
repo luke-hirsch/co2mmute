@@ -612,6 +612,11 @@ class ShippedMapImportsTests(ShippedUploadMixin, TestCase):
 
         self.assertEqual(game_map.timetable_factor, 0.48)
 
+    def test_the_shipped_map_carries_its_table_of_kg_per_car_share(self):
+        game_map = self.upload_shipped_map()
+
+        self.assertEqual(set(game_map.co2_table), {"100", "75", "50", "25", "0"})
+
     def test_the_file_carries_no_budget(self):
         """The budget is kg per person, the same on every map;
         a per-map figure left in the file would be read by nobody."""

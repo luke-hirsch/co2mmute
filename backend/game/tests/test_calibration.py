@@ -404,6 +404,56 @@ class CalibratedFileTests(SimpleTestCase):
         self.assertEqual(written["map"]["timetable_factor"], 0.3)
 
 
+class Co2TableTests(SimpleTestCase):
+    """The table on the map: share in whole percent → kg a head, two decimals."""
+
+    def test_keys_are_whole_percent_values_are_rounded_kg(self):
+        table = calibration.co2_table({1.0: 3.6249, 0.75: 2.651, 0.0: 0.7349})
+
+        self.assertEqual(table, {"100": 3.62, "75": 2.65, "0": 0.73})
+
+    def test_a_clean_table_stays_as_it_is(self):
+        table = {"100": 3.62, "50": 1.86, "0": 0.73}
+
+        self.assertEqual(calibration.clean_co2_table(table), table)
+
+    def test_anything_that_is_no_table_is_none(self):
+        for value in (None, [], "viel", {}, {"101": 1.0}, {"-5": 1.0}, {"a": 1.0}):
+            with self.subTest(value=value):
+                self.assertIsNone(calibration.clean_co2_table(value))
+
+    def test_a_row_that_is_no_number_spoils_the_table(self):
+        for kg in (-0.1, "3", None, True, float("nan")):
+            with self.subTest(kg=kg):
+                self.assertIsNone(calibration.clean_co2_table({"50": kg}))
+
+
+class CalibratedTableTests(SimpleTestCase):
+    def test_the_file_gets_the_table(self):
+        result = calibration.Calibration(
+            commuters=1000,
+            target_kmh=19.0,
+            speed_kmh=19.1,
+            rows={
+                1.0: [FakeRound(total_kg=3000.0, car_kg=2000.0)],
+                0.0: [FakeRound(total_kg=1000.0, car_kg=0.0)],
+            },
+        )
+
+        written = calibrated_file({"map": {}}, result)
+
+        self.assertEqual(written["map"]["co2_table"], {"100": 3.0, "0": 1.0})
+
+
+class NotPlayableTests(SimpleTestCase):
+    def test_a_budget_below_the_empty_round_cannot_be_won(self):
+        table = {1.0: 3.0, 0.0: 1.0}
+
+        self.assertEqual(calibration.playable(0.6, table), "unwinnable")
+        self.assertEqual(calibration.playable(6.0, table), "unlosable")
+        self.assertIsNone(calibration.playable(2.4, table))
+
+
 def map_file():
     """The six-node map, with its one home and one workplace an hour's queue apart."""
     graph = small_map()
