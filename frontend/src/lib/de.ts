@@ -1868,7 +1868,7 @@ export const de = {
     co2PerPersonHelp: (total: number, rounds: number) =>
       `Zusammen ${total.toLocaleString("de-DE")} kg für ${rounds} ${
         rounds === 1 ? "Runde" : "Runden"
-      }, hin und zurück. Ist das aufgebraucht, ist das Spiel vorbei. Normal reicht auf Berlin Mitte-West, wenn zwei Drittel der Gruppen Auto fahren – weniger ist schwerer.`,
+      }, hin und zurück. Ist das aufgebraucht, ist das Spiel vorbei.`,
     /**
      * Under the dial, what the chosen kg buys on the chosen map: the car share
      * the budget reaches (`GameMap.co2_table`, read like `car_share_at`). Only
