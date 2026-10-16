@@ -41,6 +41,8 @@ export type ReplayClock = {
   minute: number;
   toggle: () => void;
   restart: () => void;
+  /** Jump to the last moment and stop: the animation is over, not hidden. */
+  skip: () => void;
 };
 
 /** At most this many clock re-renders a second. */
@@ -51,6 +53,17 @@ const DISPLAY_HZ = 4;
  * makes the animation pause rather than skip half the morning.
  */
 const MAX_FRAME_SEC = 0.25;
+
+/** Where the clock stands once the animation is over: the last moment, on the beat. */
+export function endDisplay(warp: Warp) {
+  const second = warp.durationSec;
+  return {
+    minute: warp.simMinuteAt(second),
+    beat: warp.isBeat(second),
+    midday: warp.isMidday(second),
+    finished: true,
+  };
+}
 
 export function useReplayClock(warp: Warp, onFrame: ReplayFrame): ReplayClock {
   const secondRef = useRef(0);
@@ -142,6 +155,13 @@ export function useReplayClock(warp: Warp, onFrame: ReplayFrame): ReplayClock {
     setPlaying(true);
   }, []);
 
+  const skip = useCallback(() => {
+    secondRef.current = warp.durationSec;
+    setPlaying(false);
+    setDisplay(endDisplay(warp));
+    frameRef.current(warp.simMinuteAt(warp.durationSec), warp.durationSec, false);
+  }, [warp]);
+
   return {
     playing,
     finished: display.finished,
@@ -150,5 +170,6 @@ export function useReplayClock(warp: Warp, onFrame: ReplayFrame): ReplayClock {
     minute: display.minute,
     toggle,
     restart,
+    skip,
   };
 }
