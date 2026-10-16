@@ -300,6 +300,8 @@ lists the stages in the order they run, each module's docstring its rules.
   and what may be said from it.
 - `co2mmute-docs`: what changes together — a map field, a constant, a string, a socket event,
   something stored, the dial, a CI job, a doc page — and how to check each.
+- `map-versions`: changes said in words as versions of a map, with their questions, the ballot
+  and its combinations, checked and measured.
 
 ## repo conventions
 

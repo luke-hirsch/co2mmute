@@ -293,6 +293,65 @@ def combination_members(model, base_version, member_versions):
 
 
 
+def _chains_follow_clones(combo_version):
+    """Run every line of a combination over the streets the combination holds.
+
+    One member changes a street, cloning it and running its lines over the
+    clone; another changes a line, cloning it with its chain over the streets
+    of base. Composed, the changed line ran over the street the first member
+    had taken out. A chain row on a street or rail the combination lacks moves
+    to the one it holds between the same two nodes, and a row whose line is
+    not in the combination leaves it.
+    """
+    from maps.models import (
+        BusLine,
+        BusLineEdge,
+        StreetEdge,
+        TrainEdge,
+        TrainLine,
+        TrainLineEdge,
+    )
+
+    for row_model, line_model, line_field, link_model, link in (
+        (BusLineEdge, BusLine, "bus_line_id", StreetEdge, "street_edge"),
+        (TrainLineEdge, TrainLine, "train_line_id", TrainEdge, "train_edge"),
+    ):
+        lines = set(
+            line_model.objects.filter(map_versions=combo_version).values_list(
+                "pk", flat=True
+            )
+        )
+        held = {
+            (item.edge.start_node_id, item.edge.end_node_id): item
+            for item in link_model.objects.filter(
+                map_versions=combo_version
+            ).select_related("edge")
+        }
+        held_pks = {item.pk for item in held.values()}
+        rows = row_model.objects.filter(map_versions=combo_version).select_related(
+            f"{link}__edge"
+        )
+        for row in rows:
+            if getattr(row, line_field) not in lines:
+                row.map_versions.remove(combo_version)
+                continue
+            if getattr(row, f"{link}_id") in held_pks:
+                continue
+            edge = getattr(row, link).edge
+            row.map_versions.remove(combo_version)
+            target = held.get((edge.start_node_id, edge.end_node_id))
+            if target is None:
+                continue
+            moved = row_model.objects.create(
+                **{
+                    line_field: getattr(row, line_field),
+                    link: target,
+                    "order": row.order,
+                }
+            )
+            moved.map_versions.add(combo_version)
+
+
 def generate_combinations(game_map, atomic_versions):
     """Every combination of two or more of `atomic_versions`, on the ballot.
 
@@ -377,6 +436,7 @@ def generate_combinations(game_map, atomic_versions):
             held = combination_members(model, base_version, member_versions)
             for element in model.objects.filter(pk__in=held):
                 element.map_versions.add(combo_version)
+        _chains_follow_clones(combo_version)
 
     for subset, version in existing.items():
         neighbours = []
