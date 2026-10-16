@@ -1282,7 +1282,9 @@ class TurnQueueTests(TestCase):
         # same people suffer behind a blocked head is the mechanism, not noise.
         self.assertLess(self._mean(delays_c), held_c / 3)
         # The turn queue itself is still a queue: B is held, only C is not.
-        self.assertGreater(self._mean(delays_b), 5.0)
+        # (Held less than on one lane: the flood pulls out at the junction and
+        # lets the feeder's cars go first.)
+        self.assertGreater(self._mean(delays_b), 2 * self._mean(delays_c))
 
     def test_everybody_still_arrives_on_two_lanes(self):
         simulator, route_b, route_c = self._play(feeder_lanes=2)

@@ -341,6 +341,9 @@ flowchart TD
   when no car on the ring is through and bound for the same link: the ring has right of way
   (`_ring_goes_first`). That is waiting, not being stuck, and does not count towards
   `DEADLOCK_TICKS`.
+- **Whoever sets off** waits at their door while a car on a street into that node is through and
+  bound for the same link: the traffic on the street goes first (`_street_goes_first`). A bus sets
+  off from its terminus on time.
 - **Speed is an output.** A link's speed is its length over the time cars actually took
   (`EdgeState.mean_speed_kmh`). That speed sets the car's CO2 and cost on it, and the next round
   routes on it.

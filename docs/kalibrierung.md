@@ -692,9 +692,9 @@ fährt, damit sich ein Spiel unschaffbar stellen lässt, und die kostet auf Berl
   alle innerhalb von 20 Minuten losfahren; real verteilt sich ein Berufsverkehr über eine Stunde und
   mehr. Bei σ = 45 statt 10 sinkt die Verspätung im 100-%-Auto-Fall von 56,9 auf 16,5 Minuten. Das
   ist eine Modellfrage, keine Kalibrierungsfrage — hier bewusst nicht angefasst.
-- **Der Abend ist ein Abbild des Morgens.** Dieselbe Streuung der Abfahrten, dieselbe Spitze:
-  `evening_departure_hour` verschiebt in der Simulation nichts, weil die Zeit ab Fensterbeginn läuft.
-  Eine eigene Abendspitze wäre eine Modellfrage.
+- **Der Abend streut 1,6-mal so breit wie der Morgen** (SrV 2018 Berlin, Hintergrund „Hin und
+  zurück"), sonst ist er der Morgen: `evening_departure_hour` verschiebt in der Simulation nichts,
+  weil die Zeit ab Fensterbeginn läuft.
 - **Der Anteil am Fahrplan steht für Mitfahrende, die es nicht gibt.** Er rechnet, als säßen in Bus und
   Bahn so viele, wie in Deutschland im Mittel mitfahren; in der Simulation sitzen dort nur die
   Pendler der Karte, die Busse sind nicht voller (Abschnitt 16). Gemessen ist er an der Runde, in der
@@ -710,11 +710,13 @@ fährt, damit sich ein Spiel unschaffbar stellen lässt, und die kostet auf Berl
   Karte sagt selbst, ob ihre Zahl gemessen ist (`GameMap.calibrated`, geht mit der JSON-Datei mit),
   und „Spiel anlegen" warnt, solange sie es nicht ist. `calibrate_map` misst sie (Abschnitt 12),
   `--out` setzt den Haken in der Datei. Die mitgelieferte Datei hat ihn gesetzt.
-- **Die gebauten Karten kippen an keinem Kreisverkehr mehr** (Abschnitt 15), eine Schleife aus
-  Straßen kann sich aber noch verklemmen. Auf dem Ausschnitt, bei 23.000 Pendlern und alle im Auto,
-  steht an einem von sechs Seeds der Heimweg 4.070 Minuten auf 16 Kanten in Mitte, jede wartet auf
-  die nächste, und nur die Sperre bewegt sie; ohne die Vorfahrt war es dieselbe Schleife. Eine Runde
-  im Spiel ist ein Seed. Die vier gebauten Karten sind mit der Vorfahrt noch nicht neu kalibriert.
+- **Die gebauten Karten kippen an keinem Kreisverkehr mehr** (Abschnitt 15), und eine Schleife aus
+  Straßen verklemmt sich am Abend nicht mehr. Auf dem Ausschnitt, bei 23.000 Pendlern und alle im
+  Auto, stand an einem von sechs Seeds der Heimweg 4.070 Minuten auf 16 Kanten in Mitte, jede auf die
+  nächste wartend, an der viele Arbeitsorte liegen: Wer dort losfuhr, nahm jeden Platz, den die
+  Sperre frei machte. Seit wer losfährt den Verkehr auf der Straße zuerst lässt und der Abend
+  breiter streut (16. Oktober 2026), ist jeder der sechs Heimwege nach höchstens 155 Minuten zu Ende;
+  eine der beiden Regeln allein ließ die Schleife (870 Minuten) oder eine andere (640) stehen.
 
 ## 18. Nachrechnen
 
