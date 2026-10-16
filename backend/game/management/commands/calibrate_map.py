@@ -350,9 +350,15 @@ class Command(BaseCommand):
         write = self.stdout.write
         write("")
         if result.target_kmh is not None:
+            # The search measures mornings, the table plays there and back: a
+            # way home that ran into the tick guard leaves no speed to show.
+            if result.speed_kmh is None:
+                reached = "alle im Auto: nicht alle angekommen (unten),"
+            else:
+                reached = f"alle im Auto fahren morgens {de(result.speed_kmh, 1)} km/h,"
             write(
-                f"Pendler: {de(result.commuters)} — alle im Auto fahren morgens "
-                f"{de(result.speed_kmh, 1)} km/h, Ziel {de(result.target_kmh, 1)} km/h"
+                f"Pendler: {de(result.commuters)} — {reached} "
+                f"Ziel {de(result.target_kmh, 1)} km/h"
             )
             for population, speed in sorted(result.searched.items()):
                 shown = "nie fertig" if speed is None else f"{de(speed, 1)} km/h"

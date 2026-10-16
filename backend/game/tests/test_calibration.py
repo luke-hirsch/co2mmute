@@ -445,6 +445,57 @@ class CalibratedTableTests(SimpleTestCase):
         self.assertEqual(written["map"]["co2_table"], {"100": 3.0, "0": 1.0})
 
 
+@dataclass(frozen=True)
+class ReportedRound(FakeRound):
+    """A round with everything the command's table prints."""
+
+    car_trip_min: float | None = 20.0
+    car_return_min: float | None = 20.0
+    pt_trip_min: float | None = None
+    pt_wait_min: float | None = None
+    switched: int = 0
+
+
+class ReportTests(SimpleTestCase):
+    """What `calibrate_map` prints once the rounds are played."""
+
+    class Rounds:
+        gruppen = 72
+
+        def people_per_gruppe(self, commuters):
+            return commuters // 72
+
+    def _report(self, rows, speed_kmh):
+        from io import StringIO
+
+        result = calibration.Calibration(
+            commuters=7200,
+            target_kmh=19.0,
+            speed_kmh=speed_kmh,
+            searched={7200: 19.4, 14400: None},
+            rows=rows,
+        )
+        command = Command(stdout=StringIO())
+        command._report({"map": {}}, self.Rounds(), result)
+        return command.stdout.getvalue()
+
+    def test_a_table_where_someone_never_got_home_is_reported_not_a_crash(self):
+        """The search measures mornings; the table plays there and back. A way
+        home that ran into the tick guard leaves the round without a speed,
+        and the report said so by raising on the missing number — after an
+        hour of Berlin, with nothing written."""
+        rows = {
+            share: [ReportedRound(total_kg=7200 * (1 + share), not_home=0)]
+            for share in calibration.TABLE_SHARES
+        }
+        rows[1.0] = [ReportedRound(total_kg=14400, not_home=368)]
+
+        out = self._report(rows, speed_kmh=None)
+
+        self.assertIn("Pendler: 7.200 — alle im Auto: nicht alle angekommen", out)
+        self.assertIn("Nicht alle sind angekommen", out)
+
+
 class NotPlayableTests(SimpleTestCase):
     def test_a_budget_below_the_empty_round_cannot_be_won(self):
         table = {1.0: 3.0, 0.0: 1.0}
