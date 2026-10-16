@@ -784,7 +784,7 @@ export const de = {
      */
     groupsView: "Meine Gruppen",
     groupsLead:
-      "Hat jede Gruppe gespielt, was ihr Pendlertyp verlangt? Jede Zahl ist ein Tag, hin und zurück, für einen Menschen – im Schnitt über die Runden.",
+      "Hat jede Gruppe gespielt, was ihr Pendlertyp verlangt? Jede Zahl gilt für einen Menschen an einem Tag, hin und zurück, im Schnitt über die Runden.",
     groupNoPersona: "ohne Pendlertyp",
     groupRounds: (n: number) => (n === 1 ? "1 Runde" : `${n} Runden`),
     groupNone: "Für diese Gruppe wurde keine Runde gerechnet.",
@@ -871,11 +871,11 @@ export const de = {
   host: {
     title: "Leitstelle",
     /**
-     * Under the game's name, on the projector — so it talks to the class, not
-     * to the host (a draft, Lukas rewrites it).
+     * Under the game's name, on the projector, so it talks to the class, not
+     * to the host.
      */
     lobbyLead:
-      "Scannt den Code mit dem Handy oder gebt die Spiel-ID auf der Startseite ein. Wer kein Handy hat, spielt an der Leitstelle mit.",
+      "Scanne den Code mit dem Handy oder gib die Spiel-ID auf der Startseite ein. Ohne Handy spielst du an der Leitstelle.",
     password: "Passwort",
     qrAlt: "QR-Code, der zu diesem Spiel führt",
     /** The lobby's share button and what it copies. */
@@ -961,7 +961,7 @@ export const de = {
      * that sentence now stands over the queue, and only when there is one.
      */
     voteLead:
-      "Tippe oder klicke auf deine Wahl. Auf einer Tastatur geht es auch mit der Zahl daneben, 0 lässt die Karte, wie sie ist.",
+      "Tippe oder klicke auf deine Wahl. Mit der Tastatur geht auch die Zahl daneben. 0 lässt die Karte, wie sie ist.",
     deskVoteLead:
       "Jeder Platz an diesem Rechner stimmt einmal ab. Gib den Rechner reihum weiter.",
     voteSeat: "Abstimmen",
@@ -1135,9 +1135,9 @@ export const de = {
      */
     deleteTitle: "Karte löschen?",
     deleteBody: (name: string) =>
-      `„${name}“ mit allen Versionen, Linien und dem Hintergrundbild. Das lässt sich nicht zurücknehmen.`,
+      `„${name}“ mit allen Versionen, Linien und dem Hintergrundbild. Das geht nicht rückgängig.`,
     deleteKeeps:
-      "Eine Karte, auf der schon gespielt wurde, bleibt: Mit ihr gingen die Wege und Abstimmungen der Spiele verloren. Sichere die Karte vorher als JSON, wenn du sie noch brauchst.",
+      "Eine Karte, auf der schon gespielt wurde, bleibt. Mit ihr gingen die Wege und Abstimmungen der Spiele verloren. Sichere sie vorher als JSON, wenn du sie noch brauchst.",
     deleteConfirm: "Endgültig löschen",
     deleting: "Wird gelöscht …",
 
@@ -1485,7 +1485,7 @@ export const de = {
       /** Where the rails lie, on a link that is street and railway at once. */
       tramTrack: "Gleis",
       tramTracks: {
-        "": "daneben oder darunter",
+        "": "neben oder unter der Straße",
         lane: "in der Autospur",
         own: "eigenes Gleis (eine Spur)",
       } as Record<string, string>,
@@ -1798,7 +1798,7 @@ export const de = {
      * nothing to do. The budget follows the people, so it is wrong with them.
      */
     mapUncalibrated:
-      "Für diese Karte ist nicht gemessen, wie viel Verkehr sie trägt. Menschen pro Gruppe ist deshalb nur ein Vorgabewert – auf einer kleinen Karte ist er zu hoch, und mit ihm das CO₂-Budget.",
+      "Für diese Karte ist nicht gemessen, wie viel Verkehr sie trägt. Menschen pro Gruppe ist deshalb nur ein Vorschlag. Auf einer kleinen Karte ist er zu hoch, und das CO₂-Budget mit ihm.",
 
     /** The box beside both switches; the label above it names the thing. */
     allow: "zulassen",
@@ -1828,7 +1828,7 @@ export const de = {
      */
     personas: "Pendlertypen",
     personasHelp:
-      "Jede Gruppe bekommt einen Pendlertyp zugelost, und ihre Person spielt ihn statt sich selbst.",
+      "Jede Gruppe bekommt einen Pendlertyp und spielt ihn statt sich selbst.",
     personasSwitch: "verteilen",
     personasLegend: "Welche Pendlertypen ausgelost werden",
     personasLoading: "Pendlertypen werden geladen …",
@@ -1850,7 +1850,7 @@ export const de = {
      */
     balancedDeal: "Wohnorte",
     balancedDealHelp:
-      "Jeder Wohnort und jeder Arbeitsplatz bekommt gleich viele Gruppen, und die Gruppen einer Person wohnen über die Karte verteilt. Sonst wohnen sie zusammen, an einem Ort pro Person.",
+      "Jeder Wohnort und jeder Arbeitsplatz bekommt gleich viele Gruppen. Die Gruppen einer Person wohnen verteilt über die Karte. Ist es aus, wohnen alle Gruppen einer Person am selben Ort.",
     balancedDealSwitch: "ausbalanciert",
 
     /** The two that decide when it ends. */
