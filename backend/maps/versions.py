@@ -36,7 +36,7 @@ def bus_chain_rows(bus_line, version):
     rows = BusLineEdge.objects.filter(bus_line=bus_line)
     if version is not None:
         rows = rows.filter(map_versions=version)
-    return rows.order_by("order")
+    return rows.order_by("order", "pk")
 
 
 def train_chain_rows(train_line, version):
@@ -46,7 +46,7 @@ def train_chain_rows(train_line, version):
     rows = TrainLineEdge.objects.filter(train_line=train_line)
     if version is not None:
         rows = rows.filter(map_versions=version)
-    return rows.order_by("order")
+    return rows.order_by("order", "pk")
 
 
 def put_rows_in(rows, versions):

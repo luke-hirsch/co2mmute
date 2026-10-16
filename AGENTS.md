@@ -159,9 +159,9 @@ an adapter method must never take an engine method's name.
   round at each car share and reports the share of the timetable the class pays, kg per person with
   it and the car share normal buys on that map (`--out` writes count and share into the file),
   playing real rounds in a throwaway database (`game/measure.py`) on the routes the game's own router
-  finds. It needs Node and `npm ci` in `frontend/`. Run it on Postgres (`DJANGO_DB=postgres`): the
-  simulation reads its links in name order, every database sorts names its own way, and a round with
-  riders comes out ~1.5 % apart on sqlite. The count is searched in whole people per Gruppe, so it
+  finds. It needs Node and `npm ci` in `frontend/`. Run it on Postgres (`DJANGO_DB=postgres`) like
+  the server; the rounds of a step play side by side only there. The simulation reads its links,
+  lines and routes in pk order, never by name, so a round plays the same on sqlite and Postgres. The count is searched in whole people per Gruppe, so it
   moves in steps of the Gruppen a round plays: a map with many homes and workplaces is played dealt
   (`--per-home`, 4 unless told — `calibration.PER_HOME`), each home a fresh draw of that many
   workplaces per seed, every workplace as often as the others — the seeds average it back to every

@@ -188,7 +188,10 @@ class TrafficSimulator(LinkQueueEngine):
         """This direction's routes, in the order the round's draws follow."""
         from game.models import PlayerMove
 
-        player_moves = PlayerMove.objects.filter(session_round=self.game_round)
+        # By pk: the model's ordering ends on a time that two moves can share.
+        player_moves = PlayerMove.objects.filter(
+            session_round=self.game_round
+        ).order_by("pk")
         logger.info(f"[SIM] Loading routes for {player_moves.count()} player moves")
 
         routes = []
@@ -202,8 +205,8 @@ class TrafficSimulator(LinkQueueEngine):
             # side on all of Berlin (2026-10-15).
             rows = AgentRoute.objects.filter(
                 player_move=move, direction=direction
-            ).prefetch_related(
-                Prefetch("segments", queryset=RouteSegment.objects.order_by("order"))
+            ).order_by("agent_id", "pk").prefetch_related(
+                Prefetch("segments", queryset=RouteSegment.objects.order_by("order", "pk"))
             )
             for route in rows:
                 self.route_rows[route.pk] = route
@@ -250,11 +253,13 @@ class TrafficSimulator(LinkQueueEngine):
         bus_speeds: dict[int, float] = {}
         train_speeds: dict[int, float] = {}
         if bus_line_ids:
-            for bus_line in BusLine.objects.filter(id__in=bus_line_ids):
+            for bus_line in BusLine.objects.filter(id__in=bus_line_ids).order_by("pk"):
                 bus_speeds[bus_line.pk] = bus_line.bus_speed_kmh
             logger.info(f"[SIM] Loaded {len(bus_speeds)} bus line speeds")
         if train_line_ids:
-            for train_line in TrainLine.objects.filter(id__in=train_line_ids):
+            for train_line in TrainLine.objects.filter(id__in=train_line_ids).order_by(
+                "pk"
+            ):
                 train_speeds[train_line.pk] = train_line.train_speed_kmh
             logger.info(f"[SIM] Loaded {len(train_speeds)} train line speeds")
         return bus_speeds, train_speeds
@@ -302,7 +307,7 @@ class TrafficSimulator(LinkQueueEngine):
         tracks = self._links_by_ends(game_map, version, trainedge__isnull=False)
 
         lines = []
-        for line in bus_lines.distinct():
+        for line in bus_lines.distinct().order_by("pk"):
             bus_speeds.setdefault(line.pk, line.bus_speed_kmh)
             edges = [
                 link.street_edge.edge
@@ -323,7 +328,7 @@ class TrafficSimulator(LinkQueueEngine):
                 )
             )
 
-        for line in train_lines.distinct():
+        for line in train_lines.distinct().order_by("pk"):
             train_speeds.setdefault(line.pk, line.train_speed_kmh)
             edges = [
                 link.train_edge.edge
@@ -353,7 +358,9 @@ class TrafficSimulator(LinkQueueEngine):
         if version is not None:
             links = links.filter(map_versions=version)
         by_ends: dict[tuple[int, int], list] = {}
-        for edge in links.distinct().select_related("start_node", "end_node"):
+        for edge in (
+            links.distinct().select_related("start_node", "end_node").order_by("pk")
+        ):
             by_ends.setdefault((edge.start_node_id, edge.end_node_id), []).append(edge)  # type: ignore
         return by_ends
 
@@ -396,16 +403,19 @@ class TrafficSimulator(LinkQueueEngine):
         return own_way
 
     def _read_links(self, edge_ids: set[int], scale: float) -> list[Link]:
-        """Every link a route or a line names, in the `Edge` model's ordering.
+        """Every link a route or a line names, in pk order.
 
         The order is load-bearing: the engine draws each link's capacity in it
-        and starts every tick's visiting shuffle from it. `Meta.ordering` is
-        total (it ends on the pk), so the links a pass actually uses come out
-        in the same relative order whatever else is in the set.
+        and starts every tick's visiting shuffle from it. Names are no order to
+        draw in — sqlite and Postgres collate them differently — and the pk
+        keeps the links a pass actually uses in the same relative order
+        whatever else is in the set.
         """
         logger.info(f"[SIM] Initializing {len(edge_ids)} unique edges")
-        edges = Edge.objects.filter(id__in=edge_ids).select_related(
-            "start_node", "end_node", "game_map"
+        edges = (
+            Edge.objects.filter(id__in=edge_ids)
+            .select_related("start_node", "end_node", "game_map")
+            .order_by("pk")
         )
 
         links = []

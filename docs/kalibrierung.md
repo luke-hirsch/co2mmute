@@ -366,9 +366,10 @@ kurzen: Auf Berlin streute die halbe Runde damit um 4 % zwischen den Seeds, mit 
 Paar um 0,5 %. Die Pendler sucht der Befehl in ganzen Menschen pro Gruppe. `--out` schreibt eine Kopie
 der Datei mit der Pendlerzahl und `calibrated: true`.
 
-Gemessen wird auf Postgres (`DJANGO_DB=postgres`), wie auf dem Server. Die Simulation liest ihre
-Strecken in der Reihenfolge ihrer Namen, und die sortiert jede Datenbank anders: Unter SQLite liegen
-Runden mit Bus und Bahn um gut 1 % daneben, Runden nur mit Autos gar nicht.
+Gemessen wird auf Postgres (`DJANGO_DB=postgres`), wie auf dem Server; nur dort spielen die Prozesse
+die Runden eines Schritts nebeneinander. Die Simulation liest Strecken, Linien und Wege in der
+Reihenfolge ihrer Nummern, nicht ihrer Namen, denn die sortiert jede Datenbank anders. So kommt
+dieselbe Runde unter SQLite und unter Postgres gleich heraus.
 
 Auf Berlin Mitte-West, gemessen am 5. Oktober 2026 auf Postgres, sechs Seeds, 6.400 Pendler:
 
@@ -714,9 +715,6 @@ fährt, damit sich ein Spiel unschaffbar stellen lässt, und die kostet auf Berl
   steht an einem von sechs Seeds der Heimweg 4.070 Minuten auf 16 Kanten in Mitte, jede wartet auf
   die nächste, und nur die Sperre bewegt sie; ohne die Vorfahrt war es dieselbe Schleife. Eine Runde
   im Spiel ist ein Seed. Die vier gebauten Karten sind mit der Vorfahrt noch nicht neu kalibriert.
-- **Die Reihenfolge hängt an der Datenbank.** Wie in Abschnitt 12: eine Runde mit Bus und Bahn
-  kommt unter SQLite um gut 1 % anders heraus als unter Postgres, weil die Strecken nach Namen
-  sortiert gelesen werden.
 
 ## 18. Nachrechnen
 
