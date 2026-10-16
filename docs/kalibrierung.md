@@ -295,7 +295,8 @@ er bei 76.842, nach Runde 4 bei 102.456 kg). **18.000 kg pro Runde** wäre der V
 nächsten Play-Test, so wie 9.000 vorher: durchgehend fahren endet in Runde 5, wer umsteigt, behält
 rund zwölf Tonnen. Die Zahl steht in der Kartendatei.
 
-Was die Doppelung nicht ist: eine Messung des Abends. Er ist heute ein Abbild des Morgens.
+Was die Doppelung nicht ist: eine Messung des Abends. Er war damals ein Abbild des Morgens; seit dem
+16. Oktober 2026 streut er 1,6-mal so breit (Abschnitt 18).
 
 ## 11. Die Linien fahren, bis alle zu Hause sind
 

@@ -1251,7 +1251,12 @@ class LinkQueueEngine:
     def _street_goes_first(self, state: "EdgeState", tick_end: float) -> bool:
         """Whether a link leading into `state` has a car through and bound for
         it, with the budget to send it this tick: then a car pulling out onto
-        `state` waits at its door."""
+        `state` waits at its door.
+
+        Asked at the tick's start, when every street still has its budget,
+        and again after each discharge pass: within a tick the street's cars
+        go first and the door gets the room and the turns they leave.
+        """
         return self._one_bound_for(state, state.feeders, tick_end)
 
     def _one_bound_for(
