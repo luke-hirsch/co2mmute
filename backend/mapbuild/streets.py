@@ -26,8 +26,11 @@ Then the merge, after the dead ends are cut back to their last junction:
 4. pass-throughs: a node that only carries one street on (two neighbours, the same directions
    both sides) goes; the two links become one (the narrower lanes, the time to drive both).
 
+A ring keeps OSM's word for it, `junction` (roundabout or circular), on every link made only of
+the ring's ways: on a ring the ring has right of way.
+
 A link is (u, v, forward, backward, geometry): each direction a dict (len, speed, lanes, rank,
-names, slip) or None where the street is one-way.
+names, slip, junction) or None where the street is one-way.
 """
 
 import collections
@@ -202,6 +205,13 @@ def fold(pos, ways, tw, D=D, snap=SNAP):
     return uf, pos, ways
 
 
+def ring_of(parts):
+    """OSM's junction for a link made of these parts: "roundabout" or "circular" when every part
+    is that ring, else "" (a link that leaves the ring is no ring)."""
+    kinds = {p.get("junction", "") for p in parts}
+    return kinds.pop() if len(kinds) == 1 else ""
+
+
 def segments(pos, ways, uf=None, builtup=None):
     """directed segments (u, v) -> dict(len, lanes, speed, rank, name, cls, way, slip), endpoints
     through the crossings."""
@@ -228,6 +238,7 @@ def segments(pos, ways, uf=None, builtup=None):
                 cls=w["cls"],
                 way=w["id"],
                 slip=w["link"],
+                junction=w.get("junction", ""),
             )
             seg[(a2, b2)] = rec
             if not w["oneway"]:
@@ -288,6 +299,7 @@ def contract(pos, seg, extra=()):
                         {s["name"]: s["len"] for s in parts if s["name"]}
                     ),
                     slip=all(s.get("slip") for s in parts),
+                    junction=ring_of(parts),
                 )
 
             links.append((u, v, agg(path), agg(path[::-1]), [pos[p] for p in path]))
@@ -415,6 +427,7 @@ def add_dir(x, y):
         rank=max(x["rank"], y["rank"]),
         names=x["names"] + y["names"],
         slip=x.get("slip") and y.get("slip"),
+        junction=ring_of((x, y)),
     )
 
 
@@ -471,6 +484,7 @@ def join(x, y):
         rank=min(x["rank"], y["rank"]),
         names=x["names"] + y["names"],
         slip=x.get("slip") and y.get("slip"),
+        junction=ring_of((x, y)),
     )
 
 

@@ -198,6 +198,10 @@ je Richtung.</p>
   <li><strong>Eine volle Kante, die nie leer wird,</strong> lässt nach <code>DEADLOCK_TICKS =
   4</code> trotzdem ein Auto weiter, über ihren Speicher hinaus. Das wird gezählt
   (<code>forced_releases</code> im Log).</li>
+  <li><strong>Auf einen Ring,</strong> einen Kreisverkehr oder einen Platz wie den
+  Ernst-Reuter-Platz, fährt ein Auto von außen erst, wenn auf dem Ring keins durch ist, das auf
+  dieselbe Kante will: Der Ring hat Vorfahrt (<code>_ring_goes_first</code>). Das ist Warten,
+  kein Feststecken, und zählt nicht für <code>DEADLOCK_TICKS</code>.</li>
   <li><strong>Geschwindigkeit ist ein Ergebnis.</strong> Die Geschwindigkeit einer Kante ist ihre
   Länge durch die Zeit, die Autos wirklich gebraucht haben (<code>EdgeState.mean_speed_kmh</code>).
   Sie bestimmt CO2 und Kosten eines Autos auf dieser Kante, und die nächste Runde routet darauf.</li>

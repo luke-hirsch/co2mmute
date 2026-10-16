@@ -86,6 +86,16 @@ A junction that has moved nothing for four consecutive ticks therefore releases 
 over storage, and then waits four ticks again. Every release is counted. A non-zero
 `forced_releases` in the tick log is not a bug, but it is a reason to read the log.
 
+A roundabout gridlocks most easily. Whoever drives in would take the room on the ring as often as
+the ring itself, until every link of the ring is full of cars wanting the next one. So the ring has
+right of way, as on the road (StVO §8 1a): a car that wants onto a link of the ring from outside
+waits while a car on the ring is through and bound for the same link. That is waiting, not being
+stuck, and does not count towards the four ticks. It holds for a roundabout and just the same for a
+ring square like Ernst-Reuter-Platz, which OpenStreetMap calls `circular` and which has traffic
+lights; there the right of way stands in for the lights the model does not have. Which links are a
+ring, the map says (`junction`). A map built from OpenStreetMap carries it; the shipped map has no
+ring: Großer Stern and Ernst-Reuter-Platz are one node each there.
+
 A pass runs until everybody has arrived. There is no clock after which whoever is still out simply
 stops counting. The limit of 1000 ticks per way only catches a bug in the model, and reaching it is
 logged as one. On Berlin Mitte-West a way as played needs at most 35 ticks, at four times the demand

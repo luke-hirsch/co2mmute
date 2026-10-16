@@ -76,6 +76,16 @@ class WholeBuildTests(SimpleTestCase):
             "Takte: timetable 10", [line for head, ls in self.report for line in ls]
         )
 
+    def test_a_ring_says_so_and_no_other_edge_does(self):
+        """The cut ends inside the Rembertikreisel: two ring links, one each way
+        round between the two nodes the cut kept."""
+        rings = [edge for edge in self.data["edges"] if "junction" in edge]
+
+        self.assertEqual(
+            sorted((edge["name"], edge["junction"]) for edge in rings),
+            [("Rembertiring", "circular"), ("Rembertiring", "circular")],
+        )
+
     def test_a_one_way_street_walks_back_on_a_path(self):
         pairs = {(e["start_node"], e["end_node"]): e for e in self.data["edges"]}
         for (a, b), e in pairs.items():

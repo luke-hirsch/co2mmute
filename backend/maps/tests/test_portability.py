@@ -1082,6 +1082,116 @@ class TramTravelsTests(MapUploadMixin, TestCase):
         self.assertIn("metro", notes)
 
 
+class RingTravelsTests(MapUploadMixin, TestCase):
+    """A street on a ring, through the file.
+
+    `junction` is what OpenStreetMap says of a ring: "roundabout" (sign 215)
+    or "circular", a ring square like Ernst-Reuter-Platz. The builder writes
+    it on the ring's edges only, and on a ring the ring has right of way.
+    """
+
+    def ring_payload(self, junction="circular", **edge_extra):
+        payload = self.graph_payload()
+        payload["edges"] = [
+            {
+                "start_node": "1",
+                "end_node": "2",
+                "name": "Ernst-Reuter-Platz",
+                "type": "street",
+                "speed_limit": 50,
+                "lanes": 3,
+                "junction": junction,
+                **edge_extra,
+            },
+            {
+                "start_node": "2",
+                "end_node": "1",
+                "name": "Hardenbergstraße",
+                "type": "street",
+                "speed_limit": 50,
+                "lanes": 2,
+            },
+        ]
+        return payload
+
+    def refused(self, payload, name):
+        with muted():
+            response = self.client.post(
+                reverse("maps:map-import"),
+                {
+                    "map_name": name,
+                    "max_players": 4,
+                    "description": "",
+                    "json_file": ContentFile(
+                        json.dumps(payload).encode("utf-8"), name="map.json"
+                    ),
+                },
+            )
+        self.assertFalse(GameMap.objects.filter(name=name).exists())
+        return refusal_of(response)
+
+    def junctions(self, game_map):
+        from maps.models import StreetEdge
+
+        return {
+            street.edge.name: street.junction
+            for street in StreetEdge.objects.filter(edge__game_map=game_map)
+        }
+
+    def test_a_ring_arrives_as_a_ring_and_a_street_as_none(self):
+        game_map = self.upload(self.ring_payload(), name="Ring")
+
+        self.assertEqual(
+            self.junctions(game_map),
+            {"Ernst-Reuter-Platz": "circular", "Hardenbergstraße": ""},
+        )
+
+    def test_a_roundabout_arrives_as_a_roundabout(self):
+        game_map = self.upload(self.ring_payload("roundabout"), name="Kreisel")
+
+        self.assertEqual(self.junctions(game_map)["Ernst-Reuter-Platz"], "roundabout")
+
+    def test_the_export_writes_it_on_the_ring_only(self):
+        game_map = self.upload(self.ring_payload(), name="Ring Export")
+
+        exported = self.client.get(
+            reverse("maps:map-export", kwargs={"pk": game_map.pk})
+        ).json()
+
+        by_name = {edge["name"]: edge for edge in exported["edges"]}
+        self.assertEqual(by_name["Ernst-Reuter-Platz"]["junction"], "circular")
+        self.assertNotIn("junction", by_name["Hardenbergstraße"])
+
+    def test_a_ring_survives_export_and_import(self):
+        original = self.upload(self.ring_payload(), name="Ring vorher")
+        exported = self.client.get(
+            reverse("maps:map-export", kwargs={"pk": original.pk})
+        ).json()
+
+        copy = self.upload(exported, name="Ring nachher")
+
+        self.assertEqual(map_summary(copy), map_summary(original))
+        self.assertEqual(self.junctions(copy), self.junctions(original))
+
+    def test_a_junction_that_is_no_ring_is_refused(self):
+        notes = self.refused(self.ring_payload("jughandle"), "Unbekannt")
+
+        self.assertIn("jughandle", notes)
+
+    def test_a_junction_on_rails_alone_is_refused(self):
+        payload = self.ring_payload()
+        payload["edges"][0] = {
+            "start_node": "1",
+            "end_node": "2",
+            "type": "train",
+            "junction": "roundabout",
+        }
+
+        notes = self.refused(payload, "Ring ohne Straße")
+
+        self.assertIn("junction", notes)
+
+
 class RoadLengthTravelsTests(MapUploadMixin, TestCase):
     """How much longer the road is than the straight line, through the file.
 
@@ -1304,7 +1414,13 @@ def edge_key(edge):
         edge.bike_lane,
         edge.walking,
         edge.max_lanes,
-        (se.speed_limit, se.lanes, se.dedicated_bus_lane, se.tram_track)
+        (
+            se.speed_limit,
+            se.lanes,
+            se.dedicated_bus_lane,
+            se.tram_track,
+            se.junction,
+        )
         if se
         else None,
         te is not None,

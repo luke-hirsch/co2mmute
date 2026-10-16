@@ -8,10 +8,13 @@ from django.test import SimpleTestCase
 from mapbuild import streets
 
 
-def way(wid, nodes, name, oneway, cls="secondary"):
+def way(wid, nodes, name, oneway, cls="secondary", junction=""):
     tags = {"highway": cls, "name": name}
     if oneway:
         tags["oneway"] = "yes"
+    if junction:
+        tags["junction"] = junction
+        oneway = True
     return dict(
         id=str(wid),
         key=name,
@@ -19,7 +22,8 @@ def way(wid, nodes, name, oneway, cls="secondary"):
         cls=cls,
         base=cls.replace("_link", ""),
         link=cls.endswith("_link"),
-        ring=False,
+        ring=bool(junction),
+        junction=junction,
         oneway=oneway,
         lanes=(1, 0) if oneway else (1, 1),
         tags=tags,
@@ -27,7 +31,7 @@ def way(wid, nodes, name, oneway, cls="secondary"):
     )
 
 
-def d(length, name="", slip=False, lanes=1, speed=50.0, rank=1.0):
+def d(length, name="", slip=False, lanes=1, speed=50.0, rank=1.0, junction=""):
     return dict(
         len=length,
         speed=speed,
@@ -35,6 +39,7 @@ def d(length, name="", slip=False, lanes=1, speed=50.0, rank=1.0):
         rank=rank,
         names=collections.Counter({name: length} if name else {}),
         slip=slip,
+        junction=junction,
     )
 
 
@@ -199,3 +204,71 @@ class MergeTests(SimpleTestCase):
         _, links = streets.unbundle(pos, [one, two])
         self.assertEqual(len(links), 1)
         self.assertEqual(links[0][2]["lanes"], 3)
+
+
+class RingTests(SimpleTestCase):
+    """A ring keeps OSM's word for it, on the links made only of the ring.
+
+    Ernst-Reuter-Platz is `junction=circular`, a roundabout `roundabout`; on
+    both the ring has right of way in the game, so the word has to reach the
+    file. A link that leaves the ring is a street like any other.
+    """
+
+    pos = {
+        1: (0, 0),
+        2: (100, 0),
+        3: (100, 100),
+        4: (0, 100),
+        11: (-300, 0),
+        13: (400, 100),
+        14: (700, 100),
+    }
+
+    def links(self, ways):
+        """Each direction of each link by its two ends."""
+        _, _, links = streets.graph(self.pos, ways)
+        out = {}
+        for u, v, f, b, _ in links:
+            if f:
+                out[(u, v)] = f
+            if b:
+                out[(v, u)] = b
+        return out
+
+    def test_a_link_made_only_of_the_ring_keeps_its_junction(self):
+        links = self.links(
+            [
+                way(1, [1, 2, 3], "Ernst-Reuter-Platz", True, junction="circular"),
+                way(2, [3, 4, 1], "Ernst-Reuter-Platz", True, junction="circular"),
+                way(3, [11, 1], "Hardenbergstraße", False),
+                way(4, [3, 13], "Otto-Suhr-Allee", False),
+            ]
+        )
+
+        self.assertEqual(links[(1, 3)].get("junction"), "circular")
+        self.assertEqual(links[(3, 1)].get("junction"), "circular")
+        self.assertEqual(links[(11, 1)].get("junction"), "")
+
+    def test_a_link_that_leaves_the_ring_is_no_ring(self):
+        """Half a roundabout with nothing else joining it: in, round and out
+        is one link, and a street."""
+        links = self.links(
+            [
+                way(1, [11, 1], "Zufahrt", True),
+                way(2, [1, 2, 3], "Kreisel", True, junction="roundabout"),
+                way(3, [3, 13], "Ausfahrt", True),
+                way(4, [13, 14], "Weiter", False),
+                way(5, [4, 13], "Quer", False),
+            ]
+        )
+
+        self.assertEqual(links[(11, 13)].get("junction"), "")
+
+    def test_two_ring_links_joined_stay_a_ring_and_a_ring_and_a_street_do_not(self):
+        ring = d(50, "Kreisel", junction="roundabout")
+
+        self.assertEqual(streets.join(ring, ring).get("junction"), "roundabout")
+        self.assertEqual(streets.join(ring, d(50, "Straße")).get("junction"), "")
+        self.assertEqual(streets.add_dir(ring, ring).get("junction"), "roundabout")
+        self.assertEqual(streets.add_dir(ring, d(50, "Kreisel")).get("junction"), "")
+

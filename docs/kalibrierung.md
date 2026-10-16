@@ -575,6 +575,19 @@ alle 38,5 km/h fahren. Je Seed ist es auf Berlin nicht gemessen; auf dem Ausschn
 an denen alles stand. Bei 60.416 Pendlern kommen an zwei der sechs Seeds rund 2.750 Menschen nach
 1.000 Takten, 83 Stunden, nicht an, und die Sperre der Simulation bricht den Hinweg ab.
 
+**Was da kippt, ist ein Kreisverkehr** (gemessen am 15. und 16. Oktober 2026). Steht eine gebaute
+Karte, steht ein Ring: auf dem Ausschnitt die fünf Kanten des Ernst-Reuter-Platzes, 68 bis 101 m
+lang, auf ganz Berlin dazu der Moritzplatz, drei einspurige Kanten. Wer einfuhr, nahm den Platz auf
+dem Ring so oft wie der Ring selbst, bis jede Kante voll war mit Autos, die auf die nächste wollten,
+und nur noch die Sperre gegen das Verklemmen bewegte sie, ein Auto je Kante alle 20 Minuten. Seitdem
+hat der Ring Vorfahrt, auf `roundabout` und `circular` gleich (Hintergrund, „Die
+Mindestgeschwindigkeit“). Alle im Auto, sechs Seeds: Auf dem Ausschnitt fährt Seed 106 bei 20.000
+Pendlern 22,5 km/h und ist nach 145 Minuten durch, vorher 2,6 km/h in 1.505 Minuten; die anderen
+fünf liegen höchstens 0,6 km/h neben dem, was sie waren. Die Suche ist eine Kurve ohne Kante und antwortet 23.000
+bei 19,2 km/h, vorher 20.000 bei 10,1. Ganz Berlin bei 38.704: 37,1 bis 39,7 km/h auf allen Seeds,
+vorher 4,8 bis 39,4. Nur `roundabout`, die StVO beim Wort, ließe den Ernst-Reuter-Platz stehen: Er
+ist `circular`. Die ausgelieferte Karte hat keinen Ring, ihre Zahlen bleiben.
+
 ## 16. Der Anteil am Fahrplan
 
 Seit dem 15. Oktober 2026 bezahlen die Pendler einen Anteil am Fahrplan, CO₂ und Kosten, nicht mehr
@@ -696,11 +709,11 @@ fährt, damit sich ein Spiel unschaffbar stellen lässt, und die kostet auf Berl
   Karte sagt selbst, ob ihre Zahl gemessen ist (`GameMap.calibrated`, geht mit der JSON-Datei mit),
   und „Spiel anlegen" warnt, solange sie es nicht ist. `calibrate_map` misst sie (Abschnitt 12),
   `--out` setzt den Haken in der Datei. Die mitgelieferte Datei hat ihn gesetzt.
-- **Die gebauten Karten kippen.** Auf dem Ausschnitt aus OpenStreetMap fahren 18.228 Pendler an
-  den meisten Seeds um 30 km/h, an zwei von zwölf stehen sie (Abschnitt 15). Die Pendlerzahl, die
-  19 km/h im Mittel trifft, mischt Morgen, an denen es fließt, mit Morgen, an denen nichts mehr geht —
-  und eine Runde im Spiel ist ein Seed. Auf ganz Berlin springt schon das Mittel (35.872 Pendler
-  20,5 km/h, 37.760 38,5), und bei 60.416 kommen Menschen nicht mehr an (Abschnitt 15).
+- **Die gebauten Karten kippen an keinem Kreisverkehr mehr** (Abschnitt 15), eine Schleife aus
+  Straßen kann sich aber noch verklemmen. Auf dem Ausschnitt, bei 23.000 Pendlern und alle im Auto,
+  steht an einem von sechs Seeds der Heimweg 4.070 Minuten auf 16 Kanten in Mitte, jede wartet auf
+  die nächste, und nur die Sperre bewegt sie; ohne die Vorfahrt war es dieselbe Schleife. Eine Runde
+  im Spiel ist ein Seed. Die vier gebauten Karten sind mit der Vorfahrt noch nicht neu kalibriert.
 - **Die Reihenfolge hängt an der Datenbank.** Wie in Abschnitt 12: eine Runde mit Bus und Bahn
   kommt unter SQLite um gut 1 % anders heraus als unter Postgres, weil die Strecken nach Namen
   sortiert gelesen werden.

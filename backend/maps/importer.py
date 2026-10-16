@@ -34,6 +34,7 @@ from maps.models import (
 from maps.portability import (
     DEFAULT_POLL_TEXT,
     EDGE_TYPES,
+    JUNCTIONS,
     TRAM_TRACKS,
     base_index,
     chain_groups,
@@ -392,6 +393,19 @@ class MapImporter:
                             f"Kante {idx}: tram_track muss 'lane' oder 'own' "
                             f"sein, hier steht '{track}'."
                         )
+                # A ring is a fact of a street: rails and paths have none.
+                if "junction" in edge:
+                    junction = edge["junction"]
+                    if edge_type not in ("street", "both", "tram"):
+                        errors.append(
+                            f"Kante {idx}: junction steht nur an einer Straße, "
+                            f"hier ist sie '{edge_type}'."
+                        )
+                    elif junction not in JUNCTIONS:
+                        errors.append(
+                            f"Kante {idx}: junction muss 'roundabout' oder "
+                            f"'circular' sein, hier steht '{junction}'."
+                        )
                 # The road's length over the straight line. Whether it is at
                 # least the line is a check (`maps/checks.py`); a word where
                 # the number goes is a file nothing can be made of.
@@ -738,6 +752,7 @@ class MapImporter:
                         if is_tram
                         else StreetEdge.TRAM_TRACK_NONE
                     ),
+                    junction=edge_data.get("junction", StreetEdge.JUNCTION_NONE),
                 )
                 street_edge.map_versions.add(
                     *self._sub_versions(edge_data, "street_versions", own, versions)

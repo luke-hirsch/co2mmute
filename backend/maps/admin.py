@@ -189,12 +189,19 @@ class EdgeAdmin(admin.ModelAdmin):
 
 @admin.register(StreetEdge)
 class StreetEdgeAdmin(admin.ModelAdmin):
-    list_display = ("edge", "speed_limit", "lanes", "dedicated_bus_lane", "tram_track")
+    list_display = (
+        "edge",
+        "speed_limit",
+        "lanes",
+        "dedicated_bus_lane",
+        "tram_track",
+        "junction",
+    )
     search_fields = (
         "edge__name",
         "edge__game_map__name",
     )
-    list_filter = ("dedicated_bus_lane", "tram_track")
+    list_filter = ("dedicated_bus_lane", "tram_track", "junction")
     ordering = ("edge__game_map__name", "edge__name")
 
 

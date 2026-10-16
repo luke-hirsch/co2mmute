@@ -337,6 +337,10 @@ flowchart TD
   not hold up the ones going straight.
 - **A full link that never empties** releases one car after `DEADLOCK_TICKS = 4` anyway, over its
   storage. That is counted (`forced_releases` in the log).
+- **Onto a ring,** a roundabout or a square like Ernst-Reuter-Platz, a car from outside drives only
+  when no car on the ring is through and bound for the same link: the ring has right of way
+  (`_ring_goes_first`). That is waiting, not being stuck, and does not count towards
+  `DEADLOCK_TICKS`.
 - **Speed is an output.** A link's speed is its length over the time cars actually took
   (`EdgeState.mean_speed_kmh`). That speed sets the car's CO2 and cost on it, and the next round
   routes on it.

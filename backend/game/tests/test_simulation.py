@@ -5736,3 +5736,37 @@ class TramAdapterTests(PTBoardingScenarioMixin, TestCase):
 
         self.assertEqual(simulator.pt_lines[("train", tram.pk)].vehicle, "tram")
         self.assertEqual(simulator.pt_lines[("train", train.pk)].vehicle, "train")
+
+
+class RingAdapterTests(PTBoardingScenarioMixin, TestCase):
+    """A street OSM tags as a ring is a ring in the round.
+
+    `junction` is "roundabout" (sign 215) or "circular" (a ring square,
+    Ernst-Reuter-Platz): on both the ring has right of way. A street with no
+    tag is no ring, and neither is anything drawn by hand without one.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="ring", password="12345")
+        self.game_map, self.version, self.nodes = _grid_map("Ring map", 4)
+
+    def _simulator(self, junctions):
+        edges = []
+        for (start, end), junction in zip(
+            zip(self.nodes, self.nodes[1:]), junctions, strict=True
+        ):
+            edge = _street(self.game_map, self.version, start, end)
+            StreetEdge.objects.filter(edge=edge).update(junction=junction)
+            edges.append(edge)
+        session = self._pt_session(self.game_map, self.version, people=10)
+        game_round = self._round(session)
+        _route(game_round, self._player(session), edges, mode="car")
+        return TrafficSimulator(game_round, scale=100.0, seed=7), edges
+
+    def test_a_roundabout_and_a_ring_square_are_rings_and_a_street_is_not(self):
+        simulator, edges = self._simulator(["roundabout", "circular", ""])
+
+        self.assertEqual(
+            [simulator.edge_states[edge.pk].ring for edge in edges],
+            [True, True, False],
+        )

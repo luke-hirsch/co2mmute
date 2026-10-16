@@ -702,12 +702,22 @@ class LinkQueueEngine:
                 is_street=is_street,
                 has_bike_lane=has_bike_lane,
                 capacity_factor=draw_capacity_factor(self.rng),
+                ring=link.ring and is_street,
             )
 
             if link.label:
                 edge_names[link.edge_id] = link.label
 
         self.sim_log.set_edge_names(edge_names)
+        # Each ring link learns the ring links that lead into it, the ones
+        # whose cars a car driving in has to let go first.
+        ring_into: dict[int, list[EdgeState]] = {}
+        for state in self.edge_states.values():
+            if state.ring:
+                ring_into.setdefault(state.end_node_id, []).append(state)
+        for state in self.edge_states.values():
+            if state.ring:
+                state.ring_feeders = ring_into.get(state.start_node_id, [])
         logger.info(f"[SIM] Initialized {len(self.edge_states)} edge states")
 
     def _generate_departures(self, is_morning: bool = True):
@@ -1181,6 +1191,19 @@ class LinkQueueEngine:
             seen.add(turn)
 
             blocked = next_state is not None and not next_state.has_room_for(head.pcu)
+            if (
+                not blocked
+                and next_state is not None
+                and next_state.ring
+                and not edge_state.ring
+                and self._ring_goes_first(next_state, tick_end)
+            ):
+                # Driving into a ring: its own traffic goes first. That is
+                # giving way, not being stuck, so the deadlock escape never
+                # counts it — the ring is moving.
+                if not multi_lane:
+                    break
+                continue
             if not blocked:
                 if head.pcu > edge_state.release_budget:
                     return None
@@ -1198,6 +1221,32 @@ class LinkQueueEngine:
                 return None
             return first_blocked, True
         return None
+
+    def _ring_goes_first(self, ring_state: "EdgeState", tick_end: float) -> bool:
+        """Whether a ring link leading into `ring_state` has a car through and
+        bound for it, with the budget to send it this tick.
+
+        Read the way `_pick_head` reads a queue: on one lane only its head
+        can go, on several the first car bound for each next street.
+        """
+        for feeder in ring_state.ring_feeders:
+            multi_lane = feeder.car_lanes > 1
+            for queued in feeder.queue:
+                if queued.ready_at_min > tick_end:
+                    if not multi_lane:
+                        break
+                    continue
+                vehicle = self.vehicles[queued.vehicle_id]
+                bound = self._state_for_segment(
+                    vehicle.route_pk, vehicle.segment_index + 1
+                )
+                if bound is ring_state:
+                    if queued.pcu <= feeder.release_budget:
+                        return True
+                    break
+                if not multi_lane:
+                    break
+        return False
 
     def _discharge(
         self, edge_state: "EdgeState", now: float, tick_end: float, released: set[int]

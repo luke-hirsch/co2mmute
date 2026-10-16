@@ -61,6 +61,10 @@ have to agree about them:
   a street with rails beside or under it, the U2 under Bismarckstraße.
 * **A train line says its ``kind``**, ``"train"`` or ``"tram"``, written out
   on every line. A file without it is an older one, and its lines are trains.
+* **A street on a ring says so**, ``junction``: ``"roundabout"`` (sign 215)
+  or ``"circular"``, a ring square like Ernst-Reuter-Platz, as OpenStreetMap
+  tags it. On both the ring has right of way. Written on a ring's edges only;
+  an edge without it is no ring.
 * **An edge says how much longer its road is than the straight line**,
   ``circuity``, 1.0 for the line as drawn and written out on every edge. A
   file without it is an older one, and its edges are straight.
@@ -85,6 +89,9 @@ EDGE_TYPES = ("street", "train", "both", "path", "tram")
 
 # Where a tram street's rails lie (`StreetEdge.tram_track`, less its "none").
 TRAM_TRACKS = ("lane", "own")
+
+# What OpenStreetMap calls a ring (`StreetEdge.junction`, less its "none").
+JUNCTIONS = ("roundabout", "circular")
 
 
 def edge_type_error(where, edge_type):
@@ -189,6 +196,8 @@ def build_export(game_map, version=None):
             entry["dedicated_bus_lane"] = street.dedicated_bus_lane
         if edge_type == "tram":
             entry["tram_track"] = street.tram_track
+        if street and street.junction:
+            entry["junction"] = street.junction
         if whole:
             own = _indices(edge.map_versions.all(), index_of)
             entry["versions"] = own

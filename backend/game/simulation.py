@@ -427,6 +427,9 @@ class TrafficSimulator(LinkQueueEngine):
                     ),
                     has_bike_lane=edge.bike_lane,
                     tram_track=street_edge.tram_track if street_edge else "",
+                    # A roundabout and a ring square alike: the ring has right
+                    # of way on both (`StreetEdge.junction`).
+                    ring=bool(street_edge and street_edge.junction),
                     name=edge.name or "",
                     label=f"{start_name} → {end_name}",
                 )

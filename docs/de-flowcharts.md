@@ -351,6 +351,10 @@ flowchart TD
   das links abbiegt, hält also die nicht auf, die geradeaus fahren.
 - **Eine volle Kante, die nie leer wird,** lässt nach `DEADLOCK_TICKS = 4` trotzdem ein Auto weiter,
   über ihren Speicher hinaus. Das wird gezählt (`forced_releases` im Log).
+- **Auf einen Ring,** einen Kreisverkehr oder einen Platz wie den Ernst-Reuter-Platz, fährt ein Auto
+  von außen erst, wenn auf dem Ring keins durch ist, das auf dieselbe Kante will: Der Ring hat
+  Vorfahrt (`_ring_goes_first`). Das ist Warten, kein Feststecken, und zählt nicht für
+  `DEADLOCK_TICKS`.
 - **Geschwindigkeit ist ein Ergebnis.** Die Geschwindigkeit einer Kante ist ihre Länge durch die
   Zeit, die Autos wirklich gebraucht haben (`EdgeState.mean_speed_kmh`). Sie bestimmt CO2 und Kosten
   eines Autos auf dieser Kante, und die nächste Runde routet darauf.
