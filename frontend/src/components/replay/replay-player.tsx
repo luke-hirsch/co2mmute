@@ -190,7 +190,7 @@ function Stage({
             {de.replay.again}
           </Button>
           {handed ? null : (
-            <Button variant="ghost" size="sm" onClick={hand}>
+            <Button variant="ghost" size="sm" onClick={clock.skip}>
               {de.replay.skip}
             </Button>
           )}
