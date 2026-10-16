@@ -120,14 +120,14 @@ The lobby is built to be shown on a projector.
 
 Every player sees their groups, each with a home ("zu Hause") and a destination ("Ziel"), and the map. For every group they pick one of four ways to get there:
 
-- car ("Auto"): "schnellste" (fastest), "kürzeste" (shortest) or "sparsamste" (least CO2). Fastest and least CO2 know the jams of the last round
+- car ("Auto"): "schnellste" (fastest), "kürzeste" (shortest) or "sparsamste" (least CO2). Fastest and least CO2 know the jams of the rounds so far, averaged
 - public transport ("Bus & Bahn"): "schnellste", "wenig umsteigen" (few changes) or "ohne Bus" (no bus)
 - bike ("Fahrrad"): up to 15 km
 - walking ("zu Fuß"): up to 5 km. That is about an hour either way. Anything beyond that is lunacy
 
 The way home is found automatically, with the same means of transportation. If a group gets to work but not back home, the player has to pick something else.
 
-On the map, the thicker and more amber a street is, the slower it was in the last round. Once every group has a route, "Losfahren" sends it off.
+On the map, the thicker and more amber a street is, the slower it was on average over the rounds so far. Once every group has a route, "Losfahren" sends it off.
 
 There is no timer. The round runs once everybody has sent their choice, so the slowest player decides how long a round takes. If somebody has left for good, remove their seat and the round goes on without them.
 
@@ -159,7 +159,7 @@ The majority wins and is on the map from the next round on. A tie gets a second 
 
 #### Do It Again
 
-The next round starts on the map you voted for. Same groups, same homes, new choices — and the jams of the last round are now in the router.
+The next round starts on the map you voted for. Same groups, same homes, new choices — and the jams of the rounds so far, averaged, are now in the router.
 
 #### Pause
 

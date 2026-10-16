@@ -1,6 +1,7 @@
 import logging
 
-from game.models import GameRound, SimulationResult
+from django.db.models import Avg
+from game.models import SimulationResult
 from rest_framework import serializers
 
 import maps.models as mm
@@ -667,7 +668,7 @@ def serialize_train_line_for_graph(train_line, version):
 # --- Traffic from the previous round ---
 
 
-def _congestion_level(speed_under_load: int, speed_limit: int) -> str:
+def _congestion_level(speed_under_load: float, speed_limit: int) -> str:
     """The three buckets the frontend's EdgeTrafficData already names."""
     if not speed_limit:
         return "low"
@@ -680,13 +681,25 @@ def _congestion_level(speed_under_load: int, speed_limit: int) -> str:
 
 
 def serialize_previous_round_traffic(game_id):
-    """Observed car speeds from a game's last completed round, per edge.
+    """Observed car speeds of a game's completed rounds so far, per edge.
+
+    The mean over every completed round, an edge counting only the rounds that
+    reported it (a street nobody drove is not a street that ran at zero).
+    Routing on the last round alone made the class swing: every Gruppe
+    left the streets that were jammed and piled onto the ones that were free,
+    so the next round jammed those. On Berlin Mitte-West the mean car speed
+    went up and down by 8 to 10 km/h from round to round, and on a built map
+    it fell from 26 to 1 km/h in round 2. The running mean (the method of
+    successive averages) settles the shipped map from round 4.
+
+    The name stays: the frontend reads `previous_round_traffic`, and the
+    router and the overlay on the map read this one list.
 
     StreetPerRound.speed_under_load has been written since the beginning and
     read by nobody; on the other side PathfindingOptions.trafficData has been
     threaded through the frontend with nothing ever supplying a value. This
     is the join between the two halves — the loop the README describes as
-    routing "unter der Auslastung der letzten Runde".
+    routing "unter der Auslastung der Runden bisher".
 
     Empty for an unknown game, a game with no completed round, or no game at
     all: the graph endpoint serves the same payload with or without one.
@@ -694,29 +707,25 @@ def serialize_previous_round_traffic(game_id):
     if not game_id:
         return []
 
-    last_round = (
-        GameRound.objects.filter(
-            game__game_id=game_id,
-            simulation__status=SimulationResult.Status.COMPLETED,
+    speeds = (
+        mm.StreetPerRound.objects.filter(
+            game_round__game__game_id=game_id,
+            game_round__simulation__status=SimulationResult.Status.COMPLETED,
+            speed_under_load__gt=0,
         )
-        .order_by("-round_number")
-        .first()
+        .values("edge__edge_id", "edge__speed_limit")
+        .annotate(mean_speed=Avg("speed_under_load"))
+        .order_by("edge__edge_id")
     )
-    if not last_round:
-        return []
-
     return [
         {
-            "edgeId": street_round.edge.edge_id,  # type: ignore
-            "avgSpeedKmh": street_round.speed_under_load,
+            "edgeId": row["edge__edge_id"],
+            "avgSpeedKmh": row["mean_speed"],
             "congestionLevel": _congestion_level(
-                street_round.speed_under_load, street_round.edge.speed_limit
+                row["mean_speed"], row["edge__speed_limit"]
             ),
         }
-        for street_round in mm.StreetPerRound.objects.filter(
-            game_round=last_round
-        ).select_related("edge")
-        if street_round.speed_under_load
+        for row in speeds
     ]
 
 

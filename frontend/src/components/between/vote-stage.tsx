@@ -16,7 +16,7 @@ import type { MapLayout } from "@/lib/game/map-layout";
 /**
  * The map the class is deciding about — on its own.
  *
- * The live network with last round's traffic on it, or, when an option's
+ * The live network with the traffic of the rounds so far on it, or, when an option's
  * toggle is on, the same map with what that option changes drawn over it: the
  * option's graph against the one the game is on (`lib/map/version-diff.ts`),
  * streets in the primary, Bus & Bahn in the accent, what goes hollow. It used to

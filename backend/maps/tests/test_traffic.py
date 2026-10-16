@@ -1,4 +1,4 @@
-"""Last round's observed speeds, on their way to the route preview.
+"""The rounds so far, observed speeds, on their way to the route preview.
 
 `StreetPerRound.speed_under_load` has been written since the beginning and read
 by nobody; on the other side `PathfindingOptions.trafficData` was threaded all
@@ -96,7 +96,7 @@ class PreviousRoundTrafficTests(TestCase):
 
         self.assertEqual(row["edgeId"], self.edge.pk)
 
-    def test_it_serves_the_last_completed_round(self):
+    def test_it_serves_the_mean_of_the_completed_rounds(self):
         first = self._round(1)
         second = self._round(2)
         StreetPerRound.objects.create(
@@ -108,7 +108,31 @@ class PreviousRoundTrafficTests(TestCase):
 
         (row,) = serialize_previous_round_traffic(self.game.game_id)
 
-        self.assertEqual(row["avgSpeedKmh"], 40)
+        self.assertEqual(row["avgSpeedKmh"], 25)
+        self.assertEqual(row["congestionLevel"], "medium")
+
+    def test_an_edge_counts_only_the_rounds_that_reported_it(self):
+        """A street nobody drove in a round is not a street that ran at zero."""
+        other = Edge.objects.create(
+            game_map=self.game_map, name="other", start_node=self.b, end_node=self.a
+        )
+        other_street = StreetEdge.objects.create(edge=other, speed_limit=50, lanes=1)
+        first = self._round(1)
+        second = self._round(2)
+        for game_round in (first, second):
+            StreetPerRound.objects.create(
+                edge=self.street, game_round=game_round, speed_under_load=20
+            )
+        StreetPerRound.objects.create(
+            edge=other_street, game_round=second, speed_under_load=45
+        )
+
+        speeds = {
+            row["edgeId"]: row["avgSpeedKmh"]
+            for row in serialize_previous_round_traffic(self.game.game_id)
+        }
+
+        self.assertEqual(speeds, {self.edge.pk: 20, other.pk: 45})
 
     def test_a_round_still_running_is_not_the_one_reported(self):
         done = self._round(1)

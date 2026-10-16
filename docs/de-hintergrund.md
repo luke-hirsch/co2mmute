@@ -125,6 +125,11 @@ es nicht.
 Die Geschwindigkeit auf der Karte, der CO₂-Faktor einer Fahrt und die Routenvorschau, die ein
 Spieler in der nächsten Runde bekommt, beruhen also alle auf derselben gemessenen Zahl.
 
+Die nächste Runde routet auf dem Mittel aller Runden bisher, nicht auf der letzten allein. Routeten
+alle auf der letzten, wichen alle zugleich auf deren freie Straßen aus und stauten dort: Auf Berlin
+Mitte-West schwang das Tempo von Runde zu Runde um 8 bis 10 km/h, auf einer gebauten Karte fiel es in
+Runde 2 von 26 auf 1 km/h. Mit dem Mittel kommen alle nach drei Runden zur Ruhe.
+
 ### Wer trägt alles zum Stau bei?
 
 - **Autos** immer.

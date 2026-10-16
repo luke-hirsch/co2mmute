@@ -84,7 +84,8 @@ export function RoundScreen({
     return byId;
   }, [draft.graph]);
 
-  // Where it stopped last round, from the same speeds "schnellste" routes on.
+  // Where it stopped on average over the rounds so far, from the same speeds
+  // "schnellste" routes on.
   // Empty in round one, which is correct: nothing has been driven yet.
   const jam = useMemo(
     () =>
