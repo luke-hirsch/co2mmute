@@ -55,6 +55,17 @@ class WholeBuildTests(SimpleTestCase):
             [c["text"] for c in data["map"]["credits"]],
         )
 
+    def test_the_report_carries_the_numbers_and_a_version_to_suggest(self):
+        lines = [line for _, ls in self.report for line in ls]
+
+        self.assertIn(
+            "Pendler 6800 (ein Platzhalter bis zur Kalibrierung), Haltestellen 48, Bahnhöfe 2",
+            lines,
+        )
+        heads_up = dict(self.report)["Achtung"]
+        self.assertTrue(heads_up)
+        self.assertTrue(all("Vorschlag: eine Version" in h for h in heads_up))
+
     def test_what_it_holds(self):
         types = [n["types"] for n in self.data["nodes"]]
         self.assertEqual(
