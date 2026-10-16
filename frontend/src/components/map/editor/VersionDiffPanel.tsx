@@ -23,6 +23,7 @@ import type {
   VirtualNode,
   VirtualEdge,
 } from "../../../types/editorTypes";
+import { nameNewRows } from "@/lib/map/names";
 import { useCreateVersionFromDiff } from "@/lib/queries/map-editor";
 import EdgePropertyPanel from "./EdgePropertyPanel";
 
@@ -52,6 +53,7 @@ import EdgePropertyPanel from "./EdgePropertyPanel";
 
 interface VersionDiffPanelProps {
   mapId: string;
+  mapName: string;
   mapGraph: ExtendedMapGraph | undefined;
   versions: MapVersion[] | undefined;
   selectedVersionId: number | undefined;
@@ -83,6 +85,7 @@ interface VersionDiffPanelProps {
 
 const VersionDiffPanel = ({
   mapId,
+  mapName,
   mapGraph,
   versions,
   selectedVersionId,
@@ -408,6 +411,14 @@ const VersionDiffPanel = ({
     )
       return;
 
+    const names = nameNewRows(
+      mapName,
+      (mapGraph?.nodes ?? []).map((n) => n.name),
+      (mapGraph?.edges ?? []).map((e) => e.name),
+      newNodes.map((n) => n.tempId),
+      newEdges.map((e) => e.tempId),
+    );
+
     createMutation.mutate(
       {
         source_version_id: sourceVersionId,
@@ -419,10 +430,12 @@ const VersionDiffPanel = ({
         pt_line_changes: ptLineChanges,
         new_nodes: newNodes.map((n) => ({
           temp_id: n.tempId,
+          name: names.nodes[n.tempId],
           x_position: n.x_position,
           y_position: n.y_position,
         })),
         new_edges: newEdges.map((e) => ({
+          name: names.edges[e.tempId],
           temp_start_node: e.start_node,
           temp_end_node: e.end_node,
           bidirectional: e.bidirectional,

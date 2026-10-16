@@ -92,8 +92,9 @@ export interface VersionDiffPayload {
   is_base_version?: boolean;
   edge_changes: EdgeChange[];
   pt_line_changes: PTLineChange[];
-  new_nodes?: Array<{ temp_id: string; x_position: number; y_position: number }>;
+  new_nodes?: Array<{ temp_id: string; name?: string; x_position: number; y_position: number }>;
   new_edges?: Array<{
+    name?: string;
     temp_start_node: string | number;
     temp_end_node: string | number;
     bidirectional: boolean;

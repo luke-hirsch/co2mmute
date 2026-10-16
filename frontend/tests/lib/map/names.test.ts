@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { de } from "@/lib/de";
-import { defaultName, isPlaceholderName } from "@/lib/map/names";
+import { defaultName, isPlaceholderName, nameNewRows } from "@/lib/map/names";
 
 /**
  * What the editor calls what it draws, and which names it won't save.
@@ -60,5 +60,33 @@ describe("isPlaceholderName", () => {
     for (const name of ["Ernst-Reuter-Platz", "Kantstraße", "Knoten Nord", "U2"]) {
       expect(isPlaceholderName(name), name).toBe(false);
     }
+  });
+});
+
+describe("nameNewRows", () => {
+  it("gives the rows drawn into a version the click's names, one past the highest", () => {
+    const named = nameNewRows(
+      "Callenberg",
+      ["Callenberg Knoten 2", "Markt"],
+      ["Callenberg Kante 4"],
+      ["a", "b"],
+      ["x", "y"],
+    );
+
+    expect(named.nodes).toEqual({
+      a: "Callenberg Knoten 3",
+      b: "Callenberg Knoten 4",
+    });
+    expect(named.edges).toEqual({
+      x: "Callenberg Kante 5",
+      y: "Callenberg Kante 6",
+    });
+  });
+
+  it("starts a map with none of its own at 1", () => {
+    expect(nameNewRows("Bremen", [null], [], ["a"], ["x"])).toEqual({
+      nodes: { a: "Bremen Knoten 1" },
+      edges: { x: "Bremen Kante 1" },
+    });
   });
 });
