@@ -302,6 +302,8 @@ lists the stages in the order they run, each module's docstring its rules.
   something stored, the dial, a CI job, a doc page — and how to check each.
 - `map-versions`: changes said in words as versions of a map, with their questions, the ballot
   and its combinations, checked and measured.
+- `map-modify`: what is off on a built map, fixed in its base version after talking it through —
+  commuter towns, the count, a footpath, a moved stop, a street.
 
 ## repo conventions
 
