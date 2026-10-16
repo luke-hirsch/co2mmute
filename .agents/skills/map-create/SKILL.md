@@ -151,8 +151,8 @@ hour), then plays real rounds at 100, 75, 50, 25 and 0 % car, six seeds each, in
 database. A village takes a minute, a city of half a million about a quarter of an hour, all of
 Berlin about forty minutes, the six seeds side by side. Run it in the background with its output
 in a log, and read the log when it ends. **One at a time**: each run's database is the app's name
-plus `_calibrate`, and a second run drops the first one's. Never SQLite for a file: its numbers
-are about 1.5 % off (the report says `Gemessen auf SQLite`).
+plus `_calibrate`, and a second run drops the first one's. Run it on Postgres, like the server: only there do the
+rounds of a step play side by side (SQLite gives the same numbers, one round at a time).
 
 Read its report:
 

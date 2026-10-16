@@ -16,9 +16,9 @@ bill — the rounds run the whole timetable, and the share is taken after.
 
 The file is imported into a throwaway database, never the one the app runs
 on: a test database of its own, in memory under sqlite. Measure on Postgres
-(`DJANGO_DB=postgres`) for numbers that go into a file: the simulation reads
-its links in name order, which every database sorts its own way, so a round
-with riders comes out about 1.5 % apart on sqlite and on the box. Its graph goes through the
+(`DJANGO_DB=postgres`), like the server: the rounds of a step play side by side
+only there. The simulation reads its rows in pk order, so a round comes out the
+same on sqlite and Postgres. Its graph goes through the
 game's own router (`frontend/scripts/routes.mjs`, so Node and `npm ci` in
 frontend/ are needed) and its rounds through the simulation, every one rolled
 back. Only the pairs the seeds deal are routed, in the car and by public
@@ -439,14 +439,6 @@ class Command(BaseCommand):
             )
 
         notes = []
-        if connection.vendor == "sqlite":
-            notes.append(
-                "Gemessen auf SQLite. Die Simulation liest ihre Strecken in der "
-                "Reihenfolge ihrer Namen, und die sortiert jede Datenbank anders: "
-                "Runden mit Bus und Bahn liegen hier um gut 1 % neben Postgres, "
-                "auf dem gespielt wird. Für die Zahlen, die in die Datei gehen: "
-                "DJANGO_DB=postgres."
-            )
         switched = max(r.switched for rows in result.rows.values() for r in rows)
         if switched:
             notes.append(

@@ -5782,3 +5782,111 @@ class RingAdapterTests(PTBoardingScenarioMixin, TestCase):
             [simulator.edge_states[edge.pk].ring for edge in edges],
             [True, True, False],
         )
+
+
+class ReadOrderTests(TestCase):
+    """The engine draws in the order it is handed its rows, so the order is the
+    rows', never their names': names collate one way on sqlite and another on
+    Postgres, and a round with riders came out ~1.5 % apart."""
+
+    def setUp(self):
+        user = User.objects.create_user(username="reader", password="12345")
+        self.game_map = GameMap.objects.create(
+            name="Order Map", x_dim=10, y_dim=10, scale=100.0
+        )
+        self.version = MapVersion.objects.create(
+            game_map=self.game_map, name="Base", base_version=True
+        )
+        self.nodes = []
+        for x in range(4):
+            node = Node.objects.create(
+                game_map=self.game_map, x_position=x, y_position=0
+            )
+            node.map_versions.add(self.version)
+            self.nodes.append(node)
+        # Created in pk order, named in the opposite one.
+        self.edges = []
+        for index, name in enumerate(["Cstr.", "Bstr.", "Astr."]):
+            edge = Edge.objects.create(
+                game_map=self.game_map,
+                name=name,
+                start_node=self.nodes[index],
+                end_node=self.nodes[index + 1],
+            )
+            edge.map_versions.add(self.version)
+            street = StreetEdge.objects.create(edge=edge, speed_limit=50, lanes=1)
+            street.map_versions.add(self.version)
+            self.edges.append(edge)
+
+        self.game_session = GameSession.objects.create(
+            game_host=user,
+            game_name="Order Game",
+            game_map=self.game_map,
+            max_players=4,
+            agent_per_player=1,
+            max_rounds=3,
+            max_CO2_level=1000,
+        )
+        self.game_round = GameRound.objects.create(
+            game=self.game_session, round_number=1
+        )
+
+    def test_links_come_in_pk_order_not_name_order(self):
+        simulator = TrafficSimulator.__new__(TrafficSimulator)
+
+        links = simulator._read_links({edge.pk for edge in self.edges}, 100.0)
+
+        self.assertEqual(
+            [link.edge_id for link in links], [edge.pk for edge in self.edges]
+        )
+
+    def test_lines_come_in_pk_order_not_name_order(self):
+        for name in ["Z-Linie", "M-Linie", "A-Linie"]:
+            BusLine.objects.create(game_map=self.game_map, name=name)
+        for name in ["Y-Bahn", "B-Bahn"]:
+            TrainLine.objects.create(game_map=self.game_map, name=name)
+        for line in [*BusLine.objects.all(), *TrainLine.objects.all()]:
+            line.map_versions.add(self.version)
+        simulator = TrafficSimulator.__new__(TrafficSimulator)
+        self.game_round.game.active_map_version = self.version
+        simulator.game_round = self.game_round
+
+        lines = simulator._read_lines({}, {})
+
+        buses = [line.line_id for line in lines if line.mode == "bus"]
+        trains = [line.line_id for line in lines if line.mode == "train"]
+        self.assertEqual(buses, sorted(buses))
+        self.assertEqual(trains, sorted(trains))
+
+    def test_routes_come_in_move_pk_order_whatever_the_move_times(self):
+        from datetime import timedelta
+
+        moves = []
+        for number in range(3):
+            player = Player.objects.create(name=f"P{number}", game=self.game_session)
+            move = PlayerMove.objects.create(
+                session_round=self.game_round, player=player, action="route_submit"
+            )
+            AgentRoute.objects.create(
+                player_move=move,
+                agent_id=1,
+                transport_mode="car",
+                total_distance_m=100,
+                estimated_time_min=5,
+            )
+            moves.append(move)
+        # The first move to be written is the last one by the clock.
+        for number, move in enumerate(moves):
+            PlayerMove.objects.filter(pk=move.pk).update(
+                moved_at=move.moved_at - timedelta(minutes=number)
+            )
+        simulator = TrafficSimulator.__new__(TrafficSimulator)
+        simulator.game_round = self.game_round
+        simulator.route_rows = {}
+
+        routes = simulator._read_routes("out")
+
+        self.assertEqual(
+            [route.pk for route in routes],
+            sorted(route.pk for route in routes),
+        )
