@@ -13,6 +13,7 @@ class NoTransportTests(SimpleTestCase):
 
         line = report.no_transport(places, [(300, 0)], REACH, has_feed=True)
 
+        self.assertIsNotNone(line)
         self.assertIn("1 Orte ohne Halt", line)
         self.assertIn("Fern 4700 m", line)
         self.assertNotIn("Nah", line)
@@ -65,6 +66,7 @@ class FarOnFootTests(SimpleTestCase):
 
         line = report.far_on_foot(nodes, edges, {"stop"}, [("Zuhause", "home")], REACH)
 
+        self.assertIsNotNone(line)
         self.assertIn("1 Orte", line)
         self.assertIn("Zuhause", line)
         self.assertIn("Vorschlag: eine Version", line)
@@ -132,6 +134,11 @@ class OneBusTests(SimpleTestCase):
         self.assertIn("80 für 2 von 3 (ohne Fahrt 8–10)", line)
         self.assertNotIn("22", line)  # C has the 22 and the tram
         self.assertIn("Vorschlag: eine Version", line)
+
+    def test_a_workplace_whose_only_line_is_a_tram_is_not_this_lines_business(self):
+        self.assertIsNone(
+            report.one_bus([("T", (0, 0))], {("tram", "1"): [(0, 0)]}, {}, REACH)
+        )
 
     def test_a_workplace_served_by_a_tram_is_fine(self):
         self.assertIsNone(report.one_bus([("C", (5000, 0))], self.stops, {}, REACH))
