@@ -605,12 +605,12 @@ class ShippedMapImportsTests(ShippedUploadMixin, TestCase):
         self.assertTrue(game_map.calibrated)
 
     def test_the_shipped_map_pays_its_measured_share_of_the_timetable(self):
-        """`calibrate_map --commuters 6800` on Postgres, six seeds, 2026-10-15:
+        """`calibrate_map --commuters 6800` on Postgres, six seeds, 2026-10-16:
         at 50 % car its riders, in buses as full as Germany's, emit 2 725 kg
-        where the base timetable emits 5 729 (docs/kalibrierung.md §16)."""
+        where the base timetable emits 12 606 (docs/kalibrierung.md §18)."""
         game_map = self.upload_shipped_map()
 
-        self.assertEqual(game_map.timetable_factor, 0.48)
+        self.assertEqual(game_map.timetable_factor, 0.22)
 
     def test_the_shipped_map_carries_its_table_of_kg_per_car_share(self):
         game_map = self.upload_shipped_map()

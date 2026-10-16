@@ -199,18 +199,21 @@ the class paid for seats the city fills: a person-km by bus and train came to
 144 g on the shipped map where the Umweltbundesamt counts 42 to 90. Now it
 pays what its riders would emit in buses as full as Germany's, as a share of
 the base timetable — `timetable_factor` below, measured on the round where
-half drive and written on the map. On the shipped map 0.48:
+half drive and written on the map. On the shipped map 0.22 since the train
+got its sourced 3630 g per train-km (0.48 before, at 1500 g; the class's bill
+moved by a hundredth of a kilo, which is what the share is for), measured
+2026-10-16 with cars pulling out giving way and the evening spread wider:
 
     car share   kg per person
-         100 %    3.62
-          75 %    2.65
-          50 %    1.86
-          25 %    1.28
-           0 %    0.73
+         100 %    3.53
+          75 %    2.63
+          50 %    1.87
+          25 %    1.27
+           0 %    0.72
 
 Normal stayed 2.4 and got a source (the constant's comment); it holds at
-67 % car, and the class going 100/75/50/50/25/25 % spends 12.54 kg against
-14.4. docs/kalibrierung.md §16.
+67 % car, and the class going 100/75/50/50/25/25 % spends 12.44 kg against
+14.4. docs/kalibrierung.md §16 and §18.
 
 Re-deriving these after a model change means replaying rounds on the map in
 question (`calibrate_map`), not adjusting them until a play-test feels right.
@@ -239,8 +242,8 @@ DEFAULT_MAX_ROUNDS = 6
 # the figure stayed and got a source. A national mean, long commutes
 # included, so a city is easier than the mean by itself. The step is 0.2
 # because on Berlin 0.5 kg is about a sixth of the class switching mode. The
-# range runs below a round nobody drives on Berlin (0.73) and above one
-# everybody does (3.62), so a host can make a game unwinnable or free.
+# range runs below a round nobody drives on Berlin (0.72) and above one
+# everybody does (3.53), so a host can make a game unwinnable or free.
 # `frontend/src/lib/calibration.ts` mirrors all four.
 CO2_KG_PER_PERSON_NORMAL = Decimal("2.4")
 CO2_KG_PER_PERSON_STEP = Decimal("0.2")
