@@ -245,7 +245,7 @@ It follows that:
   car moves today or not. So cost caps at 1.50× and CO₂ at 2.00×.
 
 Public transport has a fixed value per vehicle-kilometre: 1200 g for a bus, 1400 g for a tram,
-1500 g for a train.
+3630 g for a train.
 There is no speed curve here, because the vehicles run to a timetable rather than to traffic.
 
 Beside the cost there is the **fare**: 1.30 € per trip, transfers included, and for the car the part
@@ -506,14 +506,27 @@ vehicle-kilometre and has to be checkable:
 | mode  | factor          | where it comes from                                              |
 | ----- | --------------- | ---------------------------------------------------------------- |
 | car   | 166.8 g/km      | fleet average, one person per vehicle                            |
-| bus   | 1200 g/bus-km   | a 12 m city bus at ~45 l/100 km diesel × 2.64 kg CO₂ per litre   |
+| bus   | 1200 g/bus-km   | a city bus at ~45 l/100 km diesel × 2.64 kg CO₂ per litre; 55 % of BVG's buses are articulated or 15 m |
 | tram  | 1400 g/tram-km  | 3.9 kWh/tram-km for a 240-place low-floor tram (Deiters 2009) × 363 g CO₂/kWh |
-| train | 1500 g/train-km | ~4 kWh/train-km including auxiliaries × 363 g CO₂/kWh (UBA 2024) |
+| train | 3630 g/train-km | 10 kWh/train-km × 363 g CO₂/kWh (UBA 2024)                       |
 
-Check a factor through consumption: energy per vehicle-kilometre times CO₂ per unit of energy. That
-is how the train factor was caught, which at first stood at 3500 g/train-km. That implies about
-9.6 kWh per train-kilometre, a diesel mainline train. A Berlin U- or S-Bahn needs about 4 kWh,
-which the German grid mix turns into 1450 g, rounded to 1500.
+Check a factor through consumption: energy per vehicle-kilometre times CO₂ per unit of energy. The
+train factor was worked out three times. It first stood at 3500 g, about 9.6 kWh per train-kilometre.
+We took that for a diesel mainline train and set 1500 g, because a Berlin U- or S-Bahn "needs about
+4 kWh". Those 4 kWh had no source, and they are about one unit, as much as a 40 m tram. A whole train
+needs more: a regional set of a motor coach and four coaches 9.04 kWh/km (Standardisierte Bewertung
+2016+, sheet 7-4), the Berlin S-Bahn about 14 kWh (390 GWh a year over 27.9 M train-km, 2024), the BVG
+at most 10.9 (454.6 GWh of electricity in 2025 over 20.3 + 21.5 M train-km; that electricity also
+feeds e-buses, stations and depots). We use 10 kWh, which the German grid mix turns into 3630 g.
+
+Costs per vehicle-kilometre are in `backend/sim/constants.py` too: bus 3.94 €, tram 6.25 €, train
+13.40 €. Bus and tram are Deiters' 2009 values (bus 2.82 €, tram 4.47 €) brought to 2025 with the
+consumer price index: 2009 is 92.2 (2015 base), 2025 is 121.9 (2020 base), and 2020 is 105.8 (2015
+base), which makes 1.399. The index covers all prices, not transport wages and energy. It is a bridge
+over sixteen years, not a measured number. A train costs nearly 20 € of production cost per
+train-kilometre (Ramboll 2023), a third of it track charges. Without them 13.40 € remain. The car
+carries no infrastructure in this game, so the train does not either. The Berlin S-Bahn's subsidy alone
+is at least 17 € (Senate, 2024); 13.40 € is the low side.
 
 A wrong public transport factor weighed heavily, because the timetable runs without passengers too.
 At 3500 g the timetable was 39 % of a round in which everybody drives; at 1500 g it was 22 %, and
