@@ -7,6 +7,8 @@
   work land) at the road or within a margin of it; the margin is the one that errs alike on the
   area's own signed 50 and 100 roads (`fit_builtup`), so it needs no number per city.
 - lanes: the tags, else 2 a direction on motorways and trunks, 1 elsewhere.
+- rings: a way OSM tags `junction=roundabout` or `circular` is one-way and keeps that word, the
+  ring's right of way in the game.
 """
 
 import math
@@ -177,6 +179,7 @@ def load(area, class_set):
                     base=base,
                     link=h in LINKS,
                     ring=ring,
+                    junction=t.get("junction") if ring else "",
                     oneway=oneway,
                     lanes=(lf, lb),
                     tags=t,

@@ -1009,6 +1009,7 @@ class VersionDiffCreateView(GenericAPIView):
                         "dedicated_bus_lane", original_se.dedicated_bus_lane
                     ),
                     tram_track=change.get("tram_track", original_se.tram_track),
+                    junction=original_se.junction,
                 )
                 cloned_se.map_versions.add(new_version)
 

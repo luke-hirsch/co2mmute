@@ -45,6 +45,7 @@ STREET_COPY = (
     "speed_limit",
     "lanes",
     "dedicated_bus_lane",
+    "junction",
 )
 
 

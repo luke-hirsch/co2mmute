@@ -118,6 +118,12 @@ an adapter method must never take an engine method's name.
   Rails beside or under a street run free (the U2 under Bismarckstraße); rails in the car lane queue
   with the cars and hold them up (the M1 on Friedrichstraße north); a tram's own track takes a lane.
   The engine asks the link, not the line, whether something on rails queues.
+- **On a ring the ring has right of way** (`StreetEdge.junction`: OSM's `roundabout` or
+  `circular`, the ring square of Ernst-Reuter-Platz). A car about to drive onto a ring link from
+  outside the ring waits while a ring link leading into it has a car through and bound there
+  (`_ring_goes_first`). That is giving way, not being stuck: the deadlock escape never counts it.
+  On a square with signals the right of way stands in for them, as the jam stands in for traffic
+  lights. The builder writes `junction`; a ring drawn by hand has none until the admin sets it.
 - **Nobody is stranded.** A pass runs until everyone has arrived, and every line keeps running while
   anybody is out. A non-arrival is a defect, never a third metric.
 - **Society pays for the timetable**: a line emits and costs per vehicle-km whether anyone rides or

@@ -91,6 +91,16 @@ Ein Knoten, der vier Ticks hintereinander nichts bewegt hat, gibt deshalb trotzd
 frei, über die Speichergrenze hinweg, und wartet dann wieder vier Ticks. Jede Freigabe wird gezählt.
 Ein `forced_releases` über null im Tick-Log ist kein Fehler, aber ein Grund, das Log zu lesen.
 
+Am leichtesten verklemmt sich ein Kreisverkehr. Wer einfährt, nähme dort den Platz auf dem Ring so
+oft wie der Ring selbst, bis jede Kante des Rings voll ist mit Autos, die auf die nächste wollen.
+Darum hat der Ring Vorfahrt, wie auf der Straße (StVO §8 1a): Wer von außen auf eine Kante des Rings
+will, wartet, solange auf dem Ring ein Auto durch ist, das auf dieselbe Kante will. Das ist Warten,
+nicht Feststecken, und zählt für die vier Ticks nicht mit. Es gilt für einen Kreisverkehr und
+genauso für einen Platz mit Ring wie den Ernst-Reuter-Platz, den OpenStreetMap `circular` nennt und
+der Ampeln hat; dort steht die Vorfahrt für die Ampeln, die das Modell nicht hat. Welche Kanten ein
+Ring sind, sagt die Karte (`junction`). Eine aus OpenStreetMap gebaute Karte trägt es mit, die
+mitgelieferte hat keinen Ring: Großer Stern und Ernst-Reuter-Platz sind dort je ein Knoten.
+
 Ein Durchlauf läuft, bis alle angekommen sind. Eine Uhr, nach der der Rest einfach nicht mehr
 mitzählt, gibt es nicht. Die Grenze von 1000 Ticks pro Weg fängt nur einen Fehler im Modell ab und
 wird als Fehler geloggt. Auf Berlin Mitte-West braucht ein gespielter Weg höchstens 35 Ticks, bei

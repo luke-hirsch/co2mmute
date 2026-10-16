@@ -247,6 +247,16 @@ class VersionDiffChainTests(VersionFixtureMixin, TestCase):
         self.assertNotEqual(clone.pk, self.edge_b.pk)
         self.assertEqual(clone.circuity, 1.4)
 
+    def test_a_changed_street_on_a_ring_stays_on_the_ring(self):
+        """Busspuren round Ernst-Reuter-Platz: the ring keeps its right of way."""
+        StreetEdge.objects.filter(edge=self.edge_b).update(junction="circular")
+
+        busspuren = self.busspuren()
+
+        clone = Edge.objects.get(pk=self.bus_chain(busspuren)[1])
+        self.assertNotEqual(clone.pk, self.edge_b.pk)
+        self.assertEqual(StreetEdge.objects.get(edge=clone).junction, "circular")
+
     def test_a_new_tram_line_in_a_version_starts_with_a_trams_defaults(self):
         rails = [TrainEdge.objects.get(edge=e).pk for e in (self.edge_b, self.edge_c)]
 

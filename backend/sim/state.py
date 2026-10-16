@@ -265,6 +265,13 @@ class EdgeState:
     # Rails in the car lane: whatever runs on them waits with the cars.
     rails_in_car_lane: bool = False
 
+    # A street on a roundabout or a ring square, and the ring's links that
+    # lead into it. A car driving in from outside the ring goes only while
+    # none of them has a car through and bound here: the ring has right of
+    # way (StVO §8 1a).
+    ring: bool = False
+    ring_feeders: list["EdgeState"] = field(default_factory=list)
+
     # Whether a bike shares this link with cars. Both default to the values
     # that leave an EdgeState built by hand in a test behaving exactly as it
     # did before bikes entered the queue model: not a street, so free running.

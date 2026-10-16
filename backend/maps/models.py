@@ -284,6 +284,20 @@ class StreetEdge(models.Model):
         (TRAM_TRACK_LANE, "Gleis in der Fahrspur"),
         (TRAM_TRACK_OWN, "eigenes Gleis"),
     ]
+    # A street on a ring, as OpenStreetMap tags it (`junction`): a roundabout
+    # (sign 215) or a ring square, `circular`, Ernst-Reuter-Platz and the
+    # Großer Stern, which have signals. On both the ring has right of way:
+    # whoever drives in waits for a car on the ring bound for the same street.
+    # On a square the right of way stands in for the signals the model has
+    # not, as the jam stands in for the traffic lights.
+    JUNCTION_NONE = ""
+    JUNCTION_ROUNDABOUT = "roundabout"
+    JUNCTION_CIRCULAR = "circular"
+    JUNCTION_CHOICES = [
+        (JUNCTION_NONE, "kein Ring"),
+        (JUNCTION_ROUNDABOUT, "Kreisverkehr"),
+        (JUNCTION_CIRCULAR, "Platz mit Ring"),
+    ]
 
     edge = models.ForeignKey(Edge, on_delete=models.CASCADE)
     map_versions = models.ManyToManyField(MapVersion)
@@ -292,6 +306,9 @@ class StreetEdge(models.Model):
     dedicated_bus_lane = models.BooleanField(default=False)
     tram_track = models.CharField(
         max_length=4, choices=TRAM_TRACK_CHOICES, default=TRAM_TRACK_NONE, blank=True
+    )
+    junction = models.CharField(
+        max_length=10, choices=JUNCTION_CHOICES, default=JUNCTION_NONE, blank=True
     )
 
     def clean(self) -> None:

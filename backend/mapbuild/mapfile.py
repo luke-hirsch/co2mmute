@@ -2,7 +2,8 @@
 
 The largest strongly connected part is kept (a car gets back from wherever it goes); every place
 takes its nearest free node, the closest pair first. A node is (x, y) in km, an edge one direction
-of a street with the road's length over the straight line as `circuity`.
+of a street with the road's length over the straight line as `circuity`, and an edge on a ring
+says OSM's `junction` (no other edge has the key).
 """
 
 import collections
@@ -82,6 +83,8 @@ def emit(net, name, homes_at, work_at):
                     versions=[0],
                 )
             )
+            if d.get("junction"):
+                edges[-1]["junction"] = d["junction"]
     xs = [p[0] for p in net.pos.values()]
     ys = [p[1] for p in net.pos.values()]
     return (

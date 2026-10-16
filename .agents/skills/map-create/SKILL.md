@@ -125,8 +125,7 @@ Read its report:
 
 - `Pendler: N — alle im Auto fahren morgens X km/h, Ziel Y km/h`, then the `gemessen:` lines of the
   search. X close to Y: done. X far from Y: the map tips — a count that still flows next to one
-  barely bigger that stands (Berlin: 37 760 → 29,4 km/h, 38 704 → 16,6). The command answers the
-  last count that flows. Give the human both lines; don't pick a count by hand.
+  barely bigger that stands. The command answers the last count that flows. Give the human both lines; don't pick a count by hand.
 - `nie fertig`, and `ERROR … The 1000-tick guard stopped …` in the log during the search: a count
   so big its rounds never end. Expected while searching.
 - `Normal, 2,4 kg pro Person und Runde, reicht hier, wenn N % der Gruppen Auto fahren` (or `auch,

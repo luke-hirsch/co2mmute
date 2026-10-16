@@ -140,6 +140,9 @@ class Graph:
             lanes=lanes,
             rank=max(x["rank"], y["rank"]),
             names=x["names"] + y["names"],
+            junction=(
+                x.get("junction", "") if x.get("junction") == y.get("junction") else ""
+            ),
         )
 
     def _add(self, u, v, f, b, g):

@@ -17,6 +17,7 @@ from django.test import SimpleTestCase
 
 from sim import (
     BUS_COST_PER_VEHICLE_KM,
+    DEADLOCK_TICKS,
     BUS_EMISSIONS_G_PER_PERSON_KM,
     BUS_EMISSIONS_G_PER_VEHICLE_KM,
     PT_FARE_EUR,
@@ -32,9 +33,11 @@ from sim import (
     Link,
     LinkQueueEngine,
     Params,
+    QueuedVehicle,
     Route,
     Scenario,
     Segment,
+    Vehicle,
     pt_emissions_g_per_person_km,
 )
 from sim.linkqueue import HOME_PASS_EARLIEST_TICK
@@ -611,6 +614,184 @@ class TramTests(SimpleTestCase):
         self.assertAlmostEqual(
             line.society_cost_eur, TRAIN_COST_PER_VEHICLE_KM * line.vehicle_km
         )
+
+
+def _ring_round(ring, seed, people=200):
+    """A square with a ring round it, Ernst-Reuter-Platz in miniature.
+
+    Four corners, a 40 m link between each and the next, one lane, one way
+    round; at every corner a street in and a street out, 300 m each. Every
+    car drives in at one corner, two links round and out: so the cars on a
+    ring link are bound either for the next ring link or out, and a ring
+    full of cars each waiting for the next link closes on itself.
+    """
+    corners = (1, 2, 3, 4)
+    links, routes = [], []
+    for at, corner in enumerate(corners):
+        after = corners[(at + 1) % 4]
+        links += [
+            Link(100 + corner, corner, after, 40.0, True, 50, ring=ring),
+            Link(200 + corner, 10 + corner, corner, 300.0, True, 50),
+            Link(300 + corner, corner, 20 + corner, 300.0, True, 50),
+        ]
+    for at, corner in enumerate(corners):
+        after, out = corners[(at + 1) % 4], corners[(at + 2) % 4]
+        edge_ids = (200 + corner, 100 + corner, 100 + after, 300 + out)
+        routes.append(
+            Route(
+                pk=at + 1,
+                agent_id=at + 1,
+                transport_mode="car",
+                segments=tuple(
+                    Segment(edge_id=edge_id, order=order, mode="car")
+                    for order, edge_id in enumerate(edge_ids, start=1)
+                ),
+                label=f"Gruppe {at + 1}",
+                total_distance_m=680.0,
+                estimated_time_min=0.8,
+            )
+        )
+    return _run(_scenario(routes, links, people=people), seed=seed)
+
+
+class RingHasRightOfWayTests(SimpleTestCase):
+    """On a ring, whoever is on it goes first.
+
+    A roundabout (sign 215) and a ring square like Ernst-Reuter-Platz: a car
+    driving in waits while a car on the ring is bound for the same link
+    (StVO §8 1a). Without it, cars driving in take the room on the ring as
+    often as the ring's own, the ring's links fill with cars each waiting for
+    the next, and only the deadlock escape moves them, one car a link every
+    twenty minutes: on the box's seed 106 for 22 hours (2026-10-15).
+
+    The ring here: 2 → 3 → 4 → 2. A street in at 2 from 1, out at 3 to 5
+    and at 2 to 6.
+    """
+
+    def _engine(self):
+        ring = [
+            Link(31, 2, 3, 50.0, True, 50, ring=True),
+            Link(32, 3, 4, 50.0, True, 50, ring=True),
+            Link(33, 4, 2, 50.0, True, 50, ring=True),
+        ]
+        links = ring + [
+            Link(41, 1, 2, 100.0, True, 50),
+            Link(51, 3, 5, 100.0, True, 50),
+            Link(61, 2, 6, 100.0, True, 50),
+            Link(42, 1, 2, 100.0, True, 50, lanes=2),
+        ]
+        by_id = {link.edge_id: link for link in links}
+        chains = {
+            1: (41, 31, 51),  # drives in at 2, round to 3, out
+            2: (33, 31, 51),  # on the ring, bound for the same link
+            3: (33, 61),  # on the ring, out at 2
+            4: (32, 33, 31),  # on the ring, bound for the link into 2
+            5: (42, 31, 51),  # drives in on two lanes, round to 3
+            6: (42, 61),  # drives in on two lanes and straight out at 2
+        }
+        routes = [
+            _route(pk, tuple(by_id[edge_id] for edge_id in chain))
+            for pk, chain in chains.items()
+        ]
+        engine = LinkQueueEngine(_scenario(routes, links), random.Random(1))
+        for state in engine.edge_states.values():
+            state.release_budget = 10.0
+        return engine
+
+    def _place(self, engine, route_pk, segment_index=0, ready_at_min=0.0):
+        """A car of route `route_pk` at the end of that route's Nth link."""
+        vehicle_id = 1000 + route_pk
+        engine.vehicles[vehicle_id] = Vehicle(
+            route_pk=route_pk, person_index=0, mode="car", segment_index=segment_index
+        )
+        state = engine._state_for_segment(route_pk, segment_index)
+        state.queue.append(QueuedVehicle(vehicle_id, ready_at_min, 1.0, 0.0))
+        state.occupancy_pcu += 1.0
+        return state
+
+    def test_a_car_driving_in_waits_for_a_ring_car_bound_for_the_same_link(self):
+        engine = self._engine()
+        entry = self._place(engine, 1)
+        ring = self._place(engine, 2)
+
+        self.assertIsNone(engine._pick_head(entry, tick_end=5.0))
+        self.assertEqual(engine._pick_head(ring, tick_end=5.0), (0, False))
+
+    def test_it_goes_when_the_ring_car_leaves_the_ring_here(self):
+        engine = self._engine()
+        entry = self._place(engine, 1)
+        self._place(engine, 3)
+
+        self.assertEqual(engine._pick_head(entry, tick_end=5.0), (0, False))
+
+    def test_it_goes_when_the_ring_car_is_not_through_yet(self):
+        engine = self._engine()
+        entry = self._place(engine, 1)
+        self._place(engine, 2, ready_at_min=7.0)
+
+        self.assertEqual(engine._pick_head(entry, tick_end=5.0), (0, False))
+
+    def test_it_goes_when_the_ring_link_has_sent_all_it_can_this_tick(self):
+        engine = self._engine()
+        entry = self._place(engine, 1)
+        self._place(engine, 2).release_budget = 0.5
+
+        self.assertEqual(engine._pick_head(entry, tick_end=5.0), (0, False))
+
+    def test_a_car_on_the_ring_never_gives_way(self):
+        """Round the ring to the link into 2, past a car waiting to drive in
+        on it: the ring is the ring's."""
+        engine = self._engine()
+        ring = self._place(engine, 4)
+        self._place(engine, 2)
+
+        self.assertEqual(engine._pick_head(ring, tick_end=5.0), (0, False))
+
+    def test_on_two_lanes_a_car_bound_elsewhere_passes_the_one_giving_way(self):
+        engine = self._engine()
+        entry = self._place(engine, 5)
+        self._place(engine, 6)
+        self._place(engine, 2)
+
+        self.assertEqual(engine._pick_head(entry, tick_end=5.0), (1, False))
+
+    def test_giving_way_is_not_being_stuck(self):
+        """The ring is moving, so the deadlock escape never pushes a car in."""
+        engine = self._engine()
+        entry = self._place(engine, 1)
+        self._place(engine, 2)
+        engine.current_tick = entry.blocked_since_tick + DEADLOCK_TICKS + 1
+
+        self.assertIsNone(engine._pick_head(entry, tick_end=5.0))
+
+    def test_without_its_tag_a_ring_is_a_crossing_like_any_other(self):
+        engine = self._engine()
+        for state in engine.edge_states.values():
+            state.ring = False
+        entry = self._place(engine, 1)
+        self._place(engine, 2)
+
+        self.assertEqual(engine._pick_head(entry, tick_end=5.0), (0, False))
+
+    def test_a_ring_square_that_locks_without_it_flows_with_it(self):
+        """800 cars in a few minutes: without the right of way the square
+        stands for hours on these seeds, with it nobody takes a quarter of
+        an hour."""
+
+        def worst(engine):
+            return max(
+                max(result["trip_times"]) for result in engine.agent_results.values()
+            )
+
+        for seed in (1, 2, 3):
+            with self.subTest(seed=seed):
+                plain = _ring_round(ring=False, seed=seed)
+                ring = _ring_round(ring=True, seed=seed)
+
+                self.assertGreater(plain.forced_releases, 100)
+                self.assertGreater(worst(plain), 8 * 60)
+                self.assertEqual(ring.forced_releases, 0)
+                self.assertLess(worst(ring), 15)
 
 
 class TimetableFactorTests(SimpleTestCase):

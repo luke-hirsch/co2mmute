@@ -51,6 +51,9 @@ class Link:
     median track on Landsberger Allee); "lane" for rails in the car lane,
     where whatever runs on them waits with the cars (Friedrichstraße north);
     "own" for a lane of their own, taken from `lanes` like a bus lane.
+
+    `ring` is a street on a roundabout or a ring square: its own traffic has
+    right of way over whoever drives in.
     """
 
     edge_id: int
@@ -63,6 +66,7 @@ class Link:
     has_dedicated_bus_lane: bool = False
     has_bike_lane: bool = False
     tram_track: str = ""
+    ring: bool = False
     # The map's own name for the link, for the server log, and "A → B" for the
     # report the host downloads.
     name: str = ""
