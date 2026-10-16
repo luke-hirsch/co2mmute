@@ -10,6 +10,7 @@ schon 2.449 kg pro Runde ausstößt, bevor irgendwer spielt. Jedes Spiel war nac
 
 Das ist jetzt geändert. Was sich geändert hat und warum, steht hier.
 
+Seit dem 16. Oktober 2026 steht das Modell, und jede Karte ist darauf neu gemessen (Abschnitt 18).
 Seit dem 7. Oktober 2026 ist das Budget eine Zahl pro Person und Runde, auf jeder Karte dieselbe, und
 die Pendlerzahl ist am gemessenen Berufsverkehr Berlins geeicht (Abschnitt 13). Die Abschnitte davor
 sind die Geschichte, in den Zahlen ihrer Zeit.
@@ -563,7 +564,7 @@ Kalibriert mit sieben gezogenen Arbeitsorten und sechs Seeds (`--speed 19 --per-
 sucht der Befehl in Schritten von 217 Pendlern, 1,1 %, und findet den Rand: 18.662 Pendler fahren im
 Mittel der sechs Seeds 27,2 km/h, 19.096 nur noch 16,2. Auf zwei Stellen gerundet sind beide 19.000,
 und die Tabelle spielt 19.096 — jenseits des Randes. 19 km/h liegt auf dieser Karte genau dort, wo
-sie kippt (Abschnitt 18).
+sie kippt (Abschnitt 19).
 
 Ein Schritt der Suche ist ein Mensch pro Gruppe. Weniger Gruppen heißt also feinere Schritte, und
 mehr Gruppen heißt weniger Streuung durch das Ziehen.
@@ -718,10 +719,88 @@ Gelenk- oder 15-m-Busse, die Standardisierte Bewertung rechnet 0,32 l/km für ei
 0,44 l/km für einen Gelenkbus.
 
 Die Zahlen aus den Abschnitten 9 bis 16 (Fahrplan pro Runde, Anteil am Fahrplan, die Tabelle der
-Budgets) sind mit 1.500 g gemessen. Mit 3.630 g steigt der Fahrplan jeder Karte mit Zuglinien, und
-`timetable_factor` und `co2_table` sind neu zu messen.
+Budgets) sind mit 1.500 g gemessen. Mit 3.630 g steigt der Fahrplan jeder Karte mit Zuglinien;
+`timetable_factor` und `co2_table` sind neu gemessen (Abschnitt 18).
 
-## 18. Was offen bleibt
+## 18. Die letzte Kalibrierung
+
+Am 16. Oktober 2026 ist das Modell zu Ende gebaut und jede Karte neu gemessen. Vier Änderungen
+gingen vorher hinein:
+
+- **Eine Runde spielt auf jeder Datenbank gleich.** Die Simulation liest Kanten, Linien und Wege in
+  der Reihenfolge ihrer Schlüssel, nicht mehr nach Namen; SQLite und Postgres sortieren Namen
+  verschieden, und eine Runde mit Mitfahrenden lag unter SQLite rund 1,5 % daneben. Auf der
+  ausgelieferten Karte geben jetzt beide dieselbe Tabelle, Zeile für Zeile.
+- **Wer losfährt, lässt den Verkehr auf der Straße zuerst** (StVO §10, Hintergrund „Ein Tick"). Ein
+  Bus fährt an seiner Endhaltestelle pünktlich ab (§20 5).
+- **Der Abend streut 1,6-mal so breit wie der Morgen** (SrV 2018 Berlin, Hintergrund „Hin und
+  zurück").
+- **Der Zug stößt 3.630 g pro Zugkilometer aus** (Abschnitt 17).
+
+Dazu rechnet die Routensuche im Spiel seit demselben Tag mit dem Mittel aller Runden bisher statt
+mit der letzten allein (Hintergrund, „Geschwindigkeit ist ein Ergebnis"): Sonst wich die ganze Klasse
+zugleich auf die freien Straßen der letzten Runde aus. Die Kalibrierung berührt das nicht, sie routet
+jede Runde frei.
+
+Die beiden Regeln zusammen lösen die Schleife, die den Heimweg auf dem Ausschnitt verklemmte
+(Abschnitt 19): bei 23.000 Pendlern, alle im Auto, waren es an einem Seed 4.070 Minuten, mit der
+Regel an der Tür allein 870, mit dem breiteren Abend allein blieb an einem anderen Seed eine
+Schleife 640 Minuten stehen, mit beiden ist jeder der sechs Heimwege nach höchstens 155 Minuten zu
+Ende. Der Morgen fließt mit der Regel an der Tür besser: auf demselben Ausschnitt im Mittel der
+sechs Seeds 20,9 statt 19,8 km/h, auf dem langsamsten 17,6 statt 14,8.
+
+**Berlin Mitte-West bleibt bei 6.800 Pendlern.** Die Suche auf dem fertigen Modell landet wieder
+dort, 19,4 km/h am Morgen. Der Anteil am Fahrplan fällt von 0,48 auf 0,22, weil der Zug 2,4-mal so
+viel ausstößt; die Rechnung der Pendler ändert sich dabei um ein Hundertstel Kilo, denn dafür ist
+der Anteil da (Abschnitt 16). Bei 50 % Auto stoßen die Mitfahrenden 2.725 kg aus, der Grundfahrplan
+12.606 kg. Gemessen auf Postgres, sechs Seeds, Hin- und Rückweg:
+
+| Autoanteil | pro Person | Runde gesamt |      Auto | Fahrplan | Fahrzeit Auto hin / zurück | Bus & Bahn |   Warten |
+| ---------: | ---------: | -----------: | --------: | -------: | -------------------------: | ---------: | -------: |
+|      100 % |    3,53 kg |    23.976 kg | 20.563 kg | 3.413 kg |            23,7 / 16,5 min |          — |        — |
+|       75 % |    2,63 kg |    17.898 kg | 14.436 kg | 3.462 kg |            16,8 / 12,0 min |   31,6 min | 19,3 min |
+|       50 % |    1,87 kg |    12.704 kg |  9.001 kg | 3.703 kg |            11,6 / 10,5 min |   33,4 min | 22,9 min |
+|       25 % |    1,27 kg |     8.630 kg |  4.447 kg | 4.183 kg |            10,2 / 10,3 min |   38,8 min | 32,5 min |
+|        0 % |    0,72 kg |     4.896 kg |         — | 4.896 kg |                          — |   43,4 min | 40,8 min |
+
+Der Heimweg ist jetzt kürzer als der Hinweg, weil der Abend breiter streut. Normal reicht weiter,
+wenn 67 % der Gruppen Auto fahren. Wer durchgehend fährt, ist jetzt erst in Runde 5 raus
+(4 × 23.976 kg = 95.904 kg gegen 97.920); wer sich herunterarbeitet (100 / 75 / 50 / 50 / 25 /
+25 %), kommt auf 84.542 kg, 12,43 kg pro Person gegen 14,4. Die Datei trägt Anteil und Tabelle.
+
+**Die vier gebauten Karten** (aus OpenStreetMap, Abschnitt 15), jede mit dem Vorrang im Kreisverkehr
+und den Regeln oben, gemessen mit `calibrate_map --out` wie die ausgelieferte:
+
+| Karte | Pendler vorher → jetzt | Anteil | normal reicht | pro Person, alle Auto … keiner |
+| --- | ---: | ---: | ---: | ---: |
+| Ausschnitt Mitte-West | 20.000 → 25.000 | 0,72 → 0,38 | bei 85 → 88 % Auto | 2,89 … 0,47 → 2,75 … 0,51 |
+| Callenberg | 1.800 (vorgegeben) | 1,00 | bei 37 % → nicht | 3,36 … 1,86 → 3,60 … 2,51 |
+| Bremen | 24.000 → 28.000 | 1,00 | nicht → nicht | 6,55 … 21,69 → 6,15 … 22,94 |
+| ganz Berlin | 38.000 → 68.000 | 0,34 → 0,33 | bei 7 → 3 % Auto | 7,82 … 1,94 → 7,87 … 2,29 |
+
+- **Callenberg** fährt den RE 3, und der Zug wiegt jetzt, was ein Regionalzug braucht. Die Pendler
+  bezahlen dort schon den ganzen Fahrplan (Anteil 1), und eine Runde ohne Auto kostet 2,51 kg: Normal
+  reicht nicht mehr, „Spiel anlegen" sagt „Nicht spielbar" mit dem Tipp, mehr kg zu geben; bei 3,0 kg
+  reicht es für die Hälfte im Auto.
+- **Bremen** bleibt nicht spielbar, und bei 0 % Auto kommen 948 nicht an: Sie warten alle auf die
+  80, den Bus des Stahlwerks, den der Fahrplan zwischen 8 und 10 Uhr nicht fährt und der deshalb alle
+  120 Minuten mit 85 Plätzen kommt. Mit der 80 alle 20 Minuten sind alle zu Hause, der Fahrplan fällt
+  von 639 auf 122 Tonnen. Das gehört vor dem Spielen in die Karte (`map-modify`), nicht in eine Regel.
+- **Ganz Berlin** reicht normal nur, wenn fast niemand Auto fährt: Pro Person kostet der Fahrplan
+  der ganzen Stadt in einer Runde ohne Auto 2,0 kg. Eine Großstadt behält ihre Schwierigkeit; wer sie
+  spielbar will, dreht den Regler hoch, bei 4,6 kg reicht es für gut die Hälfte im Auto.
+
+Vorher hieß beim Ausschnitt und bei ganz Berlin: Die Suche fand keine Zahl, die 19 km/h traf, weil
+die Runde an einem Kreisverkehr kippte — der Ausschnitt fuhr bei 20.000 Pendlern 10,1 km/h, ganz
+Berlin bei 38.000 29,4. Jetzt ist die Kurve stetig, und die Zahl trifft das Tempo.
+
+**Einzeln nach Seeds** (die Tabelle ist ein Mittel über sechs): auf dem Ausschnitt bei 25.000 und
+75 % Auto bildet sich an keinem Seed ein Ring, der längste Durchlauf dauert 210 Minuten. Bei 100 %
+Auto steht an einem Seed (102) der Heimweg 475 Minuten auf einer Schleife aus 13 Straßen in Mitte,
+vorher waren es an diesem Seed 2.935; an drei weiteren bildet sie sich und löst sich nach 175 bis
+235 Minuten. Alle kommen nach Hause.
+
+## 19. Was offen bleibt
 
 - **Die Abfahrten liegen sehr eng beieinander.** `departure_std_dev_min = 10` heißt, dass praktisch
   alle innerhalb von 20 Minuten losfahren; real verteilt sich ein Berufsverkehr über eine Stunde und
@@ -735,9 +814,6 @@ Budgets) sind mit 1.500 g gemessen. Mit 3.630 g steigt der Fahrplan jeder Karte 
   Pendler der Karte, die Busse sind nicht voller (Abschnitt 16). Gemessen ist er an der Runde, in der
   die Hälfte Auto fährt, mit den Zahlen des Umweltbundesamts für Deutschland; eine Karte im Ausland
   bekommt dieselben.
-- **Die gebauten Karten haben ihren Anteil noch nicht.** Gemessen ist er auf Berlin Mitte-West
-  (Abschnitt 16); der Ausschnitt aus OpenStreetMap, Bremen, Callenberg und ganz Berlin bekommen ihn
-  mit dem nächsten Lauf von `calibrate_map`.
 - **Keine Ampeln.** Die Pendlerzahl trifft das Tempo des Berufsverkehrs, und der Stau steht dabei
   für die Ampeln mit, die das Modell nicht hat (Abschnitt 13).
 - **Die Vorgabe anderer Karten ist ungeprüft.** Jede neue Karte startet mit 6.800 Pendlern, der Zahl
@@ -746,14 +822,24 @@ Budgets) sind mit 1.500 g gemessen. Mit 3.630 g steigt der Fahrplan jeder Karte 
   und „Spiel anlegen" warnt, solange sie es nicht ist. `calibrate_map` misst sie (Abschnitt 12),
   `--out` setzt den Haken in der Datei. Die mitgelieferte Datei hat ihn gesetzt.
 - **Die gebauten Karten kippen an keinem Kreisverkehr mehr** (Abschnitt 15), und eine Schleife aus
-  Straßen verklemmt sich am Abend nicht mehr. Auf dem Ausschnitt, bei 23.000 Pendlern und alle im
+  Straßen verklemmt sich am Abend kaum noch. Auf dem Ausschnitt, bei 23.000 Pendlern und alle im
   Auto, stand an einem von sechs Seeds der Heimweg 4.070 Minuten auf 16 Kanten in Mitte, jede auf die
   nächste wartend, an der viele Arbeitsorte liegen: Wer dort losfuhr, nahm jeden Platz, den die
   Sperre frei machte. Seit wer losfährt den Verkehr auf der Straße zuerst lässt und der Abend
-  breiter streut (16. Oktober 2026), ist jeder der sechs Heimwege nach höchstens 155 Minuten zu Ende;
-  eine der beiden Regeln allein ließ die Schleife (870 Minuten) oder eine andere (640) stehen.
+  breiter streut (16. Oktober 2026), ist bei 23.000 jeder der sechs Heimwege nach höchstens 155
+  Minuten zu Ende; eine der beiden Regeln allein ließ die Schleife (870 Minuten) oder eine andere
+  (640) stehen. Bei den 25.000, die der Ausschnitt jetzt hat, steht an einem Seed bei 100 % Auto eine
+  Schleife aus 13 Straßen 475 Minuten (ohne die beiden Regeln 2.935), bei 75 % an keinem. Was sie
+  ganz auflöste, wäre ein Ring, der als Ring erkannt wird und dann Vorfahrt hat: eine Erfindung, kein
+  Abbild der Straße, darum nicht gebaut.
+- **Wer in Bus und Bahn einsteigt, kann es bis zu einem Tick zu früh.** Fahrzeuge und Fußgänger
+  werden in einem Tick nacheinander bedient, nicht in der Reihenfolge ihrer Minuten: 15,7 % der
+  Einstiege auf dem Ausschnitt nehmen einen Bus, der an der Haltestelle war, bevor der Mitfahrende da
+  war, um bis zu zwei Minuten. Das betrifft nur die gemeldete Wartezeit, nicht CO₂ und Kosten. Vor dem
+  16. Oktober waren es 26,6 % (seitdem fahren die Linienfahrzeuge in der Reihenfolge, in der sie am
+  Ende ihrer Kante sind).
 
-## 19. Nachrechnen
+## 20. Nachrechnen
 
 Die Zahlen oben stammen nicht aus einem Play-Test, sondern aus wiederholten Läufen mit festem Seed
 auf der ausgelieferten Karte. Wer sie nach einer Modelländerung neu braucht, spielt Runden auf der
