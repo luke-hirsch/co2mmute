@@ -972,16 +972,15 @@ class CreateGameEndpointTests(TempMediaRootMixin, TestCase):
         game_id = response.json()["game_id"]
         self.assertIsNotNone(get_cached_game_session(game_id))
 
-    def test_it_refuses_more_agents_than_seats(self):
+    def test_it_accepts_more_agents_per_person_than_seats(self):
         self.client.force_login(self.host)
 
         response = self._create(
-            game_name="Zu viele", max_players=2, agent_per_player=3
+            game_name="Viele Gruppen", max_players=2, agent_per_player=3
         )
 
-        self.assertEqual(response.status_code, 400)
-        self.assertIn("agent_per_player", response.json())
-        self.assertFalse(GameSession.objects.filter(game_name="Zu viele").exists())
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertTrue(GameSession.objects.filter(game_name="Viele Gruppen").exists())
 
     def test_a_refused_body_seats_nobody(self):
         """The row, the seat and the cookies are one step or none."""
