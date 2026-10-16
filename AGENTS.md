@@ -218,7 +218,9 @@ lists the stages in the order they run, each module's docstring its rules.
 
 - **One path for every area.** A place name is its administrative boundary (Nominatim, the most
   local whole municipality), roads kept 1 km past it; a box is built as it is. Secondary and up, a
-  place still more than 500 m off gets one class down. No city or rural fork, no caps, no number
+  place still more than 500 m off gets one class down. A place near a stop as the crow flies but
+  more than 1 km from it along the kept streets gets a path to it, as long as OSM's side streets
+  walk it, where they bring it within 1 km. No city or rural fork, no caps, no number
   per city — a rule that only fits some areas is not a rule; what a rule can't fix is a line in the
   build report, never a question and never a special case in the code.
 - **Downloads happen on first use and stay** in `mapbuild/cache/` (`CO2MMUTE_MAP_CACHE` moves it):

@@ -101,8 +101,11 @@ The report comes in sections. Most lines say what a rule did and need nothing. T
     the stop was within 1 km in OSM and took a node up to 100 m away. Fix: move the stop's node
     closer to the place (`map-modify` `move`).
   - `N Orte, deren Halt zu Fuß weiter als 1000 m entfernt ist, obwohl er in der Luftlinie näher
-    liegt`: the cover counts the crow, the walk follows the map's links. Fix: a footpath, in the map
-    itself (`map-modify`) or as a version (`map-versions`).
+    liegt, auch über die Nebenstraßen`: the cover counts the crow, the walk follows the map's links.
+    The build has already laid a path wherever OSM's side streets walk the place to a stop within
+    1 km (`Fußwege zum Halt über die Nebenstraßen: N gelegt` under "Bus und Bahn"); these are the
+    places where even they don't. Fix: a footpath, in the map itself (`map-modify`) or as a version
+    (`map-versions`), where the human knows a way the side streets don't show — else a stop.
   - `N Linien ohne Fahrt zwischen 8 und 10 Uhr im Fahrplan (…): …`: the timetable knows the line
     but has no trip in the morning window; the game then runs it once a pass. See below. Fix: a
     version with an interval for the line (`map-versions`).
