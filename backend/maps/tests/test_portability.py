@@ -286,6 +286,23 @@ class MapImportPortabilityTests(MapUploadMixin, TestCase):
         self.assertAlmostEqual(game_map.image_crop_top, 3.0)
         self.assertAlmostEqual(game_map.image_crop_left, 6.0)
 
+    def test_import_takes_a_drawn_svg_as_the_background(self):
+        # the map builder draws its own background; the file block is not validated as a raster
+        svg = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6000 5000"><path d="M0 0l5 5"/></svg>'
+        payload = self.graph_payload(
+            background_image={
+                "data": base64.b64encode(svg).decode("ascii"),
+                "filename": "hintergrund.svg",
+                "scale": 1.0,
+            }
+        )
+
+        game_map = self.upload(payload)
+
+        self.assertTrue(game_map.background_image.name.endswith(".svg"))
+        with game_map.background_image.open("rb") as fh:
+            self.assertEqual(fh.read(), svg)
+
     def test_import_takes_the_dimensions_from_the_file(self):
         # Without this the importer recomputes x_dim/y_dim from the node
         # coordinates (maps/views.py, _create_nodes), which is the frame the
