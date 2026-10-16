@@ -47,6 +47,8 @@ QUERIES = {
     "local": 'way BB["highway"~"^(tertiary|tertiary_link|unclassified|residential)$"]; out body geom;',
     "residential": '(way BB["landuse"="residential"]; relation BB["landuse"="residential"]["type"="multipolygon"];); out geom;',
     "workland": '(way BB["landuse"~"^(commercial|retail|industrial)$"]; relation BB["landuse"~"^(commercial|retail|industrial)$"]["type"="multipolygon"];); out geom;',
+    "water": '(way BB["natural"="water"]; relation BB["natural"="water"]["type"="multipolygon"]; way BB["waterway"="riverbank"]; way BB["waterway"~"^(river|canal)$"];); out geom;',
+    "green": '(way BB["leisure"="park"]; relation BB["leisure"="park"]["type"="multipolygon"]; way BB["landuse"~"^(forest|grass)$"]; relation BB["landuse"~"^(forest|grass)$"]["type"="multipolygon"]; way BB["natural"="wood"]; relation BB["natural"="wood"]["type"="multipolygon"];); out geom;',
     "places": 'node BB["place"~"^(city|town|borough|suburb|quarter|neighbourhood|village|hamlet)$"]; out body;',
     "pt_routes": 'relation BB["type"="route"]["route"~"^(bus|trolleybus|tram|subway|light_rail|train)$"]; out body;',
     "pt_nodes": 'relation BB["type"="route"]["route"~"^(bus|trolleybus|tram|subway|light_rail|train)$"]; node(r); out body;',

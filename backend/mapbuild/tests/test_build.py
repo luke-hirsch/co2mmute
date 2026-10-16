@@ -1,5 +1,6 @@
 """One whole build of a cut of real data, offline: Bremen's station and old town."""
 
+import base64
 import hashlib
 import json
 import os
@@ -109,6 +110,25 @@ class WholeBuildTests(SimpleTestCase):
         )
         self.assertIn(
             "Takte: timetable 10", [line for head, ls in self.report for line in ls]
+        )
+
+    def test_the_file_carries_its_own_background_under_the_nodes(self):
+        """The drawing's box is the map's box, at scale 1 from the origin: where the viewers put
+        a node (km × 100) it is the same point of the drawing (m)."""
+        block = self.data["background_image"]
+        svg = base64.b64decode(block["data"]).decode()
+        m = self.data["map"]
+        self.assertIn(f'viewBox="0 0 {m["x_dim"] * 1000} {m["y_dim"] * 1000}"', svg)
+        self.assertEqual(
+            (block["scale"], block["offset_x"], block["offset_y"]), (1.0, 0.0, 0.0)
+        )
+        for layer in ("wohnen", "arbeit", "gruen", "wasser", "strassen", "schiene"):
+            self.assertIn(f'id="{layer}"', svg)
+        self.assertTrue(
+            all(
+                0 <= n["x"] <= m["x_dim"] and 0 <= n["y"] <= m["y_dim"]
+                for n in self.data["nodes"]
+            )
         )
 
     def test_a_ring_says_so_and_no_other_edge_does(self):

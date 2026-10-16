@@ -12,7 +12,7 @@ BACKEND = Path(__file__).resolve().parents[2]
 PROBE = """
 import sys
 import mapbuild
-import mapbuild.area, mapbuild.build, mapbuild.buses, mapbuild.connect, mapbuild.download
+import mapbuild.area, mapbuild.backdrop, mapbuild.build, mapbuild.buses, mapbuild.connect, mapbuild.download
 import mapbuild.geo, mapbuild.lines, mapbuild.mapfile, mapbuild.people, mapbuild.rail
 import mapbuild.roads, mapbuild.streets, mapbuild.timetable, mapbuild.transit
 leaked = sorted(m for m in sys.modules if m == "django" or m.startswith("django."))
