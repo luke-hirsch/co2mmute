@@ -43,6 +43,7 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | J-17 | alte Beitrittsseite `/join/`                 | 404 — der einzige Eingang ist `/app/join`               | geht      | `credentials.spec.ts` |
 | J-18 | „Los“ auf der Startseite, mit ID             | landet auf `/app/join/<ID>`                             | geht      | `credentials.spec.ts` |
 | J-19 | „Los“ auf der Startseite, ohne ID            | landet auf `/app/join`, das nach der ID fragt           | geht      | `credentials.spec.ts` |
+| J-20 | Startseite: das ID-Feld | der Platzhalter sagt „z. B. 4F2A9C“, damit man ihn nicht für eine ID hält, die man eintippen soll; bei 375px passt er ins Feld, bei 320px wird er abgeschnitten | geht | - |
 
 ## L — lobby
 
@@ -134,6 +135,9 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | R-38 | Bus und Bahn: der Anteil am Fahrplan | eine Runde rechnet jeden Fahrzeugkilometer, CO₂ und Kosten, mit dem Anteil des Spiels: die Anteile der Mitfahrenden, die Linien, die niemand benutzt hat, die Fahrten nach dem Fahrplan; die Runde selbst bleibt dieselbe, das Ticket auch; ein Spiel übernimmt den Anteil seiner Karte, wenn es beginnt, und behält ihn, wenn die Karte danach neu gemessen wird; eine Karte ohne Anteil bezahlt den ganzen Fahrplan      | geht | `test_linkqueue`, `test_simulation`, `test_models` |
 | R-39 | Pendlertypen in der Runde | jede Gruppe zeigt unter ihrem Ziel ihren Pendlertyp, Name und Satz; die Gruppen eines Platzes bekommen verschiedene, solange die Liste reicht, danach geht es von vorn los; ein Spiel ohne Pendlertypen zeigt keinen | geht | `test_personas` |
 | R-40 | Wo eine Gruppe wohnt | jede Gruppe nennt ihren Wohnort und ihr Ziel („Wohnort 3 → Arbeit TU Berlin“), die Karte zeigt das Zuhause der gewählten Gruppe; aus: alle Gruppen eines Platzes wohnen am selben Ort, der nächste Platz bekommt einen freien; „ausbalanciert“: die Gruppen eines Platzes wohnen an verschiedenen Orten über die Karte verteilt, jeder Wohnort und jeder Arbeitsplatz hat gleich viele Gruppen, ± 1, ein Platz, der gegangen ist, gibt seine Wohnorte frei; eine Route, die nicht am Zuhause ihrer Gruppe beginnt, lehnt der Server ab | geht | `test_deal`, `test_rounds` |
+| R-41 | Wer losfährt, lässt den Verkehr zuerst | ein Auto, das an seiner Tür auf eine Straße will, wartet, solange auf einer Straße in diesen Knoten ein Auto durch ist, das auf dieselbe Kante will; es fährt, sobald das Auto abbiegt, noch nicht durch ist oder die Straße in diesem Takt nichts mehr schicken kann; erst die Straße, dann die Tür; ein Bus fährt an seiner Endhaltestelle pünktlich ab. Vorher nahmen die Autos von der Tür den Platz auf einer vollen Straße zuerst, jeden Takt, und auf der gebauten Box blieb der Heimweg 4.070 Minuten auf einer Schleife von sechzehn Straßen in Mitte stehen | geht | `test_linkqueue` (`PullingOutGivesWayTests`) |
+| R-42 | Der Heimweg streut breiter als der Hinweg | die Abfahrten am Abend streuen 1,6-mal so breit wie die am Morgen (SrV 2018 Berlin: Feierabend ist zu mehr verschiedenen Zeiten) | geht | `test_linkqueue` (`EveningSpreadTests`) |
+| R-43 | Dieselbe Runde unter sqlite und Postgres | die Simulation liest Kanten, Linien und Wege in der Reihenfolge der Zeilen, nicht ihrer Namen; Namen sortieren die beiden Datenbanken verschieden, und eine Runde mit Mitfahrenden lag um 1,5 % auseinander | geht | `test_simulation` (`ReadOrderTests`) |
 
 ## A — die animation
 
@@ -250,6 +254,7 @@ nicht gemessen.
 | H-20 | Spiel anlegen: CO₂ pro Person und Runde                  | Auswahl 0,6 bis 6,0 kg in Schritten von 0,2, „normal“ bei 2,4; 2,0 kg bei 3 Runden → 40.800 kg; das Spiel speichert die Kilo; der Server lehnt alles außerhalb der Auswahl auf Deutsch ab | geht      | `e2e/host.spec.ts`, `test_join` |
 | H-21 | Spiel anlegen: Pendlertypen | Schalter „verteilen“ unter „Gruppen pro Person“, aus als Vorgabe; an: die sieben Standardtypen, alle angehakt, eigene dazu (Enter fügt hinzu, schickt das Formular nicht ab), eigene wieder entfernen; alle abgehakt: „Wähle mindestens einen Pendlertyp.“ unter der Liste, kein Spiel; das Spiel bekommt Kopien, ein eigener taucht im nächsten Formular nicht auf, ein später geänderter Standardtyp ändert kein Spiel | geht | `test_personas`, `tests/lib/game/personas.test.ts` |
 | H-22 | Spiel anlegen: Wohnorte | Schalter „ausbalanciert“ unter den Pendlertypen, aus als Vorgabe; das Spiel speichert ihn; in der Lobby lässt er sich nicht mehr ändern | geht | `test_deal` |
+| H-23 | Spiel anlegen: mehr Gruppen pro Person als Plätze | 2 Plätze mit 3 Gruppen pro Person werden angelegt (201); die Grenze „Gruppen pro Person höchstens so viele wie Plätze“ gibt es nicht mehr, sie stammte aus der Zeit, in der jede Gruppe allein spielte | geht | `test_join` |
 
 ## C — chat
 
