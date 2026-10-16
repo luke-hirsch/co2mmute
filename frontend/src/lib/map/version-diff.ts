@@ -59,7 +59,8 @@ export type LinkAspect =
   | { kind: "rail" }
   /** A link with neither street nor railway under it: a way for bikes and feet. */
   | { kind: "path"; biking: boolean; walking: boolean }
-  | { kind: "busLane" }
+  /** `closesCars`: the lane was the street's last one for cars, so cars no longer pass. */
+  | { kind: "busLane"; closesCars?: boolean }
   /**
    * Where a tram's rails lie in the street: "" beside or under it, "lane" in
    * the car lane, "own" a lane of their own. Public transport's, like the bus
@@ -143,6 +144,18 @@ type LinkShape = {
   walking: boolean;
 };
 
+/** Lanes left for cars: a bus lane, a bike lane and a tram's own track each take one. */
+function carLanes(shape: LinkShape): number {
+  const street = shape.street;
+  if (!street) return 0;
+  return (
+    street.lanes -
+    (street.busLane ? 1 : 0) -
+    (shape.bikeLane ? 1 : 0) -
+    (street.tramTrack === "own" ? 1 : 0)
+  );
+}
+
 function shapeOf(edge: Edge): LinkShape {
   const street = edge.street_edge
     ? {
@@ -218,7 +231,11 @@ function linkDelta(
     });
   }
   presence(before.rail, after.rail, "pt", { kind: "rail" });
-  presence(!!s0?.busLane, !!s1?.busLane, "pt", { kind: "busLane" });
+  const closesCars = !!s0 && !!s1 && carLanes(before) > 0 && carLanes(after) <= 0;
+  presence(!!s0?.busLane, !!s1?.busLane, "pt", {
+    kind: "busLane",
+    ...(closesCars ? { closesCars } : {}),
+  });
   if (s0 && s1 && s0.tramTrack !== s1.tramTrack) {
     out.push({
       network: "pt",

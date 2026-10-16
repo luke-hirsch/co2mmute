@@ -522,7 +522,7 @@ function aspectText(aspect: LinkAspect, sense: Sense): string {
     case "path":
       return de.map.diff.path(added, aspect.biking, aspect.walking);
     case "busLane":
-      return de.map.diff.busLane(added);
+      return de.map.diff.busLane(added, aspect.closesCars);
     case "tramTrack":
       return de.map.diff.tramTrack(aspect.from, aspect.to);
     case "bikeLane":

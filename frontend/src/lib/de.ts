@@ -1069,9 +1069,11 @@ export const de = {
         added
           ? `neuer Weg ${biking && walking ? "für Rad und Fuß" : biking ? "fürs Rad" : "zu Fuß"}`
           : "kein Weg mehr",
-      busLane: (added: boolean) =>
+      busLane: (added: boolean, closesCars = false) =>
         added
-          ? "eine Autospur wird Busspur"
+          ? closesCars
+            ? "eine Autospur wird Busspur, damit ist die Straße für Autos gesperrt"
+            : "eine Autospur wird Busspur"
           : "die Busspur wird wieder Autospur",
       /** Where a tram's rails lie: "" beside the street, "lane" in it, "own" a lane of their own. */
       tramTrack: (from: string, to: string) =>
