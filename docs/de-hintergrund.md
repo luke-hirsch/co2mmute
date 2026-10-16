@@ -516,8 +516,8 @@ Auto steigt, und eines, das sich herunterarbeitet, mit 100 / 75 / 50 / 50 / 25 /
 Nach unten begrenzt es der Fahrplan, der auch fährt, wenn niemand einsteigt: 0,72 kg pro Person, und
 darunter ist keine Runde zu schaffen.
 
-Bei normal sind das 97.920 kg für sechs Runden. Wer durchgehend fährt, ist in Runde 4 raus. Wer sich
-herunterarbeitet, kommt auf 85.291 kg, 12,54 kg pro Person gegen 14,4, und kommt durch. Bis zum
+Bei normal sind das 97.920 kg für sechs Runden. Wer durchgehend fährt, ist in Runde 5 raus. Wer sich
+herunterarbeitet, kommt auf 84.542 kg, 12,43 kg pro Person gegen 14,4, und kommt durch. Bis zum
 15. Oktober 2026, als die Pendler noch den ganzen Fahrplan bezahlten, waren es 16,09 kg, und das
 zweite Spiel scheiterte in der letzten Runde.
 

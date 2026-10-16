@@ -490,8 +490,8 @@ of the car, and one that works its way down, at 100 / 75 / 50 / 50 / 25 / 25 % c
 is the timetable, which runs without passengers too: 0.72 kg per person, and below that no round can
 be won.
 
-At normal that is 97 920 kg for six rounds. Driving throughout runs out in round 4. Working down
-comes to 85 291 kg, 12.54 kg per person against 14.4, and finishes. Until 15 October 2026, when the
+At normal that is 97 920 kg for six rounds. Driving throughout runs out in round 5. Working down
+comes to 84 542 kg, 12.43 kg per person against 14.4, and finishes. Until 15 October 2026, when the
 commuters still paid the whole timetable, it was 16.09 kg, and the second game failed in the last
 round.
 
