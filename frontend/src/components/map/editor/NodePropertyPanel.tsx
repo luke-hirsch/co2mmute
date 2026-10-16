@@ -9,6 +9,7 @@ import {
   editorControl,
 } from "@/components/map/editor/editor-panel";
 import { de } from "@/lib/de";
+import { isPlaceholderName } from "@/lib/map/names";
 import { useNodeTypes } from "@/lib/queries/map-graph";
 import { useDeleteNode, useUpdateNode } from "@/lib/queries/map-editor";
 import type { Node, NodeType } from "../../../types/mapTypes";
@@ -60,6 +61,8 @@ const NodePropertyPanel = ({ node, mapId }: NodePropertyPanelProps) => {
     });
   };
 
+  const unnamed = isPlaceholderName(name);
+
   const hasChanges =
     name !== (node.name || "") ||
     selectedTypeIds.size !== node.node_type.length ||
@@ -75,6 +78,7 @@ const NodePropertyPanel = ({ node, mapId }: NodePropertyPanelProps) => {
           placeholder={de.editor.node.numbered(node.id)}
           className={editorControl}
         />
+        {unnamed && <EditorNote tone="attention">{de.editor.betterName}</EditorNote>}
       </EditorField>
 
       <EditorFact label={de.editor.node.position}>
@@ -109,7 +113,7 @@ const NodePropertyPanel = ({ node, mapId }: NodePropertyPanelProps) => {
           size="sm"
           className="flex-1"
           onClick={handleSave}
-          disabled={updateMutation.isPending || !hasChanges}
+          disabled={updateMutation.isPending || !hasChanges || unnamed}
         >
           {updateMutation.isPending ? de.editor.saving : de.editor.save}
         </Button>

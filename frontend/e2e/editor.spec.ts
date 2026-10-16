@@ -26,6 +26,7 @@ const SHIPPED_MAP = fileURLToPath(
 type GraphNode = { id: number; name: string; x_position: number; y_position: number };
 type GraphEdge = {
   id: number;
+  name: string | null;
   start_node: number;
   end_node: number;
   street_edge: { speed_limit: number } | null;
@@ -41,11 +42,84 @@ async function csrf(page: Page) {
   };
 }
 
+/** The shipped map under a name of its own, for a spec to draw on and delete. */
+async function importShippedMap(page: Page) {
+  const file = JSON.parse(await readFile(SHIPPED_MAP, "utf-8"));
+  delete file.background_image; // ~1 MB the editor does not need here
+  const name = `Editor ${Date.now()}`;
+  const response = await page.request.post("/api/maps/import/", {
+    headers: await csrf(page),
+    multipart: {
+      map_name: name,
+      max_players: "6",
+      json_file: {
+        name: "map.json",
+        mimeType: "application/json",
+        buffer: Buffer.from(JSON.stringify(file)),
+      },
+    },
+  });
+  expect(response.status()).toBe(201);
+  return { id: (await response.json()).id as number, name };
+}
+
 async function graphOf(page: Page, mapId: number, versionId?: number) {
   const path = versionId
     ? `/api/maps/${mapId}/graph/version/${versionId}/`
     : `/api/maps/${mapId}/graph/baseversion/`;
   return (await (await page.request.get(path)).json()) as Graph;
+}
+
+/** Click the canvas at a point in map coordinates. */
+async function clickAt(page: Page, x: number, y: number) {
+  const point = await page.evaluate(
+    ([px, py]) => {
+      const svg = document.querySelector("svg") as SVGSVGElement;
+      const p = svg.createSVGPoint();
+      p.x = px * 100;
+      p.y = py * 100;
+      const s = p.matrixTransform(svg.getScreenCTM() as DOMMatrix);
+      return { x: s.x, y: s.y };
+    },
+    [x, y],
+  );
+  await page.mouse.click(point.x, point.y);
+}
+
+/** The point on the map farthest from every node and edge, and how far that is. */
+function emptySpot(graph: Graph) {
+  const node = new Map(graph.nodes.map((n) => [n.id, n]));
+  const xs = graph.nodes.map((n) => n.x_position);
+  const ys = graph.nodes.map((n) => n.y_position);
+  const toEdge = (px: number, py: number, e: GraphEdge) => {
+    const a = node.get(e.start_node)!;
+    const b = node.get(e.end_node)!;
+    const dx = b.x_position - a.x_position;
+    const dy = b.y_position - a.y_position;
+    const t = Math.max(
+      0,
+      Math.min(1, ((px - a.x_position) * dx + (py - a.y_position) * dy) / (dx * dx + dy * dy || 1)),
+    );
+    return Math.hypot(px - a.x_position - t * dx, py - a.y_position - t * dy);
+  };
+  let best = { x: 0, y: 0, clear: -1 };
+  for (let x = Math.min(...xs); x <= Math.max(...xs); x += 0.1) {
+    for (let y = Math.min(...ys); y <= Math.max(...ys); y += 0.1) {
+      const clear = Math.min(
+        ...graph.nodes.map((n) => Math.hypot(x - n.x_position, y - n.y_position)),
+        ...graph.edges.map((e) => toEdge(x, y, e)),
+      );
+      if (clear > best.clear) best = { x, y, clear };
+    }
+  }
+  return best;
+}
+
+/** The sidebar panel under this heading. */
+function panel(page: Page, heading: string) {
+  return page.locator("section", {
+    has: page.getByRole("heading", { name: heading, exact: true }),
+  });
 }
 
 /**
@@ -80,22 +154,7 @@ test.describe("the map editor's street buttons", () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1500, height: 1000 });
     await loginAsHost(page);
-    const file = JSON.parse(await readFile(SHIPPED_MAP, "utf-8"));
-    delete file.background_image; // ~1 MB the editor does not need here
-    const response = await page.request.post("/api/maps/import/", {
-      headers: await csrf(page),
-      multipart: {
-        map_name: `Editor ${Date.now()}`,
-        max_players: "6",
-        json_file: {
-          name: "map.json",
-          mimeType: "application/json",
-          buffer: Buffer.from(JSON.stringify(file)),
-        },
-      },
-    });
-    expect(response.status()).toBe(201);
-    mapId = (await response.json()).id;
+    mapId = (await importShippedMap(page)).id;
   });
 
   test.afterEach(async ({ page }) => {
@@ -214,5 +273,122 @@ test.describe("the map editor's street buttons", () => {
     const after = await between();
     expect(after).toHaveLength(2);
     for (const direction of after) expect(direction.street_edge).not.toBeNull();
+  });
+});
+
+/**
+ * What the editor calls what it draws. A node drawn by hand was "Knoten 4587",
+ * its id, so a new map started in the thousands: now a click names it after
+ * the map, counted from 1, and the panels won't save that or an empty name.
+ */
+const ADD_NODE_HINT = "Klick auf die Fläche, um einen Knoten zu setzen.";
+const ADD_EDGE_HINT = "Klick zwei Knoten an, um sie zu verbinden.";
+
+test.describe("the map editor's names", () => {
+  let shipped: { id: number; name: string } | null = null;
+
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 1500, height: 1000 });
+    await loginAsHost(page);
+    shipped = await importShippedMap(page);
+  });
+
+  test.afterEach(async ({ page }) => {
+    if (shipped === null) return;
+    await page.request.delete(`/api/maps/${shipped.id}/`, { headers: await csrf(page) });
+    shipped = null;
+  });
+
+  test("a drawn node and edge are named after the map, from 1", async ({ page }) => {
+    const { id, name: map } = shipped!;
+    const graph = await graphOf(page, id);
+    const spot = emptySpot(graph);
+    const drawn = async () => {
+      const now = await graphOf(page, id);
+      return {
+        nodes: now.nodes.filter((n) => !graph.nodes.some((old) => old.id === n.id)),
+        edges: now.edges.filter((e) => !graph.edges.some((old) => old.id === e.id)),
+      };
+    };
+
+    await page.goto(`/app/maps/${id}/editor`);
+    await page.getByRole("button", { name: "Graph", exact: true }).click();
+    await page.getByRole("button", { name: "+ Knoten" }).click();
+    await clickAt(page, spot.x, spot.y);
+    await expect.poll(async () => (await drawn()).nodes.map((n) => n.name)).toEqual([
+      `${map} Knoten 1`,
+    ]);
+    // The canvas takes the next click once the editor has the new graph,
+    // which is after the server has the node.
+    await expect(page.getByText(ADD_NODE_HINT)).toBeVisible();
+    await clickAt(page, spot.x + spot.clear / 2, spot.y);
+    await expect.poll(async () => (await drawn()).nodes.map((n) => n.name)).toEqual([
+      `${map} Knoten 1`,
+      `${map} Knoten 2`,
+    ]);
+
+    await expect(page.getByText(ADD_NODE_HINT)).toBeVisible();
+    const [first, second] = (await drawn()).nodes;
+    await page.getByRole("button", { name: "+ Kante" }).click();
+    await clickAt(page, first.x_position, first.y_position);
+    await clickAt(page, second.x_position, second.y_position);
+    // Both directions, the way a new edge is drawn unless told one way.
+    await expect.poll(async () => (await drawn()).edges.map((e) => e.name)).toEqual([
+      `${map} Kante 1`,
+      `${map} Kante 1`,
+    ]);
+    await expect(page.getByText(ADD_EDGE_HINT)).toBeVisible();
+
+    // Its panel asks for a better one before it saves.
+    await page.getByRole("button", { name: "Auswählen" }).click();
+    await clickAt(page, first.x_position, first.y_position);
+    const name = panel(page, "Knoten").getByRole("textbox");
+    await expect(name).toHaveValue(`${map} Knoten 1`);
+    const save = page.getByRole("button", { name: "Speichern" });
+    await expect(page.getByText("Gib einen besseren Namen.")).toBeVisible();
+    await expect(save).toBeDisabled();
+    await name.fill("Am Neubaugebiet");
+    await expect(page.getByText("Gib einen besseren Namen.")).toHaveCount(0);
+    await save.click();
+    await expect
+      .poll(async () => (await drawn()).nodes.map((n) => n.name))
+      .toEqual(["Am Neubaugebiet", `${map} Knoten 2`]);
+  });
+
+  test("an edge without a name is not saved until it has one", async ({ page }) => {
+    const { id } = shipped!;
+    const graph = await graphOf(page, id);
+    const node = new Map(graph.nodes.map((n) => [n.id, n]));
+    const path = graph.edges.find((e) => !e.name && !e.street_edge && !e.train_edge);
+    expect(path, "the shipped map has footpaths without a name").toBeTruthy();
+    const edge = path as GraphEdge;
+
+    await page.goto(`/app/maps/${id}/editor`);
+    await page.getByRole("button", { name: "Graph", exact: true }).click();
+    await select(page, node.get(edge.start_node)!, node.get(edge.end_node)!);
+
+    const name = panel(page, "Kante").getByRole("textbox");
+    const save = page.getByRole("button", { name: "Speichern" });
+    await expect(name).toHaveValue("");
+    await expect(save).toBeDisabled();
+    await expect(page.getByText("Gib einen besseren Namen.")).toBeVisible();
+    await name.fill("Kante 7");
+    await expect(save).toBeDisabled();
+
+    await name.fill("Uferweg");
+    await expect(save).toBeEnabled();
+    await save.click();
+    // The click may land on either direction; a save names both.
+    await expect
+      .poll(async () =>
+        (await graphOf(page, id)).edges
+          .filter(
+            (e) =>
+              [e.start_node, e.end_node].sort().join() ===
+              [edge.start_node, edge.end_node].sort().join(),
+          )
+          .map((e) => e.name),
+      )
+      .toContain("Uferweg");
   });
 });

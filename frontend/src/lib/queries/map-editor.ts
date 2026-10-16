@@ -145,6 +145,7 @@ export function deleteNode(mapId: MapId, nodeId: number) {
 // ── edges, and the two kinds that hang off them ─────────────────────────────
 
 export type EdgeInput = {
+  name?: string;
   start_node: number;
   end_node: number;
   biking?: boolean;
