@@ -70,7 +70,7 @@ export function CodeInput({
       placeholder={de.code.placeholder}
       className={cn(
         "w-full rounded-md border border-white/15 bg-white/5 px-4 py-3 font-mono text-xl tracking-[0.3em] text-brandaccent uppercase outline-none",
-        "placeholder:text-brandaccent/30 focus-visible:border-brandaccent/60 focus-visible:ring-2 focus-visible:ring-brandaccent/30",
+        "placeholder:font-sans placeholder:text-base placeholder:tracking-normal placeholder:text-brandaccent/30 placeholder:normal-case focus-visible:border-brandaccent/60 focus-visible:ring-2 focus-visible:ring-brandaccent/30",
         className,
       )}
     />

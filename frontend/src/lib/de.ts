@@ -316,7 +316,7 @@ export const de = {
     entry: "Spiel-ID oder Platz-Code",
     /** The same box with the study app on: a participant code opens it too. */
     entryStudies: "Spiel-ID, Platz-Code oder Teilnahmecode",
-    placeholder: "4F2A9C",
+    placeholder: "Dein Code",
     scanHint: "Oder den QR-Code am Beamer scannen.",
     expiresIn: (seconds: number) =>
       seconds <= 60
