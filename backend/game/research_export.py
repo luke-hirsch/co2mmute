@@ -3,8 +3,9 @@
 Only games that are over and anonymised leave: a game inside its grace period
 is still being debriefed and still carries its players' names. Players are
 numbers (their pk), never names. What a host or a player wrote as free text
-(the game's name, the chat, a Pendlertyp the host made up) does not leave, and
-neither does anything of the host's account.
+(the game's name, the chat, a Pendlertyp the host made up, the study's label)
+does not leave, and neither does anything of the host's account. A study leaves
+as a number its games share.
 
 One reader of the models, one schema: `SCHEMA` below is the file's contract, and
 `.agents/skills/extract-data/SKILL.md` describes it in words.
@@ -42,7 +43,9 @@ CREATE TABLE game (
     max_co2_kg INTEGER NOT NULL,
     timetable_factor REAL NOT NULL,
     balanced_deal INTEGER NOT NULL,
-    map_updates INTEGER NOT NULL
+    map_updates INTEGER NOT NULL,
+    co2_hidden INTEGER NOT NULL,
+    study INTEGER
 );
 CREATE TABLE player (
     id INTEGER PRIMARY KEY,
@@ -122,6 +125,19 @@ def exportable_games():
     ).order_by("pk")
 
 
+def _study_numbers(games: list[GameSession]) -> dict[str, int]:
+    """1, 2, … per label, in the order its first game ended up in the file.
+
+    The label is free text the host wrote, so it stays on the instance; the
+    number is only good for telling which games of this file belong together.
+    """
+    numbers: dict[str, int] = {}
+    for game in games:
+        if game.study and game.study not in numbers:
+            numbers[game.study] = len(numbers) + 1
+    return numbers
+
+
 def _persona_names(game: GameSession, standard_names: set[str]) -> dict[int, str]:
     # A Pendlertyp the host wrote is free text; only the standard ones keep
     # their name.
@@ -140,6 +156,7 @@ def export_research_data(path) -> dict[str, int]:
         Persona.objects.filter(game__isnull=True).values_list("name", flat=True)
     )
     games = list(exportable_games().select_related("game_map"))
+    studies = _study_numbers(games)
     node_ids: set[int] = set()
     map_ids: set[int] = set()
 
@@ -154,7 +171,7 @@ def export_research_data(path) -> dict[str, int]:
                 GameRound.objects.filter(game=game).select_related("simulation")
             )
             db.execute(
-                "INSERT INTO game VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO game VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     game.pk,
                     game.game_map_id,
@@ -175,6 +192,8 @@ def export_research_data(path) -> dict[str, int]:
                     game.timetable_factor,
                     int(game.balanced_deal),
                     int(game.map_updates),
+                    int(game.hide_co2),
+                    studies.get(game.study),
                 ),
             )
             for player in players:

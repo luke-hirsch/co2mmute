@@ -990,6 +990,41 @@ class EndReasonTests(RoundFixtureMixin, TestCase):
         self.assertIsNotNone(self.game.ended_at)
         self.assertEqual(self.game.end_reason, GameSession.EndReason.CO2_LIMIT)
 
+    def test_a_game_with_its_co2_hidden_plays_on_past_the_budget(self):
+        """Nobody could see the budget, so nobody could see the end coming."""
+        GameSession.objects.filter(pk=self.game.pk).update(
+            max_CO2_level=0, hide_co2=True
+        )
+        self.game.refresh_from_db()
+        self.submit_move(self.player)
+
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            round_completed.send(
+                sender=GameSession, game_session=self.game, game_round=self.round
+            )
+
+        self.game.refresh_from_db()
+        self.assertIsNone(self.game.ended_at)
+        self.round.refresh_from_db()
+        self.assertEqual(
+            self.round.between_round_phase, GameRound.BetweenRoundPhase.STATS
+        )
+
+    def test_a_game_with_its_co2_hidden_still_ends_after_its_last_round(self):
+        GameSession.objects.filter(pk=self.game.pk).update(
+            max_CO2_level=0, max_rounds=1, hide_co2=True
+        )
+        self.game.refresh_from_db()
+        self.submit_move(self.player)
+
+        with muted(), self.captureOnCommitCallbacks(execute=True):
+            round_completed.send(
+                sender=GameSession, game_session=self.game, game_round=self.round
+            )
+
+        self.game.refresh_from_db()
+        self.assertEqual(self.game.end_reason, GameSession.EndReason.MAX_ROUNDS)
+
     def test_the_broadcast_carries_the_stored_reason(self):
         listener = GroupListener(self.game.game_id)
 

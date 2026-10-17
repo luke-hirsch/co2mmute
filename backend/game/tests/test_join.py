@@ -9,6 +9,7 @@ the SPA hardcodes, so a rename should fail here rather than be papered over by
 reverse().
 """
 
+import json
 from decimal import Decimal
 
 from django.conf import settings
@@ -1081,6 +1082,69 @@ class HostGameListTests(TempMediaRootMixin, TestCase):
         self.assertIs(row["is_active"], True)
         self.assertIsNotNone(row["started_at"])
         self.assertIsNone(row["ended_at"])
+
+
+@override_settings(**TEST_BACKENDS)
+class ResearchSettingsTests(GameCookieMixin, TempMediaRootMixin, TestCase):
+    """The create form's research section: CO₂ hidden, and the study label."""
+
+    def setUp(self):
+        self.host = create_host()
+        self.game_map = create_game_map()
+        self.client.force_login(self.host)
+
+    def create(self, **overrides):
+        with muted():
+            response = post_create(self.client, game_map=self.game_map.pk, **overrides)
+        self.assertEqual(response.status_code, 201, response.content)
+        return GameSession.objects.get(game_id=response.json()["game_id"])
+
+    def test_a_game_shows_its_co2_and_has_no_study_unless_asked(self):
+        game = self.create()
+
+        self.assertFalse(game.hide_co2)
+        self.assertEqual(game.study, "")
+
+    def test_the_form_can_hide_the_co2_and_name_a_study(self):
+        game = self.create(hide_co2=True, study="verdeckt-offen-1")
+
+        self.assertTrue(game.hide_co2)
+        self.assertEqual(game.study, "verdeckt-offen-1")
+
+    def test_a_study_too_long_is_refused_in_german(self):
+        with muted():
+            response = post_create(
+                self.client, game_map=self.game_map.pk, study="x" * 61
+            )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json()["study"], ["Der Name der Studie hat höchstens 60 Zeichen."]
+        )
+
+    def test_the_lobby_cannot_change_either(self):
+        """Hidden from round 2 on would be neither of the two games compared."""
+        game = self.create()
+
+        with muted():
+            self.client.patch(
+                f"/api/game/{game.game_id}/",
+                json.dumps({"hide_co2": True, "study": "nachträglich"}),
+                content_type="application/json",
+            )
+
+        game.refresh_from_db()
+        self.assertFalse(game.hide_co2)
+        self.assertEqual(game.study, "")
+
+    def test_the_lobby_snapshot_tells_the_screens(self):
+        """Every screen of a seat reads it there; a player cannot read the row."""
+        game = self.create(hide_co2=True)
+        self.give_game_access(game.game_id)
+
+        payload = self.client.get(lobby_url(game.game_id)).json()
+
+        self.assertIs(payload["hide_co2"], True)
 
 
 class CreateFormRedirectTests(TempMediaRootMixin, TestCase):

@@ -91,6 +91,11 @@ class GameSessionSerializer(serializers.ModelSerializer):
     # Picked when the game is made, never after: the lobby's PATCH comes
     # through here, and seats already dealt would keep the other deal.
     balanced_deal = serializers.BooleanField(read_only=True)
+    # The same for the research section: CO₂ hidden from round 2 on would be
+    # neither of the two games a study compares. The admin can still correct
+    # the study's label.
+    hide_co2 = serializers.BooleanField(read_only=True)
+    study = serializers.CharField(read_only=True)
 
     class Meta:
         model = gm.GameSession
@@ -107,6 +112,8 @@ class GameSessionSerializer(serializers.ModelSerializer):
             "max_players",
             "agent_per_player",
             "balanced_deal",
+            "hide_co2",
+            "study",
             "max_rounds",
             "max_CO2_level",
             "co2_kg_per_person",
@@ -213,7 +220,8 @@ class GameSessionCreateSerializer(GameSessionSerializer):
     game in the same transaction, before the view seats the host — whose row
     is dealt from them. Empty or left out, the game plays free.
 
-    **And the deal**, `balanced_deal`, which the parent only reads.
+    **And the deal**, `balanced_deal`, and the research section, `hide_co2`
+    and `study`, which the parent only reads.
     """
 
     # Left out, the game plays free; sent empty, the host switched them on and
@@ -226,6 +234,15 @@ class GameSessionCreateSerializer(GameSessionSerializer):
         error_messages={"empty": "Wähle mindestens einen Pendlertyp."},
     )
     balanced_deal = serializers.BooleanField(required=False)
+    hide_co2 = serializers.BooleanField(required=False)
+    study = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=gm.GameSession._meta.get_field("study").max_length,
+        error_messages={
+            "max_length": "Der Name der Studie hat höchstens {max_length} Zeichen."
+        },
+    )
 
     class Meta(GameSessionSerializer.Meta):
         extra_kwargs = {

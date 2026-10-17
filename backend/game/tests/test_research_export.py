@@ -186,6 +186,32 @@ class ResearchExportTests(TestCase):
         ).fetchone()
         self.assertEqual(row, (game.pk, "Testkarte", 3, 1, 2, 10, 2.4, 1, "max_rounds"))
 
+    def test_whether_the_co2_was_hidden_leaves(self):
+        hidden = self.play(hide_co2=True)
+        shown = self.play()
+
+        rows = dict(self.export().execute("SELECT id, co2_hidden FROM game"))
+
+        self.assertEqual(rows, {hidden.pk: 1, shown.pk: 0})
+
+    def test_a_study_leaves_as_a_number_its_games_share_never_as_its_label(self):
+        """The label is free text the host wrote, so it stays on the instance."""
+        hidden = self.play(hide_co2=True, study="verdeckt-offen-1")
+        shown = self.play(study="verdeckt-offen-1")
+        other = self.play(study="ausbalanciert")
+        alone = self.play()
+
+        rows = dict(self.export().execute("SELECT id, study FROM game"))
+
+        self.assertIsNotNone(rows[hidden.pk])
+        self.assertEqual(rows[shown.pk], rows[hidden.pk])
+        self.assertIsNotNone(rows[other.pk])
+        self.assertNotEqual(rows[other.pk], rows[hidden.pk])
+        self.assertIsNone(rows[alone.pk])
+        raw = self.out.read_bytes()
+        self.assertNotIn(b"verdeckt-offen-1", raw)
+        self.assertNotIn(b"ausbalanciert", raw)
+
     def test_a_game_inside_the_grace_period_is_left_out(self):
         self.play(anonymised=False, hours_ago=1)
 

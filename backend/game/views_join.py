@@ -206,6 +206,9 @@ class LobbyStateView(APIView):
                 "agent_per_player": game.agent_per_player,
                 "max_rounds": game.max_rounds,
                 "max_co2_level_kg": game.max_CO2_level,
+                # Set at creation and never after, so the snapshot is enough:
+                # no socket event carries it.
+                "hide_co2": game.hide_co2,
                 "chat_enabled": game.chat_enabled,
                 "is_active": game.is_active,
                 "started_at": game.started_at.isoformat() if game.started_at else None,
