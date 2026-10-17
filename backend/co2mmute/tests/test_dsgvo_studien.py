@@ -19,7 +19,9 @@ class StudyCodeSectionTests(TestCase):
         html = page(self.client)
 
         self.assertIn(HEADING, html)
-        self.assertIn("Manche Spiele gehören zu einer Studie der Forschungsgruppe", html)
+        self.assertIn(
+            "Manche Spiele gehören zu einer Studie der Forschungsgruppe", html
+        )
         self.assertIn("Sie speichert nicht, wem ein Code gehört.", html)
         self.assertIn("deine Spiele werden nicht verbunden", html)
 
@@ -31,18 +33,17 @@ class StudyCodeSectionTests(TestCase):
         self.assertNotIn("Teilnahmecode", html)
 
     def test_the_three_lengths_are_the_constants(self):
-        from game.models import GameSession
-
-        game_id = GameSession._meta.get_field("game_id").max_length
         html = page(self.client)
         self.assertIn("Sie haben 8 Zeichen", html)
-        self.assertIn(f"Spiel-ID ({game_id} Zeichen)", html)
-        self.assertIn("Platz-Code (6 Zeichen)", html)
+        self.assertIn("Spiel-ID (6 Zeichen)", html)
+        self.assertIn("Platz-Code (7 Zeichen)", html)
 
         with (
             mock.patch("studies.models.PARTICIPANT_CODE_LENGTH", 11),
-            mock.patch("game.seats.CODE_LENGTH", 9),
+            mock.patch("game.codes.GAME_ID_LENGTH", 5),
+            mock.patch("game.codes.SEAT_CODE_LENGTH", 9),
         ):
             html = page(self.client)
         self.assertIn("Sie haben 11 Zeichen", html)
+        self.assertIn("Spiel-ID (5 Zeichen)", html)
         self.assertIn("Platz-Code (9 Zeichen)", html)

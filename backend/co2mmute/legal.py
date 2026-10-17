@@ -13,11 +13,10 @@ def code_lengths() -> dict[str, int] | None:
     if not apps.is_installed("studies"):
         return None
 
-    from game.models import GameSession
-    from game.seats import CODE_LENGTH
+    from game import codes
 
     return {
-        "game_id": GameSession._meta.get_field("game_id").max_length,
-        "seat": CODE_LENGTH,
+        "game_id": codes.GAME_ID_LENGTH,
+        "seat": codes.SEAT_CODE_LENGTH,
         "participant": apps.get_app_config("studies").participant_code_length,
     }
