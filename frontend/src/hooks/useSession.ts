@@ -24,7 +24,13 @@ async function fetchSession(gameId?: string): Promise<Auth> {
 
   // Anonymous is a *state*, not an error
   if (res.status === 401) {
-    return ANONYMOUS_AUTH;
+    // The 401 body still says whether the study app is on.
+    try {
+      const body = await res.json();
+      return { ...ANONYMOUS_AUTH, studies: body?.studies === true };
+    } catch {
+      return ANONYMOUS_AUTH;
+    }
   }
 
   if (!res.ok) {

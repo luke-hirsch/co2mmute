@@ -7,6 +7,8 @@ export interface Auth {
   authenticated: boolean;
   id?: number;
   isStaff?: boolean;
+  /** Whether the optional study app is on; in every answer, signed in or not. */
+  studies?: boolean;
   isActive?: boolean;
   username?: string;
   email?: string;

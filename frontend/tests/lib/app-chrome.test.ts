@@ -80,3 +80,13 @@ describe("which screens carry the app header", () => {
     expect(showsAppChrome("/game/")).toBe(false);
   });
 });
+
+describe("the study cards", () => {
+  it("print without a header, while the study page keeps it", () => {
+    expect(showsAppChrome("/studies")).toBe(true);
+    expect(showsAppChrome("/studies/7")).toBe(true);
+    expect(showsAppChrome("/studies/7/karten")).toBe(false);
+    expect(showsAppChrome("/studies/7/karten/")).toBe(false);
+    expect(showsAppChrome("/studies/7/kartenspiel")).toBe(true);
+  });
+});

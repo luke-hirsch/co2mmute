@@ -20,6 +20,8 @@ interface AuthContextType {
   isPlayer: boolean;
   isUser: boolean;
   isStaff: boolean;
+  /** The optional study app is on. */
+  studies: boolean;
   hasKind: (kind: string | string[]) => boolean;
   refetch: () => void;
 }
@@ -49,6 +51,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
 
   const isStaff = useMemo(() => (auth?.isStaff ? true : false), [auth]);
 
+  const studies = auth?.studies === true;
+
   const hasKind = useCallback(
     (kind: string | string[]) => {
       if (!auth) return false;
@@ -68,6 +72,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       isPlayer,
       isUser,
       isStaff,
+      studies,
       hasKind,
       refetch: () => refetch(),
     }),
@@ -80,6 +85,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       isPlayer,
       isUser,
       isStaff,
+      studies,
       hasKind,
       refetch,
     ]

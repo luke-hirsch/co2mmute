@@ -1980,4 +1980,124 @@ export const de = {
     deleteAccountBody:
       "Dein Name und dein Zugang werden entfernt, laufende Spiele beendet. Die Spielergebnisse bleiben anonym erhalten.",
   },
+
+  /**
+   * The study pages (staff only). Optional on the server: with the app off
+   * none of this is reachable.
+   */
+  studies: {
+    title: "Studien",
+    lead: "Eine Studie bündelt Spiele, die zusammen ausgewertet werden. Auf Wunsch bekommen Teilnehmende einen Code, mit dem sich ihre Spielzüge über mehrere Spiele verbinden.",
+    loading: "Studien werden geladen …",
+    failed: "Die Studien ließen sich nicht laden. Lad die Seite neu.",
+    empty: "Noch keine Studie. Leg die erste an.",
+    newStudy: "Neue Studie",
+    allStudies: "Alle Studien",
+    notFound: "Diese Studie gibt es nicht.",
+    counts: (games: number, codes: number, notes: number) =>
+      `${games} ${games === 1 ? "Spiel" : "Spiele"} · ${codes} ${codes === 1 ? "Code" : "Codes"} · ${notes} ${notes === 1 ? "Notiz" : "Notizen"}`,
+    open: "Öffnen",
+
+    create: {
+      title: "Neue Studie",
+      name: "Name",
+      namePlaceholder: "z. B. Sommer 2026",
+      description: "Beschreibung",
+      descriptionHelp: "Worum geht es? Nur für dich und die Forschungsgruppe, sie erscheint nirgends bei den Spielen.",
+      submit: "Studie anlegen",
+      submitting: "Wird angelegt …",
+      failed: "Die Studie ließ sich nicht anlegen. Versuch es nochmal.",
+    },
+
+    details: {
+      title: "Studie",
+      save: "Speichern",
+      saving: "Wird gespeichert …",
+      saved: "Gespeichert.",
+      failed: "Das ließ sich nicht speichern. Versuch es nochmal.",
+    },
+
+    games: {
+      title: "Spiele",
+      lead: "Ein Spiel gehört zu höchstens einer Studie. Verknüpfen kannst du es, solange es in der Lobby wartet.",
+      empty: "Noch kein Spiel in dieser Studie.",
+      gameId: "Spiel-ID",
+      gameIdPlaceholder: "z. B. 4F2A9C",
+      link: "Spiel verknüpfen",
+      linking: "Wird verknüpft …",
+      unlink: "Lösen",
+      linkFailed: "Das Spiel ließ sich nicht verknüpfen. Versuch es nochmal.",
+      unlinkFailed: "Das Spiel ließ sich nicht lösen. Versuch es nochmal.",
+      notFound: "Dieses Spiel gibt es nicht.",
+      waiting: "wartet in der Lobby",
+      running: "läuft",
+      ended: "beendet",
+      noMap: "ohne Karte",
+    },
+
+    codes: {
+      title: "Teilnahmecodes",
+      lead: "Optional. Eine Studie ohne Codes ist eine Sammlung ganz normaler Spiele. Mit Codes lassen sich die Züge einer Person über mehrere Spiele verfolgen, ohne dass die Website erfährt, wer sie ist.",
+      empty: "Noch keine Codes.",
+      count: "Anzahl",
+      make: "Codes erzeugen",
+      making: "Werden erzeugt …",
+      makeFailed: "Die Codes ließen sich nicht erzeugen. Versuch es nochmal.",
+      range: "Zwischen 1 und 500.",
+      used: "sitzt in einem Spiel",
+      unused: "frei",
+      delete: "Löschen",
+      deleteFailed: "Der Code ließ sich nicht löschen. Versuch es nochmal.",
+      cards: "Karten drucken",
+      total: (n: number) => `${n} ${n === 1 ? "Code" : "Codes"}`,
+    },
+
+    cards: {
+      title: "Teilnahmekarten",
+      back: "Zurück zur Studie",
+      print: "Drucken",
+      empty: "Diese Studie hat noch keine Codes.",
+      loading: "Karten werden geladen …",
+      failed: "Die Karten ließen sich nicht laden. Lad die Seite neu.",
+      instruction: "Scanne den Code, wenn die Spielleitung ein Spiel startet.",
+      orType: "Oder gib ihn auf der Beitreten-Seite ein.",
+      qrAlt: (code: string) => `QR-Code für ${code}`,
+    },
+
+    notes: {
+      title: "Notizen",
+      lead: "Notizen zur Studie, für dich und die Forschungsgruppe. Jede Notiz geht in den Export.",
+      empty: "Noch keine Notiz.",
+      add: "Notiz hinzufügen",
+      edit: "Bearbeiten",
+      delete: "Löschen",
+      text: "Text",
+      noNames: "Keine Namen von Teilnehmenden.",
+      date: "Datum",
+      dateHelp: "Worauf sich die Notiz bezieht. Darf leer bleiben.",
+      games: "Spiele",
+      gamesHelp: "Spiel-IDs, durch Komma getrennt. Nur Spiele dieser Studie.",
+      meta: "Felder",
+      metaHelp: "Zum Beispiel »Ort« und »Aula«. Text oder Zahl.",
+      metaField: "Feld",
+      metaValue: "Wert",
+      addRow: "Zeile hinzufügen",
+      removeRow: "Zeile entfernen",
+      save: "Notiz speichern",
+      saving: "Wird gespeichert …",
+      cancel: "Abbrechen",
+      saveFailed: "Die Notiz ließ sich nicht speichern. Versuch es nochmal.",
+      deleteFailed: "Die Notiz ließ sich nicht löschen. Versuch es nochmal.",
+      by: (author: string | null) => (author ? `von ${author}` : "von einem gelöschten Konto"),
+    },
+
+    remove: {
+      button: "Studie löschen",
+      title: "Studie löschen?",
+      body: (name: string) =>
+        `Die Studie »${name}« wird gelöscht, mit ihren Codes und Notizen. Die Spiele bleiben.`,
+      confirm: "Löschen",
+      failed: "Die Studie ließ sich nicht löschen. Versuch es nochmal.",
+    },
+  },
 };
