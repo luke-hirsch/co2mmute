@@ -26,8 +26,10 @@ from game.auth import resolve_player_id
 from game.codes import (
     GAME_ID_LENGTH,
     SEAT_CODE_LENGTH,
+    CodeRefused,
     UnknownCode,
     kind_for,
+    look_extras,
     register_code_kind,
 )
 from game.cache import get_cached_game_session
@@ -56,6 +58,21 @@ def _joinable(game: GameSession) -> tuple[bool, str | None]:
     return True, None
 
 
+def game_look(game: GameSession) -> dict:
+    """What a game id says before anyone has a cookie: whether and how to join."""
+    joinable, reason = _joinable(game)
+    return {
+        "game_id": game.game_id,
+        "game_name": game.game_name,
+        "requires_password": bool(game.game_password),
+        "joinable": joinable,
+        "reason": reason,
+        "player_count": _active_player_count(game),
+        "max_players": game.max_players,
+        **look_extras(game),
+    }
+
+
 def _look_game(request, game_id):
     """What a game id opens: the pre-join question.
 
@@ -66,24 +83,20 @@ def _look_game(request, game_id):
     game = get_cached_game_session(game_id)
     if not game:
         raise UnknownCode
-    joinable, reason = _joinable(game)
-    return Response(
-        {
-            "kind": "game",
-            "game_id": game.game_id,
-            "game_name": game.game_name,
-            "requires_password": bool(game.game_password),
-            "joinable": joinable,
-            "reason": reason,
-            "player_count": _active_player_count(game),
-            "max_players": game.max_players,
-        },
-        status=status.HTTP_200_OK,
-    )
+    return Response({"kind": "game", **game_look(game)}, status=status.HTTP_200_OK)
 
 
 def _take_game(request, game_id):
+    return take_game(request, game_id)
+
+
+def take_game(request, game_id, on_joined=None):
     """A game id taken: the only way a player gets a new seat.
+
+    `on_joined(player)` runs inside the same transaction and lock, after the
+    seat exists; raising `CodeRefused` from it undoes the join (`CodeView`
+    answers it 409). Another app
+    uses it to write what belongs to the seat (a participant code).
 
     Name and password arrive together, so the player row and both cookies are
     created in one request, under the lock that keeps two phones from taking
@@ -126,6 +139,8 @@ def _take_game(request, game_id):
         player = Player.objects.create(game=game, name=name)
 
         player.refresh_from_db()
+        if on_joined is not None:
+            on_joined(player)
 
     logger.info(f"Player {player.player_id} joined game {game.game_id} via REST")
 
@@ -147,6 +162,12 @@ def _refused(reason: str):
     return Response(
         {"detail": "This code cannot be used here.", "reason": reason},
         status=status.HTTP_409_CONFLICT,
+    )
+
+
+def _refused_with(reason: str, detail: str):
+    return Response(
+        {"detail": detail, "reason": reason}, status=status.HTTP_409_CONFLICT
     )
 
 
@@ -264,6 +285,8 @@ class CodeView(APIView):
             if kind.counted:
                 record("seatcode", key, SEAT_CODE_WINDOW)
             return self._unknown()
+        except CodeRefused as refused:
+            return _refused_with(refused.reason, refused.detail)
 
     def _unknown(self):
         return Response(
