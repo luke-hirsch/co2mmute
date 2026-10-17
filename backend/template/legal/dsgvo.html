@@ -166,6 +166,26 @@
             benutzt und nicht mit einem Spiel oder einem Konto verknüpft.
           </p>
         </div>
+        {% if code_lengths %}
+        <div>
+          <h3 class="text-xl font-semibold text-main dark:text-darktext mb-3">
+            2.6 Studien mit Teilnahmecode
+          </h3>
+          <p class="text-muted dark:text-darkmutedtext">
+            Manche Spiele gehören zu einer Studie der Forschungsgruppe, die
+            verfolgt, wie sich eine Person von Spiel zu Spiel entscheidet. Für
+            diese Spiele gibt es eigene Teilnahmecodes. Sie haben
+            {{ code_lengths.participant }} Zeichen und unterscheiden sich so von
+            einer Spiel-ID ({{ code_lengths.game_id }} Zeichen) und einem
+            Platz-Code ({{ code_lengths.seat }} Zeichen). Mit einem
+            Teilnahmecode verbindet die Website deine Spielzüge aus den Spielen
+            dieser Studie. Sie speichert nicht, wem ein Code gehört. Der Code
+            bleibt nach der Anonymisierung bei den Spieldaten. Ohne
+            Teilnahmecode spielst du ganz normal mit, und deine Spiele werden
+            nicht verbunden.
+          </p>
+        </div>
+        {% endif %}
       </div>
     </section>
 
@@ -267,6 +287,12 @@
         (siehe Abschnitt 2.4). Die Zähler gegen automatisiertes Erraten
         verfallen nach 5 Minuten bis 1 Stunde (siehe Abschnitt 2.5).
       </p>
+      {% if code_lengths %}
+      <p class="text-muted dark:text-darkmutedtext mt-3">
+        Ein Teilnahmecode bleibt nach der Anonymisierung bei den Spieldaten
+        seiner Studie (siehe Abschnitt 2.6).
+      </p>
+      {% endif %}
     </section>
 
     <section>

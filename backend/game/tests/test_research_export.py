@@ -269,6 +269,8 @@ class ResearchExportTests(TestCase):
                 columns -= {"name"}  # the map's own words, not a person's
             if table == "game":
                 columns -= {"map_name"}
+            if table == "study":
+                columns -= {"name"}  # the researchers' own words
             self.assertFalse(columns & banned, table)
 
     def test_the_game_date_is_a_day_not_a_moment(self):
@@ -287,3 +289,58 @@ class ResearchExportTests(TestCase):
     def export_after_play(self):
         self.play()
         return self.export()
+
+
+class ExportSeamTests(TestCase):
+    """Other apps add tables through `register_tables`; none registered, none in the file."""
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.out = Path(self.dir.name) / "research.sqlite"
+
+    def tables(self):
+        with muted():
+            call_command("export_research_data", str(self.out), stdout=StringIO())
+        db = sqlite3.connect(self.out)
+        return {r[0] for r in db.execute("SELECT name FROM sqlite_master")}
+
+    def test_with_nothing_registered_the_file_has_only_the_game_tables(self):
+        from unittest import mock
+
+        from game import research_export
+
+        with mock.patch.object(research_export, "_EXTRA_TABLES", []):
+            self.assertEqual(
+                self.tables(),
+                {
+                    "game",
+                    "player",
+                    "map_version",
+                    "node",
+                    "round",
+                    "ballot_option",
+                    "vote",
+                    "stichwahl_vote",
+                    "gruppe_round",
+                },
+            )
+
+    def test_a_registered_writer_runs_after_the_game_tables_and_is_counted(self):
+        from unittest import mock
+
+        from game import research_export
+
+        seen = []
+
+        def writer(db, games):
+            seen.append([g.pk for g in games])
+            db.execute("INSERT INTO extra VALUES (1)")
+
+        with mock.patch.object(research_export, "_EXTRA_TABLES", []):
+            research_export.register_tables("CREATE TABLE extra (n INTEGER);", writer)
+            with muted():
+                counts = research_export.export_research_data(self.out)
+
+        self.assertEqual(seen, [[]])
+        self.assertEqual(counts["extra"], 1)

@@ -103,7 +103,7 @@ def validate_flat_meta(value):
             raise ValidationError("Jedes Feld braucht einen Namen.")
         if not isinstance(item, (str, int, float, bool)):
             raise ValidationError(
-                f"»{key}«: Der Wert muss Text, eine Zahl oder ja/nein sein."
+                f"„{key}“: Der Wert muss Text, eine Zahl oder ja/nein sein."
             )
 
 

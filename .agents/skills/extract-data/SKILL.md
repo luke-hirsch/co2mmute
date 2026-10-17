@@ -49,6 +49,17 @@ chat, no QR code, no cookie. It is one row per thing:
 | `node` | home or workplace used | the map's name for it and its place |
 | `gruppe_round` | Gruppe × round | `player_id`, `gruppe` (1, 2, …), `pendlertyp`, `home_node_id`, `destination_node_id`, `mode`, `optimization`, `distance_m`, `trip_min` and `return_min`, `cost_eur` (the real cost), `paid_eur` (what the commuter paid), `co2_g_per_person`, `congestion_delay_min`, `wait_time_min` |
 
+With the study app on (the file has no `study*` tables otherwise), for the studies that have an
+exported game:
+
+| table | one row per | holds |
+| --- | --- | --- |
+| `study` | study | `name` and `description`, the researchers' own words |
+| `study_game` | study × game | which exported games belong to which study |
+| `study_seat` | participant code × game | the `code` as it is, the game, the seat (`player_id`) that played it |
+| `study_note` | note | `about_date`, `created_on`, `text`, `meta` (flat JSON text); never who wrote it |
+| `study_note_game` | note × game | the exported games a note is about |
+
 Per-minute street snapshots are not in the file. If you ever add them: their `speed_kmh` is a
 running mean since minute 0, not that minute's speed.
 
@@ -106,7 +117,12 @@ FROM round WHERE stalemate_count > 0 GROUP BY stalemate_count;
 - **n beside every number.** A mean of three Gruppen is not a finding. Say how many games, seats
   and Gruppen stand behind it, and what the spread is when it is wide.
 - **No claim about one person.** The unit is a Gruppe, a round, a game. Don't write "Spieler 3
-  drove every day"; a seat is a handful of Gruppen played by a student.
+  drove every day"; a seat is a handful of Gruppen played by a student. The one exception is a study
+  code: `study_seat` lets you follow a code through the games of its study ("the person with this
+  code rode the bike in game one, drove in game two"). A code is not a name. Never try to tie one
+  to a person, and don't join it with anything outside the file that could.
+- **Notes are the group's own words.** Quote a `study_note` as theirs; it is context for a study,
+  never a result for one person.
 - **No join that re-identifies anyone.** Don't combine `ended_on`, a map, a seat count and a
   Pendlertyp to point at a class. Don't ask anyone which `player_id` was theirs, and don't take the
   file anywhere else than where the work is done.
