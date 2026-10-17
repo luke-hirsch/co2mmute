@@ -156,7 +156,9 @@ an adapter method must never take an engine method's name.
   puts on it, because the timetable runs whether anybody rides. `docs/kalibrierung.md` says how the
   shipped map's count, its share of the timetable and normal were found. `GameMap.co2_table`
   (car share in whole percent → kg per person per round, written by `calibrate_map --out`) is what
-  that budget means on the map; the create form reads it.
+  that budget means on the map; the create form reads it. A game made with `hide_co2` (staff
+  only, set at creation and never after) keeps every CO₂ figure and the budget off the screens until
+  the summary and never ends on the budget; the summary says when it would have.
 - **A new map is measured by one rule** (`game/calibration.py`): commuters are as many as make a
   morning where everybody drives as slow as the real city's rush hour, from a cited source (for
   Berlin the TomTom Traffic Index: 19.0 km/h in the morning rush, 2025 data). The count is car demand
