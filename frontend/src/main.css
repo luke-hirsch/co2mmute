@@ -100,7 +100,7 @@
   /* type. no webfont on purpose: a third-party font sends every visitor's IP to
      its host, and the players are school students under a data-minimisation
      design. mono is reserved for ids, codes and numerals -- game ids, the
-     six-character seat code, step numbers. */
+     seven-character seat code, step numbers. */
   --font-sans:
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, "Noto Sans", sans-serif;

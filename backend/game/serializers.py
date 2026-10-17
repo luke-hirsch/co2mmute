@@ -362,7 +362,7 @@ class SeatRequestSerializer(serializers.Serializer):
 
 
 class JoinRequestSerializer(SeatRequestSerializer):
-    """Body of POST /api/game/join/<game_id>/: a name, and the password if
+    """Body of POST /api/game/code/<game_id>/: a name, and the password if
     the game has one."""
 
     password = serializers.CharField(

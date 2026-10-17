@@ -7,7 +7,7 @@
  * site.
  */
 
-/** The `reason` values `GET lookup/` and `POST join/` can return. Backend contract. */
+/** The `reason` values `GET code/<game id>/` and `POST code/<game id>/` can return. Backend contract. */
 export type JoinBlockedReason = "started" | "ended" | "full";
 
 /**
@@ -98,7 +98,7 @@ const hostRefusal: Record<HostRefusal, string> = {
   not_paused: "Das Spiel läuft schon.",
 };
 
-/** The `reason` values `POST api/game/seat/<code>/` refuses with. */
+/** The `reason` values `POST api/game/code/<seat code>/` refuses with. */
 export type RedeemRefusal = "host" | "seated" | "ended";
 
 const redeemRefusal: Record<RedeemRefusal, string> = {
@@ -175,12 +175,14 @@ export const de = {
   },
 
   join: {
-    /** The first screen: no game id yet, typed or scanned. */
+    /** The first screen: no code yet, typed or scanned. */
     idTitle: "Mitspielen",
     idSubtitle:
-      "Scanne den QR-Code oder tippe die Spiel-ID ein, die vorne steht.",
-    idLabel: "Spiel-ID",
-    idRequired: "Bitte gib eine Spiel-ID ein.",
+      "Scanne den QR-Code oder tippe die Spiel-ID oder den Platz-Code ein.",
+    codeRequired: "Bitte gib einen Code ein.",
+    codeNotFound:
+      "Diesen Code gibt es nicht. Prüfe die Eingabe oder lass dir einen neuen geben.",
+    codeThrottled: "Zu viele Versuche. Warte ein paar Minuten.",
     idSubmit: "Weiter",
     checking: "Wird geprüft …",
 
@@ -298,6 +300,8 @@ export const de = {
     boarding: "Einsteigen",
     gameId: "Spiel-ID",
     seatCode: "Platz-Code",
+    /** The one box for every code: the label on /app/join/ and the landing card. */
+    entry: "Spiel-ID oder Platz-Code",
     placeholder: "4F2A9C",
     scanHint: "Oder den QR-Code am Beamer scannen.",
     expiresIn: (seconds: number) =>
@@ -984,7 +988,7 @@ export const de = {
     failedUnknown: "Das hat nicht geklappt. Versuch es nochmal.",
   },
 
-  /** A seat moves to another device, by a six-character code. */
+  /** A seat moves to another device, by a seven-character code. */
   handover: {
     title: "Platz auf ein Gerät geben",
     /** On the host machine, for a student who turns up with a phone. */
@@ -992,7 +996,7 @@ export const de = {
       "Der Code gilt fünf Minuten und nur einmal. Wer ihn einlöst, spielt den Platz weiter.",
     /** On a phone, for somebody moving to another one. */
     playerBody:
-      "Am anderen Gerät co2mmute öffnen, „Sitzung fortsetzen“ wählen und diesen Code eintippen. Dein jetziges Gerät verlässt den Platz dabei.",
+      "Am anderen Gerät co2mmute öffnen, bei „Mitspielen“ diesen Code eintippen oder den QR-Code scannen. Dein jetziges Gerät verlässt den Platz dabei.",
     issue: "Code erzeugen",
     issuing: "Code wird erzeugt …",
     again: "Neuen Code",
@@ -1005,21 +1009,15 @@ export const de = {
     toOtherDevice: "Auf anderes Gerät",
   },
 
-  /** `/app/seat/<code>`: the device that takes the seat over. */
+  /** A seat code opened on `/app/join/<code>`: the device that takes the seat over. */
   resumeSeat: {
     title: "Sitzung fortsetzen",
-    lead: "Tippe den Platz-Code ein, der auf dem anderen Gerät steht.",
-    codeRequired: "Bitte gib den Code ein.",
-    submit: "Weiter",
-    checking: "Wird geprüft …",
     confirm: (player: string, game: string) =>
       `Du übernimmst den Platz von ${player} in „${game}“.`,
     take: "Platz übernehmen",
     taking: "Wird übernommen …",
     gone: "Diesen Code gibt es nicht mehr. Lass dir einen neuen geben.",
     refused: redeemRefusal,
-    /** The way in from the join screen. */
-    link: "Du warst schon dabei? Sitzung fortsetzen",
   },
   /**
    * The map itself — what its colours mean. Shared by the editor, the map

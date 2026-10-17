@@ -23,6 +23,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from game.auth import resolve_player_id
+from game.codes import (
+    GAME_ID_LENGTH,
+    SEAT_CODE_LENGTH,
+    UnknownCode,
+    kind_for,
+    register_code_kind,
+)
 from game.cache import get_cached_game_session
 from game.models import GameSession, Player
 from game.permissions import HasGameAccess
@@ -49,119 +56,220 @@ def _joinable(game: GameSession) -> tuple[bool, str | None]:
     return True, None
 
 
-class SessionLookupView(APIView):
-    """GET /api/game/lookup/<game_id>/ — the pre-join question.
+def _look_game(request, game_id):
+    """What a game id opens: the pre-join question.
 
-    Deliberately readable without any cookie: this is what the join screen calls
-    after a QR scan, before the player has one. It must therefore leak nothing.
-    No host identity, no player names, no password — only whether one is needed.
+    Readable without any cookie: this is what the join screen calls after a QR
+    scan, before the player has one. It must therefore leak nothing. No host
+    identity, no player names, no password — only whether one is needed.
     """
+    game = get_cached_game_session(game_id)
+    if not game:
+        raise UnknownCode
+    joinable, reason = _joinable(game)
+    return Response(
+        {
+            "kind": "game",
+            "game_id": game.game_id,
+            "game_name": game.game_name,
+            "requires_password": bool(game.game_password),
+            "joinable": joinable,
+            "reason": reason,
+            "player_count": _active_player_count(game),
+            "max_players": game.max_players,
+        },
+        status=status.HTTP_200_OK,
+    )
 
-    authentication_classes = ()
-    permission_classes = (AllowAny,)
 
-    def get(self, request, game_id):
-        game = get_cached_game_session(game_id)
-        if not game:
-            return Response(
-                {"detail": "No session found with that ID."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+def _take_game(request, game_id):
+    """A game id taken: the only way a player gets a new seat.
+
+    Name and password arrive together, so the player row and both cookies are
+    created in one request, under the lock that keeps two phones from taking
+    the last seat. A logged-in host who joins someone else's game gets a seat
+    like anybody; nothing links the account to the player.
+    """
+    serializer = JoinRequestSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    name = serializer.validated_data["name"]  # type: ignore
+    password = serializer.validated_data.get("password", "")  # type: ignore
+
+    # Bypass the cache here. get_cached_game_session can hand back a stale
+    # copy, and this is the one read where a stale started_at or an outdated
+    # row version would let someone into a running game.
+    try:
+        game = GameSession.objects.get(game_id=game_id)
+    except GameSession.DoesNotExist:
+        raise UnknownCode
+
+    # Password before state: a wrong password must not be able to tell you
+    # whether the game is full or already running.
+    if game.game_password and password != game.game_password:
+        return Response(
+            {"detail": "Incorrect password."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    with transaction.atomic():
+        # Lock the session row for the capacity check. Without it two players
+        # POSTing at once both read max_players - 1 and both get a seat.
+        game = GameSession.objects.select_for_update().get(pk=game.pk)
 
         joinable, reason = _joinable(game)
-        return Response(
-            {
-                "game_id": game.game_id,
-                "game_name": game.game_name,
-                "requires_password": bool(game.game_password),
-                "joinable": joinable,
-                "reason": reason,
-                "player_count": _active_player_count(game),
-                "max_players": game.max_players,
-            },
-            status=status.HTTP_200_OK,
-        )
+        if not joinable:
+            return Response(
+                {"detail": "Cannot join this session.", "reason": reason},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        player = Player.objects.create(game=game, name=name)
+
+        player.refresh_from_db()
+
+    logger.info(f"Player {player.player_id} joined game {game.game_id} via REST")
+
+    response = Response(
+        {
+            "game_id": game.game_id,
+            "game_name": game.game_name,
+            "player_id": player.player_id,
+            "name": player.name,
+            "agent_assignments": player.agent_assignments,
+        },
+        status=status.HTTP_201_CREATED,
+    )
+    response = set_game_access_cookie(request, response, game.game_id)
+    return set_player_cookie(request, response, game.game_id, str(player.player_id))
 
 
-class JoinSessionAPIView(APIView):
-    """POST /api/game/join/<game_id>/ — the only way a player gets a seat.
+def _refused(reason: str):
+    return Response(
+        {"detail": "This code cannot be used here.", "reason": reason},
+        status=status.HTTP_409_CONFLICT,
+    )
 
-    It replaced a two-step template flow (JoinSessionView, then PlayerCreateView,
-    with request.session["joined_game_ids"] carrying permission between them),
-    and now it is the only one: the QR code and the landing page point at
-    the SPA's join screen, and the template flow is deleted. Name and password
-    arrive together, so the player row and both cookies are created in one
-    request, under the lock that keeps two phones from taking the last seat.
 
-    authentication_classes is empty on purpose. DRF's SessionAuthentication
-    enforces CSRF only for an authenticated user, and APIView is csrf_exempt, so
-    leaving it on would mean an anonymous join needs no token but a logged-in
-    host's join does — one endpoint with two rules. Nobody joins their own game
-    as host (GameSessionCreateView already makes the host's Player row), so drop
-    authentication entirely and keep one rule.
+def _look_seat(request, code):
+    """What a seat code opens: "Du übernimmst Anna?", the code not used up."""
+    seat = seat_for_code(code)
+    if seat is None:
+        raise UnknownCode
+    if seat.game.ended_at is not None:
+        return _refused("ended")
+    return Response(
+        {
+            "kind": "seat",
+            "game_id": seat.game.game_id,
+            "game_name": seat.game.game_name,
+            "player_name": seat.name,
+        }
+    )
+
+
+def _plays(game: GameSession, player_id: str) -> bool:
+    """This browser already plays a seat in the game. Taking a second one
+    would leave the first without a device."""
+    seats = Player.objects.filter(game=game, player_id=player_id)
+    return seats.playing().exists()  # type: ignore
+
+
+def _take_seat(request, code):
+    """A seat code taken: a new player_id, both cookies, the old device out."""
+    seat = seat_for_code(code)
+    if seat is None:
+        raise UnknownCode
+    game = seat.game
+
+    # Refusals that don't use the code up.
+    if game.ended_at is not None:
+        return _refused("ended")
+    if request.user.is_authenticated and game.game_host == request.user:
+        return _refused("host")
+    held = resolve_player_id(request.COOKIES, game.game_id)
+    if held and held != seat.player_id and _plays(game, held):
+        return _refused("seated")
+
+    try:
+        seat, _old_player_id = redeem_code(code)
+    except SeatRefused as refused:
+        if refused.reason == "unknown":
+            raise UnknownCode
+        return _refused(refused.reason)
+
+    # game_id and player_id, never the name.
+    logger.info(f"Seat {seat.player_id} of game {game.game_id} redeemed by code")
+    response = Response(
+        {
+            "game_id": game.game_id,
+            "game_name": game.game_name,
+            "player_id": seat.player_id,
+            "name": seat.name,
+            "agent_assignments": seat.agent_assignments,
+        }
+    )
+    response = set_game_access_cookie(request, response, game.game_id)
+    return set_player_cookie(request, response, game.game_id, str(seat.player_id))
+
+
+register_code_kind(GAME_ID_LENGTH, look=_look_game, take=_take_game, counted=False)
+register_code_kind(SEAT_CODE_LENGTH, look=_look_seat, take=_take_seat)
+
+
+class CodeView(APIView):
+    """GET / POST /api/game/code/<code>/ — the one way in for every code.
+
+    The length says the kind (`game.codes`). GET looks: what the code opens,
+    nothing used up. POST takes it: a new seat for a game id (name, password),
+    a seat handed over for a seat code.
+
+    Needs no cookie. SessionAuthentication stays on because a seat code must
+    refuse the game's own host: the host is recognised by the session, and a
+    seat cookie in the host's browser would be lost there. A logged-in user
+    then needs the CSRF token, which the SPA sends anyway; an anonymous one
+    does not.
+
+    **Rate limited on misses, for bearer tokens only.** A seat code is seven
+    characters of 31, 27 billion — a number that only means anything while
+    guessing costs something. GET is the cheaper vector: it uses nothing up,
+    so a sweep never disturbs a real seat. A game id is on the projector and a
+    class mistypes it behind one NAT, so its misses are never counted and the
+    limit never blocks it. **Misses are counted, not requests**: a class
+    taking real codes would otherwise throttle itself.
     """
 
-    authentication_classes = ()
+    authentication_classes = (SessionAuthentication,)
     permission_classes = (AllowAny,)
 
-    def post(self, request, game_id):
-        serializer = JoinRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        name = serializer.validated_data["name"]  # type: ignore
-        password = serializer.validated_data.get("password", "")  # type: ignore
+    def get(self, request, code):
+        return self._run(request, code, "look")
 
-        # Bypass the cache here. get_cached_game_session can hand back a stale
-        # copy, and this is the one read where a stale started_at or an outdated
-        # row version would let someone into a running game.
+    def post(self, request, code):
+        return self._run(request, code, "take")
+
+    def _run(self, request, code, verb):
+        code = code.strip().upper()
+        kind = kind_for(code)
+        if kind is None:
+            return self._unknown()
+        key = client_key(request)
+        if kind.counted and over_limit("seatcode", key, SEAT_CODE_LIMIT):
+            return Response(
+                {"detail": "Too many attempts.", "reason": "throttled"},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
         try:
-            game = GameSession.objects.get(game_id=game_id.upper())
-        except GameSession.DoesNotExist:
-            return Response(
-                {"detail": "No session found with that ID."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return getattr(kind, verb)(request, code)
+        except UnknownCode:
+            if kind.counted:
+                record("seatcode", key, SEAT_CODE_WINDOW)
+            return self._unknown()
 
-        # Password before state: a wrong password must not be able to tell you
-        # whether the game is full or already running.
-        if game.game_password and password != game.game_password:
-            return Response(
-                {"detail": "Incorrect password."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        with transaction.atomic():
-            # Lock the session row for the capacity check. Without it two players
-            # POSTing at once both read max_players - 1 and both get a seat.
-            game = GameSession.objects.select_for_update().get(pk=game.pk)
-
-            joinable, reason = _joinable(game)
-            if not joinable:
-                return Response(
-                    {"detail": "Cannot join this session.", "reason": reason},
-                    status=status.HTTP_409_CONFLICT,
-                )
-
-            player = Player.objects.create(game=game, name=name)
-
-            player.refresh_from_db()
-
-        logger.info(f"Player {player.player_id} joined game {game.game_id} via REST")
-
-        response = Response(
-            {
-                "game_id": game.game_id,
-                "game_name": game.game_name,
-                "player_id": player.player_id,
-                "name": player.name,
-                "agent_assignments": player.agent_assignments,
-            },
-            status=status.HTTP_201_CREATED,
+    def _unknown(self):
+        return Response(
+            {"detail": "This code is not valid (any more)."},
+            status=status.HTTP_404_NOT_FOUND,
         )
-        response = set_game_access_cookie(request, response, game.game_id)
-        response = set_player_cookie(
-            request, response, game.game_id, str(player.player_id)
-        )
-        return response
 
 
 class LobbyStateView(APIView):
@@ -225,117 +333,4 @@ class LobbyStateView(APIView):
                 ],
             },
             status=status.HTTP_200_OK,
-        )
-
-
-class SeatCodeView(APIView):
-    """GET / POST /api/game/seat/<code>/ — take a seat over by code.
-
-    GET only looks, so the phone can ask "Du übernimmst Anna?" first. POST
-    uses the code up and hands over the seat: a new player_id, both cookies,
-    and the old device is out.
-
-    Needs no cookie, like the join. SessionAuthentication stays on, unlike the
-    join, because the game's own host must be refused: the host is recognised
-    by the session, and a seat cookie in the host's browser would be lost there.
-    A logged-in user then needs the CSRF token, which the SPA sends anyway.
-
-    **Rate limited on misses.** The alphabet is 31 characters and the
-    code is six of them, so there are 887 million — a number that only means
-    anything while guessing costs something, and at first it cost nothing at
-    all. GET is the cheaper of the two vectors: it does not use a code up, so a
-    sweep never disturbs a real seat and nothing in the game would show it
-    happened.
-
-    **Misses are counted, not requests.** A class redeeming real codes sits
-    behind one school NAT and would otherwise throttle itself; a guesser
-    produces nothing but misses. `_unknown` is the one place both verbs answer
-    a bad code from, including the "unknown" refusal `redeem_code` raises, so
-    the counting lives there rather than at three call sites.
-    """
-
-    authentication_classes = (SessionAuthentication,)
-    permission_classes = (AllowAny,)
-
-    def get(self, request, code):
-        if self._too_many():
-            return self._throttled()
-        seat = seat_for_code(code)
-        if seat is None:
-            return self._unknown()
-        if seat.game.ended_at is not None:
-            return self._refused("ended")
-        return Response(
-            {
-                "game_id": seat.game.game_id,
-                "game_name": seat.game.game_name,
-                "player_name": seat.name,
-            }
-        )
-
-    def post(self, request, code):
-        if self._too_many():
-            return self._throttled()
-        seat = seat_for_code(code)
-        if seat is None:
-            return self._unknown()
-        game = seat.game
-
-        # Refusals that don't use the code up.
-        if game.ended_at is not None:
-            return self._refused("ended")
-        if request.user.is_authenticated and game.game_host == request.user:
-            return self._refused("host")
-        held = resolve_player_id(request.COOKIES, game.game_id)
-        if held and held != seat.player_id and self._plays(game, held):
-            return self._refused("seated")
-
-        try:
-            seat, _old_player_id = redeem_code(code)
-        except SeatRefused as refused:
-            if refused.reason == "unknown":
-                return self._unknown()
-            return self._refused(refused.reason)
-
-        # game_id and player_id, never the name.
-        logger.info(f"Seat {seat.player_id} of game {game.game_id} redeemed by code")
-        response = Response(
-            {
-                "game_id": game.game_id,
-                "game_name": game.game_name,
-                "player_id": seat.player_id,
-                "name": seat.name,
-                "agent_assignments": seat.agent_assignments,
-            }
-        )
-        response = set_game_access_cookie(request, response, game.game_id)
-        return set_player_cookie(request, response, game.game_id, str(seat.player_id))
-
-    def _plays(self, game: GameSession, player_id: str) -> bool:
-        """This browser already plays a seat in the game. Taking a second one
-        would leave the first without a device."""
-        seats = Player.objects.filter(game=game, player_id=player_id)
-        return seats.playing().exists()  # type: ignore
-
-    def _too_many(self) -> bool:
-        return over_limit("seatcode", client_key(self.request), SEAT_CODE_LIMIT)
-
-    def _throttled(self):
-        return Response(
-            {"detail": "Too many attempts.", "reason": "throttled"},
-            status=status.HTTP_429_TOO_MANY_REQUESTS,
-        )
-
-    def _unknown(self):
-        """A miss, and the only thing the limit counts."""
-        record("seatcode", client_key(self.request), SEAT_CODE_WINDOW)
-        return Response(
-            {"detail": "This code is not valid (any more)."},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-
-    def _refused(self, reason: str):
-        return Response(
-            {"detail": "This code cannot be used here.", "reason": reason},
-            status=status.HTTP_409_CONFLICT,
         )

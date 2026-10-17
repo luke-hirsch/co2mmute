@@ -9,19 +9,14 @@ import { DepartureBoard } from "@/components/metro/departure-board";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
 import { ApiError, NetworkError } from "@/lib/api";
 import { de, type JoinBlockedReason } from "@/lib/de";
-import { useJoinGame, useSessionLookup } from "@/lib/queries/join";
+import { useJoinGame, type GameLook } from "@/lib/queries/join";
 
 /**
- * `/app/join/<ID>` — the screen a QR scan lands on.
- *
- * Two calls, in this order:
- *
- *   GET  lookup/<ID>/   does the game exist, is it joinable, is there a password
- *   POST join/<ID>/     name (+ password) in, a player row and both cookies out
- *
- * The lookup is what lets the screen ask for a password only when there is one,
- * and say "voll" before someone types a name for nothing. It is readable
- * without a cookie and deliberately leaks nothing — no host, no player names.
+ * A game id opened: name (+ password) in, a player row and both cookies out.
+ * `CodeScreen` asks the code first (`GET code/<ID>/`), which is what lets this
+ * form ask for a password only when there is one, and say "voll" before
+ * someone types a name for nothing. That answer is readable without a cookie
+ * and deliberately leaks nothing — no host, no player names.
  *
  * ### Why the error handling is this explicit
  *
@@ -34,64 +29,24 @@ import { useJoinGame, useSessionLookup } from "@/lib/queries/join";
  * parsed body on `ApiError` instead of flattening both into a message, the way
  * the old `utils/api.ts` did.
  */
-export function JoinForm({ gameId }: { gameId: string }) {
+export function JoinForm({ session }: { session: GameLook }) {
   const navigate = useNavigate();
-  const lookup = useSessionLookup(gameId);
+  const gameId = session.game_id;
   const join = useJoinGame(gameId);
 
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [passwordWrong, setPasswordWrong] = useState(false);
-  /** Set only by a 409 on submit — the lookup's own answer is derived below. */
+  /** Set only by a 409 on submit — the look's own answer is derived below. */
   const [refusedOnSubmit, setRefusedOnSubmit] =
     useState<JoinBlockedReason | null>(null);
 
   // Two ways to learn the game cannot be joined, and neither needs an effect:
-  // the lookup says so up front, or the join says so because the game filled up
+  // the look says so up front, or the join says so because the game filled up
   // while a name was being typed. The second wins, being newer.
   const blocked: JoinBlockedReason | null =
-    refusedOnSubmit ??
-    (lookup.data && !lookup.data.joinable ? lookup.data.reason : null);
-
-  if (lookup.isLoading) {
-    return (
-      <Screen narrow>
-        <p className="text-muted-foreground">{de.join.checking}</p>
-      </Screen>
-    );
-  }
-
-  // 404 from the lookup: there is no such game. Anything else that goes wrong
-  // here is a connection problem, and saying "there is no such game" to someone
-  // whose wifi dropped would send them hunting for a typo that is not there.
-  if (lookup.isError) {
-    const unknownGame =
-      lookup.error instanceof ApiError && lookup.error.status === 404;
-    return (
-      <Screen narrow>
-        <ScreenHeading title={de.join.title} />
-        <Alert variant="destructive">
-          <AlertDescription>
-            {unknownGame
-              ? de.join.gameNotFound
-              : lookup.error instanceof NetworkError
-                ? de.errors.network
-                : de.errors.unknown}
-          </AlertDescription>
-        </Alert>
-        <Button
-          variant="outline"
-          className="mt-8"
-          onClick={() => void navigate({ to: "/join" })}
-        >
-          {de.actions.back}
-        </Button>
-      </Screen>
-    );
-  }
-
-  const session = lookup.data;
+    refusedOnSubmit ?? (!session.joinable ? session.reason : null);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -150,7 +105,7 @@ export function JoinForm({ gameId }: { gameId: string }) {
   if (blocked) {
     return (
       <Screen narrow>
-        <ScreenHeading title={session?.game_name || de.join.title} />
+        <ScreenHeading title={session.game_name || de.join.title} />
         <Alert variant="destructive">
           <AlertDescription>{de.join.blocked[blocked]}</AlertDescription>
         </Alert>
@@ -168,16 +123,14 @@ export function JoinForm({ gameId }: { gameId: string }) {
   return (
     <Screen narrow>
       <ScreenHeading
-        title={session?.game_name || de.join.title}
+        title={session.game_name || de.join.title}
         lead={de.join.subtitle}
       />
 
       <DepartureBoard
         label={de.code.gameId}
         footnote={
-          session
-            ? de.join.seats(session.player_count, session.max_players)
-            : undefined
+          de.join.seats(session.player_count, session.max_players)
         }
         className="mb-10"
       >
@@ -204,7 +157,7 @@ export function JoinForm({ gameId }: { gameId: string }) {
           />
         </div>
 
-        {session?.requires_password ? (
+        {session.requires_password ? (
           <div className="space-y-2">
             <Label htmlFor="join-password">{de.join.passwordLabel}</Label>
             <Input

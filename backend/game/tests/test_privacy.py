@@ -991,7 +991,7 @@ class NamesStayOutOfTheLogTests(TempMediaRootMixin, TestCase):
 
     def test_joining_logs_no_name(self):
         response = self.client.post(
-            f"/api/game/join/{self.game.game_id}/",
+            f"/api/game/code/{self.game.game_id}/",
             {"name": self.NAME},
             content_type="application/json",
         )

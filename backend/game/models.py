@@ -10,6 +10,8 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
+from game.codes import GAME_ID_LENGTH
+
 logger = logging.getLogger(__name__)
 
 
@@ -118,7 +120,7 @@ class GameSession(models.Model):
 
     def generate_unique_game_id(self, max_retries=5):
         for _ in range(1, max_retries + 1):
-            game_id = uuid.uuid4().hex[:6].upper()
+            game_id = uuid.uuid4().hex[:GAME_ID_LENGTH].upper()
 
             if not GameSession.objects.filter(game_id=game_id).exists():
                 return game_id

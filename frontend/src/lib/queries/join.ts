@@ -18,8 +18,9 @@ import { apiFetch } from "@/lib/api";
 import type { JoinBlockedReason } from "@/lib/de";
 import type { LobbySnapshot } from "@/lib/game/game-state";
 
-/** `GET api/game/lookup/<game_id>/` — the first call after a QR scan. */
-export type SessionLookup = {
+/** What a game id opens (`GET api/game/code/<id>/`). */
+export type GameLook = {
+  kind: "game";
   game_id: string;
   game_name: string;
   requires_password: boolean;
@@ -29,7 +30,18 @@ export type SessionLookup = {
   max_players: number;
 };
 
-/** `POST api/game/join/<game_id>/` — the answer, plus both cookies. */
+/** What a seat code opens: a look, the code not used up. */
+export type SeatLook = {
+  kind: "seat";
+  game_id: string;
+  game_name: string;
+  player_name: string;
+};
+
+/** `GET api/game/code/<code>/` — the first call after a scan or a typed code. */
+export type CodeLook = GameLook | SeatLook;
+
+/** `POST api/game/code/<game_id>/` — the answer, plus both cookies. */
 export type JoinResult = {
   game_id: string;
   game_name: string;
@@ -39,23 +51,26 @@ export type JoinResult = {
 };
 
 export const gameKeys = {
-  lookup: (gameId: string) => ["game", gameId, "lookup"] as const,
+  code: (code: string) => ["code", code] as const,
   lobby: (gameId: string) => ["game", gameId, "lobby"] as const,
 };
 
 /**
+ * What a code opens. The length says the kind, the backend answers which.
  * Readable without any cookie — it is what the join screen asks before the
- * player has one. Enabled only for a non-empty id so the screen can mount the
+ * player has one. Enabled only for a non-empty code so the screen can mount the
  * hook before the field is filled in.
  */
-export function useSessionLookup(gameId: string) {
+export function useCodeLook(code: string) {
   return useQuery({
-    queryKey: gameKeys.lookup(gameId),
-    queryFn: () => apiFetch<SessionLookup>(`/api/game/lookup/${gameId}/`),
-    enabled: gameId.length > 0,
+    queryKey: gameKeys.code(code),
+    queryFn: () => apiFetch<CodeLook>(`/api/game/code/${code}/`),
+    enabled: code.length > 0,
     // A game that fills up while the name is being typed should be noticed on
-    // submit, not by polling a lookup nobody is looking at.
-    staleTime: 30_000,
+    // submit, not by polling a lookup nobody is looking at. A seat code is
+    // asked again each time the screen opens.
+    staleTime: 0,
+    refetchOnWindowFocus: false,
     retry: false,
   });
 }
@@ -63,7 +78,7 @@ export function useSessionLookup(gameId: string) {
 export function useJoinGame(gameId: string) {
   return useMutation({
     mutationFn: (body: { name: string; password?: string }) =>
-      apiFetch<JoinResult>(`/api/game/join/${gameId}/`, {
+      apiFetch<JoinResult>(`/api/game/code/${gameId}/`, {
         method: "POST",
         body: JSON.stringify(body),
       }),

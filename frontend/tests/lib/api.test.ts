@@ -85,7 +85,7 @@ describe("apiErrorMessage", () => {
 describe("apiFetch", () => {
   it("parses a JSON body on success", async () => {
     stubFetch(jsonResponse(200, { game_id: "ABCDE", joinable: true }));
-    await expect(apiFetch("/api/game/lookup/ABCDE/")).resolves.toEqual({
+    await expect(apiFetch("/api/game/code/ABCDE/")).resolves.toEqual({
       game_id: "ABCDE",
       joinable: true,
     });
@@ -138,7 +138,7 @@ describe("apiFetch", () => {
     vi.stubGlobal("document", { cookie: "csrftoken=tok" });
     const spy = stubFetch(jsonResponse(200, {}));
 
-    await apiFetch("/api/game/lookup/ABCDE/");
+    await apiFetch("/api/game/code/ABCDE/");
 
     const headers = (spy.mock.calls[0][1] as RequestInit).headers as Headers;
     expect(headers.has("X-CSRFToken")).toBe(false);
@@ -170,7 +170,7 @@ describe("apiFetch", () => {
   it("has no reason when the body does not carry one", async () => {
     stubFetch(jsonResponse(404, { detail: "No session found with that ID." }));
 
-    const error = (await apiFetch("/api/game/lookup/ZZZZZ/").catch(
+    const error = (await apiFetch("/api/game/code/ZZZZZ/").catch(
       (e: unknown) => e,
     )) as ApiError;
 
@@ -196,6 +196,6 @@ describe("apiFetch", () => {
 
   it("wraps a dropped connection in NetworkError", async () => {
     stubFetch(new TypeError("Failed to fetch"));
-    await expect(apiFetch("/api/game/lookup/ABCDE/")).rejects.toBeInstanceOf(NetworkError);
+    await expect(apiFetch("/api/game/code/ABCDE/")).rejects.toBeInstanceOf(NetworkError);
   });
 });

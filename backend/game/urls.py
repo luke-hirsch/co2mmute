@@ -1,10 +1,8 @@
 from django.urls import path
 
 from game.views_join import (
-    JoinSessionAPIView,
+    CodeView,
     LobbyStateView,
-    SeatCodeView,
-    SessionLookupView,
 )
 from game.views_rest import (
     GamePauseView,
@@ -31,9 +29,8 @@ urlpatterns = [
     path("", GameSessionListCreateView.as_view(), name="session-list-create"),
     # A literal, so above every "<game_id>/…": one dynamic segment takes any word.
     path("personas/", StandardPersonasView.as_view(), name="standard-personas"),
-    path("lookup/<str:game_id>/", SessionLookupView.as_view(), name="session-lookup"),
-    path("join/<str:game_id>/", JoinSessionAPIView.as_view(), name="session-join-api"),
-    path("seat/<str:code>/", SeatCodeView.as_view(), name="seat-code"),
+    # Every code, game id, seat code or another kind: the length says which.
+    path("code/<str:code>/", CodeView.as_view(), name="code"),
     path("<str:game_id>/lobby/", LobbyStateView.as_view(), name="lobby-state"),
     path("<str:game_id>/pause/", GamePauseView.as_view(), name="game-pause"),
     path("<str:game_id>/resume/", GameResumeView.as_view(), name="game-resume"),

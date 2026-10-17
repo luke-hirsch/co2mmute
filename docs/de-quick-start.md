@@ -79,7 +79,7 @@ Jemand taucht in Runde 3 auf? Leg einen Platz an der Leitstelle an und gib ihn d
 
 Die Spielleitung kann jederzeit Plätze an die Leitstelle holen („Übernehmen“). Das ist praktisch, wenn auf einem Gerät die Sitzung verloren gegangen ist. Die Spielleitung kann Plätze auch auf ein neues Gerät geben. Mit anderen Worten: Die Spielleitung kann deinen Platz bei sich parken und ihn dir jederzeit im Spiel zurückgeben.
 
-Weitergegeben wird ein Platz mit einem Code („Platz-Code“): sechs Zeichen, fünf Minuten gültig und nur einmal. Am neuen Gerät das Spiel öffnen, auf der Beitreten-Seite „Du warst schon dabei? Sitzung fortsetzen“ wählen und den Code eintippen — oder einfach den QR-Code daneben scannen. Ein neuer Code macht den alten wertlos.
+Weitergegeben wird ein Platz mit einem Code („Platz-Code“): sieben Zeichen, fünf Minuten gültig und nur einmal. Am neuen Gerät das Spiel öffnen, auf der Beitreten-Seite den Code eintippen — oder einfach den QR-Code daneben scannen. Ein neuer Code macht den alten wertlos.
 
 Die Spielenden können das auch selbst: „Auf anderes Gerät“ auf ihrem Rundenbildschirm gibt ihnen einen Code für ihr nächstes Gerät. Welches Gerät auch immer einen Code einlöst, das alte ist raus.
 

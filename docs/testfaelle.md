@@ -24,7 +24,7 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 
 | ID   | Fall                                         | Erwartet                                                | Status    | E2E |
 | ---- | -------------------------------------------- | ------------------------------------------------------- | --------- | --- |
-| J-01 | Spiel-ID gibt es nicht                       | „Es gibt kein Spiel mit dieser ID.", zurück zur Eingabe | geht      | -   |
+| J-01 | Spiel-ID gibt es nicht                       | „Diesen Code gibt es nicht. …", zurück zur Eingabe      | geht      | -   |
 | J-02 | Lobby offen, kein Passwort                   | Name rein, Spieler angelegt, Lobby                      | geht      | -   |
 | J-03 | Spiel läuft schon                            | 409 `started`, Formular gesperrt                        | geht      | -   |
 | J-04 | Spiel ist vorbei                             | 409 `ended`, Formular gesperrt                          | geht      | -   |
@@ -35,7 +35,7 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | J-09 | kein Name eingegeben                         | Meldung, gar kein Request                               | geht      | -   |
 | J-10 | Spiel füllt sich während des Tippens         | erst beim Absenden 409 `full`                           | offen     | -   |
 | J-11 | QR-Code scannen                              | landet direkt auf `/app/join/<ID>`                      | geht      | -   |
-| J-12 | „Sitzung fortsetzen" mit Platz-Code          | Platz übernommen, neue `player_id`                      | geht      | -   |
+| J-12 | Platz-Code ins Feld auf `/app/join`          | „Du übernimmst den Platz von …“, dann Platz übernommen, neue `player_id` | geht | `codes.spec.ts` |
 | J-13 | Code abgelaufen oder schon benutzt           | 404, sagt dass der Code weg ist                         | geht      | -   |
 | J-14 | Code, aber der Browser hat schon einen Platz | 409 `seated`                                            | ungeprüft | -   |
 | J-15 | Code, aber man ist der Host des Spiels       | 409 `host`                                              | geht      | -   |
@@ -44,6 +44,9 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | J-18 | „Los“ auf der Startseite, mit ID             | landet auf `/app/join/<ID>`                             | geht      | `credentials.spec.ts` |
 | J-19 | „Los“ auf der Startseite, ohne ID            | landet auf `/app/join`, das nach der ID fragt           | geht      | `credentials.spec.ts` |
 | J-20 | Startseite: das ID-Feld | der Platzhalter sagt „z. B. 4F2A9C“, damit man ihn nicht für eine ID hält, die man eintippen soll; bei 375px passt er ins Feld, bei 320px wird er abgeschnitten | geht | - |
+| J-21 | Spiel-ID ins Feld auf `/app/join`            | Namensfeld, dann Lobby                                  | geht      | `codes.spec.ts` |
+| J-22 | alte Wege `/api/game/lookup/`, `join/`, `seat/` | keine Antwort mehr, kein Redirect                       | geht      | `codes.spec.ts` |
+| J-23 | Platz-Code vertippt, mehr als 20 Mal         | 429, die Spiel-ID geht weiter                           | geht      | `test_throttle.py` |
 
 ## L — lobby
 

@@ -17,7 +17,7 @@
  *   redeem   404 (gone or used), 409 `host`, `seated`, `ended`
  */
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 
 import { apiFetch } from "@/lib/api";
 
@@ -28,20 +28,13 @@ export type IssuedSeatCode = {
   expires_in: number;
   /**
    * Where a scannable version of the code lives, when the backend renders one.
-   * Optional on purpose: a missing QR just means the six characters stand on
+   * Optional on purpose: a missing QR just means the seven characters stand on
    * their own — which is what the alphabet was chosen for.
    */
   qr_url?: string;
 };
 
-/** What `GET api/game/seat/<code>/` answers — a look, not a redemption. */
-export type SeatCodeLookup = {
-  game_id: string;
-  game_name: string;
-  player_name: string;
-};
-
-/** What `POST api/game/seat/<code>/` answers. Both cookies come with it. */
+/** What `POST api/game/code/<code>/` answers for a seat code. Both cookies come with it. */
 export type RedeemedSeat = {
   game_id: string;
   game_name: string;
@@ -112,12 +105,8 @@ export function issueSeatCode(
   });
 }
 
-export function lookUpSeatCode(code: string): Promise<SeatCodeLookup> {
-  return apiFetch<SeatCodeLookup>(`/api/game/seat/${normaliseCode(code)}/`);
-}
-
 export function redeemSeatCode(code: string): Promise<RedeemedSeat> {
-  return apiFetch<RedeemedSeat>(`/api/game/seat/${normaliseCode(code)}/`, {
+  return apiFetch<RedeemedSeat>(`/api/game/code/${normaliseCode(code)}/`, {
     method: "POST",
   });
 }
@@ -144,23 +133,6 @@ export function useMuteSeat(gameId: string) {
 
 export function useIssueSeatCode(gameId: string) {
   return useMutation({ mutationFn: (seatId: string) => issueSeatCode(gameId, seatId) });
-}
-
-/**
- * The question a scanned code asks before it is used up: "Du übernimmst Ana?"
- *
- * `retry: false` because the two failures here are answers, not glitches: 404
- * means the code is gone, 409 means not from this browser.
- */
-export function useSeatCodeLookup(code: string) {
-  return useQuery({
-    queryKey: ["seat-code", normaliseCode(code)],
-    queryFn: () => lookUpSeatCode(code),
-    enabled: normaliseCode(code).length > 0,
-    staleTime: 0,
-    refetchOnWindowFocus: false,
-    retry: false,
-  });
 }
 
 export function useRedeemSeatCode() {

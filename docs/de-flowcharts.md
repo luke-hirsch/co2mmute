@@ -99,7 +99,7 @@ stateDiagram-v2
 | Schritt                                 | wo man liest                                                   |
 | --------------------------------------- | -------------------------------------------------------------- |
 | anlegen                                 | `GameSessionListCreateView` in `game/views_rest.py`            |
-| beitreten, Zuhause und Ziele            | `JoinSessionAPIView` in `game/views_join.py`, `set_up_player` in `game/signals.py`, `assign_agent_nodes` in `game/deal.py`, die Pendlertypen `game/personas.py` |
+| beitreten, Zuhause und Ziele            | `CodeView` in `game/views_join.py`, `set_up_player` in `game/signals.py`, `assign_agent_nodes` in `game/deal.py`, die Pendlertypen `game/personas.py` |
 | starten                                 | `GameSessionDetailView.update` in `game/views_rest.py`         |
 | Runde komplett, simulieren, beenden     | `game/rounds.py`, dann `handle_round_completed` in `game/signals.py` |
 | pausieren, Ende nach Ruhe, anonymisieren | `game/pause.py`, `game/idle.py`, `game/anon.py`               |
@@ -116,13 +116,13 @@ Sitzung und wird zuerst geprüft.
 flowchart TD
     subgraph move["ein Platz zieht um"]
         direction TB
-        code["Platz-Code — POST api/game/seat/CODE/<br>6 Zeichen, 5 Minuten, einmal gültig"]
+        code["Platz-Code — POST api/game/code/CODE/<br>7 Zeichen, 5 Minuten, einmal gültig"]
         takeover["Spielleitung übernimmt einen Platz<br>…/player/P/takeover/"]
         code ~~~ takeover
     end
     subgraph fresh["neu oder erneuert"]
         direction TB
-        join["beitreten — POST api/game/join/ID/<br>Name + Spielpasswort<br>abgelehnt, wenn gestartet, beendet oder voll"]
+        join["beitreten — POST api/game/code/ID/<br>6 Zeichen, Name + Spielpasswort<br>abgelehnt, wenn gestartet, beendet oder voll"]
         create["Spielleitung legt<br>das Spiel an<br>(ihre eigene Zeile)"]
         whoami["whoami — GET api/whoami/<br>erneuert beide, z. B. nach einer Pause"]
         join ~~~ create ~~~ whoami

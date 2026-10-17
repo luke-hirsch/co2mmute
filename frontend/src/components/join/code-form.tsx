@@ -7,30 +7,31 @@ import { Screen, ScreenHeading } from "@/components/layout/screen";
 import { de } from "@/lib/de";
 
 /**
- * `/app/join/` — someone who did not scan the QR code.
+ * `/app/join/` — someone who did not scan a QR code.
  *
- * The id goes in a departure board rather than a form field because that is
+ * The code goes in a departure board rather than a form field because that is
  * where it comes from: a projector at the front of a room. The landing page's
  * join box is the same object, and a player who typed one there recognises it
- * here.
+ * here. A game id, a seat code: the length says which, and the next screen
+ * finds out.
  *
- * No lookup happens on this screen. It only routes to `/app/join/<ID>`, which
- * is the same URL a QR scan lands on — so there is exactly one screen that
- * knows what a game id can be wrong about, instead of two that have to agree.
+ * No lookup happens on this screen. It only routes to `/app/join/<CODE>`, which
+ * is the same URL every QR scan lands on — so there is exactly one screen that
+ * knows what a code can be wrong about, instead of two that have to agree.
  */
-export function GameIdForm() {
+export function CodeForm() {
   const navigate = useNavigate();
-  const [gameId, setGameId] = useState("");
+  const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
-    const trimmed = gameId.trim().toUpperCase();
+    const trimmed = code.trim().toUpperCase();
     if (!trimmed) {
-      setError(de.join.idRequired);
+      setError(de.join.codeRequired);
       return;
     }
-    void navigate({ to: "/join/$gameId", params: { gameId: trimmed } });
+    void navigate({ to: "/join/$code", params: { code: trimmed } });
   }
 
   return (
@@ -38,15 +39,15 @@ export function GameIdForm() {
       <ScreenHeading title={de.join.idTitle} lead={de.join.idSubtitle} />
 
       <form onSubmit={submit} noValidate>
-        <DepartureBoard label={de.code.gameId} footnote={de.code.scanHint}>
+        <DepartureBoard label={de.code.entry} footnote={de.code.scanHint}>
           <CodeInput
-            value={gameId}
+            value={code}
             onValueChange={(value) => {
-              setGameId(value);
+              setCode(value);
               if (error) setError(null);
             }}
             autoFocus
-            aria-label={de.join.idLabel}
+            aria-label={de.code.entry}
             aria-invalid={error ? true : undefined}
           />
         </DepartureBoard>
@@ -61,17 +62,6 @@ export function GameIdForm() {
           {de.join.idSubmit}
         </Button>
       </form>
-
-      {/* The second way in (1.7, J-12): somebody who was already playing and is
-          now at another device. A game id would give them a *new* seat and
-          leave their moves behind, so it is deliberately a separate door. */}
-      <Button
-        variant="link"
-        className="mt-10 px-0"
-        onClick={() => void navigate({ to: "/seat" })}
-      >
-        {de.resumeSeat.link}
-      </Button>
     </Screen>
   );
 }

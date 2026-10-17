@@ -4,7 +4,6 @@ import { ApiError } from "@/lib/api";
 import {
   addSeat,
   issueSeatCode,
-  lookUpSeatCode,
   muteSeat,
   redeemSeatCode,
   removeSeat,
@@ -128,40 +127,16 @@ describe("issueSeatCode", () => {
   });
 });
 
-describe("lookUpSeatCode", () => {
-  it("asks before using the code up", async () => {
-    const fetchSpy = stubFetch(
-      jsonResponse(200, { game_id: "ABC123", game_name: "Spiel", player_name: "Ana" }),
-    );
-
-    const seat = await lookUpSeatCode("4f2a9c");
-
-    const [url, init] = fetchSpy.mock.calls[0];
-    // Lower case off a phone keyboard, and a stray space off a projector.
-    expect(url).toBe("/api/game/seat/4F2A9C/");
-    expect(init?.method ?? "GET").toBe("GET");
-    expect(seat.player_name).toBe("Ana");
-  });
-
-  it("trims what was typed", async () => {
-    const fetchSpy = stubFetch(jsonResponse(200, {}));
-
-    await lookUpSeatCode("  4F2A9C ");
-
-    expect(fetchSpy.mock.calls[0][0]).toBe("/api/game/seat/4F2A9C/");
-  });
-});
-
 describe("redeemSeatCode", () => {
-  it("posts to the same path", async () => {
+  it("posts to the code endpoint, upper case and trimmed", async () => {
     const fetchSpy = stubFetch(
       jsonResponse(200, { game_id: "ABC123", player_id: "P-NEW", name: "Ana" }),
     );
 
-    const seat = await redeemSeatCode("4F2A9C");
+    const seat = await redeemSeatCode(" 4f2a9c");
 
     const [url, init] = fetchSpy.mock.calls[0];
-    expect(url).toBe("/api/game/seat/4F2A9C/");
+    expect(url).toBe("/api/game/code/4F2A9C/");
     expect(init?.method).toBe("POST");
     expect(seat.player_id).toBe("P-NEW");
   });
