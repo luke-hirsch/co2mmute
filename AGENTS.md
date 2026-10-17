@@ -33,6 +33,8 @@ else's game; that login must never link an account to a player.
   `manage.py anonymise_games` by hand).
 - A host deleting their account keeps the row and loses everything on it, and their running games
   end — `GameSession.game_host` is CASCADE, and the games are research data.
+- In a study game a participant code is collected too (`studies`, below). The site cannot tie it
+  to a person: it stores which seat used a code, never whose code it is, and no one tries to.
 - Anything new that stores player-written text needs an answer for how long it is kept before it
   ships. When what the site stores changes, `backend/template/legal/dsgvo.html` and `cookies.html`
   change with it.
@@ -94,6 +96,16 @@ home and workplace the same number of Gruppen, give or take one, over the seats 
 spreads a seat's Gruppen over the map in the game's halves order. The route check, the round screen
 and the debrief read the Gruppe's home, never the seat's. The calibration plays every home with
 every workplace either way.
+
+**The `studies` app is optional.** Commented out of `INSTALLED_APPS` it is off: no urls, no
+"Studien" menu, the `studies` flag in the auth payload false, no section in the privacy page, no
+tables in the research export. `game` never imports it (a foreign key from a game to a study would
+break `game` and its migrations with the app off; `co2mmute/tests/test_sanity.py` refuses any
+import). It plugs in at seams registered from its AppConfig: the code kinds of the one way into a
+game, and the export tables (`game.research_export.register_tables`). A study groups games; its
+participant codes, all of one length that tells them from a game id and a seat code, are
+optional, and a study without them is a collection of normal games. Staff only, reading too: a
+code is a bearer token.
 
 **`game/urls.py` order is load-bearing.** `<game_id>/` and `<game_id>/<player_id>/` swallow any one-
 and two-segment path, so literal prefixes go first. A route in the wrong place answers a plausible
@@ -273,7 +285,8 @@ lists the stages in the order they run, each module's docstring its rules.
 - **Docs**: `docs/` is flat `de-`/`en-` pairs. The pages under `/docs/` are hand copies of the German
   files (`backend/template/docs/`); a change to one is a change to the other. The flowcharts on the
   site are drawn from `docs/de-flowcharts.md` by `npm run flowcharts` in `frontend/`.
-- **What is stored → the legal pages.**
+- **What is stored → the legal pages.** With the study app on, the privacy page's section on
+  participation codes quotes the three code lengths from the code (`co2mmute/legal.py`).
 - **A map field** → the export and the importer (`maps/portability.py`, `maps/importer.py`),
   `maps/tests/test_portability.py`, and the builder if a built map should carry it
   (`mapbuild/mapfile.py`, `mapbuild/transit.py`).

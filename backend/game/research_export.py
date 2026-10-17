@@ -11,6 +11,7 @@ One reader of the models, one schema: `SCHEMA` below is the file's contract, and
 """
 
 import sqlite3
+from collections.abc import Callable
 from pathlib import Path
 
 from game.models import (
@@ -115,6 +116,35 @@ CREATE TABLE gruppe_round (
 """
 
 
+_BASE_TABLES = {
+    "game",
+    "player",
+    "map_version",
+    "node",
+    "round",
+    "ballot_option",
+    "vote",
+    "stichwahl_vote",
+    "gruppe_round",
+}
+
+# Tables other apps add, as (schema, writer). `game` never imports them: an
+# optional app registers itself from its AppConfig, and with it switched off
+# the file has no such tables at all.
+_EXTRA_TABLES: list[tuple[str, Callable]] = []
+
+
+def register_tables(schema_sql: str, writer: Callable) -> None:
+    """Add tables to the file: `writer(db, games)` runs after the game tables.
+
+    `games` are the exported ones (ended and anonymised); the writer must leave
+    out anything that is not about them. Registering the same writer twice is a
+    no-op.
+    """
+    if all(existing is not writer for _, existing in _EXTRA_TABLES):
+        _EXTRA_TABLES.append((schema_sql, writer))
+
+
 def exportable_games():
     """Ended and anonymised: the only games that leave."""
     return GameSession.objects.filter(
@@ -146,6 +176,8 @@ def export_research_data(path) -> dict[str, int]:
     db = sqlite3.connect(path)
     try:
         db.executescript(SCHEMA)
+        for schema_sql, _ in _EXTRA_TABLES:
+            db.executescript(schema_sql)
         for game in games:
             if game.game_map_id:
                 map_ids.add(game.game_map_id)
@@ -288,20 +320,30 @@ def export_research_data(path) -> dict[str, int]:
                 "INSERT INTO node VALUES (?,?,?,?,?)",
                 (node.pk, node.game_map_id, node.name, node.x_position, node.y_position),  # type: ignore
             )
+        for _, writer in _EXTRA_TABLES:
+            writer(db, games)
         db.commit()
+        tables = (
+            "game",
+            "player",
+            "round",
+            "ballot_option",
+            "vote",
+            "stichwahl_vote",
+            "gruppe_round",
+            "map_version",
+            "node",
+            *(
+                row[0]
+                for row in db.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' ORDER BY rowid"
+                )
+                if row[0] not in _BASE_TABLES
+            ),
+        )
         return {
             table: db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
-            for table in (
-                "game",
-                "player",
-                "round",
-                "ballot_option",
-                "vote",
-                "stichwahl_vote",
-                "gruppe_round",
-                "map_version",
-                "node",
-            )
+            for table in tables
         }
     finally:
         db.close()

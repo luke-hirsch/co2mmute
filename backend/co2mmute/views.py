@@ -30,7 +30,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from co2mmute import navigation
+from co2mmute import legal, navigation
 from co2mmute.throttle import (
     LOGIN_LIMIT,
     LOGIN_WINDOW,
@@ -237,6 +237,12 @@ class PasswordChangeView(auth_views.PasswordChangeView):
 
 class DsgvoView(TemplateView):
     template_name = "legal/dsgvo.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # None with the study app off: the page then has no section on codes.
+        context["code_lengths"] = legal.code_lengths()
+        return context
 
 
 class ImpressumView(TemplateView):

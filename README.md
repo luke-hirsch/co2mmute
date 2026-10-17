@@ -31,6 +31,7 @@ Vite + TypeScript als SPA. Wie gespielt wird: [`docs/de-quick-start.md`](docs/de
 | `backend/maps/`     | Kartengraph, Versionierung, REST-API des Karteneditors             |
 | `backend/mapbuild/` | eine Karte aus OpenStreetMap bauen (`manage.py build_map`), ohne Django; was es herunterlädt, bleibt in `mapbuild/cache/`, für Berlin etwa 750 MB |
 | `backend/content/`  | kleines CMS für die öffentlichen Seiten                            |
+| `backend/studies/`  | optional: Studien der Forschungsgruppe — Teilnahmecodes, Karten zum Drucken, Notizen; aus, wenn `"studies"` in `INSTALLED_APPS` auskommentiert ist |
 | `backend/template/` | Django-Templates — Landing, Hintergrund, Rechtstexte, Login        |
 | `frontend/`         | die SPA — Beitritt, Spielbildschirm, Hostseiten, Karteneditor      |
 | `devops/`           | `dev.sh`, docker-compose, nginx                                    |
@@ -215,6 +216,7 @@ family as MATSim.
 | `backend/maps/`     | map graph, versioning, the map editor's REST API                   |
 | `backend/mapbuild/` | builds a map from OpenStreetMap (`manage.py build_map`), no Django; what it downloads stays in `mapbuild/cache/`, about 750 MB for Berlin |
 | `backend/content/`  | a small CMS for the public pages                                   |
+| `backend/studies/`  | optional: the research group's studies — participation codes, cards to print, notes; off when `"studies"` is commented out of `INSTALLED_APPS` |
 | `backend/template/` | Django templates — landing, background, legal, auth                |
 | `frontend/`         | the SPA — join, game screen, host pages, map editor                |
 | `devops/`           | `dev.sh`, docker-compose, nginx                                    |
