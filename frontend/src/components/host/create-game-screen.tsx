@@ -18,7 +18,7 @@ import {
   co2KgPerPersonChoices,
   peoplePerAgent,
 } from "@/lib/calibration";
-import { useAuth } from "@/context/AuthContext";
+import { useSession } from "@/hooks/useSession";
 import { de } from "@/lib/de";
 import { pickedPersonas, type PersonaDraft } from "@/lib/game/personas";
 import { useCreateGame } from "@/lib/queries/session";
@@ -74,7 +74,7 @@ export function CreateGameScreen() {
   /** The deal. Off by default: a person's Gruppen live together. */
   const [balancedDeal, setBalancedDeal] = useState(false);
   /** Research, staff only: CO₂ off the screens until the summary. */
-  const { isStaff } = useAuth();
+  const isStaff = useSession().data?.isStaff === true;
   const [hideCo2, setHideCo2] = useState(false);
   const [researchOpen, setResearchOpen] = useState(false);
   const [unticked, setUnticked] = useState<ReadonlySet<number>>(new Set());
