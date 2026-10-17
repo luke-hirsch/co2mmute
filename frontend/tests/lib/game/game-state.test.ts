@@ -7,6 +7,7 @@ import type {
 } from "@/lib/game/events";
 import {
   budgetUsed,
+  co2Hidden,
   currentScreen,
   gameReducer,
   hostControlledSeats,
@@ -26,6 +27,7 @@ const snapshot: LobbySnapshot = {
   agent_per_player: 3,
   max_rounds: 5,
   max_co2_level_kg: 120,
+  hide_co2: false,
   chat_enabled: true,
   is_active: false,
   started_at: null,
@@ -508,6 +510,40 @@ describe("the chat switch", () => {
       data: { chat_enabled: true },
     });
     expect(state.chatEnabled).toBe(true);
+  });
+});
+
+describe("the co₂ hidden", () => {
+  const hidden = (overrides: Partial<LobbySnapshot> = {}) =>
+    gameReducer(initialGameState("ABC123"), {
+      kind: "snapshot",
+      snapshot: { ...snapshot, hide_co2: true, ...overrides },
+    });
+  const ended: GameEvent = {
+    type: "game.ended",
+    game_id: "ABC123",
+    data: {
+      reason: "max_rounds",
+      final_round: 5,
+      total_emissions_g: 130_000,
+      max_co2_level_g: 120_000,
+      ended_at: "2026-10-17T10:00:00Z",
+    },
+  };
+
+  it("is shown unless the game was made with it hidden", () => {
+    expect(start().hideCo2).toBe(false);
+    expect(co2Hidden(start())).toBe(false);
+  });
+
+  it("is hidden from the lobby through every round", () => {
+    expect(co2Hidden(hidden())).toBe(true);
+    expect(co2Hidden(apply(hidden(), roundStarted(3)))).toBe(true);
+  });
+
+  it("shows at the summary, live or after a reload", () => {
+    expect(co2Hidden(apply(hidden(), ended))).toBe(false);
+    expect(co2Hidden(hidden({ ended_at: "2026-10-17T10:00:00Z" }))).toBe(false);
   });
 });
 

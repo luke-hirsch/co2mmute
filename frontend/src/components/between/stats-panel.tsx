@@ -1,12 +1,13 @@
 import { useState } from "react";
 
+import { useGame } from "@/components/game/game-context";
 import { Co2Bar } from "@/components/metro/co2-bar";
 import { NumbersExplainerDialog } from "@/components/numbers/numbers-explainer";
 import { ScaleSwitch } from "@/components/numbers/scale-switch";
 import { de } from "@/lib/de";
 import { cn } from "@/lib/utils";
 import { co2Unit, type Scale } from "@/lib/game/scale";
-import type { RoundResult } from "@/lib/game/game-state";
+import { co2Hidden, type RoundResult } from "@/lib/game/game-state";
 
 /**
  * What the last round cost, per player (Z-01).
@@ -30,6 +31,9 @@ import type { RoundResult } from "@/lib/game/game-state";
  *
  * Time never switches: `time_min` is already a mean over the seat's Gruppen,
  * and a sum of travel times is not a quantity anybody has.
+ *
+ * A game that hides its CO₂ gets the table without it — no column, no sum, no
+ * budget — until the summary, where the same panel shows it all.
  *
  * Names appear because the roster is the room: everybody can see everybody. The
  * line they must never cross is a log, a toast or an error string
@@ -58,6 +62,8 @@ export function StatsPanel({
    */
   budget?: boolean;
 }) {
+  const { state } = useGame();
+  const co2 = !co2Hidden(state);
   const [scale, setScale] = useState<Scale>("person");
   const perPerson = scale === "person";
 
@@ -112,9 +118,11 @@ export function StatsPanel({
               <th scope="col" className="pb-2 font-normal">
                 {de.between.player}
               </th>
-              <th scope="col" className="pb-2 text-right font-normal">
-                {de.between.co2}
-              </th>
+              {co2 ? (
+                <th scope="col" className="pb-2 text-right font-normal">
+                  {de.between.co2}
+                </th>
+              ) : null}
               <th scope="col" className="pb-2 text-right font-normal">
                 {de.between.cost}
               </th>
@@ -150,12 +158,14 @@ export function StatsPanel({
                       </span>
                     ) : null}
                   </th>
-                  <td className="py-2 text-right font-mono tabular-nums">
-                    {de.between.co2Figure(
-                      perPerson ? stat.co2_g_per_person : stat.emissions_g,
-                      unit,
-                    )}
-                  </td>
+                  {co2 ? (
+                    <td className="py-2 text-right font-mono tabular-nums">
+                      {de.between.co2Figure(
+                        perPerson ? stat.co2_g_per_person : stat.emissions_g,
+                        unit,
+                      )}
+                    </td>
+                  ) : null}
                   <td className="py-2 text-right font-mono tabular-nums">
                     {de.between.eur(
                       perPerson ? stat.cost_eur_per_person : stat.cost_eur,
@@ -179,9 +189,11 @@ export function StatsPanel({
                 <th scope="row" className="pt-3 text-left font-normal">
                   {de.between.unridden}
                 </th>
-                <td className="pt-3 text-right font-mono tabular-nums">
-                  {de.between.co2Figure(round.unriddenCo2G, footUnit)}
-                </td>
+                {co2 ? (
+                  <td className="pt-3 text-right font-mono tabular-nums">
+                    {de.between.co2Figure(round.unriddenCo2G, footUnit)}
+                  </td>
+                ) : null}
                 <td className="pt-3 text-right font-mono tabular-nums">
                   {de.between.eur(round.unriddenCostEur)}
                 </td>
@@ -200,9 +212,11 @@ export function StatsPanel({
                   </span>
                 ) : null}
               </th>
-              <td className="pt-3 text-right font-mono tabular-nums">
-                {de.between.co2Figure(round.emissionsG, footUnit)}
-              </td>
+              {co2 ? (
+                <td className="pt-3 text-right font-mono tabular-nums">
+                  {de.between.co2Figure(round.emissionsG, footUnit)}
+                </td>
+              ) : null}
               <td className="pt-3 text-right font-mono tabular-nums">
                 {de.between.eur(round.costEur)}
               </td>
@@ -214,7 +228,7 @@ export function StatsPanel({
 
       {round.unriddenCo2G > 0 ? (
         <p className="mt-4 max-w-(--measure-body) text-sm text-muted-foreground">
-          {de.between.unriddenHint}
+          {co2 ? de.between.unriddenHint : de.between.unriddenCostHint}
         </p>
       ) : null}
 
@@ -239,7 +253,7 @@ export function StatsPanel({
         </p>
       ) : null}
 
-      {budget ? (
+      {budget && co2 ? (
         <Co2Bar usedG={totalEmissionsG} maxG={maxCo2LevelG} className="mt-10" />
       ) : null}
     </section>

@@ -12,7 +12,11 @@ import { ScaleSwitch } from "@/components/numbers/scale-switch";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VoteList } from "@/components/summary/vote-list";
-import { classArc, summaryMetrics } from "@/lib/game/summary";
+import {
+  budgetSpentAfter,
+  classArc,
+  summaryMetrics,
+} from "@/lib/game/summary";
 import { ownGroups } from "@/lib/game/groups";
 import { de } from "@/lib/de";
 import { displayKg, kgToGrams } from "@/lib/co2";
@@ -90,6 +94,11 @@ export function EndScreen() {
       ? kgToGrams(summary.data.max_co2_kg)
       : state.maxCo2LevelG;
 
+  const spentAfter =
+    summary.data !== undefined
+      ? budgetSpentAfter(rounds, summary.data.max_co2_kg)
+      : null;
+
   // Class scale throughout, whatever the switch says: the timetable is not
   // anybody's commute, and this is the figure the budget above was spent out of.
   const timetableKg = rounds.reduce((sum, round) => sum + round.network_co2_kg, 0);
@@ -131,6 +140,14 @@ export function EndScreen() {
         */}
         {de.summary.roundsPlayed(summary.data?.rounds_played ?? state.currentRound)}
       </p>
+      {/*
+        A game that hid its CO₂ played on past its budget, since nobody could
+        see it run out. Here is where it did. Every other game ended there,
+        and its reason says so.
+      */}
+      {state.hideCo2 && spentAfter !== null ? (
+        <p className="mt-2 text-sm">{de.summary.budgetSpentAfter(spentAfter)}</p>
+      ) : null}
 
       <div className="mt-20 space-y-16 lg:mt-28 lg:space-y-20">
         {summary.isPending ? (

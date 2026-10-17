@@ -10,7 +10,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useGame } from "@/components/game/game-context";
 import { de } from "@/lib/de";
+import { co2Hidden } from "@/lib/game/game-state";
 import { usePeoplePerAgent } from "@/components/numbers/use-people-per-agent";
 
 /**
@@ -27,20 +29,34 @@ import { usePeoplePerAgent } from "@/components/numbers/use-people-per-agent";
  * them the argument they should bring up themselves. So it lives in an overlay
  * of its own, opened from the screens that show figures, and reads out in full on
  * the screens where there is nothing to do but wait.
+ *
+ * A game that hides its CO₂ gets every topic told by the cost alone, until the
+ * summary.
  */
 function ExplainerBody({ peoplePerAgent }: { peoplePerAgent: number | null }) {
+  const { state } = useGame();
+  const co2 = !co2Hidden(state);
   const sections = [
     {
       title: de.numbers.scaleTitle,
       body:
         peoplePerAgent === null
-          ? de.numbers.scaleBodyPlain
-          : de.numbers.scaleBody(peoplePerAgent.toLocaleString("de-DE")),
+          ? de.numbers.scaleBodyPlain(co2)
+          : de.numbers.scaleBody(peoplePerAgent.toLocaleString("de-DE"), co2),
     },
-    { title: de.numbers.timeTitle, body: de.numbers.timeBody },
+    {
+      title: de.numbers.timeTitle,
+      body: co2 ? de.numbers.timeBody : de.numbers.timeBodyCost,
+    },
     { title: de.numbers.paidTitle, body: de.numbers.paidBody },
-    { title: de.numbers.networkTitle, body: de.numbers.networkBody },
-    { title: de.numbers.jamTitle, body: de.numbers.jamBody },
+    {
+      title: de.numbers.networkTitle,
+      body: co2 ? de.numbers.networkBody : de.numbers.networkBodyCost,
+    },
+    {
+      title: de.numbers.jamTitle,
+      body: co2 ? de.numbers.jamBody : de.numbers.jamBodyCost,
+    },
   ];
 
   return (

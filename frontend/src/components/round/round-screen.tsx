@@ -18,7 +18,7 @@ import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { de } from "@/lib/de";
 import { edgeLoads } from "@/lib/map/traffic";
-import { seatById } from "@/lib/game/game-state";
+import { co2Hidden, seatById } from "@/lib/game/game-state";
 import type { Node } from "@/types/mapTypes";
 
 /**
@@ -194,6 +194,7 @@ export function RoundScreen({
                         state.lastRound,
                         seatId,
                         agent.agentId,
+                        co2Hidden(state),
                       )}
                       nodes={nodes}
                       selected={selected?.agentId === agent.agentId}
