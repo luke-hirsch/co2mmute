@@ -124,6 +124,8 @@ INSTALLED_APPS = [
     "game",
     "maps",
     "content",
+    # Optional: comment it out and the study pages, menu and tables are gone.
+    "studies",
 ]
 
 MIDDLEWARE = [

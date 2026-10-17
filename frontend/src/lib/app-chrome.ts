@@ -51,7 +51,11 @@ const FULL_BLEED = ["/game"];
  * Anchored at both ends rather than a `startsWith`, which is the kind of guess
  * that quietly starts matching `/maps/7/editorial` one day.
  */
-const FULL_BLEED_PATTERNS = [/^\/maps\/[^/]+\/editor\/?$/];
+const FULL_BLEED_PATTERNS = [
+  /^\/maps\/[^/]+\/editor\/?$/,
+  // The sheet of participation cards: it is printed, so no header above it.
+  /^\/studies\/[^/]+\/karten\/?$/,
+];
 
 /** Routes whose only job is to redirect somewhere else. */
 const REDIRECT_ONLY = ["/", "/game", "/game/"];

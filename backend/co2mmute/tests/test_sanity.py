@@ -379,3 +379,36 @@ class RetiredWordsStayOutOfTheTemplatesTests(SimpleTestCase):
             [],
             msg="retired words in a template:\n  " + "\n  ".join(failures),
         )
+
+
+class OptionalAppsAreNotImportedTests(SimpleTestCase):
+    """Nothing outside `studies` imports it.
+
+    The study app is switched off by taking it out of `INSTALLED_APPS`. An
+    import of it from `game` (or anywhere else) would turn that into an
+    ImportError — or, for a foreign key, into a broken migration graph.
+    """
+
+    def test_no_module_outside_studies_imports_it(self):
+        offenders = []
+
+        for path in sorted(BACKEND_ROOT.rglob("*.py")):
+            if SKIP_PARTS.intersection(path.parts):
+                continue
+            rel = path.relative_to(BACKEND_ROOT)
+            if rel.parts[0] == "studies":
+                continue
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    names = [alias.name for alias in node.names]
+                elif isinstance(node, ast.ImportFrom) and node.level == 0:
+                    names = [node.module or ""]
+                else:
+                    continue
+                if any(n == "studies" or n.startswith("studies.") for n in names):
+                    offenders.append(f"{rel}: line {node.lineno}")
+
+        self.assertEqual(
+            offenders, [], msg="Imports of `studies`:\n  " + "\n  ".join(offenders)
+        )

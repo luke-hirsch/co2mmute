@@ -12,18 +12,22 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as StyleguideRouteImport } from './routes/styleguide'
 import { Route as HostRouteImport } from './routes/host'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as StudiesIndexRouteImport } from './routes/studies/index'
 import { Route as SeatIndexRouteImport } from './routes/seat/index'
 import { Route as MapsIndexRouteImport } from './routes/maps/index'
 import { Route as JoinIndexRouteImport } from './routes/join/index'
 import { Route as GameIndexRouteImport } from './routes/game/index'
+import { Route as StudiesStudyIdRouteImport } from './routes/studies/$studyId'
 import { Route as SeatCodeRouteImport } from './routes/seat/$code'
 import { Route as MapsUploadRouteImport } from './routes/maps/upload'
 import { Route as MapsMapIdRouteImport } from './routes/maps/$mapId'
 import { Route as JoinGameIdRouteImport } from './routes/join/$gameId'
 import { Route as GameCreateRouteImport } from './routes/game/create'
 import { Route as GameGameIdRouteImport } from './routes/game/$gameId'
+import { Route as StudiesStudyIdIndexRouteImport } from './routes/studies/$studyId.index'
 import { Route as MapsMapIdIndexRouteImport } from './routes/maps/$mapId.index'
 import { Route as GameGameIdIndexRouteImport } from './routes/game/$gameId.index'
+import { Route as StudiesStudyIdKartenRouteImport } from './routes/studies/$studyId.karten'
 import { Route as MapsMapIdEditorRouteImport } from './routes/maps/$mapId.editor'
 
 const StyleguideRoute = StyleguideRouteImport.update({
@@ -39,6 +43,11 @@ const HostRoute = HostRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StudiesIndexRoute = StudiesIndexRouteImport.update({
+  id: '/studies/',
+  path: '/studies/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SeatIndexRoute = SeatIndexRouteImport.update({
@@ -59,6 +68,11 @@ const JoinIndexRoute = JoinIndexRouteImport.update({
 const GameIndexRoute = GameIndexRouteImport.update({
   id: '/game/',
   path: '/game/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StudiesStudyIdRoute = StudiesStudyIdRouteImport.update({
+  id: '/studies/$studyId',
+  path: '/studies/$studyId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SeatCodeRoute = SeatCodeRouteImport.update({
@@ -91,6 +105,11 @@ const GameGameIdRoute = GameGameIdRouteImport.update({
   path: '/game/$gameId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StudiesStudyIdIndexRoute = StudiesStudyIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => StudiesStudyIdRoute,
+} as any)
 const MapsMapIdIndexRoute = MapsMapIdIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -100,6 +119,11 @@ const GameGameIdIndexRoute = GameGameIdIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => GameGameIdRoute,
+} as any)
+const StudiesStudyIdKartenRoute = StudiesStudyIdKartenRouteImport.update({
+  id: '/karten',
+  path: '/karten',
+  getParentRoute: () => StudiesStudyIdRoute,
 } as any)
 const MapsMapIdEditorRoute = MapsMapIdEditorRouteImport.update({
   id: '/editor',
@@ -117,13 +141,17 @@ export interface FileRoutesByFullPath {
   '/maps/$mapId': typeof MapsMapIdRouteWithChildren
   '/maps/upload': typeof MapsUploadRoute
   '/seat/$code': typeof SeatCodeRoute
+  '/studies/$studyId': typeof StudiesStudyIdRouteWithChildren
   '/game': typeof GameIndexRoute
   '/join': typeof JoinIndexRoute
   '/maps': typeof MapsIndexRoute
   '/seat': typeof SeatIndexRoute
+  '/studies': typeof StudiesIndexRoute
   '/maps/$mapId/editor': typeof MapsMapIdEditorRoute
+  '/studies/$studyId/karten': typeof StudiesStudyIdKartenRoute
   '/game/$gameId/': typeof GameGameIdIndexRoute
   '/maps/$mapId/': typeof MapsMapIdIndexRoute
+  '/studies/$studyId/': typeof StudiesStudyIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -137,9 +165,12 @@ export interface FileRoutesByTo {
   '/join': typeof JoinIndexRoute
   '/maps': typeof MapsIndexRoute
   '/seat': typeof SeatIndexRoute
+  '/studies': typeof StudiesIndexRoute
   '/maps/$mapId/editor': typeof MapsMapIdEditorRoute
+  '/studies/$studyId/karten': typeof StudiesStudyIdKartenRoute
   '/game/$gameId': typeof GameGameIdIndexRoute
   '/maps/$mapId': typeof MapsMapIdIndexRoute
+  '/studies/$studyId': typeof StudiesStudyIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -152,13 +183,17 @@ export interface FileRoutesById {
   '/maps/$mapId': typeof MapsMapIdRouteWithChildren
   '/maps/upload': typeof MapsUploadRoute
   '/seat/$code': typeof SeatCodeRoute
+  '/studies/$studyId': typeof StudiesStudyIdRouteWithChildren
   '/game/': typeof GameIndexRoute
   '/join/': typeof JoinIndexRoute
   '/maps/': typeof MapsIndexRoute
   '/seat/': typeof SeatIndexRoute
+  '/studies/': typeof StudiesIndexRoute
   '/maps/$mapId/editor': typeof MapsMapIdEditorRoute
+  '/studies/$studyId/karten': typeof StudiesStudyIdKartenRoute
   '/game/$gameId/': typeof GameGameIdIndexRoute
   '/maps/$mapId/': typeof MapsMapIdIndexRoute
+  '/studies/$studyId/': typeof StudiesStudyIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -172,13 +207,17 @@ export interface FileRouteTypes {
     | '/maps/$mapId'
     | '/maps/upload'
     | '/seat/$code'
+    | '/studies/$studyId'
     | '/game'
     | '/join'
     | '/maps'
     | '/seat'
+    | '/studies'
     | '/maps/$mapId/editor'
+    | '/studies/$studyId/karten'
     | '/game/$gameId/'
     | '/maps/$mapId/'
+    | '/studies/$studyId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -192,9 +231,12 @@ export interface FileRouteTypes {
     | '/join'
     | '/maps'
     | '/seat'
+    | '/studies'
     | '/maps/$mapId/editor'
+    | '/studies/$studyId/karten'
     | '/game/$gameId'
     | '/maps/$mapId'
+    | '/studies/$studyId'
   id:
     | '__root__'
     | '/'
@@ -206,13 +248,17 @@ export interface FileRouteTypes {
     | '/maps/$mapId'
     | '/maps/upload'
     | '/seat/$code'
+    | '/studies/$studyId'
     | '/game/'
     | '/join/'
     | '/maps/'
     | '/seat/'
+    | '/studies/'
     | '/maps/$mapId/editor'
+    | '/studies/$studyId/karten'
     | '/game/$gameId/'
     | '/maps/$mapId/'
+    | '/studies/$studyId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -225,10 +271,12 @@ export interface RootRouteChildren {
   MapsMapIdRoute: typeof MapsMapIdRouteWithChildren
   MapsUploadRoute: typeof MapsUploadRoute
   SeatCodeRoute: typeof SeatCodeRoute
+  StudiesStudyIdRoute: typeof StudiesStudyIdRouteWithChildren
   GameIndexRoute: typeof GameIndexRoute
   JoinIndexRoute: typeof JoinIndexRoute
   MapsIndexRoute: typeof MapsIndexRoute
   SeatIndexRoute: typeof SeatIndexRoute
+  StudiesIndexRoute: typeof StudiesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -252,6 +300,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/studies/': {
+      id: '/studies/'
+      path: '/studies'
+      fullPath: '/studies'
+      preLoaderRoute: typeof StudiesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/seat/': {
@@ -280,6 +335,13 @@ declare module '@tanstack/react-router' {
       path: '/game'
       fullPath: '/game'
       preLoaderRoute: typeof GameIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/studies/$studyId': {
+      id: '/studies/$studyId'
+      path: '/studies/$studyId'
+      fullPath: '/studies/$studyId'
+      preLoaderRoute: typeof StudiesStudyIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/seat/$code': {
@@ -324,6 +386,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GameGameIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/studies/$studyId/': {
+      id: '/studies/$studyId/'
+      path: '/'
+      fullPath: '/studies/$studyId/'
+      preLoaderRoute: typeof StudiesStudyIdIndexRouteImport
+      parentRoute: typeof StudiesStudyIdRoute
+    }
     '/maps/$mapId/': {
       id: '/maps/$mapId/'
       path: '/'
@@ -337,6 +406,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/game/$gameId/'
       preLoaderRoute: typeof GameGameIdIndexRouteImport
       parentRoute: typeof GameGameIdRoute
+    }
+    '/studies/$studyId/karten': {
+      id: '/studies/$studyId/karten'
+      path: '/karten'
+      fullPath: '/studies/$studyId/karten'
+      preLoaderRoute: typeof StudiesStudyIdKartenRouteImport
+      parentRoute: typeof StudiesStudyIdRoute
     }
     '/maps/$mapId/editor': {
       id: '/maps/$mapId/editor'
@@ -374,6 +450,20 @@ const MapsMapIdRouteWithChildren = MapsMapIdRoute._addFileChildren(
   MapsMapIdRouteChildren,
 )
 
+interface StudiesStudyIdRouteChildren {
+  StudiesStudyIdKartenRoute: typeof StudiesStudyIdKartenRoute
+  StudiesStudyIdIndexRoute: typeof StudiesStudyIdIndexRoute
+}
+
+const StudiesStudyIdRouteChildren: StudiesStudyIdRouteChildren = {
+  StudiesStudyIdKartenRoute: StudiesStudyIdKartenRoute,
+  StudiesStudyIdIndexRoute: StudiesStudyIdIndexRoute,
+}
+
+const StudiesStudyIdRouteWithChildren = StudiesStudyIdRoute._addFileChildren(
+  StudiesStudyIdRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   HostRoute: HostRoute,
@@ -384,10 +474,12 @@ const rootRouteChildren: RootRouteChildren = {
   MapsMapIdRoute: MapsMapIdRouteWithChildren,
   MapsUploadRoute: MapsUploadRoute,
   SeatCodeRoute: SeatCodeRoute,
+  StudiesStudyIdRoute: StudiesStudyIdRouteWithChildren,
   GameIndexRoute: GameIndexRoute,
   JoinIndexRoute: JoinIndexRoute,
   MapsIndexRoute: MapsIndexRoute,
   SeatIndexRoute: SeatIndexRoute,
+  StudiesIndexRoute: StudiesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

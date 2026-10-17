@@ -19,6 +19,7 @@ children has `href` None and renders as plain text, as it always did.
 """
 
 from content.models import NavigationItem
+from django.apps import apps
 from django.urls import reverse
 
 # Where the code lives. The project is handed over to the research group, so
@@ -94,6 +95,14 @@ def build(request):
                     _link("alle-karten", "Alle Karten", "/app/maps"),
                     _link("hochladen", "Hochladen", "/app/maps/upload"),
                 ],
+            }
+        )
+    if signed_in and user.is_staff and apps.is_installed("studies"):
+        header.append(
+            {
+                "id": "studien",
+                "label": "Studien",
+                "children": [_link("alle-studien", "Alle Studien", "/app/studies")],
             }
         )
     header.append(

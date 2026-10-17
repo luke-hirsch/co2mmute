@@ -98,6 +98,14 @@ const RAW_HEX = /#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?\b/g;
 const ALLOWED: Record<string, string[]> = {
   "components/host/seat-code-panel.tsx": ["bg-white", "text-white/50"],
   "components/host/host-lobby-screen.tsx": ["bg-white"],
+  // Paper is white with black ink whatever the colour mode, and a QR code needs
+  // a white ground to scan.
+  "components/studies/study-cards.tsx": [
+    "bg-white",
+    "print:bg-white",
+    "print:text-black",
+    "print:border-black",
+  ],
   "components/metro/departure-board.tsx": [
     "dark:bg-black",
     "border-white/10",
