@@ -39,7 +39,7 @@ chat, no QR code, no cookie. It is one row per thing:
 
 | table | one row per | holds |
 | --- | --- | --- |
-| `game` | game | the map (`map_id`, `map_name`), the day it ended (`ended_on`), why (`end_reason`), `max_rounds`, `rounds_played`, `seats`, `gruppen_per_seat`, `people_per_agent`, the budget `co2_kg_per_person` and the `max_co2_kg` the game ends on, `timetable_factor`, `balanced_deal`, `map_updates` |
+| `game` | game | the map (`map_id`, `map_name`), the day it ended (`ended_on`), why (`end_reason`), `max_rounds`, `rounds_played`, `seats`, `gruppen_per_seat`, `people_per_agent`, the budget `co2_kg_per_person` and the `max_co2_kg` the game ends on, `timetable_factor`, `balanced_deal`, `map_updates`, `co2_hidden` (1: that class never saw a CO₂ figure or the budget until the summary, and the budget did not end it) |
 | `player` | seat | `id`, its game, whether it was `left_early` |
 | `round` | round | status, `total_co2_g` and `total_cost_eur` of the players, `network_co2_g` and `network_cost_eur` of the lines nobody rode, `stalemate_count`, the version that won the vote (`winning_version_id`), `tie`, `forced` |
 | `ballot_option` | option on a round's ballot | the version and the votes it got |
@@ -129,6 +129,7 @@ FROM round WHERE stalemate_count > 0 GROUP BY stalemate_count;
 - **The game is a model, not a city.** The CO₂ and the minutes are the simulation's, on a
   calibrated map; say "in the game", and name the map and the budget.
 - **Games differ in their setup.** Compare across `co2_kg_per_person`, `balanced_deal`,
-  `timetable_factor` and map only after grouping by them.
+  `co2_hidden`, `timetable_factor` and map only after grouping by them. A hidden game's players chose
+  without seeing CO₂, and its rounds run past the budget, so don't pool it with the others.
 - A column the file lacks is not to be asked for. Names, the game's name and the chat are not
   exported on purpose; don't go to the database for them.

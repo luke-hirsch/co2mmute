@@ -1,5 +1,6 @@
 import { useGame } from "@/components/game/game-context";
 import { de } from "@/lib/de";
+import { co2Hidden } from "@/lib/game/game-state";
 import { useSetChat } from "@/lib/queries/session";
 
 /**
@@ -8,7 +9,8 @@ import { useSetChat } from "@/lib/queries/session";
  * Shared by the player's lobby and the host's, because it is the same three
  * numbers and they are read off the same snapshot. The host sees them for the
  * same reason the players do — it is the last chance to notice that the CO₂
- * budget is wrong before a round is played on it.
+ * budget is wrong before a round is played on it. A game that hides its CO₂
+ * leaves the budget out: the lobby is projected, and the class is not to know.
  *
  * The host's copy has one control in it, the chat: the create form could
  * switch it, the lobby could only say which way it was set.
@@ -26,10 +28,12 @@ export function GameSettings({ host = false }: { host?: boolean }) {
         label={de.lobby.settings.maxRounds}
         value={de.lobby.roundsCount(state.maxRounds)}
       />
-      <Setting
-        label={de.lobby.settings.co2Budget}
-        value={de.lobby.co2Kg(state.maxCo2LevelKg)}
-      />
+      {co2Hidden(state) ? null : (
+        <Setting
+          label={de.lobby.settings.co2Budget}
+          value={de.lobby.co2Kg(state.maxCo2LevelKg)}
+        />
+      )}
       {/*
         Back again. This row was removed once because the chat had died
         with the legacy screen and it went on promising "Chat — an" for a

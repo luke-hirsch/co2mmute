@@ -39,6 +39,8 @@ export type CreateGameOptions = {
   chat?: boolean;
   /** The game's password. Left out, the game has none. */
   password?: string;
+  /** Research, staff only: CO₂ off the screens until the summary. */
+  hideCo2?: boolean;
 };
 
 /** Create a game on the seeded map and return its id. Requires a host session. */
@@ -54,6 +56,7 @@ export async function createGame(
     peoplePerAgent,
     chat,
     password,
+    hideCo2,
   } = options;
 
   await page.goto("/game/create/");
@@ -77,6 +80,11 @@ export async function createGame(
   if (chat !== undefined) {
     await page.getByText("Weitere Einstellungen").click();
     await page.getByLabel("Chat").setChecked(chat);
+  }
+
+  if (hideCo2) {
+    await page.getByText("Für die Forschung").click();
+    await page.getByLabel("bis zur Auswertung verdecken").check();
   }
 
   await page.getByRole("button", { name: "Spiel anlegen" }).click();

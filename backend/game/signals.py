@@ -267,8 +267,11 @@ def handle_round_completed(
         )
     )
 
-    # Check game end conditions
-    co2_limit_reached = total_game_emissions >= (game_session.max_CO2_level * 1000)
+    # Check game end conditions. With the CO₂ hidden nobody can see the budget,
+    # so it never ends the game: the summary says when it would have.
+    co2_limit_reached = not game_session.hide_co2 and total_game_emissions >= (
+        game_session.max_CO2_level * 1000
+    )
     max_rounds_reached = game_round.round_number >= game_session.max_rounds
 
     # Get voteable map versions based on active version's compatible_versions

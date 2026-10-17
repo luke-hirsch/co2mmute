@@ -42,6 +42,13 @@ describe("lastRoundLine", () => {
     expect(lastRoundLine(r, "p1", 2)).toBe("Letzte Runde: Auto · 34 min · 2,1 kg");
   });
 
+  it("leaves the kg out of a game that hides its CO₂", () => {
+    const r = round([
+      { agent_id: 2, mode: "car", trip_time_min: 34.4, co2_g_per_person: 2140 },
+    ]);
+    expect(lastRoundLine(r, "p1", 2, true)).toBe("Letzte Runde: Auto · 34 min");
+  });
+
   it("is null in round 1, for another seat and for another Gruppe", () => {
     const r = round([
       { agent_id: 2, mode: "car", trip_time_min: 34, co2_g_per_person: 2140 },

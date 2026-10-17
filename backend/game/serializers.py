@@ -91,6 +91,9 @@ class GameSessionSerializer(serializers.ModelSerializer):
     # Picked when the game is made, never after: the lobby's PATCH comes
     # through here, and seats already dealt would keep the other deal.
     balanced_deal = serializers.BooleanField(read_only=True)
+    # The same for the research section: CO₂ hidden from round 2 on would be
+    # neither of the two games compared.
+    hide_co2 = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = gm.GameSession
@@ -107,6 +110,7 @@ class GameSessionSerializer(serializers.ModelSerializer):
             "max_players",
             "agent_per_player",
             "balanced_deal",
+            "hide_co2",
             "max_rounds",
             "max_CO2_level",
             "co2_kg_per_person",
@@ -187,6 +191,13 @@ class GameSessionSerializer(serializers.ModelSerializer):
         ):
             errors["co2_kg_per_person"] = KG_PER_PERSON_ERROR
 
+        # Only the create form sends it. The form shows the switch to staff, so
+        # the server holds to that as well.
+        if attrs.get("hide_co2"):
+            request = self.context.get("request")
+            if not (request and request.user.is_staff):
+                errors["hide_co2"] = "Diese Einstellung gibt es nur für die Forschung."
+
         if errors:
             raise serializers.ValidationError(errors)
 
@@ -213,7 +224,8 @@ class GameSessionCreateSerializer(GameSessionSerializer):
     game in the same transaction, before the view seats the host — whose row
     is dealt from them. Empty or left out, the game plays free.
 
-    **And the deal**, `balanced_deal`, which the parent only reads.
+    **And the deal**, `balanced_deal`, and the research section, `hide_co2`
+    (staff only), which the parent only reads.
     """
 
     # Left out, the game plays free; sent empty, the host switched them on and
@@ -226,6 +238,7 @@ class GameSessionCreateSerializer(GameSessionSerializer):
         error_messages={"empty": "Wähle mindestens einen Pendlertyp."},
     )
     balanced_deal = serializers.BooleanField(required=False)
+    hide_co2 = serializers.BooleanField(required=False)
 
     class Meta(GameSessionSerializer.Meta):
         extra_kwargs = {

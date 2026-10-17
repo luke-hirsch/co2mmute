@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { classArc, orderBy, playerValue, roundValue } from "@/lib/game/summary";
+import {
+  budgetSpentAfter,
+  classArc,
+  orderBy,
+  playerValue,
+  roundValue,
+} from "@/lib/game/summary";
 import type {
   SummaryPlayer,
   SummaryRound,
@@ -327,5 +333,27 @@ describe("classArc", () => {
 
   it("has no stops when no round was completed", () => {
     expect(classArc([])).toEqual([]);
+  });
+});
+
+describe("budgetSpentAfter", () => {
+  // A game with its CO₂ hidden plays on past its budget; the summary says
+  // where it would have ended.
+  const rounds = [
+    classRound({ round_number: 1, co2_kg: 40 }),
+    classRound({ round_number: 3, co2_kg: 30 }),
+    classRound({ round_number: 2, co2_kg: 35 }),
+    classRound({ round_number: 4, co2_kg: 50 }),
+  ];
+
+  it("names the round the running total reached the budget in", () => {
+    expect(budgetSpentAfter(rounds, 105)).toBe(3);
+    expect(budgetSpentAfter(rounds, 104)).toBe(3);
+    expect(budgetSpentAfter(rounds, 106)).toBe(4);
+  });
+
+  it("is null when the budget was never reached", () => {
+    expect(budgetSpentAfter(rounds, 156)).toBeNull();
+    expect(budgetSpentAfter([], 10)).toBeNull();
   });
 });

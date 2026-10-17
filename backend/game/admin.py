@@ -12,8 +12,19 @@ from .models import (
 @admin.register(GameSession)
 class GameSessionAdmin(admin.ModelAdmin):
     list_display = ("game_name", "game_id", "game_host", "is_active", "created_at")
-    list_filter = ("is_active", "map_updates", "balanced_deal", "created_at")
-    search_fields = ("game_name", "game_id", "game_host__username", "game_host__email")
+    list_filter = (
+        "is_active",
+        "map_updates",
+        "balanced_deal",
+        "hide_co2",
+        "created_at",
+    )
+    search_fields = (
+        "game_name",
+        "game_id",
+        "game_host__username",
+        "game_host__email",
+    )
     ordering = ("-created_at",)
 
 

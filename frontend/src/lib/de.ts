@@ -425,9 +425,15 @@ export const de = {
     noAssignment:
       "Für diesen Platz sind keine Gruppen hinterlegt. Die Spielleitung muss das Spiel neu anlegen.",
 
-    /** One line per Gruppe from round 2 on; nothing is preselected from it. */
-    lastRoundLine: (mode: TransportMode, minutes: number, kg: number) =>
-      `Letzte Runde: ${modeLabels[mode]} · ${Math.round(minutes)} min · ${kg.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg`,
+    /**
+     * One line per Gruppe from round 2 on; nothing is preselected from it. No
+     * kg in a game that hides its CO₂.
+     */
+    lastRoundLine: (mode: TransportMode, minutes: number, kg: number | null) =>
+      `Letzte Runde: ${modeLabels[mode]} · ${Math.round(minutes)} min` +
+      (kg === null
+        ? ""
+        : ` · ${kg.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg`),
   },
 
   /**
@@ -595,6 +601,9 @@ export const de = {
     unridden: "Leer gefahrene Linien",
     unriddenHint:
       "Bus und Bahn fahren ihren Takt, auch wenn niemand einsteigt. Dieses CO₂ steht in der Rundensumme, aber in keiner Zeile.",
+    /** The same, in a game that hides its CO₂: the row is the cost alone. */
+    unriddenCostHint:
+      "Bus und Bahn fahren ihren Takt, auch wenn niemand einsteigt. Diese Kosten stehen in der Rundensumme, aber in keiner Zeile.",
     /** The class's own commutes, not the round — the timetable nobody rode is
      *  already on its own line above and would make the gap look like subsidy. */
     paidSelf: (paid: string, cost: string) =>
@@ -655,20 +664,32 @@ export const de = {
      * person, so what is left to say is how many are in it.
      */
     scaleTitle: "Hinter einer Gruppe stecken viele Menschen",
-    scaleBody: (people: string) =>
+    /**
+     * The tonnes are CO₂, so a game that hides it (`co2` false) leaves that
+     * sentence out.
+     */
+    scaleBody: (people: string, co2 = true) =>
       `Die Karte zeigt einen echten Stadtteil, und dort pendeln jeden Morgen ` +
       `tausende Menschen. Die verteilen sich auf die Gruppen im Spiel: eine ` +
-      `steht für ${people} Menschen. Deshalb kostet eine Runde Tonnen und nicht ` +
-      `Gramm. Wenn mehr Plätze mitspielen, steht eine Gruppe für weniger ` +
+      `steht für ${people} Menschen. ` +
+      (co2 ? `Deshalb kostet eine Runde Tonnen und nicht Gramm. ` : "") +
+      `Wenn mehr Plätze mitspielen, steht eine Gruppe für weniger ` +
       `Menschen — der Stadtteil bleibt gleich groß.`,
-    scaleBodyPlain:
+    scaleBodyPlain: (co2 = true) =>
       "Die Karte zeigt einen echten Stadtteil, und dort pendeln jeden Morgen " +
       "tausende Menschen. Die verteilen sich auf die Gruppen im Spiel: eine " +
-      "steht für viele. Deshalb kostet eine Runde Tonnen und nicht Gramm.",
+      "steht für viele." +
+      (co2 ? " Deshalb kostet eine Runde Tonnen und nicht Gramm." : ""),
 
     timeTitle: "Zeit wird nicht zusammengezählt",
     timeBody:
       "CO₂ und Kosten kann man addieren: zwei Wege kosten doppelt. Zeit nicht — " +
+      "wenn zwei Gruppen je 30 Minuten brauchen, dauert der Morgen 30 Minuten " +
+      "und nicht 60. In der Zeitspalte steht deshalb immer der Schnitt über die " +
+      "Wege, auf beiden Skalen.",
+    /** The bodies below with "Cost" in their name: the same, told by the cost alone. */
+    timeBodyCost:
+      "Kosten kann man addieren: zwei Wege kosten doppelt. Zeit nicht — " +
       "wenn zwei Gruppen je 30 Minuten brauchen, dauert der Morgen 30 Minuten " +
       "und nicht 60. In der Zeitspalte steht deshalb immer der Schnitt über die " +
       "Wege, auf beiden Skalen.",
@@ -688,11 +709,20 @@ export const de = {
       "stößt dabei CO₂ aus. Benutzt niemand von euch eine Linie, steht " +
       "ihr CO₂ trotzdem in der Rundensumme — aber in keiner Zeile. Genau diese " +
       "Differenz steht unter der Tabelle.",
+    networkBodyCost:
+      "Eine Buslinie fährt ihren Takt, ob jemand einsteigt oder nicht, und " +
+      "kostet dabei Geld. Benutzt niemand von euch eine Linie, stehen ihre " +
+      "Kosten trotzdem in der Rundensumme — aber in keiner Zeile. Genau diese " +
+      "Differenz steht unter der Tabelle.",
 
     jamTitle: "Im Stau wird es mehr",
     jamBody:
       "Ein Auto im Stau verbraucht pro Kilometer mehr als eines, das fährt. " +
       "Dieselbe Strecke kann in zwei Runden also unterschiedlich viel CO₂ " +
+      "kosten, auch wenn niemand seine Route geändert hat.",
+    jamBodyCost:
+      "Ein Auto im Stau verbraucht pro Kilometer mehr als eines, das fährt. " +
+      "Dieselbe Strecke kann in zwei Runden also unterschiedlich viel " +
       "kosten, auch wenn niemand seine Route geändert hat.",
   },
 
@@ -755,6 +785,9 @@ export const de = {
     reason: endReason,
     roundsPlayed: (n: number) =>
       n === 1 ? "1 Runde gefahren" : `${n} Runden gefahren`,
+    /** A game that hid its CO₂ played on past its budget; this is where it ran out. */
+    budgetSpentAfter: (n: number) =>
+      `Euer CO₂-Budget war nach Runde ${n} aufgebraucht.`,
     lastRound: (n: number) => `Die letzte Runde (${n})`,
     total: "CO₂ insgesamt",
     budget: "Budget",
@@ -1901,6 +1934,13 @@ export const de = {
     chat: "Chat",
     chatHelp:
       "Alle im Spiel können sich schreiben. Einzelne Plätze kannst du jederzeit stummschalten.",
+
+    /** Closed by default too; for researchers, not for a normal game. */
+    research: "Für die Forschung",
+    hideCo2: "CO₂",
+    hideCo2Switch: "bis zur Auswertung verdecken",
+    hideCo2Help:
+      "Niemand sieht CO₂ oder Budget, bis das Spiel vorbei ist. Das Budget beendet das Spiel nicht.",
 
     submit: "Spiel anlegen",
     submitting: "Wird angelegt …",

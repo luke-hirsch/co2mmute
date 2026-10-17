@@ -132,3 +132,21 @@ export function classArc(rounds: readonly SummaryRoundTotals[]): ArcStop[] {
       simulationUsed: round.simulation_used,
     }));
 }
+
+/**
+ * The round the class's running total reached its budget in, or null.
+ *
+ * Only a game that hides its CO₂ plays on past that round — every other game
+ * ends there — so this is what its summary tells the class afterwards.
+ */
+export function budgetSpentAfter(
+  rounds: readonly SummaryRoundTotals[],
+  budgetKg: number,
+): number | null {
+  let total = 0;
+  for (const round of [...rounds].sort((a, b) => a.round_number - b.round_number)) {
+    total += round.co2_kg;
+    if (total >= budgetKg) return round.round_number;
+  }
+  return null;
+}

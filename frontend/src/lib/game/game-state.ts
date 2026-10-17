@@ -53,6 +53,8 @@ export type LobbySnapshot = {
   agent_per_player: number;
   max_rounds: number;
   max_co2_level_kg: number;
+  /** Set when the game is made and never after, so no event carries it. */
+  hide_co2: boolean;
   chat_enabled: boolean;
   is_active: boolean;
   started_at: string | null;
@@ -113,6 +115,8 @@ export type GameState = {
   maxPlayers: number;
   agentPerPlayer: number;
   chatEnabled: boolean;
+  /** The game was made for research with its CO₂ hidden. Read `co2Hidden`. */
+  hideCo2: boolean;
 
   // ── lifecycle: REST first, then the socket ────────────────────────────────
   isActive: boolean;
@@ -173,6 +177,7 @@ export function initialGameState(gameId: string): GameState {
     maxPlayers: 0,
     agentPerPlayer: 0,
     chatEnabled: false,
+    hideCo2: false,
 
     isActive: false,
     startedAt: null,
@@ -234,6 +239,7 @@ function applySnapshot(state: GameState, snapshot: LobbySnapshot): GameState {
     maxPlayers: snapshot.max_players,
     agentPerPlayer: snapshot.agent_per_player,
     chatEnabled: snapshot.chat_enabled,
+    hideCo2: snapshot.hide_co2,
     maxCo2LevelKg: snapshot.max_co2_level_kg,
   };
 
@@ -564,6 +570,17 @@ export function currentScreen(state: GameState): GameScreen {
     return "playing";
   }
   return "lobby";
+}
+
+/**
+ * Whether the screens leave every CO₂ figure and the budget out.
+ *
+ * A game made for research with its CO₂ hidden shows none of it — not the
+ * budget, not a kg, not a sentence about CO₂ — until it is over: the summary
+ * shows all of it. Ask here, never `hideCo2` alone, or the summary stays dark.
+ */
+export function co2Hidden(state: GameState): boolean {
+  return state.hideCo2 && state.endedAt === null;
 }
 
 /**

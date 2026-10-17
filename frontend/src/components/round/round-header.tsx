@@ -1,11 +1,12 @@
 import { Co2Bar } from "@/components/metro/co2-bar";
 import { useGame } from "@/components/game/game-context";
 import { de } from "@/lib/de";
-import { moveProgress } from "@/lib/game/game-state";
+import { co2Hidden, moveProgress } from "@/lib/game/game-state";
 
 /**
  * Where the game stands, above every turn: which round, how much of the CO₂
- * budget is gone, and how many seats have already submitted.
+ * budget is gone, and how many seats have already submitted. No budget in a
+ * game that hides its CO₂.
  *
  * The counts come from `moveProgress`, which is the frontend's copy of the one
  * counting rule: seats that play, host row excluded, seats played at the host
@@ -34,11 +35,13 @@ export function RoundHeader() {
         </p>
       </div>
 
-      <Co2Bar
-        usedG={state.totalEmissionsG}
-        maxG={state.maxCo2LevelG}
-        className="mt-6"
-      />
+      {co2Hidden(state) ? null : (
+        <Co2Bar
+          usedG={state.totalEmissionsG}
+          maxG={state.maxCo2LevelG}
+          className="mt-6"
+        />
+      )}
 
       <VoteApplied />
     </header>

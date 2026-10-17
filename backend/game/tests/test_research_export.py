@@ -186,6 +186,14 @@ class ResearchExportTests(TestCase):
         ).fetchone()
         self.assertEqual(row, (game.pk, "Testkarte", 3, 1, 2, 10, 2.4, 1, "max_rounds"))
 
+    def test_whether_the_co2_was_hidden_leaves(self):
+        hidden = self.play(hide_co2=True)
+        shown = self.play()
+
+        rows = dict(self.export().execute("SELECT id, co2_hidden FROM game"))
+
+        self.assertEqual(rows, {hidden.pk: 1, shown.pk: 0})
+
     def test_a_game_inside_the_grace_period_is_left_out(self):
         self.play(anonymised=False, hours_ago=1)
 

@@ -230,6 +230,7 @@ nicht gemessen.
 | E-16 | Leitstelle am Spielende                    | „Zu deinen Spielen" führt nach `/app/host`                                                    | geht      | lobby          |
 | E-17 | „Neues Spiel anlegen" am Spielende         | führt ins Formular, in der SPA statt über Django                                              | ungeprüft | -              |
 | E-18 | „Meine Gruppen“ | nur in einem Spiel mit Pendlertypen und nur mit eigenem Platz, also nicht an der Leitstelle; pro Gruppe Zuhause und Ziel, Pendlertyp, wie oft womit, Zeit, Strecke, Tempo, selbst bezahlt, CO₂, Umstiege, ein Tag hin und zurück im Schnitt über die Runden; zurück auf „pro Person“ stehen die drei Listen wieder da | geht | `test_rounds`, `tests/lib/game/groups.test.ts` |
+| E-19 | CO₂ verdeckt | Mitarbeitende sehen „Für die Forschung“ im Formular, andere Hosts nicht; im verdeckten Spiel steht bis zur Auswertung nirgends CO₂ oder Budget (Rundenkopf, Lobby, Tabelle, Erklärung, Leitstelle), das Budget beendet es nicht; die Auswertung nennt die Runde, in der es aufgebraucht war | geht | co2-verdeckt.spec.ts |
 
 ## H — die leitstelle (host)
 
