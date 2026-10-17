@@ -47,8 +47,12 @@ their own game. In code and in the API the old names stay: `agent`, `people_per_
 
 ## how it fits together
 
-**One way into a game: `/app/join/<ID>`.** The QR code, the landing page and the header all point
-there.
+**One way in for every code: `/app/join/<CODE>`.** The QR code, the landing page and the header all
+point there, and so does a seat's QR. The length says what a code opens (`game/codes.py`): a game id
+is six characters, a seat code seven. One endpoint, `api/game/code/<CODE>/`, looks on GET and takes
+on POST; the screen renders by the kind it answers. Another app can register a longer kind from its
+`AppConfig.ready()`; `game` never imports it. Misses are counted per address for bearer tokens
+only (a seat code), never for a game id: a class mistypes the projector.
 
 **Two kinds of auth.** The host is a Django user with a session. A player holds two cookies signed
 with `SECRET_KEY`, `game_access_<id>` and `player_<id>`, set only through `set_game_access_cookie` /
@@ -62,7 +66,7 @@ changing what goes into a cookie logs every player out of every running game.
 own row. Rounds, phases, the lobby limit and the summary all use it. Don't spell it out again.
 
 **A seat moves between devices** (`game/seats.py`). Takeover and handover keep the row and give it a
-new `player_id`, which makes every old cookie worthless. The handover code is a six-character bearer
+new `player_id`, which makes every old cookie worthless. The handover code is a seven-character bearer
 token in the cache, not a signed value — it has to be readable off a projector.
 
 **The round loop runs on Celery.** `game/rounds.py:complete_round_if_ready` is the one decision

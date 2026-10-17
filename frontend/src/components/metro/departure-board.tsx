@@ -1,3 +1,4 @@
+import { CODE_MAX_LENGTH } from "@/lib/codes";
 import type { ReactNode } from "react";
 import { de } from "@/lib/de";
 import { cn } from "@/lib/utils";
@@ -49,7 +50,7 @@ export function DepartureBoard({
 export function CodeInput({
   value,
   onValueChange,
-  maxLength = 6,
+  maxLength = CODE_MAX_LENGTH,
   className,
   ...props
 }: Omit<React.ComponentProps<"input">, "onChange" | "value"> & {

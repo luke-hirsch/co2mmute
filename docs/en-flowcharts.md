@@ -91,7 +91,7 @@ stateDiagram-v2
 | step                                  | where to read                                                  |
 | ------------------------------------- | -------------------------------------------------------------- |
 | create                                | `GameSessionListCreateView` in `game/views_rest.py`            |
-| join, home and destinations           | `JoinSessionAPIView` in `game/views_join.py`, `set_up_player` in `game/signals.py`, `assign_agent_nodes` in `game/deal.py`, the commuter types `game/personas.py` |
+| join, home and destinations           | `CodeView` in `game/views_join.py`, `set_up_player` in `game/signals.py`, `assign_agent_nodes` in `game/deal.py`, the commuter types `game/personas.py` |
 | start                                 | `GameSessionDetailView.update` in `game/views_rest.py`         |
 | round complete, simulate, end         | `game/rounds.py`, then `handle_round_completed` in `game/signals.py` |
 | pause, idle end, anonymise            | `game/pause.py`, `game/idle.py`, `game/anon.py`                |
@@ -108,13 +108,13 @@ first.
 flowchart TD
     subgraph move["a seat moves"]
         direction TB
-        code["seat code — POST api/game/seat/CODE/<br>6 characters, 5 minutes, used once"]
+        code["seat code — POST api/game/code/CODE/<br>7 characters, 5 minutes, used once"]
         takeover["host takes a seat over<br>…/player/P/takeover/"]
         code ~~~ takeover
     end
     subgraph fresh["new or renewed"]
         direction TB
-        join["join — POST api/game/join/ID/<br>name + game password<br>refused once started, ended or full"]
+        join["join — POST api/game/code/ID/<br>6 characters, name + game password<br>refused once started, ended or full"]
         create["host creates the game<br>(the host's own row)"]
         whoami["whoami — GET api/whoami/<br>renews both, e.g. after a break"]
         join ~~~ create ~~~ whoami

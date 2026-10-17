@@ -58,8 +58,8 @@ export function GameFrame({ children }: { children: ReactNode }) {
           className="mt-8"
           onClick={() =>
             void navigate({
-              to: "/join/$gameId",
-              params: { gameId: state.gameId },
+              to: "/join/$code",
+              params: { code: state.gameId },
             })
           }
         >

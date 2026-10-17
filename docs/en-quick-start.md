@@ -81,7 +81,7 @@ Somebody shows up in round 3? Create a seat for them at the Leitstelle, then han
 
 The host can pull seats to the host device at any time ("Übernehmen"). This can come in handy if a session was lost on a player's device. The host can also transfer seats to a new device. In other words, the host can park your session on their machine and return it to you any time during the game.
 
-Handing a seat over works with a code ("Platz-Code"): six characters, valid for five minutes and only once. On the new device, open the game, choose "Du warst schon dabei? Sitzung fortsetzen" on the join page and type in the code — or just scan the QR code next to it. A new code makes the old one worthless.
+Handing a seat over works with a code ("Platz-Code"): seven characters, valid for five minutes and only once. On the new device, open the game, type the code into the box on the join page — or just scan the QR code next to it. A new code makes the old one worthless.
 
 Players can do the same thing themselves: "Auf anderes Gerät" on their round screen gives them a code for their next device. Whichever device redeems a code, the old one is out.
 

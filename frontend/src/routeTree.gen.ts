@@ -12,14 +12,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as StyleguideRouteImport } from './routes/styleguide'
 import { Route as HostRouteImport } from './routes/host'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as SeatIndexRouteImport } from './routes/seat/index'
 import { Route as MapsIndexRouteImport } from './routes/maps/index'
 import { Route as JoinIndexRouteImport } from './routes/join/index'
 import { Route as GameIndexRouteImport } from './routes/game/index'
-import { Route as SeatCodeRouteImport } from './routes/seat/$code'
 import { Route as MapsUploadRouteImport } from './routes/maps/upload'
 import { Route as MapsMapIdRouteImport } from './routes/maps/$mapId'
-import { Route as JoinGameIdRouteImport } from './routes/join/$gameId'
+import { Route as JoinCodeRouteImport } from './routes/join/$code'
 import { Route as GameCreateRouteImport } from './routes/game/create'
 import { Route as GameGameIdRouteImport } from './routes/game/$gameId'
 import { Route as MapsMapIdIndexRouteImport } from './routes/maps/$mapId.index'
@@ -41,11 +39,6 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SeatIndexRoute = SeatIndexRouteImport.update({
-  id: '/seat/',
-  path: '/seat/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const MapsIndexRoute = MapsIndexRouteImport.update({
   id: '/maps/',
   path: '/maps/',
@@ -61,11 +54,6 @@ const GameIndexRoute = GameIndexRouteImport.update({
   path: '/game/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SeatCodeRoute = SeatCodeRouteImport.update({
-  id: '/seat/$code',
-  path: '/seat/$code',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const MapsUploadRoute = MapsUploadRouteImport.update({
   id: '/maps/upload',
   path: '/maps/upload',
@@ -76,9 +64,9 @@ const MapsMapIdRoute = MapsMapIdRouteImport.update({
   path: '/maps/$mapId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const JoinGameIdRoute = JoinGameIdRouteImport.update({
-  id: '/join/$gameId',
-  path: '/join/$gameId',
+const JoinCodeRoute = JoinCodeRouteImport.update({
+  id: '/join/$code',
+  path: '/join/$code',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GameCreateRoute = GameCreateRouteImport.update({
@@ -113,14 +101,12 @@ export interface FileRoutesByFullPath {
   '/styleguide': typeof StyleguideRoute
   '/game/$gameId': typeof GameGameIdRouteWithChildren
   '/game/create': typeof GameCreateRoute
-  '/join/$gameId': typeof JoinGameIdRoute
+  '/join/$code': typeof JoinCodeRoute
   '/maps/$mapId': typeof MapsMapIdRouteWithChildren
   '/maps/upload': typeof MapsUploadRoute
-  '/seat/$code': typeof SeatCodeRoute
   '/game': typeof GameIndexRoute
   '/join': typeof JoinIndexRoute
   '/maps': typeof MapsIndexRoute
-  '/seat': typeof SeatIndexRoute
   '/maps/$mapId/editor': typeof MapsMapIdEditorRoute
   '/game/$gameId/': typeof GameGameIdIndexRoute
   '/maps/$mapId/': typeof MapsMapIdIndexRoute
@@ -130,13 +116,11 @@ export interface FileRoutesByTo {
   '/host': typeof HostRoute
   '/styleguide': typeof StyleguideRoute
   '/game/create': typeof GameCreateRoute
-  '/join/$gameId': typeof JoinGameIdRoute
+  '/join/$code': typeof JoinCodeRoute
   '/maps/upload': typeof MapsUploadRoute
-  '/seat/$code': typeof SeatCodeRoute
   '/game': typeof GameIndexRoute
   '/join': typeof JoinIndexRoute
   '/maps': typeof MapsIndexRoute
-  '/seat': typeof SeatIndexRoute
   '/maps/$mapId/editor': typeof MapsMapIdEditorRoute
   '/game/$gameId': typeof GameGameIdIndexRoute
   '/maps/$mapId': typeof MapsMapIdIndexRoute
@@ -148,14 +132,12 @@ export interface FileRoutesById {
   '/styleguide': typeof StyleguideRoute
   '/game/$gameId': typeof GameGameIdRouteWithChildren
   '/game/create': typeof GameCreateRoute
-  '/join/$gameId': typeof JoinGameIdRoute
+  '/join/$code': typeof JoinCodeRoute
   '/maps/$mapId': typeof MapsMapIdRouteWithChildren
   '/maps/upload': typeof MapsUploadRoute
-  '/seat/$code': typeof SeatCodeRoute
   '/game/': typeof GameIndexRoute
   '/join/': typeof JoinIndexRoute
   '/maps/': typeof MapsIndexRoute
-  '/seat/': typeof SeatIndexRoute
   '/maps/$mapId/editor': typeof MapsMapIdEditorRoute
   '/game/$gameId/': typeof GameGameIdIndexRoute
   '/maps/$mapId/': typeof MapsMapIdIndexRoute
@@ -168,14 +150,12 @@ export interface FileRouteTypes {
     | '/styleguide'
     | '/game/$gameId'
     | '/game/create'
-    | '/join/$gameId'
+    | '/join/$code'
     | '/maps/$mapId'
     | '/maps/upload'
-    | '/seat/$code'
     | '/game'
     | '/join'
     | '/maps'
-    | '/seat'
     | '/maps/$mapId/editor'
     | '/game/$gameId/'
     | '/maps/$mapId/'
@@ -185,13 +165,11 @@ export interface FileRouteTypes {
     | '/host'
     | '/styleguide'
     | '/game/create'
-    | '/join/$gameId'
+    | '/join/$code'
     | '/maps/upload'
-    | '/seat/$code'
     | '/game'
     | '/join'
     | '/maps'
-    | '/seat'
     | '/maps/$mapId/editor'
     | '/game/$gameId'
     | '/maps/$mapId'
@@ -202,14 +180,12 @@ export interface FileRouteTypes {
     | '/styleguide'
     | '/game/$gameId'
     | '/game/create'
-    | '/join/$gameId'
+    | '/join/$code'
     | '/maps/$mapId'
     | '/maps/upload'
-    | '/seat/$code'
     | '/game/'
     | '/join/'
     | '/maps/'
-    | '/seat/'
     | '/maps/$mapId/editor'
     | '/game/$gameId/'
     | '/maps/$mapId/'
@@ -221,14 +197,12 @@ export interface RootRouteChildren {
   StyleguideRoute: typeof StyleguideRoute
   GameGameIdRoute: typeof GameGameIdRouteWithChildren
   GameCreateRoute: typeof GameCreateRoute
-  JoinGameIdRoute: typeof JoinGameIdRoute
+  JoinCodeRoute: typeof JoinCodeRoute
   MapsMapIdRoute: typeof MapsMapIdRouteWithChildren
   MapsUploadRoute: typeof MapsUploadRoute
-  SeatCodeRoute: typeof SeatCodeRoute
   GameIndexRoute: typeof GameIndexRoute
   JoinIndexRoute: typeof JoinIndexRoute
   MapsIndexRoute: typeof MapsIndexRoute
-  SeatIndexRoute: typeof SeatIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -254,13 +228,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/seat/': {
-      id: '/seat/'
-      path: '/seat'
-      fullPath: '/seat'
-      preLoaderRoute: typeof SeatIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/maps/': {
       id: '/maps/'
       path: '/maps'
@@ -282,13 +249,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GameIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/seat/$code': {
-      id: '/seat/$code'
-      path: '/seat/$code'
-      fullPath: '/seat/$code'
-      preLoaderRoute: typeof SeatCodeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/maps/upload': {
       id: '/maps/upload'
       path: '/maps/upload'
@@ -303,11 +263,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MapsMapIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/join/$gameId': {
-      id: '/join/$gameId'
-      path: '/join/$gameId'
-      fullPath: '/join/$gameId'
-      preLoaderRoute: typeof JoinGameIdRouteImport
+    '/join/$code': {
+      id: '/join/$code'
+      path: '/join/$code'
+      fullPath: '/join/$code'
+      preLoaderRoute: typeof JoinCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/game/create': {
@@ -380,14 +340,12 @@ const rootRouteChildren: RootRouteChildren = {
   StyleguideRoute: StyleguideRoute,
   GameGameIdRoute: GameGameIdRouteWithChildren,
   GameCreateRoute: GameCreateRoute,
-  JoinGameIdRoute: JoinGameIdRoute,
+  JoinCodeRoute: JoinCodeRoute,
   MapsMapIdRoute: MapsMapIdRouteWithChildren,
   MapsUploadRoute: MapsUploadRoute,
-  SeatCodeRoute: SeatCodeRoute,
   GameIndexRoute: GameIndexRoute,
   JoinIndexRoute: JoinIndexRoute,
   MapsIndexRoute: MapsIndexRoute,
-  SeatIndexRoute: SeatIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

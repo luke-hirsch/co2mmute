@@ -105,7 +105,7 @@ describe("de", () => {
   });
 
   it("covers exactly the refusals redeeming a seat code can send", () => {
-    // `SeatCodeView.post` in backend/game/views_join.py. 404 is separate: it
+    // `_take_seat` in backend/game/views_join.py. 404 is separate: it
     // means the code is gone, not that this browser may not use it.
     expect(Object.keys(de.resumeSeat.refused).sort()).toEqual([
       "ended",

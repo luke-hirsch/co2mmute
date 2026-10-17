@@ -26,9 +26,8 @@ describe("which screens carry the app header", () => {
     expect(showsAppChrome("/join/ABC123")).toBe(true);
   });
 
-  it("shows it on the seat handover and the styleguide", () => {
-    expect(showsAppChrome("/seat")).toBe(true);
-    expect(showsAppChrome("/seat/H7K2M9")).toBe(true);
+  it("shows it on a seat code and the styleguide", () => {
+    expect(showsAppChrome("/join/H7K2M9A")).toBe(true);
     expect(showsAppChrome("/styleguide")).toBe(true);
   });
 
