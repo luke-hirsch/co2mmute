@@ -29,6 +29,7 @@ from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
 
+from game.codes import SEAT_CODE_LENGTH
 from game.models import GameSession, Player
 from game.phases import schedule_recheck
 from game.roster import schedule_broadcast, schedule_revoke
@@ -120,16 +121,16 @@ def announce_departure(seat: Player, kicked: bool) -> None:
 CODE_TTL = 5 * 60
 # No 0/O and no 1/I/L: the code is read off a screen and typed on a phone.
 CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
-CODE_LENGTH = 6
+CODE_LENGTH = SEAT_CODE_LENGTH
 
 
 def seat_redeem_url(code: str) -> str:
-    """Where a scanned seat code has to land: the SPA screen, not the API.
+    """Where a scanned seat code has to land: the join screen, not the API.
 
     That screen asks before it redeems, so a code scanned by accident costs
     nobody their place.
     """
-    return f"{settings.BASE_URL}/app/seat/{code}"
+    return f"{settings.BASE_URL}/app/join/{code}"
 
 
 def code_qr_data_uri(code: str) -> str | None:
@@ -138,7 +139,7 @@ def code_qr_data_uri(code: str) -> str | None:
     A data: URI rather than a file: a code lives CODE_TTL seconds and is used
     once, so a PNG per code would pile up in MEDIA_ROOT with nothing to clean
     it, and reading it back would be a second request with a second permission
-    question. Returns None if anything goes wrong — the six characters are the
+    question. Returns None if anything goes wrong — the seven characters are the
     real handover, the picture is the convenience.
     """
     try:

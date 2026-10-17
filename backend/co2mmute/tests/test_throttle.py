@@ -303,9 +303,9 @@ class SignupThrottleTests(TestCase):
 
 @override_settings(CACHES=LOCAL_CACHE)
 class SeatCodeThrottleTests(TempMediaRootMixin, TestCase):
-    """`GET/POST api/game/seat/<code>/` — guessing a six-character code.
+    """`GET/POST api/game/code/<code>/` — guessing a seven-character code.
 
-    31^6 is 887 million, which is only a number while guessing is free. GET is
+    31^7 is 27 billion, which is only a number while guessing is free. GET is
     the cheaper vector of the two: it does not use a code up, so a guesser can
     sweep with it and never disturb a real seat.
     """
@@ -316,8 +316,8 @@ class SeatCodeThrottleTests(TempMediaRootMixin, TestCase):
         self.game = create_game_session(self.host)
         self.seat = Player.objects.create(game=self.game, name="Ana")
 
-    def _miss(self, code="ZZZZZZ"):
-        return self.client.get(f"/api/game/seat/{code}/")
+    def _miss(self, code="ZZZZZZZ"):
+        return self.client.get(f"/api/game/code/{code}/")
 
     def test_an_unknown_code_is_404_as_before(self):
         self.assertEqual(self._miss().status_code, 404)
@@ -337,7 +337,7 @@ class SeatCodeThrottleTests(TempMediaRootMixin, TestCase):
         for _ in range(SEAT_CODE_LIMIT):
             self._miss()
 
-        response = self.client.post("/api/game/seat/ZZZZZZ/")
+        response = self.client.post("/api/game/code/ZZZZZZZ/")
 
         self.assertEqual(response.status_code, 429)
 
@@ -347,7 +347,7 @@ class SeatCodeThrottleTests(TempMediaRootMixin, TestCase):
         self._miss()
         self._miss()
 
-        response = self.client.get(f"/api/game/seat/{code}/")
+        response = self.client.get(f"/api/game/code/{code}/")
 
         self.assertEqual(response.status_code, 200)
 
@@ -359,7 +359,7 @@ class SeatCodeThrottleTests(TempMediaRootMixin, TestCase):
         for _ in range(SEAT_CODE_LIMIT + 5):
             code = issue_code(self.seat)
             self.assertEqual(
-                self.client.get(f"/api/game/seat/{code}/").status_code, 200
+                self.client.get(f"/api/game/code/{code}/").status_code, 200
             )
 
         self.assertEqual(self._miss().status_code, 404)
@@ -373,3 +373,26 @@ class SeatCodeThrottleTests(TempMediaRootMixin, TestCase):
         body = self._miss().json()
 
         self.assertEqual(body.get("reason"), "throttled")
+
+    def test_a_mistyped_game_id_is_never_counted(self):
+        """A class mistypes the id on the projector; counting those would lock
+        the room out of takeovers."""
+        from co2mmute.throttle import SEAT_CODE_LIMIT
+
+        for _ in range(SEAT_CODE_LIMIT + 5):
+            self.assertEqual(self.client.get("/api/game/code/NOPE12/").status_code, 404)
+            self.assertEqual(self.client.post("/api/game/code/NOPE12/", {"name": "Ana"}).status_code, 404)
+
+        self.assertEqual(self._miss().status_code, 404)
+
+    def test_the_limit_never_blocks_a_game_id(self):
+        from co2mmute.throttle import SEAT_CODE_LIMIT
+
+        for _ in range(SEAT_CODE_LIMIT):
+            self._miss()
+        self.assertEqual(self._miss().status_code, 429)
+
+        response = self.client.get(f"/api/game/code/{self.game.game_id}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["kind"], "game")

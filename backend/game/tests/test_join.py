@@ -35,11 +35,11 @@ from ._helpers import (
 
 
 def lookup_url(game_id):
-    return f"/api/game/lookup/{game_id}/"
+    return f"/api/game/code/{game_id}/"
 
 
 def join_url(game_id):
-    return f"/api/game/join/{game_id}/"
+    return f"/api/game/code/{game_id}/"
 
 
 def lobby_url(game_id):
@@ -61,7 +61,7 @@ class GameCookieMixin:
 
 @override_settings(**TEST_BACKENDS)
 class SessionLookupTests(TempMediaRootMixin, TestCase):
-    """GET /api/game/lookup/<game_id>/ — answerable without any cookie."""
+    """GET /api/game/code/<game_id>/ — answerable without any cookie."""
 
     def setUp(self):
         self.host = create_host()
@@ -77,6 +77,7 @@ class SessionLookupTests(TempMediaRootMixin, TestCase):
         response = self.client.get(lookup_url(self.game.game_id))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["game_id"], self.game.game_id)
+        self.assertEqual(response.json()["kind"], "game")
 
     def test_lookup_reports_a_password_without_leaking_it(self):
         with muted():
@@ -167,7 +168,7 @@ class SessionLookupTests(TempMediaRootMixin, TestCase):
 
 @override_settings(**TEST_BACKENDS)
 class JoinSessionApiTests(TempMediaRootMixin, TestCase):
-    """POST /api/game/join/<game_id>/ — one call replaces two form views."""
+    """POST /api/game/code/<game_id>/ — one call replaces two form views."""
 
     def setUp(self):
         self.host = create_host()
@@ -409,15 +410,24 @@ class UrlRoutingTests(TestCase):
             match.func.view_class.__name__, "GameSessionListCreateView"
         )
 
-    def test_lookup_resolves_to_the_lookup_view(self):
+    def test_a_code_resolves_to_the_code_view(self):
+        """Two segments: undeclared, `code/<code>/` lands in
+        GetYourOwnGame as game "code", player <code>."""
         match = resolve(lookup_url("ABC123"))
-        self.assertEqual(match.func.view_class.__name__, "SessionLookupView")
-        self.assertEqual(match.kwargs["game_id"], "ABC123")
+        self.assertEqual(match.func.view_class.__name__, "CodeView")
+        self.assertEqual(match.kwargs["code"], "ABC123")
 
-    def test_join_resolves_to_the_join_view(self):
-        match = resolve(join_url("ABC123"))
-        self.assertEqual(match.func.view_class.__name__, "JoinSessionAPIView")
-        self.assertEqual(match.kwargs["game_id"], "ABC123")
+    def test_the_three_old_paths_are_gone(self):
+        """No redirect: a scanned old QR or a bookmark gets nothing. The
+        two-segment paths fall to `<game_id>/<player_id>/`, which refuses
+        anyone without a cookie."""
+        for path in (
+            "/api/game/lookup/ABC123/",
+            "/api/game/join/ABC123/",
+            "/api/game/seat/K7P2QXA/",
+        ):
+            for response in (self.client.get(path), self.client.post(path)):
+                self.assertIn(response.status_code, (403, 404, 405), path)
 
     def test_lobby_resolves_to_the_lobby_view(self):
         """Must be declared above `<game_id>/<player_id>/` or `lobby` reads as a player id."""
@@ -434,14 +444,6 @@ class UrlRoutingTests(TestCase):
         self.assertEqual(pause.func.view_class.__name__, "GamePauseView")
         self.assertEqual(resume.func.view_class.__name__, "GameResumeView")
         self.assertEqual(pause.kwargs["game_id"], "ABC123")
-
-    def test_the_seat_code_resolves_to_its_view(self):
-        """Two segments: undeclared, `seat/<code>/` lands in
-        GetYourOwnGame as game "seat", player <code>."""
-        match = resolve("/api/game/seat/K7P2QX/")
-
-        self.assertEqual(match.func.view_class.__name__, "SeatCodeView")
-        self.assertEqual(match.kwargs["code"], "K7P2QX")
 
     def test_the_seat_actions_resolve_to_their_views(self):
         code = resolve("/api/game/ABC123/player/P-01/code/")
@@ -497,7 +499,7 @@ class OneJoinFunnelTests(TempMediaRootMixin, TestCase):
     password, then `game/<id>/player/create/` for the name, with
     `request.session["joined_game_ids"]` carrying the permission between them;
     the SPA's `JoinForm` asks the lookup first and takes name and password in
-    one `POST api/game/join/<id>/`. The QR code and the landing page pointed at
+    one `POST api/game/code/<id>/`. The QR code and the landing page pointed at
     the Django one, which had drifted: it never checked `max_players`, it took
     no lock, its `messages.error` calls went to pages that did not render them,
     and it logged the player's name.

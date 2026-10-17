@@ -1,8 +1,8 @@
 """Rate limiting for the three doors that can be guessed at.
 
 There was none anywhere at first: `/accounts/login/` took unlimited password
-guesses, `/accounts/signup/` unlimited accounts, and `api/game/seat/<code>/`
-unlimited tries at a six-character code. `ChatConsumer` was the only
+guesses, `/accounts/signup/` unlimited accounts, and `api/game/code/<code>/`
+unlimited tries at a seven-character seat code. `ChatConsumer` was the only
 rate-limited thing in the backend, and it limits its own traffic rather than an
 attacker's.
 
@@ -46,7 +46,8 @@ LOGIN_WINDOW = 15 * 60
 SIGNUP_LIMIT = 10
 SIGNUP_WINDOW = 60 * 60
 
-#: Misses on `seat/<code>/` per address. The window is the code's own lifetime
+#: Misses on `code/<code>/` per address, for codes that are bearer tokens
+#: (a seat code), never for a game id. The window is the code's own lifetime
 #: (`game.seats.CODE_TTL`), so a guesser never gets two windows at one code.
 SEAT_CODE_LIMIT = 20
 SEAT_CODE_WINDOW = 5 * 60

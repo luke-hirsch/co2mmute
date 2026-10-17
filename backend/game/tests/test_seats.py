@@ -197,7 +197,7 @@ class AddSeatTests(SeatsMixin, TestCase):
 
         with muted():
             response = self.client.post(
-                f"/api/game/join/{self.game.game_id}/",
+                f"/api/game/code/{self.game.game_id}/",
                 {"name": "Zu spaet"},
                 content_type="application/json",
             )
@@ -464,7 +464,7 @@ class RemoveSeatTests(SeatsMixin, TestCase):
 # game.seats' handover names are imported inside the tests.
 # ─────────────────────────────────────────────────────────────────────────────
 
-CODE_PATTERN = r"^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$"
+CODE_PATTERN = r"^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{7}$"
 
 
 def code_url(game_id, player_id):
@@ -476,7 +476,7 @@ def takeover_url(game_id, player_id):
 
 
 def seat_code_url(code):
-    return f"/api/game/seat/{code}/"
+    return f"/api/game/code/{code}/"
 
 
 class HandoverMixin(SeatsMixin):
@@ -608,7 +608,7 @@ class IssueCodeTests(HandoverMixin, TestCase):
 
 @override_settings(**TEST_BACKENDS)
 class PeekCodeTests(HandoverMixin, TestCase):
-    """GET /api/game/seat/<code>/ — "Du übernimmst Cem?" before anything happens."""
+    """GET /api/game/code/<code>/ — "Du übernimmst Cem?" before anything happens."""
 
     def test_it_names_the_game_and_the_seat_without_any_cookie(self):
         code = self.issue(self.cem)
@@ -619,6 +619,7 @@ class PeekCodeTests(HandoverMixin, TestCase):
         self.assertEqual(
             response.json(),
             {
+                "kind": "seat",
                 "game_id": self.game.game_id,
                 "game_name": "Plaetze",
                 "player_name": "Cem",
@@ -639,7 +640,13 @@ class PeekCodeTests(HandoverMixin, TestCase):
         self.assertEqual(self.peek(code.lower()).status_code, 200)
 
     def test_an_unknown_code_is_a_404(self):
-        self.assertEqual(self.peek("ZZZZZZ").status_code, 404)
+        self.assertEqual(self.peek("ZZZZZZZ").status_code, 404)
+
+    def test_a_seat_code_is_seven_characters(self):
+        self.assertEqual(len(self.issue(self.cem)), 7)
+
+    def test_a_length_no_kind_owns_is_unknown(self):
+        self.assertEqual(self.peek("ZZZZZZZZZ").status_code, 404)
 
     def test_a_code_runs_out(self):
         with patch("game.seats.CODE_TTL", 0):
@@ -667,7 +674,7 @@ class PeekCodeTests(HandoverMixin, TestCase):
 
 @override_settings(**TEST_BACKENDS)
 class RedeemCodeTests(HandoverMixin, TestCase):
-    """POST /api/game/seat/<code>/ — the phone takes the seat."""
+    """POST /api/game/code/<code>/ — the phone takes the seat."""
 
     def test_the_new_device_gets_the_seat_under_a_new_id(self):
         code = self.issue(self.cem)
@@ -1008,7 +1015,7 @@ class ClassroomScenarioTests(HandoverMixin, TestCase):
 class SeatCodeQrTests(HandoverMixin, TestCase):
     """The scannable half of a seat code.
 
-    The six characters are readable off a projector, but a student with a phone
+    The seven characters are readable off a projector, but a student with a phone
     in their hand would rather point it at something. The code endpoint
     therefore carries a QR of the redeem URL next to the code itself.
 
@@ -1042,7 +1049,7 @@ class SeatCodeQrTests(HandoverMixin, TestCase):
 
         self.assertEqual(
             seat_redeem_url("4F2A9C"),
-            f"{settings.BASE_URL}/app/seat/4F2A9C",
+            f"{settings.BASE_URL}/app/join/4F2A9C",
         )
 
     def test_the_qr_belongs_to_the_code_it_came_with(self):
