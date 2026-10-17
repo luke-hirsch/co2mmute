@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.apps import apps
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path, re_path
@@ -92,3 +93,8 @@ urlpatterns = [
     path("content/", include("content.urls", namespace="content")),
     re_path(r"^app(?:/.*)?$", SpaView.as_view(), name="app"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# The study pages are optional: with the app out of INSTALLED_APPS there is
+# no route, no menu and no flag.
+if apps.is_installed("studies"):
+    urlpatterns.append(path("api/studies/", include("studies.urls")))

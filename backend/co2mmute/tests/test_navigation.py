@@ -12,7 +12,7 @@ import re
 
 from content.models import NavigationItem, Page
 from django.contrib.auth.models import AnonymousUser
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, modify_settings
 from game.tests._helpers import create_host
 
 from co2mmute import navigation
@@ -75,7 +75,9 @@ class NavigationListTests(TestCase):
     def test_staff_get_the_map_menu(self):
         nav = _build(create_host(username="staff", is_staff=True))
 
-        self.assertEqual(_labels(nav["header"]), ["Spielen", "Karten", "Docs"])
+        self.assertEqual(
+            _labels(nav["header"]), ["Spielen", "Karten", "Studien", "Docs"]
+        )
         karten = nav["header"][1]
         self.assertEqual(
             [(child["label"], child["href"]) for child in karten["children"]],
@@ -264,3 +266,46 @@ class BaseTemplateTests(TestCase):
         self.assertNotIn("logo.svg", html)
         # The rest of the name is text in the page's font, not paths.
         self.assertEqual(html.count("O<sub>2</sub>mmute</span>"), 2)
+
+
+class StudiesMenuTests(TestCase):
+    """The study pages are an optional app; the menu and the flag follow it."""
+
+    def test_staff_get_the_studies_menu(self):
+        nav = _build(create_host(username="staff", is_staff=True))
+
+        studien = nav["header"][2]
+        self.assertEqual(studien["label"], "Studien")
+        self.assertEqual(
+            [(child["label"], child["href"]) for child in studien["children"]],
+            [("Alle Studien", "/app/studies")],
+        )
+
+    def test_a_normal_host_and_a_visitor_do_not_see_it(self):
+        self.assertNotIn("Studien", _labels(_build()["header"]))
+        self.assertNotIn("Studien", _labels(_build(create_host())["header"]))
+
+    @modify_settings(INSTALLED_APPS={"remove": "studies"})
+    def test_without_the_app_there_is_no_menu(self):
+        nav = _build(create_host(username="staff", is_staff=True))
+
+        self.assertNotIn("Studien", _labels(nav["header"]))
+        self.assertNotIn("/app/studies", _hrefs(nav["header"]))
+
+
+class StudiesFlagTests(TestCase):
+    """`studies` rides in every whoami answer, the anonymous 401 one too."""
+
+    def test_the_flag_is_in_every_answer(self):
+        anonymous = self.client.get("/api/whoami/")
+        self.assertEqual(anonymous.status_code, 401)
+        self.assertIs(anonymous.json()["studies"], True)
+
+        self.client.force_login(create_host())
+        self.assertIs(self.client.get("/api/whoami/").json()["studies"], True)
+
+    @modify_settings(INSTALLED_APPS={"remove": "studies"})
+    def test_the_flag_is_false_with_the_app_off(self):
+        self.assertIs(self.client.get("/api/whoami/").json()["studies"], False)
+        self.client.force_login(create_host())
+        self.assertIs(self.client.get("/api/whoami/").json()["studies"], False)

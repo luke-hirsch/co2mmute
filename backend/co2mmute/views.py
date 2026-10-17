@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 import jwt
+from django.apps import apps
 from django.conf import settings
 from django.contrib.auth import login, logout
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -320,8 +321,13 @@ class WhoAmIView(APIView):
         if game_id:
             player = self._get_player_from_cookie(request, game_id)
 
+        # Whether the optional study app is on; the join box labels its field
+        # by it, for a player who is not signed in too.
+        studies = apps.is_installed("studies")
+
         if user and user.is_authenticated:
             user_data = {
+                "studies": studies,
                 "authenticated": True,
                 "id": user.id,
                 "isStaff": user.is_staff,
@@ -371,6 +377,7 @@ class WhoAmIView(APIView):
         if player:
             response = Response(
                 {
+                    "studies": studies,
                     "kind": "player",
                     "authenticated": False,
                     "gameId": game_id,
@@ -384,6 +391,7 @@ class WhoAmIView(APIView):
 
         return Response(
             {
+                "studies": studies,
                 "kind": "anonymous",
                 "authenticated": False,
             },
