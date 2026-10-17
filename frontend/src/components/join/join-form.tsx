@@ -9,7 +9,7 @@ import { DepartureBoard } from "@/components/metro/departure-board";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
 import { ApiError, NetworkError } from "@/lib/api";
 import { de, type JoinBlockedReason } from "@/lib/de";
-import { useJoinGame, type GameLook } from "@/lib/queries/join";
+import { useJoinGame, type GameFacts } from "@/lib/queries/join";
 
 /**
  * A game id opened: name (+ password) in, a player row and both cookies out.
@@ -29,15 +29,24 @@ import { useJoinGame, type GameLook } from "@/lib/queries/join";
  * parsed body on `ApiError` instead of flattening both into a message, the way
  * the old `utils/api.ts` did.
  */
-export function JoinForm({ session }: { session: GameLook }) {
+export function JoinForm({
+  session,
+  participantCode,
+}: {
+  session: GameFacts;
+  /** Set when a participant code led here: the join carries it. */
+  participantCode?: string;
+}) {
   const navigate = useNavigate();
   const gameId = session.game_id;
-  const join = useJoinGame(gameId);
+  const join = useJoinGame(gameId, participantCode);
 
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [passwordWrong, setPasswordWrong] = useState(false);
+  /** The card has already played in this game (409 `used`). */
+  const [cardUsed, setCardUsed] = useState(false);
   /** Set only by a 409 on submit — the look's own answer is derived below. */
   const [refusedOnSubmit, setRefusedOnSubmit] =
     useState<JoinBlockedReason | null>(null);
@@ -91,6 +100,10 @@ export function JoinForm({ session }: { session: GameLook }) {
         return;
       }
       if (error.status === 409) {
+        if (error.reason === "used") {
+          setCardUsed(true);
+          return;
+        }
         const reason = error.reason as JoinBlockedReason | null;
         // `blocked` stops the form; an unknown reason must not do that
         // silently, so it falls through to a visible message instead.
@@ -100,6 +113,24 @@ export function JoinForm({ session }: { session: GameLook }) {
       }
       setFormError(error.message || de.errors.unknown);
     }
+  }
+
+  if (cardUsed) {
+    return (
+      <Screen narrow>
+        <ScreenHeading title={session.game_name || de.join.title} />
+        <Alert variant="destructive">
+          <AlertDescription>{de.join.cardUsed}</AlertDescription>
+        </Alert>
+        <Button
+          variant="outline"
+          className="mt-8"
+          onClick={() => void navigate({ to: "/join" })}
+        >
+          {de.actions.back}
+        </Button>
+      </Screen>
+    );
   }
 
   if (blocked) {
@@ -126,6 +157,17 @@ export function JoinForm({ session }: { session: GameLook }) {
         title={session.game_name || de.join.title}
         lead={de.join.subtitle}
       />
+
+      {session.coded_study && !participantCode ? (
+        <p className="mb-6 max-w-(--measure-body) text-muted-foreground">
+          {de.join.cardHint}
+        </p>
+      ) : null}
+      {participantCode ? (
+        <p className="mb-6 max-w-(--measure-body) text-muted-foreground">
+          {de.join.cardStudy}
+        </p>
+      ) : null}
 
       <DepartureBoard
         label={de.code.gameId}

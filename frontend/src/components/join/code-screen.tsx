@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { JoinForm } from "@/components/join/join-form";
+import { ParticipantJoin } from "@/components/join/participant-join";
 import { SeatTakeover } from "@/components/join/seat-takeover";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
 import { ApiError, NetworkError } from "@/lib/api";
@@ -14,7 +15,8 @@ import { useCodeLook } from "@/lib/queries/join";
  * projector's, the Leitstelle's seat QR), a typed game id, a typed seat code.
  *
  * It asks the code first (`GET code/<CODE>/`) and renders by what it opens: a
- * game id → name and password; a seat code → "Du übernimmst den Platz von …".
+ * game id → name and password; a seat code → "Du übernimmst den Platz von …";
+ * a participant code → the card's waiting game(s), then the name.
  * One screen knows what a code can be wrong about, so the other doors only
  * route here.
  */
@@ -51,11 +53,11 @@ export function CodeScreen({ code }: { code: string }) {
     );
   }
 
-  return look.data.kind === "game" ? (
-    <JoinForm session={look.data} />
-  ) : (
-    <SeatTakeover code={code} seat={look.data} />
-  );
+  if (look.data.kind === "game") return <JoinForm session={look.data} />;
+  if (look.data.kind === "participant") {
+    return <ParticipantJoin code={code} look={look.data} />;
+  }
+  return <SeatTakeover code={code} seat={look.data} />;
 }
 
 function codeFailure(error: unknown): string {

@@ -309,3 +309,17 @@ class StudiesFlagTests(TestCase):
         self.assertIs(self.client.get("/api/whoami/").json()["studies"], False)
         self.client.force_login(create_host())
         self.assertIs(self.client.get("/api/whoami/").json()["studies"], False)
+
+
+class LandingCardLabelTests(TestCase):
+    """The landing card's box names the participant code only with the app on."""
+
+    def test_the_label_names_the_card_with_the_app_on(self):
+        html = self.client.get("/").content.decode()
+        self.assertIn("Spiel-ID, Platz-Code oder Teilnahmecode", html)
+
+    @modify_settings(INSTALLED_APPS={"remove": "studies"})
+    def test_the_label_does_not_with_the_app_off(self):
+        html = self.client.get("/").content.decode()
+        self.assertIn("Spiel-ID oder Platz-Code", html)
+        self.assertNotIn("Teilnahmecode", html)
