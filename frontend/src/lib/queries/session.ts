@@ -142,6 +142,8 @@ export type CreateGameBody = {
   agent_per_player: number;
   /** "ausbalanciert": taken at creation only, the lobby cannot change it. */
   balanced_deal: boolean;
+  /** Research, staff only: refused for anyone else. Taken at creation only. */
+  hide_co2: boolean;
   max_rounds: number;
   max_CO2_level: number;
   co2_kg_per_person: string;

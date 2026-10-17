@@ -22,7 +22,6 @@ class GameSessionAdmin(admin.ModelAdmin):
     search_fields = (
         "game_name",
         "game_id",
-        "study",
         "game_host__username",
         "game_host__email",
     )

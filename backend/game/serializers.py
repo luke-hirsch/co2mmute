@@ -92,10 +92,8 @@ class GameSessionSerializer(serializers.ModelSerializer):
     # through here, and seats already dealt would keep the other deal.
     balanced_deal = serializers.BooleanField(read_only=True)
     # The same for the research section: CO₂ hidden from round 2 on would be
-    # neither of the two games a study compares. The admin can still correct
-    # the study's label.
+    # neither of the two games compared.
     hide_co2 = serializers.BooleanField(read_only=True)
-    study = serializers.CharField(read_only=True)
 
     class Meta:
         model = gm.GameSession
@@ -113,7 +111,6 @@ class GameSessionSerializer(serializers.ModelSerializer):
             "agent_per_player",
             "balanced_deal",
             "hide_co2",
-            "study",
             "max_rounds",
             "max_CO2_level",
             "co2_kg_per_person",
@@ -194,6 +191,13 @@ class GameSessionSerializer(serializers.ModelSerializer):
         ):
             errors["co2_kg_per_person"] = KG_PER_PERSON_ERROR
 
+        # Only the create form sends it. The form shows the switch to staff, so
+        # the server holds to that as well.
+        if attrs.get("hide_co2"):
+            request = self.context.get("request")
+            if not (request and request.user.is_staff):
+                errors["hide_co2"] = "Diese Einstellung gibt es nur für die Forschung."
+
         if errors:
             raise serializers.ValidationError(errors)
 
@@ -221,7 +225,7 @@ class GameSessionCreateSerializer(GameSessionSerializer):
     is dealt from them. Empty or left out, the game plays free.
 
     **And the deal**, `balanced_deal`, and the research section, `hide_co2`
-    and `study`, which the parent only reads.
+    (staff only), which the parent only reads.
     """
 
     # Left out, the game plays free; sent empty, the host switched them on and
@@ -235,14 +239,6 @@ class GameSessionCreateSerializer(GameSessionSerializer):
     )
     balanced_deal = serializers.BooleanField(required=False)
     hide_co2 = serializers.BooleanField(required=False)
-    study = serializers.CharField(
-        required=False,
-        allow_blank=True,
-        max_length=gm.GameSession._meta.get_field("study").max_length,
-        error_messages={
-            "max_length": "Der Name der Studie hat höchstens {max_length} Zeichen."
-        },
-    )
 
     class Meta(GameSessionSerializer.Meta):
         extra_kwargs = {

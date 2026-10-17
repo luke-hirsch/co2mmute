@@ -18,6 +18,7 @@ import {
   co2KgPerPersonChoices,
   peoplePerAgent,
 } from "@/lib/calibration";
+import { useAuth } from "@/context/AuthContext";
 import { de } from "@/lib/de";
 import { pickedPersonas, type PersonaDraft } from "@/lib/game/personas";
 import { useCreateGame } from "@/lib/queries/session";
@@ -72,6 +73,10 @@ export function CreateGameScreen() {
   const [personasOn, setPersonasOn] = useState(false);
   /** The deal. Off by default: a person's Gruppen live together. */
   const [balancedDeal, setBalancedDeal] = useState(false);
+  /** Research, staff only: CO₂ off the screens until the summary. */
+  const { isStaff } = useAuth();
+  const [hideCo2, setHideCo2] = useState(false);
+  const [researchOpen, setResearchOpen] = useState(false);
   const [unticked, setUnticked] = useState<ReadonlySet<number>>(new Set());
   const [ownPersonas, setOwnPersonas] = useState<PersonaDraft[]>([]);
   const standardPersonas = useStandardPersonas(personasOn);
@@ -143,6 +148,7 @@ export function CreateGameScreen() {
         max_players: Number(maxPlayers),
         agent_per_player: Number(agentPerPlayer),
         balanced_deal: balancedDeal,
+        hide_co2: isStaff && hideCo2,
         max_rounds: Number(maxRounds),
         max_CO2_level: co2Total,
         co2_kg_per_person: kgPerPerson,
@@ -164,6 +170,7 @@ export function CreateGameScreen() {
       const next = fieldErrors(failure);
       setErrors(next);
       if (ADVANCED_FIELDS.some((name) => next[name])) setAdvancedOpen(true);
+      if (next.hide_co2) setResearchOpen(true);
     }
   }
 
@@ -484,6 +491,33 @@ export function CreateGameScreen() {
             />
           </div>
         </details>
+
+        {isStaff ? (
+          <details
+            open={researchOpen}
+            onToggle={(event) => setResearchOpen(event.currentTarget.open)}
+            className="group"
+          >
+            <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-md [&::-webkit-details-marker]:hidden">
+              <h2 className="text-2xl font-medium">{de.create.research}</h2>
+              <ChevronDown
+                aria-hidden="true"
+                className="size-6 text-muted-foreground transition-transform group-open:rotate-180"
+              />
+            </summary>
+            <div className="mt-6 grid gap-6 sm:grid-cols-2">
+              <CheckField
+                id="hide_co2"
+                label={de.create.hideCo2}
+                help={de.create.hideCo2Help}
+                box={de.create.hideCo2Switch}
+                checked={hideCo2}
+                onChange={setHideCo2}
+                errors={errors.hide_co2}
+              />
+            </div>
+          </details>
+        ) : null}
 
         {formLevelError ? (
           <Alert variant="destructive">

@@ -48,11 +48,6 @@ class GameSession(models.Model):
     # that did. The budget then never ends the game — nobody could see it
     # coming. Set at creation and never after.
     hide_co2 = models.BooleanField(default=False)
-    # For research too: games with the same label belong together in the
-    # research data — a hidden game and a shown one, ausbalanciert or not, one
-    # map against another. Free text the host writes, so the export carries a
-    # number for it, never the label.
-    study = models.CharField(max_length=60, blank=True, default="")
     max_rounds = models.PositiveIntegerField()
     max_CO2_level = models.PositiveIntegerField()  # in kg
     # What the host set the budget at: kg per person per round, the create

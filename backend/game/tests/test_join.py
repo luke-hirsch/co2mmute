@@ -1086,10 +1086,10 @@ class HostGameListTests(TempMediaRootMixin, TestCase):
 
 @override_settings(**TEST_BACKENDS)
 class ResearchSettingsTests(GameCookieMixin, TempMediaRootMixin, TestCase):
-    """The create form's research section: CO₂ hidden, and the study label."""
+    """The create form's research section: CO₂ hidden, for staff."""
 
     def setUp(self):
-        self.host = create_host()
+        self.host = create_host(is_staff=True)
         self.game_map = create_game_map()
         self.client.force_login(self.host)
 
@@ -1099,43 +1099,52 @@ class ResearchSettingsTests(GameCookieMixin, TempMediaRootMixin, TestCase):
         self.assertEqual(response.status_code, 201, response.content)
         return GameSession.objects.get(game_id=response.json()["game_id"])
 
-    def test_a_game_shows_its_co2_and_has_no_study_unless_asked(self):
+    def test_a_game_shows_its_co2_unless_asked(self):
         game = self.create()
 
         self.assertFalse(game.hide_co2)
-        self.assertEqual(game.study, "")
 
-    def test_the_form_can_hide_the_co2_and_name_a_study(self):
-        game = self.create(hide_co2=True, study="verdeckt-offen-1")
+    def test_staff_can_hide_the_co2(self):
+        game = self.create(hide_co2=True)
 
         self.assertTrue(game.hide_co2)
-        self.assertEqual(game.study, "verdeckt-offen-1")
 
-    def test_a_study_too_long_is_refused_in_german(self):
+    def test_a_host_who_is_not_staff_cannot_hide_the_co2(self):
+        """The form shows the switch to staff only; the server holds to it too."""
+        self.client.force_login(create_host(username="plain"))
+
         with muted():
             response = post_create(
-                self.client, game_map=self.game_map.pk, study="x" * 61
+                self.client, game_map=self.game_map.pk, hide_co2=True
             )
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(
-            response.json()["study"], ["Der Name der Studie hat höchstens 60 Zeichen."]
-        )
+        self.assertIn("hide_co2", response.json())
+        self.assertFalse(GameSession.objects.filter(game_host__username="plain"))
 
-    def test_the_lobby_cannot_change_either(self):
+    def test_a_host_who_is_not_staff_can_still_leave_it_off(self):
+        self.client.force_login(create_host(username="plain"))
+
+        with muted():
+            response = post_create(
+                self.client, game_map=self.game_map.pk, hide_co2=False
+            )
+
+        self.assertEqual(response.status_code, 201, response.content)
+
+    def test_the_lobby_cannot_change_it(self):
         """Hidden from round 2 on would be neither of the two games compared."""
         game = self.create()
 
         with muted():
             self.client.patch(
                 f"/api/game/{game.game_id}/",
-                json.dumps({"hide_co2": True, "study": "nachträglich"}),
+                json.dumps({"hide_co2": True}),
                 content_type="application/json",
             )
 
         game.refresh_from_db()
         self.assertFalse(game.hide_co2)
-        self.assertEqual(game.study, "")
 
     def test_the_lobby_snapshot_tells_the_screens(self):
         """Every screen of a seat reads it there; a player cannot read the row."""

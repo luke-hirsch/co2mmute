@@ -1943,10 +1943,6 @@ export const de = {
     hideCo2Switch: "bis zur Auswertung verdecken",
     hideCo2Help:
       "Niemand sieht CO₂ oder Budget, bis das Spiel vorbei ist. Das Budget beendet das Spiel nicht.",
-    study: "Studie",
-    studyHelp:
-      "Spiele mit derselben Studie gehören in den Forschungsdaten zusammen.",
-    studyPlaceholder: "z. B. verdeckt-offen-1",
 
     submit: "Spiel anlegen",
     submitting: "Wird angelegt …",
