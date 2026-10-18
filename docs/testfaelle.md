@@ -265,7 +265,7 @@ nicht gemessen.
 | H-21 | Spiel anlegen: Pendlertypen | Schalter „verteilen“ unter „Gruppen pro Person“, aus als Vorgabe; an: die sieben Standardtypen, alle angehakt, eigene dazu (Enter fügt hinzu, schickt das Formular nicht ab), eigene wieder entfernen; alle abgehakt: „Wähle mindestens einen Pendlertyp.“ unter der Liste, kein Spiel; das Spiel bekommt Kopien, ein eigener taucht im nächsten Formular nicht auf, ein später geänderter Standardtyp ändert kein Spiel | geht | `test_personas`, `tests/lib/game/personas.test.ts` |
 | H-22 | Spiel anlegen: Wohnorte | Schalter „ausbalanciert“ unter den Pendlertypen, aus als Vorgabe; das Spiel speichert ihn; in der Lobby lässt er sich nicht mehr ändern | geht | `test_deal` |
 | H-23 | Spiel anlegen: mehr Gruppen pro Person als Plätze | 2 Plätze mit 3 Gruppen pro Person werden angelegt (201); die Grenze „Gruppen pro Person höchstens so viele wie Plätze“ gibt es nicht mehr, sie stammte aus der Zeit, in der jede Gruppe allein spielte | geht | `test_join` |
-| H-24 | Spiel anlegen aus einer Studie | „Neues Spiel“ auf der Studienseite öffnet das Formular mit „Das Spiel kommt in die Studie „…“.“ und offenem „Für die Forschung“; das angelegte Spiel steht in der Liste der Studie, ein verdecktes mit „CO₂ verdeckt“ | ungeprüft | `studien.spec.ts` |
+| H-24 | Spiel anlegen aus einer Studie | „Neues Spiel“ auf der Studienseite öffnet das Formular mit „Das Spiel kommt in die Studie „…“.“ und offenem „Für die Forschung“; das angelegte Spiel steht in der Liste der Studie, ein verdecktes mit „CO₂ verdeckt“ | geht | `studien.spec.ts` |
 
 ## C — chat
 

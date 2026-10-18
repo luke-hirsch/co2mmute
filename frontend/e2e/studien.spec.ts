@@ -1,7 +1,14 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import { MAP_NAME, createGame } from "./game";
 import { loginAsHost } from "./host";
+
+/** Set `E2E_SHOTS` to a folder and the new game's screens are saved there too. */
+const shots = process.env.E2E_SHOTS;
+
+async function shot(page: Page, name: string) {
+  if (shots) await page.screenshot({ path: `${shots}/${name}.png`, fullPage: true });
+}
 
 /**
  * The study pages, as staff: a study, its codes and their cards, a game from a
@@ -84,6 +91,7 @@ test("a new game from the study page lands in the study, CO₂ hidden", async ({
   await page.locator("#game_map").selectOption({ label: MAP_NAME });
   // The research section is open already: a study's game is a research game.
   await page.getByLabel("bis zur Auswertung verdecken").check();
+  await shot(page, "formular-studie");
   await page.getByRole("button", { name: "Spiel anlegen" }).click();
   await page.waitForURL(/\/app\/game\/(?!create)[^/]+\/?$/);
   const gameId = new URL(page.url()).pathname.split("/").filter(Boolean).pop();
@@ -93,4 +101,5 @@ test("a new game from the study page lands in the study, CO₂ hidden", async ({
   await expect(row).toContainText("E2E Studienspiel");
   await expect(row).toContainText("CO₂ verdeckt");
   await expect(row).toContainText("wartet in der Lobby");
+  await shot(page, "studie-spiele");
 });
