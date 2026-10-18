@@ -5,7 +5,12 @@
  * so nothing here races with a second source of truth.
  */
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 
 import { apiFetch } from "@/lib/api";
 
@@ -107,12 +112,21 @@ export function useUpdateStudy(id: number) {
 }
 
 /** 409 when a game of the study started; the message is the server's sentence. */
+/**
+ * Only the list goes stale. The study's own queries are still mounted on the
+ * page that deleted it: refetched they answer 404, the page swaps to "gibt es
+ * nicht" and unmounts the button whose `onSuccess` would have left for the list.
+ */
+export function deleteStudyMutation(client: QueryClient, id: number) {
+  return {
+    mutationFn: () => apiFetch<void>(`/api/studies/${id}/`, { method: "DELETE" }),
+    onSuccess: () => client.invalidateQueries({ queryKey: studyKeys.list() }),
+  };
+}
+
 export function useDeleteStudy(id: number) {
   const client = useQueryClient();
-  return useMutation({
-    mutationFn: () => apiFetch<void>(`/api/studies/${id}/`, { method: "DELETE" }),
-    onSuccess: () => client.invalidateQueries({ queryKey: studyKeys.all }),
-  });
+  return useMutation(deleteStudyMutation(client, id));
 }
 
 export function useStudyGames(id: number) {
