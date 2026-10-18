@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { createGame } from "./game";
+import { MAP_NAME, createGame } from "./game";
 import { loginAsHost } from "./host";
 
 /**
@@ -61,4 +61,36 @@ test("a study with codes, a linked game and a note, and its card sheet", async (
   await page.getByRole("button", { name: "Studie löschen" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Löschen" }).click();
   await expect(page).toHaveURL(/\/app\/studies\/?$/);
+});
+
+test("a new game from the study page lands in the study, CO₂ hidden", async ({
+  page,
+}) => {
+  await loginAsHost(page);
+  await page.goto("/app/studies");
+  await page.getByRole("button", { name: "Neue Studie" }).click();
+  await page.getByLabel("Name").fill("E2E Neues Spiel");
+  await page.getByRole("button", { name: "Studie anlegen" }).click();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "E2E Neues Spiel" }),
+  ).toBeVisible();
+  const studyUrl = page.url();
+
+  await page.getByRole("link", { name: "Neues Spiel" }).click();
+  await expect(
+    page.getByText("Das Spiel kommt in die Studie „E2E Neues Spiel“."),
+  ).toBeVisible();
+  await page.locator("#game_name").fill("E2E Studienspiel");
+  await page.locator("#game_map").selectOption({ label: MAP_NAME });
+  // The research section is open already: a study's game is a research game.
+  await page.getByLabel("bis zur Auswertung verdecken").check();
+  await page.getByRole("button", { name: "Spiel anlegen" }).click();
+  await page.waitForURL(/\/app\/game\/(?!create)[^/]+\/?$/);
+  const gameId = new URL(page.url()).pathname.split("/").filter(Boolean).pop();
+
+  await page.goto(studyUrl);
+  const row = page.getByRole("listitem").filter({ hasText: gameId! });
+  await expect(row).toContainText("E2E Studienspiel");
+  await expect(row).toContainText("CO₂ verdeckt");
+  await expect(row).toContainText("wartet in der Lobby");
 });

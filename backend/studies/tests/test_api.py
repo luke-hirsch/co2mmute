@@ -220,6 +220,7 @@ class GameLinkTests(StudyApiCase):
         self.assertEqual(rows[0]["name"], "Dienstag")
         self.assertEqual(rows[0]["map"], game.game_map.name)
         self.assertIsNone(rows[0]["started_at"])
+        self.assertIs(rows[0]["hide_co2"], False)
         self.assertEqual(
             self.client.delete(
                 f"{URL}{self.study.pk}/games/{game.game_id}/"
@@ -318,3 +319,11 @@ class NoteTests(StudyApiCase):
         self.assertEqual(
             self.post_note(text="x", games=[game.game_id]).status_code, 400
         )
+
+
+class HiddenCo2Tests(StudyApiCase):
+    def test_the_list_marks_a_game_with_hidden_co2(self):
+        self.as_staff()
+        StudyGame.objects.create(study=self.study, game=self.game(hide_co2=True))
+        rows = self.client.get(f"{URL}{self.study.pk}/games/").json()
+        self.assertIs(rows[0]["hide_co2"], True)

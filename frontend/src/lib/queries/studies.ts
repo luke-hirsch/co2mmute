@@ -35,6 +35,7 @@ export type StudyGameRow = {
   map: string | null;
   started_at: string | null;
   ended_at: string | null;
+  hide_co2: boolean;
 };
 
 export type MetaValue = string | number | boolean;
@@ -79,10 +80,11 @@ export function useStudies() {
   });
 }
 
-export function useStudy(id: number) {
+export function useStudy(id: number, enabled = true) {
   return useQuery({
     queryKey: studyKeys.one(id),
     queryFn: () => apiFetch<Study>(`/api/studies/${id}/`),
+    enabled,
   });
 }
 

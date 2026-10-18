@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { Link } from "@tanstack/react-router";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +21,10 @@ function state(game: StudyGameRow): string {
   return de.studies.games.waiting;
 }
 
-/** The study's games: link one that is still in its lobby, or let go of it. */
+/**
+ * The study's games: a new one through the create form, a waiting one linked
+ * by its id, or let go of one before it starts.
+ */
 export function StudyGames({ studyId }: { studyId: number }) {
   const t = de.studies.games;
   const { data: games } = useStudyGames(studyId);
@@ -46,6 +50,11 @@ export function StudyGames({ studyId }: { studyId: number }) {
         {t.title}
       </h2>
       <p className="mt-2 max-w-(--measure-body) text-muted-foreground">{t.lead}</p>
+      <Button asChild className="mt-4">
+        <Link to="/game/create" search={{ study: studyId }}>
+          {t.create}
+        </Link>
+      </Button>
 
       {games && games.length === 0 ? (
         <p className="mt-4 text-muted-foreground">{t.empty}</p>
@@ -67,6 +76,9 @@ export function StudyGames({ studyId }: { studyId: number }) {
                 </p>
               </div>
               <div className="flex items-center gap-3">
+                {game.hide_co2 ? (
+                  <Badge variant="outline">{t.hiddenCo2}</Badge>
+                ) : null}
                 <Badge variant="outline">{state(game)}</Badge>
                 {!game.started_at ? (
                   <Button
