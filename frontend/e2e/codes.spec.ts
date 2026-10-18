@@ -33,9 +33,9 @@ test("a game id typed into the join box leads to a name and the lobby", async ({
   try {
     await phone.goto("/app/join/");
     await expect(
-      phone.getByLabel("Spiel-ID, Platz-Code oder Teilnahmecode").first(),
+      phone.getByLabel("Code eingeben und mitspielen").first(),
     ).toBeVisible();
-    await phone.getByLabel("Spiel-ID, Platz-Code oder Teilnahmecode").last().fill(gameId);
+    await phone.getByLabel("Code eingeben und mitspielen").last().fill(gameId);
     await phone.getByRole("button", { name: "Weiter" }).click();
 
     await phone.getByLabel("Dein Name").fill("Ana");
@@ -73,7 +73,7 @@ test("a seat code typed or scanned asks, then takes the seat over", async ({
 
     // Typed into the box.
     await newPhone.goto("/app/join/");
-    await newPhone.getByLabel("Spiel-ID, Platz-Code oder Teilnahmecode").last().fill(code);
+    await newPhone.getByLabel("Code eingeben und mitspielen").last().fill(code);
     await newPhone.getByRole("button", { name: "Weiter" }).click();
     await expect(
       newPhone.getByText("Du übernimmst den Platz von Ana", { exact: false }),
@@ -203,11 +203,11 @@ test("a card with two waiting games asks which, one with none says so", async ({
     // The typed box takes the longer code too.
     await phone.goto("/app/join/");
     await expect(
-      phone.getByLabel("Spiel-ID, Platz-Code oder Teilnahmecode").last(),
+      phone.getByLabel("Code eingeben und mitspielen").last(),
     ).toBeVisible();
-    await phone.getByLabel("Spiel-ID, Platz-Code oder Teilnahmecode").last().fill(codes[1]);
+    await phone.getByLabel("Code eingeben und mitspielen").last().fill(codes[1]);
     await expect(
-      phone.getByLabel("Spiel-ID, Platz-Code oder Teilnahmecode").last(),
+      phone.getByLabel("Code eingeben und mitspielen").last(),
     ).toHaveValue(codes[1]);
   } finally {
     await context.close();
