@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { CreateGameScreen } from "@/components/host/create-game-screen";
 import { RequireLogin } from "@/components/host/require-login";
+import { createSearch } from "@/lib/create-search";
 
 /**
  * `/app/game/create` — Spiel anlegen.
@@ -15,13 +16,15 @@ import { RequireLogin } from "@/components/host/require-login";
  * pointing at one screen rather than two.
  */
 function CreateGameRoute() {
+  const { study } = Route.useSearch();
   return (
     <RequireLogin>
-      <CreateGameScreen />
+      <CreateGameScreen studyId={study} />
     </RequireLogin>
   );
 }
 
 export const Route = createFileRoute("/game/create")({
+  validateSearch: createSearch,
   component: CreateGameRoute,
 });

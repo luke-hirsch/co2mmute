@@ -175,6 +175,7 @@ def game_row(link: StudyGame) -> dict:
         "map": game.game_map.name if game.game_map else None,
         "started_at": game.started_at,
         "ended_at": game.ended_at,
+        "hide_co2": game.hide_co2,
     }
 
 

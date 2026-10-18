@@ -1955,6 +1955,13 @@ export const de = {
     hideCo2Switch: "bis zur Auswertung verdecken",
     hideCo2Help:
       "Niemand sieht CO₂ oder Budget, bis das Spiel vorbei ist. Das Budget beendet das Spiel nicht.",
+    /** "Neues Spiel" on a study page: the lead, and what can go wrong. */
+    forStudy: (study: string) => `Das Spiel kommt in die Studie „${study}“.`,
+    studyMissing:
+      "Diese Studie gibt es nicht (mehr). Das Spiel wird ohne Studie angelegt.",
+    studyLinkFailed: (gameId: string) =>
+      `Das Spiel ${gameId} ist angelegt, steht aber nicht in der Studie. Verknüpf es auf der Studienseite.`,
+    studyLinkFailedGo: "Zum Spiel",
 
     submit: "Spiel anlegen",
     submitting: "Wird angelegt …",
@@ -2071,8 +2078,10 @@ export const de = {
 
     games: {
       title: "Spiele",
-      lead: "Ein Spiel gehört zu höchstens einer Studie. Verknüpfen kannst du es, solange es in der Lobby wartet.",
+      lead: "Ein Spiel gehört zu höchstens einer Studie. Leg hier ein neues an oder verknüpf eins, solange es in der Lobby wartet.",
       empty: "Noch kein Spiel in dieser Studie.",
+      create: "Neues Spiel",
+      hiddenCo2: "CO₂ verdeckt",
       gameId: "Spiel-ID",
       gameIdPlaceholder: "z. B. 4F2A9C",
       link: "Spiel verknüpfen",

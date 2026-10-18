@@ -22,6 +22,7 @@ import { useSession } from "@/hooks/useSession";
 import { de } from "@/lib/de";
 import { pickedPersonas, type PersonaDraft } from "@/lib/game/personas";
 import { useCreateGame } from "@/lib/queries/session";
+import { useLinkGame, useStudy } from "@/lib/queries/studies";
 import { useGameMaps, type GameMapRow } from "@/lib/queries/maps";
 import { useStandardPersonas } from "@/lib/queries/personas";
 
@@ -48,8 +49,11 @@ import { useStandardPersonas } from "@/lib/queries/personas";
  * (`GameSessionSerializer`) and the fields render what comes back, so no rule is
  * worded twice — the alternative is a client copy that drifts, which is exactly
  * what the map-editor strings did.
+ *
+ * `studyId` comes from "Neues Spiel" on a study page: the game is made as any
+ * other and then linked to the study, the way the study page links one by id.
  */
-export function CreateGameScreen() {
+export function CreateGameScreen({ studyId }: { studyId?: number } = {}) {
   const maps = useGameMaps();
   const create = useCreateGame();
 
@@ -74,9 +78,17 @@ export function CreateGameScreen() {
   /** The deal. Off by default: a person's Gruppen live together. */
   const [balancedDeal, setBalancedDeal] = useState(false);
   /** Research, staff only: CO₂ off the screens until the summary. */
-  const isStaff = useSession().data?.isStaff === true;
+  const session = useSession().data;
+  const isStaff = session?.isStaff === true;
   const [hideCo2, setHideCo2] = useState(false);
-  const [researchOpen, setResearchOpen] = useState(false);
+  /** A study's game: its section opens, since it is a research game. */
+  const studyOn =
+    isStaff && session?.studies === true && studyId !== undefined;
+  const study = useStudy(studyId ?? 0, studyOn);
+  const forStudy = studyOn ? (study.data ?? null) : null;
+  const linkGame = useLinkGame(studyId ?? 0);
+  const [unlinked, setUnlinked] = useState<string | null>(null);
+  const [researchOpen, setResearchOpen] = useState(studyId !== undefined);
   const [unticked, setUnticked] = useState<ReadonlySet<number>>(new Set());
   const [ownPersonas, setOwnPersonas] = useState<PersonaDraft[]>([]);
   const standardPersonas = useStandardPersonas(personasOn);
@@ -162,6 +174,15 @@ export function CreateGameScreen() {
           ownPersonas,
         ),
       });
+      if (forStudy) {
+        try {
+          await linkGame.mutateAsync(game.game_id);
+        } catch {
+          // The game exists; say so rather than lose it on the way.
+          setUnlinked(game.game_id);
+          return;
+        }
+      }
       // A full navigation rather than a router one: the response set both
       // signed cookies, and the game screen's very first request has to carry
       // them. `/app/game/<id>/` is inside the SPA either way.
@@ -176,7 +197,16 @@ export function CreateGameScreen() {
 
   return (
     <Screen>
-      <ScreenHeading title={de.create.title} />
+      <ScreenHeading
+        title={de.create.title}
+        lead={forStudy ? de.create.forStudy(forStudy.name) : undefined}
+      />
+
+      {studyOn && study.isError ? (
+        <Alert variant="destructive" className="mb-8">
+          <AlertDescription>{de.create.studyMissing}</AlertDescription>
+        </Alert>
+      ) : null}
 
       {maps.isError ? (
         <Alert variant="destructive" className="mb-8">
@@ -525,13 +555,31 @@ export function CreateGameScreen() {
           </Alert>
         ) : null}
 
+        {unlinked ? (
+          <Alert variant="destructive">
+            <AlertDescription>
+              {de.create.studyLinkFailed(unlinked)}{" "}
+              <a className="underline" href={`/app/game/${unlinked}/`}>
+                {de.create.studyLinkFailedGo}
+              </a>
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
         <div className="flex items-center gap-4">
           <Button
             type="submit"
             size="lg"
-            disabled={create.isPending || !selected}
+            disabled={
+              create.isPending ||
+              linkGame.isPending ||
+              !selected ||
+              unlinked !== null
+            }
           >
-            {create.isPending ? de.create.submitting : de.create.submit}
+            {create.isPending || linkGame.isPending
+              ? de.create.submitting
+              : de.create.submit}
           </Button>
         </div>
       </form>
