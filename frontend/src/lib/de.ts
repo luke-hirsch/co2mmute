@@ -318,7 +318,7 @@ export const de = {
      */
     entry: "Code eingeben und mitspielen",
     placeholder: "Dein Code",
-    scanHint: "Oder den QR-Code am Beamer scannen.",
+    scanHint: "Oder den QR-Code scannen.",
     expiresIn: (seconds: number) =>
       seconds <= 60
         ? "läuft gleich ab"
