@@ -77,12 +77,6 @@ def throttled(request, message: str, window: int):
 class IndexView(TemplateView):
     template_name = "index.html"
 
-    def get_context_data(self, **kwargs):
-        # The join box names the participant code only with the study app on.
-        return super().get_context_data(
-            studies=apps.is_installed("studies"), **kwargs
-        )
-
 
 @method_decorator(gzip_page, name="dispatch")
 class DocView(TemplateView):

@@ -177,8 +177,7 @@ export const de = {
   join: {
     /** The first screen: no code yet, typed or scanned. */
     idTitle: "Mitspielen",
-    idSubtitle:
-      "Scanne den QR-Code oder tippe die Spiel-ID oder den Platz-Code ein.",
+    idSubtitle: "Scanne den QR-Code oder tippe deinen Code ein.",
     codeRequired: "Bitte gib einen Code ein.",
     codeNotFound:
       "Diesen Code gibt es nicht. Prüfe die Eingabe oder lass dir einen neuen geben.",
@@ -312,10 +311,12 @@ export const de = {
     boarding: "Einsteigen",
     gameId: "Spiel-ID",
     seatCode: "Platz-Code",
-    /** The one box for every code: the label on /app/join/ and the landing card. */
-    entry: "Spiel-ID oder Platz-Code",
-    /** The same box with the study app on: a participant code opens it too. */
-    entryStudies: "Spiel-ID, Platz-Code oder Teilnahmecode",
+    /**
+     * The one box for every code: the label on /app/join/ and the landing card.
+     * It names no kind: whoever holds a code or scanned one rarely knows which
+     * of the three it is, and the screen after it says what it opened.
+     */
+    entry: "Code eingeben und mitspielen",
     placeholder: "Dein Code",
     scanHint: "Oder den QR-Code am Beamer scannen.",
     expiresIn: (seconds: number) =>
