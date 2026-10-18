@@ -122,7 +122,7 @@ flowchart TD
     end
     subgraph fresh["neu oder erneuert"]
         direction TB
-        join["beitreten — POST api/game/code/ID/<br>6 Zeichen, Name + Spielpasswort<br>abgelehnt, wenn gestartet, beendet oder voll"]
+        join["beitreten — POST api/game/code/ID/<br>6 Zeichen (Teilnahmecode: 8), Name + Spielpasswort<br>abgelehnt, wenn gestartet, beendet oder voll"]
         create["Spielleitung legt<br>das Spiel an<br>(ihre eigene Zeile)"]
         whoami["whoami — GET api/whoami/<br>erneuert beide, z. B. nach einer Pause"]
         join ~~~ create ~~~ whoami

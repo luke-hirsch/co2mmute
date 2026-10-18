@@ -47,6 +47,12 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | J-21 | Spiel-ID ins Feld auf `/app/join`            | Namensfeld, dann Lobby                                  | geht      | `codes.spec.ts` |
 | J-22 | alte Wege `/api/game/lookup/`, `join/`, `seat/` | keine Antwort mehr, kein Redirect                       | geht      | `codes.spec.ts` |
 | J-23 | Platz-Code vertippt, mehr als 20 Mal         | 429, die Spiel-ID geht weiter                           | geht      | `test_throttle.py` |
+| J-24 | Teilnahmecode, ein Spiel der Studie wartet   | Namensfeld, Lobby; der Platz trägt den Code                | geht      | `codes.spec.ts` |
+| J-25 | derselbe Code noch einmal, das Spiel wartet noch | „Mit diesem Code hast du in allen wartenden Spielen schon mitgespielt. …“; ein zweiter Platz: 409 | geht | `codes.spec.ts`, `studies/tests/test_codes.py` |
+| J-26 | Teilnahmecode, zwei Spiele warten            | „Welches Spiel?“, danach das Namensfeld                     | geht      | `codes.spec.ts` |
+| J-27 | Teilnahmecode, kein Spiel wartet             | „Gerade wartet kein Spiel dieser Studie. Frag die Spielleitung.“ | geht | `codes.spec.ts` |
+| J-28 | Spiel-ID eines Spiels mit Teilnahmekarten    | geht weiter ohne Code; Hinweis „Hast du eine Teilnahmekarte? Dann scann lieber die.“ | geht | `codes.spec.ts` |
+| J-29 | Platz-Code / Übernahme eines Platzes mit Teilnahmecode | der Platz behält seinen Code (`StudySeat`)           | geht      | `studies/tests/test_codes.py` |
 
 ## L — lobby
 

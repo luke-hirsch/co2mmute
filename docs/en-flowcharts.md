@@ -114,7 +114,7 @@ flowchart TD
     end
     subgraph fresh["new or renewed"]
         direction TB
-        join["join — POST api/game/code/ID/<br>6 characters, name + game password<br>refused once started, ended or full"]
+        join["join — POST api/game/code/ID/<br>6 characters (participant code: 8), name + game password<br>refused once started, ended or full"]
         create["host creates the game<br>(the host's own row)"]
         whoami["whoami — GET api/whoami/<br>renews both, e.g. after a break"]
         join ~~~ create ~~~ whoami

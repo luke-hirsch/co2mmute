@@ -51,10 +51,11 @@ their own game. In code and in the API the old names stay: `agent`, `people_per_
 
 **One way in for every code: `/app/join/<CODE>`.** The QR code, the landing page and the header all
 point there, and so does a seat's QR. The length says what a code opens (`game/codes.py`): a game id
-is six characters, a seat code seven. One endpoint, `api/game/code/<CODE>/`, looks on GET and takes
-on POST; the screen renders by the kind it answers. Another app can register a longer kind from its
-`AppConfig.ready()`; `game` never imports it. Misses are counted per address for bearer tokens
-only (a seat code), never for a game id: a class mistypes the projector.
+is six characters, a seat code seven, a participant code eight when the study app is on. One
+endpoint, `api/game/code/<CODE>/`, looks on GET and takes on POST; the screen renders by the kind it
+answers. Another app can register a longer kind from its `AppConfig.ready()`; `game` never imports
+it. Misses are counted per address for bearer tokens only (a seat code, a participant code), never
+for a game id: a class mistypes the projector.
 
 **Two kinds of auth.** The host is a Django user with a session. A player holds two cookies signed
 with `SECRET_KEY`, `game_access_<id>` and `player_<id>`, set only through `set_game_access_cookie` /
@@ -102,10 +103,12 @@ every workplace either way.
 tables in the research export. `game` never imports it (a foreign key from a game to a study would
 break `game` and its migrations with the app off; `co2mmute/tests/test_sanity.py` refuses any
 import). It plugs in at seams registered from its AppConfig: the code kinds of the one way into a
-game, and the export tables (`game.research_export.register_tables`). A study groups games; its
-participant codes, all of one length that tells them from a game id and a seat code, are
-optional, and a study without them is a collection of normal games. Staff only, reading too: a
-code is a bearer token.
+game (`game.codes.register_code_kind`, plus `register_look_extra` for a game's look), and the
+export tables (`game.research_export.register_tables`). A study groups games; its participant codes,
+all of one length that tells them from a game id and a seat code, are optional, and a study without
+them is a collection of normal games. A participant code joins one of its study's games waiting in
+the lobby through the same `take_game` a game id uses, and writes the `StudySeat` inside that
+join's transaction; a code plays once per game. Staff only, reading too: a code is a bearer token.
 
 **`game/urls.py` order is load-bearing.** `<game_id>/` and `<game_id>/<player_id>/` swallow any one-
 and two-segment path, so literal prefixes go first. A route in the wrong place answers a plausible
