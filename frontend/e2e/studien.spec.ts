@@ -94,6 +94,9 @@ test("a new game from the study page lands in the study, CO₂ hidden", async ({
   await shot(page, "formular-studie");
   await page.getByRole("button", { name: "Spiel anlegen" }).click();
   await page.waitForURL(/\/app\/game\/(?!create)[^/]+\/?$/);
+  // The lobby's own heading, as `createGame` waits: the form leaves with a
+  // real navigation, and a `goto` before it settles is cut off.
+  await page.getByRole("heading", { level: 1 }).waitFor();
   const gameId = new URL(page.url()).pathname.split("/").filter(Boolean).pop();
 
   await page.goto(studyUrl);
