@@ -116,10 +116,12 @@ async function makeStudy(
   await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
   await page.getByRole("button", { name: "Codes erzeugen" }).click();
   await expect(page.getByText("12 Codes")).toBeVisible();
-  for (const id of gameIds) {
+  for (const [index, id] of gameIds.entries()) {
     await page.getByLabel("Spiel-ID").fill(id);
     await page.getByRole("button", { name: "Spiel verknüpfen" }).click();
-    await expect(page.getByText("wartet in der Lobby").first()).toBeVisible();
+    // Each link's own row, not the first one again: a card read before the
+    // second link lands sees one waiting game.
+    await expect(page.getByText("wartet in der Lobby")).toHaveCount(index + 1);
   }
   const pk = new URL(page.url()).pathname.split("/").filter(Boolean).pop();
   const codes = await (await page.request.get(`/api/studies/${pk}/codes/`)).json();
@@ -188,7 +190,9 @@ test("a card with two waiting games asks which, one with none says so", async ({
     await phone.getByRole("button", { name: /E2E Karte B/ }).click();
     await phone.getByLabel("Dein Name").fill("Ben");
     await phone.getByRole("button", { name: "Beitreten", exact: true }).click();
-    await phone.waitForURL(/\/app\/game\/[^/]+\/?$/);
+    // The lobby rendered, not only its URL: the game route still navigates on
+    // its own, and a goto now would be cut off by it.
+    await expect(phone.getByRole("button", { name: "Chat" })).toBeVisible();
 
     await phone.goto(`/app/join/${empty[0]}`);
     await expect(
