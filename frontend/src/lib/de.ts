@@ -183,6 +183,18 @@ export const de = {
     codeNotFound:
       "Diesen Code gibt es nicht. Prüfe die Eingabe oder lass dir einen neuen geben.",
     codeThrottled: "Zu viele Versuche. Warte ein paar Minuten.",
+    /** A participant code (a card of a study). */
+    cardTitle: "Teilnahmekarte",
+    cardWhich: "Welches Spiel?",
+    cardWhichLead: "Auf deine Karte warten mehrere Spiele. Wähle das, in dem du sitzt.",
+    cardStudy: "Dein Code gehört zu einer Studie der Forschungsgruppe.",
+    cardNoneWaiting:
+      "Gerade wartet kein Spiel dieser Studie. Frag die Spielleitung.",
+    cardPlayed:
+      "Mit diesem Code hast du in allen wartenden Spielen schon mitgespielt. Frag die Spielleitung.",
+    cardUsed: "Mit diesem Code hat schon jemand in diesem Spiel mitgespielt.",
+    /** On the join screen of a game that belongs to a study with cards. */
+    cardHint: "Hast du eine Teilnahmekarte? Dann scann lieber die.",
     idSubmit: "Weiter",
     checking: "Wird geprüft …",
 
@@ -302,6 +314,8 @@ export const de = {
     seatCode: "Platz-Code",
     /** The one box for every code: the label on /app/join/ and the landing card. */
     entry: "Spiel-ID oder Platz-Code",
+    /** The same box with the study app on: a participant code opens it too. */
+    entryStudies: "Spiel-ID, Platz-Code oder Teilnahmecode",
     placeholder: "4F2A9C",
     scanHint: "Oder den QR-Code am Beamer scannen.",
     expiresIn: (seconds: number) =>

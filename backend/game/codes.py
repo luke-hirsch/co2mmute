@@ -26,6 +26,19 @@ class UnknownCode(Exception):
     """Nothing is behind the code (any more)."""
 
 
+class CodeRefused(Exception):
+    """The code is known but may not be used here: a 409 with this reason.
+
+    Raised from a join hook inside the transaction, so nothing it was about to
+    write survives.
+    """
+
+    def __init__(self, reason: str, detail: str):
+        super().__init__(reason)
+        self.reason = reason
+        self.detail = detail
+
+
 @dataclass(frozen=True)
 class CodeKind:
     look: Callable[[Request, str], Response]
@@ -54,3 +67,22 @@ def register_code_kind(
 def kind_for(code: str) -> CodeKind | None:
     """The kind of a normalised code, or None for a length nobody owns."""
     return _kinds.get(len(code))
+
+
+_look_extras: list[Callable[[object], dict]] = []
+
+
+def register_look_extra(extra: Callable[[object], dict]) -> None:
+    """Let another app add fields to what a game id's look says.
+
+    `extra` gets the `GameSession` and returns a dict that is merged in. It
+    must name no host and no player: the look is readable without a cookie.
+    """
+    _look_extras.append(extra)
+
+
+def look_extras(game) -> dict:
+    merged: dict = {}
+    for extra in _look_extras:
+        merged.update(extra(game))
+    return merged

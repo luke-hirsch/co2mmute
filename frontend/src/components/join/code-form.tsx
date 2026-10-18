@@ -4,6 +4,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { CodeInput, DepartureBoard } from "@/components/metro/departure-board";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
+import { useSession } from "@/hooks/useSession";
+import { codeMaxLength } from "@/lib/codes";
 import { de } from "@/lib/de";
 
 /**
@@ -21,6 +23,10 @@ import { de } from "@/lib/de";
  */
 export function CodeForm() {
   const navigate = useNavigate();
+  // The session, not `useAuth`: no auth provider is mounted above the join
+  // box, and a player has no account; whoami says whether the study app is on.
+  const studies = useSession().data?.studies === true;
+  const label = studies ? de.code.entryStudies : de.code.entry;
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -39,7 +45,7 @@ export function CodeForm() {
       <ScreenHeading title={de.join.idTitle} lead={de.join.idSubtitle} />
 
       <form onSubmit={submit} noValidate>
-        <DepartureBoard label={de.code.entry} footnote={de.code.scanHint}>
+        <DepartureBoard label={label} footnote={de.code.scanHint}>
           <CodeInput
             value={code}
             onValueChange={(value) => {
@@ -47,7 +53,8 @@ export function CodeForm() {
               if (error) setError(null);
             }}
             autoFocus
-            aria-label={de.code.entry}
+            aria-label={label}
+            maxLength={codeMaxLength(studies)}
             aria-invalid={error ? true : undefined}
           />
         </DepartureBoard>

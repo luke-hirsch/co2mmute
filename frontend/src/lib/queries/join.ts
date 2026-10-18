@@ -18,9 +18,8 @@ import { apiFetch } from "@/lib/api";
 import type { JoinBlockedReason } from "@/lib/de";
 import type { LobbySnapshot } from "@/lib/game/game-state";
 
-/** What a game id opens (`GET api/game/code/<id>/`). */
-export type GameLook = {
-  kind: "game";
+/** What a game says about itself, however it was reached. */
+export type GameFacts = {
   game_id: string;
   game_name: string;
   requires_password: boolean;
@@ -28,6 +27,20 @@ export type GameLook = {
   reason: JoinBlockedReason | null;
   player_count: number;
   max_players: number;
+  /** The game belongs to a study that hands out participant codes. */
+  coded_study?: boolean;
+};
+
+/** What a game id opens (`GET api/game/code/<id>/`). */
+export type GameLook = GameFacts & { kind: "game" };
+
+/** What a participant code opens: the card's study and the games waiting for it. */
+export type ParticipantLook = {
+  kind: "participant";
+  study_name: string;
+  games: GameFacts[];
+  /** Why none is on offer: nothing waits, or the card has played what waits. */
+  reason: "none_waiting" | "played" | null;
 };
 
 /** What a seat code opens: a look, the code not used up. */
@@ -39,7 +52,7 @@ export type SeatLook = {
 };
 
 /** `GET api/game/code/<code>/` — the first call after a scan or a typed code. */
-export type CodeLook = GameLook | SeatLook;
+export type CodeLook = GameLook | SeatLook | ParticipantLook;
 
 /** `POST api/game/code/<game_id>/` — the answer, plus both cookies. */
 export type JoinResult = {
@@ -75,12 +88,18 @@ export function useCodeLook(code: string) {
   });
 }
 
-export function useJoinGame(gameId: string) {
+/**
+ * Join a game. With a participant code the post goes to the card's endpoint and
+ * names the game; the backend writes the seat's code in the same step.
+ */
+export function useJoinGame(gameId: string, participantCode?: string) {
   return useMutation({
     mutationFn: (body: { name: string; password?: string }) =>
-      apiFetch<JoinResult>(`/api/game/code/${gameId}/`, {
+      apiFetch<JoinResult>(`/api/game/code/${participantCode ?? gameId}/`, {
         method: "POST",
-        body: JSON.stringify(body),
+        body: JSON.stringify(
+          participantCode ? { ...body, game_id: gameId } : body,
+        ),
       }),
   });
 }
