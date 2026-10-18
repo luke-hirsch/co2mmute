@@ -43,7 +43,7 @@ Geprüft wird in WebKit — das ist Safari und jeder Browser auf dem iPhone — 
 | J-17 | alte Beitrittsseite `/join/`                 | 404 — der einzige Eingang ist `/app/join`               | geht      | `credentials.spec.ts` |
 | J-18 | „Los“ auf der Startseite, mit ID             | landet auf `/app/join/<ID>`                             | geht      | `credentials.spec.ts` |
 | J-19 | „Los“ auf der Startseite, ohne ID            | landet auf `/app/join`, das nach der ID fragt           | geht      | `credentials.spec.ts` |
-| J-20 | Startseite und `/app/join`: das Codefeld | der Platzhalter sagt „Dein Code“ in der Schrift der Seite, nicht in der Schrift der Codes, damit man ihn nicht für einen Code hält, den man eintippen soll; bei 375px und 320px passt er ins Feld | geht | - |
+| J-20 | Startseite und `/app/join`: das Codefeld | darüber steht „Code eingeben und mitspielen“, mit und ohne Studien, keine Art von Code; der Platzhalter sagt „Dein Code“ in der Schrift der Seite, nicht in der Schrift der Codes, damit man ihn nicht für einen Code hält, den man eintippen soll; bei 375px und 320px passt er ins Feld | geht | - |
 | J-21 | Spiel-ID ins Feld auf `/app/join`            | Namensfeld, dann Lobby                                  | geht      | `codes.spec.ts` |
 | J-22 | alte Wege `/api/game/lookup/`, `join/`, `seat/` | keine Antwort mehr, kein Redirect                       | geht      | `codes.spec.ts` |
 | J-23 | Platz-Code vertippt, mehr als 20 Mal         | 429, die Spiel-ID geht weiter                           | geht      | `test_throttle.py` |
