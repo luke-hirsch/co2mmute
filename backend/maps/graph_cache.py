@@ -29,6 +29,7 @@ generation.
 
 from django.core.cache import cache
 from django.db import transaction
+from django.utils import timezone
 
 # An hour: the graph changes only when someone edits the map.
 GRAPH_TIMEOUT_S = 3600
@@ -64,9 +65,21 @@ def _bump(map_pk) -> None:
         cache.set(key, 1, timeout=None)
 
 
-def invalidate(map_pk) -> None:
-    """Every stored graph of the map is stale from here on."""
+def invalidate(map_pk, edit: bool = True) -> None:
+    """Every stored graph of the map is stale from here on.
+
+    Every write a map's graph goes through ends here, so this is also where the
+    map notes that it was edited (`GameMap.graph_edited_at`, which a
+    calibration is compared against). A write that only drops the cache and
+    changes nothing a measurement reads passes `edit=False`. It is a database
+    column rather than the generation above, because the generation lives in
+    Redis and a restart forgets it.
+    """
     if map_pk is None:
         return
+    if edit:
+        from maps.models import GameMap
+
+        GameMap.objects.filter(pk=map_pk).update(graph_edited_at=timezone.now())
     _bump(map_pk)
     transaction.on_commit(lambda: _bump(map_pk))

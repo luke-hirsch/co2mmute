@@ -16,6 +16,7 @@ from django.conf import settings
 from django.core import signing
 from django.test import TestCase, override_settings
 from django.urls import resolve, reverse
+from datetime import timedelta
 from django.utils import timezone
 
 from co2mmute.utils import sign_value, unsign_value
@@ -1634,7 +1635,7 @@ class MapSaysWhetherItsCountWasMeasuredTests(TempMediaRootMixin, TestCase):
     the field default. On a smaller map it is too high, and the create form
     used to offer it without a word. Comparing a map's count against the
     default cannot tell the two cases apart — the one map where 6 800 *is*
-    measured carries exactly that — so the map says it: `calibrated`, false
+    measured carries exactly that — so the map says it: `calibrated_at`, empty
     until somebody who measured it says otherwise. (It named a pair until the
     budget came off the map on 2026-10-07.)
 
@@ -1690,13 +1691,15 @@ class MapSaysWhetherItsCountWasMeasuredTests(TempMediaRootMixin, TestCase):
 
         game_map = GameMap.objects.create(name="Kiez")
 
-        self.assertFalse(game_map.calibrated)
+        self.assertIsNone(game_map.calibrated_at)
 
-    def test_the_flag_reaches_the_create_screen(self):
+    def test_the_date_reaches_the_create_screen(self):
         """The warning is drawn in the browser, from the map list."""
         from maps.models import GameMap
 
-        measured = GameMap.objects.create(name="Gemessen", calibrated=True)
+        measured = GameMap.objects.create(
+            name="Gemessen", calibrated_at=timezone.now() - timedelta(days=1)
+        )
         guessed = GameMap.objects.create(name="Geschätzt")
         self.client.force_login(self.host)
 
@@ -1704,26 +1707,48 @@ class MapSaysWhetherItsCountWasMeasuredTests(TempMediaRootMixin, TestCase):
 
         self.assertEqual(response.status_code, 200)
         rows = {r["id"]: r for r in response.json()}
-        self.assertIs(rows[measured.pk]["calibrated"], True)
-        self.assertIs(rows[guessed.pk]["calibrated"], False)
+        self.assertIsNotNone(rows[measured.pk]["calibrated_at"])
+        self.assertIsNone(rows[guessed.pk]["calibrated_at"])
 
-    def test_the_export_carries_the_flag(self):
+    def test_the_export_carries_the_date(self):
         from maps.models import GameMap, MapVersion
 
-        game_map = GameMap.objects.create(name="Gemessen", calibrated=True)
+        moment = timezone.now() - timedelta(days=1)
+        game_map = GameMap.objects.create(name="Gemessen", calibrated_at=moment)
         MapVersion.objects.create(game_map=game_map, name="Base", base_version=True)
         self.client.force_login(self.host)
 
         response = self.client.get(f"/api/maps/{game_map.pk}/export/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertIs(response.json()["map"]["calibrated"], True)
+        self.assertEqual(response.json()["map"]["calibrated_at"], moment.isoformat())
+        self.assertNotIn("calibrated", response.json()["map"])
 
-    def test_an_import_reads_the_flag_back(self):
-        game_map = self._import({"district_commuters": 1_600, "calibrated": True})
+    def test_an_import_reads_the_date_back(self):
+        game_map = self._import(
+            {"district_commuters": 1_600, "calibrated_at": "2026-10-16T08:30:00+00:00"}
+        )
 
-        self.assertTrue(game_map.calibrated)
+        self.assertEqual(
+            game_map.calibrated_at.isoformat(), "2026-10-16T08:30:00+00:00"
+        )
         self.assertEqual(game_map.district_commuters, 1_600)
+
+    def test_a_date_alone_is_midnight_utc(self):
+        game_map = self._import(
+            {"district_commuters": 1_600, "calibrated_at": "2026-10-16"}
+        )
+
+        self.assertEqual(
+            game_map.calibrated_at.isoformat(), "2026-10-16T00:00:00+00:00"
+        )
+
+    def test_a_file_from_before_the_date_is_measured_as_of_the_import(self):
+        """`calibrated: true` says it was measured, not when."""
+        before = timezone.now()
+        game_map = self._import({"district_commuters": 6_400, "calibrated": True})
+
+        self.assertGreaterEqual(game_map.calibrated_at, before)
 
     def test_a_file_from_before_the_dial_is_still_measured(self):
         """Its budget is left behind; the count it measured is still its own."""
@@ -1735,31 +1760,37 @@ class MapSaysWhetherItsCountWasMeasuredTests(TempMediaRootMixin, TestCase):
             }
         )
 
-        self.assertTrue(game_map.calibrated)
+        self.assertIsNotNone(game_map.calibrated_at)
         self.assertEqual(game_map.district_commuters, 6_400)
 
-    def test_a_file_stating_the_count_without_the_flag_is_not_measured(self):
-        """The case the flag exists for: a map exported since 2026-09-27 carries
-        Berlin's default as plainly as Berlin itself does."""
-        game_map = self._import({"district_commuters": 6_800})
+    def test_a_file_stating_the_count_without_the_date_is_not_measured(self):
+        """The case the field exists for: a map exported since 2026-09-27
+        carries Berlin's default as plainly as Berlin itself does."""
+        game_map = self._import({"district_commuters": 6_800, "calibrated_at": None})
 
-        self.assertFalse(game_map.calibrated)
+        self.assertIsNone(game_map.calibrated_at)
 
-    def test_the_flag_without_the_count_is_not_honoured(self):
+    def test_the_date_without_the_count_is_not_honoured(self):
         """"Measured" names a number. A file that says so and gives none would
-        mark the field default as this map's measurement — a budget beside it
-        is no count."""
+        mark the field default as this map's measurement."""
         with muted():
             game_map = self._import(
-                {"calibrated": True, "co2_budget_kg_per_round": 2_000}
+                {"calibrated_at": "2026-10-16", "co2_budget_kg_per_round": 2_000}
             )
 
-        self.assertFalse(game_map.calibrated)
+        self.assertIsNone(game_map.calibrated_at)
         self.assertEqual(game_map.district_commuters, 6_800)
 
-    def test_only_true_is_true(self):
-        """A hand-edited file saying "ja" or 1 is not a statement anybody
-        should be held to."""
-        game_map = self._import({"district_commuters": 1_600, "calibrated": "ja"})
+    def _says_measured_at(self, value):
+        return self._import({"district_commuters": 1_600, "calibrated_at": value})
 
-        self.assertFalse(game_map.calibrated)
+    def test_a_word_is_no_date(self):
+        """A hand-edited file saying "ja" is not a statement anybody should be
+        held to."""
+        self.assertIsNone(self._says_measured_at("ja").calibrated_at)
+
+    def test_a_number_is_no_date(self):
+        self.assertIsNone(self._says_measured_at(1).calibrated_at)
+
+    def test_a_time_to_come_is_no_date(self):
+        self.assertIsNone(self._says_measured_at("2999-01-01").calibrated_at)

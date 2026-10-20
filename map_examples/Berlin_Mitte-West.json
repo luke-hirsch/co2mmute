@@ -9,7 +9,7 @@
     "bike_speed_kmh": 20,
     "default_car_speed_kmh": 50,
     "district_commuters": 6800,
-    "calibrated": true,
+    "calibrated_at": "2026-10-16",
     "timetable_factor": 0.22,
     "co2_table": {
       "100": 3.53,

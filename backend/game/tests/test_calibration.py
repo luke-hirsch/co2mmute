@@ -13,6 +13,7 @@ known exactly. The rounds themselves are played on the six-node map from
 is TypeScript, and the suite does not run Node.
 """
 
+import datetime
 import json
 from collections import Counter
 from dataclasses import dataclass
@@ -31,6 +32,8 @@ from maps.importer import MapImporter
 from maps.models import BusLine, Edge, MapVersion
 from maps.tests.test_checks import small_map
 from maps.tests.test_example_map import SHIPPED_MAP
+
+MEASURED_AT = datetime.datetime(2026, 10, 20, 9, 0, tzinfo=datetime.timezone.utc)
 
 
 class RoundFigureTests(SimpleTestCase):
@@ -389,17 +392,18 @@ class CalibratedFileTests(SimpleTestCase):
     def test_the_count_the_flag_and_the_share(self):
         graph = {"map": {"name": "Karte", "co2_budget_kg_per_round": 16000}}
 
-        written = calibrated_file(graph, self.result(2725.0))
+        written = calibrated_file(graph, self.result(2725.0), MEASURED_AT)
 
         self.assertEqual(written["map"]["district_commuters"], 6800)
-        self.assertIs(written["map"]["calibrated"], True)
+        self.assertEqual(written["map"]["calibrated_at"], MEASURED_AT.isoformat())
+        self.assertNotIn("calibrated", written["map"])
         self.assertEqual(written["map"]["timetable_factor"], 0.48)
         self.assertNotIn("co2_budget_kg_per_round", written["map"])
 
     def test_a_share_it_could_not_measure_leaves_the_files_own(self):
         graph = {"map": {"name": "Karte", "timetable_factor": 0.3}}
 
-        written = calibrated_file(graph, self.result(0.0))
+        written = calibrated_file(graph, self.result(0.0), MEASURED_AT)
 
         self.assertEqual(written["map"]["timetable_factor"], 0.3)
 
@@ -440,7 +444,7 @@ class CalibratedTableTests(SimpleTestCase):
             },
         )
 
-        written = calibrated_file({"map": {}}, result)
+        written = calibrated_file({"map": {}}, result, MEASURED_AT)
 
         self.assertEqual(written["map"]["co2_table"], {"100": 3.0, "0": 1.0})
 

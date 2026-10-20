@@ -166,7 +166,8 @@ an adapter method must never take an engine method's name.
   picked. `AgentSimulationResult.total_co2_g` is per person × `people_per_agent`; `mean_cost_eur` is
   per person; `GameSession.max_CO2_level` is in kg.
 - **The commuters are the map's, the budget is the game's.** `GameMap.district_commuters` and
-  `calibrated` (true only for a count measured on that map) belong to the graph. The budget is kg of
+  `calibrated_at` (when the count was measured on that map, empty if never; `graph_edited_at` says
+  whether the graph changed since) belong to the graph. The budget is kg of
   CO₂ per person per round, the same on every map: the create form's dial (0.6–6.0 kg in 0.2 steps,
   normal 2.4, a commute inside Germany's 2030 climate target — `CO2_KG_PER_PERSON_*` in
   `sim/constants.py`, mirrored in
@@ -340,6 +341,8 @@ lists the stages in the order they run, each module's docstring its rules.
   and its combinations, checked and measured.
 - `map-modify`: what is off on a built map, fixed in its base version after talking it through —
   commuter towns, the count, a footpath, a moved stop, a street.
+- `check-up`: a report on the maps of an instance — does each check out, when was it measured, was it
+  edited since — and measuring again the ones that are out of date, asking first.
 
 ## repo conventions
 

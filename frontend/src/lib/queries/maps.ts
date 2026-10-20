@@ -14,10 +14,10 @@
  *   `lib/calibration.ts` derives the people per Gruppe from it, and with them
  *   the budget. The budget itself is kg per person, the same on every map, so
  *   no row carries one.
- * - `calibrated` says whether that count was measured on this map. Every
+ * - `calibrated_at` says when that count was measured on this map, null if it never was. Every
  *   map starts at Berlin Mitte-West's, and the count alone cannot tell the one
  *   map it was measured on from a small one that inherited it — so the screen
- *   warns on the flag, never on the number.
+ *   warns on the date, never on the number.
  * - `offers_map_changes` is whether a game on this map can ever reach a ballot.
  *   A single-version map removes the discussion and the vote from the whole
  *   game silently, and the select is the last place a host can change their
@@ -34,7 +34,7 @@ export type GameMapRow = {
   id: number;
   name: string;
   district_commuters: number;
-  calibrated: boolean;
+  calibrated_at: string | null;
   /** kg per person per round at each car share; null until measured. */
   co2_table: Co2Table | null;
   offers_map_changes: boolean;

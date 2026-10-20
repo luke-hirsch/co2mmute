@@ -164,7 +164,7 @@ def cmd_places(api, map_id):
     row = api.call("GET", f"/api/maps/{map_id}/")
     print(
         f"{row['name']}: {row['district_commuters']} Pendler, "
-        f"{'gemessen' if row['calibrated'] else 'nicht gemessen'}, "
+        f"{'gemessen am ' + row['calibrated_at'][:10] if row['calibrated_at'] else 'nicht gemessen'}, "
         f"Maßstab {row['scale']} m je Einheit, Karte {row['x_dim']} × {row['y_dim']}"
     )
     for kind in PLACES:
@@ -232,7 +232,7 @@ def cmd_commuters(api, map_id, count):
     api.call(
         "PATCH",
         f"/api/maps/{map_id}/",
-        {"district_commuters": count, "calibrated": False},
+        {"district_commuters": count, "calibrated_at": None},
     )
     print(
         f"Pendler {row['district_commuters']} → {count}, „gemessen“ jetzt falsch. "

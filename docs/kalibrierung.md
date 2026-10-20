@@ -366,7 +366,7 @@ Autoanteil fährt jedes Paar seinen Anteil, bei der Hälfte also genau eine der 
 zufällige Hälfte aller Gruppen setzt in einer Runde die langen Wege ins Auto und in der nächsten die
 kurzen: Auf Berlin streute die halbe Runde damit um 4 % zwischen den Seeds, mit festem Anteil pro
 Paar um 0,5 %. Die Pendler sucht der Befehl in ganzen Menschen pro Gruppe. `--out` schreibt eine Kopie
-der Datei mit der Pendlerzahl und `calibrated: true`.
+der Datei mit der Pendlerzahl und `calibrated_at`.
 
 Gemessen wird auf Postgres, wie auf dem Server; die Prozesse spielen die Runden eines Schritts
 nebeneinander. Die Simulation liest Strecken, Linien und Wege in der Reihenfolge ihrer Nummern,
@@ -463,7 +463,7 @@ Runde aufgebraucht.
 trotzdem die halbe Runde, nicht das zweite Spiel.
 
 **Was sich geändert hat.** `GameMap.co2_budget_kg_per_round` ist weg, Export und Import kennen es
-nicht mehr. `calibrated` heißt jetzt: Die Pendlerzahl ist gemessen. `calibrate_map` sucht die
+nicht mehr. `calibrated` hieß damals: Die Pendlerzahl ist gemessen; heute ist es ein Datum, `calibrated_at`. `calibrate_map` sucht die
 Pendler wie bisher und zeigt danach die Tabelle pro Person und den Anteil, den normal auf der Karte
 kauft; `--share` gibt es nicht mehr. Die mitgelieferte Karte trägt 6.800. Eine Karte, die schon auf
 einem Server liegt, behält ihre Zahl, bis sie neu importiert oder im Admin geändert wird — die
@@ -821,9 +821,9 @@ Hause ist, nicht wegen eines Staus.
   für die Ampeln mit, die das Modell nicht hat (Abschnitt 13).
 - **Die Vorgabe anderer Karten ist ungeprüft.** Jede neue Karte startet mit 6.800 Pendlern, der Zahl
   von Berlin Mitte-West. Für eine kleinere Karte ist das zu viel, und mit den Pendlern das Budget. Die
-  Karte sagt selbst, ob ihre Zahl gemessen ist (`GameMap.calibrated`, geht mit der JSON-Datei mit),
+  Karte sagt selbst, ob ihre Zahl gemessen ist (`GameMap.calibrated_at`, geht mit der JSON-Datei mit),
   und „Spiel anlegen" warnt, solange sie es nicht ist. `calibrate_map` misst sie (Abschnitt 12),
-  `--out` setzt den Haken in der Datei. Die mitgelieferte Datei hat ihn gesetzt.
+  `--out` schreibt das Datum in die Datei. Die mitgelieferte Datei hat eins.
 - **Die gebauten Karten kippen an keinem Kreisverkehr mehr** (Abschnitt 15), und eine Schleife aus
   Straßen verklemmt sich am Abend kaum noch. Auf dem Ausschnitt, bei 23.000 Pendlern und alle im
   Auto, stand an einem von sechs Seeds der Heimweg 4.070 Minuten auf 16 Kanten in Mitte, jede auf die

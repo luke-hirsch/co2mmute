@@ -222,7 +222,9 @@ def build_export(game_map, version=None):
             "bike_speed_kmh": game_map.bike_speed_kmh,
             "default_car_speed_kmh": game_map.default_car_speed_kmh,
             "district_commuters": game_map.district_commuters,
-            "calibrated": game_map.calibrated,
+            "calibrated_at": (
+                game_map.calibrated_at.isoformat() if game_map.calibrated_at else None
+            ),
             "timetable_factor": game_map.timetable_factor,
             "co2_table": game_map.co2_table,
             "credits": game_map.credits,

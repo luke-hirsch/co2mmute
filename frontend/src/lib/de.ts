@@ -1187,8 +1187,13 @@ export const de = {
        */
       votable: "mit Abstimmung",
       noVote: "ohne Abstimmung",
-      /** Whether the commuters' count was measured on this map. */
-      calibrated: "kalibriert",
+      /** When the commuters' count was measured on this map. */
+      calibrated: (at: string) =>
+        `kalibriert am ${new Date(at).toLocaleDateString("de-DE", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        })}`,
       notCalibrated: "nicht kalibriert",
       size: (x: number, y: number) => `${x} × ${y} Felder`,
       seats: (n: number) => `${n} Plätze`,
@@ -1272,8 +1277,8 @@ export const de = {
                 "wie viele Pendler die Karte trägt (Vorgabe: 6.800)",
               ],
               [
-                "calibrated",
-                "true, wenn die Pendlerzahl darüber für diese Karte gemessen ist — sonst warnt „Spiel anlegen“",
+                "calibrated_at",
+                "wann die Pendlerzahl darüber für diese Karte gemessen wurde, z. B. 2026-10-16 — ohne Datum warnt „Spiel anlegen“",
               ],
             ],
           },
@@ -1812,7 +1817,7 @@ export const de = {
     mapNoChanges:
       "Diese Karte hat nur eine Version. Es gibt also nichts abzustimmen, und die Diskussion zwischen den Runden fällt weg.",
     /**
-     * `GameMap.calibrated` is false: nobody replayed rounds on this map,
+     * `GameMap.calibrated_at` is empty: nobody replayed rounds on this map,
      * so its commuter count is whatever it was given — as a rule the field
      * default, measured on Berlin Mitte-West, which is the bigger map. Says
      * which way it is likely wrong, because "may not fit" alone gives a host

@@ -96,7 +96,7 @@ export function MapIndex() {
 export function MapBadges({
   gameMap,
 }: {
-  gameMap: Pick<GameMap, "calibrated" | "offers_map_changes">;
+  gameMap: Pick<GameMap, "calibrated_at" | "offers_map_changes">;
 }) {
   return (
     <div className="mt-2 flex flex-wrap gap-2">
@@ -106,8 +106,8 @@ export function MapBadges({
           : de.map.index.noVote}
       </Badge>
       <Badge variant="outline">
-        {gameMap.calibrated
-          ? de.map.index.calibrated
+        {gameMap.calibrated_at
+          ? de.map.index.calibrated(gameMap.calibrated_at)
           : de.map.index.notCalibrated}
       </Badge>
     </div>

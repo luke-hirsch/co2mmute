@@ -175,7 +175,7 @@ Read its report:
 - `Eine Runde ohne Auto kostet hier mehr als eine, in der alle fahren …`: the timetable runs whether
   anybody rides. On a sparse map that is what the map teaches; say it.
 
-`--out` writes a copy with the commuters, `calibrated: true`, the share and the table (`co2_table`:
+`--out` writes a copy with the commuters, `calibrated_at`, the share and the table (`co2_table`:
 kg per person per round at each car share, which the create form reads to say "bei 2,4 kg bis N %
 Auto" and "nicht spielbar" at both ends). That copy is the map.
 

@@ -1,6 +1,7 @@
 import logging
 
 from django.db.models import Avg
+from django.utils import timezone
 from game.models import SimulationResult
 from rest_framework import serializers
 
@@ -72,6 +73,7 @@ class MapVersionsMixin(serializers.Serializer):
 class GameMapSerializer(serializers.ModelSerializer):
     background_image_url = serializers.SerializerMethodField()
     offers_map_changes = serializers.SerializerMethodField()
+    edited_since_calibration = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = mm.GameMap
@@ -86,7 +88,10 @@ class GameMapSerializer(serializers.ModelSerializer):
             "bike_speed_kmh",
             "default_car_speed_kmh",
             "district_commuters",
-            "calibrated",
+            "calibrated_at",
+            "graph_edited_at",
+            "edited_since_calibration",
+            "timetable_factor",
             "co2_table",
             "credits",
             "created",
@@ -109,6 +114,8 @@ class GameMapSerializer(serializers.ModelSerializer):
             "updated",
             "background_image_url",
             "offers_map_changes",
+            "graph_edited_at",
+            "edited_since_calibration",
         )
 
     def get_offers_map_changes(self, obj) -> bool:
@@ -135,6 +142,20 @@ class GameMapSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(obj.background_image.url)
             return obj.background_image.url
         return None
+
+    def validate_timetable_factor(self, value):
+        if not 0 <= value <= 1:
+            raise serializers.ValidationError(
+                "Der Fahrplananteil liegt zwischen 0 und 1."
+            )
+        return value
+
+    def validate_calibrated_at(self, value):
+        if value is not None and value > timezone.now():
+            raise serializers.ValidationError(
+                "Gemessen wurde nicht in der Zukunft."
+            )
+        return value
 
     def validate_scale(self, value):
         if value <= 0:

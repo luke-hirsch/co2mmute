@@ -345,13 +345,13 @@ Jede Karte trägt:
 
 ```
 district_commuters        Pendler, die die Karte trägt
-calibrated                ob die Zahl für diese Karte gemessen ist
+calibrated_at            wann die Zahl für diese Karte gemessen wurde
 timetable_factor          welchen Anteil am Fahrplan die Pendler bezahlen
 ```
 
 Die Werte stehen in der JSON-Datei der Karte, lassen sich im Admin ändern und gehen beim Export mit.
 Eine neue Karte übernimmt die 6.800 von Berlin Mitte-West, bis jemand für sie misst. Erst wenn
-`calibrated` gesetzt ist, verschwindet der Hinweis bei „Spiel anlegen“.
+`calibrated_at` gesetzt ist, verschwindet der Hinweis bei „Spiel anlegen“.
 
 Das Budget gehört nicht zur Karte. Es ist eine Zahl pro Person und Runde, auf jeder Karte dieselbe,
 und „Spiel anlegen“ stellt sie ein: 0,6 bis 6,0 kg in Schritten von 0,2, normal 2,4. Alles andere
@@ -619,6 +619,6 @@ Neu messen, wenn
 - sich ein Emissionsfaktor ändert oder wie lange die Linien fahren. Dann verschiebt sich, was normal
   auf der Karte kauft — und auf Berlin vielleicht normal selbst.
 
-Danach die Pendlerzahl in die Kartendatei oder in den Admin eintragen, `calibrated` setzen und die
+Danach die Pendlerzahl in die Kartendatei oder in den Admin eintragen, `calibrated_at` setzen und die
 Karte exportieren, damit die Messung mit der Datei mitgeht (`calibrate_map --out` schreibt beides). Die Messungen für Berlin Mitte-West
 stehen mit allen Tabellen in `docs/kalibrierung.md` und `backend/game/calibration.py`.
