@@ -111,6 +111,14 @@ const MapDetail = () => {
     }
   };
 
+  if (busy === "delete") {
+    return (
+      <Screen wide>
+        <Loading label={de.map.deleting} />
+      </Screen>
+    );
+  }
+
   if (mapLoading || graphLoading) {
     return (
       <Screen wide>
@@ -156,7 +164,7 @@ const MapDetail = () => {
           onClick={() => setAsking(true)}
           disabled={busy !== null}
         >
-          {busy === "delete" ? de.map.deleting : de.editor.deleteMap}
+          {de.editor.deleteMap}
         </Button>
       </div>
 
