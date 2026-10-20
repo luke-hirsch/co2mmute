@@ -107,23 +107,6 @@ const redeemRefusal: Record<RedeemRefusal, string> = {
   ended: "Das Spiel ist vorbei.",
 };
 
-/**
- * Why the game is over. `game/signals.py` sends one of these.
- *
- * The reason is recorded when the game ends (`GameSession.end_reason`). It used
- * to be recomputed at read time from "over budget or not", so every ending that
- * was neither reported `max_rounds` — a game stopped by hand in round 1 said
- * "Alle Runden sind gefahren" above "0 Runden gefahren".
- */
-export type GameEndReason = "co2_limit" | "max_rounds" | "host" | "idle";
-
-const endReason: Record<GameEndReason, string> = {
-  co2_limit: "Das CO₂-Budget ist aufgebraucht.",
-  max_rounds: "Alle Runden sind gefahren.",
-  host: "Die Spielleitung hat das Spiel beendet.",
-  idle: "Das Spiel lag zu lange still und hat sich selbst beendet.",
-};
-
 export const de = {
   app: {
     name: "CO₂mmute",
@@ -465,22 +448,7 @@ export const de = {
       "sich die Karte mit dem, was ihr gewählt habt.",
     mapLabel: "Karte mit den Fahrten dieser Runde",
 
-    /**
-     * Elapsed time, not a time of day (decided 2026-10-01). The model has no
-     * wall clock — the departure window simply starts at zero — so "7:48 Uhr"
-     * would put a number on screen that nothing in the simulation stands
-     * behind. It is written the way every other duration on screen is ("8 h 18
-     * min"), because a bare "0:48" reads as a clock face and says nothing about
-     * what ran out.
-     */
     clockLabel: "Uhrzeit",
-    clock: (minute: number) => {
-      const whole = Math.floor(minute);
-      return whole < 60
-        ? `${whole} min`
-        : `${Math.floor(whole / 60)} h ${String(whole % 60).padStart(2, "0")} min`;
-    },
-
     /** Shown instead of the clock while playback jumps from the morning to the evening. */
     midday: "Mittag",
 
@@ -797,7 +765,6 @@ export const de = {
   /** The end of the game. */
   summary: {
     title: "Spiel zu Ende",
-    reason: endReason,
     roundsPlayed: (n: number) =>
       n === 1 ? "1 Runde gefahren" : `${n} Runden gefahren`,
     /** A game that hid its CO₂ played on past its budget; this is where it ran out. */
@@ -1437,7 +1404,6 @@ export const de = {
     betterName: "Gib einen besseren Namen.",
     cancel: "Abbrechen",
     delete: "Löschen",
-    deleting: "Wird gelöscht …",
     create: "Anlegen",
     creating: "Wird angelegt …",
     nothingSelected: "Nichts ausgewählt.",

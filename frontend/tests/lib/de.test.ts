@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { de, type GameEndReason } from "@/lib/de";
+import { de } from "@/lib/de";
 
 type Node = string | ((...args: never[]) => string) | { [key: string]: Node };
 
@@ -165,47 +165,6 @@ describe("de", () => {
       .map(([path]) => path);
 
     expect(offenders).toEqual([]);
-  });
-});
-
-/**
- * Added after the second full run (2026-09-19). Two things had gone wrong that
- * the checks above could not see: a reason the backend sends that the frontend
- * has no word for (a `Record` lookup that renders nothing), and figures that
- * skipped the German formatter — "10349 von 500000 kg" next to "10.349 kg"
- * everywhere else.
- */
-describe("de.summary.reason", () => {
-  /**
-   * Listed once, checked by TypeScript against `GameEndReason`: adding a fifth
-   * reason to the type without adding it here fails the build rather than the
-   * test — the same trick the `Record` in `de.ts` plays on the dictionary.
-   */
-  const allEndReasons: readonly GameEndReason[] = [
-    "co2_limit",
-    "max_rounds",
-    "host",
-    "idle",
-  ];
-
-  it("covers exactly the reasons the backend can send", () => {
-    expect(Object.keys(de.summary.reason).sort()).toEqual(
-      [...allEndReasons].sort(),
-    );
-  });
-
-  it("has a German sentence for every one of them", () => {
-    for (const reason of allEndReasons) {
-      expect(de.summary.reason[reason], reason).toBeTruthy();
-    }
-  });
-
-  it("says who ended it when the host did", () => {
-    expect(de.summary.reason.host).toContain("Spielleitung");
-  });
-
-  it("does not claim all rounds were played when the game idled out", () => {
-    expect(de.summary.reason.idle).not.toBe(de.summary.reason.max_rounds);
   });
 });
 

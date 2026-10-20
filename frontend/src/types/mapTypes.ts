@@ -124,7 +124,6 @@ export interface MapVersion {
    */
   source_version: number | null;
   compatible_versions: number[];
-  change_img_url: string | null;
 }
 
 /**

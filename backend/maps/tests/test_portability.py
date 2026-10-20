@@ -1512,7 +1512,7 @@ class PTChainExportTests(MapUploadMixin, TestCase):
 # So a map with four versions exported as four files that re-imported as four
 # separate maps, and what was lost on every move between boxes was the other
 # versions, `compatible_versions` — which *is* the vote — `source_version`, both
-# poll texts, `change_img`, and which element belongs where. Measured on the
+# poll texts, and which element belongs where. Measured on the
 # box's own map: a base-only export drops 19 edges, a whole bus line pair and
 # all 24 `compatible_versions` pairs.
 #
@@ -1910,23 +1910,19 @@ class WholeMapExportTests(VersionedMapMixin, TestCase):
         self.assertIn("147", " ".join(captured.output))
         self.assertIn(str(orphan.pk), " ".join(captured.output))
 
-    def test_the_change_image_travels_with_its_version(self):
+    def test_a_version_carries_no_change_picture(self):
         from maps.models import MapVersion
-
-        version = MapVersion.objects.get(game_map=self.game_map, name="Busspuren")
-        version.change_img.save("busspuren.png", ContentFile(PNG_BYTES), save=True)
+        from maps.serializer import MapVersionSerializer
 
         exported = self.export_whole(self.game_map)
-        names = [v["name"] for v in exported["versions"]]
-        entry = exported["versions"][names.index("Busspuren")]
 
-        self.assertEqual(entry["change_img"]["filename"], "busspuren.png")
-        self.assertEqual(
-            base64.b64decode(entry["change_img"]["data"]), PNG_BYTES
-        )
+        for entry in exported["versions"]:
+            self.assertNotIn("change_img", entry)
         self.assertNotIn(
-            "change_img", exported["versions"][names.index("Umgehung")]
+            "change_img", [f.name for f in MapVersion._meta.get_fields()]
         )
+        self.assertNotIn("change_img", MapVersionSerializer().fields)
+        self.assertNotIn("change_img_url", MapVersionSerializer().fields)
 
 
 class SingleVersionExportStaysFlatTests(VersionedMapMixin, TestCase):
@@ -2106,7 +2102,7 @@ class WholeMapImportTests(VersionedMapMixin, TestCase):
         line = BusLine.objects.get(game_map=game_map)
         self.assertEqual(line.map_versions.count(), 0)
 
-    def test_the_change_image_arrives_with_its_version(self):
+    def test_an_old_file_with_a_change_picture_still_imports(self):
         from maps.models import MapVersion
 
         payload = self.versioned_payload()
@@ -2115,11 +2111,11 @@ class WholeMapImportTests(VersionedMapMixin, TestCase):
             "data": base64.b64encode(PNG_BYTES).decode("ascii"),
         }
 
-        game_map = self.upload(payload, name="Mit Bild")
+        game_map = self.upload(payload, name="Alte Datei mit Bild")
 
         other = MapVersion.objects.get(game_map=game_map, name="Ohne C")
-        with other.change_img.open("rb") as fh:
-            self.assertEqual(fh.read(), PNG_BYTES)
+        self.assertEqual(other.name, "Ohne C")
+        self.assertFalse(hasattr(other, "change_img"))
 
     def test_a_file_without_a_versions_block_still_makes_one_base_version(self):
         from maps.models import Edge, MapVersion

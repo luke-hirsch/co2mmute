@@ -45,13 +45,10 @@ import type { MapVersion } from "../../../types/mapTypes";
  *
  * ### What a version does (the version comparison)
  *
- * "Verwalten" used to change nothing on the canvas: you could tick versions and
- * build combinations, and the only way to learn what `Busspuren` actually does
- * was the database. Now each version can be put on the canvas ("Ansehen") and is
- * drawn against the version it was made from — or any other, by the select —
- * with the change list in words beside it (`lib/map/version-diff.ts`). The
- * ballot draws the same comparison, so the change picture (`change_img`) is no
- * longer offered here: nothing in the game shows it any more.
+ * Each version can be put on the canvas ("Ansehen") and is drawn against the
+ * version it was made from — or any other, by the select — with the change
+ * list in words beside it (`lib/map/version-diff.ts`). The ballot draws the
+ * same comparison.
  */
 
 /** Which version the canvas shows, what it is compared with, and the result. */

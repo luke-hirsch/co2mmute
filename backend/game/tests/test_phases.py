@@ -562,7 +562,7 @@ class BallotTests(BetweenRoundsMixin, TestCase):
         option = phases().vote_options(self.round)[0]
 
         self.assertEqual(
-            set(option), {"id", "name", "poll_text", "is_rollback", "change_img_url"}
+            set(option), {"id", "name", "poll_text", "is_rollback"}
         )
         self.assertFalse(option["is_rollback"])
 

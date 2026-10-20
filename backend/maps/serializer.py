@@ -16,7 +16,6 @@ class MapVersionSerializer(serializers.ModelSerializer):
         many=True,
         required=False,
     )
-    change_img_url = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = mm.MapVersion
@@ -30,18 +29,8 @@ class MapVersionSerializer(serializers.ModelSerializer):
             "revert_poll_text",
             "source_version",
             "compatible_versions",
-            "change_img",
-            "change_img_url",
         )
         read_only_fields = ("id",)
-        extra_kwargs = {
-            "change_img": {"write_only": True, "required": False, "allow_null": True},
-        }
-
-    def get_change_img_url(self, obj):
-        if obj.change_img:
-            return obj.change_img.url
-        return None
 
     def update(self, instance, validated_data):
         compatible_versions = validated_data.pop("compatible_versions", None)

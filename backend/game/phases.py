@@ -200,20 +200,16 @@ def ballot_option(active_version, target_version, changes=None):
     if len(added) + len(removed) == 1:
         change = MapVersion.objects.get(pk=next(iter(added or removed)))
         poll_text = change.revert_poll_text if is_rollback else change.poll_text
-        image = change.change_img
     elif is_rollback:
         poll_text = active_version.revert_poll_text
-        image = active_version.change_img
     else:
         poll_text = target_version.poll_text
-        image = target_version.change_img
 
     return {
         "id": target_version.id,
         "name": target_version.name,
         "poll_text": poll_text,
         "is_rollback": is_rollback,
-        "change_img_url": image.url if image else None,
     }
 
 

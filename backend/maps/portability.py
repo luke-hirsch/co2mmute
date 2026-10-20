@@ -7,7 +7,7 @@ and the importer answered with exactly one `base_version`. A map with four
 versions therefore exported as four files that re-imported as four separate
 maps, and each move lost the other versions, `compatible_versions` — which *is*
 the vote, since `_get_voteable_map_versions()` offers what the active version's
-m2m reaches — `source_version`, both poll texts, `change_img`, and which element
+m2m reaches — `source_version`, both poll texts, and which element
 belongs where. Measured on the live box's own map: a base-only export drops 19
 edges, a whole bus line pair and all 24 `compatible_versions` pairs.
 
@@ -290,20 +290,6 @@ def _version_entry(version, index_of):
         "source_version": index_of.get(version.source_version_id),
         "compatible_versions": _indices(version.compatible_versions.all(), index_of),
     }
-    if version.change_img:
-        block = {"filename": os.path.basename(version.change_img.name)}
-        try:
-            with version.change_img.open("rb") as fh:
-                block["data"] = base64.b64encode(fh.read()).decode("ascii")
-        except (FileNotFoundError, OSError) as exc:
-            logger.warning(
-                "[maps] version %s: change image %s could not be read (%s), "
-                "exporting the name only",
-                version.pk,
-                version.change_img.name,
-                exc,
-            )
-        entry["change_img"] = block
     return entry
 
 
