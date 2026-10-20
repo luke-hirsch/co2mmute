@@ -419,9 +419,10 @@ class Command(BaseCommand):
         write("")
         write(
             "Autoanteil   pro Person       Runde        Auto    Fahrplan"
-            "   Auto hin / zurück   Bus & Bahn   Warten   nicht da"
+            "   Auto hin / zurück   Bus & Bahn   Warten   € pro Person   nicht da"
         )
         per_person = result.per_person
+        cost = result.cost_per_person
         for share, played in result.rows.items():
 
             def mean(attribute):
@@ -438,7 +439,8 @@ class Command(BaseCommand):
                 f"{de(per_person[share] * result.commuters):>8} kg "
                 f"{de(mean('car_kg')):>8} kg {de(timetable):>8} kg "
                 f"{trip:>19} {minutes(mean('pt_trip_min')):>12} "
-                f"{minutes(mean('pt_wait_min')):>8} {max(r.not_home for r in played):>10}"
+                f"{minutes(mean('pt_wait_min')):>8} {de(cost[share], 2) + ' €':>14} "
+                f"{max(r.not_home for r in played):>10}"
             )
 
         notes = []

@@ -14,6 +14,9 @@ search steps) are machinery, not numbers of the model.
 
 ## After you change one
 
+How a number is changed, measured before and after, and kept is in the skill
+`.agents/skills/sim-experiment/`. In short:
+
 1. Change the number in `backend/sim/constants.py`, with its source in the comment. If the browser
    reads it, change the same number in `frontend/src/lib/constants.ts`; the test says if one side
    was forgotten.

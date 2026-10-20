@@ -603,6 +603,25 @@ class Calibration:
         }
 
     @property
+    def cost_per_person(self) -> dict:
+        """Share → euro a head for a round at that share, mean over seeds.
+
+        Paid as `per_person` is: the cars' cost, and the class's share of
+        everything else the round cost.
+        """
+        factor = self.timetable_factor
+
+        def paid(r):
+            if factor is None:
+                return r.cost_eur
+            return r.car_cost_eur + factor * r.timetable_cost_eur
+
+        return {
+            share: statistics.mean(paid(r) for r in rounds) / self.commuters
+            for share, rounds in self.rows.items()
+        }
+
+    @property
     def co2_table(self) -> dict:
         """`per_person` as the map carries it (`co2_table`)."""
         return co2_table(self.per_person)

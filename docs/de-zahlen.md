@@ -15,6 +15,9 @@ Suchschritte der Kalibrierung) sind Technik, keine Zahlen des Modells.
 
 ## Nach einer Änderung
 
+Wie eine Zahl geändert, vorher und nachher gemessen und behalten wird, steht im Skill
+`.agents/skills/sim-experiment/`. Kurz:
+
 1. Die Zahl in `backend/sim/constants.py` ändern, mit Quelle im Kommentar. Braucht der Browser sie,
    dieselbe Zahl in `frontend/src/lib/constants.ts`; der Test sagt, wenn eine Seite vergessen wurde.
 2. Die beiden Golden Masters (`backend/game/tests/test_sim_golden.py`) werden absichtlich rot: das

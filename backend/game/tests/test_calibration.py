@@ -127,10 +127,16 @@ class FakeRound:
     car_kg: float = 0.0
     base_kg: float = 0.0
     average_kg: float = 0.0
+    cost_eur: float = 0.0
+    car_cost_eur: float = 0.0
 
     @property
     def timetable_kg(self):
         return self.total_kg - self.car_kg
+
+    @property
+    def timetable_cost_eur(self):
+        return self.cost_eur - self.car_cost_eur
 
 
 class FakeMap:
@@ -369,6 +375,36 @@ class TimetableFactorTests(SimpleTestCase):
         self.assertAlmostEqual(result.per_person[1.0], (2000 + 0.4 * 1200) / 1000)
         self.assertAlmostEqual(result.per_person[0.0], 0.4 * 1200 / 1000)
 
+    def test_the_cost_a_head_is_paid_the_same_way_as_the_kg(self):
+        """The cars' cost, and the share's part of the timetable's."""
+        rows = {
+            share: [
+                FakeRound(
+                    total_kg=0,
+                    base_kg=1000,
+                    average_kg=400,
+                    cost_eur=500,
+                    car_cost_eur=200,
+                )
+            ]
+            for share in calibration.TABLE_SHARES
+        }
+        result = calibration.Calibration(
+            commuters=1000, target_kmh=None, speed_kmh=None, rows=rows
+        )
+
+        self.assertEqual(result.timetable_factor, 0.4)
+        self.assertAlmostEqual(result.cost_per_person[0.5], (200 + 0.4 * 300) / 1000)
+
+    def test_without_a_share_the_cost_is_the_rounds_as_played(self):
+        rows = {0.5: [FakeRound(total_kg=0, cost_eur=500, car_cost_eur=200)]}
+        result = calibration.Calibration(
+            commuters=1000, target_kmh=None, speed_kmh=None, rows=rows
+        )
+
+        self.assertIsNone(result.timetable_factor)
+        self.assertAlmostEqual(result.cost_per_person[0.5], 0.5)
+
     def test_without_a_share_the_table_is_the_rounds_as_played(self):
         result = calibration.calibrate(
             FakeMap().play, commuters=4000, start=4000, smallest=64, seeds=(1,)
@@ -498,6 +534,17 @@ class ReportTests(SimpleTestCase):
 
         self.assertIn("Pendler: 7.200 — alle im Auto: nicht alle angekommen", out)
         self.assertIn("Nicht alle sind angekommen", out)
+
+    def test_the_table_prints_what_a_head_pays(self):
+        rows = {
+            share: [ReportedRound(total_kg=7200, cost_eur=3600, car_cost_eur=1800)]
+            for share in calibration.TABLE_SHARES
+        }
+
+        out = self._report(rows, speed_kmh=19.0)
+
+        self.assertIn("€ pro Person", out)
+        self.assertIn("0,50 €", out)
 
 
 class NotPlayableTests(SimpleTestCase):
