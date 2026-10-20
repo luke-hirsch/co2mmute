@@ -43,6 +43,18 @@ import { co2Hidden, type RoundResult } from "@/lib/game/game-state";
  * columns of numbers do not fit 390px, and the page body must never scroll
  * horizontally.
  */
+/**
+ * A figure and its unit on one line, with a gap before it. The unit is part of
+ * the string, so without `whitespace-nowrap` a six-digit kilogram figure wraps
+ * its "kg" away from its number, and without the gap two right-aligned columns
+ * read as one number ("11.211,8" next to "27.874,83 €").
+ */
+export const figureCell =
+  "whitespace-nowrap pl-3 text-right font-mono tabular-nums";
+
+/** A column head over a `figureCell`. */
+export const figureHead = "whitespace-nowrap pl-3 pb-2 text-right font-normal";
+
 export function StatsPanel({
   round,
   seatId,
@@ -112,21 +124,21 @@ export function StatsPanel({
         must never scroll sideways.
       */}
       <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-        <table className="w-full min-w-[19rem] border-collapse text-sm">
+        <table className="w-full border-collapse text-xs sm:text-sm">
           <thead>
             <tr className="border-b border-border text-left text-muted-foreground">
               <th scope="col" className="pb-2 font-normal">
                 {de.between.player}
               </th>
               {co2 ? (
-                <th scope="col" className="pb-2 text-right font-normal">
+                <th scope="col" className={figureHead}>
                   {de.between.co2}
                 </th>
               ) : null}
-              <th scope="col" className="pb-2 text-right font-normal">
+              <th scope="col" className={figureHead}>
                 {de.between.cost}
               </th>
-              <th scope="col" className="pb-2 text-right font-normal">
+              <th scope="col" className={figureHead}>
                 {de.between.time}
               </th>
             </tr>
@@ -159,19 +171,19 @@ export function StatsPanel({
                     ) : null}
                   </th>
                   {co2 ? (
-                    <td className="py-2 text-right font-mono tabular-nums">
+                    <td className={cn("py-2", figureCell)}>
                       {de.between.co2Figure(
                         perPerson ? stat.co2_g_per_person : stat.emissions_g,
                         unit,
                       )}
                     </td>
                   ) : null}
-                  <td className="py-2 text-right font-mono tabular-nums">
+                  <td className={cn("py-2", figureCell)}>
                     {de.between.eur(
                       perPerson ? stat.cost_eur_per_person : stat.cost_eur,
                     )}
                   </td>
-                  <td className="py-2 text-right font-mono tabular-nums">
+                  <td className={cn("py-2", figureCell)}>
                     {de.round.duration(stat.time_min)}
                   </td>
                 </tr>
@@ -185,23 +197,36 @@ export function StatsPanel({
               second is larger than the rows above it.
             */}
             {round.unriddenCo2G > 0 ? (
-              <tr>
-                <th scope="row" className="pt-3 text-left font-normal">
-                  {de.between.unridden}
-                </th>
-                {co2 ? (
-                  <td className="pt-3 text-right font-mono tabular-nums">
-                    {de.between.co2Figure(round.unriddenCo2G, footUnit)}
+              <>
+                <tr>
+                  <th
+                    scope="row"
+                    colSpan={co2 ? 4 : 3}
+                    className="pt-3 text-left font-normal"
+                  >
+                    {de.between.unridden}
+                  </th>
+                </tr>
+                <tr>
+                  <td />
+                  {co2 ? (
+                    <td className={cn("pt-1", figureCell)}>
+                      {de.between.co2Figure(round.unriddenCo2G, footUnit)}
+                    </td>
+                  ) : null}
+                  <td className={cn("pt-1", figureCell)}>
+                    {de.between.eur(round.unriddenCostEur)}
                   </td>
-                ) : null}
-                <td className="pt-3 text-right font-mono tabular-nums">
-                  {de.between.eur(round.unriddenCostEur)}
-                </td>
-                <td />
-              </tr>
+                  <td />
+                </tr>
+              </>
             ) : null}
             <tr className="text-foreground">
-              <th scope="row" className="pt-3 text-left font-medium">
+              <th
+                scope="row"
+                colSpan={co2 ? 4 : 3}
+                className="pt-3 text-left font-medium"
+              >
                 {de.between.roundTotal}
                 {/* Named only where it differs from the rows above it. In class
                     scale the rows already add up to this line, and saying it
@@ -212,12 +237,15 @@ export function StatsPanel({
                   </span>
                 ) : null}
               </th>
+            </tr>
+            <tr className="text-foreground">
+              <td />
               {co2 ? (
-                <td className="pt-3 text-right font-mono tabular-nums">
+                <td className={cn("pt-1", figureCell)}>
                   {de.between.co2Figure(round.emissionsG, footUnit)}
                 </td>
               ) : null}
-              <td className="pt-3 text-right font-mono tabular-nums">
+              <td className={cn("pt-1", figureCell)}>
                 {de.between.eur(round.costEur)}
               </td>
               <td />

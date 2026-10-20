@@ -64,4 +64,33 @@ describe("StatsPanel", () => {
     expect(html).toContain(de.between.eur(round.unriddenCostEur));
     expect(html).toContain(de.between.unriddenCostHint);
   });
+
+  it("keeps every figure and its unit on one line, with a gap before it", () => {
+    const html = renderInGame(panel());
+    const cells = html.match(/<td[^>]*font-mono[^>]*>/g) ?? [];
+
+    // Three per player row, two in each of the two foot figure rows.
+    expect(cells).toHaveLength(3 + 2 + 2);
+    for (const cell of cells) {
+      expect(cell).toContain("whitespace-nowrap");
+      expect(cell).toContain("pl-3");
+    }
+    // The heads over them carry the same gap.
+    for (const head of html.match(/<th scope="col"[^>]*text-right[^>]*>/g) ?? []) {
+      expect(head).toContain("whitespace-nowrap");
+      expect(head).toContain("pl-3");
+    }
+  });
+
+  it("sets the table a size smaller on a phone, so six-digit figures fit 375 px", () => {
+    expect(renderInGame(panel())).toContain("text-xs sm:text-sm");
+  });
+
+  it("gives each foot label a row of its own, across the table", () => {
+    const withCo2 = renderInGame(panel());
+    const hidden = renderInGame(panel(), { hideCo2: true });
+
+    expect(withCo2.match(/<th scope="row" colSpan="4"/g)).toHaveLength(2);
+    expect(hidden.match(/<th scope="row" colSpan="3"/g)).toHaveLength(2);
+  });
 });
