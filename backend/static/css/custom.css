@@ -720,7 +720,9 @@
   .field-help {
     @apply max-w-(--measure-body) text-sm text-muted dark:text-darkmutedtext;
   }
-  .field-error,
+  .field-error {
+    @apply max-w-(--measure-body) space-y-1 border-l-2 border-accent pl-3 text-sm text-main dark:text-darktext;
+  }
   .form-alert {
     @apply max-w-(--measure-body) space-y-1 border-l-[3px] border-accent pl-4 text-sm text-main dark:text-darktext;
   }
