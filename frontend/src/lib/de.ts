@@ -760,6 +760,8 @@ export const de = {
 
     /** The outcome, carried into the next round's header. */
     appliedTitle: "Neu auf der Karte",
+    /** The title over the line when the vote took a change away. */
+    rolledBackTitle: "Wieder wie vorher",
     applied: (name: string) => `„${name}“ ist angenommen.`,
     unchanged: "Die Karte bleibt, wie sie ist.",
   },

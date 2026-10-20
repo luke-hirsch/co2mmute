@@ -491,6 +491,9 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
                     vote_result = {
                         "winning_version_id": decided.get("winning_version_id"),
                         "winning_version_name": decided["winning_version_name"],
+                        "winning_is_rollback": bool(
+                            decided.get("winning_is_rollback", False)
+                        ),
                         "forced": bool(decided.get("forced", False)),
                     }
 

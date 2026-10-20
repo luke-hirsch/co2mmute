@@ -610,7 +610,8 @@ class SocketTests(GameWithSeatsMixin, TransactionTestCase):
                 "options": [],
                 "vote_counts": [],
                 "winning_version_id": 7,
-                "winning_version_name": "Busspuren",
+                "winning_version_name": "Busspuren zurücknehmen",
+                "winning_is_rollback": True,
                 "tie": False,
                 "stalemate_count": 0,
                 "forced": False,
@@ -624,7 +625,8 @@ class SocketTests(GameWithSeatsMixin, TransactionTestCase):
             self.game_state()["voteResult"],
             {
                 "winning_version_id": 7,
-                "winning_version_name": "Busspuren",
+                "winning_version_name": "Busspuren zurücknehmen",
+                "winning_is_rollback": True,
                 "forced": False,
             },
         )

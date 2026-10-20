@@ -855,7 +855,11 @@ class ShippedMapBallotTests(ShippedUploadMixin, TestCase):
                     change.poll_text if adds else change.revert_poll_text,
                 )
                 self.assertEqual(option["is_rollback"], not adds)
-                self.assertEqual(option["name"], target.name)
+                # A step back says what goes, a step forward what comes.
+                self.assertEqual(
+                    option["name"],
+                    target.name if adds else f"{change.name} zurücknehmen",
+                )
 
     def test_base_never_asks_its_own_question(self):
         """Base's two texts are the model default, "Die Karte soll ...", and

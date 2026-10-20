@@ -192,9 +192,7 @@ def ballot_option(active_version, target_version, changes=None):
     """
     if changes is None:
         changes = changes_held(active_version.game_map_id)
-    now = changes.get(active_version.pk, set())
-    after = changes.get(target_version.pk, set())
-    added, removed = after - now, now - after
+    added, removed = _step(active_version, target_version, changes)
     is_rollback = bool(removed) and not added
 
     if len(added) + len(removed) == 1:
@@ -207,10 +205,34 @@ def ballot_option(active_version, target_version, changes=None):
 
     return {
         "id": target_version.id,
-        "name": target_version.name,
+        "name": option_name(active_version, target_version, changes),
         "poll_text": poll_text,
         "is_rollback": is_rollback,
     }
+
+
+def _step(active_version, target_version, changes):
+    """The changes a step adds and the changes it takes away."""
+    now = changes.get(active_version.pk, set())
+    after = changes.get(target_version.pk, set())
+    return after - now, now - after
+
+
+def option_name(active_version, target_version, changes=None) -> str:
+    """What an option is called, on the card, in the result and in the summary.
+
+    A step forward, or any step of several changes, is the target version's own
+    name. A step back of one change says what goes: "Busspuren zurücknehmen", not
+    the name of whatever is left on the map, which for a step back to where the
+    map started is the author's file name.
+    """
+    if changes is None:
+        changes = changes_held(active_version.game_map_id)
+    added, removed = _step(active_version, target_version, changes)
+    if removed and not added and len(removed) == 1:
+        change = MapVersion.objects.get(pk=next(iter(removed)))
+        return f"{change.name} zurücknehmen"
+    return target_version.name
 
 
 def vote_options(game_round: GameRound) -> list[dict]:
@@ -357,6 +379,33 @@ def submit_vote(
     return True
 
 
+def _option_names(game: GameSession, versions) -> dict[int, str]:
+    """The names the class saw on the cards, by version pk, as of the vote.
+
+    The active version is still the one the ballot was drawn from: the winner is
+    applied when the next round starts, after this is written down.
+    """
+    active_version = game.active_map_version
+    if active_version is None:
+        return {version.pk: version.name for version in versions}
+    changes = changes_held(game.game_map_id)
+    return {
+        version.pk: option_name(active_version, version, changes)
+        for version in versions
+    }
+
+
+def _is_rollback(game: GameSession, winner_id: int | None) -> bool:
+    """Whether the winning step takes a change away (`ballot_option`'s flag)."""
+    active_version = game.active_map_version
+    if winner_id is None or active_version is None:
+        return False
+    winner = MapVersion.objects.filter(pk=winner_id).first()
+    if winner is None:
+        return False
+    return ballot_option(active_version, winner)["is_rollback"]
+
+
 def _tally(game_round: GameRound, game: GameSession) -> tuple[list[dict], dict]:
     """The votes on this round, counted once.
 
@@ -374,11 +423,7 @@ def _tally(game_round: GameRound, game: GameSession) -> tuple[list[dict], dict]:
         ).select_related("map_version")
     )
     counter = Counter(vote.map_version_id for vote in votes)  # type: ignore
-    names = {
-        vote.map_version_id: vote.map_version.name  # type: ignore
-        for vote in votes
-        if vote.map_version  # type: ignore
-    }
+    names = _option_names(game, {vote.map_version for vote in votes if vote.map_version})
     vote_counts = [
         {
             "version_id": version_id,
@@ -398,6 +443,7 @@ def _vote_result_payload(
     tie: bool,
     stalemate_count: int,
     forced: bool = False,
+    winning_is_rollback: bool = False,
 ) -> dict:
     """What gets stored on the round and shown in the summary.
 
@@ -406,17 +452,20 @@ def _vote_result_payload(
     rather than left to `vote_option_ids` so a version deleted from the map
     later still reads back with the name the class voted on.
     """
+    versions = list(
+        MapVersion.objects.filter(pk__in=game_round.vote_option_ids).order_by("pk")
+    )
+    names = _option_names(game_round.game, versions)
     options = [
-        {"version_id": version.pk, "version_name": version.name}
-        for version in MapVersion.objects.filter(
-            pk__in=game_round.vote_option_ids
-        ).order_by("pk")
+        {"version_id": version.pk, "version_name": names[version.pk]}
+        for version in versions
     ]
     return {
         "options": options,
         "vote_counts": vote_counts,
         "winning_version_id": winner_id,
         "winning_version_name": winner_name,
+        "winning_is_rollback": winning_is_rollback,
         "tie": tie,
         "stalemate_count": stalemate_count,
         "forced": forced,
@@ -459,6 +508,9 @@ def _tally_if_complete(game: GameSession, game_round: GameRound) -> None:
 
     # One winner, or the second tie, which leaves the map as it is.
     winner_id = None if tie else leaders[0]
+    # Before the winner is applied: a step back is read against the version the
+    # ballot was drawn from.
+    winning_is_rollback = _is_rollback(game, winner_id)
     started = _start_next_round(
         game,
         game_round,
@@ -472,6 +524,7 @@ def _tally_if_complete(game: GameSession, game_round: GameRound) -> None:
             names.get(winner_id, LEAVE_AS_IS),
             tie,
             stalemate_count,
+            winning_is_rollback=winning_is_rollback,
         ),
     )
     if started:
@@ -483,6 +536,7 @@ def _tally_if_complete(game: GameSession, game_round: GameRound) -> None:
                 "stalemate_count": stalemate_count,
                 "winning_version_id": winner_id,
                 "winning_version_name": names.get(winner_id, LEAVE_AS_IS),
+                "winning_is_rollback": winning_is_rollback,
                 "vote_counts": vote_counts,
             },
         )

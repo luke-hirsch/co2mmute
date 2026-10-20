@@ -261,8 +261,27 @@ describe("the vote's outcome across a reconnect", () => {
       stalemate: false,
       winningVersionId: 9,
       winningVersionName: "Busspur",
+      winningIsRollback: false,
       forced: false,
     });
+  });
+
+  it("knows a vote back from the snapshot and from the socket", () => {
+    const back = { ...decided, winning_is_rollback: true };
+    const fromSnapshot = apply(start(), gameStateEvent({ voteResult: back }));
+    const fromSocket = apply(start(), gameStateEvent(), {
+      ...voteResult(3, "Busspuren zurücknehmen"),
+      data: {
+        stalemate: false,
+        winning_version_id: 3,
+        winning_version_name: "Busspuren zurücknehmen",
+        winning_is_rollback: true,
+        vote_counts: [],
+      },
+    } as GameEvent);
+
+    expect(fromSnapshot.voteOutcome?.winningIsRollback).toBe(true);
+    expect(fromSocket.voteOutcome?.winningIsRollback).toBe(true);
   });
 
   it("is not overwritten by a snapshot once the socket has said it", () => {

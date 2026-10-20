@@ -126,6 +126,8 @@ export type GameStateSnapshot = {
   voteResult: {
     winning_version_id: number | null;
     winning_version_name: string;
+    /** The vote took a change away; a game stored before this field has none. */
+    winning_is_rollback?: boolean;
     forced: boolean;
   } | null;
 };
@@ -295,6 +297,7 @@ export type GameEvent =
         stalemate_count?: number;
         winning_version_id: number | null;
         winning_version_name: string;
+        winning_is_rollback?: boolean;
         vote_counts: unknown[];
         forced?: boolean;
       }
