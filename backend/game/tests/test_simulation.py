@@ -4513,6 +4513,37 @@ class ReplayLineVehicleTests(PTBoardingScenarioMixin, TestCase):
         self.assertLessEqual(len(people), 1)
         self.assertTrue({pt.vehicle_id for pt in simulator.pt_vehicles})
 
+    def _line_dots(self, simulator):
+        return [d for d in simulator.simulation_result.replay["dots"] if d["route"] is None]
+
+    def test_unridden_runs_are_thinned_past_the_cap_and_ridden_ones_stay(self):
+        from unittest.mock import patch
+
+        every, _, _ = self._run(stride=1)
+        with patch("sim.linkqueue.MAX_REPLAY_LINE_DOTS_PER_PASS", 0):
+            thinned, _, _ = self._run(stride=1)
+
+        replay = thinned.simulation_result.replay
+        ridden = {
+            leg[1]
+            for dot in replay["dots"]
+            for leg in dot["legs"]
+            if leg[0] == "r"
+        }
+        kept = {d["id"] for d in self._line_dots(thinned)}
+
+        self.assertTrue(ridden)
+        self.assertEqual(kept, ridden)
+        self.assertLess(len(kept), len(self._line_dots(every)))
+
+    def test_a_pass_under_the_cap_keeps_every_run(self):
+        simulator, _, _ = self._run(stride=1)
+
+        self.assertEqual(
+            len(self._line_dots(simulator)),
+            len({pt.vehicle_id for pt in simulator.pt_vehicles}),
+        )
+
 
 class ReplayTraceTests(TestCase):
     """The shape of what comes out: legs that join up, and an honest ending."""
