@@ -599,6 +599,7 @@ class MapImporter:
 
         base_idx = base_index(block)
         created = []
+        # An older file may carry a `change_img` picture per version; it is ignored.
         for idx, entry in enumerate(block):
             version = MapVersion.objects.create(
                 game_map=game_map,
@@ -609,7 +610,6 @@ class MapImporter:
                 poll_text=entry.get("poll_text") or DEFAULT_POLL_TEXT,
                 revert_poll_text=entry.get("revert_poll_text") or DEFAULT_POLL_TEXT,
             )
-            self._apply_change_image(version, entry.get("change_img"))
             created.append(version)
 
         # Second pass: both links point at other versions, so they need all of
@@ -628,29 +628,6 @@ class MapImporter:
             if compatible:
                 created[idx].compatible_versions.add(*compatible)
         return created, base_idx
-
-    def _apply_change_image(self, version, block):
-        """The picture the ballot shows for this change.
-
-        Base64 in the file like the background image, and a broken one must not
-        cost the map: the graph is the valuable part and the picture can be
-        added afterwards.
-        """
-        if not isinstance(block, dict):
-            return
-        data = block.get("data")
-        if not data:
-            return
-        try:
-            raw = base64.b64decode(data)
-        except (binascii.Error, ValueError) as exc:
-            logger.warning(
-                "Version %s: change image not decodable (%s)", version.pk, exc
-            )
-            return
-        version.change_img.save(
-            block.get("filename") or "change.png", ContentFile(raw), save=True
-        )
 
     def _versions_for(self, entry, versions, base_idx):
         """The `MapVersion` rows an entry in the file names.

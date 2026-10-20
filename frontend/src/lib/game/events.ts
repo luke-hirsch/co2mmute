@@ -55,7 +55,6 @@ export type VoteOption = {
   name: string;
   poll_text: string;
   is_rollback: boolean;
-  change_img_url: string | null;
 };
 
 /**

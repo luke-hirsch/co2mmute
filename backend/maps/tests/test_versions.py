@@ -27,10 +27,8 @@ Neither version endpoint had a single test before this file, which is why the
 topic gets one of its own.
 """
 
-import os
 
 from django.contrib.auth import get_user_model
-from django.core.files.base import ContentFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -1421,16 +1419,6 @@ class DeletingAVersionTests(DeletingAVersionMixin, TestCase):
                     "Busspuren",
                     set(version.compatible_versions.values_list("name", flat=True)),
                 )
-
-    def test_its_picture_goes_with_it(self):
-        self.neubau.change_img.save("neubau.png", ContentFile(b"png"), save=True)
-        path = self.neubau.change_img.path
-        self.assertTrue(os.path.exists(path))
-
-        with self.captureOnCommitCallbacks(execute=True):
-            self.delete(self.neubau)
-
-        self.assertFalse(os.path.exists(path))
 
     def test_the_graph_is_read_again_afterwards(self):
         """A pin, green before deleting existed as well: every node lists its

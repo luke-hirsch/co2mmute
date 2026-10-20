@@ -231,7 +231,6 @@ describe("game.state resync", () => {
             name: "Busspur",
             poll_text: "Neue Busspur?",
             is_rollback: false,
-            change_img_url: null,
           },
         ],
       },
@@ -285,7 +284,6 @@ describe("rounds and phases", () => {
               name: "Busspur",
               poll_text: "?",
               is_rollback: false,
-              change_img_url: null,
             },
           ],
         },
@@ -398,7 +396,6 @@ describe("rounds and phases", () => {
       name: "Busspur",
       poll_text: "Neue Busspur?",
       is_rollback: false,
-      change_img_url: null,
     };
 
     let state = apply(start(), roundStarted(1), roundCompleted(1));

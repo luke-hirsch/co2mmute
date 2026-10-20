@@ -869,23 +869,3 @@ class ShippedMapBallotTests(ShippedUploadMixin, TestCase):
             for active, target, _, _ in self.steps(game_map)
         }
         self.assertFalse([text for text in asked if text.startswith("Die Karte soll")])
-
-    def test_an_option_shows_the_picture_of_its_change(self):
-        """Give every version a picture: only the three changes' are ever
-        shown, so a combination needs none drawn."""
-        from django.core.files.base import ContentFile
-
-        from game.phases import ballot_option
-
-        game_map = self.upload_shipped_map()
-        for version in MapVersion.objects.filter(game_map=game_map):
-            version.change_img.save(
-                f"bild-{version.pk}.png", ContentFile(b"png"), save=True
-            )
-
-        for active, target, change, _ in self.steps(game_map):
-            with self.subTest(on=active.name, to=target.name):
-                self.assertEqual(
-                    ballot_option(active, target)["change_img_url"],
-                    change.change_img.url,
-                )

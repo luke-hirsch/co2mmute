@@ -104,7 +104,6 @@ export interface WSMapVersionOption {
   name: string;
   poll_text: string;
   is_rollback: boolean;
-  change_img_url: string | null;
 }
 
 // game.started event

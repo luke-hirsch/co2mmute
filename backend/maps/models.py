@@ -162,7 +162,6 @@ class MapVersion(models.Model):
         related_name="derived_versions",
     )
     created = models.DateTimeField(auto_now_add=True)
-    change_img = models.ImageField(upload_to="maps/", null=True, blank=True)
 
     def __str__(self):
         return f"{self.game_map} -  {'base' if self.base_version else {self.name}}"

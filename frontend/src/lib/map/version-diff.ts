@@ -2,9 +2,8 @@
  * What one map version changes against another, read off the two graphs.
  *
  * The editor's version list and the ballot both have to answer "what does this
- * version actually do to the map?", and until now neither could: the poll text
- * is enough to vote on and not enough to know, and the change picture is a PNG
- * somebody has to draw. Both graphs are already a fetch away
+ * version actually do to the map?" The poll text is enough to vote on and not
+ * enough to know. Both graphs are already a fetch away
  * (`useMapGraph(map, version)`), so the answer is computed here, once, and the
  * three renderers draw it.
  *

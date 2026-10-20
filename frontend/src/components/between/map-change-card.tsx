@@ -15,11 +15,8 @@ import type { VoteOption } from "@/lib/game/events";
  *
  * **What the option changes is shown on the stage's map**, behind the toggle:
  * the stage asks for the option's graph and draws its difference from the map
- * the game is on (`lib/map/version-diff.ts`). Until the version comparison that
- * was a PNG somebody had to draw per change (`change_img`), the toggle existed
- * only where one was stored, and the shipped map had none — so the class voted
- * on the poll text alone. Now every option has the toggle, computed from the
- * data, and the picture is read by nothing in the game.
+ * the game is on (`lib/map/version-diff.ts`). Every option has the toggle,
+ * computed from the data.
  */
 export function MapChangeCard({
   option,
