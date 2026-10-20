@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmAction } from "@/components/layout/confirm-action";
 import { Curtain } from "@/components/host/curtain";
 import { HostControls } from "@/components/host/host-controls";
-import { DiscussionStage } from "@/components/between/discussion-screen";
+import { ChangeCards, DiscussionStage } from "@/components/between/discussion-screen";
 import { ReplayPlayer } from "@/components/replay/replay-player";
 import { SeatAdminList } from "@/components/host/seat-admin-list";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
@@ -16,6 +16,7 @@ import { de } from "@/lib/de";
 import { hostControlledSeats } from "@/lib/game/game-state";
 import { useDesk } from "@/hooks/use-desk";
 import { useMapLayout } from "@/hooks/use-map-layout";
+import { useShownChange } from "@/hooks/use-shown-change";
 import { useGame } from "@/components/game/game-context";
 import { usePhase } from "@/hooks/use-phase";
 
@@ -180,6 +181,7 @@ function HostVote() {
   const phase = usePhase();
   const desk = useDesk({ done: phase.voted, epoch: phase.epoch });
   const [layout, setLayout] = useMapLayout();
+  const { shown, toggle } = useShownChange(state.voteOptions);
   const beside = layout === "beside";
 
   if (desk.mode === "curtain" && desk.openSeat) {
@@ -231,9 +233,22 @@ function HostVote() {
 
       {/*
         The projector shows the map the class is deciding about, with the
-        round they just played on it. Beside is the person's choice.
+        round they just played on it, and each option's change on request.
+        Beside is the person's choice.
       */}
-      <MapStage layout={layout} onLayoutChange={setLayout} map={<VoteMap />}>
+      <MapStage
+        layout={layout}
+        onLayoutChange={setLayout}
+        map={<VoteMap change={shown} />}
+      >
+        <div className="mb-10">
+          <ChangeCards
+            options={state.voteOptions}
+            layout={layout}
+            shownId={shown?.id ?? null}
+            onToggle={toggle}
+          />
+        </div>
         {desk.seats.length > 0 ? (
           <p className="mb-6 max-w-(--measure-body) text-muted-foreground">
             {de.host.deskVoteLead}

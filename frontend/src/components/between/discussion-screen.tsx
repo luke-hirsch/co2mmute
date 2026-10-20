@@ -7,6 +7,7 @@ import { de } from "@/lib/de";
 import { cn } from "@/lib/utils";
 import { useGame } from "@/components/game/game-context";
 import { useMapLayout } from "@/hooks/use-map-layout";
+import type { VoteOption } from "@/lib/game/events";
 import type { MapLayout } from "@/lib/game/map-layout";
 
 /**
@@ -78,22 +79,47 @@ export function DiscussionStage({
           {de.between.noOptions}
         </p>
       ) : (
-        <div
-          className={cn(
-            "grid gap-10 sm:grid-cols-2",
-            layout === "beside" && "lg:grid-cols-1",
-          )}
-        >
-          {state.voteOptions.map((option) => (
-            <MapChangeCard
-              key={option.id}
-              option={option}
-              changeShown={shown?.id === option.id}
-              onToggleChange={() => toggle(option.id)}
-            />
-          ))}
-        </div>
+        <ChangeCards
+          options={state.voteOptions}
+          layout={layout}
+          shownId={shown?.id ?? null}
+          onToggle={toggle}
+        />
       )}
     </MapStage>
+  );
+}
+
+/**
+ * The options as cards, each with its "Auf der Karte zeigen" toggle for the
+ * stage's map. The discussion and the host's vote overview both draw them.
+ */
+export function ChangeCards({
+  options,
+  layout,
+  shownId,
+  onToggle,
+}: {
+  options: VoteOption[];
+  layout: MapLayout;
+  shownId: number | null;
+  onToggle: (id: number) => void;
+}) {
+  return (
+    <div
+      className={cn(
+        "grid gap-10 sm:grid-cols-2",
+        layout === "beside" && "lg:grid-cols-1",
+      )}
+    >
+      {options.map((option) => (
+        <MapChangeCard
+          key={option.id}
+          option={option}
+          changeShown={shownId === option.id}
+          onToggleChange={() => onToggle(option.id)}
+        />
+      ))}
+    </div>
   );
 }
