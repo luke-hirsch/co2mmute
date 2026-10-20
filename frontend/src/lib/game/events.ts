@@ -119,6 +119,15 @@ export type GameStateSnapshot = {
   activeMapVersionId: number | null;
   hasMapVersions: boolean;
   mapVersions: VoteOption[];
+  /**
+   * What the vote before the round being played decided, or null (between
+   * rounds, in round 1, or before any vote). The same facts as `vote.result`.
+   */
+  voteResult: {
+    winning_version_id: number | null;
+    winning_version_name: string;
+    forced: boolean;
+  } | null;
 };
 
 /** `GameRound.BetweenRoundPhase`. */

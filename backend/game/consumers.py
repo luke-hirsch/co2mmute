@@ -474,6 +474,26 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
             ):
                 map_versions = vote_options(current_round)
 
+            # What the vote before this round decided, while the round is being
+            # played: the round header names it, and a client that reconnected
+            # across `vote.result` has no other way to learn it.
+            vote_result = None
+            if current_round and current_round.status != GameRound.Status.COMPLETED:
+                previous = (
+                    GameRound.objects.filter(
+                        game=game, round_number__lt=current_round.round_number
+                    )
+                    .order_by("-round_number")
+                    .first()
+                )
+                decided = previous.vote_result if previous else None
+                if decided and "winning_version_name" in decided:
+                    vote_result = {
+                        "winning_version_id": decided.get("winning_version_id"),
+                        "winning_version_name": decided["winning_version_name"],
+                        "forced": bool(decided.get("forced", False)),
+                    }
+
             return {
                 "isActive": game.is_active,
                 "currentRound": current_round.round_number if current_round else 0,
@@ -487,6 +507,7 @@ class GameConsumer(AsyncJsonWebsocketConsumer):
                 "activeMapVersionId": game.active_map_version_id,  # type: ignore
                 "hasMapVersions": bool(map_versions),
                 "mapVersions": map_versions,
+                "voteResult": vote_result,
             }
 
         return await fetch_state()

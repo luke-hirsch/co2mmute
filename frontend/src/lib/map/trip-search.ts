@@ -62,6 +62,7 @@ export function searchTrip(
     ? findBestPTRoute(graph, from, to, {
         scale: graph.scale,
         ptOptimization: choice.ptOptimization,
+        onStateChange,
       })
     : findPath(graph, from, to, mode, {
         optimization: choice.carOptimization,

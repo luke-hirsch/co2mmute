@@ -437,7 +437,8 @@ function productGraphDijkstra(
   nodeMap: Map<number, Node>,
   edgeMap: Map<number, Edge>,
   scale: number,
-  ptOptimization: PTOptimization
+  ptOptimization: PTOptimization,
+  onStateChange?: (state: PathfindingState) => void
 ): ProductGraphResult | null {
   const startMode: ProductMode = { tag: "walk", hasBoarded: false };
   const startState: ProductNode = { nodeId: startNodeId, mode: startMode };
@@ -448,6 +449,11 @@ function productGraphDijkstra(
 
   const cameFrom = new Map<StateKey, CameFromEntry>();
   const visited = new Set<StateKey>();
+
+  // What the search looked at, for the map to play back (`search-trace.ts`).
+  // Only kept when somebody listens; the route never reads it.
+  const exploredEdges = new Set<number>();
+  const visitedNodes = new Set<number>();
 
   const heap = new MinHeap();
   heap.push({ state: startState, key: startKey, cost: 0 });
@@ -483,6 +489,28 @@ function productGraphDijkstra(
       scale,
       ptOptimization
     );
+
+    if (onStateChange) {
+      visitedNodes.add(state.nodeId);
+      const before = exploredEdges.size;
+      for (const t of neighbours) {
+        if (t.edgeId !== null) exploredEdges.add(t.edgeId);
+      }
+      if (exploredEdges.size > before) {
+        onStateChange({
+          isRunning: true,
+          visitedNodes: new Set(visitedNodes),
+          currentNode: state.nodeId,
+          tentativeDistances: new Map(),
+          previousNodes: new Map(),
+          finalPath: null,
+          isComplete: false,
+          exploredEdges: new Set(exploredEdges),
+          relaxedEdge: null,
+          previousEdges: new Map(),
+        });
+      }
+    }
 
     for (const t of neighbours) {
       if (visited.has(t.nextKey)) continue;
@@ -763,7 +791,8 @@ export async function findPTRoute(
     nodeMap,
     edgeMap,
     scale,
-    ptOptimization
+    ptOptimization,
+    options.onStateChange
   );
 
   if (!result) {

@@ -149,6 +149,7 @@ const gameStateEvent = (
     activeMapVersionId: null,
     hasMapVersions: false,
     mapVersions: [],
+    voteResult: null,
     ...overrides,
   },
 });
@@ -233,6 +234,7 @@ describe("game.state resync", () => {
             is_rollback: false,
           },
         ],
+        voteResult: null,
       },
     });
 
@@ -242,6 +244,81 @@ describe("game.state resync", () => {
     // The ballot is stored on the round, so a mid-vote reconnect gets the same
     // options back rather than a fresh draw.
     expect(state.voteOptions).toHaveLength(1);
+  });
+});
+
+describe("the vote's outcome across a reconnect", () => {
+  const decided = {
+    winning_version_id: 9,
+    winning_version_name: "Busspur",
+    forced: false,
+  };
+
+  it("is restored from the snapshot when vote.result was missed", () => {
+    const state = apply(start(), gameStateEvent({ voteResult: decided }));
+
+    expect(state.voteOutcome).toEqual({
+      stalemate: false,
+      winningVersionId: 9,
+      winningVersionName: "Busspur",
+      forced: false,
+    });
+  });
+
+  it("is not overwritten by a snapshot once the socket has said it", () => {
+    const state = apply(
+      start(),
+      gameStateEvent(),
+      voteResult(3, "Umgehung"),
+      gameStateEvent({ voteResult: decided }),
+    );
+
+    expect(state.voteOutcome?.winningVersionName).toBe("Umgehung");
+  });
+
+  it("gives way to a later vote.result", () => {
+    const state = apply(
+      start(),
+      gameStateEvent({ voteResult: decided }),
+      voteResult(3, "Umgehung"),
+    );
+
+    expect(state.voteOutcome?.winningVersionName).toBe("Umgehung");
+  });
+
+  it("is replaced by the snapshot of a later round, whatever the state still holds", () => {
+    // Round 1's result was set from the socket; the device then missed
+    // round.completed and the next vote.result, and reconnects in round 3.
+    const state = apply(
+      start(),
+      gameStateEvent({ currentRound: 2 }),
+      voteResult(3, "Umgehung"),
+      gameStateEvent({ currentRound: 3, voteResult: decided }),
+    );
+
+    expect(state.voteOutcome?.winningVersionName).toBe("Busspur");
+  });
+
+  it("is dropped by the snapshot of a later round that has none", () => {
+    const state = apply(
+      start(),
+      gameStateEvent({ currentRound: 2 }),
+      voteResult(3, "Umgehung"),
+      gameStateEvent({ currentRound: 3, voteResult: null }),
+    );
+
+    expect(state.voteOutcome).toBeNull();
+  });
+
+  it("is not cleared by a snapshot that has none", () => {
+    const state = apply(
+      start(),
+      gameStateEvent(),
+      voteResult(3, "Umgehung"),
+      gameStateEvent({ voteResult: null }),
+    );
+
+    expect(state.voteOutcome?.winningVersionName).toBe("Umgehung");
   });
 });
 
@@ -753,6 +830,7 @@ describe("exhaustiveness", () => {
           activeMapVersionId: null,
           hasMapVersions: false,
           mapVersions: [],
+          voteResult: null,
         },
       },
       {

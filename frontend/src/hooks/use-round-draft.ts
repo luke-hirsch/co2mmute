@@ -206,8 +206,8 @@ export function useRoundDraft({
   /**
    * What the last search looked at, for the map to play back. Only the
    * latest: it is a flourish on the route that was just found, not state the
-   * turn depends on, so it is neither stored nor sent. Public transport has none
-   * — its router is a search over lines and stops, not over links.
+   * turn depends on, so it is neither stored nor sent. Public transport records
+   * the links its search over lines and stops examined.
    */
   const [trace, setTrace] = useReducer(
     (_: SearchTrace | null, next: SearchTrace | null) => next,
@@ -266,7 +266,7 @@ export function useRoundDraft({
           wayHome: toLeg(back),
         };
         dispatch({ kind: "routed", agentId, route });
-        setTrace(mode === "public" ? null : recorder.trace());
+        setTrace(recorder.trace());
       } catch (error) {
         if (runs.current.get(agentId) !== token) return;
         dispatch({

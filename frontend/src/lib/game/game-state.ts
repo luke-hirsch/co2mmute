@@ -39,6 +39,7 @@ import type {
   BetweenRoundPhase,
   GameEndReason,
   GameEvent,
+  GameStateSnapshot,
   RevokeReason,
   RosterSeat,
   RoundPlayerStats,
@@ -165,6 +166,19 @@ export type GameState = {
   /** True once any socket frame has arrived, so REST stops being authoritative. */
   socketSpoke: boolean;
 };
+
+/** The outcome a `game.state` snapshot carries, in the shape the reducer keeps. */
+function snapshotOutcome(
+  result: GameStateSnapshot["voteResult"],
+): VoteOutcome | null {
+  if (!result) return null;
+  return {
+    stalemate: false,
+    winningVersionId: result.winning_version_id,
+    winningVersionName: result.winning_version_name,
+    forced: result.forced,
+  };
+}
 
 export type GameAction =
   | { kind: "snapshot"; snapshot: LobbySnapshot }
@@ -302,6 +316,15 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         // The ballot is stored on the round, so a reconnect mid-vote gets the
         // same options back rather than a fresh draw.
         voteOptions: s.mapVersions,
+        // A reconnect across `vote.result` missed the outcome; the snapshot
+        // restores it. From a later round the snapshot is the truth and replaces
+        // whatever this device still holds (it missed the rounds in between).
+        // Within the same round a `vote.result` that arrived on this socket is
+        // never overwritten, and a snapshot without one clears nothing.
+        voteOutcome:
+          s.currentRound !== state.currentRound
+            ? snapshotOutcome(s.voteResult)
+            : (state.voteOutcome ?? snapshotOutcome(s.voteResult)),
       };
     }
 
