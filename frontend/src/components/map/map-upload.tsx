@@ -4,6 +4,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import Loading from "@/components/Loading";
 import { Field } from "@/components/layout/field";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
 import { de } from "@/lib/de";
@@ -64,6 +65,14 @@ export function MapUploadScreen() {
   }
 
   const { fields } = refusal;
+
+  if (importMap.isPending) {
+    return (
+      <Screen>
+        <Loading label={t.submitting} />
+      </Screen>
+    );
+  }
 
   return (
     <Screen>
@@ -187,9 +196,7 @@ export function MapUploadScreen() {
           </Alert>
         ) : null}
 
-        <Button type="submit" disabled={importMap.isPending}>
-          {importMap.isPending ? t.submitting : t.submit}
-        </Button>
+        <Button type="submit">{t.submit}</Button>
       </form>
     </Screen>
   );

@@ -3,30 +3,12 @@ import { useEffect, useMemo, useState } from "react";
 import { de } from "@/lib/de";
 
 /**
- * The waiting state, for the screens that fetch a whole map before they can
- * draw anything.
+ * The waiting state: a train, a car and a bus taking turns, and a label. For
+ * the screens that fetch a whole map before they can draw anything, and for a
+ * whole-page action that takes a while (a map upload, a map delete).
  *
- * ### What changed on 2026-09-30
- *
- * Three things, none of them the animation:
- *
- * - **It was English.** `label = "Loading…"` and a subtitle reading "Adapting
- *   to the network. Modal shift, but make it latency." — live on the map detail
- *   page and in the editor, through two German passes. `german.test.ts` saw
- *   neither: a one-word literal is skipped on purpose (`type === "street"` must
- *   not read as a sentence) and the subtitle carried none of the giveaway
- *   words. The default is `de.app.loading` now, and the subtitle is gone rather
- *   than translated — a spinner does not need a second line, and inventing a
- *   German joke for someone else's voice is not a colour sweep's job.
- * - **The dark theme never applied.** The rule was `:global(.dark) .iconStage`,
- *   which is styled-jsx / CSS-modules syntax; inside a plain `<style>` element
- *   the browser drops the whole selector as invalid. So the vehicle kept its
- *   light hull on `#0b1120`. The colours are tokens now and flip themselves,
- *   which is also why there is no dark rule left to get wrong.
- * - **The hull was `gray-800`, the label `gray-900`.** Palette, like everything
- *   else this sweep touched: the ring is the primary, the vehicle is ink, and
- *   the glass is the page colour rather than `#fff` — white glass on a dark
- *   hull is fine, white glass on a dark *page* is a hole.
+ * The colours are tokens, so the theme is handled by the theme and the element
+ * has no dark rule of its own.
  */
 type LoadingProps = {
   label?: string;
@@ -64,9 +46,6 @@ export default function Loading({
       aria-live="polite"
     >
       <div className="iconStage" aria-hidden="true">
-        {/* Swirl ring */}
-        <div className="swirl" />
-
         {/* TRAIN */}
         <div className={["icon", active === "train" ? "in" : "out"].join(" ")}>
           <TrainIcon />
@@ -100,17 +79,6 @@ export default function Loading({
           color: var(--color-foreground);
         }
 
-        .swirl {
-          position: absolute;
-          inset: 18px;
-          border-radius: 999px;
-          border: 3px solid var(--color-primary);
-          border-top-color: transparent;
-          border-right-color: transparent;
-          filter: blur(.1px);
-          animation: swirl 900ms linear infinite;
-        }
-
         .icon {
           position: absolute;
           inset: 0;
@@ -141,12 +109,9 @@ export default function Loading({
           0%   { opacity: 1; transform: rotate(0deg) scale(1.0); }
           100% { opacity: 0; transform: rotate(18deg) scale(0.86); }
         }
-        @keyframes swirl {
-          to { transform: rotate(360deg); }
-        }
 
         @media (prefers-reduced-motion: reduce) {
-          .swirl, .icon.in, .icon.out { animation: none !important; }
+          .icon.in, .icon.out { animation: none !important; }
           .icon.in { opacity: 1; }
           .icon.out { opacity: 0; }
         }
