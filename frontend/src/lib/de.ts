@@ -1074,7 +1074,9 @@ export const de = {
    */
   map: {
     /** Whose data a generated map is drawn from, in the corner of the map. */
-    credits: { label: "Quellen:" },
+    credits: { label: "Quellen" },
+    /** The switch that shows or hides the names on the map. */
+    names: "Namen anzeigen",
     legend: {
       title: "Legende",
       edges: "Kanten",

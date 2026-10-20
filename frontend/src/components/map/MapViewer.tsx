@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EdgeHitArea } from "@/components/map/edge-hit-area";
 import { MapCredits } from "@/components/map/map-credits";
+import { NamesToggle, useNamesShown } from "@/components/map/names-toggle";
 import { MapLegend } from "@/components/map/map-legend";
 import { de } from "@/lib/de";
 import { edgeLayers, editorPaint, nodeMark } from "@/lib/map/palette";
@@ -48,6 +49,7 @@ const MapViewer = ({
 }) => {
   const [selectedElement, setSelectedElement] =
     useState<SelectedElement | null>(null);
+  const [namesShown, setNamesShown] = useNamesShown();
 
   // Nodes, the map box and the image's drawn rectangle, from the shared module
   // (K-02). This viewer used to size itself from the nodes alone, which is why
@@ -192,7 +194,7 @@ const MapViewer = ({
                       setSelectedElement({ type: "node", id: node.id })
                     }
                   />
-                  {isSelected && (
+                  {isSelected && namesShown && (
                     <text
                       x={x}
                       y={y + radius + 15}
@@ -209,6 +211,10 @@ const MapViewer = ({
             })}
           </svg>
           <MapCredits credits={gameMap.credits} />
+          </div>
+
+          <div className="border-t px-5 py-3">
+            <NamesToggle shown={namesShown} onChange={setNamesShown} />
           </div>
 
           <MapLegend className="border-t px-5 py-4" />
