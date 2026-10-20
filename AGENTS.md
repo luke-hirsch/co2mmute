@@ -298,7 +298,8 @@ lists the stages in the order they run, each module's docstring its rules.
 - **A simulation constant** → `backend/sim/constants.py` and, if the browser reads it,
   `frontend/src/lib/constants.ts` (`tests/lib/constants.test.ts` names a copy that drifted), both
   golden masters, `docs/kalibrierung.md`, the figures in the
-  background doc.
+  background doc, and `docs/de-zahlen.md` / `docs/en-numbers.md`, which list every number with its
+  source and say what to redo after a change.
 - **A new line's seats and speed**: `BusLine`'s defaults and `TrainLine.DEFAULTS` in
   `maps/models.py`, `frontend/src/lib/map/pt-defaults.ts` and `BUS` / `TRAIN` in
   `mapbuild/transit.py`, per bus, train and tram.

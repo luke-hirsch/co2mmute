@@ -236,7 +236,6 @@ def car_cost_eur_per_km(speed_kmh: float) -> float:
 # because on Berlin 0.5 kg is about a sixth of the class switching mode. The
 # range runs below a round nobody drives on Berlin (0.72) and above one
 # everybody does (3.53), so a host can make a game unwinnable or free.
-# 
 CO2_KG_PER_PERSON_NORMAL = 2.4
 CO2_KG_PER_PERSON_STEP = 0.2
 CO2_KG_PER_PERSON_MIN = 0.6
