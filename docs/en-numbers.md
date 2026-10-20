@@ -20,8 +20,10 @@ search steps) are machinery, not numbers of the model.
 2. Both golden masters (`backend/game/tests/test_sim_golden.py`) go red on purpose: the model says it
    changed. Regenerate with `GOLDEN_REGENERATE=1` and say so in the commit message.
 3. Recalibrate every map (`manage.py calibrate_map <file> … --out`), then set the map's row (commuter
-   count, share of the timetable, table). A map with a running game cannot be edited; wait for the
-   game to end.
+   count, share of the timetable, table). A running game does not notice what it copied when it was
+   created or started: the budget (`GameSession.max_CO2_level`), the Gruppe size
+   (`people_per_agent`) and the share of the timetable (`timetable_factor`). The map's streets, lines
+   and speeds it reads anew each round.
 4. Update `docs/kalibrierung.md` and the figures in `docs/de-hintergrund.md` / `docs/en-background.md`
    (and their site copy `backend/template/docs/hintergrund.html`) if the number appears there: search
    for the value.
@@ -59,8 +61,8 @@ same cost: `CAR_EMISSIONS_G_PER_KM`, `CAR_EF_ANCHOR_SPEED_KMH`, `CAR_EF_MIN_SPEE
 | `BUS_COST_PER_VEHICLE_KM` | 3.94 € per bus-km | What a bus costs per kilometre, full or empty. | Deiters 2009, Tab. 5 (2.82 €), brought to 2025 with the consumer price index (× 1.399) |
 | `TRAM_COST_PER_VEHICLE_KM` | 6.25 € per tram-km | the same for a tram | Deiters 2009, Tab. 5 (4.47 €), × 1.399 |
 | `TRAIN_COST_PER_VEHICLE_KM` | 13.40 € per train-km | the same for a train, without the track charge | Ramboll 2023: nearly 20 €, a third of it infrastructure |
-| `PT_FARE_EUR` | 1.30 € | The ticket per trip. What you pay minus what the trip costs is the subsidy. | his default |
-| `BIKE_COST_PER_KM` | 0.03 € per km | Wear and repairs of the bike. The health benefit is missing; that is an open question for the group. | his default |
+| `PT_FARE_EUR` | 1.30 € | The ticket per trip. What you pay minus what the trip costs is the subsidy. | a project default, no source |
+| `BIKE_COST_PER_KM` | 0.03 € per km | Wear and repairs of the bike. The health benefit is missing; that is an open question for the group. | a project default, no source |
 
 ## Streets and capacity
 
@@ -119,8 +121,8 @@ Only the browser applies them, in `frontend/src/lib/constants.ts`. They have no 
 
 | Constant | Value | What it does | Source |
 |---|---|---|---|
-| `MAX_WALK_M` | 5000 m | Nobody walks further: about an hour. | his call (2026-09-28) |
-| `MAX_BIKE_M` | 15000 m | Nobody bikes further. | his call |
+| `MAX_WALK_M` | 5000 m | Nobody walks further: about an hour. | a project default, no source (2026-09-28) |
+| `MAX_BIKE_M` | 15000 m | Nobody bikes further. | a project default, no source |
 | `PT_MAX_WALK_DISTANCE_M` | 2000 m | The walk to the first stop and from the last one in the public transport search. | no source |
 
 ## The budget
@@ -151,7 +153,9 @@ only what a new row starts with. These places change together:
 - `backend/maps/models.py` (`BusLine`, `TrainLine.DEFAULTS`, `GameMap`, `StreetEdge`)
 - `backend/mapbuild/transit.py` (`BUS`, `TRAIN`)
 - `frontend/src/lib/map/pt-defaults.ts` (`DEFAULT_PT_CAPACITY`, `DEFAULT_PT_SPEED_KMH`)
-- the importers' JSON format, which takes the same values
+- `backend/maps/importer.py`: its own numbers for a file that leaves a field out (speeds 5/20/50,
+  street 50 km/h, 1 lane, `max_lanes` 2, bus 5 min, 85 seats, 30 km/h; train lines read
+  `TrainLine.DEFAULTS`). `max_lanes` is 2 there, 1 in the model.
 
 | Number | Starting value | What it does |
 |---|---|---|
@@ -166,7 +170,7 @@ only what a new row starts with. These places change together:
 | `StreetEdge.lanes` | 1 | a street's lanes (both directions) |
 | `BusLine.bus_capacity`, `bus_speed_kmh`, `intervall` | 85 seats, 30 km/h, 5 min | A bus: size, speed, interval. The order of magnitude of a 12 m bus with standing room, no source. |
 | `TrainLine.DEFAULTS` train | 1000 seats, 40 km/h | U-Bahn or S-Bahn. Order of magnitude, no source. |
-| `TrainLine.DEFAULTS` tram | 248 seats, 30 km/h | Berlin's 40 m Flexity: 84 seats and 164 standing (Bombardier's datasheet). Speed as the bus (his call, 2026-10-07): the model has no dwell time. |
+| `TrainLine.DEFAULTS` tram | 248 seats, 30 km/h | Berlin's 40 m Flexity: 84 seats and 164 standing (Bombardier's datasheet). Speed as the bus (a project default, 2026-10-07): the model has no dwell time. |
 
 How often a line runs comes, when a map is built, from the timetable (DELFI, 8 to 10 o'clock), else
 from OSM, else from this table (`DEFAULT_INTERVAL` in `backend/mapbuild/timetable.py`):
@@ -179,7 +183,7 @@ from OSM, else from this table (`DEFAULT_INTERVAL` in `backend/mapbuild/timetabl
 | tram | 15 min |
 | bus | 20 min |
 
-These are deliberately his own defaults, with no source: a last resort, not a measured value.
+These are deliberately project defaults, with no source: a last resort, not a measured value.
 
 ## Numbers of a game
 

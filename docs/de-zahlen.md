@@ -21,8 +21,10 @@ Suchschritte der Kalibrierung) sind Technik, keine Zahlen des Modells.
    Modell sagt, dass es sich geändert hat. Mit `GOLDEN_REGENERATE=1` neu schreiben und das in der
    Commit-Nachricht sagen.
 3. Jede Karte neu kalibrieren (`manage.py calibrate_map <Datei> … --out`), dann die Zeile der Karte
-   setzen (Pendlerzahl, Anteil am Fahrplan, Tabelle). Eine Karte mit laufendem Spiel lässt sich nicht
-   ändern; erst nach dem Spiel.
+   setzen (Pendlerzahl, Anteil am Fahrplan, Tabelle). Ein laufendes Spiel merkt davon nichts, was es
+   beim Anlegen oder Start kopiert hat: Budget (`GameSession.max_CO2_level`), Gruppengröße
+   (`people_per_agent`) und Fahrplananteil (`timetable_factor`). Straßen, Linien und Tempi der Karte
+   liest es dagegen jede Runde neu.
 4. `docs/kalibrierung.md` und die Zahlen in `docs/de-hintergrund.md` / `docs/en-background.md` (und
    ihre Seitenkopie `backend/template/docs/hintergrund.html`) nachziehen, wenn die Zahl dort vorkommt:
    den Wert suchen.
@@ -60,8 +62,8 @@ dieselben Kosten sieht: `CAR_EMISSIONS_G_PER_KM`, `CAR_EF_ANCHOR_SPEED_KMH`, `CA
 | `BUS_COST_PER_VEHICLE_KM` | 3,94 € je Bus-km | Was ein Bus je Kilometer kostet, ob besetzt oder leer. | Deiters 2009, Tab. 5 (2,82 €), mit dem Verbraucherpreisindex auf 2025 (× 1,399) |
 | `TRAM_COST_PER_VEHICLE_KM` | 6,25 € je Tram-km | dasselbe für eine Tram | Deiters 2009, Tab. 5 (4,47 €), × 1,399 |
 | `TRAIN_COST_PER_VEHICLE_KM` | 13,40 € je Zug-km | dasselbe für einen Zug, ohne Trassenentgelt | Ramboll 2023: knapp 20 €, davon 33 % Infrastruktur |
-| `PT_FARE_EUR` | 1,30 € | Die Fahrkarte je Fahrt. Was du zahlst minus was die Fahrt kostet ist der Zuschuss. | seine Vorgabe |
-| `BIKE_COST_PER_KM` | 0,03 € je km | Verschleiß und Reparatur des Rads. Der Nutzen für die Gesundheit fehlt noch; das ist eine offene Frage an die Gruppe. | seine Vorgabe |
+| `PT_FARE_EUR` | 1,30 € | Die Fahrkarte je Fahrt. Was du zahlst minus was die Fahrt kostet ist der Zuschuss. | Vorgabe des Projekts, ohne Quelle |
+| `BIKE_COST_PER_KM` | 0,03 € je km | Verschleiß und Reparatur des Rads. Der Nutzen für die Gesundheit fehlt noch; das ist eine offene Frage an die Gruppe. | Vorgabe des Projekts, ohne Quelle |
 
 ## Straßen und Kapazität
 
@@ -121,8 +123,8 @@ Python.
 
 | Konstante | Wert | Was sie tut | Quelle |
 |---|---|---|---|
-| `MAX_WALK_M` | 5000 m | Weiter läuft niemand: etwa eine Stunde. | seine Vorgabe (2026-09-28) |
-| `MAX_BIKE_M` | 15000 m | Weiter fährt niemand Rad. | seine Vorgabe |
+| `MAX_WALK_M` | 5000 m | Weiter läuft niemand: etwa eine Stunde. | Vorgabe des Projekts, ohne Quelle (2026-09-28) |
+| `MAX_BIKE_M` | 15000 m | Weiter fährt niemand Rad. | Vorgabe des Projekts, ohne Quelle |
 | `PT_MAX_WALK_DISTANCE_M` | 2000 m | Der Weg zur ersten und von der letzten Haltestelle in der ÖPNV-Suche. | keine Quelle |
 
 ## Das Budget
@@ -148,12 +150,14 @@ Dieselben vier Werte stehen im Browser. Zusätzlich gibt es Zahlen für Fälle o
 ## Zahlen einer Karte
 
 Sie gehören zur Karte und werden dort geändert, im Karteneditor oder im Admin. Die Werte unten sind
-nur, womit eine neue Zeile beginnt. Die vier Stellen ändern sich zusammen:
+nur, womit eine neue Zeile beginnt. Diese Stellen ändern sich zusammen:
 
 - `backend/maps/models.py` (`BusLine`, `TrainLine.DEFAULTS`, `GameMap`, `StreetEdge`)
 - `backend/mapbuild/transit.py` (`BUS`, `TRAIN`)
 - `frontend/src/lib/map/pt-defaults.ts` (`DEFAULT_PT_CAPACITY`, `DEFAULT_PT_SPEED_KMH`)
-- das JSON-Format der Importer, das dieselben Werte nimmt
+- `backend/maps/importer.py`: eigene Zahlen für eine Datei, die ein Feld weglässt (Tempi 5/20/50,
+  Straße 50 km/h, 1 Spur, `max_lanes` 2, Bus 5 min, 85 Plätze, 30 km/h; die Zuglinien lesen
+  `TrainLine.DEFAULTS`). `max_lanes` ist dort 2, im Modell 1.
 
 | Zahl | Anfangswert | Was sie tut |
 |---|---|---|
@@ -168,7 +172,7 @@ nur, womit eine neue Zeile beginnt. Die vier Stellen ändern sich zusammen:
 | `StreetEdge.lanes` | 1 | Spuren einer Straße (beide Richtungen) |
 | `BusLine.bus_capacity`, `bus_speed_kmh`, `intervall` | 85 Plätze, 30 km/h, 5 min | Ein Bus: Größe, Tempo, Takt. Größenordnung eines 12-m-Busses mit Stehplätzen, keine Quelle. |
 | `TrainLine.DEFAULTS` Zug | 1000 Plätze, 40 km/h | U- oder S-Bahn. Größenordnung, keine Quelle. |
-| `TrainLine.DEFAULTS` Tram | 248 Plätze, 30 km/h | Berlins 40-m-Flexity: 84 Sitz- und 164 Stehplätze (Bombardier-Datenblatt). Tempo wie der Bus (seine Vorgabe, 2026-10-07): das Modell hat keine Haltezeit. |
+| `TrainLine.DEFAULTS` Tram | 248 Plätze, 30 km/h | Berlins 40-m-Flexity: 84 Sitz- und 164 Stehplätze (Bombardier-Datenblatt). Tempo wie der Bus (Vorgabe des Projekts, 2026-10-07): das Modell hat keine Haltezeit. |
 
 Wie oft eine Linie fährt, kommt beim Bau einer Karte aus dem Fahrplan (DELFI, 8 bis 10 Uhr), sonst aus
 OSM, sonst aus dieser Tabelle (`DEFAULT_INTERVAL` in `backend/mapbuild/timetable.py`):
@@ -181,7 +185,7 @@ OSM, sonst aus dieser Tabelle (`DEFAULT_INTERVAL` in `backend/mapbuild/timetable
 | Tram | 15 min |
 | Bus | 20 min |
 
-Das sind bewusst seine eigenen Vorgaben, ohne Quelle: ein letzter Ausweg, kein belegter Wert.
+Das sind bewusst Vorgaben des Projekts, ohne Quelle: ein letzter Ausweg, kein belegter Wert.
 
 ## Zahlen eines Spiels
 
