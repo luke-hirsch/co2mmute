@@ -1,29 +1,42 @@
-"""The research data of finished games, as one sqlite file.
+"""The research data of finished games, as CSV files in one zip.
 
 Only games that are over and anonymised leave: a game inside its grace period
 is still being debriefed and still carries its players' names. Players are
 numbers (their pk), never names. What a host or a player wrote as free text
 (the game's name, the chat, a Pendlertyp the host made up) does not leave, and
-neither does anything of the host's account.
+neither does anything of the host's account. Moments are seconds since a start
+(the game's opening, the round's result), never a clock time.
 
-One reader of the models, one schema: `SCHEMA` below is the file's contract, and
-`.agents/skills/extract-data/SKILL.md` describes it in words.
+One reader of the models, one schema: `SCHEMA` below is the contract. The
+tables are filled into an in-memory sqlite database, one place to keep the
+columns and the order, and each leaves as one CSV file beside a `README.txt`
+that says what the columns are. `.agents/skills/extract-data/SKILL.md`
+describes the tables in words.
 """
 
+import csv
+import io
+import json
+import re
 import sqlite3
+import zipfile
 from collections.abc import Callable
 from pathlib import Path
 
+from django.utils import timezone
+
 from game.models import (
+    AgentRoute,
     AgentSimulationResult,
     GameRound,
     GameSession,
     MapVersionVote,
     Persona,
     Player,
+    RouteSegment,
     StalemateVote,
 )
-from maps.models import MapVersion, Node
+from maps.models import BusLine, Edge, MapVersion, Node, TrainLine
 
 OWN_PERSONA = "eigener Typ"
 
@@ -49,6 +62,7 @@ CREATE TABLE game (
 CREATE TABLE player (
     id INTEGER PRIMARY KEY,
     game_id INTEGER NOT NULL REFERENCES game(id),
+    joined_s INTEGER,
     left_early INTEGER NOT NULL
 );
 CREATE TABLE map_version (
@@ -66,6 +80,20 @@ CREATE TABLE node (
     name TEXT,
     x REAL NOT NULL,
     y REAL NOT NULL
+);
+CREATE TABLE edge (
+    id INTEGER PRIMARY KEY,
+    map_id INTEGER NOT NULL,
+    start_node_id INTEGER NOT NULL REFERENCES node(id),
+    end_node_id INTEGER NOT NULL REFERENCES node(id),
+    name TEXT,
+    length_m REAL NOT NULL
+);
+CREATE TABLE pt_line (
+    kind TEXT NOT NULL,
+    id INTEGER NOT NULL,
+    map_id INTEGER NOT NULL,
+    name TEXT NOT NULL
 );
 CREATE TABLE round (
     id INTEGER PRIMARY KEY,
@@ -89,12 +117,14 @@ CREATE TABLE ballot_option (
 CREATE TABLE vote (
     round_id INTEGER NOT NULL REFERENCES round(id),
     player_id INTEGER NOT NULL REFERENCES player(id),
-    version_id INTEGER
+    version_id INTEGER,
+    voted_s INTEGER
 );
 CREATE TABLE stichwahl_vote (
     round_id INTEGER NOT NULL REFERENCES round(id),
     player_id INTEGER NOT NULL REFERENCES player(id),
-    want_revote INTEGER NOT NULL
+    want_revote INTEGER NOT NULL,
+    voted_s INTEGER
 );
 CREATE TABLE gruppe_round (
     round_id INTEGER NOT NULL REFERENCES round(id),
@@ -114,36 +144,153 @@ CREATE TABLE gruppe_round (
     congestion_delay_min REAL NOT NULL,
     wait_time_min REAL NOT NULL
 );
+CREATE TABLE route_segment (
+    round_id INTEGER NOT NULL REFERENCES round(id),
+    player_id INTEGER NOT NULL REFERENCES player(id),
+    gruppe INTEGER NOT NULL,
+    direction TEXT NOT NULL,
+    step INTEGER NOT NULL,
+    mode TEXT NOT NULL,
+    edge_id INTEGER NOT NULL REFERENCES edge(id),
+    pt_line_id INTEGER
+);
+CREATE TABLE replay_round (
+    round_id INTEGER PRIMARY KEY REFERENCES round(id),
+    format_version INTEGER,
+    people_per_dot REAL,
+    tick_duration_min INTEGER,
+    end_min REAL,
+    home_start_min REAL,
+    not_home_unfinished INTEGER,
+    not_home_stranded INTEGER
+);
+CREATE TABLE replay_dot (
+    round_id INTEGER NOT NULL REFERENCES round(id),
+    dot_id INTEGER NOT NULL,
+    pass TEXT NOT NULL,
+    player_id INTEGER REFERENCES player(id),
+    gruppe INTEGER,
+    line TEXT,
+    mode TEXT,
+    wants_min REAL,
+    ending TEXT,
+    legs TEXT NOT NULL
+);
 """
 
-
-_BASE_TABLES = {
-    "game",
-    "player",
-    "map_version",
-    "node",
-    "round",
-    "ballot_option",
-    "vote",
-    "stichwahl_vote",
-    "gruppe_round",
+# What each table is, for the README inside the zip; `*` names a column worth a
+# note. Tables another app registers bring their own (`register_tables`).
+NOTES: dict[str, tuple[str, dict[str, str]]] = {
+    "game": (
+        "one row per exported game",
+        {
+            "ended_on": "the day the game ended, no time",
+            "co2_hidden": "1: the class saw no CO2 figure or budget until the summary",
+            "timetable_factor": "the share of the timetable the class paid (CO2 and cost)",
+        },
+    ),
+    "player": (
+        "one row per seat, by number only",
+        {"joined_s": "seconds from the game being opened to the seat joining"},
+    ),
+    "round": (
+        "one row per round",
+        {
+            "total_co2_g": "the players' CO2 in grams, there and back",
+            "network_co2_g": "the CO2 of the lines nobody rode",
+            "winning_version_id": "the map version the vote chose; empty: left as it was",
+        },
+    ),
+    "ballot_option": ("one row per option on a round's ballot", {}),
+    "vote": (
+        "one row per seat and round",
+        {
+            "version_id": "the version voted for; empty: leave the map as it is",
+            "voted_s": "seconds from the round's result being ready to the vote",
+        },
+    ),
+    "stichwahl_vote": (
+        "one row per seat and round: another vote after a tie?",
+        {"voted_s": "seconds from the round's result being ready to the vote"},
+    ),
+    "map_version": (
+        "one row per version of an exported game's map",
+        {"poll_text": "what the version changes, in the words the ballot used"},
+    ),
+    "node": (
+        "the nodes the games used: homes, workplaces, and the ends of streets travelled",
+        {"x": "map units, not metres", "y": "map units, not metres"},
+    ),
+    "edge": (
+        "the streets and rails the games travelled, as the segments and the replay name them",
+        {"length_m": "the road's length in metres"},
+    ),
+    "pt_line": (
+        "the bus and train lines the games rode",
+        {"kind": "bus or train (a tram is a train line); (kind, id) is the key"},
+    ),
+    "gruppe_round": (
+        "one row per Gruppe and round: what its commuters did and cost",
+        {
+            "gruppe": "1, 2, ... within the seat",
+            "pendlertyp": "a standard type's name, or `eigener Typ` for one a host wrote",
+            "cost_eur": "the real cost",
+            "paid_eur": "what the commuter paid",
+            "co2_g_per_person": "one commuter's day; the Gruppe's is that times people_per_agent",
+        },
+    ),
+    "route_segment": (
+        "one row per street or rail a Gruppe used in a round: which, not why",
+        {
+            "direction": "out (to work) or home",
+            "step": "0, 1, ... along the route",
+            "mode": "car, bus, train, bike or walk",
+            "pt_line_id": "with mode bus or train: the line, in pt_line",
+        },
+    ),
+    "replay_round": (
+        "one row per round with a recording: the recording's frame",
+        {
+            "end_min": "minutes from the start of the departure window",
+            "home_start_min": "where the evening starts on that clock",
+            "people_per_dot": "how many people one dot stands for",
+        },
+    ),
+    "replay_dot": (
+        "one row per dot of the recording: a sampled person or a line vehicle",
+        {
+            "pass": "out or home",
+            "player_id": "empty for a line vehicle",
+            "wants_min": "when this person wanted to leave; the gap to the first leg is the queue at the door",
+            "ending": "arrived, stranded or unfinished",
+            "legs": (
+                "JSON, a list of [kind, ref, from_min, to_min, from_node]: e = crossing "
+                "edge ref (see edge), s = waiting at node ref, r = riding the dot "
+                "with id ref"
+            ),
+        },
+    ),
 }
+
 
 # Tables other apps add, as (schema, writer). `game` never imports them: an
 # optional app registers itself from its AppConfig, and with it switched off
-# the file has no such tables at all.
+# the zip has no such files at all.
 _EXTRA_TABLES: list[tuple[str, Callable]] = []
+_EXTRA_NOTES: dict[str, tuple[str, dict[str, str]]] = {}
 
 
-def register_tables(schema_sql: str, writer: Callable) -> None:
-    """Add tables to the file: `writer(db, games)` runs after the game tables.
+def register_tables(schema_sql: str, writer: Callable, notes=None) -> None:
+    """Add tables to the export: `writer(db, games)` runs after the game tables.
 
     `games` are the exported ones (ended and anonymised); the writer must leave
-    out anything that is not about them. Registering the same writer twice is a
+    out anything that is not about them. `notes` is `{table: (what it is,
+    {column: note})}` for the README. Registering the same writer twice is a
     no-op.
     """
     if all(existing is not writer for _, existing in _EXTRA_TABLES):
         _EXTRA_TABLES.append((schema_sql, writer))
+        _EXTRA_NOTES.update(notes or {})
 
 
 def exportable_games():
@@ -162,9 +309,79 @@ def _persona_names(game: GameSession, standard_names: set[str]) -> dict[int, str
     }
 
 
+def _seconds(later, earlier) -> int | None:
+    """Whole seconds from `earlier` to `later`, never negative; None if either is."""
+    if later is None or earlier is None:
+        return None
+    return max(0, int((later - earlier).total_seconds()))
+
+
+def _tables(db) -> list[str]:
+    return [
+        row[0]
+        for row in db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY rowid"
+        )
+    ]
+
+
+def _csv_text(db, table: str) -> str:
+    out = io.StringIO()
+    writer = csv.writer(out, lineterminator="\n")
+    cursor = db.execute(f"SELECT * FROM {table} ORDER BY rowid")
+    writer.writerow([column[0] for column in cursor.description])
+    for row in cursor:
+        writer.writerow(["" if value is None else value for value in row])
+    return out.getvalue()
+
+
+_COLUMN = re.compile(r"^\s+(\w+) (INTEGER|REAL|TEXT)\b", re.MULTILINE)
+
+
+def _readme(db, counts: dict[str, int]) -> str:
+    notes = {**NOTES, **_EXTRA_NOTES}
+    schemas = {
+        row[0]: row[1]
+        for row in db.execute("SELECT name, sql FROM sqlite_master WHERE type='table'")
+    }
+    lines = [
+        "co2mmute: research data of finished games",
+        "",
+        "One CSV file per table. Only games that are over and anonymised are in it.",
+        "Players are numbers, never names. There is no host account, no game name, no",
+        "chat, no free text a host or a player wrote. Moments are seconds since a start",
+        "(named in the column), never a clock time.",
+        "",
+        "Format: UTF-8 with a byte-order mark (so Excel on Windows shows the umlauts;",
+        "pandas: encoding='utf-8-sig', R: fileEncoding='UTF-8-BOM'), comma-separated,",
+        "a point as decimal mark, an empty field is no value (null), 1 and 0 for yes",
+        "and no, days as YYYY-MM-DD. The first row is the column names.",
+        "",
+        "The recording of a round (replay_dot) is one row per dot with its legs as JSON",
+        "in one field: a row per leg would be some hundred thousand rows a round, and",
+        "one field per round more than a spreadsheet cell holds.",
+        "",
+    ]
+    for table in _tables(db):
+        what, columns = notes.get(table, ("", {}))
+        lines.append(
+            f"{table}.csv  ({counts[table]} rows)" + (f": {what}" if what else "")
+        )
+        for name, kind in _COLUMN.findall(schemas[table]):
+            note = columns.get(name)
+            lines.append(f"    {name} ({kind.lower()})" + (f": {note}" if note else ""))
+        lines.append("")
+    return "\n".join(lines)
+
+
 def export_research_data(path) -> dict[str, int]:
-    """Write the file at `path` (replacing one) and return the rows per table."""
+    """Write the zip at `path` (replacing one) and return the rows per table.
+
+    A directory as `path` gets `research-<date>.zip` inside it.
+    """
     path = Path(path)
+    if path.is_dir():
+        path = path / f"research-{timezone.localdate().isoformat()}.zip"
     if path.exists():
         path.unlink()
     standard_names = set(
@@ -172,9 +389,11 @@ def export_research_data(path) -> dict[str, int]:
     )
     games = list(exportable_games().select_related("game_map"))
     node_ids: set[int] = set()
+    edge_ids: set[int] = set()
+    lines: set[tuple[str, int]] = set()
     map_ids: set[int] = set()
 
-    db = sqlite3.connect(path)
+    db = sqlite3.connect(":memory:")
     try:
         db.executescript(SCHEMA)
         for schema_sql, _ in _EXTRA_TABLES:
@@ -213,8 +432,13 @@ def export_research_data(path) -> dict[str, int]:
             )
             for player in players:
                 db.execute(
-                    "INSERT INTO player VALUES (?,?,?)",
-                    (player.pk, game.pk, int(player.left_at is not None)),
+                    "INSERT INTO player VALUES (?,?,?,?)",
+                    (
+                        player.pk,
+                        game.pk,
+                        _seconds(player.joined_at, game.created_at),
+                        int(player.left_at is not None),
+                    ),
                 )
             persona_names = _persona_names(game, standard_names)
             agents = {
@@ -227,6 +451,7 @@ def export_research_data(path) -> dict[str, int]:
             for game_round in rounds:
                 sim = getattr(game_round, "simulation", None)
                 vote = game_round.vote_result or {}
+                result_ready = sim.completed_at if sim else None
                 db.execute(
                     "INSERT INTO round VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                     (
@@ -261,15 +486,25 @@ def export_research_data(path) -> dict[str, int]:
                     game_round=game_round, player__in=players
                 ):
                     db.execute(
-                        "INSERT INTO vote VALUES (?,?,?)",
-                        (game_round.pk, v.player_id, v.map_version_id),  # type: ignore
+                        "INSERT INTO vote VALUES (?,?,?,?)",
+                        (
+                            game_round.pk,
+                            v.player_id,  # type: ignore
+                            v.map_version_id,  # type: ignore
+                            _seconds(v.voted_at, result_ready),
+                        ),
                     )
                 for s in StalemateVote.objects.filter(
                     game_round=game_round, player__in=players
                 ):
                     db.execute(
-                        "INSERT INTO stichwahl_vote VALUES (?,?,?)",
-                        (game_round.pk, s.player_id, int(s.want_revote)),  # type: ignore
+                        "INSERT INTO stichwahl_vote VALUES (?,?,?,?)",
+                        (
+                            game_round.pk,
+                            s.player_id,  # type: ignore
+                            int(s.want_revote),
+                            _seconds(s.voted_at, result_ready),
+                        ),
                     )
                 if sim is None:
                     continue
@@ -304,6 +539,15 @@ def export_research_data(path) -> dict[str, int]:
                             result.wait_time_min,
                         ),
                     )
+                routes = {
+                    route.pk: route
+                    for route in AgentRoute.objects.filter(
+                        player_move__session_round=game_round,
+                        player_move__player__in=players,
+                    ).select_related("player_move")
+                }
+                _write_segments(db, game_round, routes, edge_ids, lines)
+                _write_replay(db, game_round, sim, routes, edge_ids, node_ids)
         for version in MapVersion.objects.filter(game_map__in=map_ids).order_by("pk"):
             db.execute(
                 "INSERT INTO map_version VALUES (?,?,?,?,?,?,?)",
@@ -317,6 +561,30 @@ def export_research_data(path) -> dict[str, int]:
                     version.source_version_id,  # type: ignore
                 ),
             )
+        for edge in (
+            Edge.objects.filter(pk__in=edge_ids)
+            .select_related("game_map")
+            .order_by("pk")
+        ):
+            node_ids.update((edge.start_node_id, edge.end_node_id))  # type: ignore
+            db.execute(
+                "INSERT INTO edge VALUES (?,?,?,?,?,?)",
+                (
+                    edge.pk,
+                    edge.game_map_id,  # type: ignore
+                    edge.start_node_id,  # type: ignore
+                    edge.end_node_id,  # type: ignore
+                    edge.name,
+                    edge.length_m(edge.game_map.scale),
+                ),
+            )
+        for kind, model in (("bus", BusLine), ("train", TrainLine)):
+            ids = {line_id for k, line_id in lines if k == kind}
+            for line in model.objects.filter(pk__in=ids).order_by("pk"):
+                db.execute(
+                    "INSERT INTO pt_line VALUES (?,?,?,?)",
+                    (kind, line.pk, line.game_map_id, line.name),  # type: ignore
+                )
         for node in Node.objects.filter(pk__in=node_ids).order_by("pk"):
             db.execute(
                 "INSERT INTO node VALUES (?,?,?,?,?)",
@@ -325,27 +593,91 @@ def export_research_data(path) -> dict[str, int]:
         for _, writer in _EXTRA_TABLES:
             writer(db, games)
         db.commit()
-        tables = (
-            "game",
-            "player",
-            "round",
-            "ballot_option",
-            "vote",
-            "stichwahl_vote",
-            "gruppe_round",
-            "map_version",
-            "node",
-            *(
-                row[0]
-                for row in db.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table' ORDER BY rowid"
-                )
-                if row[0] not in _BASE_TABLES
-            ),
-        )
-        return {
+
+        counts = {
             table: db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
-            for table in tables
+            for table in _tables(db)
         }
+        with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("README.txt", _readme(db, counts).encode("utf-8"))
+            for table in _tables(db):
+                # The byte-order mark: Excel on Windows reads umlauts only with it.
+                archive.writestr(
+                    f"{table}.csv", _csv_text(db, table).encode("utf-8-sig")
+                )
+        return counts
     finally:
         db.close()
+
+
+def _write_segments(db, game_round, routes, edge_ids, lines) -> None:
+    """Which streets and lines each Gruppe used, in order, there and back."""
+    segments = RouteSegment.objects.filter(agent_route__in=routes).order_by(
+        "agent_route_id", "order"
+    )
+    for segment in segments:
+        route = routes[segment.agent_route_id]  # type: ignore
+        edge_ids.add(segment.edge_id)  # type: ignore
+        if segment.pt_line_id and segment.mode in ("bus", "train"):
+            lines.add((segment.mode, segment.pt_line_id))
+        db.execute(
+            "INSERT INTO route_segment VALUES (?,?,?,?,?,?,?,?)",
+            (
+                game_round.pk,
+                route.player_move.player_id,
+                route.agent_id,
+                route.direction,
+                segment.order,
+                segment.mode,
+                segment.edge_id,  # type: ignore
+                segment.pt_line_id,
+            ),
+        )
+
+
+def _write_replay(db, game_round, sim, routes, edge_ids, node_ids) -> None:
+    """The round's recording: its frame, and one row per dot."""
+    replay = sim.replay
+    if not replay:
+        return
+    endings = replay.get("endings") or {}
+    db.execute(
+        "INSERT INTO replay_round VALUES (?,?,?,?,?,?,?,?)",
+        (
+            game_round.pk,
+            replay.get("version"),
+            replay.get("people_per_dot"),
+            replay.get("tick_duration_min"),
+            replay.get("end_min"),
+            replay.get("home_start_min"),
+            endings.get("unfinished"),
+            endings.get("stranded"),
+        ),
+    )
+    for dot in replay.get("dots", []):
+        route = routes.get(dot.get("route"))
+        if dot.get("route") is not None and route is None:
+            # A dot of a seat that is not exported (the host's own row).
+            continue
+        for kind, ref, _start, _end, from_node in dot["legs"]:
+            if kind == "e" and ref is not None:
+                edge_ids.add(ref)
+            elif kind == "s" and ref is not None:
+                node_ids.add(ref)
+            if from_node is not None:
+                node_ids.add(from_node)
+        db.execute(
+            "INSERT INTO replay_dot VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (
+                game_round.pk,
+                dot["id"],
+                dot.get("pass"),
+                route.player_move.player_id if route else None,
+                route.agent_id if route else None,
+                dot.get("line"),
+                dot.get("mode"),
+                dot.get("wants"),
+                dot.get("end"),
+                json.dumps(dot["legs"], separators=(",", ":")),
+            ),
+        )
