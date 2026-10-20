@@ -179,6 +179,7 @@ Die Diagramme zeichnet `npm run flowcharts` in `frontend/` aus dem Mermaid in de
 | [`docs/de-quick-start.md`](docs/de-quick-start.md) | [`/docs/schnellstart/`](https://co2mmute.stsds.tu-berlin.de/docs/schnellstart/)       | Schnellstart: wie gespielt wird                                 |
 | [`docs/de-hintergrund.md`](docs/de-hintergrund.md) | [`/docs/hintergrund/`](https://co2mmute.stsds.tu-berlin.de/docs/hintergrund/)         | Hintergrund: was das Spiel rechnet und warum                    |
 | [`docs/kalibrierung.md`](docs/kalibrierung.md)     | —                                                                   | die Zahlen, gegen die gespielt wird, und wie sie gemessen sind  |
+| [`docs/de-zahlen.md`](docs/de-zahlen.md)           | —                                                                   | jede Zahl des Modells: was sie tut, Quelle, wo sie steht        |
 | [`docs/testfaelle.md`](docs/testfaelle.md)         | —                                                                   | was das Spiel können muss, Fall für Fall, mit Status            |
 | [`docs/de-flowcharts.md`](docs/de-flowcharts.md)   | [`/docs/ablaufdiagramme/`](https://co2mmute.stsds.tu-berlin.de/docs/ablaufdiagramme/) | wie es läuft: Ablaufdiagramme für Runde, Routensuche, Simulation, Spielerzugang |
 
@@ -360,6 +361,7 @@ Mermaid by `npm run flowcharts` in `frontend/`.
 | [`docs/en-quick-start.md`](docs/en-quick-start.md) | [`/docs/schnellstart/`](https://co2mmute.stsds.tu-berlin.de/docs/schnellstart/) (German)       | quick start: how the game is played                          |
 | [`docs/en-background.md`](docs/en-background.md)   | [`/docs/hintergrund/`](https://co2mmute.stsds.tu-berlin.de/docs/hintergrund/) (German)         | background: what the game computes and why                   |
 | [`docs/kalibrierung.md`](docs/kalibrierung.md)     | —                                                                   | the numbers the game is played against, and how they were measured (German) |
+| [`docs/en-numbers.md`](docs/en-numbers.md)         | —                                                                   | every number of the model: what it does, its source, where it lives |
 | [`docs/testfaelle.md`](docs/testfaelle.md)         | —                                                                   | what the game has to do, case by case, with status (German)  |
 | [`docs/en-flowcharts.md`](docs/en-flowcharts.md)   | [`/docs/ablaufdiagramme/`](https://co2mmute.stsds.tu-berlin.de/docs/ablaufdiagramme/) (German) | how it runs: flowcharts of a round, the route search, the simulation, player access |
 
