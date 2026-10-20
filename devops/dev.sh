@@ -123,8 +123,11 @@ start_service() {
     echo "  $name already running"
     return
   fi
+  # stdin from /dev/null: a service in its own process group that reads the
+  # terminal gets EIO once this script exits, and Node 26 dies of it — vite
+  # reads stdin for its key shortcuts, tailwind's watcher to notice a close.
   set -m
-  ( cd "$dir" && exec "$@" ) >"$(log_file "$name")" 2>&1 &
+  ( cd "$dir" && exec "$@" ) </dev/null >"$(log_file "$name")" 2>&1 &
   local pid=$!
   set +m
   echo "$pid" >"$(pid_file "$name")"
