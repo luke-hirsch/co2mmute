@@ -34,3 +34,46 @@ export function modeTally(
     .map((mode) => ({ mode, count: modes[mode] ?? 0 }))
     .sort((a, b) => b.count - a.count);
 }
+
+/** One Pendlertyp over the whole class: its Gruppen, and what they did. */
+export type TypeLine = {
+  name: string;
+  /** How many Gruppen were dealt it, whatever their seat. */
+  groups: number;
+  /** Trips the Gruppen made in all (a Gruppe's rounds, added up). */
+  rounds: number;
+  /** How often those trips took each mode; a mode never taken is not a key. */
+  modes: Partial<Record<TransportMode, number>>;
+};
+
+/**
+ * "Wie die Pendlertypen gefahren sind": every type once, over every seat that
+ * holds it, in the order they first turn up.
+ *
+ * The same `groups` the seat's own view reads, added up by type. It carries no
+ * seat and no figure of CO₂ — a hidden game's budget is the summary's to show,
+ * and this line is about what a type *did*, not what it emitted.
+ */
+export function typeOverview(
+  players: readonly { groups: readonly SummaryGroup[] }[],
+): TypeLine[] {
+  const lines = new Map<string, TypeLine>();
+  for (const player of players) {
+    for (const group of player.groups) {
+      if (!group.persona) continue;
+      const name = group.persona.name;
+      const line = lines.get(name) ?? { name, groups: 0, rounds: 0, modes: {} };
+      line.groups += 1;
+      line.rounds += group.rounds;
+      for (const [mode, count] of Object.entries(group.modes) as [
+        TransportMode,
+        number,
+      ][]) {
+        line.modes[mode] = (line.modes[mode] ?? 0) + count;
+      }
+      lines.set(name, line);
+    }
+  }
+  return [...lines.values()];
+}
+

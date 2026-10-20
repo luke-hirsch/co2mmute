@@ -812,6 +812,13 @@ export const de = {
     groupsView: "Meine Gruppen",
     groupsLead:
       "Hat jede Gruppe gespielt, was ihr Pendlertyp verlangt? Jede Zahl gilt für einen Menschen an einem Tag, hin und zurück, im Schnitt über die Runden.",
+    /**
+     * The class's view of the types, folded: every Pendlertyp once, over all
+     * the Gruppen that held it. No seat, no CO₂.
+     */
+    typesTitle: "Wie die Pendlertypen gefahren sind",
+    typesLead: "Alle Gruppen eines Typs zusammen, über alle Runden.",
+    typeGroups: (n: number) => (n === 1 ? "1 Gruppe" : `${n} Gruppen`),
     groupNoPersona: "ohne Pendlertyp",
     groupRounds: (n: number) => (n === 1 ? "1 Runde" : `${n} Runden`),
     groupNone: "Für diese Gruppe wurde keine Runde gerechnet.",
