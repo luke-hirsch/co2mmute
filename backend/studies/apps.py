@@ -18,7 +18,9 @@ class StudiesConfig(AppConfig):
 
         from studies import codes, export
 
-        research_export.register_tables(export.SCHEMA, export.write_tables)
+        research_export.register_tables(
+            export.SCHEMA, export.write_tables, export.NOTES
+        )
         register_code_kind(
             self.participant_code_length,
             look=codes.look,

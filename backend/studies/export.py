@@ -42,6 +42,27 @@ CREATE TABLE study_note_game (
 );
 """
 
+# For the README inside the zip (`game.research_export.register_tables`).
+NOTES = {
+    "study": (
+        "one row per study that has an exported game",
+        {"name": "the researchers' own words", "description": "the researchers' own words"},
+    ),
+    "study_game": ("which exported games belong to which study", {}),
+    "study_seat": (
+        "one row per participant code and game: the seat that played it",
+        {"code": "the participant code as it is; never whose it is"},
+    ),
+    "study_note": (
+        "one row per research note; never who wrote it",
+        {
+            "text": "the researchers' own words",
+            "meta": "flat JSON: the note's own fields",
+        },
+    ),
+    "study_note_game": ("the exported games a note is about", {}),
+}
+
 
 def write_tables(db, games) -> None:
     game_ids = {game.pk for game in games}
