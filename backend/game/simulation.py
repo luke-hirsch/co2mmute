@@ -21,6 +21,7 @@ import logging
 import random
 from collections.abc import Callable
 
+from django.db import transaction
 from django.db.models import Prefetch
 
 from maps.models import BusLine, Edge, StreetPerRound, TrainLine
@@ -508,11 +509,12 @@ class TrafficSimulator(LinkQueueEngine):
             )
             self._save_results()
 
-            # Update simulation status
+            # The outcome first: the round's numbers are saved and its status
+            # says COMPLETED before the recording is even built.
             self.simulation_result.status = SimulationResult.Status.COMPLETED
             self.simulation_result.detailed_log = self.sim_log.get_text()
-            self.simulation_result.replay = self.build_replay()
             self.simulation_result.save()
+            self._save_replay()
 
             logger.info(
                 f"[SIM] Simulation completed: {self.current_tick} ticks, "
@@ -528,6 +530,24 @@ class TrafficSimulator(LinkQueueEngine):
             raise e
 
         return self.simulation_result
+
+    def _save_replay(self):
+        """The recording, after the outcome and never at its cost.
+
+        It is a picture of the round. One that cannot be built or stored — too
+        big for a jsonb value, say — is logged and left empty, and the screen
+        says there is no recording. The save runs in its own savepoint so a
+        refusal by the database does not abort the transaction the round is in.
+        """
+        try:
+            self.simulation_result.replay = self.build_replay()
+            with transaction.atomic():
+                self.simulation_result.save(update_fields=["replay"])
+        except Exception:
+            logger.exception(
+                f"[SIM] Replay of round {self.game_round.round_number} not saved"
+            )
+            self.simulation_result.replay = None
 
     # --- rows out -----------------------------------------------------
 
