@@ -52,6 +52,7 @@ import { jamTint, type EdgeLoad } from "@/lib/map/traffic";
 import { traceStepMs, type SearchTrace } from "@/lib/map/search-trace";
 import type { VersionDiff } from "@/lib/map/version-diff";
 import { MapCredits } from "@/components/map/map-credits";
+import { NamesToggle, useNamesShown } from "@/components/map/names-toggle";
 import { VersionDiffLayer } from "@/components/map/version-diff-layer";
 import type { Edge, MapGraph, Node } from "@/types/mapTypes";
 import type {
@@ -172,6 +173,7 @@ const GameMapViewer = ({
   change,
 }: GameMapViewerProps) => {
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
+  const [namesShown, setNamesShown] = useNamesShown();
 
   const nodeMap = useMemo(() => {
     const map = new Map<number, Node>();
@@ -459,20 +461,26 @@ const GameMapViewer = ({
           */}
           <PlaceMark
             point={at(homeNodeId ?? -1)}
-            label={de.round.home}
+            label={namesShown ? de.round.home : undefined}
             u={u}
             box={{ minX, width }}
             hollow
           />
           <PlaceMark
             point={at(destinationNodeId ?? -1)}
-            label={nodeMap.get(destinationNodeId ?? -1)?.name}
+            label={
+              namesShown ? nodeMap.get(destinationNodeId ?? -1)?.name : undefined
+            }
             u={u}
             box={{ minX, width }}
             below
           />
         </svg>
         <MapCredits credits={mapGraph.credits} />
+      </div>
+
+      <div className="mt-2">
+        <NamesToggle shown={namesShown} onChange={setNamesShown} />
       </div>
 
       {selectedNode && (
