@@ -135,12 +135,36 @@ test("a seat that has gone can be removed during the vote, and the vote closes w
     await page.getByRole("button", { name: "Abstimmung öffnen" }).click({
       timeout: 60_000,
     });
+
+    // The overview can put an option's change on the map, and the live tally
+    // keeps counting while it is drawn. `E2E_SHOTS` saves it at projector widths.
+    const shots = process.env.E2E_SHOTS;
+    await page
+      .getByRole("button", { name: "Auf der Karte zeigen" })
+      .first()
+      .click();
+    await expect(page.getByText(/^Auf der Karte: was „.+“ ändert\.$/)).toBeVisible({
+      timeout: 30_000,
+    });
+    for (const width of [1280, 1920]) {
+      await page.setViewportSize({ width, height: 1080 });
+      if (shots) {
+        await page.screenshot({
+          path: `${shots}/uebersicht-${width}.png`,
+          fullPage: true,
+        });
+      }
+    }
+
     await ana.getByRole("button", { name: /Dafür stimmen/ }).first().click({
       timeout: 60_000,
     });
     await expect(page.getByText("1 von 2 haben abgestimmt")).toBeVisible({
       timeout: 15_000,
     });
+    await expect(
+      page.getByRole("button", { name: "Karte ohne Änderung" }),
+    ).toBeVisible();
 
     // Ben has gone home. The projector has the list, behind its disclosure.
     await page.getByText("Plätze anzeigen").click();
