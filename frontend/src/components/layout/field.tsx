@@ -39,12 +39,13 @@ export function Field({
         // something a test can find without pinning the sentence.
         //
         // An amber rule beside ink text, not amber text: amber on the light
-        // ground is hard to read, which the map notes found first. The
-        // Django pages' `field-error` is the same thing.
+        // ground is hard to read, which the map notes found first. The rule
+        // and its padding are the notes' own, so a refusal and a note beside
+        // it read as one kind of thing.
         <ul
           id={`${id}-error`}
           role="alert"
-          className="max-w-(--measure-body) space-y-1 border-l-[3px] border-brandaccent pl-4 text-sm text-foreground"
+          className="max-w-(--measure-body) space-y-1 border-l-2 border-brandaccent pl-3 text-sm text-foreground"
         >
           {errors.map((message) => (
             <li key={message}>{message}</li>
