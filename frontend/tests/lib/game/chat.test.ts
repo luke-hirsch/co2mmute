@@ -113,10 +113,20 @@ describe("chatErrorText", () => {
 
 describe("chatDisplayName", () => {
   it("gives the host the name the backend chats under", () => {
-    // `HostPlayer.name` in game/ws_auth.py is f"{username} (Host)". Comparing
+    // `HostPlayer.name` in game/ws_auth.py is "Spielleitung", whoever the
+    // account is: the players are minors. Comparing
     // against the host's *seat* name instead would mean the host never
     // recognises a single one of their own lines.
-    expect(chatDisplayName({ kind: "host", username: "sarah" })).toBe("sarah (Host)");
+    expect(chatDisplayName({ kind: "host", username: "sarah" })).toBe(
+      "Spielleitung",
+    );
+    expect(chatDisplayName({ kind: "host", username: "sarah" })).toBe(
+      de.chat.hostName,
+    );
+  });
+
+  it("gives a host without a username the same name", () => {
+    expect(chatDisplayName({ kind: "host" })).toBe(de.chat.hostName);
   });
 
   it("gives a player their screen name", () => {
@@ -130,7 +140,6 @@ describe("chatDisplayName", () => {
     // marked as this reader's, which is the right answer rather than marking
     // every nameless line.
     expect(chatDisplayName({ kind: "anonymous" })).toBeNull();
-    expect(chatDisplayName({ kind: "host" })).toBeNull();
   });
 });
 

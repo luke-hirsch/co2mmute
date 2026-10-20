@@ -59,8 +59,10 @@ test("a message reaches the other device, and survives a reload", async ({
     // C-01, first half: the host writes.
     await send(page, "hallo zusammen");
     await expect(panel.getByText("hallo zusammen")).toBeVisible();
-    // The host chats as "<username> (Host)" — `HostPlayer.name` in ws_auth.py.
-    await expect(panel.getByText(/\(Host\)/).first()).toBeVisible();
+    // The host chats as the Spielleitung, never under the login name —
+    // `HostPlayer.name` in ws_auth.py.
+    await expect(panel.getByText("Spielleitung").first()).toBeVisible();
+    await expect(panel.getByText(/\(Host\)/)).toHaveCount(0);
 
     // C-02: a reload gets the history back. Nothing is in browser storage —
     // `ChatConsumer.connect()` replays it from Redis on every connect.

@@ -98,6 +98,8 @@ export type VoteOutcome = {
   stalemate: boolean;
   winningVersionId: number | null;
   winningVersionName: string;
+  /** The vote took a change away, which the header says in its own words. */
+  winningIsRollback: boolean;
   /** The host cut a tie short rather than letting it resolve. */
   forced: boolean;
 };
@@ -176,6 +178,7 @@ function snapshotOutcome(
     stalemate: false,
     winningVersionId: result.winning_version_id,
     winningVersionName: result.winning_version_name,
+    winningIsRollback: result.winning_is_rollback ?? false,
     forced: result.forced,
   };
 }
@@ -497,6 +500,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           stalemate: false,
           winningVersionId: event.data.winning_version_id,
           winningVersionName: event.data.winning_version_name,
+          winningIsRollback: event.data.winning_is_rollback ?? false,
           forced: event.data.forced ?? false,
         },
       };
@@ -510,6 +514,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           stalemate: true,
           winningVersionId: null,
           winningVersionName: event.data.winning_version_name,
+          winningIsRollback: false,
           forced: false,
         },
       };

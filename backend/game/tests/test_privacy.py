@@ -187,7 +187,7 @@ class HostRowAnonymisationTests(TempMediaRootMixin, TestCase):
 
     GameSessionCreateView names the host row after the account —
     "Erika Muster (Host)". That full name has to go as well. The row is not a
-    student, though, so it becomes "Host" and takes no "Spieler N" number.
+    student, though, so it becomes "Spielleitung" and takes no "Spieler N" number.
 
     The host can add players who play on the host machine
     (controlled_by_host=True, no account). Those are students and are numbered
@@ -223,7 +223,7 @@ class HostRowAnonymisationTests(TempMediaRootMixin, TestCase):
         self.anonymise()
 
         self.host_row.refresh_from_db()
-        self.assertEqual(self.host_row.name, "Host")
+        self.assertEqual(self.host_row.name, "Spielleitung")
 
     def test_the_host_row_takes_no_number(self):
         self.anonymise()
@@ -851,7 +851,7 @@ class AccountAnonymisationTests(TempMediaRootMixin, TestCase):
         self.anonymise()
 
         self.host_row.refresh_from_db()
-        self.assertEqual(self.host_row.name, "Host")
+        self.assertEqual(self.host_row.name, "Spielleitung")
 
     def test_the_host_row_is_still_found_by_account(self):
         """The trap: clearing Player.user would make host_rows() miss it, and

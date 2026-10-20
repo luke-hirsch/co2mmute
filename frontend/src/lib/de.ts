@@ -262,6 +262,8 @@ export const de = {
     open: "Chat öffnen",
     close: "Chat schließen",
     empty: "Noch nichts geschrieben.",
+    /** What the players see for the host: no account name, whoever the host is. */
+    hostName: "Spielleitung",
     /** The host switched it off; there is nothing to open. */
     disabled: "Die Spielleitung hat den Chat ausgeschaltet.",
     placeholder: "Schreib etwas …",
@@ -758,6 +760,8 @@ export const de = {
 
     /** The outcome, carried into the next round's header. */
     appliedTitle: "Neu auf der Karte",
+    /** The title over the line when the vote took a change away. */
+    rolledBackTitle: "Wieder wie vorher",
     applied: (name: string) => `„${name}“ ist angenommen.`,
     unchanged: "Die Karte bleibt, wie sie ist.",
   },

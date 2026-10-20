@@ -315,6 +315,54 @@ class HostRowMigrationTests(TempMediaRootMixin, TestCase):
         self.assertEqual(set(Player.objects.values_list("pk", "player_id")), ids_before)
 
 
+HOST_NAME_MIGRATION = "game.migrations.0027_spielleitung"
+
+
+@override_settings(**TEST_BACKENDS)
+class HostRowNameMigrationTests(TempMediaRootMixin, TestCase):
+    """0027 renames the host rows that already exist to "Spielleitung".
+
+    Until then GameSessionCreateView wrote "<full name> (Host)" into them, and
+    the roster carries every row of a game to every player in it.
+    """
+
+    def setUp(self):
+        self.host = create_host(first_name="Erika", last_name="Muster")
+        with muted():
+            self.game = create_game_session(self.host)
+            self.host_row = Player.objects.create(
+                game=self.game, name="Erika Muster (Host)", user=self.host
+            )
+            self.seat = Player.objects.create(
+                game=self.game, name="Ohne Handy", controlled_by_host=True
+            )
+            self.student = Player.objects.create(game=self.game, name="Mia")
+
+    def migration(self):
+        return importlib.import_module(HOST_NAME_MIGRATION)
+
+    def test_host_rows_are_called_spielleitung(self):
+        self.migration().host_rows_are_spielleitung(apps, None)
+
+        self.host_row.refresh_from_db()
+        self.assertEqual(self.host_row.name, "Spielleitung")
+
+    def test_nobody_else_is_renamed(self):
+        self.migration().host_rows_are_spielleitung(apps, None)
+
+        self.seat.refresh_from_db()
+        self.student.refresh_from_db()
+        self.assertEqual(self.seat.name, "Ohne Handy")
+        self.assertEqual(self.student.name, "Mia")
+
+    def test_the_account_link_stays(self):
+        """Clearing it would make `host_rows()` miss the row."""
+        self.migration().host_rows_are_spielleitung(apps, None)
+
+        self.host_row.refresh_from_db()
+        self.assertEqual(self.host_row.user, self.host)
+
+
 @override_settings(**TEST_BACKENDS)
 class GameMapRequiredTests(TempMediaRootMixin, TestCase):
     """A game without a map is a game nobody can start.

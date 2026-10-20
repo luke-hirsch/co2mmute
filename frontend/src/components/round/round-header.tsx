@@ -65,12 +65,13 @@ function VoteApplied() {
   const { state } = useGame();
   if (!state.voteOutcome) return null;
 
-  const { winningVersionId, winningVersionName } = state.voteOutcome;
+  const { winningVersionId, winningVersionName, winningIsRollback } =
+    state.voteOutcome;
 
   return (
     <p className="mt-6 border-l-[3px] border-brandaccent pl-4 max-w-(--measure-body)">
       <span className="font-mono text-xs tracking-[0.12em] text-muted-foreground uppercase">
-        {de.vote.appliedTitle}
+        {winningIsRollback ? de.vote.rolledBackTitle : de.vote.appliedTitle}
       </span>
       <span className="mt-1 block">
         {winningVersionId === null

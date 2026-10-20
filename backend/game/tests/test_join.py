@@ -927,9 +927,20 @@ class CreateGameEndpointTests(TempMediaRootMixin, TestCase):
         host_row = Player.objects.filter(game=game).host_rows().get()  # type: ignore
         self.assertEqual(host_row.user, self.host)
         self.assertFalse(host_row.controlled_by_host)
-        self.assertEqual(host_row.name, "Sebastian Werblinski (Host)")
+        self.assertEqual(host_row.name, "Spielleitung")
 
-    def test_a_nameless_account_is_just_Host(self):
+    def test_the_host_row_never_carries_the_account_name(self):
+        """Players are minors and the roster carries the row: whatever the
+        account is called, the row says Spielleitung."""
+        self.client.force_login(self.host)
+
+        self._create(game_name="Ohne Konto")
+
+        row = Player.objects.filter(game__game_name="Ohne Konto").host_rows().get()  # type: ignore
+        self.assertNotIn("Werblinski", row.name)
+        self.assertNotIn(self.host.username, row.name)
+
+    def test_a_nameless_account_is_just_Spielleitung(self):
         nameless = create_host(username="ohne")
         self.client.force_login(nameless)
 
@@ -938,7 +949,7 @@ class CreateGameEndpointTests(TempMediaRootMixin, TestCase):
         game = GameSession.objects.get(game_name="Ohne Namen")
         self.assertEqual(
             Player.objects.filter(game=game).host_rows().get().name,  # type: ignore
-            "Host",
+            "Spielleitung",
         )
 
     def test_it_hands_back_both_cookies(self):

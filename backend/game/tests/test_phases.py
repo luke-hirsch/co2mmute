@@ -637,6 +637,41 @@ class BallotTests(BetweenRoundsMixin, TestCase):
         )
         self.assertEqual(phases().ballot_option(a, both)["poll_text"], "B?")
 
+    def two_changes(self):
+        """base, A, B and a version holding both. A and B are single changes."""
+        from maps.models import Node
+
+        game_map = GameMap.objects.create(name="Zwei Änderungen")
+        base = MapVersion.objects.create(
+            game_map=game_map, name="Basis", base_version=True
+        )
+        a = MapVersion.objects.create(game_map=game_map, name="A", source_version=base)
+        b = MapVersion.objects.create(game_map=game_map, name="B", source_version=base)
+        both = MapVersion.objects.create(game_map=game_map, name="A + B")
+        for x, holders in ((1, (base, a, b, both)), (2, (a, both)), (3, (b, both))):
+            node = Node.objects.create(game_map=game_map, x_position=x, y_position=1)
+            node.map_versions.add(*holders)
+        return game_map, base, a, b, both
+
+    def test_a_step_back_of_one_change_is_named_by_it(self):
+        _, base, a, b, both = self.two_changes()
+
+        self.assertEqual(phases().ballot_option(a, base)["name"], "A zurücknehmen")
+        # From both, taking B away leaves A: the card says what goes, not what stays.
+        self.assertEqual(phases().ballot_option(both, a)["name"], "B zurücknehmen")
+        self.assertTrue(phases().ballot_option(both, a)["is_rollback"])
+
+    def test_a_step_forward_keeps_the_versions_name(self):
+        _, base, a, b, both = self.two_changes()
+
+        self.assertEqual(phases().ballot_option(base, a)["name"], "A")
+        self.assertEqual(phases().ballot_option(a, both)["name"], "A + B")
+
+    def test_a_step_back_of_several_changes_keeps_the_versions_name(self):
+        _, base, a, b, both = self.two_changes()
+
+        self.assertEqual(phases().ballot_option(both, base)["name"], "Basis")
+
 
 @override_settings(**TEST_BACKENDS)
 class LeavingFinishesAPhaseTests(BetweenRoundsMixin, TestCase):
@@ -1010,6 +1045,79 @@ class VoteResultIsRecordedTests(BetweenRoundsMixin, TestCase):
 
         self.assertEqual(self.phase_now(), Phase.STALEMATE)
         self.assertEqual(self.result(), {})
+
+
+class RollbackIsRecordedTests(BetweenRoundsMixin, TestCase):
+    """A vote back is recorded under the name the class saw on the card.
+
+    The outcome is written when it happens: the summary reads the stored name,
+    and a card that said "A zurücknehmen" must not turn into "Basis" there.
+    """
+
+    phase = Phase.VOTING
+
+    def setUp(self):
+        super().setUp()
+        from maps.models import Node
+
+        game_map = GameMap.objects.create(name="Zurück")
+        self.base = MapVersion.objects.create(
+            game_map=game_map, name="Basis", base_version=True
+        )
+        self.a = MapVersion.objects.create(
+            game_map=game_map, name="A", source_version=self.base
+        )
+        self.b = MapVersion.objects.create(
+            game_map=game_map, name="B", source_version=self.base
+        )
+        holders_of = ((1, (self.base, self.a, self.b)), (2, (self.a,)), (3, (self.b,)))
+        for x, holders in holders_of:
+            node = Node.objects.create(game_map=game_map, x_position=x, y_position=1)
+            node.map_versions.add(*holders)
+        GameSession.objects.filter(pk=self.game.pk).update(
+            game_map=game_map, map_updates=True, active_map_version=self.a
+        )
+        self.game.refresh_from_db()
+        self.set_round(vote_option_ids=[self.base.pk, self.b.pk])
+
+    def result(self):
+        self.round.refresh_from_db()
+        return self.round.vote_result
+
+    def test_the_stored_winner_has_the_name_of_the_card(self):
+        self.vote(self.anna, self.base)
+        self.vote(self.ben, self.base)
+
+        self.assertEqual(self.result()["winning_version_id"], self.base.pk)
+        self.assertEqual(self.result()["winning_version_name"], "A zurücknehmen")
+        self.assertIs(self.result()["winning_is_rollback"], True)
+
+    def test_the_stored_ballot_and_counts_use_it_too(self):
+        self.vote(self.anna, self.base)
+        self.vote(self.ben, self.base)
+
+        options = {r["version_id"]: r["version_name"] for r in self.result()["options"]}
+        counts = {r["version_id"]: r["version_name"] for r in self.result()["vote_counts"]}
+
+        self.assertEqual(options, {self.base.pk: "A zurücknehmen", self.b.pk: "B"})
+        self.assertEqual(counts, {self.base.pk: "A zurücknehmen"})
+
+    def test_the_broadcast_says_the_same(self):
+        listener = GroupListener(self.game.game_id)
+        self.vote(self.anna, self.base)
+        self.vote(self.ben, self.base)
+
+        broadcast = listener.data("vote.result")
+
+        self.assertEqual(broadcast["winning_version_name"], "A zurücknehmen")
+        self.assertIs(broadcast["winning_is_rollback"], True)
+
+    def test_a_step_that_adds_something_is_no_rollback(self):
+        self.vote(self.anna, self.b)
+        self.vote(self.ben, self.b)
+
+        self.assertEqual(self.result()["winning_version_name"], "B")
+        self.assertIs(self.result()["winning_is_rollback"], False)
 
 
 @override_settings(**TEST_BACKENDS)

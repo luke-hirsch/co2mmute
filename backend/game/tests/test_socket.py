@@ -610,7 +610,8 @@ class SocketTests(GameWithSeatsMixin, TransactionTestCase):
                 "options": [],
                 "vote_counts": [],
                 "winning_version_id": 7,
-                "winning_version_name": "Busspuren",
+                "winning_version_name": "Busspuren zurücknehmen",
+                "winning_is_rollback": True,
                 "tie": False,
                 "stalemate_count": 0,
                 "forced": False,
@@ -624,7 +625,8 @@ class SocketTests(GameWithSeatsMixin, TransactionTestCase):
             self.game_state()["voteResult"],
             {
                 "winning_version_id": 7,
-                "winning_version_name": "Busspuren",
+                "winning_version_name": "Busspuren zurücknehmen",
+                "winning_is_rollback": True,
                 "forced": False,
             },
         )
@@ -1426,3 +1428,18 @@ class ChatOffRefusesTheSocketTests(GameWithSeatsMixin, TransactionTestCase):
         async_to_sync(consumer._handle_chat_message)({"message": "hallo"})
 
         self.assertEqual(sent, [{"type": "chat.error", "error": "Chat is off"}])
+
+
+@override_settings(**TEST_BACKENDS)
+class HostChatNameTests(TempMediaRootMixin, TestCase):
+    """The host chats as Spielleitung: the players are minors, and neither the
+    login name nor the full name of an account is theirs to read."""
+
+    def test_the_host_on_a_socket_is_called_spielleitung(self):
+        from game.ws_auth import HostPlayer
+
+        host = create_host(username="sarah.wolf", first_name="Sarah", last_name="Wolf")
+        with muted():
+            game = create_game_session(host, game_name="Name")
+
+        self.assertEqual(HostPlayer(host, game).name, "Spielleitung")

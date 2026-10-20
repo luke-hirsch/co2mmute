@@ -10,6 +10,18 @@ import { co2Unit, type Scale } from "@/lib/game/scale";
 import { co2Hidden, type RoundResult } from "@/lib/game/game-state";
 
 /**
+ * A figure and its unit on one line, with a gap before it. The unit is part of
+ * the string, so without `whitespace-nowrap` a six-digit kilogram figure wraps
+ * its "kg" away from its number, and without the gap two right-aligned columns
+ * read as one number ("11.211,8" next to "27.874,83 €").
+ */
+export const figureCell =
+  "whitespace-nowrap pl-3 text-right font-mono tabular-nums";
+
+/** A column head over a `figureCell`. */
+export const figureHead = "whitespace-nowrap pl-3 pb-2 text-right font-normal";
+
+/**
  * What the last round cost, per player (Z-01).
  *
  * Shared by the player's stats screen and the host's — so the figures are
@@ -39,22 +51,10 @@ import { co2Hidden, type RoundResult } from "@/lib/game/game-state";
  * line they must never cross is a log, a toast or an error string
  * (AGENTS.md → players are minors).
  *
- * The table scrolls sideways in its own box rather than pushing the page — four
- * columns of numbers do not fit 390px, and the page body must never scroll
- * horizontally.
+ * The table sits in a box of its own that scrolls sideways if a very long name
+ * or a larger type size ever outgrows it, rather than pushing the page: the page
+ * body must never scroll horizontally.
  */
-/**
- * A figure and its unit on one line, with a gap before it. The unit is part of
- * the string, so without `whitespace-nowrap` a six-digit kilogram figure wraps
- * its "kg" away from its number, and without the gap two right-aligned columns
- * read as one number ("11.211,8" next to "27.874,83 €").
- */
-export const figureCell =
-  "whitespace-nowrap pl-3 text-right font-mono tabular-nums";
-
-/** A column head over a `figureCell`. */
-export const figureHead = "whitespace-nowrap pl-3 pb-2 text-right font-normal";
-
 export function StatsPanel({
   round,
   seatId,
