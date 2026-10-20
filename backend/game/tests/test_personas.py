@@ -4,10 +4,12 @@ The debrief that reads them back is in `test_rounds.py`, beside the rest of the
 summary.
 """
 
+import importlib
 import random
 from collections import Counter
 from types import SimpleNamespace
 
+from django.apps import apps
 from django.test import TestCase, override_settings
 from django.urls import resolve
 
@@ -79,6 +81,77 @@ class StandardPendlertypenTests(TestCase):
         response = self.client.get("/api/game/personas/")
 
         self.assertIn(response.status_code, (401, 403))
+
+
+TEXTS_MIGRATION = "game.migrations.0028_pendlertypen_texte"
+
+NEW_TEXTS = {
+    "Auf den letzten Drücker": "Immer zu spät los. Hauptsache schnell da, egal womit.",
+    "Sparfuchs": "Ende des Monats, Konto leer. Der billigste Weg gewinnt, auch wenn er dauert.",
+    "Öko aus Überzeugung": "So wenig CO₂ wie möglich, auch wenn es länger dauert oder mehr kostet.",
+    "Sportskanone": "Wozu ins Fitnessstudio? Wo es geht, mit dem Rad oder zu Fuß.",
+    "Bloß kein Stress": "Kein Umsteigen, keine Umwege. Hauptsache entspannt ankommen.",
+    "Benzin im Blut": "Ohne Auto geht gar nichts. Lieber im Stau als in Bus und Bahn.",
+    "Einfach du": "Keine Rolle. Fahr so, wie du selbst fahren würdest.",
+}
+
+
+class StandardTextsMigrationTests(TestCase):
+    """0028 rewrites the seven standard texts, and only where nobody has touched them.
+
+    Its functions are called directly with the app registry, as the other data
+    migrations' tests do.
+    """
+
+    def migration(self):
+        return importlib.import_module(TEXTS_MIGRATION)
+
+    def standard(self):
+        return {p.name: p.description for p in Persona.objects.filter(game=None)}
+
+    def test_a_standard_row_with_the_old_draft_gets_the_new_text(self):
+        # The test database was migrated up to 0028 already; put the drafts back.
+        self.migration().restore_old_texts(apps, None)
+        self.assertNotEqual(self.standard()["Sparfuchs"], NEW_TEXTS["Sparfuchs"])
+
+        self.migration().rewrite_standard_texts(apps, None)
+
+        self.assertEqual(self.standard(), NEW_TEXTS)
+
+    def test_the_seven_rows_say_it_after_migrating(self):
+        self.assertEqual(self.standard(), NEW_TEXTS)
+
+    def test_an_edit_in_the_admin_stays(self):
+        self.migration().restore_old_texts(apps, None)
+        Persona.objects.filter(game=None, name="Sparfuchs").update(
+            description="Mein eigener Satz."
+        )
+
+        self.migration().rewrite_standard_texts(apps, None)
+
+        self.assertEqual(self.standard()["Sparfuchs"], "Mein eigener Satz.")
+        self.assertEqual(self.standard()["Sportskanone"], NEW_TEXTS["Sportskanone"])
+
+    def test_a_game_keeps_the_text_it_copied(self):
+        host = create_host()
+        with muted():
+            game = create_game_session(host)
+        self.migration().restore_old_texts(apps, None)
+        old = Persona.objects.get(game=None, name="Sparfuchs").description
+        copy = Persona.objects.create(game=game, name="Sparfuchs", description=old)
+
+        self.migration().rewrite_standard_texts(apps, None)
+
+        copy.refresh_from_db()
+        self.assertEqual(copy.description, old)
+
+    def test_it_can_be_taken_back(self):
+        self.migration().restore_old_texts(apps, None)
+
+        self.assertEqual(
+            self.standard()["Benzin im Blut"],
+            "Ohne Auto geht gar nichts. Lieber im Stau als im Bus.",
+        )
 
 
 class CreateWithPendlertypenTests(TempMediaRootMixin, TestCase):
