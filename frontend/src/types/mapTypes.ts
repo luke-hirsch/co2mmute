@@ -82,8 +82,14 @@ export interface GameMap {
   default_car_speed_kmh: number;
   /** The calibration, per map because it is a property of the graph. */
   district_commuters: number;
-  /** Whether that count was measured on this map, or is still the default. */
-  calibrated: boolean;
+  /** When that count was measured on this map (ISO), null while it is still the default. */
+  calibrated_at: string | null;
+  /** The share of the timetable the class pays, 0 to 1. */
+  timetable_factor?: number;
+  /** When the graph last changed; read-only. */
+  graph_edited_at?: string | null;
+  /** Whether the graph changed after the count was measured; read-only. */
+  edited_since_calibration?: boolean;
   /** kg per person per round at each car share, by percent; null until measured. */
   co2_table?: Record<string, number> | null;
   /** Whose data the map is drawn from; none on a hand-drawn map. */

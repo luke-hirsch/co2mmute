@@ -51,21 +51,50 @@ class GameMap(models.Model):
             "Karte gleich viel Verkehr ist, egal wie viele mitspielen."
         ),
     )
-    # Whether the number above was measured on THIS map. Every map
-    # starts at the Berlin default, and comparing against it cannot tell a
-    # small map that inherited it from the one map it was measured on — so
-    # the map says it. False until somebody who replayed rounds on it says
-    # otherwise; the create form warns while it is. It travels in the file,
-    # and only an explicit `true` beside the number counts
-    # (`maps/importer.py`).
-    calibrated = models.BooleanField(
-        default=False,
+    # When the number above was measured on THIS map, null if it never was.
+    # Every map starts at the Berlin default, and comparing against it cannot
+    # tell a small map that inherited it from the one map it was measured on,
+    # so the map says it; the create form warns while it is null. It travels
+    # in the file, and only a date beside the count counts
+    # (`maps/importer.py`). Written by whoever measured it, with the time the
+    # measurement started: an edit made during a long run then still reads as
+    # "edited since".
+    calibrated_at = models.DateTimeField(
+        null=True,
+        blank=True,
         help_text=(
-            "Ob die Pendlerzahl für diese Karte gemessen ist. Solange nicht, "
-            "warnt das Formular „Spiel anlegen“, dass die Menschen pro Gruppe "
-            "nicht zur Karte passen müssen."
+            "Wann die Pendlerzahl für diese Karte gemessen wurde. Leer, solange "
+            "nicht: dann warnt das Formular „Spiel anlegen“, dass die Menschen "
+            "pro Gruppe nicht zur Karte passen müssen."
         ),
     )
+    # When the graph (nodes, edges, lines) or a map value the simulation reads
+    # last changed, null if not since the map was imported. Set where the graph
+    # cache is dropped (`maps/graph_cache.py`), so every editor write is
+    # covered; an import is no edit and clears it. Not in the file.
+    graph_edited_at = models.DateTimeField(null=True, blank=True, editable=False)
+
+    # The map-row values a measurement reads: the scale turns a drawing's
+    # units into metres, and the three speeds are what a map without its own
+    # speed limit or a mode runs at. Changing one makes a calibration stale.
+    # Not here: the name, credits, background, the dimensions (only the view
+    # box), and the numbers a calibration writes itself (`district_commuters`,
+    # `timetable_factor`, `co2_table`, `calibrated_at`).
+    STALES_CALIBRATION = (
+        "scale",
+        "walk_speed_kmh",
+        "bike_speed_kmh",
+        "default_car_speed_kmh",
+    )
+
+    @property
+    def edited_since_calibration(self) -> bool:
+        """Whether the graph changed after the count was measured."""
+        return (
+            self.graph_edited_at is not None
+            and self.calibrated_at is not None
+            and self.graph_edited_at > self.calibrated_at
+        )
 
     # How much of the timetable a class pays, CO2 and cost. The lines run the
     # real city's timetable, made for its millions, and the class is a few

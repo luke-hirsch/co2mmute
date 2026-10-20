@@ -99,7 +99,7 @@ def emit(net, name, homes_at, work_at):
                 "bike_speed_kmh": 20,
                 "default_car_speed_kmh": 50,
                 "district_commuters": COMMUTERS,
-                "calibrated": False,
+                "calibrated_at": None,
             },
             "versions": [
                 {

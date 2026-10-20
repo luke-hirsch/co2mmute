@@ -123,8 +123,12 @@ class GameMapDetailView(RetrieveUpdateDestroyAPIView):
 
     def perform_update(self, serializer):
         """Set updated_by when updating a map."""
-        serializer.save(updated_by=self.request.user)
-        _invalidate_map_cache(self.kwargs["pk"])
+        before = {f: getattr(serializer.instance, f) for f in GameMap.STALES_CALIBRATION}
+        instance = serializer.save(updated_by=self.request.user)
+        # Only a changed value a measurement reads is an edit: a form may send
+        # every field every time, and a calibration written back is none.
+        edited = any(getattr(instance, f) != v for f, v in before.items())
+        _invalidate_map_cache(self.kwargs["pk"], edit=edited)
 
     def destroy(self, request, *args, **kwargs):
         """Through `delete_map`: a map a game was on is refused with a 409."""
@@ -863,14 +867,14 @@ class MapImportView(GenericAPIView):
         return Response({"id": game_map.pk}, status=status.HTTP_201_CREATED)
 
 
-def _invalidate_map_cache(map_pk):
+def _invalidate_map_cache(map_pk, edit=True):
     """Every cached graph of the map is stale. See `maps/graph_cache.py`.
 
     The model signals already do this for every row a graph is built from; the
     explicit calls stay because a view that knows it changed the map should not
     depend on which rows a signal happens to watch.
     """
-    graph_cache.invalidate(map_pk)
+    graph_cache.invalidate(map_pk, edit=edit)
 
 
 class GameMapImageUploadView(GenericAPIView):

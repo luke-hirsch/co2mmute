@@ -323,12 +323,12 @@ Every map carries:
 
 ```
 district_commuters        commuters the map carries
-calibrated                whether the count was measured on this map
+calibrated_at            when the count was measured on this map
 timetable_factor          the share of the timetable the commuters pay
 ```
 
 The values are in the map's JSON file, can be changed in the admin, and travel with an export. A new
-map takes Berlin Mitte-West's 6800 until somebody measures it. Only once `calibrated` is set does the
+map takes Berlin Mitte-West's 6800 until somebody measures it. Only once `calibrated_at` is set does the
 notice on the create form go away.
 
 The budget is not the map's. It is a number per person and round, the same on every map, and the
@@ -590,6 +590,6 @@ Measure again when
 - an emission factor changes, or how long the lines run. That moves what normal buys on the map —
   and on Berlin perhaps normal itself.
 
-Then enter the commuter count in the map file or in the admin, set `calibrated`, and export the map
+Then enter the commuter count in the map file or in the admin, set `calibrated_at`, and export the map
 so the measurement travels with the file (`calibrate_map --out` writes both). The measurements for Berlin Mitte-West, with every table, are in
 `docs/kalibrierung.md` and `backend/game/calibration.py`.

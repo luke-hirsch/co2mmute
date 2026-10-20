@@ -12,13 +12,17 @@ take the games with it if an import could overwrite one.
 
 import base64
 import binascii
+import datetime
 import json
 import logging
 
 from django.core.files.base import ContentFile
 from django.db import transaction
+from django.utils import timezone
+from django.utils.dateparse import parse_date, parse_datetime
 
 from game.calibration import clean_co2_table
+from maps import graph_cache
 from maps.models import (
     BusLine,
     BusLineEdge,
@@ -74,6 +78,32 @@ def clean_credits(value):
             logger.warning("Credit link is no web address (%r), left out", url)
         credits.append(credit)
     return credits
+
+
+def _measured_at(map_meta):
+    """When the file says its count was measured, or None.
+
+    `calibrated_at` as an ISO datetime or a date (read as midnight UTC); a
+    file from before the date says `calibrated: true`, read as now. Anything
+    else (a "ja", a future time, a bad string) says nothing.
+    """
+    value = map_meta.get("calibrated_at")
+    if isinstance(value, str):
+        moment = parse_datetime(value)
+        if moment is None:
+            day = parse_date(value)
+            if day is not None:
+                moment = datetime.datetime(
+                    day.year, day.month, day.day, tzinfo=datetime.timezone.utc
+                )
+        if moment is not None and timezone.is_naive(moment):
+            moment = timezone.make_aware(moment, datetime.timezone.utc)
+        if moment is not None and moment <= timezone.now():
+            return moment
+        return None
+    if value is None and map_meta.get("calibrated") is True:
+        return timezone.now()
+    return None
 
 
 class ImportRefused(Exception):
@@ -143,7 +173,7 @@ class MapImporter:
             logger.info(f"Starting map creation for '{map_name}'")
 
             # Create map in a transaction
-            with transaction.atomic():
+            with graph_cache.not_an_edit(), transaction.atomic():
                 scale = graph_data.get("scale", 1.0) if graph_data else 1.0
                 game_map = self._create_game_map(
                     name=map_name,
@@ -213,16 +243,18 @@ class MapImporter:
                             if value > 0:
                                 game_map.district_commuters = value
                                 changed.append(key)
-                    # Whether that count was measured on this map. Only
-                    # an explicit `true` counts, and only beside the count: the
-                    # export writes it on every map, measured or
-                    # not, so the count alone says nothing — and a flag with no
-                    # count would certify the field default as this map's
-                    # measurement.
-                    if map_meta.get("calibrated") is True:
+                    # When that count was measured on this map. Only a
+                    # date counts, and only beside the count: the export
+                    # writes the field on every map, measured or not, so the
+                    # count alone says nothing, and a date with no count would
+                    # certify the field default as this map's measurement.
+                    # A file from before the date (`calibrated: true`) says it
+                    # was measured and not when: it counts as measured now.
+                    measured_at = _measured_at(map_meta)
+                    if measured_at is not None:
                         if key in changed:
-                            game_map.calibrated = True
-                            changed.append("calibrated")
+                            game_map.calibrated_at = measured_at
+                            changed.append("calibrated_at")
                         else:
                             logger.warning(
                                 "Map %s: says calibrated but states no "
@@ -309,6 +341,8 @@ class MapImporter:
                         edge_mapping=edge_mapping,
                     )
 
+                    # An import is no edit: the rows above bumped it.
+                    GameMap.objects.filter(pk=game_map.pk).update(graph_edited_at=None)
                     logger.info(
                         f"User {self.user.username} created map '{map_name}' "
                         f"with {len(node_mapping)} nodes"

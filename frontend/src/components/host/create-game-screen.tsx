@@ -290,7 +290,7 @@ export function CreateGameScreen({ studyId }: { studyId?: number } = {}) {
               Ink with an accent rule, not amber text: the accent is a signage
               colour and three lines of it on the page ground are hard to read.
             */}
-            {selected && !selected.calibrated ? (
+            {selected && !selected.calibrated_at ? (
               <p className={mapNoteClass}>
                 {de.create.mapUncalibrated}
               </p>

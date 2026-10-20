@@ -28,7 +28,7 @@ from .versions import (
 class GameMapAdmin(admin.ModelAdmin):
     list_display = (
         "name",
-        "calibrated",
+        "calibrated_at",
         "timetable_factor",
         "x_dim",
         "y_dim",

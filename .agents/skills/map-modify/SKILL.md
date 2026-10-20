@@ -76,7 +76,7 @@ for it only where no speed source exists, as for a village TomTom doesn't list. 
 python3 .agents/skills/map-modify/modify.py commuters <map> 1800
 ```
 
-It sets the count and `calibrated` to false: the number was not measured on this map. Measure it
+It sets the count and clears `calibrated_at`: the number was not measured on this map. Measure it
 (below), or leave the map unmeasured and say so. The source is not stored on the map; tell the
 human to keep it, and name it in your answer.
 

@@ -602,7 +602,7 @@ class ShippedMapImportsTests(ShippedUploadMixin, TestCase):
         warn about it. Every other map starts unmeasured."""
         game_map = self.upload_shipped_map()
 
-        self.assertTrue(game_map.calibrated)
+        self.assertEqual(game_map.calibrated_at.date().isoformat(), "2026-10-16")
 
     def test_the_shipped_map_pays_its_measured_share_of_the_timetable(self):
         """`calibrate_map --commuters 6800` on Postgres, six seeds, 2026-10-16:

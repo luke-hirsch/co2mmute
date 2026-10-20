@@ -26,7 +26,7 @@ transport. On Postgres the rounds of a step play side by side, one process
 each (`--workers`, as many as the seeds unless the machine has fewer cores):
 all of Berlin took four and a half hours one by one. Prints the answer and the
 table it came from; `--out` writes a copy of the file carrying the count,
-`calibrated: true` and the share.
+`calibrated_at` and the share.
 """
 
 import json
@@ -42,6 +42,7 @@ from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand, CommandError
 from django.db import connection
 from django.test.utils import override_settings
+from django.utils import timezone
 
 from game import calibration
 from maps.checks import check_map
@@ -65,10 +66,10 @@ def minutes(value):
     return "—" if value is None else f"{de(value, 1)} min"
 
 
-def calibrated_file(graph, result):
+def calibrated_file(graph, result, measured_at):
     """The file with what the calibration measured on it, for `--out`.
 
-    The count and `calibrated: true`, and the share of the timetable the class
+    The count and `calibrated_at` (when the run started), and the share of the timetable the class
     pays where there was one to measure; where not, the file keeps its own. And
     the table of kg a head per car share, which the create form reads.
     """
@@ -76,7 +77,8 @@ def calibrated_file(graph, result):
     meta["district_commuters"] = result.commuters
     # A file from before the budget was per person (2026-10-07).
     meta.pop("co2_budget_kg_per_round", None)
-    meta["calibrated"] = True
+    meta.pop("calibrated", None)
+    meta["calibrated_at"] = measured_at.isoformat()
     if result.timetable_factor is not None:
         meta["timetable_factor"] = result.timetable_factor
     meta["co2_table"] = result.co2_table
@@ -134,7 +136,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--out",
             help=(
-                "Kopie der Datei mit der Pendlerzahl, calibrated: true und dem "
+                "Kopie der Datei mit der Pendlerzahl, calibrated_at und dem "
                 "Anteil am Fahrplan."
             ),
         )
@@ -152,6 +154,7 @@ class Command(BaseCommand):
         out,
         **options,
     ):
+        started = timezone.now()
         path = Path(file)
         try:
             graph = json.loads(path.read_text(encoding="utf-8"))
@@ -213,7 +216,7 @@ class Command(BaseCommand):
         self._report(graph, rounds, result)
         if out:
             Path(out).write_text(
-                json.dumps(calibrated_file(graph, result), indent=2, ensure_ascii=False)
+                json.dumps(calibrated_file(graph, result, started), indent=2, ensure_ascii=False)
                 + "\n",
                 encoding="utf-8",
             )
