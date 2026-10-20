@@ -600,6 +600,46 @@ class SocketTests(GameWithSeatsMixin, TransactionTestCase):
 
         self.assertEqual(self.game_state()["pausedAt"], paused_at.isoformat())
 
+    def test_the_game_state_carries_what_the_last_vote_decided(self):
+        """A socket that reconnects across `vote.result` reads the outcome here."""
+        GameRound.objects.create(
+            game=self.game,
+            round_number=1,
+            status=GameRound.Status.COMPLETED,
+            vote_result={
+                "options": [],
+                "vote_counts": [],
+                "winning_version_id": 7,
+                "winning_version_name": "Busspuren",
+                "tie": False,
+                "stalemate_count": 0,
+                "forced": False,
+            },
+        )
+        GameRound.objects.create(
+            game=self.game, round_number=2, status=GameRound.Status.ACTIVE
+        )
+
+        self.assertEqual(
+            self.game_state()["voteResult"],
+            {
+                "winning_version_id": 7,
+                "winning_version_name": "Busspuren",
+                "forced": False,
+            },
+        )
+
+    def test_the_game_state_has_no_vote_result_between_rounds(self):
+        """The line belongs to the round that follows the vote, not to the break."""
+        GameRound.objects.create(
+            game=self.game,
+            round_number=1,
+            status=GameRound.Status.COMPLETED,
+            vote_result={"winning_version_name": "Busspuren", "forced": False},
+        )
+
+        self.assertIsNone(self.game_state()["voteResult"])
+
     def kick(self, player):
         player._was_kicked = True
         player.delete()

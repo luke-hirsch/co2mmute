@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { routeCommutes, searchTrip, toLeg } from "@/lib/map/trip-search";
+import { createTraceRecorder } from "@/lib/map/search-trace";
 import { findPath } from "@/utils/pathfinding";
 import type { Commute } from "@/lib/map/trip-search";
 import type { Edge, Node } from "@/types/mapTypes";
@@ -133,5 +134,42 @@ describe("one trip", () => {
     const shared = await searchTrip(graph, 1, 2, "car", CHOICE);
     expect(shared).toEqual(own);
     expect(toLeg(shared).segments.map((s) => s.edgeId)).toEqual([10]);
+  });
+});
+
+describe("recording the public transport search", () => {
+  const graph = buildGraph(raw, BASE);
+  const homes = graph.nodes.filter((n) => n.node_type.some((t) => t.name === "home"));
+  const work = graph.nodes.filter((n) => n.node_type.some((t) => t.name === "workplace"));
+
+  it("finds the very same route with and without a recorder", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    let traced = 0;
+    for (const home of homes) {
+      for (const workplace of work) {
+        const plain = await searchTrip(graph, home.id, workplace.id, "public", CHOICE);
+        const recorder = createTraceRecorder(1);
+        const recorded = await searchTrip(
+          graph,
+          home.id,
+          workplace.id,
+          "public",
+          CHOICE,
+          recorder.onStateChange,
+        );
+
+        expect(recorded).toEqual(plain);
+        if (plain.success) {
+          traced += 1;
+          const steps = recorder.trace().steps;
+          expect(steps.length).toBeGreaterThan(0);
+          // Every link the search names is one of the map's.
+          const edgeIds = new Set(graph.edges.map((e) => e.id));
+          for (const id of steps.flat()) expect(edgeIds.has(id)).toBe(true);
+        }
+      }
+    }
+    vi.restoreAllMocks();
+    expect(traced).toBeGreaterThan(0);
   });
 });

@@ -302,6 +302,19 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         // The ballot is stored on the round, so a reconnect mid-vote gets the
         // same options back rather than a fresh draw.
         voteOptions: s.mapVersions,
+        // A reconnect across `vote.result` missed the outcome; the snapshot
+        // restores it. A vote.result that already arrived on this socket is
+        // never overwritten by it, and a snapshot without one clears nothing.
+        voteOutcome:
+          state.voteOutcome ??
+          (s.voteResult
+            ? {
+                stalemate: false,
+                winningVersionId: s.voteResult.winning_version_id,
+                winningVersionName: s.voteResult.winning_version_name,
+                forced: s.voteResult.forced,
+              }
+            : null),
       };
     }
 
