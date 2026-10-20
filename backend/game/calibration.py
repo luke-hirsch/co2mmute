@@ -225,30 +225,21 @@ import statistics
 from dataclasses import dataclass, field
 from decimal import ROUND_HALF_EVEN, Decimal
 
+from sim import constants
+
 # What the create form offers, and what the GameSession model defaults agree
 # with. The class size, not the calibration — that comes off the map.
 DEFAULT_MAX_PLAYERS = 16
 DEFAULT_AGENT_PER_PLAYER = 4
 DEFAULT_MAX_ROUNDS = 6
 
-# The budget: kg of CO2 per person per round, there and back, the same on
-# every map. Normal is a commute inside Germany's 2030 climate target: a
-# commute trip emitted 2.42 kg in 2017 (Umweltbundesamt, Texte 224/2020,
-# Tab. 4, from MiD 2017 and TREMOD, upstream included), 4.84 there and back;
-# the climate law gives transport 85 Mt in 2030 (KSG, Anlage 2a) against 168
-# in 2017 (UBA), and cut by as much a commuter's day is 2.45 kg — 2.4 on the
-# step. It was Berlin Mitte-West's half-driving round (2.41) until the class
-# paid its share of the timetable (2026-10-15), which made that round 1.86;
-# the figure stayed and got a source. A national mean, long commutes
-# included, so a city is easier than the mean by itself. The step is 0.2
-# because on Berlin 0.5 kg is about a sixth of the class switching mode. The
-# range runs below a round nobody drives on Berlin (0.72) and above one
-# everybody does (3.53), so a host can make a game unwinnable or free.
-# `frontend/src/lib/calibration.ts` mirrors all four.
-CO2_KG_PER_PERSON_NORMAL = Decimal("2.4")
-CO2_KG_PER_PERSON_STEP = Decimal("0.2")
-CO2_KG_PER_PERSON_MIN = Decimal("0.6")
-CO2_KG_PER_PERSON_MAX = Decimal("6.0")
+# The budget's dial: kg of CO2 per person per round, the same on every map.
+# The numbers and where they come from are in `sim/constants.py`; the
+# frontend's `lib/constants.ts` mirrors them.
+CO2_KG_PER_PERSON_NORMAL = Decimal(str(constants.CO2_KG_PER_PERSON_NORMAL))
+CO2_KG_PER_PERSON_STEP = Decimal(str(constants.CO2_KG_PER_PERSON_STEP))
+CO2_KG_PER_PERSON_MIN = Decimal(str(constants.CO2_KG_PER_PERSON_MIN))
+CO2_KG_PER_PERSON_MAX = Decimal(str(constants.CO2_KG_PER_PERSON_MAX))
 
 
 def co2_kg_per_person_choices() -> list[Decimal]:

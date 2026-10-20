@@ -38,14 +38,12 @@
  * would be safe.
  */
 
+import { MAX_BIKE_M, MAX_WALK_M } from "@/lib/constants";
 import type { Node } from "@/types/mapTypes";
 import type { TransportMode } from "@/types/routeTypes";
 
-/** An hour on foot at 5 km/h. */
-export const MAX_WALK_M = 5000;
-
-/** 45 minutes on a bike at 20 km/h — the tighter of the two, deliberately. */
-export const MAX_BIKE_M = 15000;
+/** An hour on foot at 5 km/h; 45 minutes on a bike at 20 km/h, the tighter of the two, deliberately. */
+export { MAX_BIKE_M, MAX_WALK_M };
 
 /**
  * The cap for a mode, or null where there is none.

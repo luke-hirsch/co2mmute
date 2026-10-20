@@ -169,8 +169,8 @@ an adapter method must never take an engine method's name.
   `calibrated` (true only for a count measured on that map) belong to the graph. The budget is kg of
   CO₂ per person per round, the same on every map: the create form's dial (0.6–6.0 kg in 0.2 steps,
   normal 2.4, a commute inside Germany's 2030 climate target — `CO2_KG_PER_PERSON_*` in
-  `game/calibration.py`, mirrored in
-  `frontend/src/lib/calibration.ts`), recorded as `GameSession.co2_kg_per_person`. The game ends on
+  `sim/constants.py`, mirrored in
+  `frontend/src/lib/constants.ts`), recorded as `GameSession.co2_kg_per_person`. The game ends on
   `max_CO2_level` = kg × the map's commuters × rounds — the map's commuters, not the people the scale
   puts on it, because the timetable runs whether anybody rides. `docs/kalibrierung.md` says how the
   shipped map's count, its share of the timetable and normal were found. `GameMap.co2_table`
@@ -295,13 +295,15 @@ lists the stages in the order they run, each module's docstring its rules.
 - **A map field** → the export and the importer (`maps/portability.py`, `maps/importer.py`),
   `maps/tests/test_portability.py`, and the builder if a built map should carry it
   (`mapbuild/mapfile.py`, `mapbuild/transit.py`).
-- **A simulation constant** → both golden masters, `docs/kalibrierung.md`, the figures in the
+- **A simulation constant** → `backend/sim/constants.py` and, if the browser reads it,
+  `frontend/src/lib/constants.ts` (`tests/lib/constants.test.ts` names a copy that drifted), both
+  golden masters, `docs/kalibrierung.md`, the figures in the
   background doc.
 - **A new line's seats and speed**: `BusLine`'s defaults and `TrainLine.DEFAULTS` in
   `maps/models.py`, `frontend/src/lib/map/pt-defaults.ts` and `BUS` / `TRAIN` in
   `mapbuild/transit.py`, per bus, train and tram.
-- **The budget dial**: `game/calibration.py` and `frontend/src/lib/calibration.ts` carry the same
-  normal, step and range; `game/tests/test_join.py` and `tests/lib/calibration.test.ts` assert the
+- **The budget dial**: `sim/constants.py` and `frontend/src/lib/constants.ts` carry the same
+  normal, step and range (the constants test names a drift); `game/tests/test_join.py` and `tests/lib/calibration.test.ts` assert the
   same cases.
 - **CI**: `test.yml` and `workflow-prod.yml` carry copies of the same jobs, because one workflow cannot
   wait on another. Keep the copies identical.

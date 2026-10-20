@@ -32,7 +32,10 @@ from sim.constants import (
     TRAM_PCU,
     CAR_EMISSIONS_G_PER_KM,
     DEADLOCK_TICKS,
+    DEPARTURE_WINDOW_MIN,
     EVENING_DEPARTURE_SPREAD,
+    FALLBACK_BUS_SPEED_KMH,
+    FALLBACK_TRAIN_SPEED_KMH,
     PT_FARE_EUR,
     car_cost_eur_per_km,
     car_emissions_g_per_km,
@@ -54,13 +57,6 @@ from sim.state import (
 )
 
 logger = logging.getLogger(__name__)
-
-# A line's speed when the scenario does not name one.
-FALLBACK_BUS_SPEED_KMH = 30
-FALLBACK_TRAIN_SPEED_KMH = 40
-
-# Departure window: matches the ±60 min clamp in generate_departure_minutes()
-DEPARTURE_WINDOW_MIN = 120
 
 # A pass runs until everybody is home (Lukas 2026-10-02: "we should not
 # strand people"), so this is not a clock the round is played against. It is a

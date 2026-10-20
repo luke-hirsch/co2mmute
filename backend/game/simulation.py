@@ -61,10 +61,15 @@ from sim import (  # noqa: F401
     generate_departure_minutes,
     node_chain,
 )
-from sim.linkqueue import (  # noqa: F401
+from sim.constants import (  # noqa: F401
     DEPARTURE_WINDOW_MIN,
+    FALLBACK_BIKE_SPEED_KMH,
     FALLBACK_BUS_SPEED_KMH,
+    FALLBACK_CAR_SPEED_KMH,
     FALLBACK_TRAIN_SPEED_KMH,
+    FALLBACK_WALK_SPEED_KMH,
+)
+from sim.linkqueue import (  # noqa: F401
     HOME_PASS_EARLIEST_TICK,
     PASS_TICK_GUARD,
     REPLAY_FORMAT_VERSION,
@@ -85,12 +90,6 @@ from game.models import (
 )
 
 logger = logging.getLogger(__name__)
-
-# Speeds for a game whose map is gone (`GameSession.game_map` is SET_NULL).
-# A map states its own; these are only ever the last resort.
-FALLBACK_WALK_SPEED_KMH = 5
-FALLBACK_BIKE_SPEED_KMH = 20
-FALLBACK_DEFAULT_CAR_SPEED_KMH = 50
 
 
 class TrafficSimulator(LinkQueueEngine):
@@ -167,7 +166,7 @@ class TrafficSimulator(LinkQueueEngine):
                 default_car_speed_kmh=(
                     game_map.default_car_speed_kmh
                     if game_map
-                    else FALLBACK_DEFAULT_CAR_SPEED_KMH
+                    else FALLBACK_CAR_SPEED_KMH
                 ),
             ),
             links=tuple(links),

@@ -1,10 +1,17 @@
 """
-Physical constants of the traffic model, and the two curves that read off them.
+Every number of the model, and the two curves that read off them.
 
-Moved out of `game/simulation.py` unchanged. Nothing here imports Django: these
-are numbers about roads and cars, not about this game's database, and keeping
-them importable without a settings module is what lets the engine be tested and
-calibrated as a script.
+This file and `frontend/src/lib/constants.ts` are the only places a number of
+the model is written down; the frontend test `tests/lib/constants.test.ts` fails
+when a copy there disagrees with this file. Nothing here imports Django: these
+are numbers about roads, cars and a game's clock, not about the database, and
+keeping them importable without a settings module is what lets the engine be
+tested and calibrated as a script.
+
+Per-map numbers (a street's lanes and speed, a line's seats) are the map's data
+and are edited in the editor or the admin; their defaults for new rows are in
+`maps/models.py`. The guards of the engine (tick limit, seeds, search steps) are
+machinery and stay where they are used.
 """
 
 import random
@@ -60,11 +67,14 @@ TRAIN_EMISSIONS_G_PER_PERSON_KM = 44.0
 
 # Speed-dependent CO2 for cars, COPERT/HBEFA-style: an emission factor as a
 # continuous function of the average speed on a link.
+CAR_EF_ANCHOR_SPEED_KMH = 50.0  # CAR_EMISSIONS_G_PER_KM is the figure at this speed
 CAR_EF_MIN_SPEED_KMH = 70.0
 CAR_EF_DRAG_TERM = 0.0028605  # c, g*h^2/km^3
 CAR_EF_IDLE_TERM = 2 * CAR_EF_DRAG_TERM * CAR_EF_MIN_SPEED_KMH**3  # a, g/h
 CAR_EF_ROLLING_TERM = (  # b, g per km
-    CAR_EMISSIONS_G_PER_KM - CAR_EF_IDLE_TERM / 50.0 - CAR_EF_DRAG_TERM * 50.0**2
+    CAR_EMISSIONS_G_PER_KM
+    - CAR_EF_IDLE_TERM / CAR_EF_ANCHOR_SPEED_KMH
+    - CAR_EF_DRAG_TERM * CAR_EF_ANCHOR_SPEED_KMH**2
 )
 
 # a/v diverges at v -> 0,The FACTOR is capped
@@ -101,6 +111,26 @@ CAR_COST_TRAFFIC_SHARE = 0.5
 # make the bike's cost to society negative, and walking's too; that is open
 # with the group. Flat per km: a jam does not wear a chain faster.
 BIKE_COST_PER_KM = 0.03  # € per bike-km
+
+# Speeds when a map or a scenario does not state one. A map states its own
+# (`GameMap.walk_speed_kmh` and the like); a game whose map is gone
+# (`GameSession.game_map` is SET_NULL) and a line without a speed use these.
+FALLBACK_WALK_SPEED_KMH = 5
+FALLBACK_BIKE_SPEED_KMH = 20
+FALLBACK_CAR_SPEED_KMH = 50
+FALLBACK_BUS_SPEED_KMH = 30
+FALLBACK_TRAIN_SPEED_KMH = 40
+
+# Per game, as the create form and the model start it: a tick of the queue
+# model, the hours the morning and the evening are played around, and the
+# spread of departures around them.
+TICK_DURATION_MIN = 5
+MORNING_DEPARTURE_HOUR = 9
+EVENING_DEPARTURE_HOUR = 17
+DEPARTURE_STD_DEV_MIN = 10
+
+# Departure window: matches the ±60 min clamp in generate_departure_minutes()
+DEPARTURE_WINDOW_MIN = 120
 
 JAM_DENSITY_VEH_PER_KM_LANE = 133.0
 SATURATION_FLOW_VEH_PER_H_LANE = 1800.0
@@ -192,6 +222,32 @@ def car_cost_eur_per_km(speed_kmh: float) -> float:
         1.0 - CAR_COST_TRAFFIC_SHARE + CAR_COST_TRAFFIC_SHARE * factor
     )
 
+
+# The budget: kg of CO2 per person per round, there and back, the same on
+# every map. Normal is a commute inside Germany's 2030 climate target: a
+# commute trip emitted 2.42 kg in 2017 (Umweltbundesamt, Texte 224/2020,
+# Tab. 4, from MiD 2017 and TREMOD, upstream included), 4.84 there and back;
+# the climate law gives transport 85 Mt in 2030 (KSG, Anlage 2a) against 168
+# in 2017 (UBA), and cut by as much a commuter's day is 2.45 kg — 2.4 on the
+# step. It was Berlin Mitte-West's half-driving round (2.41) until the class
+# paid its share of the timetable (2026-10-15), which made that round 1.86;
+# the figure stayed and got a source. A national mean, long commutes
+# included, so a city is easier than the mean by itself. The step is 0.2
+# because on Berlin 0.5 kg is about a sixth of the class switching mode. The
+# range runs below a round nobody drives on Berlin (0.72) and above one
+# everybody does (3.53), so a host can make a game unwinnable or free.
+# 
+CO2_KG_PER_PERSON_NORMAL = 2.4
+CO2_KG_PER_PERSON_STEP = 0.2
+CO2_KG_PER_PERSON_MIN = 0.6
+CO2_KG_PER_PERSON_MAX = 6.0
+
+# A summary of a round that has no simulation results (rows from before the
+# simulation wrote them) estimates public transport and bike per passenger-km
+# from these; the car uses the figures above. Rough, not sourced.
+ESTIMATE_PUBLIC_G_PER_KM = 60.0
+ESTIMATE_BIKE_G_PER_KM = 18.0
+ESTIMATE_PUBLIC_EUR_PER_KM = 0.15
 
 # --- public transport stuff -------------------------------------------------
 # personal costs (aka ticket)

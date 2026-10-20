@@ -441,7 +441,7 @@ die 6.800 Pendler, so wie das Budget sie zählt.
 
 **Normal: 2,4 kg.** Die halbe Runde kostet 2,41 kg pro Person, auf den Schritt des Reglers gerundet
 2,4. Das ist ab jetzt eine feste Zahl für alle Karten, einmal auf Berlin gemessen, ein Anker
-(`CO2_KG_PER_PERSON_NORMAL` in `backend/game/calibration.py`). Auf Berlin Mitte-West reicht sie, wenn
+(`CO2_KG_PER_PERSON_NORMAL` in `backend/sim/constants.py`). Auf Berlin Mitte-West reicht sie, wenn
 49 % der Gruppen Auto fahren; für jede neue Karte sagt `calibrate_map`, welcher Anteil es dort ist.
 
 **Der Regler.** „Spiel anlegen“ bietet 1,0 bis 6,0 kg in Schritten von 0,2. Der Schritt ist so fein,

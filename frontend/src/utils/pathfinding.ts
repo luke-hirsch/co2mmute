@@ -3,6 +3,11 @@
  */
 
 import { carEmissionFactor } from "@/lib/map/car-emissions";
+import {
+  FALLBACK_BIKE_SPEED_KMH,
+  FALLBACK_CAR_SPEED_KMH,
+  FALLBACK_WALK_SPEED_KMH,
+} from "@/lib/constants";
 import { canUseEdge } from "@/lib/map/edge-rules";
 import { exceedsModeLimit, modeLimitM } from "@/lib/map/trip-limits";
 import type { Edge, Node, MapGraph } from "../types/mapTypes";
@@ -17,9 +22,9 @@ import type {
 } from "../types/routeTypes";
 
 // Default speeds in km/h
-const WALK_SPEED_KMH = 5;
-const BIKE_SPEED_KMH = 20;
-const DEFAULT_CAR_SPEED_KMH = 50;
+const WALK_SPEED_KMH = FALLBACK_WALK_SPEED_KMH;
+const BIKE_SPEED_KMH = FALLBACK_BIKE_SPEED_KMH;
+const DEFAULT_CAR_SPEED_KMH = FALLBACK_CAR_SPEED_KMH;
 
 /**
  * Calculate Euclidean distance between two nodes in meters
