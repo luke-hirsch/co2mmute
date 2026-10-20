@@ -10,7 +10,9 @@ import json
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
+from django.db import connection
 from django.test import TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 from game.tests._helpers import TEST_BACKENDS
@@ -194,15 +196,24 @@ class EditedSinceCalibrationTests(VersionFixtureMixin, TestCase):
             "kiez.json", json.dumps(graph).encode(), content_type="application/json"
         )
 
-        response = self.client.post(
-            "/api/maps/import/",
-            {
-                "map_name": "Kiez",
-                "description": "",
-                "max_players": 16,
-                "json_file": upload,
-            },
-        )
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.post(
+                "/api/maps/import/",
+                {
+                    "map_name": "Kiez",
+                    "description": "",
+                    "max_players": 16,
+                    "json_file": upload,
+                },
+            )
 
         self.assertEqual(response.status_code, 201, response.content)
         self.assertIsNone(GameMap.objects.get(pk=response.json()["id"]).graph_edited_at)
+        stamps = [
+            q["sql"]
+            for q in queries
+            if q["sql"].startswith('UPDATE "maps_gamemap"')
+            and '"graph_edited_at"' in q["sql"]
+            and "NULL" not in q["sql"]
+        ]
+        self.assertEqual(stamps, [], "an import stamps the map once per row")

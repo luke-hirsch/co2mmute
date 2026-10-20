@@ -27,12 +27,32 @@ uncommitted row and would otherwise store the old graph under the new
 generation.
 """
 
+import contextlib
+import contextvars
+
 from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
 
 # An hour: the graph changes only when someone edits the map.
 GRAPH_TIMEOUT_S = 3600
+
+_stamping_off = contextvars.ContextVar("graph_edit_stamp_off", default=False)
+
+
+@contextlib.contextmanager
+def not_an_edit():
+    """Writes inside are no edit of the map: the cache still goes, the stamp does not.
+
+    An import creates its rows one by one, and each one would update the map
+    row again: thousands of writes to one row for nothing, since the importer
+    clears the stamp at the end anyway.
+    """
+    token = _stamping_off.set(True)
+    try:
+        yield
+    finally:
+        _stamping_off.reset(token)
 
 
 def _generation_key(map_pk) -> str:
@@ -77,7 +97,7 @@ def invalidate(map_pk, edit: bool = True) -> None:
     """
     if map_pk is None:
         return
-    if edit:
+    if edit and not _stamping_off.get():
         from maps.models import GameMap
 
         GameMap.objects.filter(pk=map_pk).update(graph_edited_at=timezone.now())

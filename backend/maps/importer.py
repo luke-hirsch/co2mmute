@@ -22,6 +22,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 
 from game.calibration import clean_co2_table
+from maps import graph_cache
 from maps.models import (
     BusLine,
     BusLineEdge,
@@ -172,7 +173,7 @@ class MapImporter:
             logger.info(f"Starting map creation for '{map_name}'")
 
             # Create map in a transaction
-            with transaction.atomic():
+            with graph_cache.not_an_edit(), transaction.atomic():
                 scale = graph_data.get("scale", 1.0) if graph_data else 1.0
                 game_map = self._create_game_map(
                     name=map_name,

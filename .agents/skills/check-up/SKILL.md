@@ -32,6 +32,8 @@ It exports every map into `<dir>` (default `./checkup-<date>`) and prints, per m
   `veraltet: bearbeitet am …, gemessen am …`. The map notes an edit whenever a node, an edge, a line
   or the scale or a speed of the map changes (`graph_edited_at`); a measurement written back, a
   rename and an import are no edit.
+  `veraltet` means "something changed since": any graph write marks it, also an edit in a version
+  other than the base or a poll text, so the report asks and does not decide.
 - the commuters, the share of the timetable and whether the table is there;
 - the size, and where the export is.
 

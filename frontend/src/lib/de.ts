@@ -1187,14 +1187,10 @@ export const de = {
        */
       votable: "mit Abstimmung",
       noVote: "ohne Abstimmung",
-      /** When the commuters' count was measured on this map. */
-      calibrated: (at: string) =>
-        `kalibriert am ${new Date(at).toLocaleDateString("de-DE", {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-        })}`,
+      /** Whether the commuters' count was measured on this map, and whether the map was edited since. */
+      calibrated: "kalibriert",
       notCalibrated: "nicht kalibriert",
+      calibrationStale: "Kalibrierung veraltet",
       size: (x: number, y: number) => `${x} × ${y} Felder`,
       seats: (n: number) => `${n} Plätze`,
       commuters: (n: number) => `${n.toLocaleString("de-DE")} Pendler`,
