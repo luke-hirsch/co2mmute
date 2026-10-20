@@ -21,10 +21,10 @@ Suchschritte der Kalibrierung) sind Technik, keine Zahlen des Modells.
    Modell sagt, dass es sich geändert hat. Mit `GOLDEN_REGENERATE=1` neu schreiben und das in der
    Commit-Nachricht sagen.
 3. Jede Karte neu kalibrieren (`manage.py calibrate_map <Datei> … --out`), dann die Zeile der Karte
-   setzen (Pendlerzahl, Anteil am Fahrplan, Tabelle). Ein laufendes Spiel merkt davon nichts, was es
-   beim Anlegen oder Start kopiert hat: Budget (`GameSession.max_CO2_level`), Gruppengröße
-   (`people_per_agent`) und Fahrplananteil (`timetable_factor`). Straßen, Linien und Tempi der Karte
-   liest es dagegen jede Runde neu.
+   setzen (Pendlerzahl, Anteil am Fahrplan, Tabelle). Was ein laufendes Spiel beim Anlegen oder
+   Start kopiert hat, bleibt: Budget (`GameSession.max_CO2_level`), Gruppengröße (`people_per_agent`)
+   und Fahrplananteil (`timetable_factor`). Straßen, Linien und Tempi der Karte liest es dagegen jede
+   Runde neu.
 4. `docs/kalibrierung.md` und die Zahlen in `docs/de-hintergrund.md` / `docs/en-background.md` (und
    ihre Seitenkopie `backend/template/docs/hintergrund.html`) nachziehen, wenn die Zahl dort vorkommt:
    den Wert suchen.

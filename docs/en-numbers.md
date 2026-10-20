@@ -20,10 +20,10 @@ search steps) are machinery, not numbers of the model.
 2. Both golden masters (`backend/game/tests/test_sim_golden.py`) go red on purpose: the model says it
    changed. Regenerate with `GOLDEN_REGENERATE=1` and say so in the commit message.
 3. Recalibrate every map (`manage.py calibrate_map <file> … --out`), then set the map's row (commuter
-   count, share of the timetable, table). A running game does not notice what it copied when it was
-   created or started: the budget (`GameSession.max_CO2_level`), the Gruppe size
-   (`people_per_agent`) and the share of the timetable (`timetable_factor`). The map's streets, lines
-   and speeds it reads anew each round.
+   count, share of the timetable, table). What a running game copied when it was created or
+   started stays: the budget (`GameSession.max_CO2_level`), the Gruppe size (`people_per_agent`) and
+   the share of the timetable (`timetable_factor`). The map's streets, lines and speeds it reads anew
+   each round.
 4. Update `docs/kalibrierung.md` and the figures in `docs/de-hintergrund.md` / `docs/en-background.md`
    (and their site copy `backend/template/docs/hintergrund.html`) if the number appears there: search
    for the value.
