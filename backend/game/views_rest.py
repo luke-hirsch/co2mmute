@@ -20,6 +20,7 @@ from rest_framework.generics import (
 from rest_framework.mixins import ListModelMixin
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from sim import constants as sim_constants
 
 from game.auth import resolve_player_id
 from game.cache import cache_game_session, get_cached_game_session
@@ -1238,14 +1239,14 @@ class GameSummaryView(GenericAPIView):
                             direction=AgentRoute.Direction.OUT
                         ).count()
                         fallback_emissions = {
-                            "car": 166.8,
-                            "public": 60.0,
-                            "bike": 18.0,
+                            "car": sim_constants.CAR_EMISSIONS_G_PER_KM,
+                            "public": sim_constants.ESTIMATE_PUBLIC_G_PER_KM,
+                            "bike": sim_constants.ESTIMATE_BIKE_G_PER_KM,
                             "walk": 0.0,
                         }
                         fallback_costs = {
-                            "car": 0.32,
-                            "public": 0.15,
+                            "car": sim_constants.CAR_COST_PER_KM,
+                            "public": sim_constants.ESTIMATE_PUBLIC_EUR_PER_KM,
                             "bike": 0.0,
                             "walk": 0.0,
                         }

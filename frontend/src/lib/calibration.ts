@@ -28,6 +28,8 @@
  * the budget follows the dial, and the endpoint takes whatever it is sent.
  */
 
+import * as C from "@/lib/constants";
+
 /** What the create screen opens on. `game/calibration.py` has the same three. */
 export const DEFAULT_MAX_PLAYERS = 16;
 export const DEFAULT_AGENT_PER_PLAYER = 4;
@@ -41,8 +43,12 @@ export const DEFAULT_MAX_ROUNDS = 6;
  * endpoint's decimal field reads; the arithmetic below works in tenths so no
  * float ever reaches a budget.
  */
-export const CO2_KG_PER_PERSON_NORMAL = "2.4";
-const KG_TENTHS = { min: 6, max: 60, step: 2 } as const;
+export const CO2_KG_PER_PERSON_NORMAL = String(C.CO2_KG_PER_PERSON_NORMAL);
+const KG_TENTHS = {
+  min: Math.round(C.CO2_KG_PER_PERSON_MIN * 10),
+  max: Math.round(C.CO2_KG_PER_PERSON_MAX * 10),
+  step: Math.round(C.CO2_KG_PER_PERSON_STEP * 10),
+} as const;
 
 /** Every value the dial offers, smallest first: "0.6" … "6.0". */
 export function co2KgPerPersonChoices(): string[] {

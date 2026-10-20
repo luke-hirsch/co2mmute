@@ -11,8 +11,25 @@ from django.db import models
 from django.utils import timezone
 
 from game.codes import GAME_ID_LENGTH
+from sim import constants as sim_constants
 
 logger = logging.getLogger(__name__)
+
+
+def default_tick_duration():
+    return sim_constants.TICK_DURATION_MIN
+
+
+def default_morning_hour():
+    return sim_constants.MORNING_DEPARTURE_HOUR
+
+
+def default_evening_hour():
+    return sim_constants.EVENING_DEPARTURE_HOUR
+
+
+def default_departure_std_dev():
+    return sim_constants.DEPARTURE_STD_DEV_MIN
 
 
 class GameSession(models.Model):
@@ -81,12 +98,19 @@ class GameSession(models.Model):
     # while a game runs must not move the game, and the research data has to
     # say what the class paid. 1, the whole timetable, on every game before.
     timetable_factor = models.FloatField(default=1.0)
-    tick_duration_min = models.PositiveSmallIntegerField(default=5)
-    morning_departure_hour = models.PositiveSmallIntegerField(default=9)  # 9:00 AM
-    evening_departure_hour = models.PositiveSmallIntegerField(default=17)  # 5:00 PM
+    # The defaults are functions that read `sim/constants.py`, so Django's
+    # migration records the function and not the number: changing the constant
+    # needs no migration, while a literal here would fail `makemigrations --check`.
+    tick_duration_min = models.PositiveSmallIntegerField(default=default_tick_duration)
+    morning_departure_hour = models.PositiveSmallIntegerField(
+        default=default_morning_hour
+    )
+    evening_departure_hour = models.PositiveSmallIntegerField(
+        default=default_evening_hour
+    )
     departure_std_dev_min = models.PositiveSmallIntegerField(
-        default=10
-    )  # Standard deviation for departure times
+        default=default_departure_std_dev
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

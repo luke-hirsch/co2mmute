@@ -13,14 +13,22 @@
  * gives, so a change on one side turns the other red.
  */
 
-const ANCHOR_G_PER_KM = 166.8; // CAR_EMISSIONS_G_PER_KM, at 50 km/h
-const ANCHOR_SPEED_KMH = 50;
-const MIN_SPEED_KMH = 70;
-const DRAG = 0.0028605; // c
+import {
+  CAR_EF_ANCHOR_SPEED_KMH,
+  CAR_EF_DRAG_TERM,
+  CAR_EF_MIN_SPEED_KMH,
+  CAR_EMISSIONS_G_PER_KM,
+  MAX_CAR_EMISSION_FACTOR,
+} from "@/lib/constants";
+
+const ANCHOR_G_PER_KM = CAR_EMISSIONS_G_PER_KM; // at 50 km/h
+const ANCHOR_SPEED_KMH = CAR_EF_ANCHOR_SPEED_KMH;
+const MIN_SPEED_KMH = CAR_EF_MIN_SPEED_KMH;
+const DRAG = CAR_EF_DRAG_TERM; // c
 const IDLE = 2 * DRAG * MIN_SPEED_KMH ** 3; // a
 const ROLLING =
   ANCHOR_G_PER_KM - IDLE / ANCHOR_SPEED_KMH - DRAG * ANCHOR_SPEED_KMH ** 2; // b
-const MAX_FACTOR = 2;
+const MAX_FACTOR = MAX_CAR_EMISSION_FACTOR;
 
 export function carEmissionFactor(speedKmh: number): number {
   const speed = Math.max(speedKmh, 1);

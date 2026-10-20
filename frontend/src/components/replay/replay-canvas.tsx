@@ -56,6 +56,7 @@ import {
 } from "@/lib/replay/street-fill";
 import { designMode, type Replay, type ReplayDot } from "@/lib/replay/types";
 import { de } from "@/lib/de";
+import { JAM_DENSITY_VEH_PER_KM_LANE } from "@/lib/constants";
 import type { ExtendedMapGraph } from "@/types/routeTypes";
 
 export type ReplayCanvasHandle = {
@@ -84,8 +85,8 @@ const CROWD_LABEL_MIN = 120;
 const FILL_MIN_W = 3;
 const FILL_MAX_EXTRA_W = 15;
 
-/** `133 × car_lanes × km` — the storage capacity of the link queue model. */
-const VEHICLES_PER_LANE_KM = 133;
+/** `JAM_DENSITY_VEH_PER_KM_LANE × car_lanes × km` — the storage capacity of the link queue model. */
+const VEHICLES_PER_LANE_KM = JAM_DENSITY_VEH_PER_KM_LANE;
 
 /** Golden angle, so scattered dots never line up however many there are. */
 const GOLDEN_ANGLE = 2.399963229728653;

@@ -48,8 +48,10 @@ Check: `devops/dev.sh test maps`, and `manage.py check_map` on the shipped map i
 
 ## a simulation constant
 
-1. `backend/sim/constants.py` is the only source of emission and cost figures. Put the number there
-   with its source beside it; every real-world figure needs one.
+1. `backend/sim/constants.py` is the only source of the model's numbers: emission and cost
+   figures, speeds, the departure defaults, the dial. Put the number there with its source beside
+   it; every real-world figure needs one. The browser's copies are in `frontend/src/lib/constants.ts`
+   under the same names, and `frontend/tests/lib/constants.test.ts` fails when one disagrees.
 2. Both golden masters: `backend/game/tests/test_sim_golden.py`, fixtures
    `backend/game/tests/golden/sim_golden.json` and `sim_golden_pt.json`. Regenerate with
    `GOLDEN_REGENERATE=1` only for a deliberate change, and say so in the commit.
@@ -117,8 +119,9 @@ before it ships.
 
 ## the budget dial
 
-`backend/game/calibration.py` (`CO2_KG_PER_PERSON_*`) and `frontend/src/lib/calibration.ts` carry
-the same normal, step and range. `backend/game/tests/test_join.py` and
+`CO2_KG_PER_PERSON_*` in `backend/sim/constants.py` (read by `backend/game/calibration.py`) and
+`frontend/src/lib/constants.ts` (read by `frontend/src/lib/calibration.ts`) carry the same normal,
+step and range. `backend/game/tests/test_join.py` and
 `frontend/tests/lib/calibration.test.ts` assert the same cases. The create form
 (`frontend/src/components/host/create-game-screen.tsx`) and `docs/kalibrierung.md` (the normal and
 where it comes from) follow.

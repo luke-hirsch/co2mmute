@@ -11,6 +11,10 @@
  */
 
 import type { Node, Edge } from "../types/mapTypes";
+import {
+  FALLBACK_WALK_SPEED_KMH,
+  PT_MAX_WALK_DISTANCE_M,
+} from "@/lib/constants";
 import type {
   PTLine,
   RouteSegment,
@@ -25,8 +29,8 @@ import {
   calculateDistance,
 } from "./pathfinding";
 
-const WALK_SPEED_KMH = 5;
-const MAX_WALK_DISTANCE_M = 2000;
+const WALK_SPEED_KMH = FALLBACK_WALK_SPEED_KMH;
+const MAX_WALK_DISTANCE_M = PT_MAX_WALK_DISTANCE_M;
 // Extra penalty per boarding for "fewest_transfers" optimization (minutes)
 const FEWEST_TRANSFERS_PENALTY_MIN = 30;
 

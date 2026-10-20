@@ -133,14 +133,14 @@ class SimulationParameterLoadingTests(TestCase):
         # Should use fallback values
         from game.simulation import (
             FALLBACK_BIKE_SPEED_KMH,
-            FALLBACK_DEFAULT_CAR_SPEED_KMH,
+            FALLBACK_CAR_SPEED_KMH,
             FALLBACK_WALK_SPEED_KMH,
         )
 
         self.assertEqual(simulator.walk_speed_kmh, FALLBACK_WALK_SPEED_KMH)
         self.assertEqual(simulator.bike_speed_kmh, FALLBACK_BIKE_SPEED_KMH)
         self.assertEqual(
-            simulator.default_car_speed_kmh, FALLBACK_DEFAULT_CAR_SPEED_KMH
+            simulator.default_car_speed_kmh, FALLBACK_CAR_SPEED_KMH
         )
 
 
