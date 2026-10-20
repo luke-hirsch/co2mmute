@@ -1,0 +1,10 @@
+# What devops/dev.sh lays over docker-compose.yaml: the ports of postgres and
+# redis on localhost, so Django, Celery and Vite can run natively beside them.
+# Redis is on 6380, leaving a Redis already on 6379 alone. Never on the box.
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"
+  redis:
+    ports:
+      - "127.0.0.1:6380:6379"

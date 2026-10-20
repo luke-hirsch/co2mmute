@@ -63,11 +63,8 @@ def _play(job):
 
 
 class Workers:
-    """`count` processes playing the rounds of `rounds`.
-
-    Only on a database other processes can open: under sqlite the throwaway
-    database is in memory.
-    """
+    """`count` processes playing the rounds of `rounds`, all on the one
+    throwaway database."""
 
     def __init__(self, rounds, count):
         from django.conf import settings

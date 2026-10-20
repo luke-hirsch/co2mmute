@@ -16,10 +16,9 @@ it in the builder, and you don't edit the file.
 
 ## before you start
 
-- A clone set up natively as in `README.md`, with `npm ci` done in `frontend/`: the calibration
-  routes with the game's own router, under Node. Run everything on the native stack — the backend
-  container has no `frontend/`.
-- Postgres (the README's, for the suite, is enough). The calibration runs on it.
+- A clone set up with `devops/dev.sh` as in `README.md`, with `npm ci` done in `frontend/`: the
+  calibration routes with the game's own router, under Node, and runs on the Postgres `dev.sh`
+  starts. Run everything through `dev.sh` — the backend container has no `frontend/`.
 - The internet, the first time an area is built: OpenStreetMap over Overpass, Nominatim, the
   Zensus 2022 grid, GHSL tiles, DELFI's timetables. It all stays in `backend/mapbuild/cache/`
   (`CO2MMUTE_MAP_CACHE` moves it), so the second build of an area is offline. The Zensus and the
@@ -142,8 +141,8 @@ human the check's lines, and don't touch the file.
 ## 4. calibrate
 
 ```bash
-DJANGO_DB=postgres devops/dev.sh manage calibrate_map /abs/map.json --speed 25.9 --out /abs/map.calibrated.json
-DJANGO_DB=postgres devops/dev.sh manage calibrate_map /abs/map.json --commuters 1800 --out /abs/map.calibrated.json
+devops/dev.sh manage calibrate_map /abs/map.json --speed 25.9 --out /abs/map.calibrated.json
+devops/dev.sh manage calibrate_map /abs/map.json --commuters 1800 --out /abs/map.calibrated.json
 ```
 
 It finds the commuters (as many as make a morning where everybody drives as slow as the city's rush
@@ -151,8 +150,7 @@ hour), then plays real rounds at 100, 75, 50, 25 and 0 % car, six seeds each, in
 database. A village takes a minute, a city of half a million about a quarter of an hour, all of
 Berlin about forty minutes, the six seeds side by side. Run it in the background with its output
 in a log, and read the log when it ends. **One at a time**: each run's database is the app's name
-plus `_calibrate`, and a second run drops the first one's. Run it on Postgres, like the server: only there do the
-rounds of a step play side by side (SQLite gives the same numbers, one round at a time).
+plus `_calibrate`, and a second run drops the first one's.
 
 Read its report:
 

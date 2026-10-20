@@ -20,7 +20,7 @@ import { loginAsHost } from "./host";
  * What the chat needs that nothing else in this tree does: **Redis**.
  * `ChatConsumer` is the one consumer that talks to it directly — history and
  * both rate limits live there — so a red run here with a green `smoke.spec.ts`
- * means valkey is down, not that the feature broke.
+ * means Redis is down, not that the feature broke.
  */
 
 test.use({ actionTimeout: 20_000 });

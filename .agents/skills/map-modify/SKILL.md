@@ -139,7 +139,7 @@ A changed map is checked again:
 ```bash
 python3 .agents/skills/map-modify/modify.py export <map> /abs/map.json
 devops/dev.sh manage check_map /abs/map.json
-DJANGO_DB=postgres devops/dev.sh manage calibrate_map /abs/map.json --commuters N --out /abs/map.calibrated.json
+devops/dev.sh manage calibrate_map /abs/map.json --commuters N --out /abs/map.calibrated.json
 ```
 
 `check_map` says `in Ordnung`, or lists what broke: then stop and give the human the lines. A change
