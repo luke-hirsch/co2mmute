@@ -180,11 +180,19 @@ class RoundMeasure:
     # (`calibration.timetable_factor`).
     base_kg: float = 0.0
     average_kg: float = 0.0
+    # What the cars cost (the way there and back, all Gruppen driving), out of
+    # `cost_eur`, the whole round: the rest is riders' shares and empty runs.
+    car_cost_eur: float = 0.0
 
     @property
     def timetable_kg(self):
         """Everything the cars did not emit: riders' shares and empty runs."""
         return self.total_kg - self.car_kg
+
+    @property
+    def timetable_cost_eur(self):
+        """Everything the cars did not cost, as `timetable_kg` is for CO2."""
+        return self.cost_eur - self.car_cost_eur
 
 
 def _mean(values):
@@ -445,6 +453,7 @@ class MapRounds:
             total_kg=result.total_co2_g / 1000,
             car_kg=sum(r.total_co2_g for r in car) / 1000,
             cost_eur=result.total_cost_eur,
+            car_cost_eur=sum(r.mean_cost_eur for r in car) * session.people_per_agent,
             car_km=sum(r.agent_route.total_distance_m for r in car) / 1000,
             car_hours=sum(r.mean_trip_time_min for r in car) / 60,
             car_trip_min=_mean([r.mean_trip_time_min for r in car]),
