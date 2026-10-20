@@ -20,7 +20,7 @@ import { loginAsHost } from "./host";
  *
  * Needs **Redis**, like `chat.spec.ts`: `ChatConsumer` is the one consumer
  * that talks to it directly. A red run here with a green `smoke.spec.ts` means
- * valkey is down.
+ * Redis is down.
  */
 
 test.use({ actionTimeout: 20_000 });

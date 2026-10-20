@@ -133,7 +133,7 @@ For the author, never for the ballot: what each version does at 100, 50 and 0 % 
 exported file, one version at a time, keeping the map's commuters, `<N>` (`export` prints them):
 
 ```bash
-DJANGO_DB=postgres devops/dev.sh manage calibrate_map /abs/ballot.json --commuters <N> --map-version "Busspur Turmstraße"
+devops/dev.sh manage calibrate_map /abs/ballot.json --commuters <N> --map-version "Busspur Turmstraße"
 ```
 
 It plays the version at 100, 75, 50, 25 and 0 % car, six seeds each; read the rows for 100, 50

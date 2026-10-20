@@ -161,35 +161,20 @@ WSGI_APPLICATION = "co2mmute.wsgi.application"
 ASGI_APPLICATION = "co2mmute.asgi.application"
 
 
-# Database
+# Database: Postgres everywhere — the box, CI, and devops/dev.sh, which runs on
+# the compose stack's own.
 
-DJANGO_DB = os.environ.get("DJANGO_DB", "sqlite" if DEBUG else "postgres")
-
-DATABASES = (
-    {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-            # A transaction that reads before it writes takes the write lock up
-            # front, so two of them wait for each other instead of failing with
-            # "database is locked". The map editor sends the street under both
-            # directions of an edge at once, and each create reads first.
-            "OPTIONS": {"transaction_mode": "IMMEDIATE"},
-        }
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("POSTGRES_DB", "co2mmute"),
+        "USER": os.environ.get("POSTGRES_USER", "co2mmute"),
+        "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "co2mmute"),
+        "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
+        "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+        "CONN_MAX_AGE": int(os.environ.get("POSTGRES_CONN_MAX_AGE", "60")),
     }
-    if DJANGO_DB == "sqlite"
-    else {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.environ.get("POSTGRES_DB", "co2mmute"),
-            "USER": os.environ.get("POSTGRES_USER", "co2mmute"),
-            "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "co2mmute"),
-            "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
-            "PORT": os.environ.get("POSTGRES_PORT", "5432"),
-            "CONN_MAX_AGE": int(os.environ.get("POSTGRES_CONN_MAX_AGE", "60")),
-        }
-    }
-)
+}
 
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 

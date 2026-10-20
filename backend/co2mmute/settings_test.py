@@ -2,10 +2,9 @@
 
     ./manage.py test --settings=co2mmute.settings_test
 
-Deliberately Postgres-backed. settings.py falls back to sqlite whenever DEBUG is
-on, and sqlite treats select_for_update() as a no-op — so the row locks that
-the join's capacity check and the anonymisation depend on would go untested while
-the tests still passed.
+Postgres, like every other run. sqlite would treat select_for_update() as a
+no-op — so the row locks that the join's capacity check and the anonymisation
+depend on would go untested while the tests still passed.
 """
 
 import os

@@ -368,10 +368,9 @@ kurzen: Auf Berlin streute die halbe Runde damit um 4 % zwischen den Seeds, mit 
 Paar um 0,5 %. Die Pendler sucht der Befehl in ganzen Menschen pro Gruppe. `--out` schreibt eine Kopie
 der Datei mit der Pendlerzahl und `calibrated: true`.
 
-Gemessen wird auf Postgres (`DJANGO_DB=postgres`), wie auf dem Server; nur dort spielen die Prozesse
-die Runden eines Schritts nebeneinander. Die Simulation liest Strecken, Linien und Wege in der
-Reihenfolge ihrer Nummern, nicht ihrer Namen, denn die sortiert jede Datenbank anders. So kommt
-dieselbe Runde unter SQLite und unter Postgres gleich heraus.
+Gemessen wird auf Postgres, wie auf dem Server; die Prozesse spielen die Runden eines Schritts
+nebeneinander. Die Simulation liest Strecken, Linien und Wege in der Reihenfolge ihrer Nummern,
+nicht ihrer Namen, denn die sortiert jede Datenbank anders.
 
 Auf Berlin Mitte-West, gemessen am 5. Oktober 2026 auf Postgres, sechs Seeds, 6.400 Pendler:
 

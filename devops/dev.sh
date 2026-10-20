@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# The local development stack. No Docker.
+# The local development stack: Postgres and Redis in Docker, the rest native.
 #
 #   devops/dev.sh up            start everything
 #   devops/dev.sh status        what is running
@@ -8,22 +8,24 @@
 #   devops/dev.sh test          the suite, in the environment CI has
 #   devops/dev.sh down          stop it again
 #
-# WHICH DATABASE
-#   The app runs on sqlite, at backend/db.sqlite3. That is settings.py's own
-#   default whenever DEBUG is on, so it needs no override: disposable, no server
-#   to keep running. `dev.sh reset-db` throws it away.
+# THE DATABASE
+#   One Postgres and one Redis: the `postgres` and `redis` services of
+#   devops/docker-compose.yaml, the ones the box runs. `up` starts only those
+#   two, with their ports on localhost (docker-compose.dev.yaml: Postgres on
+#   5432, Redis on 6380), and runs everything else natively. The app, the suite
+#   and calibrate_map all use this one server; the suite makes and drops a test
+#   database of its own on it. Name, user and password come from devops/.env, as
+#   for the compose stack, or its defaults.
 #
-#   The SUITE runs on Postgres, 
-#
-#   To run the app on Postgres too (closer to the box, and it keeps its data):
-#       DJANGO_DB=postgres devops/dev.sh up
+#   The compose stack's own app (`docker compose up` in devops/) reads the same
+#   database: run one of the two at a time. A `docker compose up` without the
+#   dev file takes the ports away; the next `dev.sh up` puts them back. `down`
+#   leaves Postgres and Redis running.
 #
 # WHAT RUNS
-#   postgres   brew service, used by the suite only.
-#   redis      the valkey brew already runs, on database index 3 so it cannot
-#              collide with another project on this machine. It carries the
-#              channel layer, the cache and the Celery broker — all three come
-#              off the one REDIS_URL.
+#   postgres   docker, see above.
+#   redis      docker, see above. It carries the channel layer, the cache and
+#              the Celery broker — all three come off the one REDIS_URL.
 #   web        ./manage.py runserver — which IS Daphne, because `daphne` is
 #              first in INSTALLED_APPS, so websockets work with no extra
 #              process. Auto-reloads.
@@ -41,8 +43,7 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 STATE="$REPO/devops/.dev"
 SERVICES=(web worker beat vite css)
 
-PG_BIN="/opt/homebrew/opt/postgresql@18/bin"
-[ -d "$PG_BIN" ] || PG_BIN=""
+COMPOSE_FILES=(-f "$REPO/devops/docker-compose.yaml" -f "$REPO/devops/docker-compose.dev.yaml")
 
 mkdir -p "$STATE"
 
@@ -55,16 +56,30 @@ secret_key() {
   cat "$STATE/secret"
 }
 
+# What the compose stack reads from devops/.env, else docker-compose.yaml's
+# own default.
+compose_value() {
+  local value=""
+  if [ -f "$REPO/devops/.env" ]; then
+    value="$(sed -n "s/^$1=//p" "$REPO/devops/.env" | tail -n 1)"
+    value="${value%\"}"; value="${value#\"}"; value="${value%\'}"; value="${value#\'}"
+  fi
+  echo "${value:-$2}"
+}
+
+PG_DB="$(compose_value POSTGRES_DB co2mmute)"
+PG_USER="$(compose_value POSTGRES_USER co2mmute)"
+PG_PASSWORD="$(compose_value POSTGRES_PASSWORD co2mmute)"
+
 dev_env() {
   cat <<ENV
 export DJANGO_DEBUG='True'
-export DJANGO_DB='${DJANGO_DB:-sqlite}'
-export POSTGRES_HOST='localhost'
+export POSTGRES_HOST='127.0.0.1'
 export POSTGRES_PORT='5432'
-export POSTGRES_DB='commute'
-export POSTGRES_USER='commute'
-export POSTGRES_PASSWORD='commute'
-export REDIS_URL='redis://127.0.0.1:6379/3'
+export POSTGRES_DB='$PG_DB'
+export POSTGRES_USER='$PG_USER'
+export POSTGRES_PASSWORD='$PG_PASSWORD'
+export REDIS_URL='redis://127.0.0.1:6380/0'
 export DJANGO_SECRET_KEY='$(secret_key)'
 export DJANGO_ALLOWED_HOSTS='localhost,127.0.0.1'
 export DJANGO_CSRF_TRUSTED_ORIGINS='https://localhost:5173,http://localhost:5173,http://localhost:8000,http://127.0.0.1:8000'
@@ -154,33 +169,34 @@ stop_service() {
 
 # ── infrastructure ───────────────────────────────────────────────────────────
 
-ensure_redis() {
-  local cli
-  cli="$(command -v redis-cli || command -v valkey-cli || true)"
-  [ -n "$cli" ] || { echo "note: no redis-cli to check with; assuming 6379 is up" >&2; return; }
-  "$cli" -h 127.0.0.1 -p 6379 ping >/dev/null 2>&1 && return
-  cat >&2 <<'MSG'
-Nothing is answering on 127.0.0.1:6379.
-
-    brew services start valkey
-
-Valkey is a Redis fork and speaks the same protocol, so the channel layer, the
-cache and the Celery broker all take it unchanged.
-MSG
-  exit 1
+# docker compose on the box's file with the dev ports on top. The file insists
+# on a DJANGO_SECRET_KEY for the app containers; this never starts them, but a
+# fresh clone has no devops/.env yet, so it gets the dev key to read.
+compose() {
+  DJANGO_SECRET_KEY="${DJANGO_SECRET_KEY:-$(secret_key)}" docker compose "${COMPOSE_FILES[@]}" "$@"
 }
 
-ensure_postgres() {
-  [ -n "$PG_BIN" ] || { echo "postgresql@18 is not installed: brew install postgresql@18" >&2; exit 1; }
-  "$PG_BIN/pg_isready" -q 2>/dev/null && return
-  cat >&2 <<'MSG'
-Postgres is not accepting connections.
+ensure_services() {
+  if ! docker info >/dev/null 2>&1; then
+    echo "Docker is not running. Start Docker Desktop (or the docker daemon) and try again." >&2
+    exit 1
+  fi
+  compose up -d --wait postgres redis
+}
 
-    brew services start postgresql@18
-
-It is only needed for the test suite — the app itself runs on sqlite.
-MSG
-  exit 1
+# Running and reachable from here: a `docker compose up` without the dev file
+# leaves the container running with no port.
+service_state() {
+  docker info >/dev/null 2>&1 || { echo "down (docker is not running)"; return; }
+  if [ -z "$(compose ps --status running -q "$1" 2>/dev/null)" ]; then
+    echo "down"
+    return
+  fi
+  # `compose port` answers ":0" for a port that is not published.
+  case "$(compose port "$1" "$2" 2>/dev/null)" in
+    "" | *:0) echo "running without its port: devops/dev.sh up" ;;
+    *)        echo "up" ;;
+  esac
 }
 
 # ── commands ─────────────────────────────────────────────────────────────────
@@ -198,9 +214,10 @@ cmd_migrate() {
 }
 
 cmd_reset_db() {
-  load_env
-  rm -f "$REPO/backend/db.sqlite3"
-  echo "→ sqlite database removed"
+  ensure_services
+  compose exec -T postgres dropdb --force --if-exists -U "$PG_USER" "$PG_DB"
+  compose exec -T postgres createdb -U "$PG_USER" "$PG_DB"
+  echo "→ database $PG_DB emptied"
   cmd_migrate
   echo
   echo "   Put a map and a staff account back with:"
@@ -208,8 +225,7 @@ cmd_reset_db() {
 }
 
 cmd_up() {
-  ensure_redis
-  [ "${DJANGO_DB:-sqlite}" = "sqlite" ] || ensure_postgres
+  ensure_services
 
   # The tracked static/css/tailwind.css is an empty placeholder — the container
   # entrypoint used to fill it. Nothing does that natively, so a first run must.
@@ -258,12 +274,8 @@ cmd_restart() {
 }
 
 cmd_status() {
-  local redis="down" pg="down"
-  (command -v redis-cli >/dev/null 2>&1 && redis-cli -h 127.0.0.1 -p 6379 ping >/dev/null 2>&1) && redis="up"
-  [ -n "$PG_BIN" ] && "$PG_BIN/pg_isready" -q 2>/dev/null && pg="up"
-  printf "  %-8s %s\n" "redis" "$redis (valkey, db 3)"
-  printf "  %-8s %s\n" "postgres" "$pg (brew, suite only)"
-  printf "  %-8s %s\n" "app db" "${DJANGO_DB:-sqlite}"
+  printf "  %-8s %s\n" "postgres" "$(service_state postgres 5432) (docker, 127.0.0.1:5432, database $PG_DB)"
+  printf "  %-8s %s\n" "redis" "$(service_state redis 6379) (docker, 127.0.0.1:6380)"
   for name in "${SERVICES[@]}"; do
     if is_running "$name"; then
       printf "  %-8s running (pid %s)\n" "$name" "$(cat "$(pid_file "$name")")"
@@ -287,11 +299,11 @@ cmd_manage() {
 
 
 cmd_test() {
-  ensure_postgres
+  ensure_services
   ( cd "$REPO/backend" && env -i \
       PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
-      POSTGRES_HOST=localhost POSTGRES_PORT=5432 \
-      POSTGRES_DB=commute POSTGRES_USER=commute POSTGRES_PASSWORD=commute \
+      POSTGRES_HOST=127.0.0.1 POSTGRES_PORT=5432 \
+      POSTGRES_DB="$PG_DB" POSTGRES_USER="$PG_USER" POSTGRES_PASSWORD="$PG_PASSWORD" \
       "$PYTHON" manage.py test --settings=co2mmute.settings_test --noinput "$@" )
 }
 

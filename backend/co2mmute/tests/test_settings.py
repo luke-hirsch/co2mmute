@@ -137,9 +137,9 @@ class TestSettingsModuleTests(SimpleTestCase):
         self.assertTrue(settings_test.CELERY_TASK_EAGER_PROPAGATES)
 
     def test_the_database_is_postgres_not_sqlite(self):
-        """settings.py falls back to sqlite whenever DEBUG is on, and sqlite
-        treats select_for_update() as a no-op — so the row locks the join and
-        the anonymisation depend on would go untested while the tests still passed."""
+        """sqlite treats select_for_update() as a no-op — so the row locks the
+        join and the anonymisation depend on would go untested while the tests
+        still passed."""
         settings_test = self.load()
 
         self.assertEqual(
@@ -173,14 +173,15 @@ class TestSettingsModuleTests(SimpleTestCase):
         self.assertTrue(settings_test.CSRF_COOKIE_SECURE)
 
 
-class DatabaseEngineChoiceTests(SimpleTestCase):
-    """Which engine is a decision of its own, not a side effect of DEBUG.
+class DatabaseEngineTests(SimpleTestCase):
+    """Postgres, whatever DEBUG says.
 
-    It used to ride DEBUG alone, which meant a natively-run
-    `./manage.py runserver` silently used sqlite while the container and the box
-    used Postgres 18. That is not a cosmetic difference: sqlite reuses a rowid
-    after each TestCase and Postgres sequences do not, so the round pk — which
-    the simulation is seeded off — climbs in one and repeats in the other.
+    The engine used to ride DEBUG: a natively-run `./manage.py runserver` used
+    sqlite while the container and the box used Postgres 18. That is not a
+    cosmetic difference: sqlite reuses a rowid after each TestCase and Postgres
+    sequences do not, so the round pk — which the simulation is seeded off —
+    climbs in one and repeats in the other. Development runs on the compose
+    stack's Postgres (devops/dev.sh), so there is one engine.
 
     settings.py derives this at import from os.environ, and DiscoverRunner
     forces settings.DEBUG to False for every run, so the only way to test it is
@@ -188,15 +189,8 @@ class DatabaseEngineChoiceTests(SimpleTestCase):
     reloaded module (the pattern game/tests/test_auth.py uses).
     """
 
-    def engine_for(self, debug, db=None):
-        """The engine settings.py picks for DJANGO_DEBUG=<debug>, DJANGO_DB=<db>.
-
-        db=None means the variable is absent, which is the case that has to keep
-        behaving the way it did before the split. patch.dict cannot express
-        "absent" — its values go straight into os.environ and must be strings —
-        so the key is popped inside the context, which patch.dict restores on
-        exit along with everything else.
-        """
+    def engine_for(self, debug):
+        """The engine settings.py picks for DJANGO_DEBUG=<debug>."""
         import importlib
         import os
         import tempfile
@@ -205,8 +199,6 @@ class DatabaseEngineChoiceTests(SimpleTestCase):
         import co2mmute.settings as settings_module
 
         env = {"DJANGO_DEBUG": debug}
-        if db is not None:
-            env["DJANGO_DB"] = db
         # Importing settings mkdir()s MEDIA_ROOT. Keep that out of the repo.
         env["DJANGO_MEDIA_ROOT"] = tempfile.mkdtemp(prefix="co2mmute-settings-")
         # resolve_secret_key refuses to boot with DEBUG off and no key — a
@@ -215,38 +207,20 @@ class DatabaseEngineChoiceTests(SimpleTestCase):
         env["DJANGO_SECRET_KEY"] = "engine-choice-test-key-0123456789abcdef"
 
         with mock.patch.dict(os.environ, env, clear=False):
-            if db is None:
-                os.environ.pop("DJANGO_DB", None)
             reloaded = importlib.reload(settings_module)
             engine = reloaded.DATABASES["default"]["ENGINE"]
         # Leave the module as the rest of the suite found it.
         importlib.reload(settings_module)
         return engine
 
-    def test_a_debug_run_still_defaults_to_sqlite(self):
-        """The behaviour before the split, unchanged."""
+    def test_a_debug_run_uses_postgres(self):
         self.assertEqual(
             self.engine_for("True"),
-            "django.db.backends.sqlite3",
+            "django.db.backends.postgresql",
         )
 
-    def test_a_production_run_still_defaults_to_postgres(self):
+    def test_a_production_run_uses_postgres(self):
         self.assertEqual(
             self.engine_for("False"),
             "django.db.backends.postgresql",
-        )
-
-    def test_debug_can_be_told_to_use_postgres(self):
-        """What the native development stack needs: DEBUG on for the cookie
-        flags and the error pages, Postgres underneath so the seeds and the row
-        locks match CI."""
-        self.assertEqual(
-            self.engine_for("True", "postgres"),
-            "django.db.backends.postgresql",
-        )
-
-    def test_the_choice_is_explicit_both_ways(self):
-        self.assertEqual(
-            self.engine_for("False", "sqlite"),
-            "django.db.backends.sqlite3",
         )

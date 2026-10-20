@@ -15,10 +15,10 @@ the round where half drive (`calibration.timetable_factor`). The table is that
 bill — the rounds run the whole timetable, and the share is taken after.
 
 The file is imported into a throwaway database, never the one the app runs
-on: a test database of its own, in memory under sqlite. Measure on Postgres
-(`DJANGO_DB=postgres`), like the server: the rounds of a step play side by side
-only there. The simulation reads its rows in pk order, so a round comes out the
-same on sqlite and Postgres. Its graph goes through the
+on: a test database of its own (`<name>_calibrate`) on the same Postgres, where
+the rounds of a step play side by side. The simulation reads its rows in pk
+order, never by name, so a round comes out the same whatever the rows are
+called. Its graph goes through the
 game's own router (`frontend/scripts/routes.mjs`, so Node and `npm ci` in
 frontend/ are needed) and its rounds through the simulation, every one rolled
 back. Only the pairs the seeds deal are routed, in the car and by public
@@ -128,8 +128,7 @@ class Command(BaseCommand):
             type=int,
             help=(
                 "Prozesse, die die Runden eines Schritts nebeneinander spielen "
-                "(Vorgabe: so viele wie Seeds, höchstens so viele wie Kerne; "
-                "unter sqlite einer)."
+                "(Vorgabe: so viele wie Seeds, höchstens so viele wie Kerne)."
             ),
         )
         parser.add_argument(
@@ -188,13 +187,11 @@ class Command(BaseCommand):
         ):
             logging.disable(logging.INFO)
             # A database of its own, so a test run beside it keeps its own:
-            # `autoclobber` drops whatever has the name. Under sqlite the test
-            # database is in memory and has none.
-            if connection.vendor != "sqlite":
-                connection.settings_dict["TEST"] = {
-                    **connection.settings_dict.get("TEST", {}),
-                    "NAME": f"{old_name}_calibrate",
-                }
+            # `autoclobber` drops whatever has the name.
+            connection.settings_dict["TEST"] = {
+                **connection.settings_dict.get("TEST", {}),
+                "NAME": f"{old_name}_calibrate",
+            }
             connection.creation.create_test_db(
                 verbosity=0, autoclobber=True, serialize=False
             )
@@ -273,10 +270,7 @@ class Command(BaseCommand):
         except RoutesUnavailable as exc:
             raise CommandError(f"Keine Routen: {exc}")
 
-        # Workers open the throwaway database; under sqlite it is in memory.
-        if connection.vendor == "sqlite":
-            workers = 1
-        elif workers is None:
+        if workers is None:
             workers = min(len(seeds), os.cpu_count() or 1)
         if self.verbose:
             dealt = f"je Wohnort {rounds.per_seat} gezogen, " if rounds.dealt else ""

@@ -57,10 +57,9 @@ mkdir -p devops/nginx/certs && openssl req -x509 -nodes -newkey rsa:2048 -days 3
   -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
 ```
 
-#### Nativ, ohne Docker
+#### Mit `dev.sh`
 
-Gebraucht: Python 3.13, Node 20+, Redis oder Valkey, und — nur für die Testsuite — Postgres 18.
-Homebrew-Befehle; unter Linux dein Paketmanager.
+Gebraucht: Python 3.13, Node 20+ und Docker.
 
 ```bash
 pyenv virtualenv 3.13.3 commute        # dev.sh sucht $VIRTUAL_ENV, ~/.pyenv/versions/commute, ./.venv
@@ -69,20 +68,18 @@ pyenv virtualenv 3.13.3 commute        # dev.sh sucht $VIRTUAL_ENV, ~/.pyenv/ver
 (cd backend && npm ci)                 # Tailwind für die Django-Templates
 (cd frontend && npm ci)
 
-brew services start valkey             # Channel Layer, Cache und Celery-Broker, auf Datenbank 3
-
-brew install postgresql@18 && brew services start postgresql@18   # nur für die Suite
-psql postgres -c "CREATE ROLE commute LOGIN CREATEDB PASSWORD 'commute'"
-createdb -O commute commute
-
 devops/dev.sh up
 ```
 
 Danach liegt alles auf **https://localhost:5173** — Vite proxyt jeden Pfad, der Django gehört, so
-wie nginx es im Container tut. Die App läuft auf sqlite.
+wie nginx es im Container tut. Postgres und Redis sind die beiden Dienste aus
+`devops/docker-compose.yaml`, mit ihren Ports auf localhost (`docker-compose.dev.yaml`: Postgres
+5432, Redis 6380); alles andere läuft nativ. App, Testsuite und `calibrate_map` nutzen diese eine
+Datenbank, Name, Nutzer und Passwort aus `devops/.env` (ohne die Datei `co2mmute`). Die App des
+Compose-Stacks liest dieselbe Datenbank: immer nur eins von beiden laufen lassen.
 
-Weitere Befehle: `status`, `logs <dienst> -f`, `restart <dienst>`, `manage <args>`, `reset-db`,
-`down`. Celery lädt nicht automatisch neu — nach Änderungen an `game/tasks.py` oder der Simulation
+Weitere Befehle: `status`, `logs <dienst> -f`, `restart <dienst>`, `manage <args>`, `reset-db`
+(leert die Datenbank), `down` (Postgres und Redis laufen weiter). Celery lädt nicht automatisch neu — nach Änderungen an `game/tasks.py` oder der Simulation
 `devops/dev.sh restart worker`.
 
 #### Docker compose
@@ -109,7 +106,7 @@ Frontend-Änderung braucht `up -d --build nginx`, keinen Backend-Neustart.
 Frisch aufgesetzt ist keine Karte da, und hochladen darf nur ein Staff-Account.
 
 ```bash
-# nativ
+# mit dev.sh
 DJANGO_SUPERUSER_PASSWORD='e2e-local-only' devops/dev.sh manage createsuperuser \
   --noinput --username e2e --email e2e@example.invalid
 
@@ -136,9 +133,7 @@ cd frontend && npx tsc -b           # Typen (tests/ und e2e/ haben eigene tsconf
 cd frontend && npm run e2e:seed && npm run e2e   # Playwright, WebKit
 ```
 
-Die Backend-Suite läuft immer gegen Postgres, auch wenn die App auf sqlite läuft: sqlite macht
-`select_for_update()` zum No-op und vergibt Primärschlüssel anders, und die Simulation wird über
-den Rundenschlüssel geseedet. Gelesen wird die **Anzahl** der Tests, nicht `OK` / `FAILED` — eine
+Gelesen wird die **Anzahl** der Tests, nicht `OK` / `FAILED` — eine
 Datei, die beim Import wegbricht, nimmt ihre eigenen Tests aus dem Lauf.
 
 ### Deployen
@@ -243,10 +238,9 @@ mkdir -p devops/nginx/certs && openssl req -x509 -nodes -newkey rsa:2048 -days 3
   -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
 ```
 
-#### Native, no Docker
+#### With `dev.sh`
 
-You need Python 3.13, Node 20+, Redis or Valkey, and — for the test suite only — Postgres 18.
-Homebrew commands; on Linux use your package manager.
+You need Python 3.13, Node 20+ and Docker.
 
 ```bash
 pyenv virtualenv 3.13.3 commute        # dev.sh looks at $VIRTUAL_ENV, ~/.pyenv/versions/commute, ./.venv
@@ -255,20 +249,18 @@ pyenv virtualenv 3.13.3 commute        # dev.sh looks at $VIRTUAL_ENV, ~/.pyenv/
 (cd backend && npm ci)                 # Tailwind for the Django templates
 (cd frontend && npm ci)
 
-brew services start valkey             # channel layer, cache and Celery broker, on database index 3
-
-brew install postgresql@18 && brew services start postgresql@18   # for the suite only
-psql postgres -c "CREATE ROLE commute LOGIN CREATEDB PASSWORD 'commute'"
-createdb -O commute commute
-
 devops/dev.sh up
 ```
 
 Everything then lives on **https://localhost:5173** — Vite proxies every path Django owns, the way
-nginx does in the container. The app itself runs on sqlite.
+nginx does in the container. Postgres and Redis are the two services of
+`devops/docker-compose.yaml`, with their ports on localhost (`docker-compose.dev.yaml`: Postgres
+5432, Redis 6380); everything else runs natively. The app, the test suite and `calibrate_map` use
+this one database, with name, user and password from `devops/.env` (without the file, `co2mmute`).
+The compose stack's own app reads the same database: run only one of the two at a time.
 
-Further commands: `status`, `logs <service> -f`, `restart <service>`, `manage <args>`, `reset-db`,
-`down`. Celery does not autoreload — run `devops/dev.sh restart worker` after touching
+Further commands: `status`, `logs <service> -f`, `restart <service>`, `manage <args>`, `reset-db`
+(empties the database), `down` (Postgres and Redis keep running). Celery does not autoreload — run `devops/dev.sh restart worker` after touching
 `game/tasks.py` or the simulation.
 
 #### Docker compose
@@ -295,7 +287,7 @@ frontend change needs `up -d --build nginx`, not a backend restart.
 A fresh instance has no map, and uploading one requires a staff account.
 
 ```bash
-# native
+# with dev.sh
 DJANGO_SUPERUSER_PASSWORD='e2e-local-only' devops/dev.sh manage createsuperuser \
   --noinput --username e2e --email e2e@example.invalid
 
@@ -322,9 +314,7 @@ cd frontend && npx tsc -b           # types (tests/ and e2e/ have their own tsco
 cd frontend && npm run e2e:seed && npm run e2e   # Playwright, WebKit
 ```
 
-The backend suite always runs on Postgres even though the app runs on sqlite: sqlite makes
-`select_for_update()` a no-op and hands out primary keys differently, and the simulation is seeded
-off the round pk. Read the test **count**, not `OK` / `FAILED` — a file that breaks on import
+Read the test **count**, not `OK` / `FAILED` — a file that breaks on import
 removes its own tests from the run.
 
 ### Deploying
