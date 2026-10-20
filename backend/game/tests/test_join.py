@@ -260,6 +260,30 @@ class JoinSessionApiTests(TempMediaRootMixin, TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertFalse(Player.objects.filter(game=self.game).exists())
 
+    def test_join_refuses_the_hosts_name_in_any_case_and_spacing(self):
+        """The chat and the roster call the host Spielleitung: nobody else may
+        carry the name, so a line in the chat is never mistaken for the host's."""
+        for name in ("Spielleitung", "spielleitung", " SPIELLEITUNG ", "Spiel leitung"):
+            with self.subTest(name=name):
+                response = self.post_join(self.game.game_id, name=name)
+
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(
+                    response.json()["name"],
+                    ["Diesen Namen trägt die Spielleitung. Wähl einen anderen."],
+                )
+        self.assertFalse(Player.objects.filter(game=self.game).exists())
+
+    def test_join_takes_a_name_that_only_contains_it(self):
+        response = self.post_join(self.game.game_id, name="Spielleitung-Fan")
+
+        self.assertEqual(response.status_code, 201)
+
+    def test_join_asks_for_a_name_in_german(self):
+        response = self.post_join(self.game.game_id, name="  ")
+
+        self.assertEqual(response.json()["name"], ["Gib einen Namen ein."])
+
     def test_join_rejects_a_missing_name(self):
         response = self.post_join(self.game.game_id)
         self.assertEqual(response.status_code, 400)

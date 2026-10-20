@@ -74,6 +74,20 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * The first message DRF put under `field` of a 400 (`{field: [message, …]}`), or
+ * null when there is none. For a form that has its own sentence per case and
+ * shows the server's only where the server knows something the form cannot.
+ */
+export function firstFieldError(failure: unknown, field: string): string | null {
+  if (!(failure instanceof ApiError) || failure.status !== 400) return null;
+  const body = failure.body;
+  if (!body || typeof body !== "object" || Array.isArray(body)) return null;
+  const value = (body as Record<string, unknown>)[field];
+  const first = Array.isArray(value) ? value[0] : value;
+  return typeof first === "string" && first ? first : null;
+}
+
 /** The request never reached the server, or the connection dropped. */
 export class NetworkError extends Error {
   constructor(cause: unknown) {

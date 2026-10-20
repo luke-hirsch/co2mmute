@@ -46,6 +46,34 @@ test("a game id typed into the join box leads to a name and the lobby", async ({
   }
 });
 
+test("the host's name is not for a player, however it is spelled", async ({
+  browser,
+  page,
+}) => {
+  await loginAsHost(page);
+  const gameId = await createGame(page, { name: "E2E Spielleitung" });
+
+  const context = await browser.newContext({ ignoreHTTPSErrors: true });
+  const phone = await context.newPage();
+  try {
+    await phone.goto(`/app/join/${gameId}`);
+    for (const name of ["Spielleitung", "spiel leitung", "Spieleitung"]) {
+      await phone.getByLabel("Dein Name").fill(name);
+      await phone.getByRole("button", { name: "Beitreten", exact: true }).click();
+      await expect(
+        phone.getByText("Diesen Namen trägt die Spielleitung. Wähl einen anderen."),
+      ).toBeVisible();
+    }
+    await expect(phone).toHaveURL(/\/app\/join\//);
+
+    await phone.getByLabel("Dein Name").fill("Spieler");
+    await phone.getByRole("button", { name: "Beitreten", exact: true }).click();
+    await phone.waitForURL(/\/app\/game\/[^/]+\/?$/);
+  } finally {
+    await context.close();
+  }
+});
+
 test("a seat code typed or scanned asks, then takes the seat over", async ({
   browser,
   page,

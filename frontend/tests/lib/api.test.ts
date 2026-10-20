@@ -6,6 +6,7 @@ import {
   apiErrorMessage,
   apiFetch,
   csrfToken,
+  firstFieldError,
   readCookie,
 } from "@/lib/api";
 
@@ -197,5 +198,29 @@ describe("apiFetch", () => {
   it("wraps a dropped connection in NetworkError", async () => {
     stubFetch(new TypeError("Failed to fetch"));
     await expect(apiFetch("/api/game/code/ABCDE/")).rejects.toBeInstanceOf(NetworkError);
+  });
+});
+
+describe("firstFieldError", () => {
+  const refusal = new ApiError(
+    400,
+    { name: ["Diesen Namen trägt die Spielleitung. Wähl einen anderen."] },
+    "fallback",
+  );
+
+  it("gives the first message under the field of a 400", () => {
+    expect(firstFieldError(refusal, "name")).toBe(
+      "Diesen Namen trägt die Spielleitung. Wähl einen anderen.",
+    );
+  });
+
+  it("is null for another field, another status, and anything that is no ApiError", () => {
+    expect(firstFieldError(refusal, "password")).toBeNull();
+    expect(
+      firstFieldError(new ApiError(403, { name: ["x"] }, "fallback"), "name"),
+    ).toBeNull();
+    expect(firstFieldError(new ApiError(400, "plain", "fallback"), "name")).toBeNull();
+    expect(firstFieldError(new Error("x"), "name")).toBeNull();
+    expect(firstFieldError(null, "name")).toBeNull();
   });
 });
