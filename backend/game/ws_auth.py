@@ -8,7 +8,7 @@ from django.utils.timezone import now
 
 from game.auth import has_game_access, resolve_player_id
 
-from .models import GameSession, Player
+from .models import HOST_NAME, GameSession, Player
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ class HostPlayer:
         self.user_id = user_obj.pk
         self.pk = host_row.pk if host_row else None
         self.player_id = host_row.player_id if host_row else None
-        self.name = f"{user_obj.username} (Host)"
+        self.name = HOST_NAME
         self.is_muted = False
         self.controlled_by_host = True
         self.joined_at = now()

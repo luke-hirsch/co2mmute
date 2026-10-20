@@ -38,7 +38,7 @@ const snapshot: LobbySnapshot = {
   players: [
     {
       player_id: "H-1",
-      name: "Sarah Wolf (Host)",
+      name: "Spielleitung",
       is_host: true,
       controlled_by_host: false,
       is_muted: false,

@@ -14,12 +14,11 @@ import logging
 from django.db import transaction
 from django.utils import timezone
 
-from game.models import GameSession, Player
+from game.models import HOST_NAME, GameSession, Player
 
 logger = logging.getLogger(__name__)
 
 ANONYMOUS_NAME_TEMPLATE = "Spieler {n}"
-HOST_NAME = "Host"
 
 DELETED_USERNAME_TEMPLATE = "geloescht-{pk}"
 
@@ -27,7 +26,7 @@ DELETED_USERNAME_TEMPLATE = "geloescht-{pk}"
 def anonymise_game(game: GameSession) -> int:
     """Strip identifying data from a finished game. Returns rows renamed.
 
-    The host's own row becomes "Host" and takes no number; everyone else,
+    The host's own row becomes "Spielleitung" and takes no number; everyone else,
     including players at the host machine, becomes "Spieler N" in join order.
 
     Idempotent: run it twice and the second run renames nothing new, because the

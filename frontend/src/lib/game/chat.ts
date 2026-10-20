@@ -111,22 +111,21 @@ export function chatErrorText(raw: string): string {
  *
  * Not simply `identity.player.name`: the host does not chat under their seat's
  * name. `resolve_player` hands `ChatConsumer` a `HostPlayer` duck-type whose
- * `name` is `f"{user.username} (Host)"` (`game/ws_auth.py`), and that is the
- * string that ends up on every line the host writes. A screen comparing against
- * the seat name would never recognise the host's own messages.
+ * `name` is `HOST_NAME` (`game/models.py`), and that is the string that ends up
+ * on every line the host writes. A screen comparing against anything else would
+ * never recognise the host's own messages.
  *
- * The suffix is duplicated from the backend and there is no way around it — the
- * consumer sends no `player_id` — so it lives here, once, named, and pinned by
- * a test rather than spelled out at a call site.
+ * It is the same word whoever the host is, because the players are minors and
+ * no login name or full name is theirs to read. The word is duplicated from the
+ * backend and there is no way around it — the consumer sends no `player_id` — so
+ * it lives in `de.chat.hostName`, pinned by a test.
  */
 export function chatDisplayName(identity: {
   kind?: string;
   username?: string;
   player?: { name: string };
 }): string | null {
-  if (identity.kind === "host") {
-    return identity.username ? `${identity.username} (Host)` : null;
-  }
+  if (identity.kind === "host") return de.chat.hostName;
   return identity.player?.name ?? null;
 }
 

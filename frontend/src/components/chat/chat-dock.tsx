@@ -69,7 +69,7 @@ export function ChatDock() {
 
   if (!state.chatEnabled) return null;
 
-  // Not `identity.player.name` — the host chats as "<username> (Host)".
+  // Not `identity.player.name` — the host chats as the Spielleitung.
   const myName = identity ? chatDisplayName(identity) : null;
 
   return (

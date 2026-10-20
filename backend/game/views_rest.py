@@ -27,6 +27,7 @@ from game.cache import cache_game_session, get_cached_game_session
 from game.calibration import per_person
 from game.mixins import GameAccessCookieMixin, GameScopedQuerysetMixin, PlayerCookieMixin
 from game.models import (
+    HOST_NAME,
     AgentRoute,
     AgentSimulationResult,
     EdgeTrafficSnapshot,
@@ -209,7 +210,7 @@ class GameSessionListCreateView(
       game. It is not "a seat at the host machine" — `controlled_by_host` means
       that, and this row does not set it. It is the host's own seat, found by
       account (`Player.objects.host_rows()`), which is what lets the game's own
-      anonymisation call it "Host" rather than "Spieler 3".
+      anonymisation call it "Spielleitung" rather than "Spieler 3".
     - **Both signed cookies are minted**, through the two helpers every other
       minting site uses, so the host can reach the game socket and the REST
       endpoints that ask for a player cookie rather than a session.
@@ -267,15 +268,12 @@ class GameSessionListCreateView(
         return response
 
     def _seat_the_host(self, game: GameSession) -> Player:
-        """The host's own row. Named after them if the account has a name."""
+        """The host's own row, called Spielleitung whatever the account is called:
+        the roster carries every row to every player, and they are minors."""
         user = self.request.user
-        name = "Host"
-        full_name = user.get_full_name()  # type: ignore[union-attr]
-        if full_name and full_name.strip():
-            name = f"{full_name} (Host)"
 
         host_player, _created = Player.objects.get_or_create(
-            game=game, user=user, defaults={"name": name}
+            game=game, user=user, defaults={"name": HOST_NAME}
         )
         if not host_player.player_id:
             host_player.refresh_from_db()

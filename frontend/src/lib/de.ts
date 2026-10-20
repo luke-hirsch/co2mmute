@@ -262,6 +262,8 @@ export const de = {
     open: "Chat öffnen",
     close: "Chat schließen",
     empty: "Noch nichts geschrieben.",
+    /** What the players see for the host: no account name, whoever the host is. */
+    hostName: "Spielleitung",
     /** The host switched it off; there is nothing to open. */
     disabled: "Die Spielleitung hat den Chat ausgeschaltet.",
     placeholder: "Schreib etwas …",

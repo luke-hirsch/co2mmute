@@ -207,6 +207,12 @@ class GameSession(models.Model):
         )
 
 
+# What the players see for the host, in the chat and on the host's own row. The
+# players are minors: no login name and no full name of an account reaches them.
+# The frontend has the same word (`de.chat.hostName`).
+HOST_NAME = "Spielleitung"
+
+
 class PlayerQuerySet(models.QuerySet):
     """Which Player row is the host's own.
 
