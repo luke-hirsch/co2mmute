@@ -87,6 +87,33 @@ export function MapIndex() {
   );
 }
 
+/**
+ * What the list says about a map besides its size: whether a game on it can
+ * reach a ballot, and whether its commuters were measured on it. Outline both
+ * ways round: these are properties of the map, not good news or bad news, and
+ * the palette has no ramp to say which.
+ */
+export function MapBadges({
+  gameMap,
+}: {
+  gameMap: Pick<GameMap, "calibrated" | "offers_map_changes">;
+}) {
+  return (
+    <div className="mt-2 flex flex-wrap gap-2">
+      <Badge variant="outline">
+        {gameMap.offers_map_changes
+          ? de.map.index.votable
+          : de.map.index.noVote}
+      </Badge>
+      <Badge variant="outline">
+        {gameMap.calibrated
+          ? de.map.index.calibrated
+          : de.map.index.notCalibrated}
+      </Badge>
+    </div>
+  );
+}
+
 function MapRow({ gameMap, isStaff }: { gameMap: GameMap; isStaff: boolean }) {
   return (
     <li className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4 py-5">
@@ -107,15 +134,7 @@ function MapRow({ gameMap, isStaff }: { gameMap: GameMap; isStaff: boolean }) {
           {" · "}
           {de.map.index.commuters(gameMap.district_commuters)}
         </p>
-        <div className="mt-2">
-          {/* Outline both ways round: this is a property of the map, not good
-              news or bad news, and the palette has no ramp to say which. */}
-          <Badge variant="outline">
-            {gameMap.offers_map_changes
-              ? de.map.index.votable
-              : de.map.index.noVote}
-          </Badge>
-        </div>
+        <MapBadges gameMap={gameMap} />
       </div>
 
       <div className="flex flex-wrap gap-2">

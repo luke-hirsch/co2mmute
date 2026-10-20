@@ -1220,6 +1220,9 @@ export const de = {
        */
       votable: "mit Abstimmung",
       noVote: "ohne Abstimmung",
+      /** Whether the commuters' count was measured on this map. */
+      calibrated: "kalibriert",
+      notCalibrated: "nicht kalibriert",
       size: (x: number, y: number) => `${x} × ${y} Felder`,
       seats: (n: number) => `${n} Plätze`,
       commuters: (n: number) => `${n.toLocaleString("de-DE")} Pendler`,
