@@ -343,6 +343,8 @@ lists the stages in the order they run, each module's docstring its rules.
   commuter towns, the count, a footpath, a moved stop, a street.
 - `check-up`: a report on the maps of an instance — does each check out, when was it measured, was it
   edited since — and measuring again the ones that are out of date, asking first.
+- `sim-experiment`: a number of the model changed on newer research — the maps measured before and
+  after, the verdict first, and what changes together once the change is kept.
 
 ## repo conventions
 
