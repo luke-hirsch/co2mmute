@@ -89,6 +89,14 @@ HOME_PASS_EARLIEST_TICK = 200
 # move the round's result by far more than this recorder is worth.
 REPLAY_PEOPLE_PER_DOT = 10
 
+# A pass follows at most this many people, however big the map. On built Berlin
+# (68 000 commuters, long trips, ~1 800 ticks) one dot in ten was ~6 800 dots a
+# pass, each with its whole path, past Postgres's 256 MB limit for one jsonb
+# value, and the round's numbers went with it. The stride widens per round until
+# the sample fits; what the screen names is the real ratio (`_people_per_dot`).
+# The shipped map (6 800 people) follows ~680 a pass, so it is under and unchanged.
+MAX_REPLAY_DOTS_PER_PASS = 1000
+
 # Bumped when the wire format changes, so a stored replay from an older round
 # can be recognised and skipped rather than mis-drawn.
 #
@@ -2007,6 +2015,30 @@ class LinkQueueEngine:
 
         return dots, end_min
 
+    def _stride_for_cap(self) -> int:
+        """The smallest stride that follows no more than MAX_REPLAY_DOTS_PER_PASS.
+
+        A Gruppe of n is ceil(n / stride) dots, so the sum over Gruppen is what
+        counts. Past the biggest Gruppe every one is a single dot, and no wider
+        stride follows fewer.
+        """
+        sizes = [
+            len(schedule)
+            for route_pk, schedule in self.departure_schedule.items()
+            if route_pk >= 0
+        ]
+        if not sizes:
+            return 1
+        cap = MAX_REPLAY_DOTS_PER_PASS
+
+        def dots(stride: int) -> int:
+            return sum(-(-n // stride) for n in sizes)
+
+        stride = max(1, -(-sum(sizes) // cap))
+        while dots(stride) > cap and stride < max(sizes):
+            stride += 1
+        return stride
+
     def _people_and_dots(self) -> tuple[int, int]:
         """People this pass carries and the dots sampled from them."""
         people = sampled = 0
@@ -2251,6 +2283,7 @@ class LinkQueueEngine:
 
         # Run morning commute
         self._generate_departures(is_morning=self.direction == "out")
+        self.trace_stride = max(self.trace_stride, self._stride_for_cap())
         # The desired-speed draw belongs to the PERSON, not to the
         # attempt. It used to happen in _spawn_vehicles, where a traveller
         # the street turns away is discarded and rebuilt next tick with a

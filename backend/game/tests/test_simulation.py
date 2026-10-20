@@ -4386,6 +4386,77 @@ class ReplaySamplingTests(TestCase):
             [round(t, 6) for t in every.agent_results[every_route.pk]["trip_times"]],
         )
 
+    def test_the_stride_widens_so_the_dots_stay_under_the_cap(self):
+        from unittest.mock import patch
+
+        with patch("sim.linkqueue.MAX_REPLAY_DOTS_PER_PASS", 5):
+            simulator, route, _ = self._run(people=200)
+
+        followed = [
+            vid
+            for vid in simulator.trace
+            if simulator.vehicles[vid].route_pk == route.pk
+        ]
+        self.assertEqual(len(followed), 5)
+        self.assertEqual(simulator.trace_stride, 40)
+        # The screen's ratio is the real one, not the stride it started from.
+        self.assertEqual(simulator.simulation_result.replay["people_per_dot"], 40)
+
+    def test_a_round_under_the_cap_keeps_its_stride(self):
+        from game.simulation import REPLAY_PEOPLE_PER_DOT
+
+        simulator, _, _ = self._run(people=200)
+
+        self.assertEqual(simulator.trace_stride, REPLAY_PEOPLE_PER_DOT)
+
+    def test_a_round_the_size_of_the_shipped_map_keeps_its_stride(self):
+        from game.simulation import REPLAY_PEOPLE_PER_DOT
+
+        simulator, _, _ = self._run(people=6800)
+
+        self.assertEqual(simulator.trace_stride, REPLAY_PEOPLE_PER_DOT)
+        self.assertEqual(simulator.simulation_result.replay["people_per_dot"], 10)
+
+    def test_a_replay_that_cannot_be_built_leaves_the_round_completed(self):
+        from unittest.mock import patch
+
+        from game.models import AgentSimulationResult, SimulationResult
+
+        with patch.object(
+            TrafficSimulator, "build_replay", side_effect=MemoryError("too big")
+        ):
+            simulator, _, _ = self._run(people=200)
+
+        result = SimulationResult.objects.get(pk=simulator.simulation_result.pk)
+        self.assertEqual(result.status, SimulationResult.Status.COMPLETED)
+        self.assertGreater(result.total_co2_g, 0)
+        self.assertTrue(
+            AgentSimulationResult.objects.filter(simulation=result).exists()
+        )
+        self.assertFalse(result.replay)
+
+    def test_a_replay_that_cannot_be_saved_leaves_the_round_completed(self):
+        from unittest.mock import patch
+
+        from django.db import DatabaseError
+
+        from game.models import SimulationResult
+
+        real_save = SimulationResult.save
+
+        def refuse_the_replay(self, *args, **kwargs):
+            if kwargs.get("update_fields") == ["replay"]:
+                raise DatabaseError("total size of jsonb array elements exceeds")
+            return real_save(self, *args, **kwargs)
+
+        with patch.object(SimulationResult, "save", refuse_the_replay):
+            simulator, _, _ = self._run(people=200)
+
+        result = SimulationResult.objects.get(pk=simulator.simulation_result.pk)
+        self.assertEqual(result.status, SimulationResult.Status.COMPLETED)
+        self.assertGreater(result.total_co2_g, 0)
+        self.assertFalse(result.replay)
+
 
 class ReplayLineVehicleTests(PTBoardingScenarioMixin, TestCase):
     """Every line vehicle is followed, whatever the stride.
