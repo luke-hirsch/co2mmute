@@ -5,6 +5,7 @@ import { HostControls } from "@/components/host/host-controls";
 import { RoundHeader } from "@/components/round/round-header";
 import { RoundScreen } from "@/components/round/round-screen";
 import { Screen } from "@/components/layout/screen";
+import { PersonaStrip } from "@/components/host/persona-strip";
 import { SeatAdminList } from "@/components/host/seat-admin-list";
 import { useRoundDesk } from "@/hooks/use-desk";
 import { useGame } from "@/components/game/game-context";
@@ -85,6 +86,8 @@ export function HostDeskScreen() {
           onPlay={desk.pick}
         />
       </section>
+
+      <PersonaStrip gameId={state.gameId} seatCount={state.seats.length} />
 
       <HostControls />
     </Screen>

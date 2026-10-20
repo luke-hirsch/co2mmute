@@ -14,6 +14,7 @@ from game.views_rest import (
     MuteUnmutePlayerView,
     PlayerDetailView,
     PlayerListView,
+    PersonasInPlayView,
     PlayerMoveView,
     RoundReplayView,
     RoundTrafficHeatmapView,
@@ -33,6 +34,11 @@ urlpatterns = [
     path("code/<str:code>/", CodeView.as_view(), name="code"),
     path("<str:game_id>/lobby/", LobbyStateView.as_view(), name="lobby-state"),
     path("<str:game_id>/pause/", GamePauseView.as_view(), name="game-pause"),
+    path(
+        "<str:game_id>/pendlertypen/",
+        PersonasInPlayView.as_view(),
+        name="personas-in-play",
+    ),
     path("<str:game_id>/resume/", GameResumeView.as_view(), name="game-resume"),
     path("<str:game_id>/player/", PlayerListView.as_view(), name="player-list"),
     path(

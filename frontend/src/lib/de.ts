@@ -896,6 +896,11 @@ export const de = {
    * else, which is what a Leitstelle is.
    */
   host: {
+    /** The strip of Pendlertypen in the lobby and at the Leitstelle: counts only. */
+    personasInPlay: {
+      title: "In diesem Spiel",
+      groups: (n: number) => (n === 1 ? "1 Gruppe" : `${n} Gruppen`),
+    },
     title: "Leitstelle",
     /**
      * Under the game's name, on the projector, so it talks to the class, not

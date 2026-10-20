@@ -5,6 +5,7 @@ import { ConfirmAction } from "@/components/layout/confirm-action";
 import { DepartureBoard } from "@/components/metro/departure-board";
 import { GameSettings } from "@/components/lobby/game-settings";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
+import { PersonaStrip } from "@/components/host/persona-strip";
 import { SeatAdminList } from "@/components/host/seat-admin-list";
 import { ShareInvitation } from "@/components/host/share-invitation";
 import { useGame } from "@/components/game/game-context";
@@ -124,6 +125,8 @@ export function HostLobbyScreen() {
           <SeatAdminList gameId={state.gameId} seats={state.seats} />
         </section>
       </div>
+
+      <PersonaStrip gameId={state.gameId} seatCount={players.length} />
 
       <section className="mb-12">
         <h2 className="mb-4 text-2xl font-semibold">{de.lobby.settings.title}</h2>
