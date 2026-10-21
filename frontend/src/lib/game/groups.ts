@@ -47,7 +47,7 @@ export type TypeLine = {
 };
 
 /**
- * "Wie die Pendlertypen gefahren sind": every type once, over every seat that
+ * "Pendlertypen": every type once, over every seat that
  * holds it, in the order they first turn up.
  *
  * The same `groups` the seat's own view reads, added up by type. It carries no

@@ -816,8 +816,7 @@ export const de = {
      * The class's view of the types, folded: every Pendlertyp once, over all
      * the Gruppen that held it. No seat, no CO₂.
      */
-    typesTitle: "Wie die Pendlertypen gefahren sind",
-    typesLead: "Alle Gruppen eines Typs zusammen, über alle Runden.",
+    typesTitle: "Pendlertypen",
     typeGroups: (n: number) => (n === 1 ? "1 Gruppe" : `${n} Gruppen`),
     groupNoPersona: "ohne Pendlertyp",
     groupRounds: (n: number) => (n === 1 ? "1 Runde" : `${n} Runden`),

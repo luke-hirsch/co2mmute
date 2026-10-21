@@ -2,7 +2,7 @@ import { de } from "@/lib/de";
 import { modeTally, type TypeLine } from "@/lib/game/groups";
 
 /**
- * "Wie die Pendlertypen gefahren sind": one line per type, folded by default so
+ * "Pendlertypen": one line per type, folded by default so
  * the summary does not grow. Opened, it says what all the Gruppen of a type did
  * over the game — the question "did the type matter" in one glance.
  *
@@ -17,9 +17,6 @@ export function TypeOverview({ lines }: { lines: readonly TypeLine[] }) {
       <summary className="cursor-pointer text-2xl font-semibold">
         {de.summary.typesTitle}
       </summary>
-      <p className="mt-4 max-w-(--measure-body) text-muted-foreground">
-        {de.summary.typesLead}
-      </p>
       <ul className="mt-4 divide-y divide-border border-y border-border">
         {lines.map((line) => (
           <li
