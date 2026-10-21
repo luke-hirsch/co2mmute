@@ -17,7 +17,6 @@ from game.views_rest import (
     PersonasInPlayView,
     PlayerMoveView,
     RoundReplayView,
-    RoundTrafficHeatmapView,
     SeatCodeIssueView,
     SeatTakeoverView,
     StandardPersonasView,
@@ -70,11 +69,6 @@ urlpatterns = [
         "<str:game_id>/player/<str:player_id>/mute/",
         MuteUnmutePlayerView.as_view(),
         name="player-mute",
-    ),
-    path(
-        "<str:game_id>/round/<int:round_number>/traffic/",
-        RoundTrafficHeatmapView.as_view(),
-        name="round-traffic-heatmap",
     ),
     path(
         "<str:game_id>/round/<int:round_number>/replay/",

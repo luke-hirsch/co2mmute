@@ -1772,8 +1772,8 @@ class LinkQueueEngine:
         for edge_id, state in self.edge_states.items():
             held = self.held_at_origin.get(edge_id, 0)
             # `held` on its own is enough to record a row: an origin link with
-            # a queue outside it and nothing on it is the case the heatmap was
-            # blind to, and skipping it would keep it that way.
+            # a queue outside it and nothing on it is the case the replay would
+            # be blind to, and skipping it would make it so.
             if state.queue or state.traversal_count or held:
                 self.link_samples.append(
                     LinkSample(

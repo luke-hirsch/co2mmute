@@ -2160,9 +2160,9 @@ class OriginQueueVisibilityTests(TestCase):
     46.7 km/h, and a mean link speed at free flow — because the vehicles were
     never on the link. They were in `self.waiting`, which nothing measures.
 
-    So the heatmap would paint the bottleneck green and the Tempo-30 streets
-    as the problem, and the tick log says the network is empty. This is what
-    makes finding 5 (the heatmap on the stats screen) safe to build.
+    So a map of the round would draw the bottleneck empty and the Tempo-30
+    streets as the problem, and the tick log says the network is empty. The
+    replay draws the queue at the door from these snapshots.
     """
 
     SEED = 20260921
@@ -2205,7 +2205,7 @@ class OriginQueueVisibilityTests(TestCase):
         )
 
     def test_the_door_queue_is_charged_to_the_link_they_want(self):
-        """Not a global number: a heatmap needs to know WHICH street."""
+        """Not a global number: the replay needs to know WHICH street."""
         _, _, samples = self._run()
 
         worst = max(samples, key=lambda s: sum(s.values()), default={})
@@ -2249,95 +2249,6 @@ class OriginQueueVisibilityTests(TestCase):
         self.assertTrue(
             hidden.exists(),
             "no snapshot shows more vehicles waiting to get on than on the link",
-        )
-
-
-class TrafficHeatmapPayloadTests(TestCase):
-    """`api/game/<id>/round/<n>/traffic/` has to carry the door queue too.
-
-    Here rather than in test_rounds.py: the endpoint reports simulation
-    output, and the map helpers that build a graph to report on live in this
-    file. Rows are written by hand — this is about the payload, not about
-    reproducing a jam.
-    """
-
-    def setUp(self):
-        from django.conf import settings
-
-        from co2mmute.utils import sign_value
-        from game.models import EdgeTrafficSnapshot, SimulationResult
-
-        self.user = User.objects.create_user(username="heat", password="12345")
-        self.game_map, self.version, self.nodes = _grid_map("Heat map", 3)
-        self.edges = [
-            _street(self.game_map, self.version, self.nodes[i], self.nodes[i + 1])
-            for i in range(2)
-        ]
-        from game.tests._helpers import muted
-
-        with muted():
-            self.session = _session(self.user, self.game_map)
-        self.game_round = GameRound.objects.create(game=self.session, round_number=1)
-        self.result = SimulationResult.objects.create(
-            game_round=self.game_round, status=SimulationResult.Status.COMPLETED
-        )
-        # The bottleneck: nothing on the link, 400 people outside it.
-        EdgeTrafficSnapshot.objects.create(
-            simulation=self.result,
-            edge_id=self.edges[0].pk,
-            time_tick=5,
-            vehicle_count=1,
-            waiting_count=400,
-            speed_kmh=49.2,
-        )
-        # An ordinary busy link, for contrast.
-        EdgeTrafficSnapshot.objects.create(
-            simulation=self.result,
-            edge_id=self.edges[1].pk,
-            time_tick=5,
-            vehicle_count=30,
-            waiting_count=0,
-            speed_kmh=25.0,
-        )
-        self.client.cookies[
-            f"{settings.COOKIE_GAME_PREFIX}{self.session.game_id}"
-        ] = sign_value(
-            f"{self.session.game_id}:test-token", settings.COOKIE_GAME_SALT
-        )
-
-    def _get(self):
-        return self.client.get(
-            f"/api/game/{self.session.game_id}/round/1/traffic/"
-        )
-
-    def test_the_payload_carries_the_door_queue(self):
-        response = self._get()
-
-        edges = {e["edge_id"]: e for e in response.json()["edges"]}
-
-        self.assertEqual(edges[self.edges[0].pk]["max_waiting_count"], 400)
-
-    def test_a_link_with_nobody_waiting_reports_zero(self):
-        response = self._get()
-
-        edges = {e["edge_id"]: e for e in response.json()["edges"]}
-
-        self.assertEqual(edges[self.edges[1].pk]["max_waiting_count"], 0)
-
-    def test_the_speed_ratio_is_unchanged(self):
-        """The door queue is a second number, not a correction to this one.
-
-        A link at 49.2 of 50 km/h IS running at free flow; the 400 people
-        outside it are a different fact about the same street. Folding them
-        into one figure would be putting the right colour on the map for the
-        wrong reason.
-        """
-        response = self._get()
-
-        edges = {e["edge_id"]: e for e in response.json()["edges"]}
-
-        self.assertAlmostEqual(
-            edges[self.edges[0].pk]["congestion_ratio"], 0.016, places=3
         )
 
 
