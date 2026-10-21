@@ -94,8 +94,9 @@ def versions_built_on(version, ignoring=None):
     A version that adds and removes nothing would by that reading be held by
     every version, base included; nothing is built on it but itself.
 
-    `ignoring` is the row being placed: it is already in `version` when this is
-    asked, and counted as part of the change no combination would hold it yet.
+    `ignoring` is the row being placed, or a list of them: it is already in
+    `version` when this is asked, and counted as part of the change no
+    combination would hold it yet.
     """
     from maps.models import MapVersion
 
@@ -105,9 +106,16 @@ def versions_built_on(version, ignoring=None):
 
     held = _holdings(version.game_map_id)
     if ignoring is not None:
+        rows = ignoring if isinstance(ignoring, (list, tuple)) else [ignoring]
+        source_pk = _source_pk(version, versions)
         for model, pks in held[version.pk].items():
-            if isinstance(ignoring, model):
-                pks.discard(ignoring.pk)
+            for row in rows:
+                # a row the source holds too is no part of the change: taking
+                # it out would read as a removal
+                if isinstance(row, model) and (
+                    source_pk is None or row.pk not in held[source_pk][model]
+                ):
+                    pks.discard(row.pk)
     built_on = set(_built_on(version, versions, held))
     return [version] + [v for v in versions if v.pk in built_on and v != version]
 
@@ -137,13 +145,16 @@ def changes_held(game_map_id):
     return changes
 
 
+def _source_pk(version, versions):
+    """The version `version` was made from: its source, else the base."""
+    if version.source_version_id is not None:
+        return version.source_version_id
+    return next((v.pk for v in versions if v.base_version and v != version), None)
+
+
 def _built_on(version, versions, held):
     """The pks of `version` and of every version built on it, from `_holdings`."""
-    source_pk = version.source_version_id
-    if source_pk is None:
-        source_pk = next(
-            (v.pk for v in versions if v.base_version and v != version), None
-        )
+    source_pk = _source_pk(version, versions)
     if source_pk is None:
         return [version.pk]
 
@@ -253,6 +264,135 @@ def spread_to_built_on(row, drawn_in):
     if room:
         row.map_versions.add(*room)
     return room
+
+
+def _chain_spec(line):
+    """`(chain model, line field, row field, row model)` for a bus or train line."""
+    from maps.models import (
+        BusLine,
+        BusLineEdge,
+        StreetEdge,
+        TrainEdge,
+        TrainLineEdge,
+    )
+
+    if isinstance(line, BusLine):
+        return BusLineEdge, "bus_line", "street_edge", StreetEdge
+    return TrainLineEdge, "train_line", "train_edge", TrainEdge
+
+
+def line_route(line, version):
+    """The line's chain on `version` as `(start node, end node)` pairs, in order.
+
+    Pairs, not row ids: a version that changed a street holds a clone of it,
+    and two versions run the same route when they run over the same node pairs.
+    """
+    model, line_field, row_field, _ = _chain_spec(line)
+    rows = model.objects.filter(
+        **{line_field: line}, map_versions=version
+    ).select_related(f"{row_field}__edge")
+    pairs = []
+    for row in rows.order_by("order", "pk"):
+        edge = getattr(row, row_field).edge
+        pairs.append((edge.start_node_id, edge.end_node_id))
+    return pairs
+
+
+def line_route_of(rows):
+    """The same pairs from street (or railway) rows, in the order given."""
+    return [(row.edge.start_node_id, row.edge.end_node_id) for row in rows]
+
+
+def _resolve_route(line, version, pairs):
+    """The street (or railway) rows `version` holds under `pairs`, or `None`."""
+    _, _, _, under = _chain_spec(line)
+    found = []
+    for start, end in pairs:
+        row = (
+            under.objects.filter(
+                edge__start_node_id=start,
+                edge__end_node_id=end,
+                map_versions=version,
+            )
+            .order_by("pk")
+            .first()
+        )
+        if row is None:
+            return None
+        found.append(row)
+    return found
+
+
+def set_line_route(line, version, under_rows):
+    """Make `under_rows` the line's chain on `version`, and on no other.
+
+    The version leaves the line's old chain rows and joins rows of the new one,
+    reusing a row another version already holds for the same street and place.
+    """
+    model, line_field, row_field, _ = _chain_spec(line)
+    old = model.objects.filter(**{line_field: line}, map_versions=version)
+    drop_rows_from(list(old), version)
+    rows = []
+    for order, under in enumerate(under_rows):
+        keys = {line_field: line, row_field: under, "order": order}
+        row = model.objects.filter(**keys).first()
+        rows.append(row or model.objects.create(**keys))
+    put_rows_in(rows, [version])
+    model.objects.filter(**{line_field: line}, map_versions__isnull=True).delete()
+
+
+def pick_drawn_version(versions):
+    """The version a line was drawn in, among the ones that could be: the base,
+    else the one most versions are built on."""
+    versions = list(versions)
+    base = next((v for v in versions if v.base_version), None)
+    if base is not None:
+        return base
+    return max(versions, key=lambda v: len(versions_built_on(v)), default=None)
+
+
+def spread_line_to_built_on(line, drawn_in, new_pairs, old_pairs=None):
+    """Run a line drawn in `drawn_in` over its route in every version built on them.
+
+    The line's half of `spread_to_built_on`. The route is resolved by node pair
+    and direction to the version's own street (or railway) rows, so a version
+    with a clone of a street runs the line over the clone. A version is skipped,
+    and listed with the reason, when
+
+    * a pair is missing there (`missing-edge`), or
+    * it has its own copy of the line (`own-route`): it already holds the line
+      and its route differs from the drawn version's route *before* this save
+      (`old_pairs`). That route is the version's change. On a first save
+      (`old_pairs=None`) no version holds the line, so nothing is its own.
+
+    A version skipped for a missing pair is tried again at the next save: the
+    editor draws a line over several saves, the line first and its route after.
+    """
+    drawn = list(drawn_in)
+    # The line and its chain are the change being placed: no combination holds
+    # them yet, so they cannot decide which versions are built on the drawn one.
+    model, line_field, _, _ = _chain_spec(line)
+    placing = [line, *model.objects.filter(**{line_field: line})]
+    targets = {}
+    for version in drawn:
+        for other in versions_built_on(version, ignoring=placing):
+            targets.setdefault(other.pk, other)
+    for version in drawn:
+        targets.pop(version.pk, None)
+
+    holding = set(line.map_versions.values_list("pk", flat=True))
+    skipped = []
+    for version in sorted(targets.values(), key=lambda v: v.pk):
+        if version.pk in holding and line_route(line, version) != old_pairs:
+            skipped.append({"version": version.pk, "reason": "own-route"})
+            continue
+        rows = _resolve_route(line, version, new_pairs)
+        if rows is None:
+            skipped.append({"version": version.pk, "reason": "missing-edge"})
+            continue
+        line.map_versions.add(version)
+        set_line_route(line, version, rows)
+    return skipped
 
 
 def combination_members(model, base_version, member_versions):

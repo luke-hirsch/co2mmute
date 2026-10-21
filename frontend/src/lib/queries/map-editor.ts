@@ -263,18 +263,32 @@ export function updateTrainLine(mapId: MapId, lineId: number, data: Record<strin
   });
 }
 
-/** The whole edge list of a line, replaced — hence PUT rather than PATCH. */
-export function updateBusLineEdges(mapId: MapId, lineId: number, edges: number[]) {
+/**
+ * The whole edge list of a line, replaced — hence PUT rather than PATCH.
+ * `mapVersion` is the version being edited: the route changes there and in the
+ * versions built on it, never in one it is not built on.
+ */
+export function updateBusLineEdges(
+  mapId: MapId,
+  lineId: number,
+  edges: number[],
+  mapVersion?: number,
+) {
   return apiFetch(`${base(mapId)}/bus-lines/${lineId}/edges/`, {
     method: "PUT",
-    body: JSON.stringify({ edges }),
+    body: JSON.stringify({ edges, map_version: mapVersion }),
   });
 }
 
-export function updateTrainLineEdges(mapId: MapId, lineId: number, edges: number[]) {
+export function updateTrainLineEdges(
+  mapId: MapId,
+  lineId: number,
+  edges: number[],
+  mapVersion?: number,
+) {
   return apiFetch(`${base(mapId)}/train-lines/${lineId}/edges/`, {
     method: "PUT",
-    body: JSON.stringify({ edges }),
+    body: JSON.stringify({ edges, map_version: mapVersion }),
   });
 }
 
@@ -471,16 +485,16 @@ export const useUpdateTrainLine = (mapId: MapId) =>
 export const useUpdateBusLineEdges = (mapId: MapId) =>
   useMapMutation(
     mapId,
-    ({ lineId, edges }: { lineId: number; edges: number[] }) =>
-      updateBusLineEdges(mapId, lineId, edges),
+    ({ lineId, edges, mapVersion }: { lineId: number; edges: number[]; mapVersion?: number }) =>
+      updateBusLineEdges(mapId, lineId, edges, mapVersion),
     graphOnly,
   );
 
 export const useUpdateTrainLineEdges = (mapId: MapId) =>
   useMapMutation(
     mapId,
-    ({ lineId, edges }: { lineId: number; edges: number[] }) =>
-      updateTrainLineEdges(mapId, lineId, edges),
+    ({ lineId, edges, mapVersion }: { lineId: number; edges: number[]; mapVersion?: number }) =>
+      updateTrainLineEdges(mapId, lineId, edges, mapVersion),
     graphOnly,
   );
 

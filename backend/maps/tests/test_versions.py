@@ -55,7 +55,7 @@ from maps.models import (
     TrainLineEdge,
 )
 from maps.serializer import serialize_bus_line_for_graph, serialize_train_line_for_graph
-from maps.versions import backfill_chain_versions
+from maps.versions import backfill_chain_versions, drop_rows_from, set_line_route
 
 
 class VersionFixtureMixin:
@@ -1811,3 +1811,295 @@ class DeletingAMapInTheAdminTests(DeletingAMapMixin, TestCase):
 
         self.assertTrue(GameMap.objects.filter(pk=self.game_map.pk).exists())
         self.assertTrue(GameMap.objects.filter(pk=other.pk).exists())
+
+
+@override_settings(**TEST_BACKENDS)
+class LinesDrawnInAVersionTests(VersionFixtureMixin, TestCase):
+    """A line drawn in a version runs in every version built on it.
+
+    The line's half of the rule the streets follow. The route is resolved by
+    node pair and direction to each version's own streets, so `Busspuren` runs
+    a base line over its clone of edge B. Lines 100 and 101 have chain rows in
+    every version on each version's clones, so "has chain rows" cannot mean
+    "has its own copy": a version has its own copy when its route, as node
+    pairs, differs from the drawn version's route before the save.
+    """
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="staff", password="password123", is_staff=True
+        )
+        self.client.force_login(self.user)
+        self.build_map()
+        self.busspuren = self._diff(
+            "Busspuren",
+            edge_changes=[
+                {"edge_id": self.edge_b.pk, "dedicated_bus_lane": True, "lanes": 2}
+            ],
+        )
+        self.umweg = self._diff(
+            "Umgehungsstraße",
+            new_edges=[
+                {
+                    "temp_start_node": str(self.nodes[0].pk),
+                    "temp_end_node": str(self.nodes[3].pk),
+                    "walking": True,
+                    "max_lanes": 1,
+                    "speed_limit": 50,
+                    "lanes": 1,
+                }
+            ],
+        )
+        self.combination = self._combine(self.busspuren, self.umweg)
+        self.everywhere = [self.busspuren, self.umweg, self.combination]
+
+    def street(self, edge, version):
+        return StreetEdge.objects.get(
+            edge__in=self._same_pair(edge), map_versions=version
+        )
+
+    def _same_pair(self, edge):
+        return Edge.objects.filter(start_node=edge.start_node, end_node=edge.end_node)
+
+    def rail(self, edge, version):
+        return TrainEdge.objects.get(
+            edge__in=self._same_pair(edge), map_versions=version
+        )
+
+    def draw_bus(self, name, edges, version):
+        response = self.client.post(
+            reverse("maps:busline-list", kwargs={"pk": self.game_map.pk}),
+            data={
+                "game_map": self.game_map.pk,
+                "name": name,
+                "map_versions": [version.pk],
+                "edges": [self.street(e, version).pk for e in edges],
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        return BusLine.objects.get(pk=response.json()["id"]), response.json()
+
+    def put_bus(self, line, edges, version, *, send_version=False):
+        data = {"edges": [self.street(e, version).pk for e in edges]}
+        if send_version:
+            data["map_version"] = version.pk
+        response = self.client.put(
+            reverse(
+                "maps:busline-edges",
+                kwargs={"pk": self.game_map.pk, "busline_pk": line.pk},
+            ),
+            data=data,
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        return response.json()
+
+    def streets_of(self, line, version):
+        return list(
+            line.buslineedge_set.filter(map_versions=version)
+            .order_by("order")
+            .values_list("street_edge_id", flat=True)
+        )
+
+    def test_a_bus_line_drawn_in_base_runs_in_every_version(self):
+        line, body = self.draw_bus(
+            "200", [self.edge_a, self.edge_b, self.edge_c], self.base
+        )
+
+        self.assertEqual(body["skipped_versions"], [])
+        self.assertEqual(set(line.map_versions.all()), {self.base, *self.everywhere})
+        for version in self.everywhere:
+            self.assertEqual(
+                self.streets_of(line, version),
+                [
+                    self.street(e, version).pk
+                    for e in (self.edge_a, self.edge_b, self.edge_c)
+                ],
+            )
+
+    def test_busspuren_runs_a_new_line_over_its_own_clone(self):
+        line, _ = self.draw_bus(
+            "200", [self.edge_a, self.edge_b, self.edge_c], self.base
+        )
+
+        clone = self.street(self.edge_b, self.busspuren)
+        self.assertNotEqual(clone.pk, self.street(self.edge_b, self.base).pk)
+        self.assertIn(clone.pk, self.streets_of(line, self.busspuren))
+        self.assertNotIn(
+            self.street(self.edge_b, self.base).pk,
+            self.streets_of(line, self.busspuren),
+        )
+
+    def test_a_train_line_drawn_in_base_runs_in_every_version(self):
+        response = self.client.post(
+            reverse("maps:trainline-list", kwargs={"pk": self.game_map.pk}),
+            data={
+                "game_map": self.game_map.pk,
+                "name": "U9",
+                "map_versions": [self.base.pk],
+                "edges": [
+                    self.rail(self.edge_b, self.base).pk,
+                    self.rail(self.edge_c, self.base).pk,
+                ],
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        line = TrainLine.objects.get(pk=response.json()["id"])
+
+        self.assertEqual(response.json()["skipped_versions"], [])
+        self.assertEqual(set(line.map_versions.all()), {self.base, *self.everywhere})
+        for version in self.everywhere:
+            self.assertEqual(
+                list(
+                    line.trainlineedge_set.filter(map_versions=version)
+                    .order_by("order")
+                    .values_list("train_edge_id", flat=True)
+                ),
+                [self.rail(e, version).pk for e in (self.edge_b, self.edge_c)],
+            )
+
+    def test_a_base_edit_of_a_line_reaches_busspuren_on_its_clones(self):
+        body = self.put_bus(self.bus, [self.edge_a, self.edge_b], self.base)
+
+        self.assertEqual(body["skipped_versions"], [])
+        for version in (self.base, *self.everywhere):
+            self.assertEqual(
+                self.streets_of(self.bus, version),
+                [self.street(e, version).pk for e in (self.edge_a, self.edge_b)],
+                version.name,
+            )
+        # nothing of base's rows leaked into Busspuren's chain
+        base_b = self.street(self.edge_b, self.base).pk
+        self.assertNotIn(base_b, self.streets_of(self.bus, self.busspuren))
+
+    def test_a_version_with_its_own_route_keeps_it(self):
+        own = [
+            self.street(self.edge_a, self.busspuren),
+            self.street(self.edge_b, self.busspuren),
+        ]
+        set_line_route(self.bus, self.busspuren, own)
+
+        body = self.put_bus(self.bus, [self.edge_a, self.edge_b], self.base)
+
+        self.assertEqual(
+            body["skipped_versions"],
+            [{"version": self.busspuren.pk, "reason": "own-route"}],
+        )
+        self.assertEqual(self.streets_of(self.bus, self.busspuren), [s.pk for s in own])
+        self.assertEqual(
+            self.streets_of(self.bus, self.umweg),
+            [self.street(e, self.umweg).pk for e in (self.edge_a, self.edge_b)],
+        )
+
+    def test_a_version_missing_an_edge_is_skipped_and_listed(self):
+        drop_rows_from([self.street(self.edge_a, self.umweg)], self.umweg)
+        self.combination.refresh_from_db()
+        drop_rows_from([self.street(self.edge_a, self.combination)], self.combination)
+
+        line, body = self.draw_bus("200", [self.edge_a, self.edge_b], self.base)
+
+        self.assertEqual(
+            sorted(body["skipped_versions"], key=lambda s: s["version"]),
+            sorted(
+                [
+                    {"version": self.umweg.pk, "reason": "missing-edge"},
+                    {"version": self.combination.pk, "reason": "missing-edge"},
+                ],
+                key=lambda s: s["version"],
+            ),
+        )
+        self.assertEqual(set(line.map_versions.all()), {self.base, self.busspuren})
+
+    def test_a_line_drawn_empty_gets_its_route_at_the_next_save(self):
+        line, _ = self.draw_bus("200", [], self.base)
+        self.assertEqual(set(line.map_versions.all()), {self.base, *self.everywhere})
+
+        body = self.put_bus(line, [self.edge_a, self.edge_b], self.base)
+
+        self.assertEqual(body["skipped_versions"], [])
+        for version in self.everywhere:
+            self.assertEqual(
+                self.streets_of(line, version),
+                [self.street(e, version).pk for e in (self.edge_a, self.edge_b)],
+            )
+
+    def test_a_line_drawn_in_a_change_runs_in_the_combination_only(self):
+        line, _ = self.draw_bus("200", [self.edge_a, self.edge_b], self.busspuren)
+
+        self.assertEqual(
+            set(line.map_versions.all()), {self.busspuren, self.combination}
+        )
+
+    def test_a_version_the_drawn_one_is_not_built_on_is_left_alone(self):
+        before = self.streets_of(self.bus, self.busspuren)
+        bypass = StreetEdge.objects.get(
+            edge__start_node=self.nodes[0],
+            edge__end_node=self.nodes[3],
+            map_versions=self.umweg,
+        )
+
+        response = self.client.put(
+            reverse(
+                "maps:busline-edges",
+                kwargs={"pk": self.game_map.pk, "busline_pk": self.bus.pk},
+            ),
+            data={"edges": [bypass.pk]},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(self.streets_of(self.bus, self.umweg), [bypass.pk])
+        self.assertEqual(len(self.streets_of(self.bus, self.combination)), 1)
+        self.assertEqual(self.streets_of(self.bus, self.busspuren), before)
+        self.assertEqual(
+            len(self.streets_of(self.bus, self.base)), 3
+        )
+
+    def test_an_edit_in_a_change_over_shared_streets_leaves_base_alone(self):
+        base_before = self.streets_of(self.bus, self.base)
+        busspuren_before = self.streets_of(self.bus, self.busspuren)
+
+        body = self.put_bus(
+            self.bus, [self.edge_a, self.edge_b], self.umweg, send_version=True
+        )
+
+        self.assertEqual(body["skipped_versions"], [])
+        self.assertEqual(self.streets_of(self.bus, self.base), base_before)
+        self.assertEqual(self.streets_of(self.bus, self.busspuren), busspuren_before)
+        for version in (self.umweg, self.combination):
+            self.assertEqual(
+                self.streets_of(self.bus, version),
+                [self.street(e, version).pk for e in (self.edge_a, self.edge_b)],
+                version.name,
+            )
+
+    def test_the_version_sent_must_hold_the_line(self):
+        line, _ = self.draw_bus("200", [self.edge_a], self.busspuren)
+        response = self.client.put(
+            reverse(
+                "maps:busline-edges",
+                kwargs={"pk": self.game_map.pk, "busline_pk": line.pk},
+            ),
+            data={
+                "edges": [self.street(self.edge_a, self.busspuren).pk],
+                "map_version": self.umweg.pk,
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["reason"], "line-not-in-version")
+
+    def test_a_base_edit_with_the_version_sent_spreads_as_before(self):
+        body = self.put_bus(
+            self.bus, [self.edge_a, self.edge_b], self.base, send_version=True
+        )
+
+        self.assertEqual(body["skipped_versions"], [])
+        for version in self.everywhere:
+            self.assertEqual(
+                self.streets_of(self.bus, version),
+                [self.street(e, version).pk for e in (self.edge_a, self.edge_b)],
+            )

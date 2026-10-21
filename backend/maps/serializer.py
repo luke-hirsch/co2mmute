@@ -454,8 +454,8 @@ class BusLineSerializer(MapVersionsMixin, serializers.ModelSerializer):
         """Every street this line runs on, across all versions — on purpose.
 
         This is the line's own record (`api/maps/<pk>/bus-lines/`), not a
-        version's graph, and `PUT .../edges/` replaces the chain in every version
-        the line runs in. The editor draws its lines from the version graph
+        version's graph, and `PUT .../edges/` replaces the chain where the line was
+        drawn and in the versions built on it. The editor draws its lines from the version graph
         instead (`serialize_bus_line_for_graph`), which is the version-scoped
         answer. A line whose chain differs per version therefore reads here as
         the union, with an order repeated once per version.
