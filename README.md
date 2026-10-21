@@ -147,7 +147,7 @@ zwei Workflows:
   `e2e/seed.mjs` befüllt.
 - `go live` — bei jedem Push auf **`prod`**: dieselben drei Jobs, und erst wenn alle grün sind,
   per SSH auf die TU-Box, dort `git checkout -B prod origin/prod` und
-  `docker compose -f devops/docker-compose.yaml up -d --build`.
+  `docker compose -f devops/docker-compose.yaml up -d --build`, dann räumt sie alte Images und Build-Cache weg.
 
 Bis die Seite live ist, vergehen so gut zehn Minuten; Playwright braucht die meisten davon.
 
@@ -329,7 +329,7 @@ removes its own tests from the run.
   `e2e/seed.mjs`.
 - `go live` — on every push to **`prod`**: the same three jobs, and only once all are green, SSH to
   the TU box, where it runs `git checkout -B prod origin/prod` and
-  `docker compose -f devops/docker-compose.yaml up -d --build`.
+  `docker compose -f devops/docker-compose.yaml up -d --build`, then it prunes old images and build cache.
 
 A deploy is live a good ten minutes after the push; Playwright takes most of that.
 
