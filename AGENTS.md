@@ -223,6 +223,12 @@ versions *is* the ballot. A row naming no version is in no version.
   was on it. Nothing else writes membership.
 - A changed street is a clone: the original stays in the versions without the change, the clone is
   in the versions with it. Compare versions by node pair, never by id.
+- What is drawn in a version reaches every version built on it: a node or an edge as the row itself
+  (`spread_to_built_on`), a bus or train line resolved by node pair onto that version's own street
+  or rail rows, at create and at every route change (`spread_line_to_built_on`, `set_line_route`).
+  A version whose route of that line differed before the save, compared by node pairs, has its own
+  copy and is left alone; one that lacks a pair is skipped. The response lists both
+  (`skipped_versions`). The editor names the version it drew in (`map_version`).
 - **The JSON file is the backup and the only way a map moves.** `GET api/maps/<pk>/export/` writes
   every version and the ballot; `POST api/maps/import/` always makes a **new** map (an import that
   overwrote one would take its games with it). `maps/portability.py` owns the format. Export before
