@@ -193,11 +193,19 @@ def _stroke(label, d, style, extra=""):
     )
 
 
+LAYERS = {"water": "Gewässer", "green": "Grünflächen"}
+
+
 def _optional(area, name, report):
+    """a layer the map is drawn without when Overpass will not give it. Nothing is cached for it,
+    so the next build of the area asks again and gets it."""
     try:
         return download.osm(area, name)
     except download.Missing as e:
-        report.append(f"{name} fehlt, ohne gezeichnet ({e})")
+        report.append(
+            f"{LAYERS[name]} fehlen, ohne gezeichnet ({e}). "
+            "Vorschlag: später noch einmal bauen, dann kommen sie dazu"
+        )
         return []
 
 

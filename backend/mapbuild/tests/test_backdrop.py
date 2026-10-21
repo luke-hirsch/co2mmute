@@ -1,7 +1,10 @@
 """The background: a drawing in the plane the nodes lie in, from what the build holds."""
 
 import base64
+import pathlib
 import re
+import tempfile
+import types
 from unittest import mock
 
 from django.test import SimpleTestCase
@@ -126,8 +129,25 @@ class OptionalLayers(SimpleTestCase):
         with mock.patch("mapbuild.download.osm", osm):
             svg, report = backdrop.draw(None, 3, 4)
         self.assertTrue(svg.startswith("<svg"))
-        self.assertTrue(any(line.startswith("water fehlt") for line in report))
-        self.assertTrue(any(line.startswith("green fehlt") for line in report))
+        # the layer by its German name, why, and what to do: Overpass drops these
+        # for a while, and a build later fills them in because nothing was cached
+        water = [line for line in report if line.startswith("Gewässer fehlen")]
+        green = [line for line in report if line.startswith("Grünflächen fehlen")]
+        self.assertEqual(len(water), 1)
+        self.assertEqual(len(green), 1)
+        for line in water + green:
+            self.assertIn("nicht erreichbar", line)
+            self.assertIn("Vorschlag: später noch einmal bauen", line)
+
+    def test_a_layer_that_failed_is_not_cached_so_a_later_build_gets_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            area = types.SimpleNamespace(cache=pathlib.Path(tmp), fetch_bbox=(0, 0, 1, 1))
+            with mock.patch(
+                "mapbuild.download._osm", side_effect=download.Missing("nicht erreichbar")
+            ):
+                with self.assertRaises(download.Missing):
+                    download.osm(area, "water")
+            self.assertFalse((area.cache / "water.json").exists())
 
 
 class TheFile(SimpleTestCase):
