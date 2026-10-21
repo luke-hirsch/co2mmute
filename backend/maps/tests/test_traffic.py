@@ -17,7 +17,7 @@ like, and a bug that empties it looks exactly the same on screen.
 from django.test import TestCase
 
 from game.models import GameRound, SimulationResult
-from game.tests._helpers import create_game_session, create_host
+from game.tests._helpers import create_game_session, create_host, log_in_as_player
 from maps.models import Edge, GameMap, MapVersion, Node, StreetEdge, StreetPerRound
 from maps.serializer import serialize_previous_round_traffic
 
@@ -251,6 +251,8 @@ class GraphEndpointTrafficTests(TestCase):
         self.assertEqual(response.json()["previous_round_traffic"], [])
 
     def test_with_a_game_it_carries_that_game_s_last_round(self):
+        self.client.force_login(self.host)
+
         response = self.client.get(self._url(f"?game={self.game.game_id}"))
 
         self.assertEqual(response.status_code, 200)
@@ -267,8 +269,43 @@ class GraphEndpointTrafficTests(TestCase):
         second call would carry whatever the first one was asked for — here,
         nothing.
         """
+        self.client.force_login(self.host)
         self.client.get(self._url())
 
         response = self.client.get(self._url(f"?game={self.game.game_id}"))
 
         self.assertEqual(len(response.json()["previous_round_traffic"]), 1)
+
+    # --- who may ask for a game's traffic ------------------------------------
+    #
+    # The graph is anyone's, like the map list. A game's speeds are its own:
+    # the host by their session, a player by the game cookie, the rule every
+    # other endpoint of a game keeps (`game/permissions.py`).
+
+    def test_a_player_of_the_game_gets_its_traffic(self):
+        log_in_as_player(self.client, self.game.game_id, "seat")
+
+        response = self.client.get(self._url(f"?game={self.game.game_id}"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()["previous_round_traffic"]), 1)
+
+    def test_a_stranger_asking_for_a_game_is_refused(self):
+        response = self.client.get(self._url(f"?game={self.game.game_id}"))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_another_game_s_cookie_does_not_open_this_one(self):
+        other = create_game_session(self.host, game_map=self.game_map)
+        log_in_as_player(self.client, other.game_id, "seat")
+
+        response = self.client.get(self._url(f"?game={self.game.game_id}"))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_another_host_is_refused(self):
+        self.client.force_login(create_host(username="nebenan"))
+
+        response = self.client.get(self._url(f"?game={self.game.game_id}"))
+
+        self.assertEqual(response.status_code, 403)

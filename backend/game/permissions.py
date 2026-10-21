@@ -16,6 +16,17 @@ def _is_host(request, game_id: str) -> bool:
     return bool(session and session.game_host == request.user)
 
 
+def can_access_game(request, game_id: str) -> bool:
+    """The host by their session, or a browser holding the game's cookie.
+
+    `HasGameAccess` asks it for a game named in the URL; the graph asks it for
+    the one named in `?game=`.
+    """
+    if _is_host(request, game_id):
+        return True
+    return has_game_access(request.COOKIES, game_id)
+
+
 class HasGameAccess(BasePermission):
     message = "You do not have access to this game session."
 
@@ -23,9 +34,7 @@ class HasGameAccess(BasePermission):
         game_id = view.kwargs.get("game_id")
         if not game_id:
             return False
-        if _is_host(request, game_id):
-            return True
-        return has_game_access(request.COOKIES, game_id)
+        return can_access_game(request, game_id)
 
 
 class IsPlayerInGame(BasePermission):

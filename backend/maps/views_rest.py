@@ -4,9 +4,11 @@ from django.core.cache import cache
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from django.utils.decorators import method_decorator
+from django.views.decorators.gzip import gzip_page
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
-from rest_framework.exceptions import APIException
+from rest_framework.exceptions import APIException, PermissionDenied
 from rest_framework.generics import (
     GenericAPIView,
     ListCreateAPIView,
@@ -16,6 +18,7 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 
+from game.permissions import HasGameAccess, can_access_game
 from maps import graph_cache
 from maps.forms import MapUploadForm
 from maps.importer import ImportRefused, MapImporter
@@ -660,7 +663,16 @@ class TrainLineEdgesView(GenericAPIView):
 
 
 # Custom Graph View
+@method_decorator(gzip_page, name="dispatch")
 class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
+    """One version's graph: what the router in every browser runs on.
+
+    Compressed here because nginx does not gzip, and this is what every phone
+    loads at least once a round. Safe for this view because the body carries
+    no secret — BREACH needs one beside something the attacker controls — and
+    `previous_round_traffic` is street speeds.
+    """
+
     serializer_class = MapVersionSerializer
     authentication_classes = (SessionAuthentication,)
 
@@ -684,8 +696,12 @@ class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
         map_pk = self.get_map_id()
         version_pk = kwargs.get("version_pk")
         # Optional: the game whose last round's speeds to attach. Without it
-        # the payload is unchanged apart from an empty traffic list.
+        # the payload is unchanged apart from an empty traffic list. The graph
+        # is anyone's; a game's speeds are its own, by the rule every other
+        # endpoint of a game keeps.
         game_id = request.query_params.get("game")
+        if game_id and not can_access_game(request, game_id):
+            raise PermissionDenied(HasGameAccess.message)
 
         try:
             map_obj = GameMap.objects.get(pk=map_pk)
@@ -732,24 +748,20 @@ class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
 
         try:
             # Get all nodes for this map version
-            # Every node and edge carries its whole version list, each version
-            # with its ballot neighbours: 1 811 of the 1 832 queries one graph
-            # took on the shipped map, ~0.85 s of it. The editor waits for this
-            # graph after every write, so it is prefetched.
+            # Every node and edge carries the ids of its versions: unprefetched,
+            # a query a row, which was 1 811 of the 1 832 queries one graph took
+            # on the shipped map. The editor waits for this graph after every
+            # write, so it is prefetched.
             nodes = Node.objects.filter(
                 game_map=map_obj, map_versions=version
-            ).prefetch_related("node_type", "map_versions__compatible_versions")
+            ).prefetch_related("node_type", "map_versions")
 
             # Get all edges for this map version with street_edge and train_edge prefetch
             # StreetEdge and TrainEdge have ForeignKey to Edge, so we use prefetch_related
             edges = (
                 Edge.objects.filter(game_map=map_obj, map_versions=version)
                 .select_related("start_node", "end_node", "game_map")
-                .prefetch_related(
-                    "streetedge_set",
-                    "trainedge_set",
-                    "map_versions__compatible_versions",
-                )
+                .prefetch_related("streetedge_set", "trainedge_set", "map_versions")
             )
 
             # PT lines of this version. Their chains are not prefetched here:
