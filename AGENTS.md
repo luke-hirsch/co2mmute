@@ -345,6 +345,8 @@ lists the stages in the order they run, each module's docstring its rules.
   edited since — and measuring again the ones that are out of date, asking first.
 - `sim-experiment`: a number of the model changed on newer research — the maps measured before and
   after, the verdict first, and what changes together once the change is kept.
+- `box`: the VM the stack runs on — deploying and rolling back, reading what the box does, the
+  certificate, the mail, the disk. Read-only: it says what to type, the human changes the box.
 
 ## repo conventions
 
