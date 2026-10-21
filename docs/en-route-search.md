@@ -157,6 +157,9 @@ averaged only 15 km/h. Way B is 4 km long and ran at 40 km/h.
 | "kürzeste" | 3,000 m | 4,000 m | A |
 | "sparsamste" | 3,000 × 1.51 = 4,530 | 4,000 × 1.04 = 4,160 | B |
 
+Under the route stands the time at the measured speed, whatever the option: 12 minutes for A, 6 for
+B.
+
 Round 1 has no measurement yet. A 2 km street with a 30 limit against a 2.5 km detour at 50:
 "schnellste" takes the detour (3.0 against 4.0 min), "sparsamste" the 30 street
 (2,000 × 1.13 = 2,260 against 2,500 × 1.00 = 2,500).
@@ -294,7 +297,7 @@ and runs 8 km to D without a change, and D is 200 m from work: 7.2 + 10 + 16 + 2
 | option | in the code | what it changes |
 |---|---|---|
 | "schnellste" | `fastest` | nothing, the estimated time decides |
-| "wenig umsteigen" | `fewest_transfers` | every boarding after the first costs 30 more minutes in the search (`FEWEST_TRANSFERS_PENALTY_MIN`) |
+| "wenig umsteigen" | `fewest_transfers` | every boarding after the first costs 30 more minutes in the search (`FEWEST_TRANSFERS_PENALTY_MIN`); they are not in the route's time |
 | "ohne Bus" | `no_bus` | bus lines are skipped; trams are train lines and stay allowed |
 
 ### The same stop twice, and rings
@@ -312,7 +315,8 @@ there, as at a boarding; the simulation holds the vehicle until the timetable's 
 `reconstructPath` walks the states backwards and splits the route into three parts: the walk to
 the first stop (`walkToStation`), the rides with the walks between them (`ptSegments`) and the walk
 from the last stop (`walkFromStation`). `toLeg` joins them up again. Each ride segment carries its
-edge, its mode ("bus" or "train") and its line. The time is the sum of all segments plus the waits.
+edge, its mode ("bus" or "train") and its line. The time is the sum of all segments plus the waits, without "wenig umsteigen"'s
+surcharge: the search weighs it (`penaltyMin`), nobody spends it.
 
 ## The way home
 
@@ -325,16 +329,19 @@ exactly that: "Die Gruppe kommt hin, aber nicht wieder nach Hause." (`NO_WAY_HOM
 
 Under each Gruppe: time, distance, the time of the way home, and for Bus & Bahn the number of
 changes (`RouteSummary` in `components/round/route-summary.tsx`; changes are the switches of line
-between two ride segments, `transferCount`). CO₂ is not there on purpose: the simulation computes it
+between two ride segments, by type and number, since bus 2 and train 2 are two lines,
+`transferCount`). CO₂ is not there on purpose: the simulation computes it
 after the round, and a figure here would be a second, worse answer.
 
 The time shown is an estimate, computed differently per mode:
 
 - on foot and by bike: the distance at 5 and 20 km/h.
-- car: every edge at its **speed limit**, "schnellste" included. The measured speed picks the
-  route; it does not go into the time shown.
-- Bus & Bahn: walks, rides and the waits as the search weighed them; with "wenig umsteigen" that
-  includes the 30 minutes per change.
+- car: every edge at its **measured speed** of the rounds so far, at its speed limit where nothing
+  was measured (`carSpeedKmh`, the same answer the search weighs with). Under every option: the
+  option picks the route, the time is the route's. The "kürzeste" route through a jam shows the
+  jam's time too. In round 1 it is the time at the speed limit.
+- Bus & Bahn: walks, rides and the expected waits. The 30 minutes of "wenig umsteigen" are a
+  preference of the search, not time, and are not in it.
 
 The server stores the estimate (`estimated_time_min`) but needs it only as a stand-in for a route
 that was not played. What the summary shows, the simulation measured.
@@ -414,7 +421,8 @@ modelled.
 
 ## The speeds of the rounds so far
 
-"schnellste" and "sparsamste" for the car, and the jam picture on the map, read the same one list:
+"schnellste" and "sparsamste" for the car, the time under a car route and the jam picture on the
+map read the same one list:
 
 ```mermaid
 %%{init: {"flowchart": {"wrappingWidth": 200, "nodeSpacing": 20, "rankSpacing": 36, "padding": 10}}}%%
@@ -422,7 +430,7 @@ flowchart TD
     round["round n is played, there and back"] --> measure["per street: length ÷ mean travel time of the cars,<br>both ways pooled<br>observed_speeds, StreetPerRound.speed_under_load"]
     measure --> mean["mean over every completed round of the game,<br>per street only the rounds a car drove it<br>serialize_previous_round_traffic"]
     mean --> graph2["graph for round n + 1: previous_round_traffic"]
-    graph2 --> search["schnellste and sparsamste for the car,<br>the jam picture on the map"]
+    graph2 --> search["schnellste and sparsamste for the car,<br>the time under a car route,<br>the jam picture on the map"]
 ```
 
 - Only cars are measured. A pedestrian takes ten times as long as a car over a 900 m street;
@@ -443,7 +451,7 @@ flowchart TD
 - **No clock.** The search does not know when someone leaves or when the next bus comes; it counts
   half an interval. The simulation runs the timetable.
 - **No jam for buses.** The search always counts a line at its fixed speed, even when the bus stood
-  in the jam last round. Only the car search reads the measured speeds.
+  in the jam last round. Only the car reads the measured speeds.
 - **No seats.** The search never plans around a full bus.
 - **The other Gruppen.** Every Gruppe searches on its own, on the measurements of the rounds before.
 - **Turns and traffic lights.** Neither costs anything; the jam stands in for the lights.

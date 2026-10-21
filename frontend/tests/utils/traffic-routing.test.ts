@@ -85,6 +85,38 @@ describe("a jam changes the route", () => {
   });
 });
 
+/**
+ * The minutes under a car route are the minutes the jam takes.
+ *
+ * The search weighed a jammed street at its measured speed and then printed the
+ * time at the speed limit: 1.2 minutes for a kilometre that ran at 10 km/h.
+ * The option picks the route; the time is the route's, so the shortest route
+ * through a jam shows the jam too.
+ */
+describe("the time shown", () => {
+  const straight = graphOf([]);
+
+  it("is the speed limit's when nothing was measured", async () => {
+    const result = await findPath(straight, 1, 2, "car", { optimization: "time" });
+
+    expect(result.estimatedTimeMin).toBeCloseTo(1.2);
+  });
+
+  it.each(["time", "distance", "co2"] as const)(
+    "is the measured speed's under %s",
+    async (optimization) => {
+      const result = await findPath(straight, 1, 2, "car", {
+        optimization,
+        trafficData: [jam(10, 25)],
+      });
+
+      // 1 km at 25 km/h
+      expect(result.segments[0].estimatedTimeMin).toBeCloseTo(2.4);
+      expect(result.estimatedTimeMin).toBeCloseTo(2.4);
+    },
+  );
+});
+
 describe("the CO2 weight is the simulation's curve", () => {
   const weightAt = (speed: number | undefined) =>
     calculateEdgeWeight(

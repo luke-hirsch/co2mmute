@@ -337,9 +337,10 @@ export function legPayload(leg: RouteLeg): RouteSubmissionLeg {
 
 /** How many times this route changes vehicle — what a rider actually feels. */
 export function transferCount(route: AgentRoute): number {
+  // A line is its type and its id: bus 2 and train 2 are two lines.
   const legs = route.segments
     .filter((segment) => segment.mode === "bus" || segment.mode === "train")
-    .map((segment) => segment.ptLineId ?? -1);
+    .map((segment) => `${segment.mode}:${segment.ptLineId ?? -1}`);
 
   let changes = 0;
   for (let i = 1; i < legs.length; i += 1) {

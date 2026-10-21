@@ -162,6 +162,8 @@ aber im Mittel nur 15 km/h schnell. Weg B ist 4 km lang und lief mit 40 km/h.
 | „kürzeste“ | 3 000 m | 4 000 m | A |
 | „sparsamste“ | 3 000 × 1,51 = 4 530 | 4 000 × 1,04 = 4 160 | B |
 
+Unter der Route steht die Zeit beim gemessenen Tempo, unter jeder Option: 12 Minuten für A, 6 für B.
+
 In Runde 1 gibt es noch keine Messung. Eine 2 km lange Tempo-30-Straße gegen einen Umweg von
 2,5 km mit Tempo 50: „schnellste“ nimmt den Umweg (3,0 gegen 4,0 min), „sparsamste“ die
 Tempo-30-Straße (2 000 × 1,13 = 2 260 gegen 2 500 × 1,00 = 2 500).
@@ -306,7 +308,7 @@ Zusammen 7,2 + 5 + 6 + 2,5 + 6 + 3,6 = **30,3 min**. Daneben fährt von A ein Bu
 | Option | im Code | was sie ändert |
 |---|---|---|
 | „schnellste“ | `fastest` | nichts, die geschätzte Zeit entscheidet |
-| „wenig umsteigen“ | `fewest_transfers` | jedes Einsteigen nach dem ersten kostet in der Suche 30 Minuten mehr (`FEWEST_TRANSFERS_PENALTY_MIN`) |
+| „wenig umsteigen“ | `fewest_transfers` | jedes Einsteigen nach dem ersten kostet in der Suche 30 Minuten mehr (`FEWEST_TRANSFERS_PENALTY_MIN`); in der Zeit der Route stehen sie nicht |
 | „ohne Bus“ | `no_bus` | Buslinien werden übersprungen; Trams sind Bahnlinien und bleiben erlaubt |
 
 ### Dieselbe Haltestelle zweimal, und Ringe
@@ -327,7 +329,8 @@ Abfahrt nach Fahrplan stehen.
 ersten Haltestelle (`walkToStation`), die Fahrten mit den Fußwegen zwischen ihnen (`ptSegments`)
 und den Fußweg von der letzten Haltestelle (`walkFromStation`). `toLeg` hängt sie wieder
 aneinander. Jeder Fahrtabschnitt trägt seine Kante, sein Verkehrsmittel („bus“ oder „train“) und
-die Linie. Die Zeit ist die Summe aller Abschnitte plus der Wartezeiten.
+die Linie. Die Zeit ist die Summe aller Abschnitte plus der Wartezeiten, ohne den Aufschlag von
+„wenig umsteigen“: Den wiegt die Suche (`penaltyMin`), verbringen tut ihn niemand.
 
 ## Der Rückweg
 
@@ -341,16 +344,19 @@ zurück, sagt der Bildschirm genau das: „Die Gruppe kommt hin, aber nicht wied
 
 Unter jeder Gruppe stehen Zeit, Strecke, die Zeit des Rückwegs und bei Bus & Bahn die Zahl der
 Umstiege (`RouteSummary` in `components/round/route-summary.tsx`; Umstiege sind die Wechsel der
-Linie zwischen zwei Fahrtabschnitten, `transferCount`). CO₂ steht dort absichtlich nicht: Das
+Linie zwischen zwei Fahrtabschnitten, nach Art und Nummer, denn Bus 2 und Bahn 2 sind zwei Linien,
+`transferCount`). CO₂ steht dort absichtlich nicht: Das
 rechnet die Simulation nach der Runde, und eine Zahl hier wäre eine zweite, schlechtere Antwort.
 
 Die angezeigte Zeit ist eine Schätzung, je Verkehrsmittel anders gerechnet:
 
 - zu Fuß und Rad: Strecke bei 5 und 20 km/h.
-- Auto: jede Kante bei ihrem **Tempolimit**, auch bei „schnellste“. Das gemessene Tempo wählt die
-  Route aus, in die angezeigte Zeit geht es nicht ein.
-- Bus & Bahn: Fußwege, Fahrten und die Wartezeiten, wie die Suche sie gewichtet hat; bei
-  „wenig umsteigen“ also mit den 30 Minuten je Umstieg.
+- Auto: jede Kante bei ihrem **gemessenen Tempo** der Runden bisher, ohne Messung bei ihrem
+  Tempolimit (`carSpeedKmh`, dieselbe Antwort, mit der die Suche wiegt). Das gilt unter jeder
+  Option: Die Option wählt die Route, die Zeit ist die der Route. Auch die „kürzeste“ Route durch
+  einen Stau zeigt die Zeit im Stau. In Runde 1 ist es die Zeit beim Tempolimit.
+- Bus & Bahn: Fußwege, Fahrten und die erwarteten Wartezeiten. Die 30 Minuten von
+  „wenig umsteigen“ sind ein Vorzug der Suche, keine Zeit, und stehen nicht darin.
 
 Der Server nimmt die Schätzung mit (`estimated_time_min`), braucht sie aber nur als Ersatz für eine
 Route, die nicht gespielt wurde. Was in der Auswertung steht, hat die Simulation gemessen.
@@ -435,7 +441,8 @@ Haltezeiten an der Haltestelle sind nicht modelliert.
 
 ## Die Tempi der Runden bisher
 
-„schnellste“ und „sparsamste“ beim Auto, und das Stau-Bild auf der Karte, lesen dieselbe eine Liste:
+„schnellste“ und „sparsamste“ beim Auto, die Zeit unter einer Autoroute und das Stau-Bild auf der
+Karte lesen dieselbe eine Liste:
 
 ```mermaid
 %%{init: {"flowchart": {"wrappingWidth": 200, "nodeSpacing": 20, "rankSpacing": 36, "padding": 10}}}%%
@@ -443,7 +450,7 @@ flowchart TD
     runde["Runde n wird gespielt, hin und zurück"] --> mess["je Straße: Länge ÷ mittlere Fahrzeit der Autos,<br>beide Wege zusammen<br>observed_speeds, StreetPerRound.speed_under_load"]
     mess --> mittel["Mittel über alle fertigen Runden des Spiels,<br>je Straße nur die Runden, in denen ein Auto sie fuhr<br>serialize_previous_round_traffic"]
     mittel --> graph2["Graph für Runde n + 1: previous_round_traffic"]
-    graph2 --> such["„schnellste“ und „sparsamste“ beim Auto,<br>das Stau-Bild auf der Karte"]
+    graph2 --> such["„schnellste“ und „sparsamste“ beim Auto,<br>die Zeit unter einer Autoroute,<br>das Stau-Bild auf der Karte"]
 ```
 
 - Gemessen werden nur Autos. Ein Fußgänger braucht über eine 900-m-Straße zehnmal so lange wie ein
@@ -464,7 +471,7 @@ flowchart TD
 - **Keine Uhr.** Die Suche weiß nicht, wann jemand losgeht und wann der nächste Bus kommt; sie
   rechnet mit einem halben Takt. Die Simulation fährt den Fahrplan.
 - **Kein Stau für Busse.** Die Suche rechnet eine Linie immer mit ihrem festen Tempo, auch wenn
-  der Bus in der letzten Runde im Stau stand. Die gemessenen Tempi liest nur die Autosuche.
+  der Bus in der letzten Runde im Stau stand. Die gemessenen Tempi liest nur das Auto.
 - **Keine Plätze.** Die Suche plant nie um einen vollen Bus herum.
 - **Die anderen Gruppen.** Jede Gruppe sucht für sich, auf den Messungen der Runden davor.
 - **Abbiegen und Ampeln.** Beides kostet nichts; der Stau steht für die Ampeln.
