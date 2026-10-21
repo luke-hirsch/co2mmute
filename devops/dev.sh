@@ -304,6 +304,7 @@ cmd_test() {
       PATH="$PATH" HOME="$HOME" LANG="${LANG:-en_US.UTF-8}" \
       POSTGRES_HOST=127.0.0.1 POSTGRES_PORT=5432 \
       POSTGRES_DB="$PG_DB" POSTGRES_USER="$PG_USER" POSTGRES_PASSWORD="$PG_PASSWORD" \
+      ${GOLDEN_REGENERATE:+GOLDEN_REGENERATE="$GOLDEN_REGENERATE"} \
       "$PYTHON" manage.py test --settings=co2mmute.settings_test --noinput "$@" )
 }
 

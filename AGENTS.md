@@ -209,8 +209,8 @@ an adapter method must never take an engine method's name.
   only the vehicle that still reaches its stop, and off and on the same line at one stop is two
   rides. A line that ends where it starts is a ring and goes on round: whoever rides past its start
   stays aboard for the next departure, and the time until then is a wait. Change one, change both.
-- **Two golden masters** (`game/tests/test_sim_golden.py`). Regenerate with `GOLDEN_REGENERATE=1`
-  only for a deliberate change, and say so in the commit.
+- **Two golden masters** (`game/tests/test_sim_golden.py`). Regenerate with
+  `GOLDEN_REGENERATE=1 devops/dev.sh test game.tests.test_sim_golden` only for a deliberate change, and say so in the commit.
 
 ## maps
 

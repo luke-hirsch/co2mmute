@@ -54,7 +54,7 @@ Check: `devops/dev.sh test maps`, and `manage.py check_map` on the shipped map i
    under the same names, and `frontend/tests/lib/constants.test.ts` fails when one disagrees.
 2. Both golden masters: `backend/game/tests/test_sim_golden.py`, fixtures
    `backend/game/tests/golden/sim_golden.json` and `sim_golden_pt.json`. Regenerate with
-   `GOLDEN_REGENERATE=1` only for a deliberate change, and say so in the commit.
+   `GOLDEN_REGENERATE=1 devops/dev.sh test game.tests.test_sim_golden` only for a deliberate change, and say so in the commit.
 3. `docs/kalibrierung.md` and the figures in `docs/de-hintergrund.md` / `docs/en-background.md`,
    then their site copy (see "a doc page").
 4. A shipped map's measured count and share (`docs/kalibrierung.md`) are stale after a change that
