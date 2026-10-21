@@ -112,8 +112,12 @@ TRAM_COST_PER_VEHICLE_KM = 6.25  # € per tram-km
 # train-km (Senat, 2024), so this is the low side.
 TRAIN_COST_PER_VEHICLE_KM = 13.40  # € per train-km
 
-# known estimate
-CAR_COST_TRAFFIC_SHARE = 0.5
+# The part of the car's cost that follows driving. ADAC Autokostenübersicht
+# Frühjahr/Sommer 2026, new compact petrol cars (i30, Ceed, Leon, A3), ct per
+# km: Betriebskosten (fuel at WLTP and current prices, oil, care) 12.4-14.0 and
+# Werkstatt (workshop, tyres) 5.4-5.9, about 18.7 of 60.9; the rest is
+# insurance, tax and depreciation. Was 0.5 before (a known estimate, no source).
+CAR_COST_TRAFFIC_SHARE = 0.31
 
 # A bike's upkeep: wear, repairs, depreciation, and theft as an average inside
 # it. All of it is the rider's own, so it is both "was es kostet" and "was du
