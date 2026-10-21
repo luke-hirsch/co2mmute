@@ -21,7 +21,8 @@ Wie eine Zahl geändert, vorher und nachher gemessen und behalten wird, steht im
 1. Die Zahl in `backend/sim/constants.py` ändern, mit Quelle im Kommentar. Braucht der Browser sie,
    dieselbe Zahl in `frontend/src/lib/constants.ts`; der Test sagt, wenn eine Seite vergessen wurde.
 2. Die beiden Golden Masters (`backend/game/tests/test_sim_golden.py`) werden absichtlich rot: das
-   Modell sagt, dass es sich geändert hat. Mit `GOLDEN_REGENERATE=1` neu schreiben und das in der
+   Modell sagt, dass es sich geändert hat. Mit
+   `GOLDEN_REGENERATE=1 devops/dev.sh test game.tests.test_sim_golden` neu schreiben und das in der
    Commit-Nachricht sagen.
 3. Jede Karte neu kalibrieren (`manage.py calibrate_map <Datei> … --out`), dann die Zeile der Karte
    setzen (Pendlerzahl, Anteil am Fahrplan, Tabelle). Was ein laufendes Spiel beim Anlegen oder

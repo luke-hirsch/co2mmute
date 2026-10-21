@@ -21,7 +21,8 @@ How a number is changed, measured before and after, and kept is in the skill
    reads it, change the same number in `frontend/src/lib/constants.ts`; the test says if one side
    was forgotten.
 2. Both golden masters (`backend/game/tests/test_sim_golden.py`) go red on purpose: the model says it
-   changed. Regenerate with `GOLDEN_REGENERATE=1` and say so in the commit message.
+   changed. Regenerate with
+   `GOLDEN_REGENERATE=1 devops/dev.sh test game.tests.test_sim_golden` and say so in the commit message.
 3. Recalibrate every map (`manage.py calibrate_map <file> … --out`), then set the map's row (commuter
    count, share of the timetable, table). What a running game copied when it was created or
    started stays: the budget (`GameSession.max_CO2_level`), the Gruppe size (`people_per_agent`) and

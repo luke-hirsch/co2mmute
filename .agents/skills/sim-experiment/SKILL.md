@@ -79,7 +79,8 @@ In this order, each checked:
    that disagrees).
 2. **The golden masters** go red on purpose (`backend/game/tests/test_sim_golden.py`): the model says
    it changed. Run the test, see it red on the changed number, then regenerate with
-   `GOLDEN_REGENERATE=1` and **say so in the commit message** (German, lowercase, terse).
+   `GOLDEN_REGENERATE=1 devops/dev.sh test game.tests.test_sim_golden` and **say so in the commit message** (German,
+   lowercase, terse).
 3. **Every map's row**: for each map measured, the file step 3 wrote with `--out` goes to
    `check-up`'s `write`, which puts the
    count, the share, the table and the date on the instance's row. A map the human did not name is
@@ -88,7 +89,8 @@ In this order, each checked:
 4. **The docs**, search the old value in each: `docs/kalibrierung.md` (the measured tables),
    `docs/de-zahlen.md` and `docs/en-numbers.md` (the entry), `docs/de-hintergrund.md`,
    `docs/en-background.md` and the site copy `backend/template/docs/hintergrund.html` (the
-   figures). The pairs and the site copy change together.
+   figures). The pairs and the site copy change together. Then grep the old value across
+   `backend/` and `docs/` once more: comments and docstrings quote figures too.
 5. **The whole suites** through the heavy-run rules of the machine: backend, vitest, the three
    `tsc`, e2e. Read the counts.
 
