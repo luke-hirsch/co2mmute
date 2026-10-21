@@ -39,7 +39,14 @@
  * frame anyway, so there is nothing for the browser to interpolate.
  */
 
-import { useCallback, useImperativeHandle, useMemo, useRef, type Ref } from "react";
+import {
+  memo,
+  useCallback,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  type Ref,
+} from "react";
 
 import { imageRect, viewBox, type ImageFields } from "@/lib/map/view-box";
 import { modeStyle } from "@/components/metro/mode";
@@ -135,7 +142,14 @@ function makeScratch(
   };
 }
 
-export function ReplayCanvas({
+/**
+ * Memoised on purpose: the player re-renders four times a second for the clock
+ * text, and without this each of those re-rendered every street of the map.
+ * On built Berlin (6 605 edges) that was a 50-60 ms frame, four times a second.
+ * Every prop the player passes is stable between ticks, and the dots are drawn
+ * by the handle, never by props.
+ */
+export const ReplayCanvas = memo(function ReplayCanvas({
   graph,
   replay,
   fill,
@@ -679,4 +693,4 @@ export function ReplayCanvas({
       </svg>
     </div>
   );
-}
+});
