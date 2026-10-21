@@ -8,11 +8,11 @@ import type { EdgeTrafficData } from "@/types/routeTypes";
  * Last round's traffic, turned into something drawable.
  *
  * One source, deliberately: `previous_round_traffic` is what "schnellste" routes
- * on, so the overlay is computed from the same numbers rather than from
- * `RoundTrafficHeatmapView`. Two endpoints answering "how bad was this street"
- * is the two-sources-of-truth shape this project has been bitten by, and the
- * aggregate one averages snapshots — which is the thing `_update_street_speeds`
- * was changed to stop doing.
+ * on, so the overlay is computed from the same numbers rather than from an
+ * aggregate of `EdgeTrafficSnapshot` rows. Two answers to "how bad was this
+ * street" is the two-sources-of-truth shape this project has been bitten by,
+ * and the aggregate averages snapshots — which is the thing
+ * `_update_street_speeds` was changed to stop doing.
  */
 
 const edge = (id: number, speedLimit: number | null): Edge => ({

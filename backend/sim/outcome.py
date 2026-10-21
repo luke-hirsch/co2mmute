@@ -27,7 +27,7 @@ class RouteOutcome:
 
 @dataclass(frozen=True)
 class LinkSample:
-    """One link at the end of one tick, for the heatmap and the replay's streets.
+    """One link at the end of one tick, for the replay's streets.
 
     Taken every tick for every link with something on it, at the pass's own
     tick plus its offset (the evening sits after the morning on one axis). It

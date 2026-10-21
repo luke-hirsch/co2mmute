@@ -10,8 +10,8 @@
  * is computed from exactly those numbers, so what a player sees drawn and what the
  * router routed around cannot disagree.
  *
- * The alternative was `RoundTrafficHeatmapView`, which aggregates
- * `EdgeTrafficSnapshot` rows. It was rejected twice over: it would be a second
+ * The alternative was an aggregate of the round's `EdgeTrafficSnapshot` rows.
+ * It was rejected twice over: it would be a second
  * answer to one question — the bug class this project has been bitten by most —
  * and it averages snapshots that are themselves means, which is precisely what
  * `_update_street_speeds` was rewritten to stop doing.
