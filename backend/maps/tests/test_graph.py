@@ -374,9 +374,10 @@ class GraphPayloadTests(VersionFixtureMixin, TestCase):
     """What one graph weighs on the way to every phone.
 
     Every node and edge carried its versions as whole objects — name,
-    description, both poll texts, the ballot — so on the shipped map about
-    600 of the graph's 680 KB were the same eight versions again on every row,
-    and nothing in the SPA reads them. Ids, as the editor sends them.
+    description, both poll texts, the ballot — the same eight versions again on
+    every row, and nothing in the SPA reads them. Ids, as the editor sends
+    them: the shipped map's base version went from 587 KB to 61 KB, 7 KB
+    gzipped.
     """
 
     def setUp(self):
