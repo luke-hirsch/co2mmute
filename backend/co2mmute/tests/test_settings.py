@@ -173,6 +173,33 @@ class TestSettingsModuleTests(SimpleTestCase):
         self.assertTrue(settings_test.CSRF_COOKIE_SECURE)
 
 
+def database_for(debug):
+    """The database settings.py configures for DJANGO_DEBUG=<debug>, with
+    nothing in the environment overriding its defaults."""
+    import importlib
+    import os
+    import tempfile
+    from unittest import mock
+
+    import co2mmute.settings as settings_module
+
+    env = {"DJANGO_DEBUG": debug}
+    # Importing settings mkdir()s MEDIA_ROOT. Keep that out of the repo.
+    env["DJANGO_MEDIA_ROOT"] = tempfile.mkdtemp(prefix="co2mmute-settings-")
+    # resolve_secret_key refuses to boot with DEBUG off and no key — a
+    # guard of its own, tested by ResolveSecretKeyTests above. It is not what
+    # these classes are about, so give it one.
+    env["DJANGO_SECRET_KEY"] = "engine-choice-test-key-0123456789abcdef"
+
+    with mock.patch.dict(os.environ, env, clear=False):
+        os.environ.pop("POSTGRES_CONN_MAX_AGE", None)
+        reloaded = importlib.reload(settings_module)
+        database = dict(reloaded.DATABASES["default"])
+    # Leave the module as the rest of the suite found it.
+    importlib.reload(settings_module)
+    return database
+
+
 class DatabaseEngineTests(SimpleTestCase):
     """Postgres, whatever DEBUG says.
 
@@ -191,27 +218,7 @@ class DatabaseEngineTests(SimpleTestCase):
 
     def engine_for(self, debug):
         """The engine settings.py picks for DJANGO_DEBUG=<debug>."""
-        import importlib
-        import os
-        import tempfile
-        from unittest import mock
-
-        import co2mmute.settings as settings_module
-
-        env = {"DJANGO_DEBUG": debug}
-        # Importing settings mkdir()s MEDIA_ROOT. Keep that out of the repo.
-        env["DJANGO_MEDIA_ROOT"] = tempfile.mkdtemp(prefix="co2mmute-settings-")
-        # resolve_secret_key refuses to boot with DEBUG off and no key — a
-        # guard of its own, tested by ResolveSecretKeyTests above. It is not what
-        # this class is about, so give it one.
-        env["DJANGO_SECRET_KEY"] = "engine-choice-test-key-0123456789abcdef"
-
-        with mock.patch.dict(os.environ, env, clear=False):
-            reloaded = importlib.reload(settings_module)
-            engine = reloaded.DATABASES["default"]["ENGINE"]
-        # Leave the module as the rest of the suite found it.
-        importlib.reload(settings_module)
-        return engine
+        return database_for(debug)["ENGINE"]
 
     def test_a_debug_run_uses_postgres(self):
         self.assertEqual(
@@ -224,3 +231,19 @@ class DatabaseEngineTests(SimpleTestCase):
             self.engine_for("False"),
             "django.db.backends.postgresql",
         )
+
+
+class PersistentConnectionsTests(SimpleTestCase):
+    """No persistent database connections under Daphne.
+
+    Under ASGI Django runs every request on a thread of its own and throws the
+    thread away afterwards, so a connection kept open for the next request is
+    never reused: it stays open, idle, until the garbage collector finds it.
+    Kept for 60 s, three bursts of forty requests left 46 idle Postgres
+    backends behind and Postgres went from 67 to 157 MB; closed at the end of
+    each request, none. Django's own docs (5.2, "Persistent connections"): with
+    ASGI, persistent connections should be disabled.
+    """
+
+    def test_connections_close_with_the_request(self):
+        self.assertEqual(database_for("False")["CONN_MAX_AGE"], 0)

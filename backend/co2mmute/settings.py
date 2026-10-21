@@ -163,6 +163,11 @@ ASGI_APPLICATION = "co2mmute.asgi.application"
 
 # Database: Postgres everywhere — the box, CI, and devops/dev.sh, which runs on
 # the compose stack's own.
+#
+# CONN_MAX_AGE stays 0 under Daphne. Every request runs on a thread of its own,
+# so a connection kept for the next request is never reused, only left open:
+# 60 s left dozens of idle Postgres backends after one burst of a class.
+# `co2mmute/tests/test_settings.py:PersistentConnectionsTests` has the numbers.
 
 DATABASES = {
     "default": {
@@ -172,7 +177,7 @@ DATABASES = {
         "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "co2mmute"),
         "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
         "PORT": os.environ.get("POSTGRES_PORT", "5432"),
-        "CONN_MAX_AGE": int(os.environ.get("POSTGRES_CONN_MAX_AGE", "60")),
+        "CONN_MAX_AGE": int(os.environ.get("POSTGRES_CONN_MAX_AGE", "0")),
     }
 }
 

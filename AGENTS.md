@@ -383,6 +383,8 @@ lists the stages in the order they run, each module's docstring its rules.
 - A script on a throwaway database sets `CACHES` to locmem, like `calibrate_map`, or it writes that
   map's graph into the dev Redis under a real map's pk.
 - Stop a second stack's Celery by pid; `pkill -f "celery -A co2mmute worker"` stops every worker.
+- `CONN_MAX_AGE` stays 0. Under Daphne every request runs on a thread of its own, so a kept
+  connection is never reused, only left idle in Postgres until the garbage collector finds it.
 
 ## decided
 
