@@ -61,7 +61,7 @@ same cost: `CAR_EMISSIONS_G_PER_KM`, `CAR_EF_ANCHOR_SPEED_KMH`, `CAR_EF_MIN_SPEE
 | Constant | Value | What it does | Source |
 |---|---|---|---|
 | `CAR_COST_PER_KM` | 0.60 € per km | The full cost of a car kilometre. | ADAC Autokostenübersicht Frühjahr/Sommer 2026: new compact petrol cars 57-67 ct per km (i30 58.3, Ceed 56.9-60.3, Leon 64.7, A3 Sportback 59.8-61.7), five years, 15 000 km a year, depreciation without interest. A new car's depreciation makes that the high side for the cars on the road. Was 0.32 (source not recorded, likely the Pendlerpauschale). |
-| `CAR_COST_TRAFFIC_SHARE` | 0.5 | The part of it that rises with traffic (fuel, stop-and-go); the rest is fixed. The fixed part is not what you pay for the trip. | known estimate |
+| `CAR_COST_TRAFFIC_SHARE` | 0.31 | The part of it that rises with traffic (fuel, stop-and-go); the rest is fixed. The fixed part is not what you pay for the trip. | ADAC Autokostenübersicht Frühjahr/Sommer 2026, new compact petrol cars (i30, Ceed, Leon, A3): operating costs 12.4-14.0 and workshop 5.4-5.9 ct per km, about 18.7 of 60.9. Was 0.5 (a known estimate, no source). |
 | `BUS_COST_PER_VEHICLE_KM` | 3.94 € per bus-km | What a bus costs per kilometre, full or empty. | Deiters 2009, Tab. 5 (2.82 €), brought to 2025 with the consumer price index (× 1.399) |
 | `TRAM_COST_PER_VEHICLE_KM` | 6.25 € per tram-km | the same for a tram | Deiters 2009, Tab. 5 (4.47 €), × 1.399 |
 | `TRAIN_COST_PER_VEHICLE_KM` | 13.40 € per train-km | the same for a train, without the track charge | Ramboll 2023: nearly 20 €, a third of it infrastructure |

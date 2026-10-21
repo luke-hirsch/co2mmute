@@ -62,7 +62,7 @@ dieselben Kosten sieht: `CAR_EMISSIONS_G_PER_KM`, `CAR_EF_ANCHOR_SPEED_KMH`, `CA
 | Konstante | Wert | Was sie tut | Quelle |
 |---|---|---|---|
 | `CAR_COST_PER_KM` | 0,60 € je km | Die Vollkosten eines Autokilometers. | ADAC Autokostenübersicht Frühjahr/Sommer 2026: neue Kompaktwagen mit Benziner 57–67 ct je km (i30 58,3, Ceed 56,9–60,3, Leon 64,7, A3 Sportback 59,8–61,7), fünf Jahre, 15 000 km im Jahr, Wertverlust ohne Zinsen. Durch den Wertverlust eines Neuwagens ist das die hohe Seite für die Autos auf der Straße. Vorher 0,32 (Quelle nicht festgehalten, wohl die Pendlerpauschale). |
-| `CAR_COST_TRAFFIC_SHARE` | 0,5 | Der Teil davon, der mit dem Verkehr steigt (Sprit, Stop-and-go); der Rest ist fest. Der feste Teil zählt nicht zu dem, was du für die Fahrt zahlst. | bekannte Schätzung |
+| `CAR_COST_TRAFFIC_SHARE` | 0,31 | Der Teil davon, der mit dem Verkehr steigt (Sprit, Stop-and-go); der Rest ist fest. Der feste Teil zählt nicht zu dem, was du für die Fahrt zahlst. | ADAC Autokostenübersicht Frühjahr/Sommer 2026, neue Kompaktwagen mit Benziner (i30, Ceed, Leon, A3): Betriebskosten 12,4–14,0 und Werkstatt 5,4–5,9 ct je km, zusammen etwa 18,7 von 60,9. Vorher 0,5 (bekannte Schätzung, ohne Quelle). |
 | `BUS_COST_PER_VEHICLE_KM` | 3,94 € je Bus-km | Was ein Bus je Kilometer kostet, ob besetzt oder leer. | Deiters 2009, Tab. 5 (2,82 €), mit dem Verbraucherpreisindex auf 2025 (× 1,399) |
 | `TRAM_COST_PER_VEHICLE_KM` | 6,25 € je Tram-km | dasselbe für eine Tram | Deiters 2009, Tab. 5 (4,47 €), × 1,399 |
 | `TRAIN_COST_PER_VEHICLE_KM` | 13,40 € je Zug-km | dasselbe für einen Zug, ohne Trassenentgelt | Ramboll 2023: knapp 20 €, davon 33 % Infrastruktur |
