@@ -1,0 +1,7 @@
+# Tracked here is what every agent working on co2mmute needs: the skills and the design rules.
+# Anything an agent writes for itself — plans, notes, handovers, scratch files, worktrees, caches —
+# stays on that machine. A new folder for everyone is added below by name.
+/*
+!/.gitignore
+!/skills/
+!/design/
