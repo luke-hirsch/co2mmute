@@ -2,7 +2,7 @@
   "total": {
     "status": "completed",
     "total_co2_g": 308315.593011,
-    "total_cost_eur": 535.736271
+    "total_cost_eur": 986.506266
   },
   "agents": [
     {
@@ -10,7 +10,7 @@
       "mode": "car",
       "mean_trip_time_min": 6.357845,
       "mean_return_time_min": 0.0,
-      "mean_cost_eur": 0.660886,
+      "mean_cost_eur": 1.239162,
       "total_co2_g": 161217.309935,
       "congestion_delay_min": 4.266475,
       "wait_time_min": 0.0
@@ -20,7 +20,7 @@
       "mode": "car",
       "mean_trip_time_min": 4.471186,
       "mean_return_time_min": 0.0,
-      "mean_cost_eur": 0.627028,
+      "mean_cost_eur": 1.175677,
       "total_co2_g": 147098.283076,
       "congestion_delay_min": 1.223336,
       "wait_time_min": 0.0
