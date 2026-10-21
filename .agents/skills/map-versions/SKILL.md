@@ -31,7 +31,9 @@ or the same line can't be combined, and `ballot` refuses them.
 ## the changes
 
 There are five kinds. Anything else (a new street, a moved stop, a new place) is not a version:
-it is a change to the map itself (`map-modify`), or a drawing in the map editor.
+it is a change to the map itself (`map-modify`), or a drawing in the map editor. A bus line every
+version should have is drawn in the editor's base: it reaches every version built on it, and a
+version with its own route for it keeps that. `bus_line` is the line only one change brings.
 
 | kind | in words | what it does |
 | --- | --- | --- |
@@ -85,7 +87,8 @@ directions of a street.
   a bus lane is meant.
 - `bus_line`: `"line_name"`, `"minutes"`, `"there"` and `"back"`, each a list of edge ids from
   `versions.py route <map> <from node> <to node>` (and the same the other way). The stops are
-  every node on the way. The route is the shortest along streets; if the human wants it along
+  every node on the way, and **both ends must be a stop** (`bus_stop` or `station`; `find` prints a
+  node's types): `add` refuses an end that is not. The route is the shortest along streets; if the human wants it along
   another street, route it in pieces through a node on that street and join the lists.
 - `footpath`: `"from"` and `"to"`, two node ids. `"biking": false` for feet only.
 

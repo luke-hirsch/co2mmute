@@ -211,7 +211,11 @@ def cmd_find(api, map_id, text):
     needle = text.casefold()
     hits = 0
     names = sorted(
-        {e["name"] for e in graph.edges.values() if needle in e["name"].casefold()}
+        {
+            e["name"]
+            for e in graph.edges.values()
+            if e["name"] and needle in e["name"].casefold()
+        }
     )
     for name in [n for n in names if graph.stretches(n)]:
         for number, piece in enumerate(graph.stretches(name), 1):
@@ -314,6 +318,20 @@ def street_id(graph, edge_id):
     return edge["street_edge"]["id"]
 
 
+BOARDING_TYPES = {"station", "bus_stop"}
+
+
+def need_stop(graph, node_id):
+    """A line's end is where someone boards: a station or a bus stop."""
+    types = {t["name"] for t in graph.nodes[node_id]["node_type"]}
+    if not types & BOARDING_TYPES:
+        sys.exit(
+            f"{graph.node_label(node_id)} ist keine Haltestelle: eine Linie "
+            "endet nur an einer „station“ oder einem „bus_stop“. Frag, wo sie "
+            "enden soll (`find` zeigt die Art eines Knotens)."
+        )
+
+
 def find_line(graph, label):
     hits = [line for line in graph.lines if line_label(line) == label]
     if len(hits) != 1:
@@ -401,6 +419,8 @@ def build_diff(graph, change):
                 for a, b in zip(chain, chain[1:]):
                     if graph.edges[a]["end_node"] != graph.edges[b]["start_node"]:
                         sys.exit(f"{direction}: Kante {a} endet nicht, wo {b} beginnt.")
+                need_stop(graph, graph.edges[chain[0]]["start_node"])
+                need_stop(graph, graph.edges[chain[-1]]["end_node"])
                 payload["pt_line_changes"].append(
                     {
                         "action": "add",
