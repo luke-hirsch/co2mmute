@@ -73,6 +73,19 @@ export function buildAdjacencyList(
 export { canUseEdge };
 
 /**
+ * The speed a car crosses this link at: its mean over the rounds so far where
+ * one was measured, else the speed limit, else the fallback.
+ *
+ * One answer for the search's weight and for the time the screen shows, so a
+ * route through a jam is both weighed and shown at the jam's speed.
+ */
+function carSpeedKmh(edge: Edge, trafficData?: EdgeTrafficData[]): number {
+  const measured = trafficData?.find((t) => t.edgeId === edge.id);
+  if (measured) return measured.avgSpeedKmh;
+  return edge.street_edge?.speed_limit ?? DEFAULT_CAR_SPEED_KMH;
+}
+
+/**
  * Calculate edge weight based on transport mode and optimization
  */
 export function calculateEdgeWeight(
@@ -104,18 +117,10 @@ export function calculateEdgeWeight(
       return (distanceKm / BIKE_SPEED_KMH) * 60;
 
     case "car": {
-      const speedLimit = edge.street_edge?.speed_limit ?? DEFAULT_CAR_SPEED_KMH;
-
-      // The speed the link ran at, on average over the rounds so far. Time and CO2 both
-      // depend on it — the simulation's CO2 is a curve over the link's
-      // observed speed — so both read it; only the shortest route does not.
-      let actualSpeed = speedLimit;
-      if (trafficData) {
-        const traffic = trafficData.find((t) => t.edgeId === edge.id);
-        if (traffic) {
-          actualSpeed = traffic.avgSpeedKmh;
-        }
-      }
+      // Time and CO2 both depend on the speed the link ran at — the
+      // simulation's CO2 is a curve over the link's observed speed — so both
+      // read it; only the shortest route does not.
+      const actualSpeed = carSpeedKmh(edge, trafficData);
 
       switch (optimization) {
         case "distance":
@@ -386,11 +391,10 @@ export async function dijkstra(
         case "bike":
           timeMin = (distanceM / 1000 / BIKE_SPEED_KMH) * 60;
           break;
-        case "car": {
-          const speed = edge.street_edge?.speed_limit ?? DEFAULT_CAR_SPEED_KMH;
-          timeMin = (distanceM / 1000 / speed) * 60;
+        case "car":
+          // The jam's time, whichever option picked the route.
+          timeMin = (distanceM / 1000 / carSpeedKmh(edge, trafficData)) * 60;
           break;
-        }
         default:
           timeMin = 0;
       }

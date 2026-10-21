@@ -105,6 +105,7 @@ interface CameFromEntry {
   edgeId: number | null; // null = boarding wait or alighting
   distanceM: number;
   costMin: number; // cost of this single step
+  penaltyMin: number; // the part of costMin that is a preference, not time
 }
 
 interface ProductGraphResult {
@@ -280,6 +281,11 @@ interface Transition {
   nextState: ProductNode;
   nextKey: StateKey;
   costMin: number;
+  /**
+   * The part of `costMin` nobody spends: "wenig umsteigen"'s extra minutes per
+   * change. The search weighs it; the time of the route leaves it out.
+   */
+  penaltyMin?: number;
   edgeId: number | null;
   distanceM: number;
 }
@@ -345,6 +351,7 @@ function getNeighbours(
             nextState,
             nextKey: stateKey(nextState),
             costMin: waitCost + transferPenalty,
+            penaltyMin: transferPenalty,
             edgeId: null,
             distanceM: 0,
           });
@@ -522,6 +529,7 @@ function productGraphDijkstra(
           edgeId: t.edgeId,
           distanceM: t.distanceM,
           costMin: t.costMin,
+          penaltyMin: t.penaltyMin ?? 0,
         });
         heap.push({ state: t.nextState, key: t.nextKey, cost: newCost });
       }
@@ -608,6 +616,8 @@ function reconstructPath(
 
   for (const { fromState, toState, entry } of steps) {
     const { edgeId, distanceM, costMin } = entry;
+    // A boarding's wait, without the change penalty the search added to it.
+    const waitMin = costMin - entry.penaltyMin;
 
     if (phase === "PRE_BOARD") {
       if (fromState.mode.tag === "walk" && toState.mode.tag === "walk") {
@@ -622,7 +632,7 @@ function reconstructPath(
         walkToStation.push(seg);
       } else if (fromState.mode.tag === "walk" && toState.mode.tag === "pt") {
         // Boarding (wait cost)
-        totalWaitTimeMin += costMin;
+        totalWaitTimeMin += waitMin;
         phase = "ON_PT";
       }
     } else if (phase === "ON_PT") {
@@ -669,7 +679,7 @@ function reconstructPath(
         // Transfer boarding — flush pending walk into ptSegments, restart ON_PT
         ptSegments.push(...pendingWalkSegments);
         pendingWalkSegments = [];
-        totalWaitTimeMin += costMin;
+        totalWaitTimeMin += waitMin;
         phase = "ON_PT";
       }
     }

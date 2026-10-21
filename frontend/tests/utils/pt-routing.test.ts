@@ -543,3 +543,41 @@ describe("a line that passes a stop twice", () => {
     expect(result.waitTimeMin).toBe(10);
   });
 });
+
+/**
+ * "wenig umsteigen" is a preference of the search, not time anybody spends.
+ *
+ * Every boarding after the first costs it 30 extra minutes, so a route with a
+ * change loses to one without. Those minutes went into the wait the screen
+ * shows: one change between two buses read 22 minutes as "schnellste" and 52
+ * as "wenig umsteigen", for the same route.
+ */
+describe("the change penalty", () => {
+  const quiet: ReturnType<typeof vi.spyOn>[] = [];
+  beforeAll(() => {
+    quiet.push(vi.spyOn(console, "log").mockImplementation(() => {}));
+  });
+  afterAll(() => quiet.forEach((spy) => spy.mockRestore()));
+
+  // Home is stop 1, work stop 3. Bus 1 runs 1 → 2, bus 2 runs 2 → 3, 3 km each
+  // at 30 km/h, every ten minutes: 5 + 6 + 5 + 6 = 22 minutes, one change at 2.
+  const nodes = [at(1, 0, true), at(2, 3, true), at(3, 6, true)];
+  const edges = [...street(10, 1, 2, 3_000), ...street(20, 2, 3, 3_000)];
+  const graph = toyGraph(nodes, edges, [
+    busLine(1, "1", [1, 2], [10]),
+    busLine(2, "2", [2, 3], [20]),
+  ]);
+
+  it("is not in the time of the route it picks", async () => {
+    const fastest = await findPTRoute(graph, 1, 3, { scale: 1000, ptOptimization: "fastest" });
+    const fewest = await findPTRoute(graph, 1, 3, {
+      scale: 1000,
+      ptOptimization: "fewest_transfers",
+    });
+
+    expect(fewest.ptSegments.map((s) => s.ptLineId)).toEqual([1, 2]);
+    expect(fastest.totalTimeMin).toBe(22);
+    expect(fewest.totalTimeMin).toBe(22);
+    expect(fewest.waitTimeMin).toBe(10);
+  });
+});

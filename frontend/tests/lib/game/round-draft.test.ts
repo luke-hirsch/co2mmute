@@ -10,6 +10,7 @@ import {
   draftRouting,
   initialRoundDraft,
   roundDraftReducer,
+  transferCount,
   type AgentChoice,
   type RoundDraft,
   type RoundDraftAction,
@@ -602,5 +603,34 @@ describe("draftChoices", () => {
   it("is empty before anything is chosen", () => {
     expect(draftChoices(apply(initialRoundDraft(), ASSIGN))).toEqual([]);
     expect(draftChoices(initialRoundDraft())).toEqual([]);
+  });
+});
+
+/**
+ * A change is a different line, and a line is its type and its id: bus 2 and
+ * train 2 are rows of two tables. Counted by the id alone, getting off bus 2
+ * and onto train 2 was no change at all.
+ */
+describe("transferCount", () => {
+  const ride = (mode: "bus" | "train" | "walk", ptLineId?: number) => ({
+    edgeId: 1,
+    startNode: 1,
+    endNode: 2,
+    mode,
+    ptLineId,
+    distanceM: 100,
+    estimatedTimeMin: 1,
+  });
+
+  it("counts bus 2 to train 2 as a change", () => {
+    const segments = [ride("bus", 2), ride("bus", 2), ride("walk"), ride("train", 2)];
+
+    expect(transferCount(route({ transportMode: "public", segments }))).toBe(1);
+  });
+
+  it("counts staying on one line as none", () => {
+    const segments = [ride("walk"), ride("bus", 2), ride("bus", 2), ride("walk")];
+
+    expect(transferCount(route({ transportMode: "public", segments }))).toBe(0);
   });
 });
