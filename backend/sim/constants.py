@@ -17,6 +17,12 @@ machinery and stay where they are used.
 import random
 
 # Emission factors. These are the only ones: the game's database carries none.
+# A research value whose source was not recorded; kept as it is. For comparison,
+# the Umweltbundesamt's TREMOD 6.71B (10/2025, "Vergleich der durchschnittlichen
+# Emissionen einzelner Verkehrsmittel im Personenverkehr in Deutschland 2024")
+# gives the car 164 g per person-km at 1.4 persons a car, upstream included:
+# about 230 g per vehicle-km, a fleet mean over all roads. The figure is
+# falling with the share of electric cars.
 CAR_EMISSIONS_G_PER_KM = 166.8  # g CO2e per vehicle-km (1 person = 1 vehicle)
 # A city bus: ~45 l/100 km x 2.64 kg CO2/l = 1188 g, rounded to 1200. Berlin's
 # fleet is 55 % articulated or 15 m (838 of 1532, BVG in Zahlen 2025). The
@@ -81,7 +87,13 @@ CAR_EF_ROLLING_TERM = (  # b, g per km
 MAX_CAR_EMISSION_FACTOR = 2.0
 
 # Cost factors, likewise the only ones.
-CAR_COST_PER_KM = 0.32  # € per vehicle-km
+# ADAC Autokostenübersicht Frühjahr/Sommer 2026: the full cost of a new compact
+# petrol car is 57-67 ct per km (i30 58.3, Ceed 56.9-60.3, Leon 64.7, A3
+# Sportback 59.8-61.7), over five years and 15 000 km a year, depreciation
+# without interest. Taken at 0.60. A new car's depreciation makes that the high
+# side for the cars on the road. Was 0.32 before (no source recorded, likely
+# the Pendlerpauschale).
+CAR_COST_PER_KM = 0.60  # € per vehicle-km
 # Deiters 2009, Tab. 5, on the Standardisierte Bewertung's rates: a 12 m solo
 # bus costs 2.82 € per vehicle-km and a low-floor tram 4.47. Both brought to
 # 2025 prices with the consumer price index (Destatis, annual average): 2009 is
@@ -189,7 +201,7 @@ def car_emissions_g_per_km(speed_kmh: float) -> float:
 def car_out_of_pocket_eur_per_km(speed_kmh: float) -> float:
     """The part of the Vollkosten a driver feels on this trip.
 
-    CAR_COST_TRAFFIC_SHARE of the 0,32 €/km is fuel and stop-and-go wear and
+    CAR_COST_TRAFFIC_SHARE of CAR_COST_PER_KM is fuel and stop-and-go wear and
     rides on the emission curve; the rest — depreciation, insurance, tax — is
     paid whether the car moves today or not, so it is not what this trip
     costs you. Returns exactly CAR_COST_PER_KM * CAR_COST_TRAFFIC_SHARE at

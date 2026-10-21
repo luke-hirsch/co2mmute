@@ -1460,8 +1460,8 @@ class CarEmissionCurveTests(TestCase):
 class CarCostCurveTests(TestCase):
     """Half the per-kilometre cost rides on the emission curve.
 
-    0.32 €/km is a Vollkosten figure, so it cannot all follow: fuel (~0.126)
-    and stop-and-go wear on brakes, clutch and tyres (~0.034) are metered by
+    CAR_COST_PER_KM is a Vollkosten figure, so it cannot all follow: fuel
+    and stop-and-go wear on brakes, clutch and tyres are metered by
     how the car is driven, depreciation, insurance and tax are not. Fuel
     tracks the CO2 factor exactly rather than on a curve of its own, because
     CO2 is fuel burnt — one physics, two units.

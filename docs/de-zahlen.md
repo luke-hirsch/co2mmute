@@ -38,7 +38,7 @@ Wie viel CO₂ eine Fahrt kostet. Ein Auto ist ein Fahrzeug mit einer Person.
 
 | Konstante | Wert | Was sie tut | Quelle |
 |---|---|---|---|
-| `CAR_EMISSIONS_G_PER_KM` | 166,8 g CO₂e je Fahrzeug-km | Ein Auto bei 50 km/h. Die Kurve unten läuft durch diesen Punkt. | keine Quelle im Kommentar |
+| `CAR_EMISSIONS_G_PER_KM` | 166,8 g CO₂e je Fahrzeug-km | Ein Auto bei 50 km/h. Die Kurve unten läuft durch diesen Punkt. | Forschungswert, dessen Quelle nicht festgehalten wurde. Zum Vergleich: UBA, TREMOD 6.71B (10/2025), Pkw 2024 mit 164 g je Personen-km bei 1,4 Personen, einschließlich Vorkette: rund 230 g je Fahrzeug-km, ein Flottenmittel über alle Straßen. Der Wert sinkt mit dem Anteil der Elektroautos. |
 | `BUS_EMISSIONS_G_PER_VEHICLE_KM` | 1200 g je Bus-km | Ein Bus stößt je gefahrenem Kilometer aus, ob jemand mitfährt oder nicht. | ca. 45 l/100 km × 2,64 kg CO₂/l; Berliner Flotte BVG in Zahlen 2025; Standardisierte Bewertung 2016+; VBK Karlsruhe |
 | `TRAIN_EMISSIONS_G_PER_VEHICLE_KM` | 3630 g je Zug-km | U-, S- und Regionalbahn: ein Wert für alle drei. | 10 kWh je Zug-km × 363 g/kWh (UBA 2024, Strommix); Standardisierte Bewertung 2016+, S-Bahn Berlin, BVG |
 | `TRAM_EMISSIONS_G_PER_VEHICLE_KM` | 1400 g je Tram-km | Eine Tram je gefahrenem Kilometer. | 3,9 kWh je Tram-km (Deiters 2009, Tab. 5) × 363 g/kWh, abgerundet |
@@ -60,7 +60,7 @@ dieselben Kosten sieht: `CAR_EMISSIONS_G_PER_KM`, `CAR_EF_ANCHOR_SPEED_KMH`, `CA
 
 | Konstante | Wert | Was sie tut | Quelle |
 |---|---|---|---|
-| `CAR_COST_PER_KM` | 0,32 € je km | Die Vollkosten eines Autokilometers. | keine Quelle im Kommentar |
+| `CAR_COST_PER_KM` | 0,60 € je km | Die Vollkosten eines Autokilometers. | ADAC Autokostenübersicht Frühjahr/Sommer 2026: neue Kompaktwagen mit Benziner 57–67 ct je km (i30 58,3, Ceed 56,9–60,3, Leon 64,7, A3 Sportback 59,8–61,7), fünf Jahre, 15 000 km im Jahr, Wertverlust ohne Zinsen. Durch den Wertverlust eines Neuwagens ist das die hohe Seite für die Autos auf der Straße. Vorher 0,32 (Quelle nicht festgehalten, wohl die Pendlerpauschale). |
 | `CAR_COST_TRAFFIC_SHARE` | 0,5 | Der Teil davon, der mit dem Verkehr steigt (Sprit, Stop-and-go); der Rest ist fest. Der feste Teil zählt nicht zu dem, was du für die Fahrt zahlst. | bekannte Schätzung |
 | `BUS_COST_PER_VEHICLE_KM` | 3,94 € je Bus-km | Was ein Bus je Kilometer kostet, ob besetzt oder leer. | Deiters 2009, Tab. 5 (2,82 €), mit dem Verbraucherpreisindex auf 2025 (× 1,399) |
 | `TRAM_COST_PER_VEHICLE_KM` | 6,25 € je Tram-km | dasselbe für eine Tram | Deiters 2009, Tab. 5 (4,47 €), × 1,399 |

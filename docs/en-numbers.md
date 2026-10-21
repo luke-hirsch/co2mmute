@@ -37,7 +37,7 @@ How much CO₂ a trip costs. A car is one vehicle with one person.
 
 | Constant | Value | What it does | Source |
 |---|---|---|---|
-| `CAR_EMISSIONS_G_PER_KM` | 166.8 g CO₂e per vehicle-km | A car at 50 km/h. The curve below runs through this point. | no source in the comment |
+| `CAR_EMISSIONS_G_PER_KM` | 166.8 g CO₂e per vehicle-km | A car at 50 km/h. The curve below runs through this point. | a research value whose source was not recorded. For comparison: UBA, TREMOD 6.71B (10/2025), car 2024 at 164 g per person-km with 1.4 persons, upstream included: about 230 g per vehicle-km, a fleet mean over all roads. The figure is falling with the share of electric cars. |
 | `BUS_EMISSIONS_G_PER_VEHICLE_KM` | 1200 g per bus-km | A bus emits per kilometre driven, whether anybody rides or not. | about 45 l/100 km × 2.64 kg CO₂/l; Berlin's fleet, BVG in Zahlen 2025; Standardisierte Bewertung 2016+; VBK Karlsruhe |
 | `TRAIN_EMISSIONS_G_PER_VEHICLE_KM` | 3630 g per train-km | U-Bahn, S-Bahn and regional train: one value for all three. | 10 kWh per train-km × 363 g/kWh (UBA 2024, grid mix); Standardisierte Bewertung 2016+, S-Bahn Berlin, BVG |
 | `TRAM_EMISSIONS_G_PER_VEHICLE_KM` | 1400 g per tram-km | A tram per kilometre driven. | 3.9 kWh per tram-km (Deiters 2009, Tab. 5) × 363 g/kWh, rounded down |
@@ -59,7 +59,7 @@ same cost: `CAR_EMISSIONS_G_PER_KM`, `CAR_EF_ANCHOR_SPEED_KMH`, `CAR_EF_MIN_SPEE
 
 | Constant | Value | What it does | Source |
 |---|---|---|---|
-| `CAR_COST_PER_KM` | 0.32 € per km | The full cost of a car kilometre. | no source in the comment |
+| `CAR_COST_PER_KM` | 0.60 € per km | The full cost of a car kilometre. | ADAC Autokostenübersicht Frühjahr/Sommer 2026: new compact petrol cars 57-67 ct per km (i30 58.3, Ceed 56.9-60.3, Leon 64.7, A3 Sportback 59.8-61.7), five years, 15 000 km a year, depreciation without interest. A new car's depreciation makes that the high side for the cars on the road. Was 0.32 (source not recorded, likely the Pendlerpauschale). |
 | `CAR_COST_TRAFFIC_SHARE` | 0.5 | The part of it that rises with traffic (fuel, stop-and-go); the rest is fixed. The fixed part is not what you pay for the trip. | known estimate |
 | `BUS_COST_PER_VEHICLE_KM` | 3.94 € per bus-km | What a bus costs per kilometre, full or empty. | Deiters 2009, Tab. 5 (2.82 €), brought to 2025 with the consumer price index (× 1.399) |
 | `TRAM_COST_PER_VEHICLE_KM` | 6.25 € per tram-km | the same for a tram | Deiters 2009, Tab. 5 (4.47 €), × 1.399 |

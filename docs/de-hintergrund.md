@@ -263,7 +263,7 @@ Daraus folgt:
 - **Eine Tempo-30-Straße stößt pro Kilometer rund 13 % mehr aus als eine 50er, auch leer.** Das ist
   in jedem geschwindigkeitsabhängigen Modell so, und 34 der 82 Straßenkanten der ausgelieferten
   Karte sind 30er-Zonen. Das hebt die Emissionen einer Runde schon ohne Stau an.
-- **Die Kosten hängen mit halbem Gewicht an derselben Kurve.** Die Hälfte der 0,32 €/km ist
+- **Die Kosten hängen mit halbem Gewicht an derselben Kurve.** Die Hälfte der 0,60 €/km ist
   Kraftstoff und Verschleiß im Stop-and-go und folgt dem Emissionsfaktor; die andere Hälfte
   (Abschreibung, Versicherung, Steuer) fällt an, ob das Auto heute fährt oder nicht. Die Kosten sind
   deshalb bei 1,50× gedeckelt, CO₂ bei 2,00×.

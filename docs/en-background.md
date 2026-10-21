@@ -246,7 +246,7 @@ It follows that:
 - **A Tempo-30 street emits about 13 % more per kilometre than a 50 street, even empty.** That is
   real in every average-speed model, and 34 of the shipped map's 82 street edges are 30 zones. It
   raises a round's emissions before there is any congestion.
-- **Cost rides the same curve at half weight.** Half of the 0.32 €/km is fuel and stop-and-go wear
+- **Cost rides the same curve at half weight.** Half of the 0.60 €/km is fuel and stop-and-go wear
   and follows the emission factor; the other half (depreciation, insurance, tax) is paid whether the
   car moves today or not. So cost caps at 1.50× and CO₂ at 2.00×.
 
