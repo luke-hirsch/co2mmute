@@ -278,7 +278,8 @@ lists the stages in the order they run, each module's docstring its rules.
   `assertNever`, so a new backend event fails the build until it is handled.
 - **Two colours and ink**: primary blue, accent amber. No green, no red. Lines are told apart by
   pattern (car solid, bike dashed, walk dotted), and mode colours come only from
-  `src/components/metro/mode.ts`. No `font-bold`.
+  `src/components/metro/mode.ts`. No `font-bold`. The design rules in full, with the tokens and the
+  words: `.agents/design/` (`rulebook.md`, `tokens.md`, `copy.md`).
 - Graph rendering is hand-written SVG. There is no graph library.
 - **There is one router.** `searchTrip` in `src/lib/map/trip-search.ts` is how the round screen finds
   a trip, and `scripts/routes.mjs` runs the same code under Node for `calibrate_map`. Don't write a
@@ -294,7 +295,7 @@ lists the stages in the order they run, each module's docstring its rules.
 
 - **Design tokens**: `frontend/src/main.css` and `backend/static/css/custom.css` carry the same block
   between `>>> shared tokens` and `<<< end shared tokens >>>`. `tests/design/tokens.test.ts` names a
-  token that drifted.
+  token that drifted. `.agents/design/tokens.md` lists the values and changes with them.
 - **Colour mode bootstrap**: inline in `frontend/index.html` and `backend/static/js/head_script.js`.
 - **README**: German first, then the same sections in English. Change one half, change the other.
 - **Docs**: `docs/` is flat `de-`/`en-` pairs. The pages under `/docs/` are hand copies of the German

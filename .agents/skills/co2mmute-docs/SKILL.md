@@ -156,8 +156,9 @@ the copies identical; deploy needs all three. Diff the two job blocks before you
 
 `frontend/src/main.css` and `backend/static/css/custom.css` carry the same block between
 `>>> shared tokens` and `<<< end shared tokens >>>`; `frontend/tests/design/tokens.test.ts` names the
-one that drifted. The colour-mode bootstrap is inline in `frontend/index.html` and in
-`backend/static/js/head_script.js`.
+one that drifted. The tables in `.agents/design/tokens.md` carry the same values; change them too.
+The rules the tokens serve are `.agents/design/rulebook.md`. The colour-mode bootstrap is inline in
+`frontend/index.html` and in `backend/static/js/head_script.js`.
 
 ## decided: a line runs while anybody is out
 

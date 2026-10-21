@@ -76,7 +76,7 @@ Words:
 
 - **Gruppe**: a game agent — a group of commuters a seat plays, all with one home, one workplace,
   one Pendlertyp. `people_per_agent` people stand behind each. `co2_g_per_person` is one commuter's
-  day; the group's is that × `people_per_agent`.
+  day; the Gruppe's is that × `people_per_agent`.
 - **Stichwahl**: the second vote after a tie (`StalemateVote` in the code). Two ties leave the map
   as it is.
 - **Leitstelle**: the host's machine. A seat can be played there; the file does not tell.
@@ -159,7 +159,7 @@ FROM vote GROUP BY round_id;
   code: `study_seat` lets you follow a code through the games of its study ("the person with this
   code rode the bike in game one, drove in game two"). A code is not a name. Never try to tie one
   to a person, and don't join it with anything outside the file that could.
-- **Notes are the group's own words.** Quote a `study_note` as theirs; it is context for a study,
+- **Notes are their authors' own words.** Quote a `study_note` as theirs; it is context for a study,
   never a result for one person.
 - **No join that re-identifies anyone.** Don't combine `ended_on`, a map, a seat count and a
   Pendlertyp to point at a class. Don't ask anyone which `player_id` was theirs, and don't take the

@@ -5,7 +5,7 @@ description: Change a number of the traffic model because newer research says so
 
 # sim-experiment
 
-The group keeps the model current with research. A number changes, the maps are measured before
+The model is kept current with research. A number changes, the maps are measured before
 and after, the human hears what the change does, and only then is it kept with everything that has
 to follow. `docs/de-zahlen.md` / `docs/en-numbers.md` list every number and where it lives; read
 the entry of the one at hand first.

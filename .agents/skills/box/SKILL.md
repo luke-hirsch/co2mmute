@@ -141,9 +141,9 @@ sudo grep -E '^DJANGO_EMAIL_(HOST|PORT|USER|SSL|TLS|FROM)=' /commute/devops/.env
 docker compose -f devops/docker-compose.yaml logs --since 24h backend | grep -i -E 'mail|smtp'
 ```
 
-**Open, for the human, not a step:** the sender today is one person's address. The group needs
-a sender of its own (an address and an SMTP account that belong to the group, not to whoever built
-the site) before that person's account goes away, and that decision is theirs. Until it is made, say
+**Open, for the human, not a step:** the sender today is one person's address. The instance needs
+a sender of its own (an address and an SMTP account that belong to whoever runs the site, not to
+whoever built it) before that person's account goes away, and that decision is the human's. Until it is made, say
 so whenever mail comes up.
 
 ## what to say
