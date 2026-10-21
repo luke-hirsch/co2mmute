@@ -196,9 +196,10 @@ cd frontend && E2E_MAP=/abs/map.calibrated.json E2E_MAP_NAME="Bremen" node e2e/s
 
 (`E2E_BASE_URL`, `E2E_USER` and `E2E_PASSWORD` say where and as whom; see the script's head. The
 script does nothing when a map of that name is already there, and `--recreate` renames the old one
-aside first.) The page's upload always makes a new map. **A built map never goes into `map_examples/` or into git** — that
-folder is the hand-drawn map that is played. A built map lives in the database, and its export
-(`api/maps/<id>/export/`) is its backup.
+aside first.) The page's upload always makes a new map. A built map lives in the database, and its export
+(`api/maps/<id>/export/`) is its backup. **It goes into git only when the human says so, and then
+into `map_examples/gebaut/`**, never beside the hand-drawn map one level up, which is the map that is
+played; run `check_map` on it first, since CI does not check that folder.
 
 ## 6. tell the human
 

@@ -243,7 +243,8 @@ versions *is* the ballot. A row naming no version is in no version.
   line ends where someone can board, a way from every home to every workplace and back. The rules are
   `maps/checks.py`. The upload does not run them — a map in the editor is half drawn.
 - `map_examples/` is production data, not a fixture: the map that is played, tested by
-  `maps/tests/test_example_map.py`.
+  `maps/tests/test_example_map.py`. Built maps kept in the repo go in `map_examples/gebaut/`, which
+  that test does not read.
 
 ## the map builder
 
@@ -367,6 +368,22 @@ lists the stages in the order they run, each module's docstring its rules.
   identifiers in English.
 - Before naming a migration, check the last number in that app; never rename an applied one.
 
+## traps
+
+- `useAuth()` throws outside `ProtectedLayout`; `/app/join` and `/app/game/create` read `useSession()`.
+- A delete never invalidates the deleted row's own query: the refetch 404s, the page unmounts and
+  `onSuccess` never runs. Invalidate the list.
+- e2e waits for a rendered screen, never a URL or a response; the editor canvas drops a click until
+  its graph refetch lands.
+- `e2e/seed.mjs` skips a map that exists; after the shipped file changes, run it with `--recreate`.
+- Wrong passwords lock e2e out for 15 minutes: delete the `throttle:login:…` key in a shell.
+- `DJANGO_BASE_URL` unset points every QR code at `https://localhost`.
+- Never `LANGUAGE_CODE = "de"` (Django says "Sie"). Django messages are never shown.
+- Tailwind drops `@variant dark` inside `::before`; write `.dark …::before`. `{# #}` is one line.
+- A script on a throwaway database sets `CACHES` to locmem, like `calibrate_map`, or it writes that
+  map's graph into the dev Redis under a real map's pk.
+- Stop a second stack's Celery by pid; `pkill -f "celery -A co2mmute worker"` stops every worker.
+
 ## decided
 
 - The summary crowns no winner. CO₂, cost and time sit side by side because they disagree.
@@ -376,3 +393,6 @@ lists the stages in the order they run, each module's docstring its rules.
   host takes it over by hand.
 - `GameSession.map_updates` defaults to `False` on the model while the create form starts it `True`.
   Pinned by a test; changing it is a decision, not a fix.
+- Tried and dropped: a faster deadlock escape (the ring's right of way solved the locks), one shared
+  seed for a study's games (one engine, a fresh deal per game), a staging box or a locked deploy
+  script.
