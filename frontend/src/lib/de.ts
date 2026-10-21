@@ -812,6 +812,12 @@ export const de = {
     groupsView: "Meine Gruppen",
     groupsLead:
       "Hat jede Gruppe gespielt, was ihr Pendlertyp verlangt? Jede Zahl gilt für einen Menschen an einem Tag, hin und zurück, im Schnitt über die Runden.",
+    /**
+     * The class's view of the types, folded: every Pendlertyp once, over all
+     * the Gruppen that held it. No seat, no CO₂.
+     */
+    typesTitle: "Pendlertypen",
+    typeGroups: (n: number) => (n === 1 ? "1 Gruppe" : `${n} Gruppen`),
     groupNoPersona: "ohne Pendlertyp",
     groupRounds: (n: number) => (n === 1 ? "1 Runde" : `${n} Runden`),
     groupNone: "Für diese Gruppe wurde keine Runde gerechnet.",
@@ -896,6 +902,11 @@ export const de = {
    * else, which is what a Leitstelle is.
    */
   host: {
+    /** The strip of Pendlertypen in the lobby and at the Leitstelle: counts only. */
+    personasInPlay: {
+      title: "In diesem Spiel",
+      groups: (n: number) => (n === 1 ? "1 Gruppe" : `${n} Gruppen`),
+    },
     title: "Leitstelle",
     /**
      * Under the game's name, on the projector, so it talks to the class, not

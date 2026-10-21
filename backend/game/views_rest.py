@@ -20,6 +20,7 @@ from rest_framework.generics import (
 from rest_framework.mixins import ListModelMixin
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from sim import constants as sim_constants
 
 from game.auth import resolve_player_id
@@ -40,7 +41,7 @@ from game.models import (
     SimulationResult,
 )
 from game.pause import PauseRefused, pause_game, resume_game
-from game.personas import group_summary
+from game.personas import group_summary, persona_counts
 from game.permissions import (
     CanDeleteOwnPlayer,
     HasGameAccess,
@@ -297,6 +298,21 @@ class StandardPersonasView(ListModelMixin, GenericAPIView):
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
+
+
+class PersonasInPlayView(APIView):
+    """`GET api/game/<game_id>/pendlertypen/` — each Pendlertyp of the game once, with
+    how many Gruppen hold it: the strip in the lobby and at the Leitstelle.
+
+    Counts only. Which seat holds which stays with the seat.
+    """
+
+    authentication_classes = (SessionAuthentication,)
+    permission_classes = (HasGameAccess,)
+
+    def get(self, request, game_id):
+        game = get_object_or_404(GameSession, game_id=game_id)
+        return Response(persona_counts(game))
 
 
 class GameSessionDetailView(GameScopedQuerysetMixin, RetrieveUpdateDestroyAPIView):

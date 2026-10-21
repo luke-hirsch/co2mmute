@@ -96,6 +96,17 @@ class SeatsMixin(TempMediaRootMixin):
 class AddSeatTests(SeatsMixin, TestCase):
     """POST /api/game/<game_id>/player/ — the host adds a seat. It was a 405."""
 
+    def test_a_seat_cannot_carry_the_hosts_name_either(self):
+        self.as_host()
+
+        response = self.add("spielleitung")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json()["name"],
+            ["Diesen Namen trägt die Spielleitung. Wähl einen anderen."],
+        )
+
     def test_the_host_adds_a_seat_in_the_lobby(self):
         self.as_host()
 

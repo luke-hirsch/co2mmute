@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { modeTally, ownGroups } from "@/lib/game/groups";
+import { modeTally, ownGroups, typeOverview } from "@/lib/game/groups";
 import type { GameSummary, SummaryGroup, SummaryPlayer } from "@/lib/queries/summary";
 
 /**
@@ -103,5 +103,48 @@ describe("modeTally", () => {
 
   it("is empty for a Gruppe that never rode a simulated round", () => {
     expect(modeTally({})).toEqual([]);
+  });
+});
+
+describe("typeOverview", () => {
+  const sparfuchs = (modes: SummaryGroup["modes"], rounds = 3) =>
+    group({ persona: { name: "Sparfuchs", description: "x" }, modes, rounds });
+  const sport = (modes: SummaryGroup["modes"], rounds = 3) =>
+    group({ persona: { name: "Sportskanone", description: "y" }, modes, rounds });
+
+  it("lays every type out once, over all the seats that hold it", () => {
+    const rows = typeOverview([
+      player("A", [sparfuchs({ bike: 2, car: 1 }), sport({ bike: 3 })]),
+      player("B", [sparfuchs({ bike: 1, public: 2 })]),
+    ]);
+
+    expect(rows.map((r) => [r.name, r.groups, r.rounds])).toEqual([
+      ["Sparfuchs", 2, 6],
+      ["Sportskanone", 1, 3],
+    ]);
+    expect(rows[0].modes).toEqual({ bike: 3, car: 1, public: 2 });
+  });
+
+  it("counts a Gruppe that never ran, and lets it add no trip", () => {
+    const rows = typeOverview([
+      player("A", [sparfuchs({}, 0), sparfuchs({ car: 2 }, 2)]),
+    ]);
+
+    expect(rows[0].groups).toBe(2);
+    expect(rows[0].rounds).toBe(2);
+    expect(rows[0].modes).toEqual({ car: 2 });
+  });
+
+  it("leaves out a Gruppe with no type, and a game with none", () => {
+    expect(typeOverview([player("A", [group({ persona: null })])])).toEqual([]);
+    expect(typeOverview([player("A", [])])).toEqual([]);
+  });
+
+  it("names no player and no figure of CO₂", () => {
+    const rows = typeOverview([player("A", [sparfuchs({ bike: 1 })])]);
+
+    expect(JSON.stringify(rows)).not.toContain("co2");
+    expect(JSON.stringify(rows)).not.toContain("player");
+    expect(JSON.stringify(rows)).not.toContain('"A"');
   });
 });

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DepartureBoard } from "@/components/metro/departure-board";
 import { Screen, ScreenHeading } from "@/components/layout/screen";
-import { ApiError, NetworkError } from "@/lib/api";
+import { ApiError, NetworkError, firstFieldError } from "@/lib/api";
 import { de, type JoinBlockedReason } from "@/lib/de";
 import { useJoinGame, type GameFacts } from "@/lib/queries/join";
 
@@ -111,7 +111,11 @@ export function JoinForm({
         else setFormError(de.errors.unknown);
         return;
       }
-      setFormError(error.message || de.errors.unknown);
+      // The one name the server refuses with a sentence of its own: the host's,
+      // and what is too close to it.
+      setFormError(
+        firstFieldError(error, "name") || error.message || de.errors.unknown,
+      );
     }
   }
 

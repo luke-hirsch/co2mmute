@@ -4,10 +4,12 @@ The debrief that reads them back is in `test_rounds.py`, beside the rest of the
 summary.
 """
 
+import importlib
 import random
 from collections import Counter
 from types import SimpleNamespace
 
+from django.apps import apps
 from django.test import TestCase, override_settings
 from django.urls import resolve
 
@@ -79,6 +81,77 @@ class StandardPendlertypenTests(TestCase):
         response = self.client.get("/api/game/personas/")
 
         self.assertIn(response.status_code, (401, 403))
+
+
+TEXTS_MIGRATION = "game.migrations.0028_pendlertypen_texte"
+
+NEW_TEXTS = {
+    "Auf den letzten Drücker": "Immer zu spät los. Hauptsache schnell da, egal womit.",
+    "Sparfuchs": "Ende des Monats, Konto leer. Der billigste Weg gewinnt, auch wenn er dauert.",
+    "Öko aus Überzeugung": "So wenig CO₂ wie möglich, auch wenn es länger dauert oder mehr kostet.",
+    "Sportskanone": "Wozu ins Fitnessstudio? Wo es geht, mit dem Rad oder zu Fuß.",
+    "Bloß kein Stress": "Kein Umsteigen, keine Umwege. Hauptsache entspannt ankommen.",
+    "Benzin im Blut": "Ohne Auto geht gar nichts. Lieber im Stau als in Bus und Bahn.",
+    "Einfach du": "Keine Rolle. Fahr so, wie du selbst fahren würdest.",
+}
+
+
+class StandardTextsMigrationTests(TestCase):
+    """0028 rewrites the seven standard texts, and only where nobody has touched them.
+
+    Its functions are called directly with the app registry, as the other data
+    migrations' tests do.
+    """
+
+    def migration(self):
+        return importlib.import_module(TEXTS_MIGRATION)
+
+    def standard(self):
+        return {p.name: p.description for p in Persona.objects.filter(game=None)}
+
+    def test_a_standard_row_with_the_old_draft_gets_the_new_text(self):
+        # The test database was migrated up to 0028 already; put the drafts back.
+        self.migration().restore_old_texts(apps, None)
+        self.assertNotEqual(self.standard()["Sparfuchs"], NEW_TEXTS["Sparfuchs"])
+
+        self.migration().rewrite_standard_texts(apps, None)
+
+        self.assertEqual(self.standard(), NEW_TEXTS)
+
+    def test_the_seven_rows_say_it_after_migrating(self):
+        self.assertEqual(self.standard(), NEW_TEXTS)
+
+    def test_an_edit_in_the_admin_stays(self):
+        self.migration().restore_old_texts(apps, None)
+        Persona.objects.filter(game=None, name="Sparfuchs").update(
+            description="Mein eigener Satz."
+        )
+
+        self.migration().rewrite_standard_texts(apps, None)
+
+        self.assertEqual(self.standard()["Sparfuchs"], "Mein eigener Satz.")
+        self.assertEqual(self.standard()["Sportskanone"], NEW_TEXTS["Sportskanone"])
+
+    def test_a_game_keeps_the_text_it_copied(self):
+        host = create_host()
+        with muted():
+            game = create_game_session(host)
+        self.migration().restore_old_texts(apps, None)
+        old = Persona.objects.get(game=None, name="Sparfuchs").description
+        copy = Persona.objects.create(game=game, name="Sparfuchs", description=old)
+
+        self.migration().rewrite_standard_texts(apps, None)
+
+        copy.refresh_from_db()
+        self.assertEqual(copy.description, old)
+
+    def test_it_can_be_taken_back(self):
+        self.migration().restore_old_texts(apps, None)
+
+        self.assertEqual(
+            self.standard()["Benzin im Blut"],
+            "Ohne Auto geht gar nichts. Lieber im Stau als im Bus.",
+        )
 
 
 class CreateWithPendlertypenTests(TempMediaRootMixin, TestCase):
@@ -252,6 +325,92 @@ class DealtAtJoinTests(TempMediaRootMixin, TestCase):
 
 def seg(mode, line=None):
     return SimpleNamespace(mode=mode, pt_line_id=line)
+
+
+@override_settings(**TEST_BACKENDS)
+class PersonasInPlayTests(TempMediaRootMixin, TestCase):
+    """`GET api/game/<id>/pendlertypen/` — each Pendlertyp once, with how many
+    Gruppen hold it. A strip for the lobby and the Leitstelle: it names no seat."""
+
+    def setUp(self):
+        self.host = create_host()
+        with muted():
+            self.game = create_game_session(self.host, game_name="Typen")
+        self.sparfuchs = Persona.objects.create(
+            game=self.game, name="Sparfuchs", description="x", order=0
+        )
+        self.sport = Persona.objects.create(
+            game=self.game, name="Sportskanone", description="y", order=1
+        )
+        self.drucker = Persona.objects.create(
+            game=self.game, name="Auf den letzten Drücker", description="z", order=2
+        )
+
+    def seat(self, name, persona_ids, **fields):
+        agents = [{"id": i + 1, "persona": pk} for i, pk in enumerate(persona_ids)]
+        with muted():
+            return Player.objects.create(
+                game=self.game,
+                name=name,
+                agent_assignments={"agents": agents},
+                **fields,
+            )
+
+    def counts(self):
+        from game.personas import persona_counts
+
+        return persona_counts(self.game)
+
+    def test_each_type_once_with_the_number_of_gruppen(self):
+        self.seat("Ana", [self.sparfuchs.pk, self.sport.pk])
+        self.seat("Ben", [self.sparfuchs.pk, self.sparfuchs.pk])
+
+        self.assertEqual(
+            self.counts(),
+            [
+                {"id": self.sparfuchs.pk, "name": "Sparfuchs", "groups": 3},
+                {"id": self.sport.pk, "name": "Sportskanone", "groups": 1},
+            ],
+        )
+
+    def test_a_type_nobody_holds_is_not_in_play(self):
+        self.seat("Ana", [self.sport.pk])
+
+        self.assertEqual([row["name"] for row in self.counts()], ["Sportskanone"])
+
+    def test_someone_who_left_and_the_hosts_own_row_do_not_count(self):
+        from django.utils import timezone
+
+        self.seat("Ana", [self.sparfuchs.pk])
+        self.seat("Weg", [self.sport.pk], left_at=timezone.now())
+        self.seat("Host", [self.drucker.pk], user=self.host)
+
+        self.assertEqual([row["name"] for row in self.counts()], ["Sparfuchs"])
+
+    def test_a_game_without_types_has_none(self):
+        Persona.objects.filter(game=self.game).delete()
+        self.seat("Ana", [])
+
+        self.assertEqual(self.counts(), [])
+
+    def test_the_route_is_not_taken_for_a_player(self):
+        self.assertEqual(
+            resolve(f"/api/game/{self.game.game_id}/pendlertypen/").url_name,
+            "personas-in-play",
+        )
+
+    def test_the_host_reads_it_and_a_stranger_does_not(self):
+        self.seat("Ana", [self.sparfuchs.pk])
+        url = f"/api/game/{self.game.game_id}/pendlertypen/"
+
+        self.assertIn(self.client.get(url).status_code, (401, 403))
+        self.client.force_login(self.host)
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()[0]["name"], "Sparfuchs")
+        self.assertEqual(response.json()[0]["groups"], 1)
+        self.assertNotIn("Ana", response.content.decode())
 
 
 class ChangesTests(TestCase):

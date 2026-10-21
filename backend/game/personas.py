@@ -28,6 +28,32 @@ def deal(persona_ids: list[int], count: int, rng=random) -> list[int]:
     return [deck[i % len(deck)] for i in range(count)]
 
 
+def persona_counts(game) -> list[dict]:
+    """The game's Pendlertypen that are in play, with how many Gruppen hold each.
+
+    Read off the seats still playing (the one counting rule), in the order the
+    host listed the types. A type nobody was dealt is not in play and is left
+    out; a game without types gives an empty list. It names no seat, which is the
+    point: the Leitstelle can say what the room is, not who is what.
+    """
+    from game.models import Player
+
+    held: Counter = Counter()
+    for assignments in (
+        Player.objects.filter(game=game)
+        .playing()  # type: ignore[attr-defined]
+        .values_list("agent_assignments", flat=True)
+    ):
+        for agent in (assignments or {}).get("agents", []):
+            if agent.get("persona") is not None:
+                held[agent["persona"]] += 1
+    return [
+        {"id": persona.pk, "name": persona.name, "groups": held[persona.pk]}
+        for persona in game.personas.order_by("order", "pk")
+        if held[persona.pk]
+    ]
+
+
 def changes(segments) -> int:
     """How often a trip changes from one ride to the next.
 

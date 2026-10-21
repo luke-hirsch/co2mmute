@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 import game.models as gm
 from game import calibration
+from game.names import looks_like_the_host
 
 # Django's and DRF's own refusals for a number are English — "Ensure this value
 # is less than or equal to 365." — and the create screen renders whatever comes
@@ -365,12 +366,23 @@ class SeatRequestSerializer(serializers.Serializer):
     see the data-minimisation note in the DSGVO page. There is no account.
     """
 
-    name = serializers.CharField(max_length=100, trim_whitespace=True)
+    name = serializers.CharField(
+        max_length=100,
+        trim_whitespace=True,
+        error_messages={
+            "blank": "Gib einen Namen ein.",
+            "required": "Gib einen Namen ein.",
+        },
+    )
 
     def validate_name(self, value):
         name = value.strip()
-        if not name:
-            raise serializers.ValidationError("Please enter a display name.")
+        # The chat and the roster call the host Spielleitung; no one else may
+        # carry the name or one that reads as it (`game/names.py`).
+        if looks_like_the_host(name):
+            raise serializers.ValidationError(
+                "Diesen Namen trägt die Spielleitung. Wähl einen anderen."
+            )
         return name
 
 

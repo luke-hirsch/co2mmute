@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Co2Bar } from "@/components/metro/co2-bar";
 import { GroupList } from "@/components/summary/group-list";
+import { TypeOverview } from "@/components/summary/type-overview";
 import { MetricList } from "@/components/summary/metric-list";
 import { NumbersExplainerDialog } from "@/components/numbers/numbers-explainer";
 import { ReplayPlayer } from "@/components/replay/replay-player";
@@ -17,7 +18,7 @@ import {
   classArc,
   summaryMetrics,
 } from "@/lib/game/summary";
-import { ownGroups } from "@/lib/game/groups";
+import { ownGroups, typeOverview } from "@/lib/game/groups";
 import { de } from "@/lib/de";
 import { displayKg, kgToGrams } from "@/lib/co2";
 import { useGame } from "@/components/game/game-context";
@@ -258,6 +259,8 @@ export function EndScreen() {
                 </>
               )}
             </section>
+
+            <TypeOverview lines={typeOverview(players)} />
 
             <VoteList entries={voteHistory(rounds)} />
           </>

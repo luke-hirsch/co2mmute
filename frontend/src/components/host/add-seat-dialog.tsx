@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ApiError } from "@/lib/api";
+import { ApiError, firstFieldError } from "@/lib/api";
 import { de, type HostRefusal } from "@/lib/de";
 import { useAddSeat } from "@/lib/queries/seats";
 
@@ -142,7 +142,7 @@ function addFailure(error: unknown): string {
     if (known) return known;
   }
   if (error instanceof ApiError && error.status === 400) {
-    return de.join.nameRequired;
+    return firstFieldError(error, "name") ?? de.join.nameRequired;
   }
   return de.host.failedUnknown;
 }
