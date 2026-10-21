@@ -58,7 +58,7 @@ python3 .agents/skills/map-modify/modify.py place <map> <node> workplace "Arbeit
 ```
 
 The name follows the builder's: `Arbeit <Ort> Zentrum`, `Wohnort <Ort>`. A node that is already a
-place is refused. The place now counts: people are dealt to every workplace. `place` only **adds**.
+place, home or workplace, is refused. The place now counts: people are dealt to every workplace. `place` only **adds**.
 Moving a place means adding the new one here; taking the old one away is the map editor's.
 
 ### how many commute
@@ -92,8 +92,8 @@ human to keep it, and name it in your answer.
 python3 .agents/skills/map-modify/modify.py footpath <map> <from> <to> "Fußweg Hochufer – Weidensdorf" [--no-bike]
 ```
 
-Both directions, walking, and biking unless refused. A path of that name between those nodes in that
-direction already: the server says so and nothing is written.
+Both directions, walking, and biking unless refused. If a link of any name already joins those nodes in a
+direction, nothing is written and the script says which one.
 
 ### a moved station or stop
 
@@ -129,8 +129,10 @@ moves the node, junction or not. A stop on a different node is the map editor's,
 python3 .agents/skills/map-modify/modify.py street <map> <from> <to> "Verbindungsstraße Auestraße" 1 50 [--oneway]
 ```
 
-One link per direction, each with its street. A line over it, a bus lane or a tram track is the
-editor's.
+One link per direction, each with its street. Where a link already joins the two nodes (a footpath
+too) nothing is written: a street under an existing link, a line over it, a bus lane or a tram track
+is the editor's. What the editor draws in the base, a line included, reaches every version built on
+it; a version with its own route for that line keeps it.
 
 ## after every change
 

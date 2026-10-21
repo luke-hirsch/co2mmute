@@ -136,6 +136,19 @@ def need_node(graph, node_id):
     sys.exit(f"Knoten {node_id} gibt es in der Basisversion nicht.")
 
 
+def need_free(graph, ways):
+    """Refuse before writing when a link already joins a pair in a direction."""
+    for start, end in ways:
+        for edge in graph["edges"]:
+            if edge["start_node"] == start and edge["end_node"] == end:
+                sys.exit(
+                    f"Zwischen {node_label(graph, start)} und {node_label(graph, end)} "
+                    f"gibt es in dieser Richtung schon eine Kante (Kante {edge['id']}, "
+                    f"„{edge['name'] or 'ohne Namen'}“): hier wird nichts geschrieben. "
+                    "Eine Straße unter einer vorhandenen Kante legt der Karteneditor."
+                )
+
+
 def need_name(name):
     name = (name or "").strip()
     if not name or DEFAULT_NAME.search(name):
@@ -209,8 +222,11 @@ def cmd_place(api, map_id, node_id, kind, name):
     if kind not in types:
         sys.exit(f"Die Instanz kennt den Knotentyp „{kind}“ nicht.")
     have = [t["id"] for t in node["node_type"]]
-    if types[kind] in have:
-        sys.exit(f"Knoten {node['id']} ist schon {kind}.")
+    if any(types.get(other) in have for other in PLACES):
+        sys.exit(
+            f"Knoten {node['id']} ist schon ein Ort ({node_label(graph, node['id'])}). "
+            "Nimm einen anderen Knoten."
+        )
     backup(api, map_id)
     api.call(
         "PATCH",
@@ -246,6 +262,7 @@ def cmd_footpath(api, map_id, a, b, name, *flags):
     a, b = need_node(graph, a)["id"], need_node(graph, b)["id"]
     if a == b:
         sys.exit("Zwei verschiedene Knoten.")
+    need_free(graph, [(a, b), (b, a)])
     base = base_version(api, map_id)
     backup(api, map_id)
     api.call(
@@ -298,6 +315,7 @@ def cmd_street(api, map_id, a, b, name, lanes, speed, *flags):
     base = base_version(api, map_id)
     backup(api, map_id)
     ways = [(a, b)] if "--oneway" in flags else [(a, b), (b, a)]
+    need_free(graph, ways)
     for start, end in ways:
         edge = api.call(
             "POST",
