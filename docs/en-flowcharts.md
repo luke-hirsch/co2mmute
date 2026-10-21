@@ -24,6 +24,7 @@ server-rendered pages. The simulation never runs in a request — it runs on a C
 results reach the browsers over the websocket.
 
 ```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 170, "nodeSpacing": 20, "rankSpacing": 36, "padding": 10}}}%%
 flowchart TB
     subgraph browser["Browser"]
         spa["SPA under /app/<br>frontend/ — game, host pages, editor"]
@@ -37,7 +38,7 @@ flowchart TB
     end
     redis[("Redis<br>channel layer, cache,<br>Celery broker")]
     subgraph celery["Celery"]
-        beat["beat<br>anonymise hourly, idle games 02:30,<br>old sessions 03:00"]
+        beat["beat<br>anonymise hourly,<br>idle games 02:30,<br>old sessions 03:00"]
         worker["worker<br>simulates a round<br>game/tasks.py"]
     end
     pg[("Postgres<br>games, maps, results")]
@@ -46,11 +47,15 @@ flowchart TB
     spa -->|"/ws/…"| nginx
     pages --> nginx
     nginx --> daphne
-    %% ~~~ is invisible: it keeps the websockets above Redis and beat below it,
-    %% so the chart stays upright and fits beside the list of stops
-    ws ~~~ redis
-    rest -->|"a round is complete"| redis
+    spa ~~~ pages
+    %% ~~~ is invisible: it stacks everything in one column: websockets, REST and templates above Redis,
+    %% Redis above beat and worker, so the chart stays upright and narrow
+    ws ~~~ rest
+    rest ~~~ tpl
+    tpl ~~~ redis
+    rest -->|"a round<br>is complete"| redis
     redis ~~~ beat
+    beat ~~~ worker
     redis -->|"tasks"| worker
     worker -->|"events"| redis
     beat -->|"schedules"| redis
@@ -138,21 +143,23 @@ cookie — the host acts for it with their session.
 ### Every request
 
 ```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 170, "nodeSpacing": 20, "rankSpacing": 36, "padding": 10}}}%%
 flowchart TD
     rest["REST call<br>HasGameAccess + IsPlayerInGame<br>game/permissions.py"]
     sock["socket connect<br>resolve_player<br>game/ws_auth.py"]
+    rest ~~~ sock
     rest --> host
     sock --> host
 
     host{"this game's<br>host?"}
-    host -->|"yes"| hostok["host<br>socket: a HostPlayer<br>REST: may act for a seat played at the Leitstelle"]
     host -->|"no"| access{"game cookie<br>valid?"}
-    access -->|"no"| refused1["refused<br>REST 403, socket 4401"]
+    host -->|"yes"| hostok["host<br>socket: a HostPlayer<br>REST: may act for a seat played at the Leitstelle"]
     access -->|"yes"| pid{"player cookie<br>valid?"}
-    pid -->|"no"| refused1
+    access -->|"no"| refused1["refused<br>REST 403, socket 4401"]
     pid -->|"yes"| row{"seat still<br>there?"}
-    row -->|"no"| refused2["refused<br>REST 403, socket 4403"]
+    pid -->|"no"| refused1
     row -->|"yes"| player["player"]
+    row -->|"no"| refused2["refused<br>REST 403, socket 4403"]
 ```
 
 - **this game's host?** A logged-in Django user who is `game_host` of this game.
@@ -207,6 +214,7 @@ per round and version, with the mean measured street speeds of the rounds so far
 Dijkstra.
 
 ```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 170, "nodeSpacing": 20, "rankSpacing": 36, "padding": 10}}}%%
 flowchart TD
     seat["the seat: a home and a destination per Gruppe<br>useSeatGame"] --> draft
     mapgraph["graph of the active map version<br>+ mean speeds of the rounds so far, previous_round_traffic<br>useMapGraph — lib/queries/map-graph.ts"] --> draft
@@ -293,6 +301,7 @@ A pass is one direction. It runs until everybody has arrived; the 1000-tick limi
 (`PASS_TICK_GUARD`) only catches a bug, and hitting it is logged as an error.
 
 ```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 170, "nodeSpacing": 20, "rankSpacing": 36, "padding": 10}}}%%
 flowchart TD
     dep["_generate_departures<br>people: a normal spread around the hour<br>lines: one run every interval"] --> waitlist["one waiting list for the whole network,<br>sorted by when people want to leave<br>desired speed drawn once per person"]
     waitlist --> tick["a tick, 5 minutes by default<br>_advance_traffic"]
@@ -356,16 +365,17 @@ The phases live in `game/phases.py`. The phones and the host send their part ove
 `GameRound.BetweenRoundPhase`.
 
 ```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 170, "nodeSpacing": 20, "rankSpacing": 36, "padding": 10}}}%%
 stateDiagram-v2
     [*] --> STATS: round.completed
-    STATS --> DISCUSSION: everyone has read the stats, and there is a ballot
-    STATS --> NextRound: everyone has read the stats, no ballot
-    DISCUSSION --> VOTING: host opens the vote
-    VOTING --> NextRound: one winner, the new active_map_version
+    STATS --> DISCUSSION: everyone has<br>read the stats,<br>and there is<br>a ballot
+    STATS --> NextRound: everyone has<br>read the stats,<br>no ballot
+    DISCUSSION --> VOTING: host opens<br>the vote
+    VOTING --> NextRound: one winner,<br>the new<br>active_map_version
     VOTING --> STALEMATE: first tie
-    VOTING --> NextRound: second tie, the map stays
+    VOTING --> NextRound: second tie,<br>the map stays
     STALEMATE --> VOTING: majority for a revote
-    STALEMATE --> NextRound: no majority, or host cuts it short
+    STALEMATE --> NextRound: no majority,<br>or host cuts<br>it short
     NextRound --> [*]: new GameRound, round.started
 ```
 

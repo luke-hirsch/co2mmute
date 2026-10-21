@@ -24,6 +24,7 @@ die serverseitig gerenderten Seiten. Die Simulation läuft nie in einer Anfrage 
 Celery-Worker, und ihre Ergebnisse kommen über den Websocket bei den Browsern an.
 
 ```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 170, "nodeSpacing": 20, "rankSpacing": 36, "padding": 10}}}%%
 flowchart TB
     subgraph browser["Browser"]
         spa["SPA unter /app/<br>frontend/ — Spiel, Seiten der Spielleitung, Editor"]
@@ -37,7 +38,7 @@ flowchart TB
     end
     redis[("Redis<br>Channel Layer, Cache,<br>Celery-Broker")]
     subgraph celery["Celery"]
-        beat["Beat<br>anonymisieren stündlich, ruhende Spiele 02:30,<br>alte Sitzungen 03:00"]
+        beat["Beat<br>anonymisieren stündlich,<br>ruhende Spiele 02:30,<br>alte Sitzungen 03:00"]
         worker["Worker<br>simuliert eine Runde<br>game/tasks.py"]
     end
     pg[("Postgres<br>Spiele, Karten, Ergebnisse")]
@@ -46,11 +47,15 @@ flowchart TB
     spa -->|"/ws/…"| nginx
     pages --> nginx
     nginx --> daphne
-    %% ~~~ ist unsichtbar: hält die Websockets über Redis und Beat darunter,
-    %% damit das Diagramm hochkant bleibt und neben die Haltestellen passt
-    ws ~~~ redis
-    rest -->|"eine Runde ist komplett"| redis
+    spa ~~~ pages
+    %% ~~~ ist unsichtbar: stapelt alles in eine Spalte: Websockets, REST und Templates über Redis,
+    %% Redis über Beat und Worker, damit das Diagramm hochkant und schmal bleibt
+    ws ~~~ rest
+    rest ~~~ tpl
+    tpl ~~~ redis
+    rest -->|"eine Runde<br>ist komplett"| redis
     redis ~~~ beat
+    beat ~~~ worker
     redis -->|"Tasks"| worker
     worker -->|"Events"| redis
     beat -->|"plant ein"| redis
@@ -147,21 +152,23 @@ ihn.
 ### Jede Anfrage
 
 ```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 170, "nodeSpacing": 20, "rankSpacing": 36, "padding": 10}}}%%
 flowchart TD
     rest["REST-Aufruf<br>HasGameAccess + IsPlayerInGame<br>game/permissions.py"]
     sock["Socket-Verbindung<br>resolve_player<br>game/ws_auth.py"]
+    rest ~~~ sock
     rest --> host
     sock --> host
 
     host{"Spielleitung<br>dieses Spiels?"}
-    host -->|"ja"| hostok["Spielleitung<br>Socket: ein HostPlayer<br>REST: darf für einen Platz an der Leitstelle handeln"]
     host -->|"nein"| access{"Spiel-Cookie<br>gültig?"}
-    access -->|"nein"| refused1["abgelehnt<br>REST 403, Socket 4401"]
+    host -->|"ja"| hostok["Spielleitung<br>Socket: ein HostPlayer<br>REST: darf für einen Platz an der Leitstelle handeln"]
     access -->|"ja"| pid{"Platz-Cookie<br>gültig?"}
-    pid -->|"nein"| refused1
+    access -->|"nein"| refused1["abgelehnt<br>REST 403, Socket 4401"]
     pid -->|"ja"| row{"Platz noch<br>da?"}
-    row -->|"nein"| refused2["abgelehnt<br>REST 403, Socket 4403"]
+    pid -->|"nein"| refused1
     row -->|"ja"| player["spielt diesen Platz"]
+    row -->|"nein"| refused2["abgelehnt<br>REST 403, Socket 4403"]
 ```
 
 - **Spielleitung dieses Spiels?** Ein angemeldeter Django-User, der `game_host` dieses Spiels ist.
@@ -218,6 +225,7 @@ Version vom Server, mit den gemessenen Geschwindigkeiten im Mittel der Runden bi
 Dijkstra.
 
 ```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 170, "nodeSpacing": 20, "rankSpacing": 36, "padding": 10}}}%%
 flowchart TD
     seat["der Platz: Zuhause und Ziel je Gruppe<br>useSeatGame"] --> draft
     mapgraph["Graph der aktiven Kartenversion<br>+ Geschwindigkeiten im Mittel der Runden bisher, previous_round_traffic<br>useMapGraph — lib/queries/map-graph.ts"] --> draft
@@ -305,6 +313,7 @@ Ein Durchlauf ist eine Richtung. Er läuft, bis alle angekommen sind; die Grenze
 (`PASS_TICK_GUARD`) fängt nur einen Bug ab, und wird sie erreicht, steht ein Fehler im Log.
 
 ```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 170, "nodeSpacing": 20, "rankSpacing": 36, "padding": 10}}}%%
 flowchart TD
     dep["_generate_departures<br>Menschen: normalverteilt um die Stunde<br>Linien: eine Fahrt je Takt"] --> waitlist["eine Warteliste fürs ganze Netz,<br>sortiert nach gewünschter Abfahrt<br>Wunschgeschwindigkeit einmal je Person gezogen"]
     waitlist --> tick["ein Tick, standardmäßig 5 Minuten<br>_advance_traffic"]
@@ -370,18 +379,19 @@ Spiel-Socket (`player.stats_ack`, `vote.open`, `vote.submit`, `stalemate.vote`,
 Phasen aus `GameRound.BetweenRoundPhase`.
 
 ```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 170, "nodeSpacing": 20, "rankSpacing": 36, "padding": 10}}}%%
 stateDiagram-v2
     state "nächste Runde" as NextRound
 
     [*] --> STATS: round.completed
-    STATS --> DISCUSSION: alle haben die Statistik gelesen, und es gibt einen Stimmzettel
-    STATS --> NextRound: alle haben die Statistik gelesen, kein Stimmzettel
-    DISCUSSION --> VOTING: Spielleitung eröffnet die Abstimmung
-    VOTING --> NextRound: ein Gewinner, die neue active_map_version
+    STATS --> DISCUSSION: alle haben die<br>Statistik gelesen,<br>und es gibt einen<br>Stimmzettel
+    STATS --> NextRound: alle haben die<br>Statistik gelesen,<br>kein Stimmzettel
+    DISCUSSION --> VOTING: Spielleitung<br>eröffnet die<br>Abstimmung
+    VOTING --> NextRound: ein Gewinner,<br>die neue<br>active_map_version
     VOTING --> STALEMATE: erster Gleichstand
-    VOTING --> NextRound: zweiter Gleichstand, die Karte bleibt
+    VOTING --> NextRound: zweiter<br>Gleichstand,<br>die Karte bleibt
     STALEMATE --> VOTING: Mehrheit für Neuwahl
-    STALEMATE --> NextRound: keine Mehrheit, oder die Spielleitung bricht ab
+    STALEMATE --> NextRound: keine Mehrheit,<br>oder die Spielleitung<br>bricht ab
     NextRound --> [*]: neue GameRound, round.started
 ```
 
