@@ -182,6 +182,7 @@ Die Diagramme zeichnet `npm run flowcharts` in `frontend/` aus dem Mermaid in de
 | [`docs/de-zahlen.md`](docs/de-zahlen.md)           | —                                                                   | jede Zahl des Modells: was sie tut, Quelle, wo sie steht        |
 | [`docs/testfaelle.md`](docs/testfaelle.md)         | —                                                                   | was das Spiel können muss, Fall für Fall, mit Status            |
 | [`docs/de-flowcharts.md`](docs/de-flowcharts.md)   | [`/docs/ablaufdiagramme/`](https://co2mmute.stsds.tu-berlin.de/docs/ablaufdiagramme/) | wie es läuft: Ablaufdiagramme für Runde, Routensuche, Simulation, Spielerzugang |
+| [`docs/de-routensuche.md`](docs/de-routensuche.md) | —                                                                   | die Routensuche: Fuß, Rad, Auto, Bus & Bahn, und was die Simulation daraus macht |
 
 ### Lizenz
 
@@ -364,6 +365,7 @@ Mermaid by `npm run flowcharts` in `frontend/`.
 | [`docs/en-numbers.md`](docs/en-numbers.md)         | —                                                                   | every number of the model: what it does, its source, where it lives |
 | [`docs/testfaelle.md`](docs/testfaelle.md)         | —                                                                   | what the game has to do, case by case, with status (German)  |
 | [`docs/en-flowcharts.md`](docs/en-flowcharts.md)   | [`/docs/ablaufdiagramme/`](https://co2mmute.stsds.tu-berlin.de/docs/ablaufdiagramme/) (German) | how it runs: flowcharts of a round, the route search, the simulation, player access |
+| [`docs/en-route-search.md`](docs/en-route-search.md) | —                                                                 | the route search: walk, bike, car, Bus & Bahn, and what the simulation makes of it |
 
 ### License
 

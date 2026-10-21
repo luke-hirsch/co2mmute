@@ -82,6 +82,9 @@ is. The one router is `searchTrip` in `frontend/src/lib/map/trip-search.ts`;
 `frontend/scripts/routes.mjs` runs the same code under Node for `calibrate_map`. Never write a second
 router in Python.
 
+`docs/de-routensuche.md` / `docs/en-route-search.md` describe both, mode by mode, with the numbers
+they use: a change to the router or to how the engine plays a ride changes them.
+
 Check: the router's tests under `frontend/tests/`, the sim tests, and a ring line (one that ends
 where it starts) on a map with one.
 
@@ -137,8 +140,9 @@ the copies identical; deploy needs all three. Diff the two job blocks before you
 ## a doc page
 
 - `docs/` is flat `de-`/`en-` pairs (`quick-start`, `flowcharts`, `de-zahlen` is `en-numbers`; `de-hintergrund`
-  is `en-background`).
-  `kalibrierung.md` and `testfaelle.md` have no twin and stay off the site.
+  is `en-background`; `de-routensuche` is `en-route-search`).
+  `kalibrierung.md` and `testfaelle.md` have no twin and stay off the site; `de-zahlen` and
+  `de-routensuche` have no page either.
 - The pages under `/docs/` are hand copies of the German files: `backend/template/docs/schnellstart.html`,
   `hintergrund.html`, `ablaufdiagramme.html`. A change to one is a change to the other. No test
   holds a page to its doc, so you are the check: read both.

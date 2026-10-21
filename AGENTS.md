@@ -282,7 +282,9 @@ lists the stages in the order they run, each module's docstring its rules.
 - Graph rendering is hand-written SVG. There is no graph library.
 - **There is one router.** `searchTrip` in `src/lib/map/trip-search.ts` is how the round screen finds
   a trip, and `scripts/routes.mjs` runs the same code under Node for `calibrate_map`. Don't write a
-  second one in Python: two routers disagree about which way a class goes.
+  second one in Python: two routers disagree about which way a class goes. How it searches, mode by
+  mode, and what the simulation makes of a route: `docs/en-route-search.md` (German
+  `docs/de-routensuche.md`); a change to the router changes them.
 - WebKit stalls a fetch sent in the same task as a new `WebSocket`; `BaseWSClient.connect()` opens
   the socket one task later. Keep that. Safari and phones are the browsers that matter — the e2e
   suite runs WebKit.
