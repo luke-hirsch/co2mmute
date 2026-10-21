@@ -475,7 +475,7 @@ class BusLineEdgesView(GenericAPIView):
         edge_ids = request.data.get("edges", [])
         se_by_pk = {se.pk: se for se in StreetEdge.objects.filter(pk__in=edge_ids)}
         streets = [se_by_pk[eid] for eid in edge_ids if eid in se_by_pk]
-        skipped = _replace_route(bus_line, streets)
+        skipped = _replace_route(bus_line, streets, _requested_version(request))
         _invalidate_map_cache(pk)
         return Response(
             {**BusLineSerializer(bus_line).data, "skipped_versions": skipped},
@@ -483,13 +483,42 @@ class BusLineEdgesView(GenericAPIView):
         )
 
 
-def _replace_route(line, under_rows):
-    """Give `line` the route of `under_rows` where it was drawn, and spread it."""
+def _requested_version(request):
+    """The `map_version` a chain edit names, `None` if it names none."""
+    value = request.data.get("map_version")
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise EditorRefused("map_version muss eine Versions-ID sein.", "bad-version")
+    return value
+
+
+def _replace_route(line, under_rows, map_version=None):
+    """Give `line` the route of `under_rows` where it was drawn, and spread it.
+
+    `map_version` is the version the editor has selected: the route changes
+    there and in the versions built on it, and in no other — an edit in a
+    change never reaches base. It must hold the line, else 400.
+
+    Without it (a client older than the field) the drawn version is guessed
+    from the streets sent: the line's version holding all of them, the base if
+    it does. That guess reads an edit over streets every version shares as a
+    base edit; it is a fallback for old clients only.
+    """
     held = list(line.map_versions.all())
-    sent = [set(row.map_versions.values_list("pk", flat=True)) for row in under_rows]
-    drawn = pick_drawn_version(
-        v for v in held if all(v.pk in versions for versions in sent)
-    )
+    if map_version is not None:
+        drawn = next((v for v in held if v.pk == map_version), None)
+        if drawn is None:
+            raise EditorRefused(
+                "Diese Linie läuft in dieser Version nicht.", "line-not-in-version"
+            )
+    else:
+        sent = [
+            set(row.map_versions.values_list("pk", flat=True)) for row in under_rows
+        ]
+        drawn = pick_drawn_version(
+            v for v in held if all(v.pk in versions for versions in sent)
+        )
     if drawn is None:
         return []
     # Spread first: the drawn version's old chain rows are still in it, so the
@@ -622,7 +651,7 @@ class TrainLineEdgesView(GenericAPIView):
         edge_ids = request.data.get("edges", [])
         te_by_pk = {te.pk: te for te in TrainEdge.objects.filter(pk__in=edge_ids)}
         rails = [te_by_pk[eid] for eid in edge_ids if eid in te_by_pk]
-        skipped = _replace_route(train_line, rails)
+        skipped = _replace_route(train_line, rails, _requested_version(request))
         _invalidate_map_cache(pk)
         return Response(
             {**TrainLineSerializer(train_line).data, "skipped_versions": skipped},

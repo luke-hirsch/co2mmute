@@ -1880,13 +1880,16 @@ class LinesDrawnInAVersionTests(VersionFixtureMixin, TestCase):
         self.assertEqual(response.status_code, 201, response.content)
         return BusLine.objects.get(pk=response.json()["id"]), response.json()
 
-    def put_bus(self, line, edges, version):
+    def put_bus(self, line, edges, version, *, send_version=False):
+        data = {"edges": [self.street(e, version).pk for e in edges]}
+        if send_version:
+            data["map_version"] = version.pk
         response = self.client.put(
             reverse(
                 "maps:busline-edges",
                 kwargs={"pk": self.game_map.pk, "busline_pk": line.pk},
             ),
-            data={"edges": [self.street(e, version).pk for e in edges]},
+            data=data,
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 200, response.content)
@@ -2053,3 +2056,50 @@ class LinesDrawnInAVersionTests(VersionFixtureMixin, TestCase):
         self.assertEqual(
             len(self.streets_of(self.bus, self.base)), 3
         )
+
+    def test_an_edit_in_a_change_over_shared_streets_leaves_base_alone(self):
+        base_before = self.streets_of(self.bus, self.base)
+        busspuren_before = self.streets_of(self.bus, self.busspuren)
+
+        body = self.put_bus(
+            self.bus, [self.edge_a, self.edge_b], self.umweg, send_version=True
+        )
+
+        self.assertEqual(body["skipped_versions"], [])
+        self.assertEqual(self.streets_of(self.bus, self.base), base_before)
+        self.assertEqual(self.streets_of(self.bus, self.busspuren), busspuren_before)
+        for version in (self.umweg, self.combination):
+            self.assertEqual(
+                self.streets_of(self.bus, version),
+                [self.street(e, version).pk for e in (self.edge_a, self.edge_b)],
+                version.name,
+            )
+
+    def test_the_version_sent_must_hold_the_line(self):
+        line, _ = self.draw_bus("200", [self.edge_a], self.busspuren)
+        response = self.client.put(
+            reverse(
+                "maps:busline-edges",
+                kwargs={"pk": self.game_map.pk, "busline_pk": line.pk},
+            ),
+            data={
+                "edges": [self.street(self.edge_a, self.busspuren).pk],
+                "map_version": self.umweg.pk,
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["reason"], "line-not-in-version")
+
+    def test_a_base_edit_with_the_version_sent_spreads_as_before(self):
+        body = self.put_bus(
+            self.bus, [self.edge_a, self.edge_b], self.base, send_version=True
+        )
+
+        self.assertEqual(body["skipped_versions"], [])
+        for version in self.everywhere:
+            self.assertEqual(
+                self.streets_of(self.bus, version),
+                [self.street(e, version).pk for e in (self.edge_a, self.edge_b)],
+            )

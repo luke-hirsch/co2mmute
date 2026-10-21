@@ -168,20 +168,20 @@ describe("public transport lines", () => {
     // The whole list is replaced. A PATCH here would read as "add these",
     // which is not what the panel does.
     const bus = stubFetch();
-    await editor.updateBusLineEdges(5, 3, [1, 2, 3]);
+    await editor.updateBusLineEdges(5, 3, [1, 2, 3], 8);
     expect(sent(bus)).toEqual({
       url: "/api/maps/5/bus-lines/3/edges/",
       method: "PUT",
-      body: { edges: [1, 2, 3] },
+      body: { edges: [1, 2, 3], map_version: 8 },
     });
     vi.unstubAllGlobals();
 
     const train = stubFetch();
-    await editor.updateTrainLineEdges(5, 4, [7]);
+    await editor.updateTrainLineEdges(5, 4, [7], 8);
     expect(sent(train)).toEqual({
       url: "/api/maps/5/train-lines/4/edges/",
       method: "PUT",
-      body: { edges: [7] },
+      body: { edges: [7], map_version: 8 },
     });
   });
 

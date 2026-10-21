@@ -150,7 +150,7 @@ const PTLinePanel = ({
         {
           onSuccess: () => {
             updateBusEdgesMutation.mutate(
-              { lineId: editingLine.id, edges: resolvedEdgeIds },
+              { lineId: editingLine.id, edges: resolvedEdgeIds, mapVersion: selectedVersionId },
               { onSuccess: cancelEdit }
             );
           },
@@ -169,7 +169,7 @@ const PTLinePanel = ({
         {
           onSuccess: () => {
             updateTrainEdgesMutation.mutate(
-              { lineId: editingLine.id, edges: resolvedEdgeIds },
+              { lineId: editingLine.id, edges: resolvedEdgeIds, mapVersion: selectedVersionId },
               { onSuccess: cancelEdit }
             );
           },
