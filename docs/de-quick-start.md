@@ -135,7 +135,7 @@ Plätze an der Leitstelle spielen nacheinander: Drück „Spielen“ neben einem
 
 Wenn die letzte Wahl drin ist, wird die Runde simuliert („Die Runde wird gefahren …“). Das dauert einen Moment. Danach sehen alle dasselbe:
 
-- die Wiedergabe („Hin und zurück“): der Weg zur Arbeit und der Weg nach Hause in zwei Minuten. Ein Punkt sind zehn Menschen. Punkte, die stehen bleiben, stecken im Stau. Überspringen geht auch.
+- die Wiedergabe („Hin und zurück“): der Weg zur Arbeit und der Weg nach Hause in zwei Minuten. Ein Punkt sind meist zehn Menschen, auf großen Karten mehr; die Zahl steht unter der Wiedergabe. Punkte, die stehen bleiben, stecken im Stau. Überspringen geht auch.
 - die Tabelle: CO₂, Kosten und Zeit für alle Spielenden und die Summe der Runde. „Zahlen anzeigen“ schaltet zwischen einer Person und „alle Pendler“ um.
 - „Wie wird gerechnet?“ erklärt die Zahlen: warum eine Gruppe hundert Menschen sind, warum Zeit ein Schnitt ist und keine Summe, was du zahlst und was es kostet, und warum ein leerer Bus trotzdem CO₂ ausstößt.
 

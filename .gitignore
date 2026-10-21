@@ -58,7 +58,6 @@ backend/node_modules/
 
 devops/nginx/certs/
 devops/nginx/acme/
-Roadmap.md
 
 # Playwright
 frontend/test-results/
