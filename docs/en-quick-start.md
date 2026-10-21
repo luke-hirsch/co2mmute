@@ -242,6 +242,7 @@ Now that we learned all there is about the map, we can edit it. The editor needs
   - what you draw in the base version ends up in every version of the map. What you draw in another version ends up in that version and in every combination built on it.
 - lines ("Linien")
   - bus and train lines: name, interval in minutes, seats, speed, and the route — click the edges on the map, one after the other. A bus needs a street under every edge, a train a railway.
+  - like an edge, a line also runs in the versions built on the version you draw or change it in, there over their own streets. A version that changed the line's route itself keeps its own.
 - versions ("Versionen")
   - here you can create new versions. A version is not a copy of the map. It is the same graph with some things switched on or off. First you select a version you want to build on ("Ausgangsversion"). This is important, because it will influence the voting mechanism.
   - creating a new version is a multi-step thing. In the first step you just create the voting texts: one for voting the change in, one for voting it out again. Because each version can be voted for, and once it is accepted it can be voted against. E.g.: you have a version that creates a new bus line connecting two important nodes. If the players are in favour, this line gets created. In a later round it is possible that this version is up for voting again, but now in reverse. So you will have to write both voting texts.
