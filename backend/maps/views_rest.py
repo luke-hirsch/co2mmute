@@ -8,7 +8,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.gzip import gzip_page
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
-from rest_framework.exceptions import APIException
+from rest_framework.exceptions import APIException, PermissionDenied
 from rest_framework.generics import (
     GenericAPIView,
     ListCreateAPIView,
@@ -18,6 +18,7 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 
+from game.permissions import HasGameAccess, can_access_game
 from maps import graph_cache
 from maps.forms import MapUploadForm
 from maps.importer import ImportRefused, MapImporter
@@ -695,8 +696,12 @@ class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
         map_pk = self.get_map_id()
         version_pk = kwargs.get("version_pk")
         # Optional: the game whose last round's speeds to attach. Without it
-        # the payload is unchanged apart from an empty traffic list.
+        # the payload is unchanged apart from an empty traffic list. The graph
+        # is anyone's; a game's speeds are its own, by the rule every other
+        # endpoint of a game keeps.
         game_id = request.query_params.get("game")
+        if game_id and not can_access_game(request, game_id):
+            raise PermissionDenied(HasGameAccess.message)
 
         try:
             map_obj = GameMap.objects.get(pk=map_pk)
