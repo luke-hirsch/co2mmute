@@ -227,8 +227,9 @@ versions *is* the ballot. A row naming no version is in no version.
   (`spread_to_built_on`), a bus or train line resolved by node pair onto that version's own street
   or rail rows, at create and at every route change (`spread_line_to_built_on`, `set_line_route`).
   A version whose route of that line differed before the save, compared by node pairs, has its own
-  copy and is left alone; one that lacks a pair is skipped. The response lists both
-  (`skipped_versions`). The editor names the version it drew in (`map_version`).
+  copy and is left alone; one that lacks a pair is skipped, and tried again at the next save, since
+  the editor draws a line over several saves. The response lists both (`skipped_versions`). The
+  editor names the version it drew in (`map_version`).
 - **The JSON file is the backup and the only way a map moves.** `GET api/maps/<pk>/export/` writes
   every version and the ballot; `POST api/maps/import/` always makes a **new** map (an import that
   overwrote one would take its games with it). `maps/portability.py` owns the format. Export before
