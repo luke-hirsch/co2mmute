@@ -24,7 +24,7 @@ from collections.abc import Callable
 from django.db import transaction
 from django.db.models import Prefetch
 
-from maps.models import BusLine, Edge, StreetPerRound, TrainLine
+from maps.models import BusLine, Edge, StreetEdge, StreetPerRound, TrainLine
 
 # The engine itself lives in `sim/`; these are re-exported because tests and
 # older code import them from here.
@@ -415,15 +415,20 @@ class TrafficSimulator(LinkQueueEngine):
         whatever else is in the set.
         """
         logger.info(f"[SIM] Initializing {len(edge_ids)} unique edges")
+        # The streets come in one query, not one a link: 7 313 queries of a
+        # Berlin round were this. Each edge's first by pk, as `.first()` took it.
         edges = (
             Edge.objects.filter(id__in=edge_ids)
             .select_related("start_node", "end_node", "game_map")
+            .prefetch_related(
+                Prefetch("streetedge_set", queryset=StreetEdge.objects.order_by("pk"))
+            )
             .order_by("pk")
         )
 
         links = []
         for edge in edges:
-            street_edge = edge.streetedge_set.first()  # type: ignore
+            street_edge = next(iter(edge.streetedge_set.all()), None)  # type: ignore
             start_name = edge.start_node.name or f"Node {edge.start_node.pk}"
             end_name = edge.end_node.name or f"Node {edge.end_node.pk}"
             links.append(
@@ -629,15 +634,27 @@ class TrafficSimulator(LinkQueueEngine):
 
         The speed is the engine's (`observed_speeds`, both passes pooled); a
         link with no street under it has no row to store it on.
-        """
-        from maps.models import StreetEdge
 
-        for edge_id, speed in self.observed_speeds().items():
-            street_edge = StreetEdge.objects.filter(edge_id=edge_id).first()
-            if not street_edge:
-                continue
-            StreetPerRound.objects.update_or_create(
-                edge=street_edge,
-                game_round=self.game_round,
-                defaults={"speed_under_load": max(1, int(speed))},
+        Written in one go, not a street at a time (10 227 queries of a Berlin
+        round). A retried task stores the round again, so its rows for these
+        streets go first and a street never gets a second one. The speed is at
+        least 1, so `StreetPerRound.save`'s fallback, skipped here, never
+        applied.
+        """
+        speeds = self.observed_speeds()
+        streets = {}
+        for street_edge in StreetEdge.objects.filter(edge_id__in=speeds).order_by("pk"):
+            # The edge's first street by pk, as `.first()` took it.
+            streets.setdefault(street_edge.edge_id, street_edge)  # type: ignore
+        with transaction.atomic():
+            StreetPerRound.objects.filter(
+                game_round=self.game_round, edge__in=streets.values()
+            ).delete()
+            StreetPerRound.objects.bulk_create(
+                StreetPerRound(
+                    edge=street_edge,
+                    game_round=self.game_round,
+                    speed_under_load=max(1, int(speeds[edge_id])),
+                )
+                for edge_id, street_edge in streets.items()
             )

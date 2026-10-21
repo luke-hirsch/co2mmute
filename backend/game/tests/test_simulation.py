@@ -1335,6 +1335,82 @@ class ObservedEdgeSpeedTests(TestCase):
             )
 
 
+class RoundQueriesTests(TestCase):
+    """What a round asks of the database does not grow with the map.
+
+    One round on a build of all Berlin, 30 seats of 4 Gruppen, sent 18 100
+    queries, 11.4 of its 36.8 s: 7 313 asked link by link for the street under
+    it, and 10 227 wrote each street's measured speed on its own.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="queries", password="12345")
+        self.game_map, self.version, self.nodes = _grid_map("Query map", 9)
+        self.edges = [
+            _street(self.game_map, self.version, self.nodes[i], self.nodes[i + 1])
+            for i in range(8)
+        ]
+        self.session = _session(self.user, self.game_map)
+        self.player = Player.objects.create(name="Fahrer", game=self.session)
+
+    def _round(self, number, edges):
+        game_round = GameRound.objects.create(game=self.session, round_number=number)
+        _route(game_round, self.player, edges)
+        return game_round
+
+    @staticmethod
+    def _queries(call):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        with CaptureQueriesContext(connection) as captured:
+            call()
+        return len(captured)
+
+    def test_reading_the_links_does_not_ask_link_by_link(self):
+        simulator = TrafficSimulator(self._round(1, self.edges), scale=100.0)
+
+        two = self._queries(
+            lambda: simulator._read_links({e.pk for e in self.edges[:2]}, 100.0)
+        )
+        eight = self._queries(
+            lambda: simulator._read_links({e.pk for e in self.edges}, 100.0)
+        )
+
+        self.assertEqual(eight, two)
+
+    def test_a_link_reads_the_first_street_under_its_edge(self):
+        """A pin: the street a link is read from is the edge's first by pk,
+        as `streetedge_set.first()` picked it."""
+        later = StreetEdge.objects.create(edge=self.edges[0], speed_limit=30, lanes=3)
+        later.map_versions.add(self.version)
+        simulator = TrafficSimulator(self._round(1, self.edges), scale=100.0)
+
+        (link,) = simulator._read_links({self.edges[0].pk}, 100.0)
+
+        self.assertEqual((link.speed_limit_kmh, link.lanes), (50, 1))
+
+    def test_storing_the_speeds_does_not_write_street_by_street(self):
+        from game.tests._helpers import muted
+        from maps.models import StreetPerRound
+
+        def again(game_round):
+            simulator = TrafficSimulator(game_round, scale=100.0)
+            with muted():
+                simulator.run_simulation(max_ticks=300)
+            # What a retried task does: the round's speeds stored a second time.
+            return self._queries(simulator._update_street_speeds)
+
+        two = again(self._round(1, self.edges[:2]))
+        eight = again(self._round(2, self.edges))
+
+        self.assertEqual(eight, two)
+        # And a retry writes no second row for a street.
+        self.assertEqual(
+            StreetPerRound.objects.filter(game_round__round_number=2).count(), 8
+        )
+
+
 class DepartureMinuteTests(TestCase):
     """Departures are minutes, not tick buckets.
 
