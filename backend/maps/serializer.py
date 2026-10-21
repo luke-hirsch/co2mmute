@@ -42,13 +42,17 @@ class MapVersionSerializer(serializers.ModelSerializer):
 
 
 class MapVersionsMixin(serializers.Serializer):
-    """`map_versions` in, the versions themselves out.
+    """`map_versions` in and out, as ids.
 
     A `serializers.Serializer` on purpose. It was a plain class once, and
     DRF collects declared fields only from serializer bases — so the field
     below never applied, and every subclass ran on the one DRF builds from the
     model. The declaration now says what that field did (required, never an
     empty list), in German, because the editor shows the refusal as it comes.
+
+    Out it went as the versions themselves, poll texts and ballot included, on
+    every row: on the shipped map most of the graph every phone loads, and
+    nothing read them. The versions endpoint has them, once.
     """
 
     map_versions = serializers.PrimaryKeyRelatedField(
@@ -60,14 +64,6 @@ class MapVersionsMixin(serializers.Serializer):
             "empty": "Ohne Version wäre das auf keiner Karte zu sehen.",
         },
     )
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)  # type: ignore
-        data["map_versions"] = MapVersionSerializer(
-            instance.map_versions.all(),
-            many=True,
-        ).data
-        return data
 
 
 class GameMapSerializer(serializers.ModelSerializer):

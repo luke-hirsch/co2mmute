@@ -1421,8 +1421,8 @@ class DeletingAVersionTests(DeletingAVersionMixin, TestCase):
                 )
 
     def test_the_graph_is_read_again_afterwards(self):
-        """A pin, green before deleting existed as well: every node lists its
-        versions and their ballot, and the graph is cached for an hour."""
+        """A pin, green before deleting existed as well: every node lists the
+        ids of its versions, and the graph is cached for an hour."""
         url = reverse(
             "maps:mapversion-graph",
             kwargs={"pk": self.game_map.pk, "version_pk": self.base.pk},
@@ -1431,8 +1431,7 @@ class DeletingAVersionTests(DeletingAVersionMixin, TestCase):
         def named_versions():
             named = set()
             for node in self.client.get(url).json()["nodes"]:
-                for version in node["map_versions"]:
-                    named |= {version["id"], *version["compatible_versions"]}
+                named |= set(node["map_versions"])
             return named
 
         self.assertIn(self.busspuren.pk, named_versions())

@@ -4,6 +4,8 @@ from django.core.cache import cache
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from django.utils.decorators import method_decorator
+from django.views.decorators.gzip import gzip_page
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.exceptions import APIException
@@ -660,7 +662,16 @@ class TrainLineEdgesView(GenericAPIView):
 
 
 # Custom Graph View
+@method_decorator(gzip_page, name="dispatch")
 class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
+    """One version's graph: what the router in every browser runs on.
+
+    Compressed here because nginx does not gzip, and this is what every phone
+    loads at least once a round. Safe for this view because the body carries
+    no secret — BREACH needs one beside something the attacker controls — and
+    `previous_round_traffic` is street speeds.
+    """
+
     serializer_class = MapVersionSerializer
     authentication_classes = (SessionAuthentication,)
 
@@ -732,24 +743,20 @@ class MapVersionGraphView(MapScopedQuerysetMixin, GenericAPIView):
 
         try:
             # Get all nodes for this map version
-            # Every node and edge carries its whole version list, each version
-            # with its ballot neighbours: 1 811 of the 1 832 queries one graph
-            # took on the shipped map, ~0.85 s of it. The editor waits for this
-            # graph after every write, so it is prefetched.
+            # Every node and edge carries the ids of its versions: unprefetched,
+            # a query a row, which was 1 811 of the 1 832 queries one graph took
+            # on the shipped map. The editor waits for this graph after every
+            # write, so it is prefetched.
             nodes = Node.objects.filter(
                 game_map=map_obj, map_versions=version
-            ).prefetch_related("node_type", "map_versions__compatible_versions")
+            ).prefetch_related("node_type", "map_versions")
 
             # Get all edges for this map version with street_edge and train_edge prefetch
             # StreetEdge and TrainEdge have ForeignKey to Edge, so we use prefetch_related
             edges = (
                 Edge.objects.filter(game_map=map_obj, map_versions=version)
                 .select_related("start_node", "end_node", "game_map")
-                .prefetch_related(
-                    "streetedge_set",
-                    "trainedge_set",
-                    "map_versions__compatible_versions",
-                )
+                .prefetch_related("streetedge_set", "trainedge_set", "map_versions")
             )
 
             # PT lines of this version. Their chains are not prefetched here:

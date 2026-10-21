@@ -16,6 +16,8 @@ the cache — for an hour. So the cache key carries a generation that every writ
 moves, and a read stores under the generation it started with.
 """
 
+import gzip
+import json
 from unittest import mock
 
 from django.contrib.auth import get_user_model
@@ -24,7 +26,7 @@ from django.urls import reverse
 
 from game.tests._helpers import TEST_BACKENDS
 from maps import views_rest
-from maps.models import Edge, Node, StreetEdge, TrainEdge, TrainLine
+from maps.models import Edge, MapVersion, Node, StreetEdge, TrainEdge, TrainLine
 from maps.tests.test_versions import VersionFixtureMixin
 
 
@@ -365,3 +367,62 @@ class RoadLengthTests(VersionFixtureMixin, TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("circuity", response.json())
         self.assertEqual(Edge.objects.get(pk=self.edge_a.pk).circuity, 1.0)
+
+
+@override_settings(**TEST_BACKENDS)
+class GraphPayloadTests(VersionFixtureMixin, TestCase):
+    """What one graph weighs on the way to every phone.
+
+    Every node and edge carried its versions as whole objects — name,
+    description, both poll texts, the ballot — so on the shipped map about
+    600 of the graph's 680 KB were the same eight versions again on every row,
+    and nothing in the SPA reads them. Ids, as the editor sends them.
+    """
+
+    def setUp(self):
+        self.build_map()
+        self.change = MapVersion.objects.create(
+            game_map=self.game_map, name="Busspuren", poll_text="Busspuren?"
+        )
+        self.nodes[0].map_versions.add(self.change)
+
+    def graph(self, **headers):
+        return self.client.get(
+            reverse("maps:mapversion-graph", kwargs={"pk": self.game_map.pk}),
+            **headers,
+        )
+
+    def test_a_row_names_its_versions_by_id(self):
+        graph = self.graph().json()
+        edges = {edge["id"]: edge for edge in graph["edges"]}
+        nodes = {node["id"]: node for node in graph["nodes"]}
+
+        self.assertEqual(edges[self.edge_a.pk]["map_versions"], [self.base.pk])
+        self.assertCountEqual(
+            nodes[self.nodes[0].pk]["map_versions"], [self.base.pk, self.change.pk]
+        )
+
+    def test_what_the_editor_sends_comes_back_as_it_was_sent(self):
+        self.client.force_login(
+            get_user_model().objects.create_user(
+                username="staff", password="password123", is_staff=True
+            )
+        )
+
+        response = self.client.patch(
+            reverse(
+                "maps:edge-detail",
+                kwargs={"pk": self.game_map.pk, "edge_pk": self.edge_a.pk},
+            ),
+            data={"map_versions": [self.base.pk]},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["map_versions"], [self.base.pk])
+
+    def test_a_browser_that_takes_gzip_gets_it_gzipped(self):
+        response = self.graph(HTTP_ACCEPT_ENCODING="gzip, deflate, br")
+
+        self.assertEqual(response.get("Content-Encoding"), "gzip")
+        self.assertEqual(len(json.loads(gzip.decompress(response.content))["nodes"]), 4)
