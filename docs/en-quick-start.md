@@ -137,7 +137,7 @@ Seats at the Leitstelle play one after the other: press "Spielen" next to a seat
 
 When the last choice is in, the round is simulated ("Die Runde wird gefahren …"). That takes a moment. Then everybody sees the same thing:
 
-- the replay ("Hin und zurück"): the way to work and the way home in two minutes. One dot is ten people. Dots that stand still are stuck in traffic. You can skip it
+- the replay ("Hin und zurück"): the way to work and the way home in two minutes. One dot is usually ten people, more on large maps; the number is printed under the replay. Dots that stand still are stuck in traffic. You can skip it
 - the table: CO2, cost and time for every player, and the round's total. "Zahlen anzeigen" switches between one person and all commuters ("alle Pendler")
 - "Wie wird gerechnet?" explains the numbers: why one group is a hundred people, why time is an average and not a sum, what you pay versus what it costs, and why an empty bus still emits CO2
 

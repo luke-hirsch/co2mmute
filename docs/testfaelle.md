@@ -203,7 +203,7 @@ nicht gemessen.
 | Z-17 | Zeilen ergeben nicht die Summe     | Zeile „Linien ohne Gruppen" schließt die Lücke genau, mit einem Satz warum                                             | geht      | numbers.spec.ts |
 | Z-18 | bezahlt gegen gekostet             | steht unter der Tabelle; am eigenen Platz persönlich, an der Leitstelle für alle Pendler                                         | geht      | numbers.spec.ts |
 | Z-19 | „Wie wird gerechnet?"              | Overlay mit Maßstab, Zeit, Kosten, Fahrplan und Stau                                                                     | geht      | numbers.spec.ts |
-| Z-20 | Wartebildschirme                   | Erklärtext steht voll ausgeschrieben da — beim Warten auf die Runde und in der Diskussion, **nie** neben dem Stimmzettel | ungeprüft | -               |
+| Z-20 | Wartebildschirme                   | Erklärtext steht voll ausgeschrieben da — beim Warten auf die Runde und in der Diskussion, **nie** neben dem Stimmzettel | geht      | -               |
 | Z-21 | Zeit im Ergebnis                   | Hin- und Rückweg zusammen, als Mittel über die Gruppen; CO₂ und Kosten sind die Summe beider Wege                        | geht      | -               |
 | Z-22 | Stau auf der Karte der Wahl        | die gerade gefahrene Runde, am Handy und an der Leitstelle; vorher stand dort die Runde davor, nach Runde 1 gar keine      | geht      | zwischen-den-runden    |
 | Z-23 | Karte in der Diskussion            | dieselbe Karte wie bei der Wahl, mit Stau, darüber oder daneben                                                          | geht      | zwischen-den-runden    |
@@ -395,7 +395,7 @@ nicht gemessen.
 | S-02 | heller und dunkler Modus        | auf beiden Hälften, ein Schalter                                                                           | ungeprüft | -                       |
 | S-03 | 390px                           | kein horizontales Scrollen, nirgends                                                                       | geht      | -                       |
 | S-04 | Spielernamen                    | tauchen beim Beitreten und beim Anlegen eines Platzes in keinem Log auf                                    | geht      | -                       |
-| S-05 | Anonymisierung                  | nach Spielende „Spieler N", Host wird „Host"                                                               | ungeprüft | -                       |
+| S-05 | Anonymisierung                  | nach Spielende „Spieler N", die Spielleitung wird „Spielleitung"                                                | ungeprüft | -                       |
 | S-07 | Spiel auf der Hostseite löschen | fragt vorher und sagt, was mitgeht; laufendes Spiel wird abgelehnt                                         | geht      | `e2e/host-page.spec.ts` |
 | S-08 | Kopf- und Fußzeile unter `/app` | dieselben Punkte wie auf den Django-Seiten, Karten nur für Staff, Abmelden; nicht im Spiel, nicht im Editor       | geht      | `chrome.spec.ts`        |
 | S-09 | Passwort raten                  | nach 10 Fehlversuchen 429 mit deutscher Seite, 15 Minuten                                                  | geht      | -                       |

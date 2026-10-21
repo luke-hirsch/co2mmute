@@ -33,7 +33,7 @@ Vite + TypeScript als SPA. Wie gespielt wird: [`docs/de-quick-start.md`](docs/de
 | `backend/content/`  | kleines CMS für die öffentlichen Seiten                            |
 | `backend/studies/`  | optional: Studien der Forschungsgruppe — Teilnahmecodes, Karten zum Drucken, Notizen; aus, wenn `"studies"` in `INSTALLED_APPS` auskommentiert ist |
 | `backend/template/` | Django-Templates — Landing, Hintergrund, Rechtstexte, Login        |
-| `frontend/`         | die SPA — Beitritt, Spielbildschirm, Hostseiten, Karteneditor      |
+| `frontend/`         | die SPA — Beitritt, Spielbildschirm, Seiten der Spielleitung, Karteneditor      |
 | `devops/`           | `dev.sh`, docker-compose, nginx                                    |
 | `map_examples/`     | die gespielte Karte als JSON — Berlin Mitte-West, acht Versionen   |
 | `docs/`             | Dokumentation                                                      |
@@ -41,7 +41,7 @@ Vite + TypeScript als SPA. Wie gespielt wird: [`docs/de-quick-start.md`](docs/de
 | `.github/`          | CI und das Deployment                                              |
 
 Es ist ein Hybrid, kein reines SPA: Landing Page, Hintergrund, Rechtstexte, Login und Admin sind
-servergerenderte Django-Templates; Beitritt, Spiel, Hostseiten und Editor sind React.
+servergerenderte Django-Templates; Beitritt, Spiel, die Seiten der Spielleitung und der Editor sind React.
 
 ### Lokal starten
 

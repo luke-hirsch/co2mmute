@@ -117,9 +117,8 @@ function routeDash(
  * The SVG is in map units × 100, so a 13-unit-wide map renders a 1380-unit view
  * box into roughly 370 CSS pixels on a phone — a scale of 0.27. Fixed unit sizes
  * therefore come out four times smaller than they look in the source: the home
- * and destination marks were `r=13`, which is **3.5 CSS pixels**, and that is the
- * roadmap's "two 4px dots among 55 on a phone". A map drawn in different units
- * would scale them differently again.
+ * and destination marks were `r=13`, which is **3.5 CSS pixels**: two 4px dots among
+ * 55 on a phone. A map drawn in different units would scale them differently again.
  *
  * So the numbers below are a fraction of the view box, tuned against Berlin
  * Mitte-West at 390px, and any map gets marks of the same apparent size.
@@ -451,10 +450,9 @@ const GameMapViewer = ({
           {/*
             Home and destination.
 
-            These were two 4px dots among 55 on a phone — the roadmap's own
-            words — so the one thing a player has to find on the map was the
-            hardest thing on it to see. Now they are labelled marks at thumb
-            scale: a ring for home, a filled disc for the destination, both in
+            These were two 4px dots among 55 on a phone, so the one thing a
+            player has to find on the map was the hardest thing on it to see.
+            Now they are labelled marks at thumb scale: a ring for home, a filled disc for the destination, both in
             ink with a halo, and the name written beside them. Filled vs hollow
             is the same "presence" language the roster and the track use, and it
             costs no colour, which the route needs all of.
