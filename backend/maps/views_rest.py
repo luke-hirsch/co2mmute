@@ -59,7 +59,12 @@ from maps.versions import (
     deletion_preview,
     drop_rows_from,
     generate_combinations,
+    line_route,
+    line_route_of,
+    pick_drawn_version,
     put_rows_in,
+    set_line_route,
+    spread_line_to_built_on,
     spread_to_built_on,
     train_chain_rows,
 )
@@ -402,21 +407,30 @@ class BusLineListView(MapScopedQuerysetMixin, ListCreateAPIView):
         map_id = self.get_map_id()
         return BusLine.objects.filter(game_map_id=map_id)
 
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        response.data = {**response.data, "skipped_versions": self.skipped_versions}
+        return response
+
     def perform_create(self, serializer):
         instance = serializer.save()
         edge_ids = self.request.data.get("edges", [])  # type: ignore
-        if edge_ids:
-            se_by_pk = {se.pk: se for se in StreetEdge.objects.filter(pk__in=edge_ids)}
+        se_by_pk = {se.pk: se for se in StreetEdge.objects.filter(pk__in=edge_ids)}
+        streets = [se_by_pk[eid] for eid in edge_ids if eid in se_by_pk]
+        drawn = list(instance.map_versions.all())
+        if streets:
             rows = BusLineEdge.objects.bulk_create(
                 [
-                    BusLineEdge(bus_line=instance, street_edge=se_by_pk[eid], order=idx)
-                    for idx, eid in enumerate(edge_ids)
-                    if eid in se_by_pk
+                    BusLineEdge(bus_line=instance, street_edge=se, order=idx)
+                    for idx, se in enumerate(streets)
                 ]
             )
             # The chain runs wherever the line runs. The editor draws a line on
             # the map, not on one version — versions come from the diff endpoint.
-            put_rows_in(rows, instance.map_versions.all())
+            put_rows_in(rows, drawn)
+        self.skipped_versions = spread_line_to_built_on(
+            instance, drawn, line_route_of(streets)
+        )
         _invalidate_map_cache(self.kwargs["pk"])
 
 
@@ -447,30 +461,44 @@ class BusLineEdgesView(GenericAPIView):
     permission_classes = (IsStaffOrReadOnly,)
 
     def put(self, request, pk, busline_pk):
-        """Replace the chain — in every version the line runs in.
+        """Replace the chain in the version it was drawn in and the ones built on it.
 
-        The endpoint takes no version, so it cannot do less than that, and the
-        editor's line panel has always meant "this is the line's route". A
-        per-version chain edit is the diff endpoint's job.
+        The endpoint takes no version: the version drawn in is the one among
+        the line's that holds every street sent (the base if it does). Each
+        version built on it gets the new route over its own streets, unless its
+        route was not the drawn version's before — then the route is that
+        version's change and stays, and the version is listed in
+        `skipped_versions`. A version the drawn one is not built on is never
+        touched.
         """
         bus_line = get_object_or_404(BusLine, pk=busline_pk, game_map_id=pk)
         edge_ids = request.data.get("edges", [])
-        BusLineEdge.objects.filter(bus_line=bus_line).delete()
-        if edge_ids:
-            se_by_pk = {se.pk: se for se in StreetEdge.objects.filter(pk__in=edge_ids)}
-            rows = BusLineEdge.objects.bulk_create(
-                [
-                    BusLineEdge(bus_line=bus_line, street_edge=se_by_pk[eid], order=idx)
-                    for idx, eid in enumerate(edge_ids)
-                    if eid in se_by_pk
-                ]
-            )
-            put_rows_in(rows, bus_line.map_versions.all())
+        se_by_pk = {se.pk: se for se in StreetEdge.objects.filter(pk__in=edge_ids)}
+        streets = [se_by_pk[eid] for eid in edge_ids if eid in se_by_pk]
+        skipped = _replace_route(bus_line, streets)
         _invalidate_map_cache(pk)
         return Response(
-            BusLineSerializer(bus_line).data,
+            {**BusLineSerializer(bus_line).data, "skipped_versions": skipped},
             status=status.HTTP_200_OK,
         )
+
+
+def _replace_route(line, under_rows):
+    """Give `line` the route of `under_rows` where it was drawn, and spread it."""
+    held = list(line.map_versions.all())
+    sent = [set(row.map_versions.values_list("pk", flat=True)) for row in under_rows]
+    drawn = pick_drawn_version(
+        v for v in held if all(v.pk in versions for versions in sent)
+    )
+    if drawn is None:
+        return []
+    # Spread first: the drawn version's old chain rows are still in it, so the
+    # versions built on it still read as built on it.
+    skipped = spread_line_to_built_on(
+        line, [drawn], line_route_of(under_rows), line_route(line, drawn)
+    )
+    set_line_route(line, drawn, under_rows)
+    return skipped
 
 
 # TrainEdge Views
@@ -537,21 +565,28 @@ class TrainLineListView(MapScopedQuerysetMixin, ListCreateAPIView):
         map_id = self.get_map_id()
         return TrainLine.objects.filter(game_map_id=map_id)
 
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        response.data = {**response.data, "skipped_versions": self.skipped_versions}
+        return response
+
     def perform_create(self, serializer):
         instance = serializer.save()
         edge_ids = self.request.data.get("edges", [])  # type: ignore
-        if edge_ids:
-            te_by_pk = {te.pk: te for te in TrainEdge.objects.filter(pk__in=edge_ids)}
+        te_by_pk = {te.pk: te for te in TrainEdge.objects.filter(pk__in=edge_ids)}
+        rails = [te_by_pk[eid] for eid in edge_ids if eid in te_by_pk]
+        drawn = list(instance.map_versions.all())
+        if rails:
             rows = TrainLineEdge.objects.bulk_create(
                 [
-                    TrainLineEdge(
-                        train_line=instance, train_edge=te_by_pk[eid], order=idx
-                    )
-                    for idx, eid in enumerate(edge_ids)
-                    if eid in te_by_pk
+                    TrainLineEdge(train_line=instance, train_edge=te, order=idx)
+                    for idx, te in enumerate(rails)
                 ]
             )
-            put_rows_in(rows, instance.map_versions.all())
+            put_rows_in(rows, drawn)
+        self.skipped_versions = spread_line_to_built_on(
+            instance, drawn, line_route_of(rails)
+        )
         _invalidate_map_cache(self.kwargs["pk"])
 
 
@@ -582,25 +617,15 @@ class TrainLineEdgesView(GenericAPIView):
     permission_classes = (IsStaffOrReadOnly,)
 
     def put(self, request, pk, trainline_pk):
-        """Replace the chain in every version the line runs in — see the bus."""
+        """Replace the chain where it was drawn and in the versions built on it."""
         train_line = get_object_or_404(TrainLine, pk=trainline_pk, game_map_id=pk)
         edge_ids = request.data.get("edges", [])
-        TrainLineEdge.objects.filter(train_line=train_line).delete()
-        if edge_ids:
-            te_by_pk = {te.pk: te for te in TrainEdge.objects.filter(pk__in=edge_ids)}
-            rows = TrainLineEdge.objects.bulk_create(
-                [
-                    TrainLineEdge(
-                        train_line=train_line, train_edge=te_by_pk[eid], order=idx
-                    )
-                    for idx, eid in enumerate(edge_ids)
-                    if eid in te_by_pk
-                ]
-            )
-            put_rows_in(rows, train_line.map_versions.all())
+        te_by_pk = {te.pk: te for te in TrainEdge.objects.filter(pk__in=edge_ids)}
+        rails = [te_by_pk[eid] for eid in edge_ids if eid in te_by_pk]
+        skipped = _replace_route(train_line, rails)
         _invalidate_map_cache(pk)
         return Response(
-            TrainLineSerializer(train_line).data,
+            {**TrainLineSerializer(train_line).data, "skipped_versions": skipped},
             status=status.HTTP_200_OK,
         )
 

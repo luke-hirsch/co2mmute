@@ -36,10 +36,12 @@ import json
 import math
 from pathlib import Path
 
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
+from django.urls import reverse
 
 from maps.checks import check_map
-from maps.models import BusLine, Edge, MapVersion, Node, TrainLine
+from game.tests._helpers import TEST_BACKENDS
+from maps.models import BusLine, BusLineEdge, Edge, MapVersion, Node, TrainLine
 from maps.serializer import serialize_bus_line_for_graph, serialize_train_line_for_graph
 from maps.tests.test_portability import MapUploadMixin
 from sim import node_chain
@@ -873,3 +875,67 @@ class ShippedMapBallotTests(ShippedUploadMixin, TestCase):
             for active, target, _, _ in self.steps(game_map)
         }
         self.assertFalse([text for text in asked if text.startswith("Die Karte soll")])
+
+
+@override_settings(**TEST_BACKENDS)
+class LineDrawnInShippedBaseTests(ShippedUploadMixin, TestCase):
+    """A line drawn in base reaches every version, and the map stays whole.
+
+    The copy runs over the streets bus 100 runs on in base. Busspuren runs 100
+    over its own clones of them, so the new line has to find those clones by
+    node pair rather than reuse base's rows.
+    """
+
+    def draw_copy_of(self, game_map, name):
+        base = MapVersion.objects.get(game_map=game_map, base_version=True)
+        original = BusLine.objects.get(game_map=game_map, name=name)
+        streets = list(
+            BusLineEdge.objects.filter(bus_line=original, map_versions=base)
+            .order_by("order")
+            .values_list("street_edge_id", flat=True)
+        )
+        response = self.client.post(
+            reverse("maps:busline-list", kwargs={"pk": game_map.pk}),
+            data={
+                "game_map": game_map.pk,
+                "name": f"{name}x",
+                "map_versions": [base.pk],
+                "edges": streets,
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        return original, BusLine.objects.get(pk=response.json()["id"]), response.json()
+
+    def test_a_copy_of_100_runs_in_every_version_it_can_and_check_map_stays_clean(self):
+        game_map = self.upload_shipped_map()
+
+        original, line, body = self.draw_copy_of(game_map, "100")
+
+        self.assertEqual(body["skipped_versions"], [])
+        versions = MapVersion.objects.filter(game_map=game_map)
+        self.assertEqual(set(line.map_versions.all()), set(original.map_versions.all()))
+        for version in original.map_versions.all():
+            self.assertEqual(
+                len(serialize_bus_line_for_graph(line, version)["edges"]),
+                len(serialize_bus_line_for_graph(original, version)["edges"]),
+                version.name,
+            )
+        exported = self.client.get(
+            reverse("maps:map-export", kwargs={"pk": game_map.pk})
+        ).json()
+        self.assertEqual(
+            [f"[{p.check}] {p.message}" for p in check_map(exported)], []
+        )
+
+        # and the file it exported imports to the same lines, version by version
+        again = self.upload(exported, name="Zweiter Import", max_players=6)
+        copy = BusLine.objects.get(game_map=again, name="100x")
+        twin = BusLine.objects.get(game_map=again, name="100")
+        for version in MapVersion.objects.filter(game_map=again, busline=twin):
+            self.assertEqual(
+                len(serialize_bus_line_for_graph(copy, version)["edges"]),
+                len(serialize_bus_line_for_graph(twin, version)["edges"]),
+                version.name,
+            )
+
