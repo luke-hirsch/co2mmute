@@ -89,6 +89,10 @@ The report comes in sections. Most lines say what a rule did and need nothing. T
   timetable but from OSM or, failing that, the defaults (U-Bahn 5, S-Bahn 10, regional 60, tram 15,
   bus 20 min). List them. `Pendler N (ein Platzhalter bis zur Kalibrierung), Haltestellen …,
   Bahnhöfe …`: the counts for the summary; the commuters are replaced by step 4.
+- **Hintergrund** — `Gewässer fehlen, ohne gezeichnet (…)` or `Grünflächen fehlen …`: Overpass would
+  not give that layer (the public instances drop the optional ones often). The map is complete and
+  plays; its background lacks the water or the parks. Nothing is cached for a failed layer, so
+  building the same area again later draws it. Say which layer, and offer to build again.
 - **Achtung** — every line here goes to the human, each ends in its own `Vorschlag: …`:
   - `auf dieser Karte fährt kein Bus und keine Bahn`: the map plays car, bike and foot only.
   - `kein Fahrplan für dieses Gebiet …`: all intervals from OSM or the defaults.
