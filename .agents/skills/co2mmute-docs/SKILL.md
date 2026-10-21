@@ -55,8 +55,10 @@ Check: `devops/dev.sh test maps`, and `manage.py check_map` on the shipped map i
 2. Both golden masters: `backend/game/tests/test_sim_golden.py`, fixtures
    `backend/game/tests/golden/sim_golden.json` and `sim_golden_pt.json`. Regenerate with
    `GOLDEN_REGENERATE=1 devops/dev.sh test game.tests.test_sim_golden` only for a deliberate change, and say so in the commit.
-3. `docs/kalibrierung.md` and the figures in `docs/de-hintergrund.md` / `docs/en-background.md`,
-   then their site copy (see "a doc page").
+3. `docs/de-zahlen.md` / `docs/en-numbers.md` (the entry: value, what it does, its source),
+   `docs/kalibrierung.md` and the figures in `docs/de-hintergrund.md` / `docs/en-background.md`,
+   then their site copy (see "a doc page"). A number changed on newer research is
+   `.agents/skills/sim-experiment/SKILL.md`: the maps measured before and after, then this list.
 4. A shipped map's measured count and share (`docs/kalibrierung.md`) are stale after a change that
    moves a round; re-measure with `calibrate_map`.
 
@@ -64,7 +66,7 @@ Check: the whole backend suite, reading the count.
 
 ## a line's seats and speed
 
-Four places carry the same defaults, per bus, train and tram:
+Three files carry the same defaults, per bus, train and tram:
 
 - `BusLine` and `TrainLine.DEFAULTS` in `backend/maps/models.py`
 - `frontend/src/lib/map/pt-defaults.ts`
@@ -134,7 +136,8 @@ the copies identical; deploy needs all three. Diff the two job blocks before you
 
 ## a doc page
 
-- `docs/` is flat `de-`/`en-` pairs (`quick-start`, `flowcharts`; `de-hintergrund` is `en-background`).
+- `docs/` is flat `de-`/`en-` pairs (`quick-start`, `flowcharts`, `de-zahlen` is `en-numbers`; `de-hintergrund`
+  is `en-background`).
   `kalibrierung.md` and `testfaelle.md` have no twin and stay off the site.
 - The pages under `/docs/` are hand copies of the German files: `backend/template/docs/schnellstart.html`,
   `hintergrund.html`, `ablaufdiagramme.html`. A change to one is a change to the other. No test

@@ -34,7 +34,7 @@ every column: UTF-8 with a byte-order mark (Excel shows the umlauts; pandas want
 and anonymised** leave. A game that ended less than 24 hours ago is still in its grace period (it is
 being debriefed) and stays out until the grace ends and the hourly job anonymises it. A running game
 is not data yet. `manage.py anonymise_games --all` anonymises every ended game at once, grace period
-or not: run it only when the host is done with the debrief.
+or not: run it only when the host is done with the debrief (`--dry-run` lists the games it would take).
 
 ## 2. what is in it
 

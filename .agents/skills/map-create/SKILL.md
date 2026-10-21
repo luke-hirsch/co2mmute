@@ -93,7 +93,8 @@ The report comes in sections. Most lines say what a rule did and need nothing. T
   not give that layer (the public instances drop the optional ones often). The map is complete and
   plays; its background lacks the water or the parks. Nothing is cached for a failed layer, so
   building the same area again later draws it. Say which layer, and offer to build again.
-- **Achtung** — every line here goes to the human, each ends in its own `Vorschlag: …`:
+- **Achtung** — every line here goes to the human; all but the first two end in their own
+  `Vorschlag: …`:
   - `auf dieser Karte fährt kein Bus und keine Bahn`: the map plays car, bike and foot only.
   - `kein Fahrplan für dieses Gebiet …`: all intervals from OSM or the defaults.
   - `N Orte ohne Halt im Umkreis von 1000 m (…): …`: no stop of a kept line within 1 km of these
@@ -119,7 +120,7 @@ The report comes in sections. Most lines say what a rule did and need nothing. T
 **A line with no morning trip, or workplaces with only one bus.** Say it plainly: the people who
 work there ride a bus that hardly runs in the morning, so they wait, and every line keeps running
 until the last of them is home — the timetable runs long because of it. Bremen's 80 at the
-steelworks is the case: a shift bus with no trip between 8 and 10, the only line for 26 of 164
+steelworks is the case: a shift bus with no trip between 8 and 10, the only line for 27 of 164
 workplaces, and most of Bremen's waiting. Suggest a version that gives the line a morning interval
 (`map-versions`, `interval`), or add a workplace where more lines run (`map-modify` `place`; taking
 the old one away is the map editor's). Don't touch the builder for
@@ -159,7 +160,7 @@ plus `_calibrate`, and a second run drops the first one's.
 Read its report:
 
 - `Pendler: N — alle im Auto fahren morgens X km/h, Ziel Y km/h`, then the `gemessen:` lines of the
-  search. X close to Y: done. X far from Y: the map tips — a count that still flows next to one
+  search (with `--commuters` it is `Pendler: N (vorgegeben) — alle im Auto: X km/h`, no search). X close to Y: done. X far from Y: the map tips — a count that still flows next to one
   barely bigger that stands. The command answers the last count that flows. Give the human both lines; don't pick a count by hand.
 - `nie fertig`, and `ERROR … The 1000-tick guard stopped …` in the log during the search: a count
   so big its rounds never end. Expected while searching.
@@ -174,26 +175,28 @@ Read its report:
   the file. `nicht messbar`: no lines, or nobody rides at 50 % car.
 - the table: **`nicht da` is 0 in every row.** Anything else is a defect of the map or the model,
   never a result: stop, don't upload, give the human the row and the log's lines.
-- `N Gruppen hatten in ihrem Verkehrsmittel keinen Weg …`: pairs of home and workplace with no way
-  by bus and train (or by car). Pass it on with the build report's places.
+- `N Gruppen hatten in ihrem Verkehrsmittel keinen Weg und haben das andere genommen`: pairs of home
+  and workplace with no way by bus and train (or by car), played by the other mode. Pass it on with
+  the build report's places.
 - `Eine Runde ohne Auto kostet hier mehr als eine, in der alle fahren …`: the timetable runs whether
   anybody rides. On a sparse map that is what the map teaches; say it.
 
 `--out` writes a copy with the commuters, `calibrated_at`, the share and the table (`co2_table`:
-kg per person per round at each car share, which the create form reads to say "bei 2,4 kg bis N %
-Auto" and "nicht spielbar" at both ends). That copy is the map.
+kg per person per round at each car share, which the create form reads to say "Auf dieser Karte
+reichen X kg, wenn bis zu P % der Gruppen Auto fahren" and "Nicht spielbar" at both ends). That copy is the map.
 
 ## 5. upload
 
-On any instance: `/app/maps/upload` ("Karte hochladen"), logged in as staff — the calibrated file, a
-name, no background image. On the local stack the same upload as a script:
+On any instance: `/app/maps/upload` ("Karte hochladen"), logged in as staff — the calibrated file
+("Kartendatei (JSON)"), a name, no background image (the file carries its own), then "Karte anlegen". On the local stack the same upload as a script:
 
 ```bash
 cd frontend && E2E_MAP=/abs/map.calibrated.json E2E_MAP_NAME="Bremen" node e2e/seed.mjs
 ```
 
-(`E2E_BASE_URL`, `E2E_USER` and `E2E_PASSWORD` say where and as whom; see the script's head.) An
-upload always makes a new map. **A built map never goes into `map_examples/` or into git** — that
+(`E2E_BASE_URL`, `E2E_USER` and `E2E_PASSWORD` say where and as whom; see the script's head. The
+script does nothing when a map of that name is already there, and `--recreate` renames the old one
+aside first.) The page's upload always makes a new map. **A built map never goes into `map_examples/` or into git** — that
 folder is the hand-drawn map that is played. A built map lives in the database, and its export
 (`api/maps/<id>/export/`) is its backup.
 
