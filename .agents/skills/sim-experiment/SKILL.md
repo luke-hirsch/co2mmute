@@ -83,7 +83,9 @@ In this order, each checked:
    lowercase, terse).
 3. **Every map's row**: for each map measured, the file step 3 wrote with `--out` goes to
    `check-up`'s `write`, which puts the
-   count, the share, the table and the date on the instance's row. A map the human did not name is
+   count, the share, the table and the date on the instance's row. `write` refuses a file whose map
+   name differs from the row's: for a shipped file measured against a row of another name (the e2e
+   seed calls it "E2E Berlin"), check the names first. A map the human did not name is
    `veraltet` in the sense that its table was measured with the old number; say so, and let
    `check-up` list it.
 4. **The docs**, search the old value in each: `docs/kalibrierung.md` (the measured tables),
@@ -91,7 +93,7 @@ In this order, each checked:
    `docs/en-background.md` and the site copy `backend/template/docs/hintergrund.html` (the
    figures). The pairs and the site copy change together. Then grep the old value across
    `backend/` and `docs/` once more: comments and docstrings quote figures too.
-5. **The whole suites** through the heavy-run rules of the machine: backend, vitest, the three
+5. **The whole suites**, one heavy run at a time (`README.md`, "Tests"): backend, vitest, the three
    `tsc`, e2e. Read the counts.
 
 ## don't
